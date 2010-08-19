@@ -62,7 +62,7 @@ static void verify_dbfile(int n, const char *name) {
 	int kk = i;
 	int vv = i;
 	struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+        r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
         if (r != 0) {
 	    assert(pair.call_count ==0);
 	    break;

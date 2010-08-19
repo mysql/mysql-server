@@ -169,8 +169,6 @@ typedef enum {
 #define DB_LOCK_DEFAULT 1
 #define DB_LOCK_OLDEST 7
 #define DB_LOCK_RANDOM 8
-#define DB_DUP 32768
-#define DB_DUPSORT 65536
 #define DB_KEYFIRST 13
 #define DB_KEYLAST 14
 #define DB_NOOVERWRITE 20
@@ -195,21 +193,16 @@ typedef enum {
 #define DB_DELETE_ANY 65536
 #define DB_TRUNCATE_WITHCURSORS 131072
 #define DB_FIRST 7
-#define DB_GET_BOTH 8
-#define DB_GET_BOTH_RANGE 10
 #define DB_LAST 15
 #define DB_CURRENT 6
 #define DB_NEXT 16
-#define DB_NEXT_DUP 17
 #define DB_NEXT_NODUP 18
 #define DB_PREV 23
-#define DB_PREV_DUP 24
 #define DB_PREV_NODUP 25
 #define DB_SET 26
 #define DB_SET_RANGE 27
 #define DB_CURRENT_BINDING 253
 #define DB_SET_RANGE_REVERSE 252
-#define DB_GET_BOTH_RANGE_REVERSE 251
 #define DB_RMW 1073741824
 #define DB_PRELOCKED 0x00800000
 #define DB_PRELOCKED_WRITE 0x00400000
@@ -253,16 +246,15 @@ struct __toku_db_env {
   int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */;
   int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */;
   int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
-  int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
   int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags);
-  void *app_private;
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
                                              uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,
                                              void *extra) /* Insert into multiple dbs */;
+  void *app_private;
   int (*set_generate_row_callback_for_put)    (DB_ENV *env, 
                                              int (*generate_row_for_put)(DB *dest_db, DB *src_db,
                                                                          DBT *dest_key, DBT *dest_val,
@@ -344,16 +336,14 @@ struct __toku_db {
   int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *);
   void *app_private;
   DB_ENV *dbenv;
-  int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*);
+  int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*);
   int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
-  int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
   DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
   int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */;
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
-  int (*getf_get_both)(DB*, DB_TXN*, u_int32_t, DBT*, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_get_both without a persistent cursor) */;
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
   void *api_internal;
@@ -370,7 +360,6 @@ struct __toku_db {
   int (*remove) (DB *, const char *, const char *, u_int32_t);
   int (*rename) (DB *, const char *, const char *, const char *, u_int32_t);
   int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *));
-  int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *));
   void (*set_errfile) (DB *, FILE*);
   int (*set_flags) (DB *, u_int32_t);
   int (*set_pagesize) (DB *, u_int32_t);
@@ -415,19 +404,12 @@ struct __toku_dbc {
   int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_next_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_next_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_prev)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_prev_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_prev_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_get_both)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_get_both_range)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_get_both_range_reverse)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_close) (DBC *);
   int (*c_count) (DBC *, db_recno_t *, u_int32_t);
   int (*c_del) (DBC *, u_int32_t);

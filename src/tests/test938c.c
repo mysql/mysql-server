@@ -24,8 +24,9 @@ run (void) {
     // It also fails for BDB for other reasons (page-level locking vs. row-level locking)
     {
 	r=env->txn_begin(env, 0, &txn, 0);                            CKERR(r);
+	char kk[2] = {v2, v102};
 	DBT k,v;
-	r=db->put(db, txn, dbt_init(&k, &v2, 1), dbt_init(&v, &v102, 1), DB_YESOVERWRITE); CKERR(r);
+	r=db->put(db, txn, dbt_init(&k, &kk, 2), dbt_init(&v, &v102, 1), DB_YESOVERWRITE); CKERR(r);
 
 	r=txn->commit(txn, 0);                                        CKERR(r);
     }
@@ -34,14 +35,18 @@ run (void) {
 	r=env->txn_begin(env, 0, &txn2, 0);                           CKERR(r);    
 
 	DBT k,v;
-
-	r=db->put(db, txn, dbt_init(&k, &v1, 1), dbt_init(&v, &v101, 1), DB_YESOVERWRITE); CKERR(r);
+	{
+	    char kk[2] = {v1, v101};
+	    r=db->put(db, txn, dbt_init(&k, &kk, 2), dbt_init(&v, &v101, 1), DB_YESOVERWRITE); CKERR(r);
+	}
 
 	DBC *c2;
 	r=db->cursor(db, txn2, &c2, 0);                                CKERR(r);
 
-
-	r=c2->c_get(c2, dbt_init(&k, &v2, 1), dbt_init(&v, &v102, 1), DB_GET_BOTH); CKERR(r);
+	{
+	    char kk[2] = {v2, v102};
+	    r=c2->c_get(c2, dbt_init(&k, &kk, 2), dbt_init(&v, &v102, 1), DB_SET); CKERR(r);
+	}
 	r=c2->c_get(c2, dbt_init_malloc(&k), dbt_init_malloc(&v), DB_NEXT);  assert(r==DB_NOTFOUND);
 
 	r=c2->c_close(c2);
@@ -62,11 +67,13 @@ test_main(int argc, char *const argv[]) {
     DB_TXN *txn;
     {
         r = db_env_create(&env, 0);                                   CKERR(r);
+#ifdef TOKUDB
+	r = env->set_redzone(env, 0);                                 CKERR(r);
+#endif
 	r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 	env->set_errfile(env, stderr);
 	r=env->txn_begin(env, 0, &txn, 0);                            CKERR(r);
 	r=db_create(&db, env, 0);                                     CKERR(r);
-	r=db->set_flags(db, DB_DUP|DB_DUPSORT);
 	r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);  CKERR(r);
 	r=txn->commit(txn, 0);                                        CKERR(r);
     }

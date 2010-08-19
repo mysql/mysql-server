@@ -116,7 +116,6 @@ check: $(TARGETS) \
  check_test_reverse_compare_fun \
  check_test1e \
  check_db_create \
- check_db_create_DSM \
  check_db_create_1 check_db_create_2 check_db_create_3 check_db_create_4 \
  check_permissions \
  check_exceptions \
@@ -137,10 +136,6 @@ check_db_create: db_create
 	rm -rf $@.dir
 	mkdir $@.dir
 	$(VGRIND) ./db_create --env_dir $@.dir -s main $@.tdb  $(SUMMARIZE_CMD)
-check_db_create_DSM: db_create
-	rm -rf $@.dir
-	mkdir $@.dir
-	$(VGRIND) ./db_create --env_dir $@.dir -D -S -s main $@.tdb  $(SUMMARIZE_CMD)
 
 # These don't need to set the env dir
 check_db_create_1: db_create

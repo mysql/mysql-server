@@ -21,11 +21,6 @@ static void toku_calc_more_murmur_kvpair (struct x1764 *mm, const void *key, int
  u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen) {
     return toku_calc_more_crc32_kvpair(toku_null_crc, key, keylen, val, vallen);
 }
-
-u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp) {
-    return toku_calccrc32_kvpair(kv_pair_key_const(kvp), kv_pair_keylen(kvp),
-				 kv_pair_val_const(kvp), kv_pair_vallen(kvp));
-}
 #endif
 
 u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, XIDS xids, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen) {

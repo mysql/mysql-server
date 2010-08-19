@@ -127,11 +127,6 @@ int Db::set_bt_compare(bt_compare_fcn_type bt_compare_fcn) {
     return the_Env->maybe_throw_error(ret);
 }
 
-int Db::set_dup_compare(dup_compare_fcn_type dup_compare_fcn) {
-    int ret = the_db->set_dup_compare(the_db, dup_compare_fcn);
-    return the_Env->maybe_throw_error(ret);
-}
-
 int Db::fd(int *fdp) {
     int ret = the_db->fd(the_db, fdp);
     return the_Env->maybe_throw_error(ret);
@@ -140,12 +135,6 @@ int Db::fd(int *fdp) {
 extern "C" int toku_dup_compare_callback_c(DB *db_c, const DBT *a, const DBT *b) {
     Db *db_cxx=Db::get_Db(db_c);
     return db_cxx->dup_compare_callback_cxx(db_cxx, Dbt::get_const_Dbt(a), Dbt::get_const_Dbt(b));
-}
-
-int Db::set_dup_compare(int (*dup_compare_callback)(Db *, const Dbt *, const Dbt *)) {
-    dup_compare_callback_cxx = dup_compare_callback;
-    int ret = the_db->set_dup_compare(the_db, toku_dup_compare_callback_c);
-    return the_Env->maybe_throw_error(ret);
 }
 
 void Db::set_errpfx(const char *errpfx) {

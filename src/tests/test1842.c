@@ -60,7 +60,6 @@ setup_db (u_int32_t dup_mode) {
 
         r = db_create(&db, env, 0); CKERR(r);
         r=db->set_bt_compare(db, int_dbt_cmp); CKERR(r);
-        r=db->set_dup_compare(db, length_int_dbt_cmp); CKERR(r);
         r = db->set_flags(db, dup_mode); assert(r == 0); CKERR(r);
         r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
         r = txn->commit(txn, 0); CKERR(r);

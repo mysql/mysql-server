@@ -115,7 +115,7 @@ test_serialize_nonleaf(void) {
     assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);
     assert(strcmp(kv_pair_key(dn->u.n.childkeys[0]), "hello")==0);
-    assert(toku_brtnode_pivot_key_len(dn, dn->u.n.childkeys[0])==6);
+    assert(toku_brt_pivot_key_len(dn->u.n.childkeys[0])==6);
     assert(dn->u.n.totalchildkeylens==6);
     assert(BNC_BLOCKNUM(dn,0).b==30);
     assert(BNC_BLOCKNUM(dn,1).b==35);

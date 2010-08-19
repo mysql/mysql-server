@@ -57,12 +57,11 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
 
     void *ptrs[n];
     for (i=0; i<n; i++) {
-	DBT kbt, vbt;
+	DBT kbt;
 	char key[10];
 	snprintf(key, sizeof key, "k%04d", i);
 	r = toku_brt_cursor_get(cursors[i],
 				toku_fill_dbt(&kbt, key, 1+strlen(key)),
-				toku_init_dbt(&vbt),
 				save_data,
 				&ptrs[i],
 				DB_SET);

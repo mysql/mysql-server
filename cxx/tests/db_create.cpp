@@ -45,7 +45,7 @@ static int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *arg
 }
 
 static int usage() {
-    fprintf(stderr, "db_create [-s DBNAME] [-D] [-S] DBFILE [KEY VAL]*\n");
+    fprintf(stderr, "db_create [-s DBNAME] DBFILE [KEY VAL]*\n");
     fprintf(stderr, "[--set_data_dir DIRNAME]\n");
     return 1;
 }
@@ -63,14 +63,6 @@ int main(int argc, char *argv[]) {
             if (i+1 >= argc)
                 return usage();
             dbname = argv[++i];
-            continue;
-        }
-        if (0 == strcmp(arg, "-D")) {
-            dbflags += DB_DUP;
-            continue;
-        }
-        if (0 == strcmp(arg, "-S")) {
-            dbflags += DB_DUPSORT;
             continue;
         }
 	if (0 == strcmp(arg, "--env_dir")) {

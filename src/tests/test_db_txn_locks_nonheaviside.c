@@ -151,7 +151,7 @@ early_abort (char name) {
 }
 
 static void
-setup_dbs (u_int32_t dup_flags) {
+setup_dbs (void) {
     int r;
 
     r = system("rm -rf " ENVDIR);
@@ -169,13 +169,7 @@ setup_dbs (u_int32_t dup_flags) {
     
     r = db_create(&db, dbenv, 0);
         CKERR(r);
-    if (dup_flags) {
-        r = db->set_flags(db, dup_flags);
-            CKERR(r);
-    }
     r = db->set_bt_compare( db, int_dbt_cmp);
-    CKERR(r);
-    r = db->set_dup_compare(db, int_dbt_cmp);
     CKERR(r);
 
     char a;
@@ -207,15 +201,15 @@ close_dbs(void) {
 
 static __attribute__((__unused__))
 void
-test_abort (u_int32_t dup_flags) {
+test_abort (void) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     early_abort('a');
     cget(TRUE, FALSE, 'b', 1, 1, 0, 0, DB_SET);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET);
     cget(TRUE, FALSE, 'b', 1, 1, 0, 0, DB_SET);
     put(FALSE, 'a', 1, 1);
@@ -231,33 +225,33 @@ test_abort (u_int32_t dup_flags) {
 }
 
 static void
-test_both (u_int32_t dup_flags, u_int32_t db_flags) {
+test_both (u_int32_t db_flags) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
     cget(TRUE, FALSE, 'a', 2, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
     cget(TRUE, FALSE, 'b', 2, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
     cget(TRUE, FALSE, 'b', 1, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
     cget(TRUE, FALSE, 'b', 1, 1, 0, 0, db_flags);
     put(FALSE, 'a', 1, 1);
@@ -273,9 +267,9 @@ test_both (u_int32_t dup_flags, u_int32_t db_flags) {
 
 
 static void
-test_last (u_int32_t dup_flags) {
+test_last (void) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 0, 0, 0, 0, DB_LAST);
     put(FALSE, 'b', 2, 1);
     put(TRUE, 'a', 2, 1);
@@ -284,7 +278,7 @@ test_last (u_int32_t dup_flags) {
     put(TRUE, 'b', 2, 1);
     close_dbs();
     /* ****************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_LAST);
     put(FALSE, 'b', 2, 1);
@@ -292,7 +286,7 @@ test_last (u_int32_t dup_flags) {
     cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_LAST);
     close_dbs();
     /* ****************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     put(TRUE, 'a', 3, 1);
     put(TRUE, 'a', 6, 1);
@@ -303,17 +297,17 @@ test_last (u_int32_t dup_flags) {
     put(TRUE, 'b', -1, 1);
     close_dbs();
     /* ****************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_LAST);
-    put((BOOL)(dup_flags != 0), 'b', 1, 0);
+    put(FALSE, 'b', 1, 0);
     close_dbs();
 }
 
 static void
-test_first (u_int32_t dup_flags) {
+test_first (void) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', 0, 0, 0, 0, DB_FIRST);
     put(FALSE, 'b', 2, 1);
     put(TRUE, 'a', 2, 1);
@@ -322,7 +316,7 @@ test_first (u_int32_t dup_flags) {
     put(TRUE, 'b', 2, 1);
     close_dbs();
     /* ****************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_FIRST);
     put(TRUE, 'b', 2, 1);
@@ -330,7 +324,7 @@ test_first (u_int32_t dup_flags) {
     cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_FIRST);
     close_dbs();
     /* ****************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     put(TRUE, 'a', 3, 1);
     put(TRUE, 'a', 6, 1);
@@ -341,41 +335,41 @@ test_first (u_int32_t dup_flags) {
     put(FALSE, 'b', -1, 1);
     close_dbs();
     /* ****************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_FIRST);
-    put((BOOL)(dup_flags != 0), 'b', 1, 2);
+    put(FALSE, 'b', 1, 2);
     close_dbs();
 }
 
 static void
-test_set_range (u_int32_t dup_flags, u_int32_t flag, int i) {
+test_set_range (u_int32_t flag, int i) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     cget(TRUE, FALSE, 'a', i*2, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     cget(TRUE, FALSE, 'b', i*2, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     cget(TRUE, FALSE, 'b', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     cget(TRUE, FALSE, 'b', i*5, i*5, 0, 0, flag);
     put(FALSE, 'a', i*7, i*6);
@@ -398,61 +392,9 @@ test_set_range (u_int32_t dup_flags, u_int32_t flag, int i) {
 }
 
 static void
-test_both_range (u_int32_t dup_flags, u_int32_t flag, int i) {
-    if (dup_flags == 0) {
-      test_both(dup_flags, flag);
-      return;
-    }
+test_next (u_int32_t next_type) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    close_dbs();
-    /* ********************************************************************** */
-    setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'a', i*2, i*1, 0, 0, flag);
-    close_dbs();
-    /* ********************************************************************** */
-    setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    close_dbs();
-    /* ********************************************************************** */
-    setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'b', i*2, i*1, 0, 0, flag);
-    close_dbs();
-    /* ********************************************************************** */
-    setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'b', i*1, i*1, 0, 0, flag);
-    close_dbs();
-    /* ********************************************************************** */
-    setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'b', i*5, i*5, 0, 0, flag);
-    put(TRUE, 'a', i*5, 0);
-    put(FALSE, 'a', i*5, i*5);
-    put(FALSE, 'a', i*5, i*6);
-    put(TRUE,  'a', i*6, 0);
-    put(TRUE,  'b', i*1, 0);
-    early_commit('b');
-    put(TRUE, 'a', i*5, 0);
-    put(TRUE, 'a', i*5, i*5);
-    put(TRUE, 'a', i*5, i*6);
-    put(TRUE,  'a', i*6, 0);
-    cget(TRUE, FALSE, 'a', i*1, i*1, i*4, i*4, flag);
-    cget(TRUE,  TRUE, 'a', i*1, 0, i*1, 0, flag);
-    cget(FALSE, TRUE, 'c', i*5, i*5, i*5, i*5, flag);
-    early_commit('a');
-    cget(TRUE, TRUE, 'c', i*5, i*5, i*5, i*5, flag);
-    close_dbs();
-}
-
-static void
-test_next (u_int32_t dup_flags, u_int32_t next_type) {
-    /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE,  'a', 2, 1);
     put(TRUE,  'a', 5, 1);
     cget(TRUE, TRUE, 'a', 0, 0, 2, 1, next_type);
@@ -461,12 +403,12 @@ test_next (u_int32_t dup_flags, u_int32_t next_type) {
     put(FALSE, 'b', -1, 1);
     cget(FALSE, TRUE, 'a', 0, 0, 4, 1, next_type);
     early_commit('b');
-    cget(TRUE,  TRUE, 'a', 2, 1, 2, 1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'a', 2, 1, 2, 1, DB_SET);
     cget(TRUE,  TRUE, 'a', 0, 0, 4, 1, next_type);
     cget(TRUE,  TRUE, 'a', 0, 0, 5, 1, next_type);
     close_dbs();
     /* ****************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     put(TRUE, 'a', 3, 1);
     put(TRUE, 'a', 6, 1);
@@ -480,9 +422,9 @@ test_next (u_int32_t dup_flags, u_int32_t next_type) {
 }
 
 static void
-test_prev (u_int32_t dup_flags, u_int32_t next_type) {
+test_prev (u_int32_t next_type) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE,  'a', -2, -1);
     put(TRUE,  'a', -5, -1);
     cget(TRUE, TRUE, 'a', 0, 0, -2, -1, next_type);
@@ -491,12 +433,12 @@ test_prev (u_int32_t dup_flags, u_int32_t next_type) {
     put(FALSE, 'b', 1, -1);
     cget(FALSE, TRUE, 'a', 0, 0, -4, -1, next_type);
     early_commit('b');
-    cget(TRUE,  TRUE, 'a', -2, -1, -2, -1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'a', -2, -1, -2, -1, DB_SET);
     cget(TRUE,  TRUE, 'a', 0, 0, -4, -1, next_type);
     cget(TRUE,  TRUE, 'a', 0, 0, -5, -1, next_type);
     close_dbs();
     /* ****************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', -1, -1);
     put(TRUE, 'a', -3, -1);
     put(TRUE, 'a', -6, -1);
@@ -510,92 +452,58 @@ test_prev (u_int32_t dup_flags, u_int32_t next_type) {
 }
 
 static void
-test_nextdup (u_int32_t dup_flags, u_int32_t next_type, int i) {
-    /* ****************************************** */
-    if (dup_flags == 0) return;
-    setup_dbs(dup_flags);
-    put(TRUE, 'c', i*1, i*1);
-    early_commit('c');
-    cget(TRUE, TRUE,  'a', i*1, i*1, i*1, i*1, DB_GET_BOTH);
-    cget(TRUE, FALSE, 'a', 0, 0, i*1, i*1, next_type);
-    put(TRUE,  'b', i*2, i*1);
-    put(FALSE, 'b', i*1, i*1);
-    put(FALSE, 'b', i*1, i*2);
-    put(TRUE,  'b', i*1, 0);
-    close_dbs();
-    /* ****************************************** */
-    setup_dbs(dup_flags);
-    put(TRUE, 'c', i*1, i*1);
-    put(TRUE, 'c', i*1, i*3);
-    early_commit('c');
-    cget(TRUE, TRUE, 'a', i*1, i*1, i*1, i*1, DB_GET_BOTH);
-    cget(TRUE, TRUE, 'a', 0, 0, i*1, i*3, next_type);
-    put(TRUE,  'b', i*2, i*1);
-    put(TRUE,  'b', i*1, i*4);
-    put(FALSE, 'b', i*1, i*1);
-    put(FALSE, 'b', i*1, i*2);
-    put(FALSE, 'b', i*1, i*3);
-    put(TRUE,  'b', i*1, 0);
-    close_dbs();
-}
-
-static void
-test_cdel (u_int32_t dup_flags) {
+test_cdel (void) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'c', 1, 1);
     early_commit('c');
-    cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_SET);
     cdel(TRUE, TRUE, 'a');
-    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
-    cget((BOOL)(dup_flags != 0), FALSE, 'b', 1, 2, 1, 2, DB_GET_BOTH);
-    cget((BOOL)(dup_flags != 0), FALSE, 'b', 1, 0, 1, 0, DB_GET_BOTH);
-    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_GET_BOTH);
-    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_GET_BOTH);
+    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_SET);
+    cget(FALSE, FALSE, 'b', 1, 2, 1, 2, DB_SET);
+    cget(FALSE, FALSE, 'b', 1, 0, 1, 0, DB_SET);
+    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_SET);
+    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_SET);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'c', 1, 1);
     early_commit('c');
-    cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_GET_BOTH);
-    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_SET);
+    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_SET);
     cdel(FALSE, TRUE, 'a');
     close_dbs();
 }
 
 static void
-test_dbdel (u_int32_t dup_flags) {
-    if (dup_flags != 0) {
-        if (verbose) printf("Pinhead! Can't dbdel now with duplicates!\n");
-        return;
-    }
+test_dbdel (void) {
     /* If DB_DELETE_ANY changes to 0, then find is meaningful and 
        has to be fixed in test_dbdel*/
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'c', 1, 1);
     early_commit('c');
     dbdel(TRUE, TRUE, 'a', 1);
-    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
-    cget(FALSE, TRUE, 'b', 1, 4, 1, 4, DB_GET_BOTH);
-    cget(FALSE, TRUE, 'b', 1, 0, 1, 4, DB_GET_BOTH);
-    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_GET_BOTH);
-    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_GET_BOTH);
+    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_SET);
+    cget(FALSE, TRUE, 'b', 1, 4, 1, 4, DB_SET);
+    cget(FALSE, TRUE, 'b', 1, 0, 1, 4, DB_SET);
+    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_SET);
+    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_SET);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     dbdel(TRUE, TRUE, 'a', 1);
-    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
-    cget(FALSE, TRUE, 'b', 1, 4, 1, 4, DB_GET_BOTH);
-    cget(FALSE, TRUE, 'b', 1, 0, 1, 4, DB_GET_BOTH);
-    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_GET_BOTH);
-    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_GET_BOTH);
+    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_SET);
+    cget(FALSE, TRUE, 'b', 1, 4, 1, 4, DB_SET);
+    cget(FALSE, TRUE, 'b', 1, 0, 1, 4, DB_SET);
+    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_SET);
+    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_SET);
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'c', 1, 1);
     early_commit('c');
-    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_SET);
     dbdel(FALSE, TRUE, 'a', 1);
     dbdel(TRUE, TRUE, 'a', 2);
     dbdel(TRUE, TRUE, 'a', 0);
@@ -603,12 +511,12 @@ test_dbdel (u_int32_t dup_flags) {
 }
 
 static void
-test_current (u_int32_t dup_flags) {
+test_current (void) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     early_commit('a');
-    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_SET);
     cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_CURRENT);
     cdel(TRUE, TRUE, 'b');
     cget(TRUE, FALSE, 'b', 1, 1, 1, 1, DB_CURRENT);
@@ -634,56 +542,45 @@ ignore (void *ignore __attribute__((__unused__))) {
 #define TOKU_IGNORE(x) ignore((void*)x)
 
 static void
-test (u_int32_t dup_flags) {
+test (void) {
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     early_abort('a');
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     early_commit('a');
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     put(TRUE, 'a', 1, 1);
     close_dbs();
     /* ********************************************************************** */
-    test_both(dup_flags, DB_SET);
-    test_both(dup_flags, DB_GET_BOTH);
+    test_both( DB_SET);
     /* ********************************************************************** */
-    test_first(dup_flags);
+    test_first();
     /* ********************************************************************** */
-    test_last(dup_flags);
+    test_last();
     /* ********************************************************************** */
-    test_set_range(dup_flags, DB_SET_RANGE, 1);
+    test_set_range( DB_SET_RANGE, 1);
 #ifdef DB_SET_RANGE_REVERSE
-    test_set_range(dup_flags, DB_SET_RANGE_REVERSE, -1);
+    test_set_range( DB_SET_RANGE_REVERSE, -1);
 #endif
     /* ********************************************************************** */
-    test_both_range(dup_flags, DB_GET_BOTH_RANGE, 1);
-#ifdef DB_GET_BOTH_RANGE_REVERSE
-    test_both_range(dup_flags, DB_GET_BOTH_RANGE_REVERSE, -1);
-#endif
+    test_next( DB_NEXT);
+    test_next( DB_NEXT_NODUP);
     /* ********************************************************************** */
-    test_next(dup_flags, DB_NEXT);
-    test_next(dup_flags, DB_NEXT_NODUP);
+    test_prev( DB_PREV);
+    test_prev( DB_PREV_NODUP);
     /* ********************************************************************** */
-    test_prev(dup_flags, DB_PREV);
-    test_prev(dup_flags, DB_PREV_NODUP);
+    test_cdel();
     /* ********************************************************************** */
-    test_nextdup(dup_flags, DB_NEXT_DUP, 1);
-    #ifdef DB_PREV_DUP
-        test_nextdup(dup_flags, DB_PREV_DUP, -1);
-    #endif
+    test_dbdel();
     /* ********************************************************************** */
-    test_cdel(dup_flags);
-    /* ********************************************************************** */
-    test_dbdel(dup_flags);
-    /* ********************************************************************** */
-    test_current(dup_flags);
+    test_current();
     /* ********************************************************************** */
 }
 
@@ -696,8 +593,7 @@ test_main(int argc, char *const argv[]) {
 	    printf("Warning: " __FILE__" does not work in BDB.\n");
 	}
     } else {
-	test(0);
-	test(DB_DUP | DB_DUPSORT);
+	test();
 	/*
 	  test_abort(0);
 	  test_abort(DB_DUP | DB_DUPSORT);

@@ -26,7 +26,6 @@ test_cursor_delete2 (void) {
     r = dbenv->open(dbenv, ENVDIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE|DB_INIT_TXN, 0);       CKERR(r);
 
     r = db_create(&db, dbenv, 0);                                                            CKERR(r);
-    r = db->set_flags(db, DB_DUP|DB_DUPSORT);                                                CKERR(r);
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
     r = db->open(db, txn, "primary.db", NULL, DB_BTREE, DB_CREATE, 0600);                    CKERR(r);
     r = txn->commit(txn, 0);                                                                 CKERR(r);

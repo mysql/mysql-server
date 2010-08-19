@@ -303,7 +303,7 @@ fcreate(void) {
     dbt_init(&val, "delete_me2", sizeof("delete_me2"));
     r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
     CKERR(r);
-    r = db->delboth(db, txn, &key, &val, DB_DELETE_ANY);
+    r = db->del(db, txn, &key, 0);
     CKERR(r);
     r = db->close(db, 0);
     CKERR(r);
@@ -530,11 +530,11 @@ verify_file_exists(const char *name, int should_exist) {
         dbt_init(&key, choices, sizeof(choices));
         dbt_init(&val, NULL, 0);
         r = db->get(db, txn, &key, &val, DB_YESOVERWRITE);
-        r = db->getf_get_both(db, txn, 0, &key, &val, getf_do_nothing, NULL);
+        r = db->getf_set(db, txn, 0, &key, getf_do_nothing, NULL);
         CKERR(r);
         dbt_init(&key, "name", sizeof("name"));
         dbt_init(&val, (void*)name, strlen(name)+1);
-        r = db->getf_get_both(db, txn, 0, &key, &val, getf_do_nothing, NULL);
+        r = db->getf_set(db, txn, 0, &key, getf_do_nothing, NULL);
         CKERR(r);
 
         DBC *c;

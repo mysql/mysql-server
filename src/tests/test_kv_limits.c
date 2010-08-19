@@ -15,8 +15,8 @@ u_int64_t lorange = 0;
 u_int64_t hirange = 1<<24;
 
 static void
-test_key_size_limit (int dup_mode) {
-    if (verbose > 1) printf("%s:%d\n", __FUNCTION__, dup_mode);
+test_key_size_limit (void) {
+    if (verbose > 1) printf("%s\n", __FUNCTION__);
 
     DB_TXN * const null_txn = 0;
     const char * const fname = "test.rand.insert.brt";
@@ -33,8 +33,6 @@ test_key_size_limit (int dup_mode) {
 
     DB *db;
     r = db_create(&db, env, 0);
-    assert(r == 0);
-    r = db->set_flags(db, dup_mode);
     assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
@@ -75,8 +73,8 @@ test_key_size_limit (int dup_mode) {
 }
 
 static void
-test_data_size_limit (int dup_mode) {
-    if (verbose > 1) printf("%s:%d\n", __FUNCTION__, dup_mode);
+test_data_size_limit (void) {
+    if (verbose > 1) printf("%s\n", __FUNCTION__);
 
     DB_TXN * const null_txn = 0;
     const char * const fname = "test.rand.insert.brt";
@@ -93,8 +91,6 @@ test_data_size_limit (int dup_mode) {
 
     DB *db;
     r = db_create(&db, env, 0);
-    assert(r == 0);
-    r = db->set_flags(db, dup_mode);
     assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
@@ -160,10 +156,8 @@ test_main(int argc, char *const argv[]) {
         }
     }
 
-    test_key_size_limit(0);
-    test_data_size_limit(0);
-    test_key_size_limit(DB_DUP + DB_DUPSORT);
-    test_data_size_limit(DB_DUP + DB_DUPSORT);
+    test_key_size_limit();
+    test_data_size_limit();
 
     return 0;
 }

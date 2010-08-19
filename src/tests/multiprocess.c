@@ -30,12 +30,16 @@ test_env (const char *envdir0, const char *envdir1, int expect_open_return) {
     DB_ENV *env;
     r = db_env_create(&env, 0);
         CKERR(r);
+    r = env->set_redzone(env, 0);
+        CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_RECOVER;
     r = env->open(env, envdir0, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR(r);
 
     DB_ENV *env2;
     r = db_env_create(&env2, 0);
+        CKERR(r);
+    r = env2->set_redzone(env2, 0);
         CKERR(r);
     r = env2->open(env2, envdir1, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR2(r, expect_open_return);
@@ -81,6 +85,8 @@ test_datadir (const char *envdir0, const char *datadir0, const char *envdir1, co
     DB_ENV *env;
     r = db_env_create(&env, 0);
         CKERR(r);
+    r = env->set_redzone(env, 0);
+        CKERR(r);
     r = env->set_data_dir(env, datadir0);
         CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_RECOVER;
@@ -89,6 +95,8 @@ test_datadir (const char *envdir0, const char *datadir0, const char *envdir1, co
 
     DB_ENV *env2;
     r = db_env_create(&env2, 0);
+        CKERR(r);
+    r = env2->set_redzone(env2, 0);
         CKERR(r);
     r = env2->set_data_dir(env2, datadir1);
         CKERR(r);
@@ -135,6 +143,8 @@ test_logdir (const char *envdir0, const char *datadir0, const char *envdir1, con
     DB_ENV *env;
     r = db_env_create(&env, 0);
         CKERR(r);
+    r = env->set_redzone(env, 0);
+        CKERR(r);
     r = env->set_lg_dir(env, datadir0);
         CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_RECOVER;
@@ -143,6 +153,8 @@ test_logdir (const char *envdir0, const char *datadir0, const char *envdir1, con
 
     DB_ENV *env2;
     r = db_env_create(&env2, 0);
+        CKERR(r);
+    r = env2->set_redzone(env2, 0);
         CKERR(r);
     r = env2->set_lg_dir(env2, datadir1);
         CKERR(r);
@@ -165,9 +177,17 @@ static char *
 full_name(const char *subdir) {
     char wd[256];
     assert(getcwd(wd, sizeof wd) != NULL);
-    char *path = toku_malloc(strlen(wd) + strlen(subdir) + 1);
-    sprintf(path, "%s%s", wd, subdir);
+    char *path = toku_malloc(strlen(wd) + strlen(subdir) + 2);
+    sprintf(path, "%s/%s", wd, subdir);
     return path;
+}
+
+static void
+unlink_dir (const char *dir) {
+    int len = strlen(dir)+100;
+    char cmd[len];
+    snprintf(cmd, len, "rm -rf %s", dir);
+    system(cmd);
 }
 
 int
@@ -184,6 +204,12 @@ test_main (int argc, char * const argv[]) {
     test_datadir(env0, data0, env1, data0, EWOULDBLOCK);
     test_logdir(env0, data0, env1, data1, 0);
     test_logdir(env0, data0, env1, data0, EWOULDBLOCK);
+
+    unlink_dir(env0);
+    unlink_dir(env1);
+    unlink_dir(data0);
+    unlink_dir(data1);
+
     toku_free(data0);
     toku_free(data1);
 

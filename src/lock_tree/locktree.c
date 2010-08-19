@@ -95,7 +95,6 @@ static inline int toku_ltm_add_lt(toku_ltm* mgr, toku_lock_tree* lt) {
 }
 
 int toku__lt_point_cmp(const toku_point* x, const toku_point* y) {
-    int partial_result;
     DBT point_1;
     DBT point_2;
 
@@ -113,20 +112,9 @@ int toku__lt_point_cmp(const toku_point* x, const toku_point* y) {
              be the sole determinant of the comparison */
         return toku__infinite_compare(x->key_payload, y->key_payload);
     }
-    partial_result = x->lt->compare_fun(x->lt->db,
-                     toku__recreate_DBT(&point_1, x->key_payload, x->key_len),
-                     toku__recreate_DBT(&point_2, y->key_payload, y->key_len));
-    if (partial_result) return partial_result;
-    
-    if (!x->lt->duplicates) return 0;
-
-    if (toku__lt_is_infinite(x->data_payload) ||
-        toku__lt_is_infinite(y->data_payload)) {
-        return toku__infinite_compare(x->data_payload, y->data_payload);
-    }
-    return x->lt->dup_compare(x->lt->db,
-                   toku__recreate_DBT(&point_1, x->data_payload, x->data_len),
-                   toku__recreate_DBT(&point_2, y->data_payload, y->data_len));
+    return x->lt->compare_fun(x->lt->db,
+			      toku__recreate_DBT(&point_1, x->key_payload, x->key_len),
+			      toku__recreate_DBT(&point_2, y->key_payload, y->key_len));
 }
 
 /* Lock tree manager functions begin here */
@@ -134,7 +122,6 @@ int toku_ltm_create(toku_ltm** pmgr,
                     u_int32_t max_locks,
                     int   (*panic)(DB*, int), 
                     toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
-                    toku_dbt_cmp (*get_dup_compare_from_db)(DB*),
                     void* (*user_malloc) (size_t),
                     void  (*user_free)   (void*),
                     void* (*user_realloc)(void*, size_t)) {
@@ -144,7 +131,7 @@ int toku_ltm_create(toku_ltm** pmgr,
     if (!pmgr || !max_locks || !user_malloc || !user_free || !user_realloc) {
         r = EINVAL; goto cleanup;
     }
-    assert(panic && get_compare_fun_from_db && get_dup_compare_from_db);
+    assert(panic && get_compare_fun_from_db);
 
     tmp_mgr          = (toku_ltm*)user_malloc(sizeof(*tmp_mgr));
     if (!tmp_mgr) { r = ENOMEM; goto cleanup; }
@@ -162,7 +149,6 @@ int toku_ltm_create(toku_ltm** pmgr,
     tmp_mgr->free             = user_free;
     tmp_mgr->realloc          = user_realloc;
     tmp_mgr->get_compare_fun_from_db = get_compare_fun_from_db;
-    tmp_mgr->get_dup_compare_from_db = get_dup_compare_from_db;
 
     r = toku_lth_create(&tmp_mgr->lth, user_malloc, user_free, user_realloc);
     if (r!=0) { goto cleanup; }
@@ -325,9 +311,6 @@ static inline void toku__p_free(toku_lock_tree* tree, toku_point* point) {
     if (!toku__lt_is_infinite(point->key_payload)) {
         tree->free(point->key_payload);
     }
-    if (!toku__lt_is_infinite(point->data_payload)) {
-        tree->free(point->data_payload);
-    }
     tree->free(point);
 }
 
@@ -335,8 +318,8 @@ static inline void toku__p_free(toku_lock_tree* tree, toku_point* point) {
    Allocate and copy the payload.
 */
 static inline int toku__payload_copy(toku_lock_tree* tree,
-                               void** payload_out, u_int32_t* len_out,
-                               void*  payload_in,  u_int32_t  len_in) {
+				     void** payload_out, u_int32_t* len_out,
+				     void*  payload_in,  u_int32_t  len_in) {
     assert(payload_out && len_out);
     if (!len_in) {
         assert(!payload_in || toku__lt_is_infinite(payload_in));
@@ -368,16 +351,7 @@ static inline int toku__p_makecopy(toku_lock_tree* tree, toku_point** ppoint) {
     r = toku__payload_copy(tree,
                             &temp_point->key_payload, &temp_point->key_len,
                                   point->key_payload,       point->key_len);
-    if (0) {
-        died2:
-        if (!toku__lt_is_infinite(temp_point->key_payload)) {
-            tree->free(temp_point->key_payload); }
-        goto died1; }
     if (r!=0) goto died1;
-    toku__payload_copy(tree,
-                        &temp_point->data_payload, &temp_point->data_len,
-                              point->data_payload,       point->data_len);
-    if (r!=0) goto died2;
     *ppoint = temp_point;
     return 0;
 }
@@ -652,22 +626,12 @@ static inline void toku__payload_from_dbt(void** payload, u_int32_t* len,
 }
 
 static inline void toku__init_point(toku_point* point, toku_lock_tree* tree,
-                              const DBT* key, const DBT* data) {
+				    const DBT* key) {
     assert(point && tree && key);
-    assert(!tree->duplicates == !data);
     memset(point, 0, sizeof(toku_point));
     point->lt = tree;
 
     toku__payload_from_dbt(&point->key_payload, &point->key_len, key);
-    if (tree->duplicates) {
-        assert(data);
-        toku__payload_from_dbt(&point->data_payload, &point->data_len, data);
-    }
-    else {
-        assert(data == NULL);
-        point->data_payload = NULL;
-        point->data_len     = 0;
-    }
 }
 
 static inline void toku__init_query(toku_interval* query,
@@ -928,11 +892,9 @@ static inline int toku__consolidate(toku_lock_tree* tree, BOOL found_only,
 }
 
 static inline void toku__lt_init_full_query(toku_lock_tree* tree, toku_interval* query,
-                                      toku_point* left, toku_point* right) {
-    DBT* neg_inf_dups = tree->duplicates ? (DBT*)toku_lt_neg_infinity : NULL;
-    DBT* pos_inf_dups = tree->duplicates ? (DBT*)toku_lt_infinity     : NULL;
-    toku__init_point(left,  tree, (DBT*)toku_lt_neg_infinity, neg_inf_dups);
-    toku__init_point(right, tree, (DBT*)toku_lt_infinity,     pos_inf_dups);
+					    toku_point* left, toku_point* right) {
+    toku__init_point(left,  tree, (DBT*)toku_lt_neg_infinity);
+    toku__init_point(right, tree, (DBT*)toku_lt_infinity);
     toku__init_query(query, left, right);
 }
 
@@ -993,8 +955,7 @@ static inline BOOL toku__r_backwards(toku_interval* range) {
 
     /* Optimization: if all the pointers are equal, clearly left == right. */
     return (BOOL)
-        ((left->key_payload  != right->key_payload ||
-          left->data_payload != right->data_payload) &&
+        ((left->key_payload  != right->key_payload) &&
          toku__lt_point_cmp(left, right) > 0);
 }
 
@@ -1002,53 +963,38 @@ static inline int toku__lt_unlock_deferred_txns(toku_lock_tree* tree);
 
 static inline void toku__lt_set_comparison_functions(toku_lock_tree* tree,
                                                      DB* db) {
-    assert(!tree->db && !tree->compare_fun && !tree->dup_compare);
+    assert(!tree->db && !tree->compare_fun);
     tree->db = db;
     tree->compare_fun = tree->get_compare_fun_from_db(tree->db);
     assert(tree->compare_fun);
-    tree->dup_compare = tree->get_dup_compare_from_db(tree->db);
-    assert(tree->dup_compare);
 }
 
 static inline void toku__lt_clear_comparison_functions(toku_lock_tree* tree) {
     assert(tree);
     tree->db          = NULL;
     tree->compare_fun = NULL; 
-    tree->dup_compare = NULL; 
 }
 
 /* Preprocess step for acquire functions. */
 static inline int toku__lt_preprocess(toku_lock_tree* tree, DB* db,
                                   __attribute__((unused)) TXNID txn,
-                                  const DBT* key_left,  const DBT** pdata_left,
-                                  const DBT* key_right, const DBT** pdata_right,
+                                  const DBT* key_left,
+                                  const DBT* key_right,
                                   toku_point* left, toku_point* right,
                                   toku_interval* query, BOOL* out_of_locks) {
     int r = ENOSYS;
 
-    assert(pdata_left && pdata_right);
     if (!tree || !db ||
         !key_left || !key_right || !out_of_locks)  {r = EINVAL; goto cleanup; }
-    if (!tree->duplicates) *pdata_right = *pdata_left = NULL;
-    const DBT* data_left  = *pdata_left;
-    const DBT* data_right = *pdata_right;
-    if (tree->duplicates  && (!data_left || !data_right))   { r = EINVAL; goto cleanup; }
-    if (tree->duplicates  && key_left != data_left &&
-        toku__lt_is_infinite(key_left))                     { r = EINVAL; goto cleanup; }
-    if (tree->duplicates  && key_right != data_right &&
-        toku__lt_is_infinite(key_right))                    { r = EINVAL; goto cleanup; }
 
     /* Verify that NULL keys have payload and size that are mutually 
        consistent*/
     if ((r = toku__lt_verify_null_key(key_left))   != 0) { goto cleanup; }
-    if ((r = toku__lt_verify_null_key(data_left))  != 0) { goto cleanup; }
     if ((r = toku__lt_verify_null_key(key_right))  != 0) { goto cleanup; }
-    if ((r = toku__lt_verify_null_key(data_right)) != 0) { goto cleanup; }
 
-    toku__init_point(left,  tree, key_left,  data_left);
-    toku__init_point(right, tree, key_right, data_right);
+    toku__init_point(left,  tree, key_left);
+    toku__init_point(right, tree, key_right);
     toku__init_query(query, left, right);
-    tree->settings_final = TRUE;
 
     toku__lt_set_comparison_functions(tree, db);
 
@@ -1058,7 +1004,7 @@ static inline int toku__lt_preprocess(toku_lock_tree* tree, DB* db,
     r = 0;
 cleanup:
     if (r == 0) {
-        assert(tree->db && tree->compare_fun && tree->dup_compare);
+        assert(tree->db && tree->compare_fun);
         /* Cleanup all existing deleted transactions */
         if (!toku_rth_is_empty(tree->txns_to_unlock)) {
             r = toku__lt_unlock_deferred_txns(tree);
@@ -1204,18 +1150,17 @@ static inline int toku__lt_borderwrite_insert(toku_lock_tree* tree,
 }
 
 /* TODO: Investigate better way of passing comparison functions. */
-int toku_lt_create(toku_lock_tree** ptree, BOOL duplicates,
+int toku_lt_create(toku_lock_tree** ptree,
                    int   (*panic)(DB*, int), 
                    toku_ltm* mgr,
                    toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
-                   toku_dbt_cmp (*get_dup_compare_from_db)(DB*),
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t)) {
     int r = ENOSYS;
     toku_lock_tree* tmp_tree = NULL;
     if (!ptree || !mgr ||
-        !get_compare_fun_from_db || !get_dup_compare_from_db || !panic ||
+        !get_compare_fun_from_db || !panic ||
         !user_malloc || !user_free || !user_realloc) {
         r = EINVAL; goto cleanup;
     }
@@ -1223,14 +1168,12 @@ int toku_lt_create(toku_lock_tree** ptree, BOOL duplicates,
     tmp_tree = (toku_lock_tree*)user_malloc(sizeof(*tmp_tree));
     if (!tmp_tree) { r = ENOMEM; goto cleanup; }
     memset(tmp_tree, 0, sizeof(toku_lock_tree));
-    tmp_tree->duplicates       = duplicates;
     tmp_tree->panic            = panic;
     tmp_tree->mgr              = mgr;
     tmp_tree->malloc           = user_malloc;
     tmp_tree->free             = user_free;
     tmp_tree->realloc          = user_realloc;
     tmp_tree->get_compare_fun_from_db = get_compare_fun_from_db;
-    tmp_tree->get_dup_compare_from_db = get_dup_compare_from_db;
     tmp_tree->lock_escalation_allowed = TRUE;
     r = toku_ltm_get_max_locks_per_db(mgr, &tmp_tree->max_locks);
     if (r!=0) { goto cleanup; } 
@@ -1285,17 +1228,11 @@ void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id) {
 
 static inline void toku_lt_set_dict_id(toku_lock_tree* lt, DICTIONARY_ID dict_id) {
     assert(lt && dict_id.dictid != DICTIONARY_ID_NONE.dictid);
-    assert(!lt->settings_final);
     lt->dict_id = dict_id;
 }
 
-static inline BOOL toku_lt_get_dups(toku_lock_tree* lt) {
-    assert(lt);
-    return lt->duplicates;
-}
-
 int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
-                    BOOL duplicates, DICTIONARY_ID dict_id) {
+                    DICTIONARY_ID dict_id) {
     /* first look in hash table to see if lock tree exists for that db,
        if so return it */
     int r = ENOSYS;
@@ -1309,15 +1246,13 @@ int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
         /* Load already existing lock tree. */
         assert (map->tree != NULL);
         *ptree = map->tree;
-        assert(duplicates == toku_lt_get_dups(map->tree));
         toku_lt_add_ref(*ptree);
         r = 0;
         goto cleanup;
     }
     /* Must create new lock tree for this dict_id*/
-    r = toku_lt_create(&tree, duplicates, mgr->panic, mgr,
+    r = toku_lt_create(&tree, mgr->panic, mgr,
                        mgr->get_compare_fun_from_db,
-                       mgr->get_dup_compare_from_db,
                        mgr->malloc, mgr->free, mgr->realloc);
     if (r != 0) { goto cleanup; }
     toku_lt_set_dict_id(tree, dict_id);
@@ -1383,15 +1318,15 @@ cleanup:
 // toku_lt_acquire_read_lock() used only by test programs
 int toku_lt_acquire_read_lock(toku_lock_tree* tree,
                               DB* db, TXNID txn,
-                              const DBT* key, const DBT* data) {
-    return toku_lt_acquire_range_read_lock(tree, db, txn, key, data, key, data);
+                              const DBT* key) {
+    return toku_lt_acquire_range_read_lock(tree, db, txn, key, key);
 }
 
 
 static int toku__lt_try_acquire_range_read_lock(toku_lock_tree* tree,
                                   DB* db, TXNID txn,
-                                  const DBT* key_left,  const DBT* data_left,
-                                  const DBT* key_right, const DBT* data_right,
+                                  const DBT* key_left,
+                                  const DBT* key_right,
                                   BOOL* out_of_locks) {
     int r;
     toku_point left;
@@ -1401,8 +1336,8 @@ static int toku__lt_try_acquire_range_read_lock(toku_lock_tree* tree,
     
     if (!out_of_locks) { return EINVAL; }
     r = toku__lt_preprocess(tree, db, txn, 
-                            key_left,  &data_left,
-                            key_right, &data_right,
+                            key_left,
+                            key_right,
                             &left, &right,
                             &query, out_of_locks);
     if (r!=0) { goto cleanup; }
@@ -1755,15 +1690,15 @@ cleanup:
 }
 
 int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-                                  const DBT* key_left,  const DBT* data_left,
-                                  const DBT* key_right, const DBT* data_right) {
+				    const DBT* key_left,
+				    const DBT* key_right) {
     BOOL out_of_locks = FALSE;
     int r = ENOSYS;
 
     r = toku__lt_try_acquire_range_read_lock(tree, db, txn, 
-                                             key_left,  data_left,
-                                             key_right, data_right,
-                                            &out_of_locks);
+                                             key_left,
+                                             key_right,
+					     &out_of_locks);
     if (r != 0) { goto cleanup; }
 
     if (out_of_locks) {
@@ -1777,8 +1712,8 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
         }
         
         r = toku__lt_try_acquire_range_read_lock(tree, db, txn, 
-                                                 key_left,  data_left,
-                                                 key_right, data_right,
+                                                 key_left,
+                                                 key_right,
                                                  &out_of_locks);
         if (r != 0) { goto cleanup; }
     }
@@ -1828,7 +1763,7 @@ cleanup:
 
 static int toku__lt_try_acquire_write_lock(toku_lock_tree* tree,
                                            DB* db, TXNID txn,
-                                           const DBT* key, const DBT* data, 
+                                           const DBT* key,
                                            BOOL* out_of_locks) {
     int r = ENOSYS;
     toku_point endpoint;
@@ -1837,8 +1772,8 @@ static int toku__lt_try_acquire_write_lock(toku_lock_tree* tree,
     BOOL free_left = FALSE;
     
     r = toku__lt_preprocess(tree, db, txn, 
-                            key,      &data,
-                            key,      &data,
+                            key,
+                            key,
                             &endpoint, &endpoint,
                             &query, out_of_locks);
     if (r!=0) { goto cleanup; }
@@ -1898,13 +1833,13 @@ cleanup:
 
 // toku_lt_acquire_write_lock() used only by test programs
 int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-                               const DBT* key, const DBT* data) {
+                               const DBT* key) {
     BOOL out_of_locks = FALSE;
     int r = ENOSYS;
 
     r = toku__lt_try_acquire_write_lock(tree, db, txn,
-                                        key, data,
-                                       &out_of_locks);
+                                        key,
+					&out_of_locks);
     if (r != 0) { goto cleanup; }
 
     if (out_of_locks) {
@@ -1918,8 +1853,8 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
         }
         
         r = toku__lt_try_acquire_write_lock(tree, db, txn,
-                                            key, data,
-                                           &out_of_locks);
+                                            key,
+					    &out_of_locks);
         if (r != 0) { goto cleanup; }
     }
     if (out_of_locks) {
@@ -1933,27 +1868,26 @@ cleanup:
 }
 
 static int toku__lt_try_acquire_range_write_lock(toku_lock_tree* tree,
-                                    DB* db, TXNID txn,
-                                    const DBT* key_left,  const DBT* data_left,
-                                    const DBT* key_right, const DBT* data_right,
-                                    BOOL* out_of_locks) {
+						 DB* db, TXNID txn,
+						 const DBT* key_left,
+						 const DBT* key_right,
+						 BOOL* out_of_locks) {
     int r;
     toku_point left;
     toku_point right;
     toku_interval query;
 
-    if (key_left == key_right &&
-        (data_left == data_right || (tree && !tree->duplicates))) {
+    if (key_left == key_right) {
         return toku__lt_try_acquire_write_lock(tree, db, txn, 
-                                               key_left, data_left, 
+                                               key_left,
                                                out_of_locks);
     }
 
     r = toku__lt_preprocess(tree, db,   txn, 
-                            key_left,  &data_left,
-                            key_right, &data_right,
-                           &left,      &right,
-                           &query,      out_of_locks);
+                            key_left,
+                            key_right,
+			    &left,      &right,
+			    &query,      out_of_locks);
     if (r!=0) { goto cleanup; }
 
     if (tree->table_is_locked) {
@@ -1981,15 +1915,15 @@ cleanup:
 }
 
 int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-                                  const DBT* key_left,  const DBT* data_left,
-                                  const DBT* key_right, const DBT* data_right) {
+				     const DBT* key_left,
+				     const DBT* key_right) {
     BOOL out_of_locks = FALSE;
     int r = ENOSYS;
 
     r = toku__lt_try_acquire_range_write_lock(tree,   db, txn,
-                                              key_left,  data_left,
-                                              key_right, data_right,
-                                             &out_of_locks);
+                                              key_left,
+                                              key_right,
+					      &out_of_locks);
     if (r != 0) { goto cleanup; }
 
     if (out_of_locks) {
@@ -2003,9 +1937,9 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
         }
         
         r = toku__lt_try_acquire_range_write_lock(tree, db, txn,
-                                                  key_left,  data_left,
-                                                  key_right, data_right,
-                                                 &out_of_locks);
+                                                  key_left,
+                                                  key_right,
+						  &out_of_locks);
         if (r != 0) { goto cleanup; }
     }
     if (out_of_locks) {

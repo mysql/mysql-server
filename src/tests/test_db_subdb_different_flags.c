@@ -35,7 +35,6 @@ test_main(int argc, char *const argv[]) {
     r = db->close(db, 0);                                                    CKERR(r);
 
     r = db_create(&db, env, 0);                                              CKERR(r);
-    r = db->set_flags(db, DB_DUP | DB_DUPSORT);                              CKERR(r);
     r = db->open(db, null_txn, fname, "subdb", DB_BTREE, DB_CREATE, 0666);    CKERR(r);
     r = db->close(db, 0);                                                    CKERR(r);
 
@@ -52,7 +51,6 @@ test_main(int argc, char *const argv[]) {
 
     r = db_create(&db, env, 0);                                              CKERR(r);
     r = db->open(db, null_txn, fname, "subdb", DB_BTREE, 0, 0666);           CKERR(r);
-    r = db->get_flags(db, &flags);                                           CKERR(r); assert(flags==(DB_DUP | DB_DUPSORT));
     r = db->close(db, 0);                                                    CKERR(r);
 
     r = db_create(&db, env, 0);                                              CKERR(r);

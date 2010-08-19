@@ -19,18 +19,18 @@ int  nums[10000];
 static void setup_ltm(void) {
     assert(!ltm);
     r = toku_ltm_create(&ltm, max_locks, dbpanic,
-                        get_compare_fun_from_db, get_dup_compare_from_db,
+                        get_compare_fun_from_db,
                         toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(ltm);
 }
 
-static void db_open_tree(BOOL dups, size_t index, size_t db_id_index) {
+static void db_open_tree(size_t index, size_t db_id_index) {
     assert((lt_refs[index] == 0 && !lts[index]) ||
            (lt_refs[index] > 0 && lts[index]));
     assert(ltm);
     lt_refs[index]++;
-    r = toku_ltm_get_lt(ltm, &lts[index], dups, dict_ids[db_id_index]);
+    r = toku_ltm_get_lt(ltm, &lts[index], dict_ids[db_id_index]);
     CKERR(r);
     assert(lts[index]);
 }
@@ -63,44 +63,44 @@ static void close_ltm(void) {
     ltm = NULL;
 }
 
-static void run_test(BOOL dups) {
+static void run_test(void) {
     setup_ltm();
     //Start:
 
     /* ********************************************************************** */
     //Open and close.
-    db_open_tree(dups, 0, 0);
+    db_open_tree(0, 0);
     db_close_tree(0);
     /* ********************************************************************** */
     //Open with db and transaction, db closes first.
-    db_open_tree(dups, 0, 0);
+    db_open_tree(0, 0);
     txn_open_tree(0);
     db_close_tree(0);
     txn_close_tree(0);
     /* ********************************************************************** */
     //Open with db and transaction, txn closes first.
-    db_open_tree(dups, 0, 0);
+    db_open_tree(0, 0);
     txn_open_tree(0);
     txn_close_tree(0);
     db_close_tree(0);
     /* ********************************************************************** */
     //Open with multiple db handles.
-    db_open_tree(dups, 0, 0);
-    db_open_tree(dups, 0, 0);
+    db_open_tree(0, 0);
+    db_open_tree(0, 0);
     db_close_tree(0);
     db_close_tree(0);
     /* ********************************************************************** */
     //Open with multiple db handles and txns.
-    db_open_tree(dups, 0, 0);
+    db_open_tree(0, 0);
     txn_open_tree(0);
-    db_open_tree(dups, 0, 0);
+    db_open_tree(0, 0);
     db_close_tree(0);
     db_close_tree(0);
     txn_close_tree(0);
     /* ********************************************************************** */
     //Open with multiple db handles and txns.
-    db_open_tree(dups, 0, 0);
-    db_open_tree(dups, 0, 0);
+    db_open_tree(0, 0);
+    db_open_tree(0, 0);
     txn_open_tree(0);
     db_close_tree(0);
     db_close_tree(0);
@@ -145,9 +145,7 @@ int main(int argc, const char *argv[]) {
 
     initial_setup();
 
-    run_test(FALSE);
-    
-    run_test(TRUE);
+    run_test();
 
     close_test();
     return 0;

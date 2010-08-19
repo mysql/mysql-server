@@ -190,9 +190,8 @@ void walk(Db *db, int n) {
         r = my_cursor_count(cursor, &mycount, db); assert(r == 0);
         assert(mycount == count);
 #endif
-        if (k == n/2) assert((int)count == n); else assert(count == 1);
+	assert(count==1); // we support only NODUP databases now.
     }
-    assert(i == 2*n-1);
     toku_free(key.get_data());
     toku_free(val.get_data());
     r = cursor->close(); assert(r == 0);
@@ -213,7 +212,7 @@ void test_zero_count(Db *db, int n) {
     r = cursor_set(cursor, htonl(n/2)); assert(r == 0);
     db_recno_t count;
     r = cursor->count(&count, 0); assert(r == 0);
-    assert((int)count == n);
+    assert((int)count == 1);
 
     Dbt key; key.set_flags(DB_DBT_REALLOC);
     Dbt val; val.set_flags(DB_DBT_REALLOC);
@@ -226,10 +225,10 @@ void test_zero_count(Db *db, int n) {
             break;
         assert(newcount == count - 1);
         count = newcount;
-        r = cursor->get(&key, &val, DB_NEXT_DUP); 
+        r = cursor->get(&key, &val, DB_NEXT);
         if (r != 0) break;
     }
-    assert(i == n);
+    assert(i == 2);
     if (key.get_data()) toku_free(key.get_data());
     if (val.get_data()) toku_free(val.get_data());
     r = cursor->close(); assert(r == 0);
@@ -249,7 +248,7 @@ void test_next_nodup(Db *db, int n) {
         int v = *(int*)val.get_data();
         if (verbose) printf("%d %d\n", k, v);
         assert(k == i);
-        if (k == n/2) assert(v == 0); else assert(v == i);
+        if (k == n/2) assert(v == n-1); else assert(v == i);
         i += 1;
         // r = my_next_nodup(cursor, &key, &val);
         r = cursor->get(&key, &val, DB_NEXT_NODUP);
@@ -285,47 +284,6 @@ void test_prev_nodup(Db *db, int n) {
     r = cursor->close(); assert(r == 0);
 }
 
-void test_next_dup(Db *db, int n) {
-    if (verbose) printf("test_next_dup\n");
-    int r;
-    Dbc *cursor;
-    r = db->cursor(0, &cursor, 0); assert(r == 0);
-    int k = htonl(n/2);
-    Dbt setkey(&k, sizeof k);
-    Dbt key; key.set_flags(DB_DBT_REALLOC);
-    Dbt val; val.set_flags(DB_DBT_REALLOC);
-    r = cursor->get(&setkey, &val, DB_SET); assert(r == 0);
-    r = cursor->get(&key, &val, DB_CURRENT); assert(r == 0);
-    int i = 0;
-    while (r == 0) {
-        int k = htonl(*(int*)key.get_data());
-        int v = *(int*)val.get_data();
-        if (verbose) printf("%d %d\n", k, v);
-        assert(k == n/2); assert(v == i);
-        i += 1;
-        // r = my_next_dup(cursor, &key, &val);
-        r = cursor->get(&key, &val, DB_NEXT_DUP);
-    }
-    assert(i == n);
-#ifdef DB_PREV_DUP
-    i = n - 1;
-    for (;;) {
-        r = cursor->get(&key, &val, DB_CURRENT);
-        assert(r == 0);
-        int k = htonl(*(int*)key.get_data());
-        int v = *(int*)val.get_data();
-        assert(k == n/2); assert(v == i);
-        r = cursor->get(&key, &val, DB_PREV_DUP);
-        if (r != 0) break;
-        i -= 1;
-    }
-    assert(i == 0);
-#endif
-    if (key.get_data()) toku_free(key.get_data());
-    if (val.get_data()) toku_free(val.get_data());
-    r = cursor->close(); assert(r == 0);
-}
-
 #define DIR "test_cursor_count.dir"
 
 int main(int argc, char *argv[]) {
@@ -349,7 +307,6 @@ int main(int argc, char *argv[]) {
     Db db(0, DB_CXX_NO_EXCEPTIONS);
 #endif
 
-    r = db.set_flags(DB_DUP + DB_DUPSORT); assert(r == 0);
     unlink(FNAME);
     r = db.open(0, FNAME, 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
     
@@ -358,7 +315,6 @@ int main(int argc, char *argv[]) {
     walk(&db, 10);
     test_next_nodup(&db, 10);
     test_prev_nodup(&db, 10);
-    test_next_dup(&db, 10);
     test_zero_count(&db, 10);
 
     return 0;

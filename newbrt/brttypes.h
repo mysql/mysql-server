@@ -86,11 +86,11 @@ enum brt_msg_type {
     BRT_NONE = 0,
     BRT_INSERT = 1,
     BRT_DELETE_ANY = 2,  // Delete any matching key.  This used to be called BRT_DELETE.
-    BRT_DELETE_BOTH = 3,
+    //BRT_DELETE_BOTH = 3,
     BRT_ABORT_ANY = 4,   // Abort any commands on any matching key.
-    BRT_ABORT_BOTH  = 5, // Abort commands that match both the key and the value
+    //BRT_ABORT_BOTH  = 5, // Abort commands that match both the key and the value
     BRT_COMMIT_ANY  = 6,
-    BRT_COMMIT_BOTH = 7,
+    //BRT_COMMIT_BOTH = 7,
     BRT_COMMIT_BROADCAST_ALL = 8, // Broadcast to all leafentries, (commit all transactions).
     BRT_COMMIT_BROADCAST_TXN = 9, // Broadcast to all leafentries, (commit specific transaction).
     BRT_ABORT_BROADCAST_TXN  = 10, // Broadcast to all leafentries, (commit specific transaction).

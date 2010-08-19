@@ -40,8 +40,7 @@ run_test (BOOL do_commit, BOOL do_abort) {
     {
         unsigned char c = 128;
         DBT k = {.data=&c, .size=sizeof c};
-        DBT v = {.data=&c, .size=sizeof c};
-        r = dba->delboth(dba, txn, &k, &v, 0);                                          CKERR(r);
+        r = dba->del(dba, txn, &k, 0);                                                  CKERR(r);
     }
 
     if (do_commit) {

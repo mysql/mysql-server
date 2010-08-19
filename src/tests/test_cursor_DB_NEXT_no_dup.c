@@ -16,7 +16,6 @@ static DBC* cursor      = NULL;
 static DB*  db          = NULL;
 static DB_ENV* env      = NULL;
 static int r            = 0;
-static BOOL dups        = FALSE;
 static DB_TXN* null_txn = NULL;
 
 static void setup_env(void) {
@@ -40,16 +39,12 @@ static void close_env(void) {
     env = NULL;
 }
 
-static void setup_db(u_int32_t dup_flags) {
+static void setup_db(void) {
     assert(env && !db && !cursor);
     r = db_create(&db, env, 0);
         CKERR(r);
     assert(db);
     db->set_errfile(db, stderr);
-    if (dup_flags) {
-        r = db->set_flags(db, dup_flags);
-        CKERR(r);
-    }
     r = db->open(db, null_txn, "foo.db", "main", DB_BTREE, DB_CREATE, 0666);
         CKERR(r);
     assert(db);
@@ -99,17 +94,17 @@ static void c_get(u_int32_t flag, char key_expect, char data_expect) {
     char got_data = *(char*)data.data;
     if (verbose &&
         (got_key != key_expect || got_data != data_expect)) {
-        printf("DUPS [%d] c_get(%u) Expect (%c,%c)\n"
+        printf("c_get(%u) Expect (%c,%c)\n"
                "   Got (%c,%c)\n",
-               (int)dups, flag, key_expect, data_expect, got_key, got_data);
+               flag, key_expect, data_expect, got_key, got_data);
     }
     assert(got_key  == key_expect);
     assert(got_data == data_expect);
 }
 
-static void test_skip_key(u_int32_t dup_flags, u_int32_t flag, BOOL is_next) {
+static void test_skip_key(u_int32_t flag, BOOL is_next) {
     setup_env();
-    setup_db(dup_flags);
+    setup_db();
     setup_cursor();
 
     /* ********************************************************************** */
@@ -130,50 +125,19 @@ static void test_skip_key(u_int32_t dup_flags, u_int32_t flag, BOOL is_next) {
     close_env();
 }
 
-static void test_do_not_skip_key(u_int32_t dup_flags, u_int32_t flag, BOOL is_next) {
-    setup_env();
-    setup_db(dup_flags);
-    setup_cursor();
-
-    char key    = 'g';
-    char data   = 'g';
-    int forward = is_next ? 1 : -1;
-
-    insert(key, data);
-    insert((char)(key + forward), data);
-    c_get(flag, key, data);
-    insert(key, (char)(data + forward));
-    c_get(flag, key, (char)(data + forward));
-
-    close_cursor();
-    close_db();
-    close_env();
-}
-
-static void run_test(u_int32_t dup_flags) {
-    dups = (BOOL)(dup_flags != 0);
+static void run_test(void) {
     /* ********************************************************************** */
     /* Test DB_NEXT works properly. */
-    if (dups) {
-        test_do_not_skip_key(dup_flags, DB_NEXT, TRUE);
-    }
-    else {
-        test_skip_key(dup_flags, DB_NEXT, TRUE);
-    }
+    test_skip_key(DB_NEXT, TRUE);
     /* ********************************************************************** */
     /* Test DB_PREV works properly. */
-    if (dups) {
-        test_do_not_skip_key(dup_flags, DB_PREV, FALSE);
-    }
-    else {
-        test_skip_key(dup_flags, DB_PREV, FALSE);
-    }
+    test_skip_key(DB_PREV, FALSE);
     /* ********************************************************************** */
     /* Test DB_PREV_NODUP works properly. */
-    test_skip_key(dup_flags, DB_PREV_NODUP, FALSE);
+    test_skip_key(DB_PREV_NODUP, FALSE);
     /* ********************************************************************** */
     /* Test DB_NEXT_NODUP works properly. */
-    test_skip_key(dup_flags, DB_NEXT_NODUP, TRUE);
+    test_skip_key(DB_NEXT_NODUP, TRUE);
     /* ********************************************************************** */
 }
 
@@ -183,8 +147,7 @@ test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
   
     
-    run_test(0);
-    run_test(DB_DUP | DB_DUPSORT);
+    run_test();
 
     return 0;
 }

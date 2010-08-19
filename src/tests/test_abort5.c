@@ -24,7 +24,7 @@ DB_TXN *childtxn;
 u_int32_t find_num;
 
 static void
-init(u_int32_t dup_flags) {
+init(void) {
     int r;
     r = system("rm -rf " ENVDIR);
     CKERR(r);
@@ -32,10 +32,6 @@ init(u_int32_t dup_flags) {
     r=db_env_create(&env, 0); CKERR(r);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
-    if (dup_flags) {
-        r = db->set_flags(db, dup_flags);
-        CKERR(r);
-    }
     r=db->open(db, null_txn, "foo.db", 0, DB_BTREE, DB_CREATE|DB_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
     CKERR(r);
     r=db->close(db, 0); CKERR(r);
@@ -197,20 +193,20 @@ verify_and_tear_down(int close_first) {
 }
 
 static void
-runtests(u_int32_t dup_flags, int abort_type) {
-    if (verbose) printf("\t"__FILE__": runtests(%u,%d)\n", dup_flags, abort_type);
+runtests(int abort_type) {
+    if (verbose) printf("\t"__FILE__": runtests(%d)\n", abort_type);
     int close_first;
     for (close_first = 0; close_first < 2; close_first++) {
-        init(dup_flags);
+        init();
         abort_txn(abort_type);
         verify_and_tear_down(close_first);
         u_int32_t n;
         for (n = 1; n < 1<<10; n*=2) {
-            init(dup_flags);
+            init();
             test_insert_and_abort(n, abort_type);
             verify_and_tear_down(close_first);
 
-            init(dup_flags);
+            init();
             test_insert_and_abort_and_insert(n, abort_type);
             verify_and_tear_down(close_first);
         }
@@ -222,8 +218,7 @@ test_main (int argc, char *const argv[]) {
     parse_args(argc, argv);
     int abort_type;
     for (abort_type = 0; abort_type<3; abort_type++) {
-        runtests(0, abort_type);
-        runtests(DB_DUPSORT|DB_DUP, abort_type);
+        runtests(abort_type);
     }
     return 0;
 }

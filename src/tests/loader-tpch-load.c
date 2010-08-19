@@ -368,7 +368,6 @@ static int run_test(void)
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_default_bt_compare(env, tpch_dbt_cmp);                                                       CKERR(r);
-    r = env->set_default_dup_compare(env, tpch_dbt_cmp);                                                      CKERR(r);
     // select which TPC-H table to load
     if ( USE_REGION ) {
         r = env->set_generate_row_callback_for_put(env, generate_rows_for_region);                            CKERR(r);

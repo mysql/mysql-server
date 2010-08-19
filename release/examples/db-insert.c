@@ -443,10 +443,7 @@ int main (int argc, const char *argv[]) {
             valsize = atoi(argv[++i]);
         } else if (strcmp(arg, "--pagesize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
-           pagesize = atoi(argv[++i]);
-        } else if (strcmp(arg, "--dupsort") == 0) {
-            dupflags = DB_DUP + DB_DUPSORT;
-            continue;
+            pagesize = atoi(argv[++i]);
 	} else if (strcmp(arg, "--env") == 0) {
 	    if (i+1 >= argc) return print_usage(argv[0]);
 	    dbdir = argv[++i];

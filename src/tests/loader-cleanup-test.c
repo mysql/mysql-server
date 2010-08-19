@@ -760,8 +760,8 @@ static void run_test(enum test_type t, int trigger)
     r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
+    r = env->set_redzone(env, 0);                                                                             CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
-    r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
 

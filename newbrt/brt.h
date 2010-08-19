@@ -42,13 +42,12 @@ int toku_dictionary_redirect_abort(struct brt_header *old_h, struct brt_header *
 u_int32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
 int toku_brt_create(BRT *);
 int toku_brt_set_flags(BRT, unsigned int flags);
-int toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor);
 int toku_brt_get_flags(BRT, unsigned int *flags);
+int toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor);
 int toku_brt_set_nodesize(BRT, unsigned int nodesize);
 int toku_brt_get_nodesize(BRT, unsigned int *nodesize);
 
 int toku_brt_set_bt_compare(BRT, brt_compare_func);
-int toku_brt_set_dup_compare(BRT, brt_compare_func);
 
 brt_compare_func toku_brt_get_bt_compare (BRT brt);
 
@@ -61,7 +60,7 @@ int toku_brt_open_recovery(BRT, const char *fname_in_env,
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
 int toku_brt_broadcast_commit_all (BRT brt);
-int toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
+int toku_brt_lookup (BRT brt, DBT *k, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 
 // Effect: Insert a key and data pair into a brt
 // Returns 0 if successful
@@ -132,19 +131,17 @@ typedef struct brt_cursor *BRT_CURSOR;
 int toku_brt_cursor (BRT, BRT_CURSOR*, TOKULOGGER, TXNID, BOOL);
 
 // get is deprecated in favor of the individual functions below
-int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags);
+int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags);
 
 int toku_brt_flatten(BRT, TOKULOGGER logger);
 int toku_brt_cursor_first(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_last(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_next(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_next_nodup(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
-int toku_brt_cursor_next_dup(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_prev(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_prev_nodup(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
-int toku_brt_cursor_prev_dup(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_current(BRT_CURSOR cursor, int op, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
-int toku_brt_cursor_set(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
+int toku_brt_cursor_set(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_set_range(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_set_range_reverse(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_get_both_range(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
@@ -170,10 +167,10 @@ DICTIONARY_ID toku_brt_get_dictionary_id(BRT);
 int toku_brt_height_of_root(BRT, int *height); // for an open brt, return the current height.
 
 enum brt_header_flags {
-    TOKU_DB_DUP             = (1<<0),
-    TOKU_DB_DUPSORT         = (1<<1),
+    //TOKU_DB_DUP             = (1<<0),  //Obsolete #2862
+    //TOKU_DB_DUPSORT         = (1<<1),  //Obsolete #2862
     TOKU_DB_KEYCMP_BUILTIN  = (1<<2),
-    TOKU_DB_VALCMP_BUILTIN  = (1<<3),
+    //TOKU_DB_VALCMP_BUILTIN  = (1<<3),
 };
 
 int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater);

@@ -95,8 +95,8 @@ static void print_defines (void) {
     dodefine(DB_LOCK_OLDEST);
     dodefine(DB_LOCK_RANDOM);
 
-    dodefine(DB_DUP);
-    dodefine(DB_DUPSORT);
+    //dodefine(DB_DUP);      No longer supported #2862
+    //dodefine(DB_DUPSORT);  No longer supported #2862
 
     dodefine(DB_KEYFIRST);
     dodefine(DB_KEYLAST);
@@ -132,23 +132,23 @@ static void print_defines (void) {
     printf("#define DB_TRUNCATE_WITHCURSORS %d\n", 1<<17); // private tokudb
 
     dodefine(DB_FIRST);
-    dodefine(DB_GET_BOTH);
-    dodefine(DB_GET_BOTH_RANGE);
+    //dodefine(DB_GET_BOTH);          No longer supported #2862.
+    //dodefine(DB_GET_BOTH_RANGE);  No longer supported because we only support NODUP. #2862.
     dodefine(DB_LAST);
     dodefine(DB_CURRENT);
     dodefine(DB_NEXT);
-    dodefine(DB_NEXT_DUP);
+    //dodefine(DB_NEXT_DUP); No longer supported #2862
     dodefine(DB_NEXT_NODUP);
     dodefine(DB_PREV);
 #if defined(DB_PREV_DUP)
-    dodefine(DB_PREV_DUP);
+    //dodefine(DB_PREV_DUP);  
 #endif
     dodefine(DB_PREV_NODUP);
     dodefine(DB_SET);
     dodefine(DB_SET_RANGE);
     printf("#define DB_CURRENT_BINDING 253\n"); // private tokudb
     printf("#define DB_SET_RANGE_REVERSE 252\n"); // private tokudb
-    printf("#define DB_GET_BOTH_RANGE_REVERSE 251\n"); // private tokudb
+    //printf("#define DB_GET_BOTH_RANGE_REVERSE 251\n"); // private tokudb.  No longer supported #2862.
     dodefine(DB_RMW);
     printf("#define DB_PRELOCKED 0x00800000\n"); // private tokudb
     printf("#define DB_PRELOCKED_WRITE 0x00400000\n"); // private tokudb
@@ -529,7 +529,6 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
                              "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
                              "int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
-                             "int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
 			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
 			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
 			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
@@ -595,16 +594,14 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 
 	const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
 			     "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
-			     "int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*)",
+			     "int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*)",
 			     "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
 			     "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
 			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
-                             "int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */",
                              "int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */",
                              "DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
                              "int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */",
 			     "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
-			     "int (*getf_get_both)(DB*, DB_TXN*, u_int32_t, DBT*, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_get_both without a persistent cursor) */",
                              "int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */",
                              "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
 			     NULL};
@@ -643,20 +640,13 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
                              "int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-			     "int (*c_getf_next_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-			     "int (*c_getf_next_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_prev)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-			     "int (*c_getf_prev_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-			     "int (*c_getf_prev_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
 
 			     "int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-			     "int (*c_getf_get_both)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-			     "int (*c_getf_get_both_range)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-			     "int (*c_getf_get_both_range_reverse)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     NULL};
 	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
 	print_struct("dbc", INTERNAL_AT_END, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);

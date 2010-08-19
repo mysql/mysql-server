@@ -60,10 +60,6 @@ typedef struct __toku_ltm toku_ltm;
 struct __toku_lock_tree {
     /** The database for which this locktree will be handling locks */
     DB*                 db;
-    /** Whether the db supports duplicate */
-    BOOL                duplicates;
-    /** Whether the duplicates flag can no longer be changed. */
-    BOOL                settings_final;
     toku_range_tree*    mainread;    /**< See design document */
     toku_range_tree*    borderwrite; /**< See design document */
     toku_rth*           rth;         /**< Stores local(read|write)set tables */
@@ -93,7 +89,7 @@ struct __toku_lock_tree {
        also owned by lt. We gave a pointer only to this memory to the 
        range tree earlier when we inserted a range, but the range tree
        does not own it!
-     - tree->buf[i].{left,right}.{key_payload,data_payload} is owned by
+     - tree->buf[i].{left,right}.key_payload is owned by
        the lt, we made copies from the DB at some point
     */
     toku_range*         buf;      
@@ -104,12 +100,8 @@ struct __toku_lock_tree {
     toku_ltm* mgr;
     /** Function to retrieve the key compare function from the database. */
     toku_dbt_cmp (*get_compare_fun_from_db)(DB*);
-    /** Function to retrieve the data compare function from the database. */
-    toku_dbt_cmp (*get_dup_compare_from_db)(DB*);
     /** The key compare function */
     int               (*compare_fun)(DB*,const DBT*,const DBT*);
-    /** The data compare function */
-    int               (*dup_compare)(DB*,const DBT*,const DBT*);
     /** The panic function */
     int               (*panic)(DB*, int);
     /** The user malloc function */
@@ -163,8 +155,6 @@ struct __toku_ltm {
     toku_idlth*        idlth;
     /** Function to retrieve the key compare function from the database. */
     toku_dbt_cmp (*get_compare_fun_from_db)(DB*);
-    /** Function to retrieve the data compare function from the database. */
-    toku_dbt_cmp (*get_dup_compare_from_db)(DB*);
     /** The panic function */
     int               (*panic)(DB*, int);
     /** The user malloc function */
@@ -196,8 +186,6 @@ struct __toku_point {
                                        is defined */
     void*           key_payload;  /**< The key ... */
     u_int32_t       key_len;      /**< and its length */
-    void*           data_payload; /**< The data ... */
-    u_int32_t       data_len;     /**< and its length */
 };
 #if !defined(__TOKU_POINT)
 #define __TOKU_POINT
@@ -208,9 +196,7 @@ typedef struct __toku_point toku_point;
    Create a lock tree.  Should be called only inside DB->open.
 
    \param ptree          We set *ptree to the newly allocated tree.
-   \param duplicates     Whether the db supports duplicates.
    \param get_compare_fun_from_db    Accessor for the key compare function.
-   \param get_dup_compare_from_db    Accessor for the data compare function.
    \param panic          The function to cause the db to panic.  
                          i.e., godzilla_rampage()
    \param payload_capacity The maximum amount of memory to use for dbt payloads.
@@ -231,11 +217,10 @@ typedef struct __toku_point toku_point;
    If this library is ever exported to users, we will use error datas 
    instead.
  */
-int toku_lt_create(toku_lock_tree** ptree, BOOL duplicates,
+int toku_lt_create(toku_lock_tree** ptree,
                    int   (*panic)(DB*, int), 
                    toku_ltm* mgr,
                    toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
-                   toku_dbt_cmp (*get_dup_compare_from_db)(DB*),
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t));
@@ -244,7 +229,7 @@ int toku_lt_create(toku_lock_tree** ptree, BOOL duplicates,
     Gets a lock tree for a given DB with id dict_id
 */
 int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
-                    BOOL duplicates, DICTIONARY_ID dict_id);
+                    DICTIONARY_ID dict_id);
 
 void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id);
 
@@ -285,11 +270,7 @@ int toku_lt_close(toku_lock_tree* tree);
                          memory allowed for payloads.
 
    The following is asserted: 
-     (tree == NULL || txn == NULL || key == NULL) or
-     (tree->db is dupsort && data == NULL) or
-     (tree->db is dupsort && key != data &&
-       (key == toku_lt_infinity ||
-       (toku_lock_tree* tree, TXNID txn, const DBT* key, const DBT* data);
+     (tree == NULL || txn == NULL || key == NULL);
    If this library is ever exported to users, we will use EINVAL instead.
 
    In BDB, txn can actually be NULL (mixed operations with transactions and 
@@ -297,7 +278,7 @@ int toku_lt_close(toku_lock_tree* tree);
    to verify that MySQL does or does not use this.
 */
 int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-                              const DBT* key, const DBT* data);
+                              const DBT* key);
 
 /*
    Acquires a read lock on a key range (or key/data range).  (Closed range).
@@ -306,19 +287,15 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
    \param txn             The TOKU Transaction this lock is for.
                           Note that txn == NULL is not supported at this time.
    \param key_left        The left end key of the range.
-   \param data_left       The left end data of the range.
    \param key_right       The right end key of the range.
-   \param data_right      The right end data of the range.
 
    \return
    - 0                   Success.
    - DB_LOCK_NOTGRANTED  If there is a conflict in getting the lock.
                          This can only happen if some other transaction has
                          a write lock that overlaps this range.
-   - EDOM                In a DB_DUPSORT db:
-                         If (key_left, data_left) >  (key_right, data_right) or
-                         In a nodup db:      if (key_left) >  (key_right)
-                         (According to the db's comparison functions.)
+   - EDOM                if (key_left) >  (key_right)
+                         (According to the db's comparison function.)
    - ENOMEM              If adding the lock would exceed the maximum
                          memory allowed for payloads.
 
@@ -326,14 +303,6 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
     EINVAL should be used instead:
      If (tree == NULL || txn == NULL ||
          key_left == NULL || key_right == NULL) or
-        (tree->db is dupsort &&
-          (data_left == NULL || data_right == NULL)) or
-        (tree->db is dupsort && key_left != data_left &&
-             (key_left == toku_lt_infinity ||
-              key_left == toku_lt_neg_infinity)) or
-        (tree->db is dupsort && key_right != data_right &&
-             (key_right == toku_lt_infinity ||
-              key_right == toku_lt_neg_infinity))
 
     Memory: It is safe to free keys and datas after this call.
     If the lock tree needs to hold onto the key or data, it will make copies
@@ -344,8 +313,8 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
     to verify that MySQL does or does not use this.
  */
 int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-                                   const DBT* key_left,  const DBT* data_left,
-                                   const DBT* key_right, const DBT* data_right);
+				    const DBT* key_left,
+				    const DBT* key_right);
 
 /**
    Acquires a write lock on a single key (or key/data).
@@ -366,10 +335,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
 
     The following is asserted, but if this library is ever exported to users,
     EINVAL should be used instead:
-    If (tree == NULL || txn == NULL || key == NULL) or
-       (tree->db is dupsort && data == NULL) or
-       (tree->db is dupsort && key != data &&
-       (key == toku_lt_infinity || key == toku_lt_neg_infinity))
+    If (tree == NULL || txn == NULL || key == NULL)
 
    Memory:
         It is safe to free keys and datas after this call.
@@ -377,7 +343,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
         to its local memory.
 */
 int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-                               const DBT* key, const DBT* data);
+                               const DBT* key);
 
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
  //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use
@@ -393,8 +359,6 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
  *      txn             The TOKU Transaction this lock is for.
  *      key_left        The left end key of the range.
  *      key_right       The right end key of the range.
- *      data_left      The left end data of the range.
- *      data_right     The right end data of the range.
  * Returns:
  *      0                   Success.
  *      DB_LOCK_NOTGRANTED  If there is a conflict in getting the lock.
@@ -402,18 +366,7 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
  *                          a write (or read) lock that overlaps this range.
  *      EINVAL              If (tree == NULL || txn == NULL ||
  *                              key_left == NULL || key_right == NULL) or
- *                             (tree->db is dupsort &&
- *                               (data_left == NULL || data_right == NULL)) or
- or
- *                             (tree->db is dupsort && key_left != data_left &&
- *                                  (key_left == toku_lt_infinity ||
- *                                   key_left == toku_lt_neg_infinity)) or
- *                             (tree->db is dupsort && key_right != data_right &&
- *                                  (key_right == toku_lt_infinity ||
- *                                   key_right == toku_lt_neg_infinity))
- *      ERANGE              In a DB_DUPSORT db:
- *                            If (key_left, data_left) >  (key_right, data_right) or
- *                          In a nodup db:      if (key_left) >  (key_right)
+ *      ERANGE              If (key_left) >  (key_right)
  *                          (According to the db's comparison functions.
  *      ENOSYS              THis is not yet implemented.  Till it is, it will return ENOSYS,
  *                            if other errors do not occur first.
@@ -429,8 +382,8 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
  * *** Note that txn == NULL is not supported at this time.
  */
 int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-                                   const DBT* key_left,  const DBT* data_left,
-                                   const DBT* key_right, const DBT* data_right);
+				     const DBT* key_left,
+				     const DBT* key_right);
 
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
  //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use
@@ -469,7 +422,6 @@ int toku_ltm_create(toku_ltm** pmgr,
                     u_int32_t max_locks,
                     int   (*panic)(DB*, int), 
                     toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
-                    toku_dbt_cmp (*get_dup_compare_from_db)(DB*),
                     void* (*user_malloc) (size_t),
                     void  (*user_free)   (void*),
                     void* (*user_realloc)(void*, size_t));

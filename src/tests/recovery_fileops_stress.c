@@ -448,6 +448,7 @@ static void env_startup(int recovery_flags) {
     int r;
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | recovery_flags;
     r = db_env_create(&env, 0);                                     CKERR(r);
+    r=env->set_redzone(env, 0);                                     CKERR(r);
     env->set_errfile(env, stderr);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);  CKERR(r);
     //Disable auto-checkpointing.
@@ -512,7 +513,7 @@ static void verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t num
 
     k = firstkey;
     v = generate_val(k);
-    r1 = c1->c_get(c1, &key2, &val2, DB_GET_BOTH);
+    r1 = c1->c_get(c1, &key2, &val2, DB_SET);
     CKERR(r1);
 
     int64_t i;

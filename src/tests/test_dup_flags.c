@@ -30,25 +30,12 @@ test_dup_flags (u_int32_t dup_flags) {
 
     DB *db;
     r = db_create(&db, env, 0); assert(r == 0);
+    if (IS_TDB) assert(dup_flags==0);
     r = db->set_flags(db, dup_flags);
-    if (IS_TDB) {
-	if (r != 0 && dup_flags == DB_DUP) {
-	    if (verbose) printf("%s:%d: WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
-	    r = db->close(db, 0); assert(r == 0);
-	    return;
-	}
-    }
     assert(r == 0);
     u_int32_t flags; r = db->get_flags(db, &flags); assert(r == 0); assert(flags == dup_flags);
+    if (IS_TDB) assert(dup_flags==0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); 
-    if (IS_TDB) {
-	if (r != 0 && dup_flags == DB_DUP) {
-	    if (verbose) printf("%s:%d: WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
-	    r = db->close(db, 0); assert(r == 0);
-            r = env->close(env, 0); assert(r == 0);
-	    return;
-	}
-    }
     assert(r == 0);
     r = db->close(db, 0); assert(r == 0);
 
@@ -85,8 +72,6 @@ test_main(int argc, char *const argv[]) {
 
     /* test flags */
     test_dup_flags(0);
-    test_dup_flags(DB_DUP);
-    test_dup_flags(DB_DUP + DB_DUPSORT);
 
     return 0;
 }

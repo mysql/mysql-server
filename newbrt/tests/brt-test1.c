@@ -23,7 +23,7 @@ static void test1 (void) {
     toku_brt_insert(t, toku_fill_dbt(&k, "hello", 6), toku_fill_dbt(&v, "there", 6), null_txn);
     {
 	struct check_pair pair = {6, "hello", 6, "there", 0};
-	r = toku_brt_lookup(t, toku_fill_dbt(&k, "hello", 6), NULL, lookup_checkf, &pair);
+	r = toku_brt_lookup(t, toku_fill_dbt(&k, "hello", 6), lookup_checkf, &pair);
 	assert(r==0);
 	assert(pair.call_count==1);
     }

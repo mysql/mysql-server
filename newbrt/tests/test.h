@@ -60,7 +60,7 @@ brt_lookup_and_check_nodup (BRT t, char *keystring, char *valstring)
     struct check_pair pair = {1+strlen(keystring), keystring,
 			      1+strlen(valstring), valstring,
 			      0};
-    int r = toku_brt_lookup(t, &k, 0, lookup_checkf, &pair);
+    int r = toku_brt_lookup(t, &k, lookup_checkf, &pair);
     assert(r==0);
     assert(pair.call_count==1);
 }
@@ -76,7 +76,7 @@ brt_lookup_and_fail_nodup (BRT t, char *keystring)
     struct check_pair pair = {1+strlen(keystring), keystring,
 			      0, 0,
 			      0};
-    int r = toku_brt_lookup(t, &k, 0, lookup_checkf, &pair);
+    int r = toku_brt_lookup(t, &k, lookup_checkf, &pair);
     assert(r!=0);
     assert(pair.call_count==0);
 }

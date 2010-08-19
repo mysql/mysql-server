@@ -56,16 +56,6 @@ const struct logtype rollbacks[] = {
 			  {"FILENUM", "filenum", 0},
 			  {"BYTESTRING", "key", 0},
 			  NULLFIELD}},
-    {"cmdinsertboth", 'I', FA{
-			  {"FILENUM", "filenum", 0},
-			  {"BYTESTRING", "key", 0},
-			  {"BYTESTRING", "data", 0},
-			  NULLFIELD}},
-    {"cmddeleteboth", 'D', FA{
-			      {"FILENUM", "filenum", 0},
-			      {"BYTESTRING", "key", 0},
-			      {"BYTESTRING", "data", 0},
-			      NULLFIELD}},
     {"cmddelete", 'd', FA{
 			  {"FILENUM", "filenum", 0},
 			  {"BYTESTRING", "key", 0},
@@ -157,11 +147,6 @@ const struct logtype logtypes[] = {
                                         {"BYTESTRING", "key", 0},
                                         {"BYTESTRING", "value", 0},
                                         NULLFIELD}},
-    {"enq_delete_both", 'D', FA{{"FILENUM",    "filenum", 0},
-                                {"TXNID",      "xid", 0},
-                                {"BYTESTRING", "key", 0},
-                                {"BYTESTRING", "value", 0},
-                                NULLFIELD}},
     {"enq_delete_any", 'E', FA{{"FILENUM",    "filenum", 0},
                                {"TXNID",      "xid", 0},
                                {"BYTESTRING", "key", 0},

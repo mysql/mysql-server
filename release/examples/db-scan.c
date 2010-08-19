@@ -132,8 +132,7 @@ static void scanscan_setup (void) {
     if (prelock) {
 	r = db->pre_acquire_read_lock(db,
 				      tid,
-				      db->dbt_neg_infty(), db->dbt_neg_infty(),
-				      db->dbt_pos_infty(), db->dbt_pos_infty());
+				      db->dbt_neg_infty(), db->dbt_pos_infty());
 	assert(r==0);
     }
 #endif

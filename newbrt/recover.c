@@ -176,7 +176,6 @@ struct recover_env {
     CACHETABLE ct;
     TOKULOGGER logger;
     brt_compare_func bt_compare;
-    brt_compare_func dup_compare;
     generate_row_for_put_func generate_row_for_put;
     generate_row_for_del_func generate_row_for_del;
     struct scan_state ss;
@@ -185,7 +184,7 @@ struct recover_env {
 };
 typedef struct recover_env *RECOVER_ENV;
 
-static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare, brt_compare_func dup_compare,
+static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare,
                              generate_row_for_put_func generate_row_for_put,
                              generate_row_for_del_func generate_row_for_del,
                              size_t cachetable_size) {
@@ -198,7 +197,6 @@ static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare, brt_
     toku_logger_write_log_files(renv->logger, FALSE);
     toku_logger_set_cachetable(renv->logger, renv->ct);
     renv->bt_compare = bt_compare;
-    renv->dup_compare = dup_compare;
     renv->generate_row_for_put = generate_row_for_put;
     renv->generate_row_for_del = generate_row_for_del;
     file_map_init(&renv->fmap);
@@ -252,8 +250,6 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     // set the key compare functions
     if (!(treeflags & TOKU_DB_KEYCMP_BUILTIN) && renv->bt_compare)
         toku_brt_set_bt_compare(brt, renv->bt_compare);
-    if (!(treeflags & TOKU_DB_VALCMP_BUILTIN) && renv->dup_compare)
-        toku_brt_set_dup_compare(brt, renv->dup_compare);
 
     // TODO mode (FUTURE FEATURE)
     mode = mode;
@@ -799,30 +795,6 @@ static int toku_recover_backward_enq_insert_no_overwrite (struct logtype_enq_ins
     return 0;
 }
 
-static int toku_recover_enq_delete_both (struct logtype_enq_delete_both *l, RECOVER_ENV renv) {
-    int r;
-    TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
-    assert(txn!=NULL);
-    struct file_map_tuple *tuple = NULL;
-    r = file_map_find(&renv->fmap, l->filenum, &tuple);
-    if (r==0) {
-        //Maybe do the deletion if we found the cachefile.
-        DBT keydbt, valdbt;
-        toku_fill_dbt(&keydbt, l->key.data, l->key.len);
-        toku_fill_dbt(&valdbt, l->value.data, l->value.len);
-        r = toku_brt_maybe_delete_both(tuple->brt, &keydbt, &valdbt, txn, TRUE, l->lsn);
-        assert(r == 0);
-    }    
-    return 0;
-}
-
-static int toku_recover_backward_enq_delete_both (struct logtype_enq_delete_both *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
-    return 0;
-}
-
 static int toku_recover_enq_delete_any (struct logtype_enq_delete_any *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
@@ -1321,7 +1293,6 @@ toku_recover_unlock(int lockfd) {
 
 int tokudb_recover(const char *env_dir, const char *log_dir,
                    brt_compare_func bt_compare,
-                   brt_compare_func dup_compare,
                    generate_row_for_put_func generate_row_for_put,
                    generate_row_for_del_func generate_row_for_del,
                    size_t cachetable_size) {
@@ -1335,7 +1306,7 @@ int tokudb_recover(const char *env_dir, const char *log_dir,
     int rr = 0;
     if (tokudb_needs_recovery(log_dir, FALSE)) {
         struct recover_env renv;
-        r = recover_env_init(&renv, bt_compare, dup_compare,
+        r = recover_env_init(&renv, bt_compare,
                              generate_row_for_put,
                              generate_row_for_del,
                              cachetable_size);

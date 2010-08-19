@@ -455,7 +455,6 @@ static void run_test(void)
 	r = env->set_tmp_dir(env, tmp_subdir);                                                                CKERR(r);
     }
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
-    r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
     if ( verbose ) printf("CACHESIZE = %d MB\n", CACHESIZE);
     r = env->set_cachesize(env, CACHESIZE / 1024, (CACHESIZE % 1024)*1024*1024, 1);                           CKERR(r);
     if (datadir) {

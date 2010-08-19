@@ -15,7 +15,7 @@ run_test(void) {
     r = toku_os_mkdir(TESTDIR, S_IRWXU); assert(r == 0);
 
     // run recovery
-    r = tokudb_recover(NULL, NULL, 0, 0, NULL, NULL, 0); 
+    r = tokudb_recover(NULL, NULL, 0, 0, NULL, 0); 
     assert(r != 0);
 
     r = system("rm -rf " TESTDIR);

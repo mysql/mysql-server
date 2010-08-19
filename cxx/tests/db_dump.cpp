@@ -34,10 +34,12 @@ static int dbdump(const char *env_dir, const char *dbfile, const char *dbname) {
 
     u_int32_t dbflags;
     r = db.get_flags(&dbflags); assert(r == 0);
+#ifndef TOKUDB
     if (dbflags & DB_DUP)
         printf("duplicates=1\n");
     if (dbflags & DB_DUPSORT)
         printf("dupsort=1\n");
+#endif
 #if 0
     u_int32_t nodesize;
     r = db.get_nodesize(&nodesize); assert(r == 0);

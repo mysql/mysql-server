@@ -54,7 +54,7 @@ doit (void) {
 
     memset(&v, 0, sizeof(v));
     struct check_pair pair = {6, "hello", 6, "there", 0};
-    r = toku_brt_lookup(t, &k, &v, lookup_checkf, &pair);
+    r = toku_brt_lookup(t, &k, lookup_checkf, &pair);
     assert(r==0);
     assert(pair.call_count == 1);
 

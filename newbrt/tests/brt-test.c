@@ -258,13 +258,13 @@ static void test_cursor_last_empty(void) {
     r = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE);            assert(r==0);
     {
 	struct check_pair pair = {0,0,0,0,0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_LAST);
+	r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_LAST);
 	assert(pair.call_count==0);
 	assert(r==DB_NOTFOUND);
     }
     {
 	struct check_pair pair = {0,0,0,0,0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST);
+	r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_FIRST);
 	assert(pair.call_count==0);
 	assert(r==DB_NOTFOUND);
     }
@@ -300,7 +300,7 @@ static void test_cursor_next (void) {
     if (verbose) printf("%s:%d calling toku_brt_cursor_get(...)\n", __FILE__, __LINE__);
     {
 	struct check_pair pair = {7, "byebye", 7, "byenow", 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+	r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
 	if (verbose) printf("%s:%d called toku_brt_cursor_get(...)\n", __FILE__, __LINE__);
 	assert(r==0);
 	assert(pair.call_count==1);
@@ -308,13 +308,13 @@ static void test_cursor_next (void) {
 
     {
 	struct check_pair pair = {6, "hello", 6, "there", 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+	r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
 	assert(r==0);
 	assert(pair.call_count==1);
     }
     {
 	struct check_pair pair = {0, 0, 0, 0, 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+	r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
 	assert(r==DB_NOTFOUND);
 	assert(pair.call_count==0);
     }
@@ -392,7 +392,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	    b[2] = a[1] = (unsigned char)((i>>8)&255);
 	    b[1] = a[2] = (unsigned char)((i>>16)&255);
 	    b[0] = a[3] = (unsigned char)((i>>24)&255);
-	    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+	    r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
 	    assert(r==0);
 	    assert(pair.call_count==1);
 	}
@@ -432,7 +432,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	    b[2] = a[1] = (unsigned char)((i>>8)&255);
 	    b[1] = a[2] = (unsigned char)((i>>16)&255);
 	    b[0] = a[3] = (unsigned char)((i>>24)&255);
-	    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+	    r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
 	    assert(r==0);
 	    assert(pair.call_count==1);
 	    toku_cachetable_verify(ct);
@@ -559,7 +559,7 @@ static void test_brt_delete_present(int n) {
         int k = toku_htonl(i);
 	DBT key = {.size=sizeof k, .data=&k};
 	struct check_pair pair = {0, 0, 0, 0, 0};
-        r = toku_brt_lookup(t, &key, NULL, lookup_checkf, &pair);
+        r = toku_brt_lookup(t, &key, lookup_checkf, &pair);
         assert(r == DB_NOTFOUND);
 	assert(pair.call_count==0);
     }
@@ -572,7 +572,7 @@ static void test_brt_delete_present(int n) {
 
     {
 	struct check_pair pair = {0,0,0,0,0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST);
+	r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_FIRST);
 	assert(r != 0);
 	assert(pair.call_count==0);
     }
@@ -661,7 +661,7 @@ static void test_brt_delete_cursor_first(int n) {
 	int k2 = k;
 	int v = i;
 	struct check_pair pair = {sizeof k, &k2, sizeof v, &v, 0};
-        r = toku_brt_lookup(t, &key, 0, lookup_checkf, &pair);
+        r = toku_brt_lookup(t, &key, lookup_checkf, &pair);
         assert(r == 0);
 	assert(pair.call_count==1);
     }
@@ -679,7 +679,7 @@ static void test_brt_delete_cursor_first(int n) {
 	    int k = toku_htonl(i);
 	    DBT key = {.size=sizeof k, .data=&k};
 	    struct check_pair pair = {0,0,0,0,0};
-	    r = toku_brt_lookup(t, &key, NULL, lookup_checkf, &pair);
+	    r = toku_brt_lookup(t, &key, lookup_checkf, &pair);
 	    assert(r == DB_NOTFOUND);
 	    assert(pair.call_count==0);
 	}
@@ -690,7 +690,7 @@ static void test_brt_delete_cursor_first(int n) {
         int k = toku_htonl(i);
 	DBT key = {.size=sizeof k, .data=&k};
 	struct check_pair pair = {0,0,0,0,0};
-        r = toku_brt_lookup(t, &key, NULL, lookup_checkf, &pair);
+        r = toku_brt_lookup(t, &key, lookup_checkf, &pair);
         assert(r == DB_NOTFOUND);
 	assert(pair.call_count==0);
     }
@@ -705,7 +705,7 @@ static void test_brt_delete_cursor_first(int n) {
 	int kv = toku_htonl(n-1);
 	int vv = n-1;
 	struct check_pair pair = {sizeof kv, &kv, sizeof vv, &vv, 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST);
+	r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_FIRST);
 	assert(r == 0);
 	assert(pair.call_count==1);
     }
@@ -758,7 +758,7 @@ static void test_insert_delete_lookup(int n) {
 	    int k = toku_htonl(n-1);
 	    DBT key = {.size=sizeof k, .data=&k};
 	    struct check_pair pair = {0,0,0,0,0};
-	    r = toku_brt_lookup(t, &key, NULL, lookup_checkf, &pair);
+	    r = toku_brt_lookup(t, &key, lookup_checkf, &pair);
 	    assert(r == DB_NOTFOUND);
 	    assert(pair.call_count==0);
 	}
@@ -772,73 +772,6 @@ static void test_insert_delete_lookup(int n) {
    delete_both <0,i> for all even i
    verify <0,i> exists for all odd i */
 
-static void test_brt_delete_both(int n) {
-    if (verbose) printf("test_brt_delete_both:%d\n", n);
-
-    BRT t=0;
-    int r;
-    CACHETABLE ct;
-    int i;
-
-    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    unlink(fname);
-    r = toku_brt_create(&t); assert(r == 0);
-    r = toku_brt_set_flags(t, TOKU_DB_DUP + TOKU_DB_DUPSORT); assert(r == 0);
-    r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, 1, 1, ct, null_txn, (DB*)0);
-    assert(r==0);
-
-    DBT key, val;
-    int k, v;
-
-    for (i=0; i<n; i++) {
-        k = toku_htonl(0); v = toku_htonl(i);
-        r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0);
-        assert(r == 0);
-    }
-
-    for (i=0; i<n; i += 2) {
-        k = toku_htonl(0); v = toku_htonl(i);
-        r = toku_brt_delete_both(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), null_txn); assert(r == 0);
-    }
-
-#if 0
-    for (i=1; i<n; i += 2) {
-        k = toku_htonl(0);
-        toku_fill_dbt(&key, &k, sizeof k);
-        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = toku_brt_lookup(t, &key, &val); assert(r == 0);
-        int vv;
-        assert(val.size == sizeof vv);
-        memcpy(&vv, val.data, val.size);
-        assert(vv == (int) toku_htonl(i));
-        if (val.data) free(val.data);
-        r = toku_brt_delete_both(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &vv, sizeof vv), null_txn); assert(r == 0);
-    }
-#endif
-
-    /* cursor should find only odd pairs */
-    BRT_CURSOR cursor=0;
-
-    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
-
-    for (i=1; ; i += 2) {
-	int kv = toku_htonl(0);
-	int vv = toku_htonl(i);
-	struct check_pair pair = {sizeof kv, &kv, sizeof vv, &vv, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
-        if (r != 0) {
-	    assert(pair.call_count==0);
-	    break;
-	}
-	assert(pair.call_count==1);
-    }
-
-    r = toku_brt_cursor_close(cursor);  assert(r == 0);
-
-    r = toku_close_brt(t, 0);        assert(r==0);
-    r = toku_cachetable_close(&ct);     assert(r==0);
-}
 
 static void test_brt_delete(void) {
     test_brt_delete_empty(); toku_memory_check_all_free();
@@ -910,7 +843,7 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
 	int kv = toku_htonl(i);
 	int vv = toku_htonl(i);
 	struct check_pair pair = {sizeof kv, &kv, sizeof vv, &vv, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST);
+        r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_FIRST);
         if (r != 0) {
 	    assert(pair.call_count==0);
 	    break;
@@ -963,7 +896,7 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
 	int kk = toku_htonl(i);
 	int vv = toku_htonl(i);
 	struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_LAST);
+        r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_LAST);
         if (r != 0) {
 	    assert(pair.call_count==0);
 	    break;
@@ -1013,7 +946,7 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
 	int kk = toku_htonl(i);
 	int vv = toku_htonl(i);
 	struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+        r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
         if (r != 0) {
 	    assert(pair.call_count ==0);
 	    break;
@@ -1057,7 +990,7 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
 	int kk = toku_htonl(i);
 	int vv = toku_htonl(i);
 	struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_PREV);
+        r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_PREV);
         if (r != 0) {
 	    assert(pair.call_count==0);
 	    break;
@@ -1102,7 +1035,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
 	    int kk = toku_htonl(i);
 	    int vv = toku_htonl(i);
 	    struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-	    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST);
+	    r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_FIRST);
 	    if (r != 0) {
 		assert(pair.call_count==0);
 		break;
@@ -1113,7 +1046,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
 	    int kk = toku_htonl(i);
 	    int vv = toku_htonl(i);
 	    struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-	    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_CURRENT);
+	    r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_CURRENT);
 	    assert(r == 0);
 	    assert(pair.call_count==1);
 	}
@@ -1122,7 +1055,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
 	    int kk = toku_htonl(i);
 	    int vv = toku_htonl(i);
 	    struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-	    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_CURRENT_BINDING);
+	    r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_CURRENT_BINDING);
 	    assert(r == 0);
 	    assert(pair.call_count==1);
 	}
@@ -1133,7 +1066,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
 	    static int count=0;
 	    count++;
 	    struct check_pair pair = {0,0,0,0,0};
-	    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_CURRENT);
+	    r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_CURRENT);
 	    CKERR2(r,DB_NOTFOUND); // previous DB_KEYEMPTY
 	    assert(pair.call_count==0);
 	}
@@ -1142,7 +1075,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
 	    int kk = toku_htonl(i);
 	    int vv = toku_htonl(i);
 	    struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-	    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_CURRENT_BINDING);
+	    r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_CURRENT_BINDING);
 	    assert(r == 0);
 	    assert(pair.call_count==1);
 	}
@@ -1189,14 +1122,13 @@ static void test_new_brt_cursor_set_range(int n, int dup_mode) {
         int v = random() % (10*n);
         int k = toku_htonl(v);
         DBT key = {.size=sizeof k, .data=&k};
-	DBT val = {.size=sizeof v, .data=&v};
 
 	int vv = (((v+9)/10)*10); // This is the value we should actually find.
 
 	struct check_pair pair = {sizeof k,  NULL,  // NULL data means don't check it
 				  sizeof vv,  &vv,
 				  0};
-        r = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_SET_RANGE);
+        r = toku_brt_cursor_get(cursor, &key, lookup_checkf, &pair, DB_SET_RANGE);
         if (v > max_key) {
             /* there is no smallest key if v > the max key */
             assert(r == DB_NOTFOUND);
@@ -1247,7 +1179,7 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
         int k = toku_htonl(v);
         DBT key = {.size=sizeof k, .data=&k};
 	struct check_pair pair = {sizeof k, &k, sizeof v, &v, 0};
-        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, cursor_op);
+        r = toku_brt_cursor_get(cursor, &key, lookup_checkf, &pair, cursor_op);
         assert(r == 0);
 	assert(pair.call_count==1);
         if (cursor_op == DB_SET) assert(key.data == &k);
@@ -1260,7 +1192,7 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
         int k = toku_htonl(i);
         DBT key = {.size=sizeof k, .data=&k};
 	struct check_pair pair = {0,0,0,0,0};
-        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, DB_SET);
+        r = toku_brt_cursor_get(cursor, &key, lookup_checkf, &pair, DB_SET);
         assert(r == DB_NOTFOUND);
 	assert(pair.call_count==0);
         assert(key.data == &k);
@@ -1274,6 +1206,7 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
 }
 
 static void test_new_brt_cursors(int dup_mode) {
+    assert(dup_mode==0);
     test_new_brt_cursor_create_close();           toku_memory_check_all_free();
     test_new_brt_cursor_first(8, dup_mode);       toku_memory_check_all_free();
     test_new_brt_cursor_last(8, dup_mode);        toku_memory_check_all_free();
@@ -1293,8 +1226,6 @@ static void brt_blackbox_test (void) {
     test_wrongendian_compare(1, 257);        toku_memory_check_all_free();
     test_wrongendian_compare(1, 1000);        toku_memory_check_all_free();
     test_new_brt_cursors(0);
-    test_new_brt_cursors(TOKU_DB_DUP+TOKU_DB_DUPSORT);
-    test_brt_delete_both(512);               toku_memory_check_all_free();
 
     test_read_what_was_written();         toku_memory_check_all_free(); if (verbose) printf("did read_what_was_written\n");
     test_cursor_next();                   toku_memory_check_all_free();

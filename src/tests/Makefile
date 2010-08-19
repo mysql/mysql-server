@@ -207,7 +207,6 @@ BDB_BINS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DON
 endif
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
-	test944 \
 	test_truncate_txn_abort \
 	test_db_no_env \
 #\ ends prev line
