@@ -128,6 +128,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
+  THD::killed_state killed_status;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -138,7 +139,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
   bool transactional_table;
-  THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_load");
 
 #ifdef EMBEDDED_LIBRARY
@@ -455,7 +455,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                     error=1;
                     thd->killed= THD::KILL_QUERY;
                   };);
-  killed_status= (error == 0)? THD::NOT_KILLED : thd->killed;
+
+#ifndef EMBEDDED_LIBRARY
+  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+#endif
+
   /*
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
@@ -708,12 +712,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item_field *sql_field;
   TABLE *table= table_list->table;
-  ulonglong id;
   bool err;
   DBUG_ENTER("read_fixed_length");
 
-  id= 0;
- 
   while (!read_info.read_fixed_length())
   {
     if (thd->killed)
@@ -839,12 +840,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item *item;
   TABLE *table= table_list->table;
   uint enclosed_length;
-  ulonglong id;
   bool err;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
-  id= 0;
 
   for (;;it.rewind())
   {
@@ -1208,29 +1207,6 @@ int READ_INFO::read_field()
     while ( to < end_of_buff)
     {
       chr = GET;
-#ifdef USE_MB
-      if ((my_mbcharlen(read_charset, chr) > 1) &&
-          to+my_mbcharlen(read_charset, chr) <= end_of_buff)
-      {
-	  uchar* p = (uchar*)to;
-	  *to++ = chr;
-	  int ml = my_mbcharlen(read_charset, chr);
-	  int i;
-	  for (i=1; i<ml; i++) {
-	      chr = GET;
-	      if (chr == my_b_EOF)
-		  goto found_eof;
-	      *to++ = chr;
-	  }
-	  if (my_ismbchar(read_charset,
-                          (const char *)p,
-                          (const char *)to))
-	    continue;
-	  for (i=0; i<ml; i++)
-	    PUSH((uchar) *--to);
-	  chr = GET;
-      }
-#endif
       if (chr == my_b_EOF)
 	goto found_eof;
       if (chr == escape_char)
@@ -1314,6 +1290,39 @@ int READ_INFO::read_field()
 	  return 0;
 	}
       }
+#ifdef USE_MB
+      if (my_mbcharlen(read_charset, chr) > 1 &&
+          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+      {
+        uchar* p= (uchar*) to;
+        int ml, i;
+        *to++ = chr;
+
+        ml= my_mbcharlen(read_charset, chr);
+
+        for (i= 1; i < ml; i++) 
+        {
+          chr= GET;
+          if (chr == my_b_EOF)
+          {
+            /*
+             Need to back up the bytes already ready from illformed
+             multi-byte char 
+            */
+            to-= i;
+            goto found_eof;
+          }
+          *to++ = chr;
+        }
+        if (my_ismbchar(read_charset,
+                        (const char *)p,
+                        (const char *)to))
+          continue;
+        for (i= 0; i < ml; i++)
+          PUSH((uchar) *--to);
+        chr= GET;
+      }
+#endif
       *to++ = (uchar) chr;
     }
     /*

@@ -737,4 +737,18 @@ ORDER BY f1 DESC LIMIT 5;
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#54117 crash in thr_multi_unlock, temporary table
+--echo #
+
+CREATE TEMPORARY TABLE t1(a INT) ENGINE = InnoDB;
+
+LOCK TABLES t1 READ;
+ALTER TABLE t1 COMMENT 'test';
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests

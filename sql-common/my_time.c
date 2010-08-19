@@ -1024,30 +1024,21 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
 int my_time_to_str(const MYSQL_TIME *l_time, char *to)
 {
   uint extra_hours= 0;
-  return my_sprintf(to, (to, "%s%02u:%02u:%02u",
-                         (l_time->neg ? "-" : ""),
-                         extra_hours+ l_time->hour,
-                         l_time->minute,
-                         l_time->second));
+  return sprintf(to, "%s%02u:%02u:%02u", (l_time->neg ? "-" : ""),
+                 extra_hours+ l_time->hour, l_time->minute, l_time->second);
 }
 
 int my_date_to_str(const MYSQL_TIME *l_time, char *to)
 {
-  return my_sprintf(to, (to, "%04u-%02u-%02u",
-                         l_time->year,
-                         l_time->month,
-                         l_time->day));
+  return sprintf(to, "%04u-%02u-%02u",
+                 l_time->year, l_time->month, l_time->day);
 }
 
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to)
 {
-  return my_sprintf(to, (to, "%04u-%02u-%02u %02u:%02u:%02u",
-                         l_time->year,
-                         l_time->month,
-                         l_time->day,
-                         l_time->hour,
-                         l_time->minute,
-                         l_time->second));
+  return sprintf(to, "%04u-%02u-%02u %02u:%02u:%02u",
+                 l_time->year, l_time->month, l_time->day,
+                 l_time->hour, l_time->minute, l_time->second);
 }
 
 
