@@ -1134,7 +1134,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
           if ((res= dsmrr_fill_rowid_buffer()))
             return res; /* for fatal errors */
         }
-        if (rowid_buffer.is_empty())
+        while (rowid_buffer.is_empty())
         {
           if (dsmrr_eof)
             return HA_ERR_END_OF_FILE;
