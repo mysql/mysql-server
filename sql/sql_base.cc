@@ -4417,7 +4417,8 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
   Return a appropriate read lock type given a table object.
 
   @param thd Thread context
-  @param table TABLE object for table to be locked
+  @param lex        LEX for the current statement.
+  @param table_list Table list element for table to be locked.
 
   @remark Due to a statement-based replication limitation, statements such as
           INSERT INTO .. SELECT FROM .. and CREATE TABLE .. SELECT FROM need
@@ -4426,19 +4427,32 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
           source table. If such a statement gets applied on the slave before
           the INSERT .. SELECT statement finishes, data on the master could
           differ from data on the slave and end-up with a discrepancy between
-          the binary log and table state. Furthermore, this does not apply to
-          I_S and log tables as it's always unsafe to replicate such tables
-          under statement-based replication as the table on the slave might
-          contain other data (ie: general_log is enabled on the slave). The
-          statement will be marked as unsafe for SBR in decide_logging_format().
+          the binary log and table state.
+          This also applies to SELECT/SET/DO statements which use stored
+          functions. Calls to such functions are going to be logged as a
+          whole and thus should be serialized against concurrent changes
+          to tables used by those functions. This can be avoided if functions
+          only read data but doing so requires more complex analysis than it
+          is done now (unfortunately, due to bug #53921 "Wrong locks for
+          SELECTs used stored functions may lead to broken SBR" this rule
+          is not followed in cases when stored function or trigger use
+          simple SELECT and not a subselect in their body).
+          Furthermore, this does not apply to I_S and log tables as it's
+          always unsafe to replicate such tables under statement-based
+          replication as the table on the slave might contain other data
+          (ie: general_log is enabled on the slave). The statement will
+          be marked as unsafe for SBR in decide_logging_format().
 */
 
-thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
+thr_lock_type read_lock_type_for_table(THD *thd, LEX *lex,
+                                       TABLE_LIST *table_list)
 {
   bool log_on= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
   ulong binlog_format= thd->variables.binlog_format;
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
-      (table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
+      (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
+      (lex->sql_command == SQLCOM_SELECT &&
+       ! table_list->prelocking_placeholder))
     return TL_READ;
   else
     return TL_READ_NO_INSERT;
@@ -4734,7 +4748,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         tables->table->reginfo.lock_type= thd->update_lock_default;
       else if (tables->lock_type == TL_READ_DEFAULT)
         tables->table->reginfo.lock_type=
-          read_lock_type_for_table(thd, tables->table);
+          read_lock_type_for_table(thd, thd->lex, tables);
       else
         tables->table->reginfo.lock_type= tables->lock_type;
     }
@@ -5192,6 +5206,8 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       }
       DBUG_RETURN(-1);
     }
+
+    DEBUG_SYNC(thd, "after_lock_tables_takes_lock");
 
     if (thd->lex->requires_prelocking() &&
         thd->lex->sql_command != SQLCOM_LOCK_TABLES)

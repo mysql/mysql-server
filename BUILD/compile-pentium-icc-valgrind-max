@@ -29,6 +29,6 @@ extra_flags="$pentium_cflags $debug_cflags $valgrind_flags"
 c_warnings="-Wall -Wcheck -wd161,444,279,810,981,1292,1469,1572"
 cxx_warnings="$c_warnings -wd869,874"
 base_cxxflags="-fno-exceptions -fno-rtti"
-extra_configs="$pentium_configs $debug_configs"
+extra_configs="$pentium_configs $debug_configs $valgrind_configs"
 
 . "$path/FINISH.sh"

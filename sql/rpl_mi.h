@@ -112,13 +112,14 @@ class Master_info : public Slave_reporting_capability
   ulonglong received_heartbeats;  // counter of received heartbeat events
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
+  ulong retry_count;
+  char master_uuid[UUID_LENGTH+1];
   /*
     to hold checksum alg in use until IO thread has received FD.
     Initialized to novalue, then set to the queried from master
     @@global.binlog_checksum and deactivated once FD has been received.
   */
   uint8 checksum_alg_before_fd;
-  char master_uuid[UUID_LENGTH+1];
 };
 void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,
@@ -126,8 +127,9 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
 		     bool abort_if_no_master_info_file,
 		     int thread_mask);
 void end_master_info(Master_info* mi);
-int flush_master_info(Master_info* mi, bool flush_relay_log_cache);
+int flush_master_info(Master_info* mi, 
+                      bool flush_relay_log_cache, 
+                      bool need_lock_relay_log);
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
-
 #endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */

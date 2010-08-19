@@ -359,7 +359,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
   }
   else if (get_from_handler_file(table_share->normalized_path.str, mem_root))
   {
-    mem_alloc_error(2);
+    my_message(ER_UNKNOWN_ERROR, "Failed to read from the .par file", MYF(0));
     DBUG_RETURN(1);
   }
   /*

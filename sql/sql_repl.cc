@@ -1598,6 +1598,8 @@ bool change_master(THD* thd, Master_info* mi)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
+  if (lex_mi->retry_count)
+    mi->retry_count = lex_mi->retry_count;
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
   else
@@ -1711,7 +1713,7 @@ bool change_master(THD* thd, Master_info* mi)
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
   */
-  if (flush_master_info(mi, 0))
+  if (flush_master_info(mi, FALSE, FALSE))
   {
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
     ret= TRUE;

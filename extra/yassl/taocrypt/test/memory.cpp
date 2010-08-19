@@ -13,7 +13,7 @@
 To use MemoryTracker merely add this file to your project
 No need to instantiate anything
 
-If your app is multi threaded define MULTI_THREADED
+If your app is multi threaded define YASSL_THREAD_SAFE
 
 *********************************************************************/
 

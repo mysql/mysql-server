@@ -162,13 +162,13 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Unknown column 'c7' in 't15' Error_code: 1054"),
  ("Slave: Can't DROP 'c7'.* 1091"),
  ("Slave: Key column 'c6'.* 1072"),
- ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_UUID variable from master."),
- ("init-command:'.*' failed with error:.*"),
+ ("The slave I.O thread stops because a fatal error is encountered when it tries to get the value of SERVER_UUID variable from master.*"),
+ ("The initialization command '.*' failed with the following error.*"),
  ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
  (".SELECT UNIX_TIMESTAMP... failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS"),
 
  /*It will print a warning if a new UUID of server is generated.*/
- ("It might be a maiden lunch of the server, for there is no UUID existing.*"),
+ ("No existing UUID has been found, so we assume that this is the first time that this server has been started.*"),
 
  /* Test case for Bug#31590 in order_by.test produces the following error */
  ("Out of sort memory; increase server sort buffer size"),

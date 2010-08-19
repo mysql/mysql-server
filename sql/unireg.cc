@@ -108,7 +108,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   File file;
   ulong filepos, data_offset;
   uchar fileinfo[64],forminfo[288],*keybuff;
-  TYPELIB formnames;
   uchar *screen_buff;
   char buff[128];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -119,7 +118,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   DBUG_ENTER("mysql_create_frm");
 
   DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
-  formnames.type_names=0;
+
   if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,0)))
     DBUG_RETURN(1);
   DBUG_ASSERT(db_file != NULL);
@@ -194,8 +193,15 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   key_buff_length= uint4korr(fileinfo+47);
   keybuff=(uchar*) my_malloc(key_buff_length, MYF(0));
   key_info_length= pack_keys(keybuff, keys, key_info, data_offset);
-  VOID(get_form_pos(file,fileinfo,&formnames));
-  if (!(filepos=make_new_entry(file,fileinfo,&formnames,"")))
+
+  /*
+    Ensure that there are no forms in this newly created form file.
+    Even if the form file exists, create_frm must truncate it to
+    ensure one form per form file.
+  */
+  DBUG_ASSERT(uint2korr(fileinfo+8) == 0);
+
+  if (!(filepos= make_new_entry(file, fileinfo, NULL, "")))
     goto err;
   maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo)+1000));
   int2store(forminfo+2,maxlength);

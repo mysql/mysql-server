@@ -113,7 +113,7 @@ int main(int argc,char *argv[])
 
     subkeys=ft_sintXkorr(info->lastkey+keylen+1);
     if (subkeys >= 0)
-      weight=*(float*)&subkeys;
+      ft_floatXget(weight, info->lastkey+keylen+1);
 
 #ifdef HAVE_SNPRINTF
     snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);

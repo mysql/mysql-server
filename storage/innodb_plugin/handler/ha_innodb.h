@@ -231,7 +231,11 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 
 extern "C" {
 struct charset_info_st *thd_charset(MYSQL_THD thd);
+#if MYSQL_VERSION_ID >= 50142
+LEX_STRING *thd_query_string(MYSQL_THD thd);
+#else
 char **thd_query(MYSQL_THD thd);
+#endif
 
 /** Get the file name of the MySQL binlog.
  * @return the name of the binlog file

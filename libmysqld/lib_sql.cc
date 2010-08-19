@@ -525,6 +525,16 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   }
 
+  /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist.
+   */
+  if (!opt_bootstrap && init_server_auto_options())
+  {
+    mysql_server_end();
+    return 1;
+  }
+
   error_handler_hook = my_message_sql;
 
   acl_error= 0;

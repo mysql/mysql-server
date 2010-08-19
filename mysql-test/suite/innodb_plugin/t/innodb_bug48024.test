@@ -1,0 +1,22 @@
+# Bug #48024 Innodb doesn't work with multi-statements
+
+--source include/have_innodb_plugin.inc
+
+CREATE TABLE bug48024(a int PRIMARY KEY,b int NOT NULL,KEY(b)) ENGINE=InnoDB;
+CREATE TABLE bug48024_b(b int PRIMARY KEY) ENGINE=InnoDB;
+# Bug #53644 InnoDB thinks that /*/ starts and ends a comment
+ALTER TABLE bug48024 /*/ADD CONSTRAINT FOREIGN KEY(c) REFERENCES(a),/*/
+ADD CONSTRAINT FOREIGN KEY(b) REFERENCES bug48024_b(b);
+
+DROP TABLE bug48024,bug48024_b;
+
+# Work around Bug #53750 (failure in mysql-test-run --ps-protocol)
+-- disable_ps_protocol
+delimiter |;
+CREATE TABLE bug48024(a int PRIMARY KEY,b int NOT NULL,KEY(b)) ENGINE=InnoDB;
+CREATE TABLE bug48024_b(b int PRIMARY KEY) ENGINE=InnoDB;
+ALTER TABLE bug48024 /*/ADD CONSTRAINT FOREIGN KEY(c) REFERENCES(a),/*/
+ADD CONSTRAINT FOREIGN KEY(b) REFERENCES bug48024_b(b)|
+delimiter ;|
+
+DROP TABLE bug48024,bug48024_b;

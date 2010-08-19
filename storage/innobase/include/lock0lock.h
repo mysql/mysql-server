@@ -292,14 +292,15 @@ lock_sec_rec_modify_check_and_lock(
 	dict_index_t*	index,	/* in: secondary index */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
-Like the counterpart for a clustered index below, but now we read a
+Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record. */
 
 ulint
 lock_sec_rec_read_check_and_lock(
 /*=============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
-				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+				/* out: DB_SUCCESS, DB_SUCCESS_LOCKED_REC,
+				DB_LOCK_WAIT, DB_DEADLOCK,
+				or DB_QUE_THR_SUSPENDED */
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
 				does nothing */
 	rec_t*		rec,	/* in: user record or page supremum record
@@ -324,8 +325,9 @@ lock on the record. */
 ulint
 lock_clust_rec_read_check_and_lock(
 /*===============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
-				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+				/* out: DB_SUCCESS, DB_SUCCESS_LOCKED_REC,
+				DB_LOCK_WAIT, DB_DEADLOCK,
+				or DB_QUE_THR_SUSPENDED */
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
 				does nothing */
 	rec_t*		rec,	/* in: user record or page supremum record

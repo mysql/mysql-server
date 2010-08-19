@@ -25,6 +25,19 @@ typedef struct my_aio_result {
 } my_aio_result;
 #endif
 
+#ifdef HAVE_VALGRIND
+# include <valgrind/memcheck.h>
+# define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
+# define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
+# define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
+# define MEM_CHECK_DEFINED(a,len) VALGRIND_CHECK_MEM_IS_DEFINED(a,len)
+#else /* HAVE_VALGRIND */
+# define MEM_UNDEFINED(a,len) ((void) 0)
+# define MEM_NOACCESS(a,len) ((void) 0)
+# define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
+# define MEM_CHECK_DEFINED(a,len) ((void) 0)
+#endif /* HAVE_VALGRIND */
+
 #ifndef THREAD
 extern int NEAR my_errno;		/* Last error in mysys */
 #else
@@ -37,7 +50,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
-#define MY_INIT(name);		{ my_progname= name; my_init(); }
+#define MY_INIT(name)   { my_progname= name; my_init(); }
 
 #define MY_FILE_ERROR	((size_t) -1)
 
@@ -141,7 +154,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define my_memdup(A,B,C) _my_memdup((A),(B), __FILE__,__LINE__,C)
 #define my_strdup(A,C) _my_strdup((A), __FILE__,__LINE__,C)
 #define my_strndup(A,B,C) _my_strndup((A),(B),__FILE__,__LINE__,C)
-#define TRASH(A,B) bfill(A, B, 0x8F)
+#define TRASH(A,B) do { bfill(A, B, 0x8F); MEM_UNDEFINED(A, B); } while (0)
 #define QUICK_SAFEMALLOC sf_malloc_quick=1
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
@@ -169,7 +182,7 @@ extern char *my_strndup(const char *from, size_t length,
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */
 #define ORIG_CALLER_INFO    /* nothing */
-#define TRASH(A,B) /* nothing */
+#define TRASH(A,B) do{MEM_CHECK_ADDRESSABLE(A,B);MEM_UNDEFINED(A,B);} while (0)
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
