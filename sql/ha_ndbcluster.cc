@@ -3948,8 +3948,16 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       for (uint i= 0; i < table->s->fields; i++)
       {
         Field *field= table->field[i];
-        if (field->flags & (NO_DEFAULT_VALUE_FLAG | // bug 41616
-                            PRI_KEY_FLAG))          // bug 42238
+        DBUG_PRINT("info", ("Field#%u, (%u), Type : %u "
+                            "NO_DEFAULT_VALUE_FLAG : %u PRI_KEY_FLAG : %u",
+                            i, 
+                            field->field_index,
+                            field->real_type(),
+                            field->flags & NO_DEFAULT_VALUE_FLAG,
+                            field->flags & PRI_KEY_FLAG));
+        if ((field->flags & (NO_DEFAULT_VALUE_FLAG | // bug 41616
+                             PRI_KEY_FLAG)) ||       // bug 42238
+            ! type_supports_default_value(field->real_type()))
         {
           bitmap_set_bit(user_cols_written_bitmap, field->field_index);
         }
