@@ -6347,10 +6347,23 @@ int mysql_fast_or_online_alter_table(THD *thd,
                                      enum enum_enable_or_disable keys_onoff)
 {
   int error= 0;
-  bool online= (table->file->ha_table_flags() & HA_ONLINE_ALTER)?true:false;
+  bool online= (table->file->ha_table_flags() & HA_ONLINE_ALTER ||
+                table->file->alter_table_flags(0))? true:false;
   TABLE *t_table;
 
   DBUG_ENTER(" mysql_fast_or_online_alter_table");
+  VOID(pthread_mutex_lock(&LOCK_open));
+  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  thd_proc_info(thd, "manage keys");
+  alter_table_manage_keys(table, table->file->indexes_are_disabled(),
+                          keys_onoff);
+  error= ha_autocommit_or_rollback(thd, 0);
+
+  if (end_active_trans(thd))
+    error=1;
+  if (error)
+    goto err;
   if (online)
   {
    /*
@@ -6385,9 +6398,7 @@ int mysql_fast_or_online_alter_table(THD *thd,
     and will be renamed to the original table name.
   */
   VOID(pthread_mutex_lock(&LOCK_open));
-  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-  alter_table_manage_keys(table, table->file->indexes_are_disabled(),
-                          keys_onoff);
+  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME);
   close_data_files_and_morph_locks(thd,
                                    table->pos_in_table_list->db,
                                    table->pos_in_table_list->table_name);
@@ -7540,6 +7551,7 @@ view_err:
       {
         switch (error) {
         case(-1):
+          pthread_mutex_lock(&LOCK_open);
           goto err_with_placeholders;
         default:
           goto err;
