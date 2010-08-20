@@ -19,3 +19,4 @@ plugin_load              : Bug#55966 2010-08-13 alik "plugin" tests fail in 5.5
 plugin_not_embedded      : Bug#55966 2010-08-13 alik "plugin" tests fail in 5.5
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
 sp_sync                  : Bug#48157 2010-02-06 5.5-m3 demands a differnt solution
+ctype_utf8mb4_ndb	: Bug#55799, Bug#51907, disabled by Konstantin 2010-08-06

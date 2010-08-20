@@ -1393,8 +1393,9 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   READ_RECORD read_record_info;
   int error;
   THD *new_thd= &thd;
+  bool result;
 #ifdef EMBEDDED_LIBRARY
-  bool table_exists;
+  No_such_table_error_handler error_handler;
 #endif /* EMBEDDED_LIBRARY */
   DBUG_ENTER("plugin_load");
 
@@ -1410,13 +1411,18 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     When building an embedded library, if the mysql.plugin table
     does not exist, we silently ignore the missing table
   */
-  if (check_if_table_exists(new_thd, &tables, &table_exists))
-    table_exists= FALSE;
-  if (!table_exists)
+  new_thd->push_internal_handler(&error_handler);
+#endif /* EMBEDDED_LIBRARY */
+
+  result= open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT);
+
+#ifdef EMBEDDED_LIBRARY
+  new_thd->pop_internal_handler();
+  if (error_handler.safely_trapped_errors())
     goto end;
 #endif /* EMBEDDED_LIBRARY */
 
-  if (open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (result)
   {
     DBUG_PRINT("error",("Can't open plugin table"));
     sql_print_error("Can't open the mysql.plugin table. Please "
