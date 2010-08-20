@@ -31,12 +31,14 @@ public:
   static void setErrorHandlerShutdownType(NdbShutdownType nst = NST_ErrorHandler);
   static void handleAssert(const char* message, 
 			   const char* file, 
-			   int line, int ec = NDBD_EXIT_PRGERR)  __attribute__((__noreturn__));
+			   int line, int ec = NDBD_EXIT_PRGERR)
+    ATTRIBUTE_NORETURN;
   
   static void handleError(int faultID, 
 			  const char* problemData,
                           const char* objRef,
-			  enum NdbShutdownType = NST_ErrorHandler);
+			  enum NdbShutdownType = NST_ErrorHandler)
+    ATTRIBUTE_NORETURN;
   
   static void handleWarning(int faultID, 
 			    const char* problemData,
