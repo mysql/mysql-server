@@ -24662,13 +24662,12 @@ Dbdict::check_partial_trans_abort_prepare_next(SchemaTransPtr trans_ptr,
         ndbout_c("Checking node %u(%u), %u(%u)<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, nodePtr.p->start_op_state, op_ptr.p->op_key);
 #endif
         if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLBACK &&
-            (nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
+            ((nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
               nodePtr.p->start_op <= op_ptr.p->op_key) ||
-            (nodePtr.p->start_op_state == SchemaOp::OS_PREPARED &&
+             (nodePtr.p->start_op_state == SchemaOp::OS_PREPARED &&
               nodePtr.p->start_op < op_ptr.p->op_key) ||
-            (nodePtr.p->start_op_state == SchemaOp::OS_ABORTED_PREPARE &&
-             nodePtr.p->start_op >= op_ptr.p->op_key))
-               
+             (nodePtr.p->start_op_state == SchemaOp::OS_ABORTED_PREPARE &&
+              nodePtr.p->start_op >= op_ptr.p->op_key)))
         {
 #ifdef VM_TRACE
           ndbout_c("Skip aborting operation %u on node %u", op_ptr.p->op_key, i);
@@ -27246,9 +27245,9 @@ Dbdict::get_default_fragments(Uint32 extranodegroups)
 
   SignalT<25> signalT;
   bzero(&signalT, sizeof(signalT));
-  Signal* signal = (Signal*)&signalT;
+  Signal* signal = new (&signalT) Signal(0); // placement new
 
-  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
@@ -28108,7 +28107,9 @@ void
 Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
 {
   if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
+  {
     ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE);
+  }
   ndbrequire(triggerPtr.p->triggerId == triggerPtr.i);
 
   TableRecordPtr tablePtr;
@@ -28130,7 +28131,9 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
     switch (ti.triggerEvent) {
     case TriggerEvent::TE_CUSTOM:
       if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
+      {
         ndbrequire(triggerPtr.i == indexPtr.p->triggerId);
+      }
       break;
     default:
       ndbrequire(false);

@@ -6424,8 +6424,10 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   else
   {
     if (fragptr.p->m_copy_started_state != Fragrecord::AC_IGNORED)
+    {
       ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT ||
                 get_node_status(nextNodeId) != ZNODE_UP);
+    }
   }
   
   UintR TreadLenAiInd = (regTcPtr->readlenAi == 0 ? 0 : 1);

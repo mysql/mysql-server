@@ -385,7 +385,7 @@ ndb_mgm_call(NdbMgmHandle handle,
   SocketOutputStream out(handle->socket, handle->timeout);
   SocketInputStream in(handle->socket, handle->timeout);
 
-  out.println(cmd);
+  out.println("%s", cmd);
 #ifdef MGMAPI_LOG
   /** 
    * Print command to  log file

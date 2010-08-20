@@ -53,7 +53,7 @@
 #include <NdbConfig.h>
 
 #include <NdbAutoPtr.hpp>
-
+#include <NdbDir.hpp>
 #include <ndberror.h>
 
 #include <mgmapi.h>
@@ -274,28 +274,6 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
 }
 
 
-static bool
-create_directory(const char* dir)
-{
-#ifdef __WIN__
-  if (CreateDirectory(dir, NULL) == 0)
-  {
-    g_eventLogger->warning("Failed to create directory '%s', error: %d",
-                           dir, GetLastError());
-    return false;
-  }
-#else
-  if (mkdir(dir, S_IRUSR | S_IWUSR | S_IXUSR ) != 0)
-  {
-    g_eventLogger->warning("Failed to create directory '%s', error: %d",
-                           dir, errno);
-    return false;
-  }
-#endif
-  return true;
-}
-
-
 /*
   check_configdir
 
@@ -329,7 +307,7 @@ MgmtSrvr::check_configdir() const
                           "does not exist. Trying to create it...",
                           MYSQLCLUSTERDIR);
 
-      if (!create_directory(MYSQLCLUSTERDIR) ||
+      if (!NdbDir::create(MYSQLCLUSTERDIR) ||
           access(MYSQLCLUSTERDIR, F_OK))
       {
         g_eventLogger->error("Could not create directory '%s'. "        \
