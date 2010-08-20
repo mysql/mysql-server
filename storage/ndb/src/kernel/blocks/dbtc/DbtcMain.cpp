@@ -6010,8 +6010,10 @@ void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
 {
   const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
   if (regApiPtr->commitAckMarker == RNIL)
+  {
     ndbassert(commitAckMarker == RNIL);
-  
+  }
+
   if(commitAckMarker != RNIL)
   {
     jam();
