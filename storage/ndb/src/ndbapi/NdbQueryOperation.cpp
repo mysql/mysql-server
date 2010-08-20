@@ -322,6 +322,20 @@ public:
   bool isEmpty() const
   { return m_iterState == Iter_finished; }
 
+  /** This method is only relevant for scan nodes. It is used for marking 
+   * a resuilt stream as holding the last batch of a sub scan, 
+   * meaning that it is the last batch of the scan that was instantiated from 
+   * the current batch of its parent operation.*/
+  void setSubScanComplete(bool complete)
+  { m_subScanComplete = complete; }
+
+  /** This method is only relevant for scan nodes. It returns true if the
+   * current batch is the last batch of a sub scan, meaning that it is the
+   * last batch of the scan that was instantiated from the current batch
+   * of its parent operation.*/
+  bool isSubScanComplete()
+  { return m_subScanComplete; }
+
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbResultStream&);
 
@@ -360,6 +374,12 @@ private:
    * getNextScanRow())*/
   Uint16 m_currentParentId;
   
+  /** This field is only relevant for scan nodes. It is true if the
+   * current batch is the last batch of a sub scan, meaning that it is the
+   * last batch of the scan that was instantiated from the current batch
+   * of its parent operation.*/
+  bool m_subScanComplete;
+
   /**
    * TupleSet contain two logically distinct set of information:
    *
@@ -432,6 +452,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 rootFr
   m_operation(operation),
   m_iterState(Iter_notStarted),
   m_currentParentId(tupleNotFound),
+  m_subScanComplete(false),
   m_tupleSet(NULL)
 {};
 
@@ -475,6 +496,14 @@ NdbResultStream::reset()
   clearParentChildMap();
 
   m_receiver.prepareSend();
+  /* If this stream will get new rows in the next batch, then so will
+   * all of its descendants.*/
+  for (Uint32 childNo = 0; childNo < m_operation.getNoOfChildOperations();
+       childNo++)
+  {
+    m_operation.getChildOperation(childNo)
+      .getResultStream(getRootFragNo()).reset();
+  }
 } //NdbResultStream::reset
 
 
@@ -556,6 +585,7 @@ NdbResultStream::findNextTuple()
 void
 NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
 {
+  assert(m_iterState == Iter_notStarted);
   if (m_operation.getQueryDef().isScanQuery())
   {
     const CorrelationData correlData(ptr, len);
@@ -583,16 +613,17 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
     m_receiver.execTRANSID_AI(ptr, len);
   }
   m_rowCount++;
+  /* Set correct #rows received in the NdbReceiver.
+   */
+  getReceiver().m_result_rows = getRowCount();
 } // NdbResultStream::execTRANSID_AI()
 
 
 void 
 NdbResultStream::handleBatchComplete()
 {
-  /* Now we have received all tuples for all operations. 
-   * Set correct #rows received in the NdbReceiver.
-   */
-  getReceiver().m_result_rows = getRowCount();
+  assert(m_iterState == Iter_notStarted || m_iterState == Iter_finished);
+  m_iterState = Iter_notStarted;
 }
 
 
@@ -600,6 +631,7 @@ bool
 NdbResultStream::getNextLookupRow()
 {
   assert(!m_operation.getQueryDef().isScanQuery());
+  assert(m_rootFragNo == 0);
 
   switch (m_iterState)
   {
@@ -617,7 +649,7 @@ NdbResultStream::getNextLookupRow()
           m_operation.getChildOperation(childNo);
       
         // Check that there is a child tuple for each innner join child.
-        if (!child.getResultStream(m_rootFragNo).getNextLookupRow() &&
+        if (!child.getResultStream(0).getNextLookupRow() &&
             child.getQueryOperationDef().getMatchType() 
             != NdbQueryOptions::MatchAll)
         {
@@ -728,14 +760,19 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
       {
         return ScanRowResult_endOfScan;
       }
+      else if(isSubScanComplete() || 
+              !m_operation.getQueryOperationDef().isScanOperation())
+      {
+        /* Next batch will contain rows related the next batch of the
+         * parent scan. So if this is a left outer join, we can generate
+         * rows with NULLs for the right part now.*/
+        return ScanRowResult_endOfScan;
+      }
       else
       {
-#if 0
+        /* Next batch will contain rows related to the current batch of the
+         * parent scan.*/
         return ScanRowResult_endOfBatch;
-#else
-        // FIXME!!! (Handle left outer join properly.)
-        return ScanRowResult_endOfScan;
-#endif
       }
     }
 
@@ -2514,6 +2551,7 @@ NdbQueryImpl::sendFetchMore(int nodeId)
   Uint32 sent = 0;
   assert(getRoot().m_resultStreams!=NULL);
   assert(m_pendingFrags==0);
+  assert(m_queryDef.isScanQuery());
 
   ReceiverIdIterator receiverIdIter(*this);
 
@@ -2532,9 +2570,27 @@ NdbQueryImpl::sendFetchMore(int nodeId)
         m_rootFrags + receiverIdIter.getRootFragNo(i);
       emptyFrag->reset();
   
-      for (unsigned op=0; op<m_countOperations; op++) 
+      for (unsigned opNo=0; opNo<m_countOperations; opNo++) 
       {
-        emptyFrag->getResultStream(op).reset();
+        const NdbQueryOperationImpl& op = getQueryOperation(opNo);
+        // Check if this is a leaf node.
+        if (op.getNoOfChildOperations()==0)
+        {
+          // Find first ancestor that is not finished.
+          const NdbQueryOperationImpl* ancestor = &op;
+          while (ancestor!=NULL && 
+                 ancestor->getResultStream(emptyFrag->getFragNo())
+                 .isSubScanComplete())
+          {
+            ancestor = ancestor->getParentOperation();
+          }
+          if (ancestor!=NULL)
+          {
+            /* Reset ancestor and all its descendants, since all these
+             * streams will get a new set of rows in the next batch. */ 
+            ancestor->getResultStream(emptyFrag->getFragNo()).reset();
+          }
+        }
       }
     }
     receiverIdIter.getNextWords(idBuffSize);
@@ -4259,6 +4315,15 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     m_queryImpl.m_fullFrags.push(rootFrag);
     // Don't awake before we have data, or query batch completed.
     ret = !rootFrag.isEmpty() || m_queryImpl.isBatchComplete();
+  }
+  for(Uint32 opNo = 0; opNo <  m_queryImpl.getQueryDef().getNoOfOperations();
+      opNo++)
+  {
+    /* Mark each scan node to indicate if the current batch is the last in the
+     * current sub-scan.
+     */
+    rootFrag.getResultStream(opNo)
+      .setSubScanComplete((nodeMask & (1 << opNo)) == 0);
   }
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret
