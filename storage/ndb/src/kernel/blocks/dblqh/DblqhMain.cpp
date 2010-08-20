@@ -166,7 +166,7 @@ static int TRACENR_FLAG = 0;
 #define CLEAR_TRACENR_FLAG TRACENR_FLAG = 0
 #else
 #define TRACENR_FLAG 0
-#define TRACENR(x)
+#define TRACENR(x) {}
 #define SET_TRACENR_FLAG
 #define CLEAR_TRACENR_FLAG
 #endif
@@ -5647,8 +5647,10 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   else
   {
     if (fragptr.p->m_copy_started_state != Fragrecord::AC_IGNORED)
+    {
       ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT ||
                 get_node_status(nextNodeId) != ZNODE_UP);
+    }
   }
   
   UintR TreadLenAiInd = (regTcPtr->readlenAi == 0 ? 0 : 1);

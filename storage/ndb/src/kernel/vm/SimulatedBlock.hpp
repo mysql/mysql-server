@@ -443,9 +443,11 @@ protected:
    * If the cause of the shutdown is known use extradata to add an 
    * errormessage describing the problem
    */
-  void progError(int line, int err_code, const char* extradata=NULL) const ;
+  void progError(int line, int err_code, const char* extradata=NULL) const
+    ATTRIBUTE_NORETURN;
 private:
-  void  signal_error(Uint32, Uint32, Uint32, const char*, int) const ;
+  void  signal_error(Uint32, Uint32, Uint32, const char*, int) const
+    ATTRIBUTE_NORETURN;
   const NodeId         theNodeId;
   const BlockNumber    theNumber;
   const BlockReference theReference;
