@@ -1545,8 +1545,8 @@ makeops(Run& r)
           break;
         do {
           optype = (Op::Type)urandom(g_optypes);
-        } while (tot_op->type == Op::NUL &&
-                 (optype == Op::DEL || optype == Op::UPD) ||
+        } while ((tot_op->type == Op::NUL &&
+                  (optype == Op::DEL || optype == Op::UPD)) ||
                  (tot_op->type == Op::INS && optype == Op::INS));
       } else {
         const char* str = g_opstringpart[g_loop % g_opstringparts];
@@ -1807,7 +1807,7 @@ cmppostpre(Run& r)
         for (i = 0; i < ncol(); i++) {
           const Col& c = getcol(i);
           bool eq =
-            d[0].ind[i] == 1 && d[1].ind[i] == 1 ||
+            (d[0].ind[i] == 1 && d[1].ind[i] == 1) ||
             (d[0].ind[i] == 0 && d[1].ind[i] == 0 && cmpcol(c, d[0], d[1])== 0);
           if (eq) {
             d[0].ppeq |= (1 << i);
