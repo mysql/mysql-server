@@ -4032,7 +4032,7 @@ int ha_tokudb::prepare_index_key_scan( const uchar * key, uint key_len ) {
             share->key_file[active_index], 
             transaction, 
             &start_key, 
-            &end_key, 
+            &end_key
             );
         lockretry_wait;            
     }
