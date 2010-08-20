@@ -1102,9 +1102,6 @@ DROP TABLE t1;
 #
 # Bug#32859 Character sets: no warning with non-fitting chariot wheel
 #
-DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 't1'
 CREATE TABLE t1 (utf32 CHAR(5) CHARACTER SET utf32, latin1 CHAR(5) CHARACTER SET latin1);
 INSERT INTO t1 (utf32) VALUES (0xc581);
 UPDATE t1 SET latin1 = utf32;
@@ -1115,6 +1112,20 @@ INSERT INTO t1 (utf32) VALUES (0x100cc);
 UPDATE t1 SET latin1 = utf32;
 Warnings:
 Warning	1366	Incorrect string value: '\x00\x01\x00\xCC' for column 'latin1' at row 1
+DROP TABLE t1;
+#
+# Bug#55912 FORMAT with locale set fails for numbers < 1000
+#
+SET collation_connection=utf32_general_ci;
+CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `format(123,2,'no_NO')` varchar(37) CHARACTER SET utf32 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+format(123,2,'no_NO')
+123,00
 DROP TABLE t1;
 #
 # End of 5.5 tests

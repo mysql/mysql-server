@@ -539,17 +539,17 @@ public:
 };
 
 
-class Item_func_format :public Item_str_func
+class Item_func_format :public Item_str_ascii_func
 {
   String tmp_str;
   MY_LOCALE *locale;
 public:
-  Item_func_format(Item *org, Item *dec): Item_str_func(org, dec) {}
+  Item_func_format(Item *org, Item *dec): Item_str_ascii_func(org, dec) {}
   Item_func_format(Item *org, Item *dec, Item *lang):
-  Item_str_func(org, dec, lang) {}
+  Item_str_ascii_func(org, dec, lang) {}
   
   MY_LOCALE *get_locale(Item *item);
-  String *val_str(String *);
+  String *val_str_ascii(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "format"; }
   virtual void print(String *str, enum_query_type query_type);
