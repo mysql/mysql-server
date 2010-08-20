@@ -183,18 +183,19 @@ connection con1;
 send drop procedure p1;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'drop procedure t1' to get blocked on MDL lock...
+--echo # Waiting for 'drop procedure t1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop procedure p1';
+where state='Waiting for stored procedure metadata lock' and
+info='drop procedure p1';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
 --echo # Sending 'select f1()'...
 send select f1();
 --echo # --> connection con3
 connection con3;
---echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+--echo # Waiting for 'select f1()' to get blocked by a pending MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='select f1()';
+where state='Waiting for stored procedure metadata lock' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
@@ -222,18 +223,19 @@ connection con1;
 send create procedure p1() begin end;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'create procedure t1' to get blocked on MDL lock...
+--echo # Waiting for 'create procedure t1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='create procedure p1() begin end';
+where state='Waiting for stored procedure metadata lock' and
+info='create procedure p1() begin end';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
 --echo # Sending 'select f1()'...
 send select f1();
 --echo # --> connection con3
 connection con3;
---echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+--echo # Waiting for 'select f1()' to get blocked by a pending MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='select f1()';
+where state='Waiting for stored procedure metadata lock' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
@@ -259,18 +261,19 @@ connection con1;
 send alter procedure p1 contains sql;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'alter procedure t1' to get blocked on MDL lock...
+--echo # Waiting for 'alter procedure t1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='alter procedure p1 contains sql';
+where state='Waiting for stored procedure metadata lock' and
+info='alter procedure p1 contains sql';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
 --echo # Sending 'select f1()'...
 send select f1();
 --echo # --> connection con3
 connection con3;
---echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+--echo # Waiting for 'select f1()' to get blocked by a pending MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='select f1()';
+where state='Waiting for stored procedure metadata lock' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
@@ -296,18 +299,19 @@ connection con1;
 send drop function f1;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'drop function f1' to get blocked on MDL lock...
+--echo # Waiting for 'drop function f1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop function f1';
+where state='Waiting for stored function metadata lock' and
+info='drop function f1';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
 --echo # Sending 'select f1()'...
 send select f1();
 --echo # --> connection con3
 connection con3;
---echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+--echo # Waiting for 'select f1()' to get blocked by a pending MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='select f1()';
+where state='Waiting for stored function metadata lock' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
@@ -335,18 +339,19 @@ connection con1;
 send create function f1() returns int return 2;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'create function f1' to get blocked on MDL lock...
+--echo # Waiting for 'create function f1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='create function f1() returns int return 2';
+where state='Waiting for stored function metadata lock' and
+info='create function f1() returns int return 2';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
 --echo # Sending 'select f1()'...
 send select f1();
 --echo # --> connection con3
 connection con3;
---echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+--echo # Waiting for 'select f1()' to get blocked by a pending MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='select f1()';
+where state='Waiting for stored function metadata lock' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
@@ -373,18 +378,19 @@ connection con1;
 send alter function f1 contains sql;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'alter function f1' to get blocked on MDL lock...
+--echo # Waiting for 'alter function f1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='alter function f1 contains sql';
+where state='Waiting for stored function metadata lock' and
+info='alter function f1 contains sql';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
 --echo # Sending 'select f1()'...
 send select f1();
 --echo # --> connection con3
 connection con3;
---echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+--echo # Waiting for 'select f1()' to get blocked by a pending MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='select f1()';
+where state='Waiting for stored function metadata lock' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
@@ -471,9 +477,10 @@ connection con1;
 send drop function f1;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'drop function f1' to get blocked on MDL lock...
+--echo # Waiting for 'drop function f1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop function f1';
+where state='Waiting for stored function metadata lock' and
+info='drop function f1';
 --source include/wait_condition.inc
 --echo # --> connnection default
 connection default;
@@ -497,9 +504,10 @@ connection con1;
 send drop function f1;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'drop function f1' to get blocked on MDL lock...
+--echo # Waiting for 'drop function f1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop function f1';
+where state='Waiting for stored function metadata lock' and
+info='drop function f1';
 --source include/wait_condition.inc
 --echo # --> connnection default
 connection default;
@@ -530,9 +538,10 @@ connection con1;
 send drop procedure p1;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'drop procedure p1' to get blocked on MDL lock...
+--echo # Waiting for 'drop procedure p1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop procedure p1';
+where state='Waiting for stored procedure metadata lock' and
+info='drop procedure p1';
 --source include/wait_condition.inc
 --echo # --> connnection default
 connection default;
@@ -561,9 +570,10 @@ connection con1;
 send drop function f2;
 --echo # --> connection con2 
 connection con2;
---echo # Waitng for 'drop function f2' to get blocked on MDL lock...
+--echo # Waiting for 'drop function f2' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop function f2';
+where state='Waiting for stored function metadata lock' and
+info='drop function f2';
 --source include/wait_condition.inc
 --echo # --> connnection default
 connection default;
@@ -623,17 +633,19 @@ connection con1;
 send drop function f1;
 --echo # --> connection con2
 connection con2;
---echo # Waitng for 'drop function f1' to get blocked on MDL lock...
+--echo # Waiting for 'drop function f1' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop function f1';
+where state='Waiting for stored function metadata lock' and
+info='drop function f1';
 --source include/wait_condition.inc
 --echo # Sending 'drop function f2'...
 send drop function f2;
 --echo # --> connection default
 connection default;
---echo # Waitng for 'drop function f2' to get blocked on MDL lock...
+--echo # Waiting for 'drop function f2' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop function f2';
+where state='Waiting for stored function metadata lock' and
+info='drop function f2';
 --source include/wait_condition.inc
 rollback to savepoint sv;
 --echo # --> connection con2
@@ -699,16 +711,18 @@ connection con1;
 send alter function f1 comment "comment";
 --echo # --> connection con2
 connection con2;
---echo # Waitng for 'alter function f1 ...' to get blocked on MDL lock...
+--echo # Waiting for 'alter function f1 ...' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info like 'alter function f1 comment%';
+where state='Waiting for stored function metadata lock' and
+info like 'alter function f1 comment%';
 --source include/wait_condition.inc
 --echo # Sending 'call p1()'...
 send call p1();
 connection default;
---echo # Waitng for 'call p1()' to get blocked on MDL lock on f1...
+--echo # Waiting for 'call p1()' to get blocked on MDL lock on f1...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='select f1() into @var';
+where state='Waiting for stored function metadata lock' and
+info='select f1() into @var';
 --source include/wait_condition.inc
 --echo # Let 'alter function f1 ...' go through...
 commit;
@@ -746,9 +760,10 @@ connection con1;
 send alter function f1 comment "comment";
 --echo # --> connection con2
 connection con2;
---echo # Waitng for 'alter function f1 ...' to get blocked on MDL lock...
+--echo # Waiting for 'alter function f1 ...' to get blocked on MDL lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info like 'alter function f1 comment%';
+where state='Waiting for stored function metadata lock' and
+info like 'alter function f1 comment%';
 --source include/wait_condition.inc
 delimiter |;
 --echo # 
@@ -774,9 +789,10 @@ delimiter ;|
 --echo # Sending 'call p1()'...
 send call p1();
 connection default;
---echo # Waitng for 'call p1()' to get blocked on MDL lock on f1...
+--echo # Waiting for 'call p1()' to get blocked on MDL lock on f1...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='select f1() into @var';
+where state='Waiting for stored function metadata lock' and
+info='select f1() into @var';
 --source include/wait_condition.inc
 --echo # Let 'alter function f1 ...' go through...
 commit;
@@ -825,7 +841,7 @@ connection default;
 send select f3();
 --echo # --> connection con1 
 connection con1;
---echo # Waitng for 'select f3()' to get blocked on the user level lock...
+--echo # Waiting for 'select f3()' to get blocked on the user level lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='User lock' and info='select f1() into @var';
 --source include/wait_condition.inc
