@@ -58,18 +58,18 @@ connection user3;
 # Typical information_schema.processlist content after sufficient sleep time
 #   ID  USER  COMMAND  TIME  STATE   INFO
 #   ....
-#   2   root  Query       5  Table lock  SELECT *, (SELECT COUNT(*) FROM t2) FROM t1
+#   2   root  Query       5  Waiting for table level lock  SELECT *, (SELECT COUNT(*) FROM t2) FROM t1
 #   ....
 #                            XXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # The values marked with 'X' must be reached.
 --echo # Poll till the select of connection user1 is blocked by the write lock on t1.
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
-WHERE state = 'Table lock'
+WHERE state = 'Waiting for table level lock'
   AND info = '$select_for_qc';
 --source include/wait_condition.inc
 eval
 SELECT user,command,state,info FROM information_schema.processlist
-WHERE state = 'Table lock'
+WHERE state = 'Waiting for table level lock'
   AND info = '$select_for_qc';
 INSERT INTO t1 VALUES (4);
 
