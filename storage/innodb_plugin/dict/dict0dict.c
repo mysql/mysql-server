@@ -568,8 +568,7 @@ dict_table_get_on_id(
 {
 	dict_table_t*	table;
 
-	if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0
-	    || trx->dict_operation_lock_mode == RW_X_LATCH) {
+	if (trx->dict_operation_lock_mode == RW_X_LATCH) {
 
 		/* Note: An X latch implies that the transaction
 		already owns the dictionary mutex. */
