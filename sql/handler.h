@@ -200,6 +200,30 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 #define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
 
 /*
+  bits in alter_table_flags:
+*/
+/*
+  These bits are set if different kinds of indexes can be created
+  off-line without re-create of the table (but with a table lock).
+*/
+#define HA_ONLINE_ADD_INDEX_NO_WRITES           (1L << 0) /*add index w/lock*/
+#define HA_ONLINE_DROP_INDEX_NO_WRITES          (1L << 1) /*drop index w/lock*/
+#define HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES    (1L << 2) /*add unique w/lock*/
+#define HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES   (1L << 3) /*drop uniq. w/lock*/
+#define HA_ONLINE_ADD_PK_INDEX_NO_WRITES        (1L << 4) /*add prim. w/lock*/
+#define HA_ONLINE_DROP_PK_INDEX_NO_WRITES       (1L << 5) /*drop prim. w/lock*/
+/*
+  These are set if different kinds of indexes can be created on-line
+  (without a table lock). If a handler is capable of one or more of
+  these, it should also set the corresponding *_NO_WRITES bit(s).
+*/
+#define HA_ONLINE_ADD_INDEX                     (1L << 6) /*add index online*/
+#define HA_ONLINE_DROP_INDEX                    (1L << 7) /*drop index online*/
+#define HA_ONLINE_ADD_UNIQUE_INDEX              (1L << 8) /*add unique online*/
+#define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
+#define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
+#define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
+/*
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.
   HA_FAST_CHANGE_PARTITION means that optimised variants of the changes
@@ -711,6 +735,7 @@ struct handlerton
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    uint (*partition_flags)();
    uint (*alter_partition_flags)();
+   uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_files_table)(handlerton *hton, THD *thd,
                            TABLE_LIST *tables,
@@ -1846,15 +1871,8 @@ public:
  virtual int check_if_supported_alter(TABLE *altered_table,
                                       HA_CREATE_INFO *create_info,
                                       HA_ALTER_FLAGS *alter_flags,
-                                      uint table_changes)
- {
-   DBUG_ENTER("check_if_supported_alter");
-   if (this->check_if_incompatible_data(create_info, table_changes)
-       == COMPATIBLE_DATA_NO)
-     DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
-   else
-     DBUG_RETURN(HA_ALTER_SUPPORTED_WAIT_LOCK);
- }
+                                      uint table_changes);
+
  /**
    Tell storage engine to prepare for the on-line alter table (pre-alter)
 
@@ -1872,10 +1890,8 @@ public:
                                 TABLE *altered_table,
                                 HA_CREATE_INFO *create_info,
                                 HA_ALTER_INFO *alter_info,
-                                HA_ALTER_FLAGS *alter_flags)
- {
-   return HA_ERR_UNSUPPORTED;
- }
+                                HA_ALTER_FLAGS *alter_flags);
+
   /**
     Tell storage engine to perform the on-line alter table (alter)
 
@@ -1898,10 +1914,8 @@ public:
                                 TABLE *altered_table,
                                 HA_CREATE_INFO *create_info,
                                 HA_ALTER_INFO *alter_info,
-                                HA_ALTER_FLAGS *alter_flags)
- {
-   return HA_ERR_UNSUPPORTED;
- }
+                                HA_ALTER_FLAGS *alter_flags);
+
  /**
     Tell storage engine that changed frm file is now on disk and table
     has been re-opened (post-alter)
@@ -1909,10 +1923,7 @@ public:
     @param    thd               The thread handle
     @param    table             The altered table, re-opened
  */
- virtual int alter_table_phase3(THD *thd, TABLE *table)
- {
-   return HA_ERR_UNSUPPORTED;
- }
+ virtual int alter_table_phase3(THD *thd, TABLE *table);
 
   /**
     use_hidden_primary_key() is called in case of an update/delete when
@@ -1920,6 +1931,12 @@ public:
     but we don't have a primary key
   */
   virtual void use_hidden_primary_key();
+  virtual uint alter_table_flags(uint flags)
+  {
+    if (ht->alter_table_flags)
+      return ht->alter_table_flags(flags);
+    return 0;
+  }
 
 protected:
   /* Service methods for use by storage engines. */
