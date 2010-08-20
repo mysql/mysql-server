@@ -16,7 +16,6 @@
 
 #include <ndb_global.h>
 #include <ndb_version.h>
-#include <signal.h>
 
 #include "angel.hpp"
 #include "ndbd.hpp"

@@ -39,8 +39,6 @@
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/SumaImpl.hpp>
 
-#include <signal.h>
-
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
 

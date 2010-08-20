@@ -28,8 +28,6 @@
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
-#include <signal.h>
-
 extern int g_ndb_shm_signum;
 
 SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
