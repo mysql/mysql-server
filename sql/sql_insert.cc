@@ -2705,7 +2705,7 @@ bool Delayed_insert::handle_inserts(void)
 
   thd_proc_info(&thd, "insert");
   max_rows= delayed_insert_limit;
-  if (thd.killed || table->s->needs_reopen())
+  if (thd.killed || table->s->has_old_version())
   {
     thd.killed= THD::KILL_CONNECTION;
     max_rows= ULONG_MAX;                     // Do as much as possible
@@ -3592,11 +3592,9 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         */
         if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
         {
-          mysql_mutex_lock(&LOCK_open);
           quick_rm_table(create_info->db_type, create_table->db,
                          table_case_name(create_info, create_table->table_name),
                          0);
-          mysql_mutex_unlock(&LOCK_open);
         }
         else
           table= create_table->table;

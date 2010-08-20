@@ -4074,7 +4074,8 @@ connection default;
 connection con2;
 let $wait_condition=
   SELECT COUNT(*) = 1 from information_schema.processlist
-  WHERE state = "Table lock" AND info = "INSERT INTO t1 SELECT * FROM v1";
+  WHERE state = "Waiting for table level lock" AND
+        info = "INSERT INTO t1 SELECT * FROM v1";
 --source include/wait_condition.inc
 --echo # ... then try to drop the view. This should block.
 --echo # Sending:
@@ -4084,7 +4085,7 @@ let $wait_condition=
 connection con3;
 let $wait_condition=
   SELECT COUNT(*) = 1 from information_schema.processlist
-  WHERE state = "Waiting for table" AND info = "DROP VIEW v1";
+  WHERE state = "Waiting for table metadata lock" AND info = "DROP VIEW v1";
 --source include/wait_condition.inc
 --echo # Now allow CALL p1() to complete
 UNLOCK TABLES;
