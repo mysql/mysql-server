@@ -1791,6 +1791,8 @@ int ha_federatedx::close(void)
   /* free the result set */
   reset();
 
+  delete_dynamic(&results);
+
   /* Disconnect from mysql */
   if (!thd || !(txn= get_txn(thd, true)))
   {

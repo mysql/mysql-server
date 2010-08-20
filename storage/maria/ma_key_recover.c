@@ -923,7 +923,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       if (length < 0)
         bmove(buff + page_offset, buff + page_offset - length,
               page_length - page_offset + length);
-      else
+      else if (page_length != page_offset)
         bmove_upp(buff + page_length + length, buff + page_length,
                   page_length - page_offset);
       page_length+= length;

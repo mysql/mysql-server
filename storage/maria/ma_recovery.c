@@ -494,8 +494,10 @@ end:
   }
   else if (!error && max_trid_in_control_file != max_long_trid)
   {
-    /* Set max trid in log file so that one can run maria_chk on the tables */
-    max_trid_in_control_file= trnman_get_max_trid();
+    /*
+      maria_end() will set max trid in log file so that one can run
+      maria_chk on the tables
+    */
     maria_recovery_changed_data= 1;
   }
 
@@ -3186,7 +3188,7 @@ static LSN parse_checkpoint_record(LSN lsn)
                  page_id, rec_lsn, next_dirty_page_in_pool++))
       return LSN_ERROR;
     if (maria_recovery_verbose)
-      tprint(tracef, "%8u  %8u  %12lu    %u,0x%lx\n", (uint) table_id,
+      tprint(tracef, "%8u  %8u  %12lu    %lu,0x%lx\n", (uint) table_id,
              (uint) is_index, (ulong) page_id, LSN_IN_PARTS(rec_lsn));
     set_if_smaller(minimum_rec_lsn_of_dirty_pages, rec_lsn);
   }
