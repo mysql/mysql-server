@@ -40,6 +40,7 @@ DTRACEFILES =           filesort.o \
                         sql_cursor.o \
                         sql_delete.o \
                         sql_truncate.o \
+                        sql_reload.o \
                         sql_insert.o \
                         datadict.o \
                         sql_parse.o \
@@ -59,6 +60,7 @@ DTRACEFILES_DEPEND =    filesort.o \
                         sql_cursor.o \
                         sql_delete.o \
                         sql_truncate.o \
+			sql_reload.o \
                         sql_insert.o \
                         datadict.o \
                         sql_parse.o \
@@ -126,7 +128,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			contributors.h sql_servers.h sql_signal.h records.h \
 			sql_prepare.h rpl_handler.h replication.h mdl.h \
 			sql_plist.h transaction.h sys_vars.h sql_truncate.h \
-			sql_admin.h datadict.h
+			sql_admin.h sql_reload.h datadict.h 
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
@@ -140,7 +142,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_connect.cc scheduler.cc sql_parse.cc \
 			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
-			datadict.cc sql_profile.cc \
+			sql_reload.cc datadict.cc sql_profile.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
 			procedure.cc sql_test.cc sql_admin.cc \
