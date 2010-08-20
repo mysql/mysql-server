@@ -699,7 +699,7 @@ static void check_directory(uchar *buff, uint block_size, uint min_row_length,
   DBUG_ASSERT(deleted == 0);
 }
 #else
-#define check_directory(A,B,C)
+#define check_directory(A,B,C,D)
 #endif /* DBUG_OFF */
 
 
