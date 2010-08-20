@@ -36,7 +36,6 @@
 #ifdef NDB_SHM_TRANSPORTER
 #include "SHM_Transporter.hpp"
 extern int g_ndb_shm_signum;
-#include <signal.h>
 #endif
 
 #include "NdbOut.hpp"

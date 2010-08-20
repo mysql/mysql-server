@@ -40,8 +40,6 @@
 
 #include <base64.h>
 
-#include <signal.h>
-
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
  { name, \
