@@ -213,6 +213,7 @@ ErrorReporter::handleError(int messageID,
       nst = s_errorHandlerShutdownType;
     NdbShutdown(nst);
   }
+  exit(1); // kill warning
 }
 
 int 

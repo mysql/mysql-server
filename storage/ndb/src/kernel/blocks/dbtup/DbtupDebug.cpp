@@ -253,7 +253,9 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	}
 
 	if(alloc == 1 && free > 0)
+        {
 	  ndbrequire(chunk.pageCount == alloc);
+        }
       }
 	break;
       }
