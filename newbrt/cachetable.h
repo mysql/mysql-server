@@ -15,12 +15,6 @@
 extern "C" {
 #endif
 
-// TODO: #1398  Get rid of this entire straddle_callback hack
-// Man is this ugly.
-#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-extern int STRADDLE_HACK_INSIDE_CALLBACK;
-#endif
-
 // Maintain a cache mapping from cachekeys to values (void*)
 // Some of the keys can be pinned.  Don't pin too many or for too long.
 // If the cachetable is too full, it will call the flush_callback() function with the key, the value, and the otherargs

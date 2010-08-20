@@ -86,9 +86,6 @@ ifeq ($(SYSTEM),sunos)
 CPPFLAGS += -DTOKU_ALLOW_DEPRECATED
 endif
 
-# TODO: 1398 Get rid of this hack.
-CPPFLAGS+=-DBRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY=1
-
 #CFLAG default options
 # Add -Wconversion #DISABLED for now.
 

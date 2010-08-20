@@ -2160,19 +2160,8 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
     return r;
 }
 
-// TODO: #1398  Get rid of this entire straddle_callback hack
-#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-int STRADDLE_HACK_INSIDE_CALLBACK = 0;
-#endif
-
 static int
 brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, BOOL *did_react) {
-#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-    if (STRADDLE_HACK_INSIDE_CALLBACK) {
-        *did_react = FALSE;
-        return 0;
-    }
-#endif
     switch (re) {
     case RE_STABLE:
         *did_react = FALSE;
@@ -2187,11 +2176,6 @@ brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivi
 
 static int
 brt_handle_maybe_reactive_child_at_root (BRT brt, CACHEKEY *rootp, BRTNODE *nodep, enum reactivity re) {
-#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-    if (STRADDLE_HACK_INSIDE_CALLBACK) {
-        return 0;
-    }
-#endif
     BRTNODE node = *nodep;
     switch (re) {
     case RE_STABLE:
@@ -4134,7 +4118,7 @@ is_le_val_empty(LEAFENTRY le, BRT_CURSOR brtcursor) {
 
 // This is a bottom layer of the search functions.
 static int
-brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
+brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
 {
     // Now we have to convert from brt_search_t to the heaviside function with a direction.  What a pain...
 
@@ -4204,11 +4188,7 @@ got_a_good_value:
 
         assert(brtcursor->current_in_omt == FALSE);
         if (r==0) {
-            r = getf(keylen, key,
-                     vallen, val,
-                     0, NULL, //TODO: Put actual values here.
-                     0, NULL, //TODO: Put actual values here.
-                     getf_v);
+            r = getf(keylen, key, vallen, val, getf_v);
         }
         if (r==0) {
             // Leave the omtcursor alone above (pass NULL to omt_find/fetch)
@@ -4236,7 +4216,7 @@ got_a_good_value:
 }
 
 static int
-brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor);
+brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor);
 
 // the number of nodes to prefetch
 #define TOKU_DO_PREFETCH 2
@@ -4266,7 +4246,7 @@ brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcurso
 
 /* search in a node's child */
 static int
-brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *parent_re, BOOL *doprefetch, BRT_CURSOR brtcursor, BOOL *did_react)
+brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *parent_re, BOOL *doprefetch, BRT_CURSOR brtcursor, BOOL *did_react)
 // Effect: Search in a node's child.
 //  If we change the shape, set *did_react = TRUE.  Else set *did_react = FALSE.
 {
@@ -4324,7 +4304,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 }
 
 static int
-brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
+brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
 {
     int count=0;
  again:
@@ -4365,7 +4345,7 @@ brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STR
 }
 
 static int
-brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
+brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
 {
     verify_local_fingerprint_nonleaf(node);
     if (node->height > 0)
@@ -4376,7 +4356,7 @@ brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_C
 }
 
 static int
-toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, BRT_CURSOR brtcursor, u_int64_t *root_put_counter)
+toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BRT_CURSOR brtcursor, u_int64_t *root_put_counter)
 // Effect: Perform a search.  Associate cursor with a leaf if possible.
 // All searches are performed through this function.
 {
@@ -4422,15 +4402,13 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTI
     if (r==TOKUDB_FOUND_BUT_REJECTED) r = DB_NOTFOUND;
     else if (r==DB_NOTFOUND) {
         //We truly did not find an answer to the query.
-        //Therefore, the BRT_GET_STRADDLE_CALLBACK_FUNCTION has NOT been called.
+        //Therefore, the BRT_GET_CALLBACK_FUNCTION has NOT been called.
         //The contract specifies that the callback function must be called
         //for 'r= (0|DB_NOTFOUND|TOKUDB_FOUND_BUT_REJECTED)'
         //TODO: #1378 This is not the ultimate location of this call to the
         //callback.  It is surely wrong for node-level locking, and probably
         //wrong for the STRADDLE callback for heaviside function(two sets of key/vals)
-        int r2 = getf(0,NULL, 0,NULL,
-                      0,NULL, 0,NULL,
-                      getf_v);
+        int r2 = getf(0,NULL, 0,NULL, getf_v);
         if (r2!=0) r = r2;
     }
     return r;
@@ -4443,24 +4421,12 @@ struct brt_cursor_search_struct {
     brt_search_t *search;
 };
 
-static int
-brt_cursor_search_getf(ITEMLEN keylen,          bytevec key,
-                       ITEMLEN vallen,          bytevec val,
-                       ITEMLEN UU(next_keylen), bytevec UU(next_key),
-                       ITEMLEN UU(next_vallen), bytevec UU(next_val),
-                       void *v) {
-    struct brt_cursor_search_struct *bcss = v;
-    int r = bcss->getf(keylen, key, vallen, val, bcss->getf_v);
-    return r;
-}
-
 /* search for the first kv pair that matches the search object */
 static int
 brt_cursor_search(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     brt_cursor_invalidate(cursor);
-    struct brt_cursor_search_struct bcss = {getf, getf_v, cursor, search};
-    int r = toku_brt_search(cursor->brt, search, brt_cursor_search_getf, &bcss, cursor, &cursor->root_put_counter);
+    int r = toku_brt_search(cursor->brt, search, getf, getf_v, cursor, &cursor->root_put_counter);
     return r;
 }
 
@@ -4482,8 +4448,6 @@ static int brt_cursor_compare_set(brt_search_t *search, DBT *x) {
 static int
 brt_cursor_current_getf(ITEMLEN keylen,          bytevec key,
                         ITEMLEN vallen,          bytevec val,
-                        ITEMLEN UU(next_keylen), bytevec UU(next_key),
-                        ITEMLEN UU(next_vallen), bytevec UU(next_val),
                         void *v) {
     struct brt_cursor_search_struct *bcss = v;
     int r;
@@ -4693,8 +4657,6 @@ toku_brt_cursor_next(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *ge
 static int
 brt_cursor_search_eq_k_x_getf(ITEMLEN keylen,          bytevec key,
                               ITEMLEN vallen,          bytevec val,
-                              ITEMLEN UU(next_keylen), bytevec UU(next_key),
-                              ITEMLEN UU(next_vallen), bytevec UU(next_val),
                               void *v) {
     struct brt_cursor_search_struct *bcss = v;
     int r;
