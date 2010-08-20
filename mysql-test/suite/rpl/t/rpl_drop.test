@@ -1,6 +1,7 @@
 # Testcase for BUG#4552 (DROP on two tables, one of which does not
 # exist, must be binlogged with a non-zero error code)
 source include/master-slave.inc;
+source include/have_innodb.inc;
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -10,7 +11,57 @@ drop table t1, t2;
 save_master_pos;
 connection slave;
 sync_with_master;
-
 # End of 4.1 tests
 
+# BUG#55625 RBR breaks on failing 'CREATE TABLE'
+# A CREATE...SELECT that fails is written to the binary log if a non-transactional
+# statement is updated. If the logging format is ROW, the CREATE statement and the
+# changes are written to the binary log as distinct events and by consequence the
+# created table is not rolled back in the slave.
+# To fix the problem, we do not write a CREATE...SELECT that fails to the binary
+# log. Howerver, the changes to non-transactional tables are not replicated and
+# thus the slave goes out of sync. This should be fixed after BUG#47899.
+#
+# In the test case, we verify if the binary log contains no information for a
+# CREATE...SELECT that fails.
+connection slave;
 
+--source include/stop_slave.inc
+SET @old_binlog_format= @@global.binlog_format;
+SET GLOBAL binlog_format = ROW;
+--source include/start_slave.inc
+
+connection master;
+SET @old_binlog_format= @@global.binlog_format;
+SET binlog_format = ROW;
+
+CREATE TABLE t2(a INT) ENGINE=MYISAM;
+CREATE TABLE t3(a INT) ENGINE=INNODB;
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  insert into t2 values(1);
+  insert into t3 values(1);
+  return 1;
+END|
+delimiter ;|
+
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1);
+
+--error 1062
+CREATE TABLE t1(UNIQUE(a)) ENGINE=MYISAM SELECT 1 AS a UNION ALL SELECT f1();
+--error 1062
+CREATE TABLE t1(UNIQUE(a)) ENGINE=INNODB SELECT 1 AS a UNION ALL SELECT f1();
+
+--source include/show_binlog_events.inc
+
+DROP FUNCTION f1;
+DROP TABLE t2, t3;
+SET @@global.binlog_format= @old_binlog_format;
+
+--sync_slave_with_master
+SET @@global.binlog_format= @old_binlog_format;
+
+# End of 5.1 tests
