@@ -1732,22 +1732,14 @@ then
 fi
 
 AC_ARG_WITH(debug,
-    [  --with-debug            Add debug code
-  --with-debug=full       Add debug code (adds memory checker, very slow)],
+    [AS_HELP_STRING([--with-debug], [Add debug code @<:@default=no@:>@])],
     [with_debug=$withval],
     [with_debug=no])
 if test "$with_debug" = "yes"
 then
-  # Medium debug.
   AC_DEFINE([DBUG_ON], [1], [Use libdbug])
   CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DSAFE_MUTEX $CFLAGS"
   CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
-elif test "$with_debug" = "full"
-then
-  # Full debug. Very slow in some cases
-  AC_DEFINE([DBUG_ON], [1], [Use libdbug])
-  CFLAGS="$DEBUG_CFLAGS -DSAFE_MUTEX $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX $CXXFLAGS"
 else
   # Optimized version. No debug
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
@@ -1781,21 +1773,6 @@ then
   AC_MSG_RESULT([yes]) 
 else
   AC_MSG_RESULT([no])
-fi
-
-# If we should allow error injection tests
-AC_ARG_WITH(error-inject,
-    AC_HELP_STRING([--with-error-inject],[Enable error injection in MySQL Server]),
-    [ with_error_inject=$withval ],
-    [ with_error_inject=no ])
-
-if test $with_debug != "no"
-then
-  if test "$with_error_inject" = "yes"
-  then
-    AC_DEFINE([ERROR_INJECT_SUPPORT], [1],
-              [Enable error injection in MySQL Server])
-  fi
 fi
 
 AC_ARG_WITH([fast-mutexes],
