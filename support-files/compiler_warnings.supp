@@ -127,6 +127,8 @@ storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 # Pbxt
 #
 xaction_xt\.cc: may be used uninitialized in this function
+lock_xt\.cc : uninitialized local variable .* used
+restart_xt\.cc : dereferencing pointer .* does break strict-aliasing
 
 #
 # I think these are due to mix of C and C++.

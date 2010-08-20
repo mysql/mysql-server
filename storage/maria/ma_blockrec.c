@@ -1515,10 +1515,10 @@ void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
 
   if (rownr != max_entry - 1)
   {
-    DBUG_ASSERT(extend_block);
-
     /* Move all entries after rownr to end of page */
     uint rownr_length;
+
+    DBUG_ASSERT(extend_block);                  /* Should always be true */
     next_free_pos= end_of_found_block= page_pos=
       block_size - DIR_ENTRY_SIZE * max_entry - PAGE_SUFFIX_SIZE;
     diff= 0;
