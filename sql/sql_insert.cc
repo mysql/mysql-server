@@ -3579,7 +3579,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
                                     create_info, alter_info, 0,
-                                    select_field_count))
+                                    select_field_count, NULL))
     {
       DBUG_EXECUTE_IF("sleep_create_select_before_open", my_sleep(6000000););
 
@@ -3611,7 +3611,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
             it preparable for open. But let us do close_temporary_table() here
             just in case.
           */
-          drop_temporary_table(thd, create_table);
+          drop_temporary_table(thd, create_table, NULL);
         }
         else
           table= create_table->table;
