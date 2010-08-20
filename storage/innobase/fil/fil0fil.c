@@ -966,6 +966,8 @@ try_again:
 	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(name), space,
 		    0 == strcmp(name, space->name));
 	if (space != NULL) {
+		ibool	success;
+
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Warning: trying to init to the"
@@ -1002,9 +1004,10 @@ try_again:
 
 		namesake_id = space->id;
 
-		mutex_exit(&(system->mutex));
+		success = fil_space_free(namesake_id, FALSE);
+		ut_a(success);
 
-		fil_space_free(namesake_id);
+		mutex_exit(&(system->mutex));
 
 		goto try_again;
 	}
@@ -1128,6 +1131,33 @@ fil_assign_new_space_id(void)
 }
 
 /***********************************************************************
+Check if the space id exists in the cache, complain to stderr if the
+space id cannot be found. */
+static
+fil_space_t*
+fil_space_search(
+/*=============*/
+			/* out: file space instance*/
+	ulint	id)	/* in: space id */
+{
+	fil_space_t*	space;
+
+	ut_ad(mutex_own(&fil_system->mutex));
+
+	HASH_SEARCH(hash, fil_system->spaces, id, space, space->id == id);
+
+	if (space == NULL) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Error: trying to remove tablespace %lu"
+			" from the cache but\n"
+			"InnoDB: it is not there.\n", (ulong) id);
+	}
+
+	return(space);
+}
+
+/***********************************************************************
 Frees a space object from the tablespace memory cache. Closes the files in
 the chain but does not delete them. There must not be any pending i/o's or
 flushes on the files. */
@@ -1135,27 +1165,21 @@ flushes on the files. */
 ibool
 fil_space_free(
 /*===========*/
-			/* out: TRUE if success */
-	ulint	id)	/* in: space id */
+				/* out: TRUE if success */
+	ulint	id,		/* in: space id */
+	ibool	x_latched)	/* in: TRUE if caller has space->latch
+				in X mode */
 {
 	fil_system_t*	system = fil_system;
 	fil_space_t*	space;
 	fil_space_t*	namespace;
 	fil_node_t*	fil_node;
 
-	mutex_enter(&(system->mutex));
+	ut_ad(mutex_own(&fil_system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_search(id);
 
-	if (!space) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: trying to remove tablespace %lu"
-			" from the cache but\n"
-			"InnoDB: it is not there.\n", (ulong) id);
-
-		mutex_exit(&(system->mutex));
-
+	if (space == NULL) {
 		return(FALSE);
 	}
 
@@ -1191,7 +1215,9 @@ fil_space_free(
 
 	ut_a(0 == UT_LIST_GET_LEN(space->chain));
 
-	mutex_exit(&(system->mutex));
+	if (x_latched) {
+		rw_lock_x_unlock(&space->latch);
+	}
 
 	rw_lock_free(&(space->latch));
 
@@ -2048,6 +2074,19 @@ try_again:
 	path = mem_strdup(space->name);
 
 	mutex_exit(&(system->mutex));
+
+	/* Important: We rely on the data dictionary mutex to ensure
+	that a race is not possible here. It should serialize the tablespace
+	drop/free. We acquire an X latch only to avoid a race condition
+	when accessing the tablespace instance via:
+
+	  fsp_get_available_space_in_free_extents().
+
+	There our main motivation is to reduce the contention on the
+	dictionary mutex and not correctness. */
+
+	rw_lock_x_lock(&space->latch);
+
 #ifndef UNIV_HOTBACKUP
 	/* Invalidate in the buffer pool all pages belonging to the
 	tablespace. Since we have set space->is_being_deleted = TRUE, readahead
@@ -2060,7 +2099,11 @@ try_again:
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
 
-	success = fil_space_free(id);
+	mutex_enter(&system->mutex);
+
+	success = fil_space_free(id, TRUE);
+
+	mutex_exit(&system->mutex);
 
 	if (success) {
 		success = os_file_delete(path);
@@ -2068,6 +2111,8 @@ try_again:
 		if (!success) {
 			success = os_file_delete_if_exists(path);
 		}
+	} else {
+		rw_lock_x_unlock(&space->latch);
 	}
 
 	if (success) {
@@ -4568,4 +4613,29 @@ fil_page_get_type(
 	ut_ad(page);
 
 	return(mach_read_from_2(page + FIL_PAGE_TYPE));
+}
+
+/***********************************************************************
+Returns TRUE if a single-table tablespace is being deleted. */
+
+ibool
+fil_tablespace_is_being_deleted(
+/*============================*/
+				/* out: TRUE if space is being deleted */
+	ulint		id)	/* in: space id */
+{
+	fil_space_t*	space;
+	ibool		is_being_deleted;
+
+	mutex_enter(&fil_system->mutex);
+
+	HASH_SEARCH(hash, fil_system->spaces, id, space, space->id == id);
+
+	ut_a(space != NULL);
+
+	is_being_deleted = space->is_being_deleted;
+
+	mutex_exit(&fil_system->mutex);
+
+	return(is_being_deleted);
 }
