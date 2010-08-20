@@ -55,6 +55,8 @@
 #error "Invalid define for Uint64"
 #endif
 
+#include <signal.h>
+
 #ifdef _AIX
 #undef _H_STRINGS
 #endif
