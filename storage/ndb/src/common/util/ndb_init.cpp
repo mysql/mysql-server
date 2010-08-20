@@ -54,7 +54,8 @@ ndb_init_internal()
   {
     {
       const char* err = "ndb_init() failed - exit\n";
-      write(2, err, strlen(err));
+      int res = write(2, err, strlen(err));
+      (void)res;
       exit(1);
     }
   }
@@ -76,7 +77,8 @@ ndb_init()
     if (my_init())
     {
       const char* err = "my_init() failed - exit\n";
-      write(2, err, strlen(err));
+      int res = write(2, err, strlen(err));
+      (void)res;
       exit(1);
     }
     ndb_init_internal();

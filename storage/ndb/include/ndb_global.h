@@ -215,6 +215,15 @@ extern "C" {
 #define NDB_ASSERT_POD(x)
 #endif
 
+/**
+ *  __attribute__((noreturn)) was introduce in gcc 2.5
+ */
+#if (GCC_VERSION >= 2005)
+#define ATTRIBUTE_NORETURN __attribute__((noreturn))
+#else
+#define ATTRIBUTE_NORETURN
+#endif
+
 /*
  * require is like a normal assert, only it's always on (eg. in release)
  */
