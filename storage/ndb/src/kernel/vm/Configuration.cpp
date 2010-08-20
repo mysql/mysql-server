@@ -1114,7 +1114,7 @@ void ndb_thread_fill_thread_object(void *param, uint *len, my_bool server)
 {
   struct ThreadContainer container;
 
-  memset((char*)&container, sizeof(container), 0);
+  memset((char*)&container, 0, sizeof(container));
   container.conf = globalEmulatorData.theConfiguration;
   container.type = server ? SocketServerThread : SocketClientThread;
   memcpy((char*)param, (char*)&container, sizeof(container));

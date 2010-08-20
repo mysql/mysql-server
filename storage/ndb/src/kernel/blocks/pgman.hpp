@@ -641,6 +641,7 @@ Page_cache_client::update_lsn(Local_key key, Uint64 lsn)
 #endif
 
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
+  (void)found;
   assert(found);
 
   m_pgman->update_lsn(entry_ptr, m_block, lsn);
@@ -660,6 +661,7 @@ Page_cache_client::drop_page(Local_key key, Uint32 page_id)
 #endif
 
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
+  (void)found;
   assert(found);
   assert(entry_ptr.p->m_real_page_i == page_id);
 
