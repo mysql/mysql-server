@@ -411,6 +411,11 @@ private:
     Uint16 m_hash_head; // Index of first item in TupleSet[] matching a hashed parentId.
     Uint16 m_hash_next; // 'next' index matching 
 
+    /** If the n'th bit is set, then a matching tuple for the n,th child has been seen. 
+     * This information is needed when generating left join tuples for those tuples
+     * that had no matching children.*/
+    Bitmask<NDB_SPJ_MAX_TREE_NODES> m_hasMatchingChild;
+
     explicit TupleSet()
     {}
 
@@ -422,7 +427,7 @@ private:
 
   TupleSet* m_tupleSet;
 
-  void clearParentChildMap();
+  void clearTupleSet();
 
   void setParentChildMap(Uint16 parentId,
                          Uint16 tupleId, 
@@ -475,7 +480,7 @@ NdbResultStream::prepare()
     if (unlikely(m_tupleSet==NULL))
       return Err_MemoryAlloc;
 
-    clearParentChildMap();
+    clearTupleSet();
   }
   else
     m_maxRows = 1;
@@ -493,8 +498,7 @@ NdbResultStream::reset()
   m_rowCount = 0;
   m_iterState = Iter_notStarted;
 
-  clearParentChildMap();
-
+  clearTupleSet();
   m_receiver.prepareSend();
   /* If this stream will get new rows in the next batch, then so will
    * all of its descendants.*/
@@ -508,7 +512,7 @@ NdbResultStream::reset()
 
 
 void
-NdbResultStream::clearParentChildMap()
+NdbResultStream::clearTupleSet()
 {
   assert (m_operation.getQueryDef().isScanQuery());
   for (Uint32 i=0; i<m_maxRows; i++)
@@ -516,6 +520,7 @@ NdbResultStream::clearParentChildMap()
     m_tupleSet[i].m_parentId = tupleNotFound;
     m_tupleSet[i].m_tupleId  = tupleNotFound;
     m_tupleSet[i].m_hash_head = tupleNotFound;
+    m_tupleSet[i].m_hasMatchingChild.clear();
   }
 }
 
@@ -799,15 +804,25 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
         {
 
         case ScanRowResult_gotRow:
+          m_tupleSet[m_receiver.getCurrentRow()].m_hasMatchingChild.set(childNo);
           childrenWithRows++;
           break;
 
         case ScanRowResult_endOfScan:
-          if (child.getQueryOperationDef().getMatchType() 
-              != NdbQueryOptions::MatchAll)
           {
-            /* This must be an inner join.*/
-            childRowsOk = false;
+            const bool isInnerJoin = 
+              child.getQueryOperationDef().getMatchType() 
+              != NdbQueryOptions::MatchAll;
+            if (isInnerJoin || 
+                m_tupleSet[m_receiver.getCurrentRow()]
+                .m_hasMatchingChild.get(childNo))
+            {
+              /* Either this is an inner join, or there was a matching child
+               * tuple in an earlier batch. Either way we should not emit 
+               * a left-join tuple with a NULL right hand side.
+               */
+              childRowsOk = false;
+            }
           }
           break;
 
@@ -4304,6 +4319,15 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     ndbout << "  resultStream(root) {" << resultStream << "}" << endl;
   }
 
+  for(Uint32 opNo = 0; opNo <  m_queryImpl.getQueryDef().getNoOfOperations();
+      opNo++)
+  {
+    /* Mark each scan node to indicate if the current batch is the last in the
+     * current sub-scan.
+     */
+    rootFrag.getResultStream(opNo)
+      .setSubScanComplete((nodeMask & (1 << opNo)) == 0);
+  }
   bool ret = false;
   if (rootFrag.isFragBatchComplete()) {
     /* This fragment is now complete*/
@@ -4315,15 +4339,6 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     m_queryImpl.m_fullFrags.push(rootFrag);
     // Don't awake before we have data, or query batch completed.
     ret = !rootFrag.isEmpty() || m_queryImpl.isBatchComplete();
-  }
-  for(Uint32 opNo = 0; opNo <  m_queryImpl.getQueryDef().getNoOfOperations();
-      opNo++)
-  {
-    /* Mark each scan node to indicate if the current batch is the last in the
-     * current sub-scan.
-     */
-    rootFrag.getResultStream(opNo)
-      .setSubScanComplete((nodeMask & (1 << opNo)) == 0);
   }
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret
