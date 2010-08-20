@@ -2532,7 +2532,7 @@ void Item_func_min_max::fix_length_and_dec()
                                                                  unsigned_flag));
   }
   else if (cmp_type == REAL_RESULT)
-    max_length= float_length(decimals);
+    fix_char_length(float_length(decimals));
   cached_field_type= agg_field_type(args, arg_count);
 }
 

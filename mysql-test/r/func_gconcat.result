@@ -1019,6 +1019,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select 1 AS `1` from dual
 DROP TABLE t1;
+End of 5.0 tests
 #
 # Bug #54476: crash when group_concat and 'with rollup' in prepared statements
 # 

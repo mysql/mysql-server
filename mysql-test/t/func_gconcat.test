@@ -720,6 +720,10 @@ EXPLAIN EXTENDED SELECT 1 FROM
     t1 t2, t1 GROUP BY t1.a) AS d;
 DROP TABLE t1;
 
+
+--echo End of 5.0 tests
+
+
 --echo #
 --echo # Bug #54476: crash when group_concat and 'with rollup' in prepared statements
 --echo # 
@@ -733,6 +737,7 @@ EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+
 
 --echo End of 5.1 tests
 
