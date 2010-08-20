@@ -810,5 +810,14 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#55912 FORMAT with locale set fails for numbers < 1000
+--echo #
+SET collation_connection=utf32_general_ci;
+CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
