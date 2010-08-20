@@ -1795,6 +1795,8 @@ end:
     clear_error                   is clear_error to be called
     query                         Query to log
     query_length                  Length of query
+    is_trans                      if the event changes either
+                                  a trans or non-trans engine.
 
   RETURN VALUES
     NONE
@@ -1917,18 +1919,64 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   int error= 0;
   int non_temp_tables_count= 0;
-  bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
+  bool foreign_key_error=0;
+  bool non_tmp_error= 0;
+  bool trans_tmp_table_deleted= 0, non_trans_tmp_table_deleted= 0;
+  bool non_tmp_table_deleted= 0;
   String built_query;
-  String built_tmp_query;
+  String built_trans_tmp_query, built_non_trans_tmp_query;
   DBUG_ENTER("mysql_rm_table_part2");
 
-  if (thd->is_current_stmt_binlog_format_row() && !dont_log_query)
+  /*
+    Prepares the drop statements that will be written into the binary
+    log as follows:
+
+    1 - If we are not processing a "DROP TEMPORARY" it prepares a
+    "DROP".
+
+    2 - A "DROP" may result in a "DROP TEMPORARY" but the opposite is
+    not true.
+
+    3 - If the current format is row, the IF EXISTS token needs to be
+    appended because one does not know if CREATE TEMPORARY was previously
+    written to the binary log.
+
+    4 - Add the IF_EXISTS token if necessary, i.e. if_exists is TRUE.
+
+    5 - For temporary tables, there is a need to differentiate tables
+    in transactional and non-transactional storage engines. For that,
+    reason, two types of drop statements are prepared.
+
+    The need to different the type of tables when dropping a temporary
+    table stems from the fact that such drop does not commit an ongoing
+    transaction and changes to non-transactional tables must be written
+    ahead of the transaction in some circumstances.
+  */
+  if (!dont_log_query)
   {
-    built_query.set_charset(system_charset_info);
-    if (if_exists)
-      built_query.append("DROP TABLE IF EXISTS ");
+    if (!drop_temporary)
+    {
+      built_query.set_charset(system_charset_info);
+      if (if_exists)
+        built_query.append("DROP TABLE IF EXISTS ");
+      else
+        built_query.append("DROP TABLE ");
+    }
+
+    if (thd->is_current_stmt_binlog_format_row() || if_exists)
+    {
+      built_trans_tmp_query.set_charset(system_charset_info);
+      built_trans_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
+      built_non_trans_tmp_query.set_charset(system_charset_info);
+      built_non_trans_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
+    }
     else
-      built_query.append("DROP TABLE ");
+    {
+      built_trans_tmp_query.set_charset(system_charset_info);
+      built_trans_tmp_query.append("DROP TEMPORARY TABLE ");
+      built_non_trans_tmp_query.set_charset(system_charset_info);
+      built_non_trans_tmp_query.append("DROP TEMPORARY TABLE ");
+    }
   }
 
   mysql_ha_rm_tables(thd, tables);
@@ -1997,6 +2045,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   for (table= tables; table; table= table->next_local)
   {
+    bool is_trans;
     char *db=table->db;
     handlerton *table_type;
     enum legacy_db_type frm_db_type= DB_TYPE_UNKNOWN;
@@ -2005,78 +2054,70 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                          table->db, table->table_name, (long) table->table,
                          table->table ? (long) table->table->s : (long) -1));
 
+    /*
+      drop_temporary_table may return one of the following error codes:
+      .  0 - a temporary table was successfully dropped.
+      .  1 - a temporary table was not found.
+      . -1 - a temporary table is used by an outer statement.
+    */
     if (table->open_type == OT_BASE_ONLY)
       error= 1;
-    else
-      error= drop_temporary_table(thd, table);
- 
-    switch (error) {
-    case  0:
-      // removed temporary table
-      tmp_table_deleted= 1;
-      /*
-        One needs to always log any temporary table drop if the current
-        statement logging format is set to row. This happens because one
-        might have created a temporary table while the statement logging
-        format was statement and then switched to mixed or row format.
-      */
-      if (thd->is_current_stmt_binlog_format_row())
-      {
-        if (built_tmp_query.is_empty()) 
-        {
-          built_tmp_query.set_charset(system_charset_info);
-          built_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
-        }
+    else if ((error= drop_temporary_table(thd, table, &is_trans)) == -1)
+    {
+      DBUG_ASSERT(thd->in_sub_stmt);
+      goto err;
+    }
 
-        built_tmp_query.append("`");
+    if ((drop_temporary && if_exists) || !error)
+    {
+      /*
+        This handles the case of temporary tables. We have the following cases:
+
+          . "DROP TEMPORARY" was executed and a temporary table was affected
+          (i.e. drop_temporary && !error) or the if_exists was specified (i.e.
+          drop_temporary && if_exists).
+
+          . "DROP" was executed but a temporary table was affected (.i.e
+          !error).
+      */
+      if (!dont_log_query)
+      {
+        /*
+          If there is an error, we don't know the type of the engine
+          at this point. So, we keep it in the trx-cache.
+        */
+        is_trans= error ? TRUE : is_trans;
+        if (is_trans)
+          trans_tmp_table_deleted= TRUE;
+        else
+          non_trans_tmp_table_deleted= TRUE;
+
+        String *built_ptr_query=
+          (is_trans ? &built_trans_tmp_query : &built_non_trans_tmp_query);
+        /*
+          Don't write the database name if it is the current one (or if
+          thd->db is NULL).
+        */
+        built_ptr_query->append("`");
         if (thd->db == NULL || strcmp(db,thd->db) != 0)
         {
-          built_tmp_query.append(db);
-          built_tmp_query.append("`.`");
+          built_ptr_query->append(db);
+          built_ptr_query->append("`.`");
         }
-        built_tmp_query.append(table->table_name);
-        built_tmp_query.append("`,");
+        built_ptr_query->append(table->table_name);
+        built_ptr_query->append("`,");
       }
-
-      continue;
-    case -1:
-      DBUG_ASSERT(thd->in_sub_stmt);
-      error= 1;
-      goto err;
-    default:
-      // temporary table not found
-      error= 0;
+      /*
+        This means that a temporary table was droped and as such there
+        is no need to proceed with the code that tries to drop a regular
+        table.
+      */
+      if (!error) continue;
     }
-
-    /* Probably a non-temporary table. */
-    if (!drop_temporary)
+    else if (!drop_temporary)
+    {
       non_temp_tables_count++;
 
-    /*
-      If row-based replication is used and the table is not a
-      temporary table, we add the table name to the drop statement
-      being built.  The string always end in a comma and the comma
-      will be chopped off before being written to the binary log.
-      */
-    if (!drop_temporary && thd->is_current_stmt_binlog_format_row() && !dont_log_query)
-    {
-      /*
-        Don't write the database name if it is the current one (or if
-        thd->db is NULL).
-      */
-      built_query.append("`");
-      if (thd->db == NULL || strcmp(db,thd->db) != 0)
-      {
-        built_query.append(db);
-        built_query.append("`.`");
-      }
-
-      built_query.append(table->table_name);
-      built_query.append("`,");
-    }
-
-    if (!drop_temporary)
-    {
       if (thd->locked_tables_mode)
       {
         if (wait_while_table_is_used(thd, table->table, HA_EXTRA_FORCE_REOPEN))
@@ -2099,7 +2140,38 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                                         reg_ext,
                                         table->internal_tmp_table ?
                                         FN_IS_TMP : 0);
+
+      /*
+        This handles the case where a "DROP" was executed and a regular
+        table "may be" dropped as drop_temporary is FALSE and error is
+        TRUE. If the error was FALSE a temporary table was dropped and
+        regardless of the status of drop_tempoary a "DROP TEMPORARY"
+        must be used.
+      */
+      if (!dont_log_query)
+      {
+        /*
+          Note that unless if_exists is TRUE or a temporary table was deleted, 
+          there is no means to know if the statement should be written to the
+          binary log. See further information on this variable in what follows.
+        */
+        non_tmp_table_deleted= (if_exists ? TRUE : non_tmp_table_deleted);
+        /*
+          Don't write the database name if it is the current one (or if
+          thd->db is NULL).
+        */
+        built_query.append("`");
+        if (thd->db == NULL || strcmp(db,thd->db) != 0)
+        {
+          built_query.append(db);
+          built_query.append("`.`");
+        }
+
+        built_query.append(table->table_name);
+        built_query.append("`,");
+      }
     }
+
     /*
       TODO: Investigate what should be done to remove this lock completely.
             Is exclusive meta-data lock enough ?
@@ -2108,19 +2180,29 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     DBUG_EXECUTE_IF("sleep_before_part2_delete_table",
                     my_sleep(100000););
     mysql_mutex_lock(&LOCK_open);
+    error= 0;
     if (drop_temporary ||
         ((access(path, F_OK) &&
           ha_create_table_from_engine(thd, db, alias)) ||
          (!drop_view &&
           dd_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
     {
-      // Table was not found on disk and table can't be created from engine
+      /*
+        One of the following cases happened:
+          . "DROP TEMPORARY" but a temporary table was not found.
+          . "DROP" but table was not found on disk and table can't be
+            created from engine.
+          . ./sql/datadict.cc +32 /Alfranio - TODO: We need to test this.
+      */
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
 			    table->table_name);
       else
+      {
+        non_tmp_error = (drop_temporary ? non_tmp_error : TRUE);
         error= 1;
+      }
     }
     else
     {
@@ -2153,7 +2235,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
 	/* the table is referenced by a foreign key constraint */
-	foreign_key_error=1;
+	foreign_key_error= 1;
       }
       if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
       {
@@ -2162,12 +2244,13 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	strmov(end,reg_ext);
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
-	  some_tables_deleted=1;
+          non_tmp_table_deleted= TRUE;
           new_error= Table_triggers_list::drop_all_triggers(thd, db,
                                                             table->table_name);
         }
         error|= new_error;
       }
+       non_tmp_error= error ? TRUE : non_tmp_error;
     }
     mysql_mutex_unlock(&LOCK_open);
     if (error)
@@ -2183,11 +2266,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                     my_printf_error(ER_BAD_TABLE_ERROR,
                                     ER(ER_BAD_TABLE_ERROR), MYF(0),
                                     table->table_name););
-
   }
   DEBUG_SYNC(thd, "rm_table_part2_before_binlog");
-  thd->thread_specific_used|= tmp_table_deleted;
+  thd->thread_specific_used|= (trans_tmp_table_deleted ||
+                               non_trans_tmp_table_deleted);
   error= 0;
+err:
   if (wrong_tables.length())
   {
     if (!foreign_key_error)
@@ -2198,85 +2282,48 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     error= 1;
   }
 
-  if (some_tables_deleted || tmp_table_deleted || !error)
+  if (non_trans_tmp_table_deleted ||
+      trans_tmp_table_deleted || non_tmp_table_deleted)
   {
     query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query && mysql_bin_log.is_open())
     {
-      if (!thd->is_current_stmt_binlog_format_row() ||
-          (non_temp_tables_count > 0 && !tmp_table_deleted))
+      if (non_trans_tmp_table_deleted)
       {
-        /*
-          In this case, we are either using statement-based
-          replication or using row-based replication but have only
-          deleted one or more non-temporary tables (and no temporary
-          tables).  In this case, we can write the original query into
-          the binary log.
-        */
-        error |= write_bin_log(thd, !error, thd->query(), thd->query_length());
+          /* Chop of the last comma */
+          built_non_trans_tmp_query.chop();
+          built_non_trans_tmp_query.append(" /* generated by server */");
+          error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
+                                     built_non_trans_tmp_query.ptr(),
+                                     built_non_trans_tmp_query.length(),
+                                     FALSE, FALSE, FALSE, 0);
       }
-      else if (thd->is_current_stmt_binlog_format_row() &&
-               tmp_table_deleted)
+      if (trans_tmp_table_deleted)
       {
-        if (non_temp_tables_count > 0)
-        {
-          /*
-            In this case we have deleted both temporary and
-            non-temporary tables, so:
-            - since we have deleted a non-temporary table we have to
-              binlog the statement, but
-            - since we have deleted a temporary table we cannot binlog
-              the statement (since the table may have not been created on the
-              slave - check "if" branch below, this might cause the slave to 
-              stop).
-
-            Instead, we write a built statement, only containing the
-            non-temporary tables, to the binary log
-          */
-          built_query.chop();                  // Chop of the last comma
+          /* Chop of the last comma */
+          built_trans_tmp_query.chop();
+          built_trans_tmp_query.append(" /* generated by server */");
+          error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
+                                     built_trans_tmp_query.ptr(),
+                                     built_trans_tmp_query.length(),
+                                     TRUE, FALSE, FALSE, 0);
+      }
+      if (non_tmp_table_deleted)
+      {
+          /* Chop of the last comma */
+          built_query.chop();
           built_query.append(" /* generated by server */");
-          error|= write_bin_log(thd, !error, built_query.ptr(), built_query.length());
-        }
-
-        /*
-          One needs to always log any temporary table drop if the current
-          statement logging format is set to row. This happens because one
-          might have created a temporary table while the statement logging
-          format was statement and then switched to mixed or row format.
-        */
-        if (thd->is_current_stmt_binlog_format_row())
-        {
-          /*
-            In this case we have deleted some temporary tables but we are using
-            row based logging for the statement. However, thread uses mixed mode
-            format, thence we need to log the dropping as we cannot tell for
-            sure whether the create was logged as statement previously or not, ie,
-            before switching to row mode.
-          */
-          built_tmp_query.chop();                  // Chop of the last comma
-          built_tmp_query.append(" /* generated by server */");
-          /*
-            We cannot call the write_bin_log as we do not care about any errors
-            in the master as the statement is always DROP TEMPORARY TABLE IF EXISTS
-            and as such there will be no errors in the slave.
-          */
-          error|= thd->binlog_query(THD::STMT_QUERY_TYPE, built_tmp_query.ptr(),
-                                    built_tmp_query.length(), FALSE, FALSE, FALSE,
-                                    0);
-        }
+          int error_code = (non_tmp_error ?
+            (foreign_key_error ? ER_ROW_IS_REFERENCED : ER_BAD_TABLE_ERROR) : 0);
+          error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
+                                     built_query.ptr(),
+                                     built_query.length(),
+                                     TRUE, FALSE, FALSE,
+                                     error_code);
       }
-
-      /*
-        The remaining cases are:
-        - no tables were deleted and
-        - only temporary tables were deleted and row-based
-          replication is used.
-        In both these cases, nothing should be written to the binary
-        log.
-      */
     }
   }
-err:
+
   if (!drop_temporary)
   {
     /*
@@ -3791,6 +3838,8 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
     internal_tmp_table  Set to 1 if this is an internal temporary table
 			(From ALTER TABLE)
     select_field_count
+    is_trans            identifies the type of engine where the table
+                        was created: either trans or non-trans.
 
   DESCRIPTION
     If one creates a temporary table, this is automatically opened
@@ -3815,7 +3864,8 @@ bool mysql_create_table_no_lock(THD *thd,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
                                 bool internal_tmp_table,
-                                uint select_field_count)
+                                uint select_field_count,
+                                bool *is_trans)
 {
   char		path[FN_REFLEN + 1];
   uint          path_length;
@@ -4180,12 +4230,17 @@ bool mysql_create_table_no_lock(THD *thd,
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
+    TABLE *table= NULL;
     /* Open table and put in temporary table list */
-    if (!(open_temporary_table(thd, path, db, table_name, 1)))
+    if (!(table= open_temporary_table(thd, path, db, table_name, 1)))
     {
       (void) rm_temporary_table(create_info->db_type, path);
       goto unlock_and_end;
     }
+
+    if (is_trans != NULL)
+      *is_trans= table->file->has_transactions();
+
     thd->thread_specific_used= TRUE;
   }
 
@@ -4236,9 +4291,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
 
+  bool is_trans;
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
-                                     alter_info, FALSE, 0);
+                                     alter_info, FALSE, 0, &is_trans);
 
   /*
     Don't write statement if:
@@ -4250,7 +4306,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       (!thd->is_current_stmt_binlog_format_row() ||
        (thd->is_current_stmt_binlog_format_row() &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
 
 end:
   DBUG_RETURN(result);
@@ -4456,9 +4512,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   /* Reset auto-increment counter for the new table. */
   local_create_info.auto_increment_value= 0;
 
+  bool is_trans;
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
-                                       FALSE, 0)))
+                                       FALSE, 0, &is_trans)))
     goto err;
 
   /*
@@ -4539,7 +4596,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
       Case 3 and 4 does nothing under RBR
     */
   }
-  else if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  else if (write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans))
     goto err;
 
 err:
@@ -6228,7 +6285,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   error= mysql_create_table_no_lock(thd, new_db, tmp_name,
                                     create_info,
                                     alter_info,
-                                    1, 0);
+                                    1, 0, NULL);
   reenable_binlog(thd);
   if (error)
     goto err;

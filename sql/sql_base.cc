@@ -2042,13 +2042,17 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
   thd->temporary_tables list, it's impossible to tell here whether
   we're dealing with an internal or a user temporary table.
 
+  If is_trans is not null, we return the type of the table:
+  either transactional (e.g. innodb) as TRUE or non-transactional
+  (e.g. myisam) as FALSE.
+
   @retval  0  the table was found and dropped successfully.
   @retval  1  the table was not found in the list of temporary tables
               of this thread
   @retval -1  the table is in use by a outer query
 */
 
-int drop_temporary_table(THD *thd, TABLE_LIST *table_list)
+int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans)
 {
   TABLE *table;
   DBUG_ENTER("drop_temporary_table");
@@ -2064,6 +2068,9 @@ int drop_temporary_table(THD *thd, TABLE_LIST *table_list)
     my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
     DBUG_RETURN(-1);
   }
+
+  if (is_trans != NULL)
+    *is_trans= table->file->has_transactions();
 
   /*
     If LOCK TABLES list is not empty and contains this table,
