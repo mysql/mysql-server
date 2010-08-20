@@ -622,18 +622,18 @@ public:
 };
 
 
-class Item_func_hex :public Item_str_func
+class Item_func_hex :public Item_str_ascii_func
 {
   String tmp_value;
 public:
-  Item_func_hex(Item *a) :Item_str_func(a) {}
+  Item_func_hex(Item *a) :Item_str_ascii_func(a) {}
   const char *func_name() const { return "hex"; }
-  String *val_str(String *);
+  String *val_str_ascii(String *);
   void fix_length_and_dec()
   {
     collation.set(default_charset());
     decimals=0;
-    max_length=args[0]->max_length*2*collation.collation->mbmaxlen;
+    fix_char_length(args[0]->max_length * 2);
   }
 };
 
