@@ -93,7 +93,7 @@ try-assert0.tdbrun: try-assert0
 	./$< 2> /dev/null $(INVERTER) $(SUMMARIZE_SHOULD_FAIL)
 
 clean:
-	rm -rf $(TARGETS) *.check.output *.check.valgrind pwrite4g.data testdir
+	rm -rf $(TARGETS) *.check.output *.check.valgrind pwrite4g.data testdir dir.*.c
 
 try-assert0.tdbrun:
 
