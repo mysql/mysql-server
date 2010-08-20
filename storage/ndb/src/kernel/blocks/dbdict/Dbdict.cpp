@@ -27246,9 +27246,9 @@ Dbdict::get_default_fragments(Uint32 extranodegroups)
 
   SignalT<25> signalT;
   bzero(&signalT, sizeof(signalT));
-  Signal* signal = (Signal*)&signalT;
+  Signal* signal = new (&signalT) Signal(0); // placement new
 
-  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
@@ -28108,7 +28108,9 @@ void
 Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
 {
   if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
+  {
     ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE);
+  }
   ndbrequire(triggerPtr.p->triggerId == triggerPtr.i);
 
   TableRecordPtr tablePtr;
@@ -28130,7 +28132,9 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
     switch (ti.triggerEvent) {
     case TriggerEvent::TE_CUSTOM:
       if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
+      {
         ndbrequire(triggerPtr.i == indexPtr.p->triggerId);
+      }
       break;
     default:
       ndbrequire(false);
