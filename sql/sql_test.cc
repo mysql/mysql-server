@@ -118,7 +118,7 @@ static void print_cached_tables(void)
 	printf("unused_links isn't linked properly\n");
 	return;
       }
-    } while (count++ < table_cache_count && (lnk=lnk->next) != start_link);
+    } while (count++ < cached_open_tables() && (lnk=lnk->next) != start_link);
     if (lnk != start_link)
     {
       printf("Unused_links aren't connected\n");
@@ -416,7 +416,7 @@ static void display_table_locks(void)
   void *saved_base;
   DYNAMIC_ARRAY saved_table_locks;
 
-  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), table_cache_count + 20,50);
+  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), cached_open_tables() + 20,50);
   mysql_mutex_lock(&THR_LOCK_lock);
   for (list= thr_lock_thread_list; list; list= list_rest(list))
   {

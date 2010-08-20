@@ -95,20 +95,19 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
-    if (!(share= (get_table_share(thd, table_list, key, key_length, 0,
-                                  &error, hash_value))))
-    {
-      mysql_mutex_unlock(&LOCK_open);
+    share= get_table_share(thd, table_list, key, key_length, 0,
+                           &error, hash_value);
+    mysql_mutex_unlock(&LOCK_open);
+    if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
-    }
 
     if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
     {
+      mysql_mutex_lock(&LOCK_open);
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);                           // Out of memory
     }
-    mysql_mutex_unlock(&LOCK_open);
     table= &tmp_table;
   }
 
@@ -772,10 +771,8 @@ send_result_message:
       }
       else if (open_for_modify || fatal_error)
       {
-        mysql_mutex_lock(&LOCK_open);
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
-                         table->db, table->table_name);
-        mysql_mutex_unlock(&LOCK_open);
+                         table->db, table->table_name, FALSE);
         /*
           May be something modified. Consequently, we have to
           invalidate the query cache.
