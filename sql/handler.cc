@@ -3393,7 +3393,6 @@ handler::check_if_supported_alter(TABLE *altered_table,
   /* Check the old alter table flags */
   if ((*alter_flags & not_supported).is_set())
   {
-    DBUG_PRINT("info", ("At line %u", __LINE__));
     /* Not adding/dropping index check if supported as fast alter */
     if (table->file->check_if_incompatible_data(create_info, table_changes)
         == COMPATIBLE_DATA_NO)
@@ -3403,11 +3402,9 @@ handler::check_if_supported_alter(TABLE *altered_table,
   }
   else
   {
-    DBUG_PRINT("info", ("At line %u", __LINE__));
     /* Add index */
     if ((*alter_flags & HA_ADD_INDEX).is_set())
     {
-      DBUG_PRINT("info", ("At line %u", __LINE__));
       if (handler_alter_flags & HA_ONLINE_ADD_INDEX_NO_WRITES)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
       else if (handler_alter_flags & HA_ONLINE_ADD_INDEX)
@@ -3420,7 +3417,6 @@ handler::check_if_supported_alter(TABLE *altered_table,
     /* Drop index */
     if ((*alter_flags & HA_DROP_INDEX).is_set())
     {
-      DBUG_PRINT("info", ("At line %u", __LINE__));
       if (handler_alter_flags & HA_ONLINE_DROP_INDEX_NO_WRITES)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
       else if (handler_alter_flags & HA_ONLINE_DROP_INDEX)
@@ -3455,7 +3451,6 @@ handler::check_if_supported_alter(TABLE *altered_table,
         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
     }
   }
-  DBUG_PRINT("info", ("At line %u", __LINE__));
   DBUG_RETURN(result);
 }
 
