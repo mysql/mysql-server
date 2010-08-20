@@ -24662,13 +24662,12 @@ Dbdict::check_partial_trans_abort_prepare_next(SchemaTransPtr trans_ptr,
         ndbout_c("Checking node %u(%u), %u(%u)<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, nodePtr.p->start_op_state, op_ptr.p->op_key);
 #endif
         if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLBACK &&
-            (nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
+            ((nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
               nodePtr.p->start_op <= op_ptr.p->op_key) ||
-            (nodePtr.p->start_op_state == SchemaOp::OS_PREPARED &&
+             (nodePtr.p->start_op_state == SchemaOp::OS_PREPARED &&
               nodePtr.p->start_op < op_ptr.p->op_key) ||
-            (nodePtr.p->start_op_state == SchemaOp::OS_ABORTED_PREPARE &&
-             nodePtr.p->start_op >= op_ptr.p->op_key))
-               
+             (nodePtr.p->start_op_state == SchemaOp::OS_ABORTED_PREPARE &&
+              nodePtr.p->start_op >= op_ptr.p->op_key)))
         {
 #ifdef VM_TRACE
           ndbout_c("Skip aborting operation %u on node %u", op_ptr.p->op_key, i);
