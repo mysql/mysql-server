@@ -6342,7 +6342,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
       */
       tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
                        table->s->db.str,
-                       table->s->table_name.str);
+                       table->s->table_name.str, TRUE);
     }
   }
   mysql_mutex_unlock(&LOCK_open);

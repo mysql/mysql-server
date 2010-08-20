@@ -1719,7 +1719,6 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       completing this we write a new phase to the log entry that will
       deactivate it.
     */
-    mysql_mutex_lock(&LOCK_open);
     if (mysql_file_delete(key_file_frm, frm_name, MYF(MY_WME)) ||
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         lpt->table->file->ha_create_handler_files(path, shadow_path,
@@ -1775,12 +1774,12 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 #endif
 
 err:
-    mysql_mutex_unlock(&LOCK_open);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos);
     part_info->frm_log_entry= NULL;
     (void) sync_ddl_log();
 #endif
+    ;
   }
 
 end:
@@ -1999,10 +1998,11 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
                            MYSQL_OPEN_SKIP_TEMPORARY))
         DBUG_RETURN(1);
-      mysql_mutex_lock(&LOCK_open);
       for (table= tables; table; table= table->next_local)
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name);
-      mysql_mutex_unlock(&LOCK_open);
+      {
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                         FALSE);
+      }
     }
     else
     {
@@ -2171,15 +2171,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         built_query.append("`,");
       }
     }
-
-    /*
-      TODO: Investigate what should be done to remove this lock completely.
-            Is exclusive meta-data lock enough ?
-    */
     DEBUG_SYNC(thd, "rm_table_part2_before_delete_table");
     DBUG_EXECUTE_IF("sleep_before_part2_delete_table",
                     my_sleep(100000););
-    mysql_mutex_lock(&LOCK_open);
     error= 0;
     if (drop_temporary ||
         ((access(path, F_OK) &&
@@ -2209,8 +2203,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       char *end;
       /*
         Cannot use the db_type from the table, since that might have changed
-        while waiting for the exclusive name lock. We are under LOCK_open,
-        so reading from the frm-file is safe.
+        while waiting for the exclusive name lock.
       */
       if (frm_db_type == DB_TYPE_UNKNOWN)
       {
@@ -2252,7 +2245,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
        non_tmp_error= error ? TRUE : non_tmp_error;
     }
-    mysql_mutex_unlock(&LOCK_open);
     if (error)
     {
       if (wrong_tables.length())
@@ -4098,7 +4090,6 @@ bool mysql_create_table_no_lock(THD *thd,
     goto err;
   }
 
-  mysql_mutex_lock(&LOCK_open);
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
@@ -4106,7 +4097,7 @@ bool mysql_create_table_no_lock(THD *thd,
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-      goto unlock_and_end;
+      goto err;
     }
     /*
       We don't assert here, but check the result, because the table could be
@@ -4116,11 +4107,14 @@ bool mysql_create_table_no_lock(THD *thd,
       Then she could create the table. This case is pretty obscure and
       therefore we don't introduce a new error message only for it.
     */
+    mysql_mutex_lock(&LOCK_open);
     if (get_cached_table_share(db, table_name))
     {
+      mysql_mutex_unlock(&LOCK_open);
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
-      goto unlock_and_end;
+      goto err;
     }
+    mysql_mutex_unlock(&LOCK_open);
   }
 
   /*
@@ -4128,7 +4122,7 @@ bool mysql_create_table_no_lock(THD *thd,
     exist in any storage engine. In such a case it should
     be discovered and the error ER_TABLE_EXISTS_ERROR be returned
     unless user specified CREATE TABLE IF EXISTS
-    The LOCK_open mutex has been locked to make sure no
+    An exclusive metadata lock ensures that no
     one else is attempting to discover the table. Since
     it's not on disk as a frm file, no one could be using it!
   */
@@ -4149,12 +4143,12 @@ bool mysql_create_table_no_lock(THD *thd,
         if (create_if_not_exists)
           goto warn;
         my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-        goto unlock_and_end;
+        goto err;
         break;
       default:
         DBUG_PRINT("info", ("error: %u from storage engine", retcode));
         my_error(retcode, MYF(0),table_name);
-        goto unlock_and_end;
+        goto err;
     }
   }
 
@@ -4186,7 +4180,7 @@ bool mysql_create_table_no_lock(THD *thd,
       if (test_if_data_home_dir(dirpath))
       {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), "DATA DIRECTORY");
-        goto unlock_and_end;
+        goto err;
       }
     }
     if (create_info->index_file_name)
@@ -4195,7 +4189,7 @@ bool mysql_create_table_no_lock(THD *thd,
       if (test_if_data_home_dir(dirpath))
       {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), "INDEX DIRECTORY");
-        goto unlock_and_end;
+        goto err;
       }
     }
   }
@@ -4203,7 +4197,7 @@ bool mysql_create_table_no_lock(THD *thd,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (check_partition_dirs(thd->lex->part_info))
   {
-    goto unlock_and_end;
+    goto err;
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
@@ -4226,7 +4220,7 @@ bool mysql_create_table_no_lock(THD *thd,
   if (rea_create_table(thd, path, db, table_name,
                        create_info, alter_info->create_list,
                        key_count, key_info_buffer, file))
-    goto unlock_and_end;
+    goto err;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
@@ -4235,7 +4229,7 @@ bool mysql_create_table_no_lock(THD *thd,
     if (!(table= open_temporary_table(thd, path, db, table_name, 1)))
     {
       (void) rm_temporary_table(create_info->db_type, path);
-      goto unlock_and_end;
+      goto err;
     }
 
     if (is_trans != NULL)
@@ -4245,9 +4239,6 @@ bool mysql_create_table_no_lock(THD *thd,
   }
 
   error= FALSE;
-unlock_and_end:
-  mysql_mutex_unlock(&LOCK_open);
-
 err:
   thd_proc_info(thd, "After create");
   delete file;
@@ -4258,7 +4249,7 @@ warn:
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
-  goto unlock_and_end;
+  goto err;
 }
 
 
@@ -5920,7 +5911,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       else
       {
         *fn_ext(new_name)=0;
-        mysql_mutex_lock(&LOCK_open);
         if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias, 0))
           error= -1;
         else if (Table_triggers_list::change_table_name(thd, db, table_name,
@@ -5930,7 +5920,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                     table_name, 0);
           error= -1;
         }
-        mysql_mutex_unlock(&LOCK_open);
       }
     }
 
@@ -6549,7 +6538,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* This type cannot happen in regular ALTER. */
     new_db_type= old_db_type= NULL;
   }
-  mysql_mutex_lock(&LOCK_open);
   if (mysql_rename_table(old_db_type, db, table_name, db, old_name,
                          FN_TO_IS_TMP))
   {
@@ -6575,8 +6563,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   if (! error)
     (void) quick_rm_table(old_db_type, db, old_name, FN_IS_TMP);
-
-  mysql_mutex_unlock(&LOCK_open);
 
   if (error)
   {
@@ -7192,4 +7178,3 @@ static bool check_engine(THD *thd, const char *table_name,
   }
   return FALSE;
 }
-
