@@ -499,3 +499,28 @@ DROP TABLE t1, t2;
 
 --echo End of 5.0 tests.
 
+
+--echo #
+--echo # Bug#54106 assert in Protocol::end_statement,
+--echo #           INSERT IGNORE ... SELECT ... UNION SELECT ...
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT INTO t1 (a, a) VALUES (1, 1);
+# Verify that ER_FIELD_SPECIFIED_TWICE is not ignorable
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT IGNORE t1 (a, a) VALUES (1, 1);
+
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT IGNORE t1 (a, a) SELECT 1,1;
+# Used to cause an assert
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT IGNORE t1 (a, a) SELECT 1,1 UNION SELECT 2,2;
+
+DROP TABLE t1;
