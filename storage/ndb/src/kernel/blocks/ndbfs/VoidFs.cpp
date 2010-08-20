@@ -38,8 +38,6 @@
 #include <NdbOut.hpp>
 #include <Configuration.hpp>
 
-#define DEBUG(x) { ndbout << "FS::" << x << endl; }
-
 VoidFs::VoidFs(Block_context & ctx) :
   Ndbfs(ctx)
 {

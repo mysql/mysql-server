@@ -391,7 +391,7 @@ NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, my_bool rt_prio,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  memset((char*)&loc_sched_param, sizeof(loc_sched_param), 0);
+  memset((char*)&loc_sched_param, 0, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
   ret= sched_setscheduler(threadHandle, policy, &loc_sched_param);
   if (ret)
