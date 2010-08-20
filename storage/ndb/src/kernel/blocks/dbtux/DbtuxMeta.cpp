@@ -299,8 +299,8 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     }
 #endif
     // error inserts
-    if (ERROR_INSERTED(12001) && fragNo == 0 ||
-        ERROR_INSERTED(12002) && fragNo == 1) {
+    if ((ERROR_INSERTED(12001) && fragNo == 0) ||
+        (ERROR_INSERTED(12002) && fragNo == 1)) {
       jam();
       errorCode = (TuxFragRef::ErrorCode)1;
       CLEAR_ERROR_INSERT_VALUE;

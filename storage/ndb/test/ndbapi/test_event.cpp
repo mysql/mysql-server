@@ -319,8 +319,11 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 	}
 	g_info << endl;
       }
-    } else
+    }
+    else
+    {
       ;//printf("timed out\n");
+    }
   }
 
   g_info << "dropping event operation" << endl;
