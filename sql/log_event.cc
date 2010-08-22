@@ -658,16 +658,19 @@ inline bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
 
     if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
     {
+      IF_DBUG(int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN - 
+                                     BINLOG_CHECKSUM_ALG_DESC_LEN];);
       /*
         FD event is checksummed and therefore verified w/o the binlog-in-use flag
       */
       flags= uint2korr(event_buf + FLAGS_OFFSET);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
-        *((uint16*) event_buf + FLAGS_OFFSET) &= ~LOG_EVENT_BINLOG_IN_USE_F;
-      /* The only algorithm currently is CRC32 */
-      DBUG_ASSERT(event_buf[event_len - BINLOG_CHECKSUM_LEN - 
-                            BINLOG_CHECKSUM_ALG_DESC_LEN] ==
-                  BINLOG_CHECKSUM_ALG_CRC32);
+        event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+      /* 
+         The only algorithm currently is CRC32. Zero indicates 
+         the binlog file is checksum-free *except* the FD-event.
+      */
+      DBUG_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
       DBUG_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
         Complile time guard to watch over  the max number of alg

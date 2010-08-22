@@ -7,8 +7,12 @@ start slave;
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function');
 set @save_binlog_cache_size = @@global.binlog_cache_size;
 set @save_binlog_checksum = @@global.binlog_checksum;
+set @save_master_verify_checksum = @@global.master_verify_checksum;
 set @@global.binlog_cache_size = 4096;
 set @@global.binlog_checksum = CRC32;
+set @@global.master_verify_checksum = 1;
+include/stop_slave.inc
+include/start_slave.inc
 flush status;
 show status like "binlog_cache_use";
 Variable_name	Value
@@ -28,7 +32,7 @@ set n= n-1;
 end while;
 end|
 begin;
-call test.p_init(4000, 32);
+call test.p_init(8000, 32);
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
@@ -112,6 +116,7 @@ commit;
 drop table t1, t2, t3;
 set @@global.binlog_cache_size = @save_binlog_cache_size;
 set @@global.binlog_checksum = @save_binlog_checksum;
+set @@global.master_verify_checksum = @save_master_verify_checksum;
 drop procedure test.p_init;
 drop procedure test.p1;
 End of tests
