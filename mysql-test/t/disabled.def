@@ -11,8 +11,6 @@
 ##############################################################################
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 lowercase_table3         : Bug#54845 2010-06-30 alik main.lowercase_table3 on Mac OSX
-mysqlhotcopy_myisam      : bug#54129 2010-06-04 Horst
-mysqlhotcopy_archive     : bug#54129 2010-06-04 Horst
 partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
 plugin                   : Bug#55966 2010-08-13 alik "plugin" tests fail in 5.5
 plugin_load              : Bug#55966 2010-08-13 alik "plugin" tests fail in 5.5
