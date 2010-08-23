@@ -1990,6 +1990,7 @@ public:
     UintR simpleTcConnect;
     UintR tableref;
     UintR tcOprec;
+    Uint32 tcHashKeyHi;
     UintR tcScanInfo;
     UintR tcScanRec;
     UintR totReclenAi;
@@ -2275,7 +2276,8 @@ private:
                   Uint32 transid1,
                   Uint32 transid2,
                   Uint32 fragId,
-                  Uint32 nodeId);
+                  Uint32 nodeId,
+                  Uint32 hashHi);
   void finishScanrec(Signal* signal);
   void releaseScanrec(Signal* signal);
   void seizeScanrec(Signal* signal);
@@ -2335,7 +2337,7 @@ private:
                    LogPartRecordPtr flfLogPartPtr,
                    LogFileRecordPtr* parLogFilePtr);
   void findPageRef(Signal* signal, CommitLogRecord* commitLogRecord);
-  int  findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec);
+  int  findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec, UintR hi);
   void getFirstInLogQueue(Signal* signal);
   bool getFragmentrec(Signal* signal, Uint32 fragId);
   void initialiseAddfragrec(Signal* signal);
