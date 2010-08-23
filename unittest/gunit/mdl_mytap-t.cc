@@ -21,6 +21,7 @@
    numbers in case of failures.
  */
 
+#include "my_config.h"
 #include <string>
 #include <iostream>
 #include <stdio.h>
@@ -32,6 +33,27 @@
 
 #include "thr_malloc.h"
 #include "thread_utils.h"
+
+static mysql_mutex_t *current_mutex= NULL;
+extern "C"
+const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
+                           mysql_mutex_t *mutex, const char *msg)
+{
+  current_mutex= mutex;
+  return NULL;
+}
+
+extern "C"
+void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
+{
+  mysql_mutex_unlock(current_mutex);
+}
+
+extern "C" int thd_killed(const MYSQL_THD thd)
+{
+  return 0;
+}
+
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);

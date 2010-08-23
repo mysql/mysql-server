@@ -49,7 +49,7 @@ void Item_geometry_func::fix_length_and_dec()
 {
   collation.set(&my_charset_bin);
   decimals=0;
-  max_length= max_field_size;
+  max_length= (uint32) 4294967295U;
   maybe_null= 1;
 }
 

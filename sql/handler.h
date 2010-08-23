@@ -33,10 +33,6 @@
 #include <ft_global.h>
 #include <keycache.h>
 
-#ifndef NO_HASH
-#define NO_HASH				/* Not yet implemented */
-#endif
-
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1
@@ -846,6 +842,7 @@ struct THD_TRANS
   bool modified_non_trans_table;
 
   void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
+  bool is_empty() const { return ha_list == NULL; }
 };
 
 
@@ -969,7 +966,6 @@ struct st_table_log_memory_entry;
 class partition_info;
 
 struct st_partition_iter;
-#define NOT_A_PARTITION_ID ((uint32)-1)
 
 enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 

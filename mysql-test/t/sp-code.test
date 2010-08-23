@@ -649,3 +649,56 @@ END//
 DELIMITER ;//
 SHOW PROCEDURE CODE p1;
 DROP PROCEDURE p1;
+
+--echo #
+--echo # Bug#23032: Handlers declared in a SP do not handle warnings generated in sub-SP
+--echo #
+
+--echo
+--echo # - Case 4: check that "No Data trumps Warning".
+--echo
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE c CURSOR FOR SELECT a FROM t1;
+
+  OPEN c;
+  
+  BEGIN
+    DECLARE v INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+      SELECT "Warning found!";
+      SHOW WARNINGS;
+    END;
+
+    DECLARE EXIT HANDLER FOR NOT FOUND
+    BEGIN
+      SELECT "End of Result Set found!";
+      SHOW WARNINGS;
+    END;
+
+    WHILE TRUE DO
+      FETCH c INTO v;
+    END WHILE;
+  END;
+
+  CLOSE c;
+
+  SELECT a INTO @foo FROM t1 LIMIT 1; # Clear warning stack
+END|
+
+delimiter ;|
+
+SET SESSION debug="+d,bug23032_emit_warning";
+CALL p1();
+SET SESSION debug="-d,bug23032_emit_warning";
+
+DROP PROCEDURE p1;
+DROP TABLE t1;

@@ -3266,6 +3266,12 @@ public:
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
+  Item_result result_type()
+  {
+    if (!example)
+      return INT_RESULT;
+    return Field::result_merge_type(example->field_type());
+  }
 };
 
 
@@ -3335,7 +3341,9 @@ public:
     is_varbinary(item->type() == FIELD_ITEM &&
                  cached_field_type == MYSQL_TYPE_VARCHAR &&
                  !((const Item_field *) item)->field->has_charset())
-  {}
+  {
+    collation.set(const_cast<DTCollation&>(item->collation));
+  }
   double val_real();
   longlong val_int();
   String* val_str(String *);

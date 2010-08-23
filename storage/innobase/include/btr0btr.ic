@@ -86,7 +86,7 @@ btr_page_set_index_id(
 	page_t*		page,	/*!< in: page to be created */
 	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	dulint		id,	/*!< in: index id */
+	index_id_t	id,	/*!< in: index id */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -95,8 +95,7 @@ btr_page_set_index_id(
 				      page + (PAGE_HEADER + PAGE_INDEX_ID),
 				      8, mtr);
 	} else {
-		mlog_write_dulint(page + (PAGE_HEADER + PAGE_INDEX_ID),
-				  id, mtr);
+		mlog_write_ull(page + (PAGE_HEADER + PAGE_INDEX_ID), id, mtr);
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -105,7 +104,7 @@ btr_page_set_index_id(
 Gets the index id field of a page.
 @return	index id */
 UNIV_INLINE
-dulint
+index_id_t
 btr_page_get_index_id(
 /*==================*/
 	const page_t*	page)	/*!< in: index page */
