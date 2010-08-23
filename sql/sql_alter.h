@@ -26,10 +26,8 @@ class Alter_table_common : public Sql_cmd
 protected:
   /**
     Constructor.
-    @param lex the LEX structure for this statement.
   */
   Alter_table_common()
-    : Sql_cmd()
   {}
 
   virtual ~Alter_table_common()
@@ -50,10 +48,8 @@ class Alter_table_statement : public Alter_table_common
 public:
   /**
     Constructor, used to represent a ALTER TABLE statement.
-    @param lex the LEX structure for this statement.
   */
   Alter_table_statement()
-    : Alter_table_common()
   {}
 
   ~Alter_table_statement()

@@ -2705,7 +2705,7 @@ bool Delayed_insert::handle_inserts(void)
 
   thd_proc_info(&thd, "insert");
   max_rows= delayed_insert_limit;
-  if (thd.killed || table->s->needs_reopen())
+  if (thd.killed || table->s->has_old_version())
   {
     thd.killed= THD::KILL_CONNECTION;
     max_rows= ULONG_MAX;                     // Do as much as possible
@@ -3043,6 +3043,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     we are fixing fields from insert list.
   */
   lex->current_select= &lex->select_lex;
+
+  /* Errors during check_insert_fields() should not be ignored. */
+  lex->current_select->no_error= FALSE;
   res= (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0) ||
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
@@ -3576,19 +3579,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
                                     create_info, alter_info, 0,
-                                    select_field_count))
+                                    select_field_count, NULL))
     {
-      if (create_info->table_existed)
-      {
-        /*
-          This means that someone created table underneath server
-          or it was created via different mysqld front-end to the
-          cluster. We don't have much options but throw an error.
-        */
-        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
-        DBUG_RETURN(0);
-      }
-
       DBUG_EXECUTE_IF("sleep_create_select_before_open", my_sleep(6000000););
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
@@ -3600,11 +3592,9 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         */
         if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
         {
-          mysql_mutex_lock(&LOCK_open);
           quick_rm_table(create_info->db_type, create_table->db,
                          table_case_name(create_info, create_table->table_name),
                          0);
-          mysql_mutex_unlock(&LOCK_open);
         }
         else
           table= create_table->table;
@@ -3619,7 +3609,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
             it preparable for open. But let us do close_temporary_table() here
             just in case.
           */
-          drop_temporary_table(thd, create_table);
+          drop_temporary_table(thd, create_table, NULL);
         }
         else
           table= create_table->table;
@@ -3706,15 +3696,13 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
       TABLE const *const table = *tables;
       if (thd->is_current_stmt_binlog_format_row()  &&
-          !table->s->tmp_table &&
-          !ptr->get_create_info()->table_existed)
+          !table->s->tmp_table)
       {
         if (int error= ptr->binlog_show_create_table(tables, count))
           return error;
       }
       return 0;
     }
-
     select_create *ptr;
     TABLE_LIST *create_table;
     TABLE_LIST *select_tables;
@@ -3737,34 +3725,15 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     thd->binlog_start_trans_and_stmt();
   }
 
+  DBUG_ASSERT(create_table->table == NULL);
+
   DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
 
-  if (create_table->table)
-  {
-    /* Table already exists and was open at open_and_lock_tables() stage. */
-    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-    {
-      /* Mark that table existed */
-      create_info->table_existed= 1;
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                          create_table->table_name);
-      if (thd->is_current_stmt_binlog_format_row())
-        binlog_show_create_table(&(create_table->table), 1);
-      table= create_table->table;
-    }
-    else
-    {
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
-      DBUG_RETURN(-1);
-    }
-  }
-  else
-    if (!(table= create_table_from_items(thd, create_info, create_table,
-                                         alter_info, &values,
-                                         &extra_lock, hook_ptr)))
-      /* abort() deletes table */
-      DBUG_RETURN(-1);
+  if (!(table= create_table_from_items(thd, create_info, create_table,
+                                       alter_info, &values,
+                                       &extra_lock, hook_ptr)))
+    /* abort() deletes table */
+    DBUG_RETURN(-1);
 
   if (extra_lock)
   {
@@ -3884,10 +3853,6 @@ void select_create::send_error(uint errcode,const char *err)
              ("Current table (at 0x%lu) %s a temporary (or non-existant) table",
               (ulong) table,
               table && !table->s->tmp_table ? "is NOT" : "is"));
-  DBUG_PRINT("info",
-             ("Table %s prior to executing this statement",
-              get_create_info()->table_existed ? "existed" : "did not exist"));
-
   /*
     This will execute any rollbacks that are necessary before writing
     the transcation cache.
@@ -3976,8 +3941,7 @@ void select_create::abort_result_set()
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     table->auto_increment_field_not_null= FALSE;
-    if (!create_info->table_existed)
-      drop_open_table(thd, table, create_table->db, create_table->table_name);
+    drop_open_table(thd, table, create_table->db, create_table->table_name);
     table=0;                                    // Safety
   }
   DBUG_VOID_RETURN;

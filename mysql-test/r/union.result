@@ -428,7 +428,7 @@ ERROR 42000: Incorrect usage/placement of 'SQL_CALC_FOUND_ROWS'
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
 create table t1 select a from t1 union select a from t2;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR 42S01: Table 't1' already exists
 select a from t1 union select a from t2 order by t2.a;
 ERROR 42S22: Unknown column 't2.a' in 'order clause'
 drop table t1,t2;

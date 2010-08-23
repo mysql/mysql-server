@@ -3126,6 +3126,15 @@ sub install_db ($$) {
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
+  # InnoDB arguments that affect file location and sizes may
+  # need to be given to the bootstrap process as well as the
+  # server process.
+  foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
+    if ($extra_opt =~ /--innodb/) {
+      mtr_add_arg($args, $extra_opt);
+    }
+  }
+
   # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
   # configure --disable-grant-options), mysqld will not recognize the
   # --bootstrap or --skip-grant-tables options.  The user can set
@@ -3144,7 +3153,7 @@ sub install_db ($$) {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   # Use the mysql database for system tables
-  mtr_tofile($bootstrap_sql_file, "use mysql");
+  mtr_tofile($bootstrap_sql_file, "use mysql;\n");
 
   # Add the offical mysql system tables
   # for a production system
@@ -3924,11 +3933,6 @@ sub mysqld_arguments ($$$$) {
 		$prefix);
 
     mtr_add_arg($args, "%s--local-infile", $prefix);
-
-    if ( $idx > 0 or !$use_innodb)
-    {
-      mtr_add_arg($args, "%s--loose-skip-innodb", $prefix);
-    }
 
     my $cluster= $clusters->[$mysqld->{'cluster'}];
     if ( $cluster->{'pid'} ||           # Cluster is started

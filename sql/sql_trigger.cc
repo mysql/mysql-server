@@ -394,9 +394,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /*
     We don't want perform our operations while global read lock is held
     so we have to wait until its end and then prevent it from occurring
-    again until we are done, unless we are under lock tables. (Acquiring
-    LOCK_open is not enough because global read lock is held without holding
-    LOCK_open).
+    again until we are done, unless we are under lock tables.
   */
   if (!thd->locked_tables_mode &&
       thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
@@ -516,11 +514,9 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       goto end;
   }
 
-  mysql_mutex_lock(&LOCK_open);
   result= (create ?
            table->triggers->create_trigger(thd, tables, &stmt_query):
            table->triggers->drop_trigger(thd, tables, &stmt_query));
-  mysql_mutex_unlock(&LOCK_open);
 
   if (result)
     goto end;
@@ -1680,9 +1676,6 @@ bool add_table_for_trigger(THD *thd,
   @param db       schema for table
   @param name     name for table
 
-  @note
-    The calling thread should hold the LOCK_open mutex;
-
   @retval
     False   success
   @retval
@@ -1912,14 +1905,10 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
 
   /*
     This method interfaces the mysql server code protected by
-    either LOCK_open mutex or with an exclusive metadata lock.
-    In the future, only an exclusive metadata lock will be enough.
+    an exclusive metadata lock.
   */
-#ifndef DBUG_OFF
-  if (thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, old_table,
-                                     MDL_EXCLUSIVE))
-    mysql_mutex_assert_owner(&LOCK_open);
-#endif
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, old_table,
+                                             MDL_EXCLUSIVE));
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
               my_strcasecmp(table_alias_charset, old_table, new_table));
