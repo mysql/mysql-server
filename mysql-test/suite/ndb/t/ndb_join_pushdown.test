@@ -2404,6 +2404,14 @@ on x1.a=x2.u and x2.a = x3.b;
 select count(*) from t1 as x1 join t1 as x2 join t1 as x3 
 on x1.a=x2.u and x2.a = x3.b;
 
+# Regression test for commit http://lists.mysql.com/commits/116372
+# (missing rows in left join query with multiple result batches).
+
+insert into t1 values (12,12,20,10);
+
+explain select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
+select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
+
 drop table t1;
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
