@@ -3606,7 +3606,7 @@ NdbQueryOperationImpl::calculateBatchedRows(NdbQueryOperationImpl* scanParent)
     m_children[i]->calculateBatchedRows(scanParent);
 
 #ifdef TEST_SCANREQ
-    m_maxBatchRows = 1;  // To force usage of SCAN_NEXTREQ even for small scans resultsets
+    m_maxBatchRows = 2;  // To force usage of SCAN_NEXTREQ even for small scans resultsets
 #endif
 
   if (scanParent!=NULL)
@@ -4160,7 +4160,9 @@ NdbQueryOperationImpl::prepareLookupKeyInfo(
 bool 
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
   if (traceSignals) {
-    ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" << endl;
+    ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" 
+           << " operation no: " 
+           << getQueryOperationDef().getQueryOperationIx() << endl;
   }
   bool ret = false;
   NdbRootFragment* rootFrag = NULL;
@@ -4319,15 +4321,27 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     ndbout << "  resultStream(root) {" << resultStream << "}" << endl;
   }
 
-  for(Uint32 opNo = 0; opNo <  m_queryImpl.getQueryDef().getNoOfOperations();
-      opNo++)
+  const NdbQueryDefImpl& queryDef = m_queryImpl.getQueryDef();
+  for(Uint32 opNo = 0; opNo <  queryDef.getNoOfOperations(); opNo++)
   {
+    /* Find the node number seen by the SPJ block. Since a unique index
+     * operation will have two distincts nodes in the tree used by the
+     * SPJ block, this number may be different from 'opNo'.*/
+    const Uint32 internalOpNo = 
+      queryDef.getQueryOperation(opNo).getQueryOperationId();
+    assert(internalOpNo >= opNo);
     /* Mark each scan node to indicate if the current batch is the last in the
      * current sub-scan.
      */
     rootFrag.getResultStream(opNo)
-      .setSubScanComplete((nodeMask & (1 << opNo)) == 0);
+      .setSubScanComplete((nodeMask & (1 << internalOpNo)) == 0);
   }
+#ifndef NDEBUG
+  const NdbQueryOperationDefImpl& finalOpDef = 
+    queryDef.getQueryOperation(queryDef.getNoOfOperations() - 1);
+  // Check that nodeMask does not have more bits than we have operations. 
+  assert(nodeMask >> 1+finalOpDef.getQueryOperationId() == 0);
+#endif
   bool ret = false;
   if (rootFrag.isFragBatchComplete()) {
     /* This fragment is now complete*/
