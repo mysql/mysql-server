@@ -1393,8 +1393,9 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   READ_RECORD read_record_info;
   int error;
   THD *new_thd= &thd;
+  bool result;
 #ifdef EMBEDDED_LIBRARY
-  bool table_exists;
+  No_such_table_error_handler error_handler;
 #endif /* EMBEDDED_LIBRARY */
   DBUG_ENTER("plugin_load");
 
@@ -1410,13 +1411,18 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     When building an embedded library, if the mysql.plugin table
     does not exist, we silently ignore the missing table
   */
-  if (check_if_table_exists(new_thd, &tables, &table_exists))
-    table_exists= FALSE;
-  if (!table_exists)
+  new_thd->push_internal_handler(&error_handler);
+#endif /* EMBEDDED_LIBRARY */
+
+  result= open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT);
+
+#ifdef EMBEDDED_LIBRARY
+  new_thd->pop_internal_handler();
+  if (error_handler.safely_trapped_errors())
     goto end;
 #endif /* EMBEDDED_LIBRARY */
 
-  if (open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (result)
   {
     DBUG_PRINT("error",("Can't open plugin table"));
     sql_print_error("Can't open the mysql.plugin table. Please "
@@ -3025,11 +3031,11 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       Allocate temporary space for the value of the tristate.
       This option will have a limited lifetime and is not used beyond
       server initialization.
-      GET_ENUM value is an unsigned integer.
+      GET_ENUM value is an unsigned long integer.
     */
     options[0].value= options[1].value=
-                      (uchar **)alloc_root(mem_root, sizeof(uint));
-    *((uint*) options[0].value)= (uint) options[0].def_value;
+                      (uchar **)alloc_root(mem_root, sizeof(ulong));
+    *((ulong*) options[0].value)= (ulong) options[0].def_value;
 
     options+= 2;
   }
@@ -3328,7 +3334,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
      list is always the <plugin name> option value.
     */
     if (!tmp->is_mandatory)
-      plugin_load_policy= (enum_plugin_load_policy)*(uint*)opts[0].value;
+      plugin_load_policy= (enum_plugin_load_policy)*(ulong*)opts[0].value;
   }
 
   disable_plugin= (plugin_load_policy == PLUGIN_OFF);

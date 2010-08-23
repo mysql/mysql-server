@@ -148,7 +148,8 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 const char *table_name,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
-                                bool tmp_table, uint select_field_count);
+                                bool tmp_table, uint select_field_count,
+                                bool *is_trans);
 bool mysql_prepare_alter_table(THD *thd, TABLE *table,
                                HA_CREATE_INFO *create_info,
                                Alter_info *alter_info);
@@ -179,19 +180,6 @@ bool mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
 bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
                           HA_CHECK_OPT* check_opt);
-bool mysql_check_table(THD* thd, TABLE_LIST* table_list,
-                       HA_CHECK_OPT* check_opt);
-bool mysql_repair_table(THD* thd, TABLE_LIST* table_list,
-                        HA_CHECK_OPT* check_opt);
-bool mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
-                         HA_CHECK_OPT* check_opt);
-bool mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
-                          HA_CHECK_OPT* check_opt);
-bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
-                              LEX_STRING *key_cache_name);
-bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
-int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
-                             KEY_CACHE *dst_cache);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,

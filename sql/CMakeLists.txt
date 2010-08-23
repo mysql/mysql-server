@@ -10,9 +10,8 @@
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
-
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
@@ -74,9 +73,10 @@ SET (SQL_SOURCE
                sql_bootstrap.cc
                sql_signal.cc mdl.cc
                sql_alloc_error_handler.cc
-               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc datadict.cc
+               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
+               datadict.cc sql_reload.cc
                sql_partition_admin.cc
-               sql_alter_table.cc
+               sql_admin.cc sql_alter.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 

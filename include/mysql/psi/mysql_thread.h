@@ -215,6 +215,14 @@ typedef struct st_mysql_cond mysql_cond_t;
 #define mysql_mutex_assert_not_owner(M) \
   safe_mutex_assert_not_owner(&(M)->m_mutex)
 
+/** Wrappers for instrumented prlock objects.  */
+
+#define mysql_prlock_assert_write_owner(M) \
+  rw_pr_lock_assert_write_owner(&(M)->m_prlock)
+
+#define mysql_prlock_assert_not_write_owner(M) \
+  rw_pr_lock_assert_not_write_owner(&(M)->m_prlock)
+
 /**
   @def mysql_mutex_init(K, M, A)
   Instrumented mutex_init.
