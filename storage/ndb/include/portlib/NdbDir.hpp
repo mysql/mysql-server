@@ -16,6 +16,10 @@
 #ifndef NdbDir_HPP
 #define NdbDir_HPP
 
+#ifdef _WIN32
+typedef int mode_t;
+#endif
+
 class NdbDir {
 public:
   class Iterator {
@@ -28,7 +32,16 @@ public:
 
     int open(const char* path);
     void close(void);
+
+    /*
+      Return the next regular file or NULL if no more file found
+    */
     const char* next_file(void);
+
+    /*
+      Return the next entry(file, dir, symlink etc.) or NULL if no
+      more entries found
+    */
     const char* next_entry(void);
   };
 
@@ -42,10 +55,26 @@ public:
     const char* path(void) const;
   };
 
+  static mode_t u_r(void);
+  static mode_t u_w(void);
+  static mode_t u_x(void);
+  static mode_t u_rwx(void) { return (u_r() | u_w() | u_x()); }
+
+  static mode_t g_r(void);
+  static mode_t g_w(void);
+  static mode_t g_x(void);
+  static mode_t g_rwx(void) { return (g_r() | g_w() | g_x()); }
+
+  static mode_t o_r(void);
+  static mode_t o_w(void);
+  static mode_t o_x(void);
+  static mode_t o_rwx(void) { return (o_r() | o_w() | o_x()); }
+
   /*
     Create directory
   */
-  static bool create(const char *path);
+  static bool create(const char *path,
+                     mode_t mode = u_rwx());
 
   /*
     Remove directory recursively

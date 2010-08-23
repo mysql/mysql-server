@@ -41,6 +41,7 @@
 #include <signaldata/AllocMem.hpp>
 
 #include <RefConvert.hpp>
+#include <portlib/NdbDir.hpp>
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <Configuration.hpp>
@@ -137,11 +138,8 @@ static
 bool
 do_mkdir(const char * path)
 {
-#ifdef NDB_WIN32
-  return CreateDirectory(path, 0);
-#else
-  return ::mkdir(path, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP) == 0;
-#endif
+  return NdbDir::create(path,
+                        NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x());
 }
 
 static
