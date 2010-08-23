@@ -42,7 +42,7 @@ class DirIteratorImpl {
                         "%s/%s", m_path, dp->d_name);
 
     struct stat buf;
-    if (stat(m_buf, &buf))
+    if (lstat(m_buf, &buf)) // Use lstat to not follow symlinks
       return false; // 'stat' failed
 
     return S_ISREG(buf.st_mode);
@@ -75,14 +75,14 @@ public:
     m_dirp = NULL;
   }
 
-  const char* next_entry(bool& is_directory)
+  const char* next_entry(bool& is_reg)
   {
     struct dirent* dp = readdir(m_dirp);
 
     if (dp == NULL)
       return NULL;
 
-    is_directory = !is_regular_file(dp);
+    is_reg = is_regular_file(dp);
     return dp->d_name;
   }
 };
@@ -96,6 +96,9 @@ class DirIteratorImpl {
 
   bool is_dir(const WIN32_FIND_DATA find_data) const {
     return (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+  }
+  bool is_regular_file(const WIN32_FIND_DATA find_data) const {
+    return (find_data.dwFileAttributes & FILE_ATTRIBUTE_NORMAL);
   }
 
 public:
@@ -129,12 +132,12 @@ public:
     m_find_handle = NULL;
   }
 
-  const char* next_entry(bool& is_directory)
+  const char* next_entry(bool& is_reg)
   {
     if (m_first || FindNextFile(m_find_handle, &m_find_data))
     {
       m_first = false;
-      is_directory = is_dir(m_find_data);
+      is_reg = is_regular_file(m_find_data);
       return m_find_data.cFileName;
     }
     return NULL;
@@ -167,19 +170,19 @@ void NdbDir::Iterator::close(void)
 
 const char* NdbDir::Iterator::next_file(void)
 {
-  bool is_dir;
+  bool is_reg;
   const char* name;
-  while((name = m_impl.next_entry(is_dir)) != NULL){
-    if (!is_dir)
-      return name; // Found  some sort of file 
-  } 
+  while((name = m_impl.next_entry(is_reg)) != NULL){
+    if (is_reg == true)
+      return name; // Found regular file
+  }
   return NULL;
 }
 
 const char* NdbDir::Iterator::next_entry(void)
 {
-  bool is_dir;
-  return m_impl.next_entry(is_dir);
+  bool is_reg;
+  return m_impl.next_entry(is_reg);
 }
 
 mode_t NdbDir::u_r(void) { return IF_WIN(0, S_IRUSR); };
@@ -406,7 +409,7 @@ TAPTEST(DirIterator)
 
   // Build dir tree 
   build_tree(path);
-  // Test to iterate over filesa
+  // Test to iterate over files
   { 
     NdbDir::Iterator iter;
     CHECK(iter.open(path) == 0);
