@@ -182,9 +182,21 @@ const char* NdbDir::Iterator::next_entry(void)
   return m_impl.next_entry(is_dir);
 }
 
+mode_t NdbDir::u_r(void) { return IF_WIN(0, S_IRUSR); };
+mode_t NdbDir::u_w(void) { return IF_WIN(0, S_IWUSR); };
+mode_t NdbDir::u_x(void) { return IF_WIN(0, S_IXUSR); };
+
+mode_t NdbDir::g_r(void) { return IF_WIN(0, S_IRGRP); };
+mode_t NdbDir::g_w(void) { return IF_WIN(0, S_IWGRP); };
+mode_t NdbDir::g_x(void) { return IF_WIN(0, S_IXGRP); };
+
+mode_t NdbDir::o_r(void) { return IF_WIN(0, S_IROTH); };
+mode_t NdbDir::o_w(void) { return IF_WIN(0, S_IWOTH); };
+mode_t NdbDir::o_x(void) { return IF_WIN(0, S_IXOTH); };
+
 
 bool
-NdbDir::create(const char *dir)
+NdbDir::create(const char *dir, mode_t mode)
 {
 #ifdef _WIN32
   if (CreateDirectory(dir, NULL) == 0)
@@ -195,7 +207,7 @@ NdbDir::create(const char *dir)
     return false;
   }
 #else
-  if (mkdir(dir, S_IRUSR | S_IWUSR | S_IXUSR) != 0)
+  if (mkdir(dir, mode) != 0)
   {
     fprintf(stderr,
             "Failed to create directory '%s', error: %d",
@@ -430,6 +442,13 @@ TAPTEST(DirIterator)
 
   // Remove non exisiting directory(again)
   CHECK(!NdbDir::remove_recursive(path));
+  CHECK(gone(path));
+
+  // Create directory with non default mode
+  CHECK(NdbDir::create(path,
+                       NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::o_r()));
+  CHECK(!gone(path));
+  CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
   return 1; // OK
