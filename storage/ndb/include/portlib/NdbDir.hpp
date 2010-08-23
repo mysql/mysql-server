@@ -28,7 +28,16 @@ public:
 
     int open(const char* path);
     void close(void);
+
+    /*
+      Return the next regular file or NULL if no more file found
+    */
     const char* next_file(void);
+
+    /*
+      Return the next entry(file, dir, symlink etc.) or NULL if no
+      more entries found
+    */
     const char* next_entry(void);
   };
 
