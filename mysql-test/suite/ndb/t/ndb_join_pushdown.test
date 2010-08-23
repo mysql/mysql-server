@@ -2404,6 +2404,12 @@ on x1.a=x2.u and x2.a = x3.b;
 select count(*) from t1 as x1 join t1 as x2 join t1 as x3 
 on x1.a=x2.u and x2.a = x3.b;
 
+explain select count(*) from t1 as x1, t1 as x2, t1 as x3 
+where x1.u=x2.pk and x1.a=x3.b;
+
+select count(*) from t1 as x1, t1 as x2, t1 as x3 
+where x1.u=x2.pk and x1.a=x3.b;
+
 # Regression test for commit http://lists.mysql.com/commits/116372
 # (missing rows in left join query with multiple result batches).
 

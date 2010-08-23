@@ -590,7 +590,8 @@ NdbResultStream::findNextTuple()
 void
 NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
 {
-  assert(m_iterState == Iter_notStarted);
+  assert(m_iterState == Iter_notStarted ||
+         !m_operation.getQueryOperationDef().isScanOperation());
   if (m_operation.getQueryDef().isScanQuery())
   {
     const CorrelationData correlData(ptr, len);
@@ -627,7 +628,8 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
 void 
 NdbResultStream::handleBatchComplete()
 {
-  assert(m_iterState == Iter_notStarted || m_iterState == Iter_finished);
+  assert(m_iterState == Iter_notStarted || m_iterState == Iter_finished ||
+         !m_operation.getQueryOperationDef().isScanOperation());
   m_iterState = Iter_notStarted;
 }
 
@@ -2588,8 +2590,9 @@ NdbQueryImpl::sendFetchMore(int nodeId)
       for (unsigned opNo=0; opNo<m_countOperations; opNo++) 
       {
         const NdbQueryOperationImpl& op = getQueryOperation(opNo);
-        // Check if this is a leaf node.
-        if (op.getNoOfChildOperations()==0)
+        // Check if this is a leaf scan.
+        if (!op.getQueryOperationDef().hasScanDescendant() &&
+            op.getQueryOperationDef().isScanOperation())
         {
           // Find first ancestor that is not finished.
           const NdbQueryOperationImpl* ancestor = &op;
@@ -4340,7 +4343,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   const NdbQueryOperationDefImpl& finalOpDef = 
     queryDef.getQueryOperation(queryDef.getNoOfOperations() - 1);
   // Check that nodeMask does not have more bits than we have operations. 
-  assert(nodeMask >> 1+finalOpDef.getQueryOperationId() == 0);
+  assert(nodeMask >> (1+finalOpDef.getQueryOperationId()) == 0);
 #endif
   bool ret = false;
   if (rootFrag.isFragBatchComplete()) {
