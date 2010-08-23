@@ -3374,5 +3374,13 @@ select count(*) from t1 as x1 join t1 as x2 join t1 as x3
 on x1.a=x2.u and x2.a = x3.b;
 count(*)
 144
+insert into t1 values (12,12,20,10);
+explain select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	Parent of 2 pushed join@1
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	Child of pushed join@1
+select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
+count(*)
+157
 drop table t1;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
