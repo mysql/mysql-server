@@ -1,15 +1,6 @@
 #include "atrt.hpp"
-#include <sys/types.h>
-#include <NdbDir.hpp>
-#include <NdbSleep.h>
-
-#ifdef _WIN32
-#include <direct.h>
-#include <sys/stat.h>
-#include <io.h>
-#else
-#include <dirent.h>
-#endif
+#include <portlib/NdbDir.hpp>
+#include <portlib/NdbSleep.h>
 
 static bool create_directory(const char * path);
 
@@ -337,14 +328,6 @@ end:
   return retval;
 }
 
-static int 
-local_mkdir(const char * dir){
-#ifdef _WIN32
-  return mkdir(dir);
-#else
-  return mkdir(dir, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
-#endif
-}
 
 static
 bool
@@ -366,7 +349,8 @@ create_directory(const char * path)
   {
     cwd.append(list[i].c_str());
     cwd.append("/");
-    local_mkdir(cwd.c_str());
+    NdbDir::create(cwd.c_str(),
+                   NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x());
   }
 
   struct stat sbuf;
