@@ -142,13 +142,13 @@ mlog_catenate_ulint_compressed(
 }
 
 /********************************************************//**
-Catenates a compressed dulint to mlog. */
+Catenates a compressed 64-bit integer to mlog. */
 UNIV_INLINE
 void
-mlog_catenate_dulint_compressed(
-/*============================*/
-	mtr_t*	mtr,	/*!< in: mtr */
-	dulint	val)	/*!< in: value to write */
+mlog_catenate_ull_compressed(
+/*=========================*/
+	mtr_t*		mtr,	/*!< in: mtr */
+	ib_uint64_t	val)	/*!< in: value to write */
 {
 	byte*	log_ptr;
 
@@ -160,7 +160,7 @@ mlog_catenate_dulint_compressed(
 		return;
 	}
 
-	log_ptr += mach_dulint_write_compressed(log_ptr, val);
+	log_ptr += mach_ull_write_compressed(log_ptr, val);
 
 	mlog_close(mtr, log_ptr);
 }

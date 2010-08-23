@@ -5,6 +5,7 @@
 #
 
 source include/master-slave.inc;
+source include/not_relay_log_info_table.inc;
 
 let $SERVER_VERSION=`select version()`;
 

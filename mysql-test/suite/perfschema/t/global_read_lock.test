@@ -81,6 +81,7 @@ update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
 unlock tables;
 
 disconnect con1;
+--source include/wait_until_disconnected.inc
 
 --echo connection default;
 connection default;

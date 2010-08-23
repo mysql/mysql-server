@@ -40,6 +40,12 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
+# Enable InnoDB's UNIV_DEBUG if MySQL's WITH_DEBUG[_FULL] is defined
+# enable when this bug is resolved:
+# Bug#54861 Additional connections not handled properly in mtr --embedded
+#IF(WITH_DEBUG OR WITH_DEBUG_FULL)
+#  ADD_DEFINITIONS("-DUNIV_DEBUG")
+#ENDIF()
 
 IF(NOT MSVC)
 # either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
@@ -182,11 +188,7 @@ IF(SIZEOF_PTHREAD_T)
 ENDIF()
 
 IF(MSVC)
-  # Windows atomics do not perform well. Disable Windows atomics by default.
-  # See bug#52102 for details.
-
-  #ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
-  ADD_DEFINITIONS(-DHAVE_IB_PAUSE_INSTRUCTION)
+  ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
 ENDIF()
 
 
@@ -236,7 +238,7 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			rem/rem0cmp.c rem/rem0rec.c
 			row/row0ext.c row/row0ins.c row/row0merge.c row/row0mysql.c row/row0purge.c row/row0row.c
 			row/row0sel.c row/row0uins.c row/row0umod.c row/row0undo.c row/row0upd.c row/row0vers.c
-			srv/srv0srv.c srv/srv0start.c
+			srv/srv0mon.c srv/srv0srv.c srv/srv0start.c
 			sync/sync0arr.c sync/sync0rw.c sync/sync0sync.c
 			thr/thr0loc.c
 			trx/trx0i_s.c trx/trx0purge.c trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c
