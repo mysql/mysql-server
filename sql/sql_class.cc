@@ -492,7 +492,6 @@ THD::THD()
    rli_fake(0),
    user_time(0), in_sub_stmt(0),
    binlog_unsafe_warning_flags(0),
-   stmt_accessed_table_flag(0),
    binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -2877,6 +2876,7 @@ void TMP_TABLE_PARAM::init()
   quick_group= 1;
   table_charset= 0;
   precomputed_group_by= 0;
+  bit_fields_as_long= 0;
   DBUG_VOID_RETURN;
 }
 

@@ -264,18 +264,18 @@ INSERT INTO t VALUES ("First in t", '2000-01-02 03:04:25'), ("a test in t", '000
 let $count = 17;
 while ($count)
 {
-let $t_lock = `SELECT (CASE ($count % 3) WHEN 0 THEN 1 WHEN 1 THEN 'WRITE' WHEN 2 THEN 'READ' END)`;
-let $tp_lock = `SELECT (CASE ((($count + 2) DIV 3) % 3) WHEN 0 THEN 1 WHEN 1 THEN 'WRITE' WHEN 2 THEN 'READ' END)`;
-let $t2_lock = `SELECT (CASE ((($count + 8) DIV 9) % 3) WHEN 0 THEN 1 WHEN 1 THEN 'WRITE' WHEN 2 THEN 'READ' END)`;
+let $t_lock = `SELECT (CASE ($count % 3) WHEN 0 THEN 0 WHEN 1 THEN 'WRITE' WHEN 2 THEN 'READ' END)`;
+let $tp_lock = `SELECT (CASE ((($count + 2) DIV 3) % 3) WHEN 0 THEN 0 WHEN 1 THEN 'WRITE' WHEN 2 THEN 'READ' END)`;
+let $t2_lock = `SELECT (CASE ((($count + 8) DIV 9) % 3) WHEN 0 THEN 0 WHEN 1 THEN 'WRITE' WHEN 2 THEN 'READ' END)`;
 --echo # tp_lock '$tp_lock' t_lock '$t_lock' t2_lock '$t2_lock' count '$count'
 let $lock_cmd = LOCK TABLE;
 let $take_lock = 0;
-if (!$t_lock)
+if ($t_lock)
 {
   let $lock_cmd = $lock_cmd t $t_lock;
   let $take_lock = 1;
 }
-if (!$tp_lock)
+if ($tp_lock)
 {
   if ($take_lock)
   {
@@ -287,7 +287,7 @@ if (!$tp_lock)
   }
   let $take_lock = 1;
 }
-if (!$t2_lock)
+if ($t2_lock)
 {
   if ($take_lock)
   {

@@ -179,11 +179,6 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." -DMYSQL_DATADIR=".substr($option,14); 
     next;
   }
-  if ($option =~ /with-debug=full/)
-  {
-    $cmakeargs = $cmakeargs." -DWITH_DEBUG_FULL=1"; 
-    next;
-  }
   if ($option =~ /with-comment=/)
   {
     $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 

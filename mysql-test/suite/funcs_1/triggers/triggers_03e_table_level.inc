@@ -30,10 +30,8 @@ let $message= #########      Testcase for table level:   ########;
         set password for test_noprivs@localhost = password('PWD');
         revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 
 ################ Section 3.5.3 ############
