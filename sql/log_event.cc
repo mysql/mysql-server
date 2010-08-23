@@ -675,7 +675,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   server_id=	thd->server_id;
   when=		thd->start_time;
   cache_type= ((using_trans || stmt_has_updated_trans_table(thd) ||
-               (thd->stmt_accessed_temp_table() &&
+               (thd->lex->stmt_accessed_temp_table() &&
                trans_has_updated_trans_table(thd)))
                ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                Log_event::EVENT_STMT_CACHE);
@@ -2561,7 +2561,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   else
   {
     cache_type= ((using_trans || stmt_has_updated_trans_table(thd) || trx_cache ||
-                 (thd->stmt_accessed_temp_table() &&
+                 (thd->lex->stmt_accessed_temp_table() &&
                  trans_has_updated_trans_table(thd)))
                  ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                  Log_event::EVENT_STMT_CACHE);
@@ -8882,7 +8882,15 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
       DBUG_PRINT("info",("Locating offending record using ha_rnd_pos()"));
+
+      if (table->file->inited && (error= table->file->ha_index_end()))
+        DBUG_RETURN(error);
+      if ((error= table->file->ha_rnd_init(FALSE)))
+        DBUG_RETURN(error);
+
       error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
+
+      table->file->ha_rnd_end();
       if (error)
       {
         DBUG_PRINT("info",("ha_rnd_pos() returns error %d",error));
@@ -9209,7 +9217,15 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
     */
     DBUG_PRINT("info",("locating record using primary key (position)"));
-    int error= table->file->rnd_pos_by_record(table->record[0]);
+    int error;
+    if (table->file->inited && (error= table->file->ha_index_end()))
+      DBUG_RETURN(error);
+    if ((error= table->file->ha_rnd_init(FALSE)))
+      DBUG_RETURN(error);
+
+    error= table->file->rnd_pos_by_record(table->record[0]);
+
+    table->file->ha_rnd_end();
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));

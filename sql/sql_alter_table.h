@@ -21,20 +21,24 @@
   statements.
   @todo move Alter_info and other ALTER generic structures from Lex here.
 */
-class Alter_table_common : public Sql_statement
+class Alter_table_common : public Sql_cmd
 {
 protected:
   /**
     Constructor.
     @param lex the LEX structure for this statement.
   */
-  Alter_table_common(LEX *lex)
-    : Sql_statement(lex)
+  Alter_table_common()
+    : Sql_cmd()
   {}
 
   virtual ~Alter_table_common()
   {}
 
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_ALTER_TABLE;
+  }
 };
 
 /**
@@ -48,8 +52,8 @@ public:
     Constructor, used to represent a ALTER TABLE statement.
     @param lex the LEX structure for this statement.
   */
-  Alter_table_statement(LEX *lex)
-    : Alter_table_common(lex)
+  Alter_table_statement()
+    : Alter_table_common()
   {}
 
   ~Alter_table_statement()
