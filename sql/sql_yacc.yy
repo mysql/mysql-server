@@ -2407,7 +2407,7 @@ clear_privileges:
 sp_name:
           ident '.' ident
           {
-            if (!$1.str || check_db_name(&$1))
+            if (!$1.str || check_and_convert_db_name(&$1, FALSE))
             {
               my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -2958,9 +2958,9 @@ signal_stmt:
             Yacc_state *state= & thd->m_parser_state->m_yacc;
 
             lex->sql_command= SQLCOM_SIGNAL;
-            lex->m_stmt= new (thd->mem_root) Signal_statement(lex, $2,
-                                                      state->m_set_signal_info);
-            if (lex->m_stmt == NULL)
+            lex->m_sql_cmd=
+              new (thd->mem_root) Sql_cmd_signal($2, state->m_set_signal_info);
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         ;
@@ -3097,9 +3097,10 @@ resignal_stmt:
             Yacc_state *state= & thd->m_parser_state->m_yacc;
 
             lex->sql_command= SQLCOM_RESIGNAL;
-            lex->m_stmt= new (thd->mem_root) Resignal_statement(lex, $2,
-                                                      state->m_set_signal_info);
-            if (lex->m_stmt == NULL)
+            lex->m_sql_cmd=
+              new (thd->mem_root) Sql_cmd_resignal($2,
+                                                   state->m_set_signal_info);
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         ;
@@ -6266,17 +6267,17 @@ alter:
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->create_last_non_select_table= lex->last_table();
-            DBUG_ASSERT(!lex->m_stmt);
+            DBUG_ASSERT(!lex->m_sql_cmd);
           }
           alter_commands
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            if (!lex->m_stmt)
+            if (!lex->m_sql_cmd)
             {
               /* Create a generic ALTER TABLE statment. */
-              lex->m_stmt= new (thd->mem_root) Alter_table_statement(lex);
-              if (lex->m_stmt == NULL)
+              lex->m_sql_cmd= new (thd->mem_root) Alter_table_statement();
+              if (lex->m_sql_cmd == NULL)
                 MYSQL_YYABORT;
             }
           }
@@ -6567,10 +6568,10 @@ alter_commands:
                                                    TL_READ_NO_INSERT,
                                                    MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
-            DBUG_ASSERT(!lex->m_stmt);
-            lex->m_stmt= new (thd->mem_root)
-                               Alter_table_exchange_partition_statement(lex);
-            if (lex->m_stmt == NULL)
+            DBUG_ASSERT(!lex->m_sql_cmd);
+            lex->m_sql_cmd= new (thd->mem_root)
+                               Alter_table_exchange_partition_statement();
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
           opt_ignore
@@ -6807,7 +6808,7 @@ alter_list_item:
               MYSQL_YYABORT;
             }
             if (check_table_name($3->table.str,$3->table.length, FALSE) ||
-                ($3->db.str && check_db_name(&$3->db)))
+                ($3->db.str && check_and_convert_db_name(&$3->db, FALSE)))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               MYSQL_YYABORT;
@@ -10353,7 +10354,7 @@ drop:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             sp_name *spname;
-            if ($4.str && check_db_name(&$4))
+            if ($4.str && check_and_convert_db_name(&$4, FALSE))
             {
                my_error(ER_WRONG_DB_NAME, MYF(0), $4.str);
                MYSQL_YYABORT;
@@ -13991,7 +13992,7 @@ subselect_end:
 
             lex->pop_context();
             SELECT_LEX *child= lex->current_select;
-            lex->current_select = lex->current_select->return_after_parsing();
+            lex->current_select = lex->current_select->outer_select();
             lex->nest_level--;
             lex->current_select->n_child_sum_items += child->n_sum_items;
             /*

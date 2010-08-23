@@ -467,7 +467,7 @@ bool Alter_table_exchange_partition_statement::
   Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
   MDL_ticket *swap_table_mdl_ticket= NULL;
   MDL_ticket *part_table_mdl_ticket= NULL;
-  bool error= TRUE, ignore= m_lex->ignore;
+  bool error= TRUE, ignore= thd->lex->ignore;
   DBUG_ENTER("mysql_exchange_partition");
   DBUG_ASSERT(alter_info->flags & ALTER_EXCHANGE_PARTITION);
 

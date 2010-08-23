@@ -1715,8 +1715,7 @@ WHERE t1.id IN (
 SELECT distinct id
 FROM t4
 WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-ORDER BY t1.id
-;
+ORDER BY t1.id;
 MyISAM_part
 16421
 19092
