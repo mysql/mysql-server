@@ -2397,6 +2397,7 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
   struct st_translog_scanner_data scanner;
   int len;
   uint i;
+  DBUG_ENTER("run_redo_phase");
 
   /* install hooks for execution */
 #define install_redo_exec_hook(R)                                        \
@@ -2461,7 +2462,7 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
   {
     tprint(tracef, "checkpoint address refers to the log end log or "
            "log is empty, nothing to do.\n");
-    return 0;
+    DBUG_RETURN(0);
   }
 
   len= translog_read_record_header(lsn, &rec);
@@ -2469,12 +2470,12 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
   if (len == RECHEADER_READ_ERROR)
   {
     eprint(tracef, "Failed to read header of the first record.");
-    return 1;
+    DBUG_RETURN(1);
   }
   if (translog_scanner_init(lsn, 1, &scanner, 1))
   {
     tprint(tracef, "Scanner init failed\n");
-    return 1;
+    DBUG_RETURN(1);
   }
   for (i= 1;;i++)
   {
@@ -2527,7 +2528,7 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
                    LSN_IN_PARTS(rec2.lsn));
             translog_destroy_scanner(&scanner);
             translog_free_record_header(&rec);
-            return(0);
+            DBUG_RETURN(0);
           }
 
           if (translog_scanner_init(rec2.lsn, 1, &scanner2, 1))
@@ -2625,12 +2626,12 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
     fflush(stderr);
     procent_printed= 1;
   }
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   translog_destroy_scanner(&scanner);
   translog_free_record_header(&rec);
-  return 1;
+  DBUG_RETURN(1);
 }
 
 

@@ -2063,6 +2063,13 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
   safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
 
   bitmap_page= page - page % bitmap->pages_covered;
+  if (page == bitmap_page ||
+      page + page_count >= bitmap_page + bitmap->pages_covered)
+  {
+    DBUG_ASSERT(0);                             /* Wrong in data */
+    DBUG_RETURN(1);
+  }
+
   if (bitmap_page != bitmap->page &&
       _ma_change_bitmap_page(info, bitmap, bitmap_page))
     DBUG_RETURN(1);
