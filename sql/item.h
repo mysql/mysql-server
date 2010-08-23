@@ -852,6 +852,7 @@ public:
     set value of aggregate function in case of no rows for grouping were found
   */
   virtual void no_rows_in_result() {}
+  virtual void restore_to_before_no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
   virtual Item *copy_andor_structure(THD *thd) { return this; }
   virtual Item *real_item() { return this; }
@@ -908,6 +909,21 @@ public:
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
   virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
+
+  /* To call bool function for all arguments */
+  struct bool_func_call_args
+  {
+    Item *original_func_item;
+    void (Item::*bool_function)();
+  };
+  bool call_bool_func_processor(uchar *org_item)
+  {
+    bool_func_call_args *info= (bool_func_call_args*) org_item;
+    /* Avoid recursion, as walk also calls for original item */
+    if (info->original_func_item != this)
+      (this->*(info->bool_function))();
+    return FALSE;
+  }
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -2320,6 +2336,14 @@ public:
   {
     return (*ref)->walk(processor, walk_subquery, arg) ||
            (this->*processor)(arg);
+  }
+  void no_rows_in_result()
+  {
+    (*ref)->no_rows_in_result();
+  }
+  void restore_to_before_no_rows_in_result()
+  {
+    (*ref)->restore_to_before_no_rows_in_result();
   }
   virtual void print(String *str, enum_query_type query_type);
   bool result_as_longlong()
