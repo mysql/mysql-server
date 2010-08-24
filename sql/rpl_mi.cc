@@ -387,7 +387,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS)
   {
-     if (from->get_info(ignore_server_ids, NULL))
+     if (from->get_info(ignore_server_ids, (Server_ids *) NULL))
       DBUG_RETURN(TRUE);
   }
 

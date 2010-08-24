@@ -122,7 +122,7 @@ public:
   }
 
   /**
-    Sets the value of a string field to @c value.
+    Sets the value of a field to @c value.
     Any call must be done in the right order which
     is defined by the caller that wants to persist
     the information.
@@ -132,55 +132,44 @@ public:
     @retval FALSE No error
     @retval TRUE Failure
   */
-  bool set_info(const char *value);
+  template <class TypeHandler>
+  bool set_info(TypeHandler const value)
+  {
+    if (cursor >= ninfo || prv_error)
+      return TRUE;
+
+    if (!(prv_error= do_set_info(cursor, value)))
+      cursor++;
+
+    return(prv_error);
+  }
+
   /**
-    Sets the value of an ulong field to @c value.
+    Returns the value of a field.
     Any call must be done in the right order which
-    is defined by the caller that wants to persist
+    is defined by the caller that wants to return
     the information.
 
     @param[in] value Value to be set.
+    @param[in] default_value Returns a default value
+                             if the field is empty.
 
     @retval FALSE No error
     @retval TRUE Failure
   */
-  bool set_info(ulong const value);
-  /**
-    Sets the value of an integer field to @c value.
-    Any call must be done in the right order which
-    is defined by the caller that wants to persist
-    the information.
+  template <class TypeHandlerPointer, class TypeHandler>
+  bool get_info(TypeHandlerPointer value,
+                TypeHandler const default_value)
+  {
+    if (cursor >= ninfo || prv_error)
+      return TRUE;
 
-    @param[in] value Value to be set.
+    if (!(prv_error= do_get_info(cursor, value, default_value)))
+      cursor++;
 
-    @retval FALSE No error
-    @retval TRUE Failure
-  */
-  bool set_info(int const value);
-  /**
-    Sets the value of a float field to @c value.
-    Any call must be done in the right order which
-    is defined by the caller that wants to persist
-    the information.
+    return(prv_error);
+  }
 
-    @param[in] value Value to be set.
-
-    @retval FALSE No error
-    @retval TRUE Failure
-  */
-  bool set_info(float const value);
-  /**
-    Sets the value of a Server_ids field to @c value.
-    Any call must be done in the right order which
-    is defined by the caller that wants to persist
-    the information.
-
-    @param[in] value Value to be set.
-
-    @retval FALSE No error
-    @retval TRUE Failure
-  */
-  bool set_info(const Server_ids *value);
   /**
     Returns the value of a string field.
     Any call must be done in the right order which
@@ -197,52 +186,17 @@ public:
     @retval TRUE Failure
   */
   bool get_info(char *value, const size_t size,
-                const char *default_value);
-  /**
-    Returns the value of an ulong field.
-    Any call must be done in the right order which
-    is defined by the caller that wants to return
-    the information.
+                const char *default_value)
+  {
+    if (cursor >= ninfo || prv_error)
+      return TRUE;
 
-    @param[in] value Value to be set.
-    @param[in] default_value Returns a default value
-                             if the field is empty.
+    if (!(prv_error= do_get_info(cursor, value, size, default_value)))
+      cursor++;
 
-    @retval FALSE No error
-    @retval TRUE Failure
-  */
-  bool get_info(ulong *value,
-                ulong const default_value);
-  /**
-    Returns the value of an integer field.
-    Any call must be done in the right order which
-    is defined by the caller that wants to return
-    the information.
-
-    @param[in] value Value to be set.
-    @param[in] default_value Returns a default value
-                             if the field is empty.
-
-    @retval FALSE No error
-    @retval TRUE Failure
-  */
-  bool get_info(int *value,
-                int const default_value);
-  /**
-    Returns the value of a float field.
-    Any call must be done in the right order which
-    is defined by the caller that wants to return
-    the information.
-
-    @param[in] value Value to be set.
-    @param[in] default_value Returns a default value
-                             if the field is empty.
-
-    @retval FALSE No error
-    @retval TRUE Failure
-  */
-  bool get_info(float *value,
-                float const default_value);
+    return(prv_error);
+  }
+ 
   /**
     Returns the value of a Server_id field.
     Any call must be done in the right order which
@@ -257,7 +211,16 @@ public:
     @retval TRUE Failure
   */
   bool get_info(Server_ids *value,
-                const Server_ids *default_value);
+                const Server_ids *default_value)
+  {
+    if (cursor >= ninfo || prv_error)
+      return TRUE;
+
+    if (!(prv_error= do_get_info(cursor, value, default_value)))
+      cursor++;
+
+    return(prv_error);
+  }
 
   /**
     Returns the number of fields handled by this handler.
