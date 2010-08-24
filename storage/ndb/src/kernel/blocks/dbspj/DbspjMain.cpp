@@ -2877,6 +2877,8 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
   Uint32 errCode = rep->errorCode;
   Uint32 Tnode = refToNode(signal->getSendersBlockRef());
 
+  c_Counters.incr_counter(CI_READS_NOT_FOUND, 1);
+
   if (requestPtr.p->isLookup())
   {
     jam();
@@ -3749,6 +3751,9 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
   
   ndbrequire(done <= 2); // 0, 1, 2 (=ZSCAN_FRAG_CLOSED)
 
+  c_Counters.incr_counter(CI_SCAN_BATCHES_COMPLETED, 1);
+  c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, rows);
+
   ndbassert(treeNodePtr.p->m_scanfrag_data.m_rows_expecting == ~Uint32(0));
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = rows;
   if (treeNodePtr.p->isLeaf())
@@ -4113,7 +4118,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
          */
         err = expand(pattern, treeNodePtr, tree, len, param, cnt);
         treeNodePtr.p->m_bits |= TreeNode::T_PRUNE_PATTERN;
-        c_Counters.incr_counter(CI_PRUNNED_RANGE_SCANS_RECEIVED, 1);
+        c_Counters.incr_counter(CI_PRUNED_RANGE_SCANS_RECEIVED, 1);
       }
       else
       {
@@ -4132,7 +4137,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
          *   as we have not yet opened a read-view
          */
         treeNodePtr.p->m_bits |= TreeNode::T_CONST_PRUNE;
-        c_Counters.incr_counter(CI_CONST_PRUNNED_RANGE_SCANS_RECEIVED, 1);
+        c_Counters.incr_counter(CI_CONST_PRUNED_RANGE_SCANS_RECEIVED, 1);
       }
     }
 
@@ -4226,6 +4231,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   if (treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE)
   {
     jam();
+//  ndbrequire(false);
 
     // TODO we need a different variant of computeHash here,
     // since m_constPrunePtrI does not contain full primary key
@@ -4394,6 +4400,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
     if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
     {
       jam();
+//    ndbrequire(false);
 
       /**
        * TODO: Expand into linear memory instead
@@ -4770,6 +4777,8 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
   Uint32 done = conf->fragmentCompleted;
 
   requestPtr.p->m_rows += rows;
+  c_Counters.incr_counter(CI_SCAN_BATCHES_COMPLETED, 1);
+  c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, rows);
 
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
 
@@ -6265,6 +6274,8 @@ void Dbspj::execDBINFO_SCANREQ(Signal *signal)
         c_Counters.get_counter(CI_LOCAL_READS_SENT) },
       { Ndbinfo::SPJ_REMOTE_READS_SENT_COUNTER, 
         c_Counters.get_counter(CI_REMOTE_READS_SENT) },
+      { Ndbinfo::SPJ_READS_NOT_FOUND_COUNTER, 
+        c_Counters.get_counter(CI_READS_NOT_FOUND) },
       { Ndbinfo::SPJ_TABLE_SCANS_RECEIVED_COUNTER, 
         c_Counters.get_counter(CI_TABLE_SCANS_RECEIVED) },
       { Ndbinfo::SPJ_LOCAL_TABLE_SCANS_SENT_COUNTER, 
@@ -6272,7 +6283,13 @@ void Dbspj::execDBINFO_SCANREQ(Signal *signal)
       { Ndbinfo::SPJ_RANGE_SCANS_RECEIVED_COUNTER, 
         c_Counters.get_counter(CI_RANGE_SCANS_RECEIVED) },
       { Ndbinfo::SPJ_LOCAL_RANGE_SCANS_SENT_COUNTER, 
-        c_Counters.get_counter(CI_LOCAL_RANGE_SCANS_SENT) }
+        c_Counters.get_counter(CI_LOCAL_RANGE_SCANS_SENT) },
+      { Ndbinfo::SPJ_REMOTE_RANGE_SCANS_SENT_COUNTER, 
+        c_Counters.get_counter(CI_REMOTE_RANGE_SCANS_SENT) },
+      { Ndbinfo::SPJ_SCAN_BATCHES_COMPLETED_COUNTER, 
+        c_Counters.get_counter(CI_SCAN_BATCHES_COMPLETED) },
+      { Ndbinfo::SPJ_SCAN_ROWS_RETURNED_COUNTER, 
+        c_Counters.get_counter(CI_SCAN_ROWS_RETURNED) }
     };
     const size_t num_counters = sizeof(counters) / sizeof(counters[0]);
 
