@@ -1587,14 +1587,20 @@ srv_suspend_mysql_thread(
 	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {
+	case 0:
+		break;
 	case RW_S_LATCH:
 		/* Release foreign key check latch */
 		row_mysql_unfreeze_data_dictionary(trx);
 		break;
-	case RW_X_LATCH:
-		/* Release fast index creation latch */
-		row_mysql_unlock_data_dictionary(trx);
-		break;
+	default:
+		/* There should never be a lock wait when the
+		dictionary latch is reserved in X mode.  Dictionary
+		transactions should only acquire locks on dictionary
+		tables, not other tables. All access to dictionary
+		tables should be covered by dictionary
+		transactions. */
+		ut_error;
 	}
 
 	ut_a(trx->dict_operation_lock_mode == 0);
@@ -1606,13 +1612,8 @@ srv_suspend_mysql_thread(
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
 
-	switch (had_dict_lock) {
-	case RW_S_LATCH:
+	if (had_dict_lock) {
 		row_mysql_freeze_data_dictionary(trx);
-		break;
-	case RW_X_LATCH:
-		row_mysql_lock_data_dictionary(trx);
-		break;
 	}
 
 	if (was_declared_inside_innodb) {
@@ -2016,6 +2017,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_num_open_files = fil_n_file_opened;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }

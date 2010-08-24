@@ -2684,7 +2684,6 @@ row_sel_store_mysql_rec(
 	ut_ad(prebuilt->mysql_template);
 	ut_ad(prebuilt->default_rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
 		mem_heap_free(prebuilt->blob_heap);
@@ -3659,6 +3658,7 @@ row_search_for_mysql(
 				row_sel_try_search_shortcut_for_mysql().
 				The latch will not be released until
 				mtr_commit(&mtr). */
+				ut_ad(!rec_get_deleted_flag(rec, comp));
 
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
 							     rec, offsets, 0,
@@ -4287,7 +4287,7 @@ no_gap_lock:
 
 				rec = old_vers;
 			}
-		} else if (!lock_sec_rec_cons_read_sees(rec, trx->read_view)) {
+		} else {
 			/* We are looking into a non-clustered index,
 			and to get the right version of the record we
 			have to look also into the clustered index: this
@@ -4295,9 +4295,14 @@ no_gap_lock:
 			information via the clustered index record. */
 
 			ut_ad(index != clust_index);
+			ut_ad(!dict_index_is_clust(index));
 
-			get_clust_rec = TRUE;
-			goto idx_cond_check;
+			if (!lock_sec_rec_cons_read_sees(
+				    rec, trx->read_view)) {
+
+				get_clust_rec = TRUE;
+				goto idx_cond_check;
+			}
 		}
 	}
 
@@ -4446,8 +4451,13 @@ idx_cond_check:
 						  ULINT_UNDEFINED, &heap);
 			result_rec = rec;
 		}
+
+		/* result_rec can legitimately be delete-marked
+		now that it has been established that it points to a
+		clustered index record that exists in the read view. */
 	} else {
 		result_rec = rec;
+		ut_ad(!rec_get_deleted_flag(rec, comp));
 	}
 
 	/* We found a qualifying record 'result_rec'. At this point,
