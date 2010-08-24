@@ -48,6 +48,7 @@
 
 #ifdef __cplusplus
 #include <Vector.hpp>
+#include <Bitmask.hpp>
 #include "NdbQueryBuilder.hpp"
 #include "NdbIndexScanOperation.hpp"
 #include "ndb_limits.h"
@@ -401,6 +402,14 @@ public:
 
   // Get type of query operation
   virtual NdbQueryOperationDef::Type getType() const = 0;
+
+  /** Print query tree graph to trace file (using recursion).
+   * @param depth Number of ancestor nodes that this node has.
+   * @param hasMoreSiblingsMask The n'th bit should be set if the n'th ancestor
+   * (counted from the root) has more sibling nodes.
+   */
+  void printTree(Uint32 depth, 
+                 Bitmask<NDB_SPJ_MAX_TREE_NODES> hasMoreSiblingsMask) const;
 
 protected:
   // QueryTree building:
