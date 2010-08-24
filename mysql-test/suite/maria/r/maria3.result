@@ -310,12 +310,12 @@ maria_log_file_size	4294959104
 maria_log_purge_type	immediate
 maria_max_sort_file_size	9223372036853727232
 maria_pagecache_age_threshold	300
-maria_pagecache_buffer_size	8384512
+maria_pagecache_buffer_size	134213632
 maria_pagecache_division_limit	100
 maria_page_checksum	OFF
 maria_recover	NORMAL
 maria_repair_threads	1
-maria_sort_buffer_size	8388608
+maria_sort_buffer_size	134217728
 maria_stats_method	nulls_unequal
 maria_sync_log_dir	NEWFILE
 show status like 'maria%';

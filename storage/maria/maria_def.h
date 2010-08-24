@@ -1083,7 +1083,7 @@ typedef struct st_maria_block_info
 
 #define USE_BUFFER_INIT		(((1024L*1024L*128-MALLOC_OVERHEAD)/8192)*8192)
 #define READ_BUFFER_INIT	(1024L*256L-MALLOC_OVERHEAD)
-#define SORT_BUFFER_INIT	(1024L*1024L*64-MALLOC_OVERHEAD)
+#define SORT_BUFFER_INIT	(1024L*1024L*256-MALLOC_OVERHEAD)
 #define MIN_SORT_BUFFER		(4096-MALLOC_OVERHEAD)
 
 #define fast_ma_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _ma_writeinfo((INFO),0)
