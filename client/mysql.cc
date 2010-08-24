@@ -1883,7 +1883,7 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
-  char	*line;
+  char	*line= 0;
   char	in_string=0;
   ulong line_number=0;
   bool ml_comment= 0;  
