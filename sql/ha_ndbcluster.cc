@@ -640,15 +640,22 @@ private:
 }; // class ndb_pushed_join
 
 
-static const char* get_referred_field_name(const Item_field* field_item){
+static const char* get_referred_field_name(const Item_field* field_item)
+{
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->field_name;
 }
-static const char* get_referred_table_access_name(const Item_field* field_item){
+static const char* get_referred_table_access_name(const Item_field* field_item)
+{
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->table->alias;
 }
 
+static bool is_lookup_operation(AQP::enum_access_type accessType)
+{
+  return (accessType == AQP::AT_PRIMARY_KEY ||
+          accessType == AQP::AT_UNIQUE_KEY);
+}
 
 void
 ndb_pushed_builder_ctx::add_pushed(
@@ -947,13 +954,25 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
 
   /**
    * Parent is selected among the set of 'parents'. To improve
-   * fanout (bushy joins!) we prefer the first of the available parents.
+   * fanout for lookup operations (bushy joins!) we prefer the most grandparent of the anchestors.
+   * As scans can't be bushy currently, we try to serialize these by moving them 'down'.
    */
   uint parent_no;
-  for (parent_no= join_root()->get_access_no();
-       parent_no < tab_no && !parents.contain_table(m_plan.get_table_access(parent_no));
-       parent_no++)
-  {}
+  if (is_lookup_operation(table->get_access_type()))
+  {
+    for (parent_no= join_root()->get_access_no();
+         parent_no < tab_no && !parents.contain_table(m_plan.get_table_access(parent_no));
+         parent_no++)
+    {}
+  }
+  else // scan operation
+  {
+    for (parent_no= tab_no-1;
+         parent_no >= join_root()->get_access_no() && !parents.contain_table(m_plan.get_table_access(parent_no));
+         parent_no--)
+    {}
+  }
+
   parent= m_plan.get_table_access(parent_no);
   ndb_table_access_map parent_map(parent);
   DBUG_ASSERT(parents.contain(parent_map));
@@ -1087,12 +1106,6 @@ build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
     }
   }
 } // build_key_map
-
-static bool is_lookup_operation(AQP::enum_access_type accessType)
-{
-  return (accessType == AQP::AT_PRIMARY_KEY ||
-          accessType == AQP::AT_UNIQUE_KEY);
-}
 
 int
 ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
