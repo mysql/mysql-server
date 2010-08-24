@@ -800,47 +800,64 @@ private:
     CI_REMOTE_READS_SENT = 2,
 
     /**
+     * No of lookup operations which did not return a row (LQHKEYREF).
+     * (Most likely due to non matching key, or predicate 
+     * filter which evalueted  to 'false').
+     */
+    CI_READS_NOT_FOUND = 3,
+
+    /**
      * This is the number of incomming queries where the root operation is a 
      * fragment scan and this is a "direct scan" that does not go via an index.
      */
-    CI_TABLE_SCANS_RECEIVED = 3,
+    CI_TABLE_SCANS_RECEIVED = 4,
 
     /**
      * This is the number of "direct" fragment scans (i.e. no via an ordered 
      * index)sent to the local LQH block.
      */
-    CI_LOCAL_TABLE_SCANS_SENT = 4,
+    CI_LOCAL_TABLE_SCANS_SENT = 5,
 
     /**
      * This is the number of incomming queries where the root operation is a 
      * fragment scan which scans the fragment via an ordered index..
      */
-    CI_RANGE_SCANS_RECEIVED = 5,
+    CI_RANGE_SCANS_RECEIVED = 6,
 
     /**
      * This the number of scans using ordered indexes that have been sent to the
      * local LQH block.
      */
-    CI_LOCAL_RANGE_SCANS_SENT = 6,
+    CI_LOCAL_RANGE_SCANS_SENT = 7,
 
     /**
      * This the number of scans using ordered indexes that have been sent to a
      * remote LQH block.
      */
-    CI_REMOTE_RANGE_SCANS_SENT = 7,
+    CI_REMOTE_RANGE_SCANS_SENT = 8,
     
+    /**
+     * No of scan batches (on range or full table) which has completed.
+     */
+    CI_SCAN_BATCHES_COMPLETED = 9,
+
+    /**
+     * Total no of rows returned from scans.
+     */
+    CI_SCAN_ROWS_RETURNED = 10,
+
     /**
      * No of prunable indexscans that has been received
      */
-    CI_PRUNNED_RANGE_SCANS_RECEIVED = 8,
+    CI_PRUNED_RANGE_SCANS_RECEIVED = 11,
 
     /**
      * No of "const" prunable index scans that has been received 
      * i.e index-scan only access 1 partition
      */
-    CI_CONST_PRUNNED_RANGE_SCANS_RECEIVED = 9,
+    CI_CONST_PRUNED_RANGE_SCANS_RECEIVED = 12,
 
-    CI_END = 10 // End marker - not a valid counter id. 
+    CI_END = 13 // End marker - not a valid counter id. 
   };
 
   /**
