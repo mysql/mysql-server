@@ -49,6 +49,9 @@
  * 
  */
 
+// For debugging purposes. Enable to print query tree graph to ndbout.
+static const bool doPrintQueryTree = false;
+
 /* Various error codes that are not specific to NdbQuery. */
 STATIC_CONST(Err_MemoryAlloc = 4000);
 
@@ -979,6 +982,12 @@ NdbQueryBuilderImpl::prepare()
     return NULL;
   }
 
+  if (doPrintQueryTree)
+  {
+    ndbout << "Query tree:" << endl;
+    def->getQueryOperation(0U).printTree(0, Bitmask<NDB_SPJ_MAX_TREE_NODES>());
+  }
+
   return def;
 }
 
@@ -1743,6 +1752,10 @@ Uint32 NdbQueryOperationDefImpl::markScanAncestors()
   {
     if (operation->m_hasScanDescendant)
     {
+      /* Remove this line if you want to allow bushy scans. Result sets will
+       * probably be wrong, but 'explain' output etc. may be useful for
+       * debugging.
+       */
       return QRY_MULTIPLE_SCAN_BRANCHES;
     }
     operation->m_hasScanDescendant = true;
@@ -1856,6 +1869,84 @@ NdbQueryOperationDefImpl::appendChildProjection(Uint32Buffer& serializedDef) con
   }
   return requestInfo;
 } // NdbQueryOperationDefImpl::appendChildProjection
+
+/** Used by NdbQueryOperationDefImpl::printTree() to print the arrows
+ * that connect the tree nodes.
+ */
+static void printMargin(Uint32 depth, 
+                        Bitmask<NDB_SPJ_MAX_TREE_NODES> hasMoreSiblingsMask, 
+                        bool header)
+{
+  if (depth > 0)
+  {
+    // Print vertical lines to the siblings of the ancestore nodes.
+    for (Uint32 i = 0; i<depth-1; i++)
+    {
+      if (hasMoreSiblingsMask.get(i+1))
+      {
+        ndbout << "|  ";
+      }
+      else
+      {
+        ndbout << "   ";
+      }
+    }
+    if (header)
+    {
+      ndbout << "+->";
+    }
+    else if (hasMoreSiblingsMask.get(depth))
+    {
+      ndbout << "|  ";
+    }
+    else
+    {
+      ndbout << "   ";
+    }
+  }
+}
+
+void 
+NdbQueryOperationDefImpl::printTree(Uint32 depth, 
+                                    Bitmask<NDB_SPJ_MAX_TREE_NODES> 
+                                    hasMoreSiblingsMask) const
+{
+  // Print vertical line leading down to this node.
+  Bitmask<NDB_SPJ_MAX_TREE_NODES> firstLineMask = hasMoreSiblingsMask;
+  firstLineMask.set(depth);
+  printMargin(depth, firstLineMask, false);
+  ndbout << endl;
+  // Print +-> leading to this node.
+  printMargin(depth, hasMoreSiblingsMask, true);
+  ndbout << NdbQueryOperationDef::getTypeName(getType()) << endl;
+  printMargin(depth, hasMoreSiblingsMask, false);
+  // Print attributes.
+  ndbout << " opNo: " << getQueryOperationIx() << endl;
+  printMargin(depth, hasMoreSiblingsMask, false);
+  ndbout << " table: " << getTable().getName() << endl;
+  if (getIndex() != NULL)
+  {
+    printMargin(depth, hasMoreSiblingsMask, false);
+    ndbout << " index: " << getIndex()->getName() << endl; 
+  }
+  /* For each child but the last one, use a mask with an extra bit set to
+   * indicate that there are more siblings.
+   */
+  hasMoreSiblingsMask.set(depth+1);
+  for (int childNo = 0; 
+       childNo < static_cast<int>(getNoOfChildOperations()) - 1; 
+       childNo++)
+  {
+    getChildOperation(childNo).printTree(depth+1, hasMoreSiblingsMask);
+  }
+  if (getNoOfChildOperations() > 0)
+  {
+    // The last child has no more siblings.
+    hasMoreSiblingsMask.clear(depth+1);
+    getChildOperation(getNoOfChildOperations() - 1)
+      .printTree(depth+1, hasMoreSiblingsMask);
+  }
+} // NdbQueryOperationDefImpl::printTree()
 
 
 Uint32
