@@ -7511,27 +7511,14 @@ ha_innobase::info(
 	dict_index_t*	index;
 	ha_rows		rec_per_key;
 	ib_int64_t	n_rows;
-	ulong		j;
-	ulong		i;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
-
 
 	DBUG_ENTER("info");
 
 	/* If we are forcing recovery at a high level, we will suppress
 	statistics calculation on tables, because that may crash the
 	server if an index is badly corrupted. */
-
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
-
-		/* We return success (0) instead of HA_ERR_CRASHED,
-		because we want MySQL to process this query and not
-		stop, like it would do if it received the error code
-		HA_ERR_CRASHED. */
-
-		DBUG_RETURN(0);
-	}
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -7627,12 +7614,18 @@ ha_innobase::info(
 		acquiring latches inside InnoDB, we do not call it if we
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
-		See Bug#38185.
-		We do not update delete_length if no locking is requested
-		so the "old" value can remain. delete_length is initialized
-		to 0 in the ha_statistics' constructor. */
-		if (!(flag & HA_STATUS_NO_LOCK)) {
-
+		See Bug#38185. */
+		if (flag & HA_STATUS_NO_LOCK) {
+			/* We do not update delete_length if no
+			locking is requested so the "old" value can
+			remain. delete_length is initialized to 0 in
+			the ha_statistics' constructor. */
+		} else if (UNIV_UNLIKELY
+			   (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE)) {
+			/* Avoid accessing the tablespace if
+			innodb_crash_recovery is set to a high value. */
+			stats.delete_length = 0;
+		} else {
 			/* lock the data dictionary to avoid races with
 			ibd_file_missing and tablespace_discarded */
 			row_mysql_lock_data_dictionary(prebuilt->trx);
@@ -7677,6 +7670,7 @@ ha_innobase::info(
 	}
 
 	if (flag & HA_STATUS_CONST) {
+		ulong	i;
 		/* Verify the number of index in InnoDB and MySQL
 		matches up. If prebuilt->clust_index_was_generated
 		holds, InnoDB defines GEN_CLUST_INDEX internally */
@@ -7693,6 +7687,7 @@ ha_innobase::info(
 		}
 
 		for (i = 0; i < table->s->keys; i++) {
+			ulong	j;
 			/* We could get index quickly through internal
 			index mapping with the index translation table.
 			The identity of index (match up index name with
@@ -7758,6 +7753,11 @@ ha_innobase::info(
 		}
 	}
 
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+
+		goto func_exit;
+	}
+
 	if (flag & HA_STATUS_ERRKEY) {
 		const dict_index_t*	err_index;
 
@@ -7778,6 +7778,7 @@ ha_innobase::info(
 		stats.auto_increment_value = innobase_peek_autoinc();
 	}
 
+func_exit:
 	prebuilt->trx->op_info = (char*)"";
 
 	DBUG_RETURN(0);
