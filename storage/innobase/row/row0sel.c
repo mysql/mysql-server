@@ -4171,12 +4171,15 @@ no_gap_lock:
 				searching for the last committed version.
 				Do a normal locking read. */
 
-				offsets = rec_get_offsets(rec, index, offsets,
-							  ULINT_UNDEFINED,
-							  &heap);
+				offsets = rec_get_offsets(
+					rec, index, offsets, ULINT_UNDEFINED,
+					&heap);
 				break;
-			} else {
+			} else if (err == DB_DEADLOCK) {
 				goto lock_wait_or_error;
+ 			} else {
+				ut_a(err == DB_LOCK_WAIT);
+				err = DB_SUCCESS;
 			}
 
 			if (old_vers == NULL) {
