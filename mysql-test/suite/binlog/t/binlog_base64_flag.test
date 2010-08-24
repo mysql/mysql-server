@@ -7,6 +7,7 @@
 
 
 # BINLOG statement does not work in embedded mode.
+source include/have_log_bin.inc;
 source include/not_embedded.inc;
 
 disable_warnings;

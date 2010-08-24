@@ -789,7 +789,6 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
         not seen again in the loop.
       */
       share->in_checkpoint= MARIA_CHECKPOINT_LOOKS_AT_ME;
-      /** @todo avoid strlen() */
       total_names_length+= share->open_file_name.length;
     }
   }

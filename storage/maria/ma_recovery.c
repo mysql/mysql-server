@@ -494,8 +494,10 @@ end:
   }
   else if (!error && max_trid_in_control_file != max_long_trid)
   {
-    /* Set max trid in log file so that one can run maria_chk on the tables */
-    max_trid_in_control_file= trnman_get_max_trid();
+    /*
+      maria_end() will set max trid in log file so that one can run
+      maria_chk on the tables
+    */
     maria_recovery_changed_data= 1;
   }
 
@@ -2395,6 +2397,7 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
   struct st_translog_scanner_data scanner;
   int len;
   uint i;
+  DBUG_ENTER("run_redo_phase");
 
   /* install hooks for execution */
 #define install_redo_exec_hook(R)                                        \
@@ -2459,7 +2462,7 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
   {
     tprint(tracef, "checkpoint address refers to the log end log or "
            "log is empty, nothing to do.\n");
-    return 0;
+    DBUG_RETURN(0);
   }
 
   len= translog_read_record_header(lsn, &rec);
@@ -2467,12 +2470,12 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
   if (len == RECHEADER_READ_ERROR)
   {
     eprint(tracef, "Failed to read header of the first record.");
-    return 1;
+    DBUG_RETURN(1);
   }
   if (translog_scanner_init(lsn, 1, &scanner, 1))
   {
     tprint(tracef, "Scanner init failed\n");
-    return 1;
+    DBUG_RETURN(1);
   }
   for (i= 1;;i++)
   {
@@ -2525,7 +2528,7 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
                    LSN_IN_PARTS(rec2.lsn));
             translog_destroy_scanner(&scanner);
             translog_free_record_header(&rec);
-            return(0);
+            DBUG_RETURN(0);
           }
 
           if (translog_scanner_init(rec2.lsn, 1, &scanner2, 1))
@@ -2623,12 +2626,12 @@ static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
     fflush(stderr);
     procent_printed= 1;
   }
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   translog_destroy_scanner(&scanner);
   translog_free_record_header(&rec);
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -3167,6 +3170,8 @@ static LSN parse_checkpoint_record(LSN lsn)
     return LSN_ERROR;
   next_dirty_page_in_pool= dirty_pages_pool;
   minimum_rec_lsn_of_dirty_pages= LSN_MAX;
+  if (maria_recovery_verbose)
+    tprint(tracef, "Table_id  Is_index       Page_id    Rec_lsn\n");
   for (i= 0; i < nb_dirty_pages ; i++)
   {
     pgcache_page_no_t page_id;
@@ -3183,6 +3188,9 @@ static LSN parse_checkpoint_record(LSN lsn)
     if (new_page((is_index << 16) | table_id,
                  page_id, rec_lsn, next_dirty_page_in_pool++))
       return LSN_ERROR;
+    if (maria_recovery_verbose)
+      tprint(tracef, "%8u  %8u  %12lu    %lu,0x%lx\n", (uint) table_id,
+             (uint) is_index, (ulong) page_id, LSN_IN_PARTS(rec_lsn));
     set_if_smaller(minimum_rec_lsn_of_dirty_pages, rec_lsn);
   }
   /* after that, there will be no insert/delete into the hash */

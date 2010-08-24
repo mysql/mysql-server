@@ -1936,3 +1936,5 @@ sql/client_plugin.c
 *.dgcov
 libmysqld/create_options.cc
 storage/pbxt/bin/xtstat
+mysql-test/mtr_command
+scripts/convert-debug-for-diff

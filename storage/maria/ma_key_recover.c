@@ -64,8 +64,9 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
       builds.
     */
 #ifdef EXTRA_DEBUG
-    DBUG_ASSERT(!pinned_page->changed ||
-                undo_lsn != LSN_IMPOSSIBLE || !info->s->now_transactional);
+    DBUG_ASSERT((!pinned_page->changed ||
+                 undo_lsn != LSN_IMPOSSIBLE || !info->s->now_transactional) ||
+                (info->s->state.changed & STATE_CRASHED));
 #endif
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,
@@ -923,7 +924,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       if (length < 0)
         bmove(buff + page_offset, buff + page_offset - length,
               page_length - page_offset + length);
-      else
+      else if (page_length != page_offset)
         bmove_upp(buff + page_length + length, buff + page_length,
                   page_length - page_offset);
       page_length+= length;

@@ -248,7 +248,7 @@ static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
        "The buffer that is allocated when sorting the index when doing a "
        "REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
-       0, 0, 8192*1024, 4, ~0L, 1);
+       0, 0, 128L*1024L*1024L, 4, ~0L, 1);
 
 static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
        "Specifies how maria index statistics collection code should treat "
@@ -1850,7 +1850,7 @@ int ha_maria::enable_indexes(uint mode)
                         "retrying",
                         my_errno, param.db_name, param.table_name);
       /* This should never fail normally */
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(thd->killed != 0);
       /* Repairing by sort failed. Now try standard repair method. */
       param.testflag &= ~T_REP_BY_SORT;
       error= (repair(thd, &param, 0) != HA_ADMIN_OK);

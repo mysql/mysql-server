@@ -334,12 +334,13 @@ typedef struct st_maria_extent_cursor
     }                                                   \
   } while (0)
 
+
 static my_bool delete_tails(MARIA_HA *info, MARIA_RECORD_POS *tails);
 static my_bool delete_head_or_tail(MARIA_HA *info,
                                    pgcache_page_no_t page, uint record_number,
                                    my_bool head, my_bool from_update);
 #ifndef DBUG_OFF
-static void _ma_print_directory(uchar *buff, uint block_size);
+static void _ma_print_directory(FILE *file, uchar *buff, uint block_size);
 #endif
 static uchar *store_page_range(uchar *to, MARIA_BITMAP_BLOCK *block,
                                uint block_size, ulong length,
@@ -615,7 +616,7 @@ static inline uint end_of_previous_entry(uchar *dir, uchar *end)
 
 #ifndef DBUG_OFF
 
-static void _ma_print_directory(uchar *buff, uint block_size)
+static void _ma_print_directory(FILE *file, uchar *buff, uint block_size)
 {
   uint max_entry= (uint) ((uchar *) buff)[DIR_COUNT_OFFSET], row= 0;
   uint end_of_prev_row= PAGE_HEADER_SIZE;
@@ -624,40 +625,46 @@ static void _ma_print_directory(uchar *buff, uint block_size)
   dir= dir_entry_pos(buff, block_size, max_entry-1);
   end= dir_entry_pos(buff, block_size, 0);
 
-  DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE,"Directory dump (pos:length):\n");
+  DBUG_LOCK_FILE;                               /* If using DBUG_FILE */
+  fprintf(file,"Directory dump (pos:length):\n");
 
   for (row= 1; dir <= end ; end-= DIR_ENTRY_SIZE, row++)
   {
     uint offset= uint2korr(end);
     uint length= uint2korr(end+2);
-    fprintf(DBUG_FILE, "   %4u:%4u", offset, offset ? length : 0);
+    fprintf(file, "   %4u:%4u", offset, offset ? length : 0);
     if (!(row % (80/12)))
-      fputc('\n', DBUG_FILE);
+      fputc('\n', file);
     if (offset)
     {
       DBUG_ASSERT(offset >= end_of_prev_row);
       end_of_prev_row= offset + length;
     }
   }
-  fputc('\n', DBUG_FILE);
-  fflush(DBUG_FILE);
+  fputc('\n', file);
+  fflush(file);
   DBUG_UNLOCK_FILE;
 }
 
 
-static void check_directory(uchar *buff, uint block_size, uint min_row_length)
+static void check_directory(uchar *buff, uint block_size, uint min_row_length,
+                            uint real_empty_size)
 {
   uchar *dir, *end;
   uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
   uint start_of_dir, deleted;
-  uchar free_entry, prev_free_entry;
   uint end_of_prev_row= PAGE_HEADER_SIZE;
+  uint empty_size_on_page;
+  uint empty_size;
+  uchar free_entry, prev_free_entry;
 
   dir= dir_entry_pos(buff, block_size, max_entry-1);
   start_of_dir= (uint) (dir - buff);
   end= dir_entry_pos(buff, block_size, 0);
-  deleted= 0;
+  deleted= empty_size= 0;
+
+  empty_size_on_page= (real_empty_size != (uint) -1 ? real_empty_size :
+                       uint2korr(buff + EMPTY_SPACE_OFFSET));
 
   /* Ensure that all rows are in increasing order and no overlaps */
   for (; dir <= end ; end-= DIR_ENTRY_SIZE)
@@ -668,12 +675,15 @@ static void check_directory(uchar *buff, uint block_size, uint min_row_length)
     {
       DBUG_ASSERT(offset >= end_of_prev_row);
       DBUG_ASSERT(!length || length >= min_row_length);
+      empty_size+= offset - end_of_prev_row;
       end_of_prev_row= offset + length;
     }
     else
       deleted++;
   }
+  empty_size+= start_of_dir - end_of_prev_row;
   DBUG_ASSERT(end_of_prev_row <= start_of_dir);
+  DBUG_ASSERT(empty_size == empty_size_on_page);
 
   /* check free links */
   free_entry= buff[DIR_FREE_OFFSET];
@@ -690,7 +700,7 @@ static void check_directory(uchar *buff, uint block_size, uint min_row_length)
   DBUG_ASSERT(deleted == 0);
 }
 #else
-#define check_directory(A,B,C)
+#define check_directory(A,B,C,D)
 #endif /* DBUG_OFF */
 
 
@@ -792,20 +802,27 @@ static my_bool extend_area_on_page(MARIA_HA *info,
                                    uint *empty_space, uint *ret_offset,
                                    uint *ret_length)
 {
-  uint rec_offset, length;
+  uint rec_offset, length, org_rec_length;
   uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
   DBUG_ENTER("extend_area_on_page");
+
+  /*
+    We can't check for min length here as we may have called
+    extend_directory() to create a new (empty) entry just before
+  */
+  check_directory(buff, block_size, 0, *empty_space);
 
   rec_offset= uint2korr(dir);
   if (rec_offset)
   {
     /* Extending old row;  Mark current space as 'free' */
-    length= uint2korr(dir + 2);
+    length= org_rec_length= uint2korr(dir + 2);
     DBUG_PRINT("info", ("rec_offset: %u  length: %u  request_length: %u  "
                         "empty_space: %u",
-                        rec_offset, length, request_length, *empty_space));
+                        rec_offset, org_rec_length, request_length,
+                        *empty_space));
 
-    *empty_space+= length;
+    *empty_space+= org_rec_length;
   }
   else
   {
@@ -875,6 +892,7 @@ static my_bool extend_area_on_page(MARIA_HA *info,
                                "length: %u  request_length: %u",
                                length, request_length));
           my_errno= HA_ERR_WRONG_IN_RECORD;     /* File crashed */
+          DBUG_ASSERT(0);                       /* For debugging */
           DBUG_RETURN(1);                       /* Error in block */
         }
         *empty_space= length;                   /* All space is here */
@@ -885,7 +903,9 @@ static my_bool extend_area_on_page(MARIA_HA *info,
   int2store(dir + 2, length);
   *ret_offset= rec_offset;
   *ret_length= length;
-  check_directory(buff, block_size, info ? info->s->base.min_block_length : 0);
+
+  check_directory(buff, block_size, info ? info->s->base.min_block_length : 0,
+                  *empty_space - length);
   DBUG_RETURN(0);
 }
 
@@ -1094,7 +1114,7 @@ static uchar *find_free_position(MARIA_HA *info,
     *res_length= length;
 
     check_directory(buff, block_size,
-                    info ? info->s->base.min_block_length : 0);
+                    info ? info->s->base.min_block_length : 0, (uint) -1);
     DBUG_RETURN(dir);
   }
   /* No free places in dir; create a new one */
@@ -1115,7 +1135,8 @@ static uchar *find_free_position(MARIA_HA *info,
   *res_rownr= max_entry;
   *res_length= length;
 
-  check_directory(buff, block_size, info ? info->s->base.min_block_length : 0);
+  check_directory(buff, block_size, info ? info->s->base.min_block_length : 0,
+                  *empty_space);
   DBUG_RETURN(dir);
 }
 
@@ -1195,7 +1216,8 @@ static my_bool extend_directory(MARIA_HA *info, uchar *buff, uint block_size,
   }
 
   check_directory(buff, block_size,
-                  info ? min(info->s->base.min_block_length, length) : 0);
+                  info ? min(info->s->base.min_block_length, length) : 0,
+                  *empty_space);
   DBUG_RETURN(0);
 }
 
@@ -1496,6 +1518,8 @@ void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
   {
     /* Move all entries after rownr to end of page */
     uint rownr_length;
+
+    DBUG_ASSERT(extend_block);                  /* Should always be true */
     next_free_pos= end_of_found_block= page_pos=
       block_size - DIR_ENTRY_SIZE * max_entry - PAGE_SUFFIX_SIZE;
     diff= 0;
@@ -1567,13 +1591,13 @@ void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
       int2store(dir, offset + diff);            /* correct current pos */
       next_free_pos= offset;
     }
-
     if (page_pos != end_of_found_block)
     {
       uint length= (end_of_found_block - next_free_pos);
       memmove(buff + page_pos - length, buff + next_free_pos, length);
       next_free_pos= page_pos- length;
     }
+
     /* Extend rownr block to cover hole */
     rownr_length= next_free_pos - start_of_found_block;
     int2store(dir+2, rownr_length);
@@ -1596,8 +1620,9 @@ void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
     }
     buff[PAGE_TYPE_OFFSET]&= ~(uchar) PAGE_CAN_BE_COMPACTED;
   }
-  check_directory(buff, block_size, min_row_length);
-  DBUG_EXECUTE("directory", _ma_print_directory(buff, block_size););
+  check_directory(buff, block_size, min_row_length,
+                  extend_block ? 0 : (uint) -1);
+  DBUG_EXECUTE("directory", _ma_print_directory(DBUG_FILE, buff, block_size););
   DBUG_VOID_RETURN;
 }
 
@@ -1826,16 +1851,11 @@ static my_bool get_rowpos_in_head_or_tail_page(MARIA_HA *info,
       goto err;
   }
 
+  /*
+    The following dir entry is unused in case of insert / update but
+    not in case of undo_update / undo_delete
+  */
   dir= dir_entry_pos(buff, block_size, rownr);
-#ifdef SANITY_CHECKS
-    /* Tail's should always be unused */
-  if (page_type == TAIL_PAGE && max_entry > rownr &&
-      (dir[0] != 0 || dir[1] != 0))
-  {
-    DBUG_ASSERT(0);
-    goto err;
-  }
-#endif
 
   if (extend_area_on_page(page_type == HEAD_PAGE ? info : 0, buff, dir,
                           rownr, block_size, length,
@@ -2212,6 +2232,8 @@ static void store_extent_info(uchar *to,
   MARIA_BITMAP_BLOCK *block, *end_block;
   uint copy_length;
   my_bool first_found= 0;
+  DBUG_ENTER("store_extent_info");
+  DBUG_PRINT("enter", ("count: %u", count));
 
   for (block= first_block, end_block= first_block+count ;
        block < end_block; block++)
@@ -2231,6 +2253,7 @@ static void store_extent_info(uchar *to,
         page_count|= START_EXTENT_BIT;
       }
       pagerange_store(to + PAGE_STORE_SIZE, page_count);
+      DBUG_DUMP("extent", to, ROW_EXTENT_SIZE);
       to+= ROW_EXTENT_SIZE;
       if (!first_found)
       {
@@ -2245,6 +2268,7 @@ static void store_extent_info(uchar *to,
     data.
   */
   bzero(to, (size_t) (row_extents_second_part + copy_length - to));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2263,7 +2287,8 @@ static void store_extent_info(uchar *to,
 
    @return
    @retval 0  ok
-   @retval 1  Error (out of memory or disk error changing bitmap)
+   @retval 1  Error (out of memory or disk error changing bitmap) or
+              wrong information in extent information
 */
 
 static my_bool extent_to_bitmap_blocks(MARIA_HA *info,
@@ -2274,7 +2299,7 @@ static my_bool extent_to_bitmap_blocks(MARIA_HA *info,
 {
   MARIA_BITMAP_BLOCK *block, *start_block;
   MARIA_SHARE *share= info->s;
-  uint i;
+  uint i, tail_page;
   DBUG_ENTER("extent_to_bitmap_blocks");
 
   if (allocate_dynamic(&info->bitmap_blocks, extent_count + 2))
@@ -2300,13 +2325,36 @@ static my_bool extent_to_bitmap_blocks(MARIA_HA *info,
       page_count&= ~START_EXTENT_BIT;
       start_block->sub_blocks= (uint) (block - start_block);
       start_block= block;
-
     }
     block->page= page_korr(extent_info);
     block->page_count= page_count;
     block->sub_blocks= 0;
+    if (block->page_count == 0)
+    {
+      /* Extend allocated but not used by write_block_record() */
+      DBUG_ASSERT(block->page == 0);
+      /* This is the last block */
+      blocks->count= i;
+      break;
+    }
+    if ((tail_page= page_count & TAIL_BIT))
+      page_count= 1;
 
-    if (page_count & TAIL_BIT)
+    /* Check if wrong data */
+    if (block->page == 0 || page_count == 0 ||
+        (block->page + page_count) * share->block_size >
+         share->state.state.data_file_length)
+    {
+      DBUG_PRINT("error", ("page: %lu  page_count: %u  tail: %u  length: %ld  data_length: %ld",
+                           (ulong) block->page,
+                           (block->page_count & ~TAIL_BIT),
+                           (uint) test(block->page_count & TAIL_BIT),
+                           (ulong) ((block->page + (page_count & ~TAIL_BIT)) *
+                                    share->block_size),
+                           (ulong) share->state.state.data_file_length));
+      DBUG_RETURN(1);
+    }
+    if (tail_page)
     {
       block->org_bitmap_value= _ma_bitmap_get_page_bits(info, &share->bitmap,
                                                         block->page);
@@ -2318,7 +2366,7 @@ static my_bool extent_to_bitmap_blocks(MARIA_HA *info,
       my_bool res;
       pthread_mutex_lock(&share->bitmap.bitmap_lock);
       res= _ma_bitmap_set_full_page_bits(info, &share->bitmap,
-                                         block->page, block->page_count);
+                                         block->page, page_count);
       pthread_mutex_unlock(&share->bitmap.bitmap_lock);
       if (res)
         DBUG_RETURN(1);
@@ -2740,9 +2788,16 @@ static my_bool write_block_record(MARIA_HA *info,
                    sizeof(char*));
       memcpy(data, tmp_pos, *blob_lengths);
       data+= *blob_lengths;
-      /* Skip over tail page that was to be used to store blob */
-      block++;
-      bitmap_blocks->tail_page_skipped= 1;
+      /*
+        The following is not true when we want to insert data into original
+        place. In this case we don't have any extra blocks allocated
+      */
+      if (likely(undo_lsn == LSN_ERROR))
+      {
+        /* Skip over tail page that was prepared for storing blob */
+        block++;
+        bitmap_blocks->tail_page_skipped= 1;
+      }
     }
     if (head_block->sub_blocks > 1)
     {
@@ -2755,7 +2810,9 @@ static my_bool write_block_record(MARIA_HA *info,
 
   /* Update page directory */
   head_length= (uint) (data - row_pos->data);
-  DBUG_PRINT("info", ("Used head length on page: %u", head_length));
+  DBUG_PRINT("info", ("Used head length on page: %u  header_length: %u",
+                      head_length,
+                      (uint) (flag & ROW_FLAG_TRANSID ? TRANSID_SIZE : 0)));
   DBUG_ASSERT(data <= end_of_data);
   if (head_length < share->base.min_block_length)
   {
@@ -2765,6 +2822,7 @@ static my_bool write_block_record(MARIA_HA *info,
     data+= diff_length;
     head_length= share->base.min_block_length;
   }
+  DBUG_ASSERT(undo_lsn == LSN_ERROR || head_length == row_pos->length);
   int2store(row_pos->dir + 2, head_length);
   /* update empty space at start of block */
   row_pos->empty_space-= head_length;
@@ -2776,7 +2834,8 @@ static my_bool write_block_record(MARIA_HA *info,
     head_block->empty_space= 0;               /* Page is full */
   head_block->used|= BLOCKUSED_USED;
 
-  check_directory(page_buff, share->block_size, share->base.min_block_length);
+  check_directory(page_buff, share->block_size, share->base.min_block_length,
+                  (uint) -1);
 
   /*
      Now we have to write tail pages, as we need to store the position
@@ -2827,11 +2886,13 @@ static my_bool write_block_record(MARIA_HA *info,
         {
           /*
             Set only a bit, to not cause bitmap code to believe a block is full
-            when there is still a lot of entries in it
+            when there is still a lot of entries in it.
           */
           block->used|= BLOCKUSED_USED;
         }
       }
+      DBUG_ASSERT((undo_lsn == LSN_ERROR ||
+                   block == bitmap_blocks->block + bitmap_blocks->count));
       column= save_column;
       block= save_block;
       blob_lengths= save_blob_lengths;
@@ -3225,9 +3286,10 @@ static my_bool write_block_record(MARIA_HA *info,
     else
     {
       uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                     PAGE_STORE_SIZE + DIRPOS_STORE_SIZE +
+                     PAGE_STORE_SIZE + DIRPOS_STORE_SIZE + 2 +
                      HA_CHECKSUM_STORE_SIZE + 2 + PAGERANGE_STORE_SIZE +
                      ROW_EXTENT_SIZE];
+      uchar *log_pos;
       ha_checksum checksum_delta;
 
       /* LOGREC_UNDO_ROW_INSERT & LOGREC_UNDO_ROW_UPDATE share same header */
@@ -3237,17 +3299,16 @@ static my_bool write_block_record(MARIA_HA *info,
       dirpos_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE +
                    PAGE_STORE_SIZE,
                    row_pos->rownr);
-
-      log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
-      log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
-        (LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE +
-         DIRPOS_STORE_SIZE);
+      log_pos= (log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                PAGE_STORE_SIZE + DIRPOS_STORE_SIZE);
       store_checksum_in_rec(share, checksum_delta,
                             row->checksum - old_record_checksum,
-                            log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                            PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
-                            log_array[TRANSLOG_INTERNAL_PARTS + 0].length);
+                            log_pos, log_pos);
       compile_time_assert(sizeof(ha_checksum) == HA_CHECKSUM_STORE_SIZE);
+
+      log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+      log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
+                                                             log_data);
 
       if (!old_record)
       {
@@ -3267,16 +3328,18 @@ static my_bool write_block_record(MARIA_HA *info,
       else
       {
         /* Write UNDO log record for the UPDATE */
-        uchar *log_pos= (log_data +
-                         log_array[TRANSLOG_INTERNAL_PARTS + 0].length);
         size_t row_length, extents_length;
-        uint row_parts_count;
+        uint row_parts_count, cur_head_length;
 
         /*
           Write head length and extents of the original row so that we
-          during UNDO can put it back in the original position
+          during UNDO can put it back in the original position.
+          We don't store size for TRANSID, as we don't write this during
+          UNDO.
         */
-        int2store(log_pos, info->cur_row.head_length);
+        cur_head_length= (info->cur_row.head_length -
+                          info->cur_row.header_length);
+        int2store(log_pos, cur_head_length);
         pagerange_store(log_pos + 2, info->cur_row.extents_count);
         log_pos+= 2 + PAGERANGE_STORE_SIZE;
         log_array[TRANSLOG_INTERNAL_PARTS + 0].length+= (2 +
@@ -3589,6 +3652,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   MARIA_PINNED_PAGE page_link;
   uint rownr, org_empty_size, head_length;
   uint block_size= info->s->block_size;
+  uint errpos= 0;
   uchar *dir;
   pgcache_page_no_t page;
   struct st_row_pos_info row_pos;
@@ -3627,10 +3691,20 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   rownr= ma_recordpos_to_dir_entry(record_pos);
   dir= dir_entry_pos(buff, block_size, rownr);
 
-  if ((org_empty_size + cur_row->head_length) >= new_row->total_length)
+  /*
+    We can't use cur_row->head_length as the block may have been compacted
+    since we read it.
+  */
+  head_length= uint2korr(dir + 2);
+
+  if ((org_empty_size + head_length) >= new_row->total_length)
   {
     uint rec_offset, length;
     MARIA_BITMAP_BLOCK block;
+
+    DBUG_PRINT("info", ("org_empty_size: %u  org_length: %u  new_length: %lu",
+                        org_empty_size, head_length,
+                        new_row->total_length));
 
     /*
       We can fit the new row in the same page as the original head part
@@ -3641,7 +3715,10 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
     if (extend_area_on_page(info, buff, dir, rownr, block_size,
                             new_row->total_length, &org_empty_size,
                             &rec_offset, &length))
+    {
+      errpos= 1;
       goto err;
+    }
 
     row_pos.buff= buff;
     row_pos.rownr= rownr;
@@ -3658,9 +3735,15 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
 
     if (*cur_row->tail_positions &&
         delete_tails(info, cur_row->tail_positions))
+    {
+      errpos= 2;
       goto err;
+    }
     if (cur_row->extents_count && free_full_pages(info, cur_row))
+    {
+      errpos= 3;
       goto err;
+    }
     res= write_block_record(info, oldrec, record, new_row, blocks,
                             1, &row_pos, undo_lsn, old_checksum);
     /* We can't update or delete this without re-reading it again */
@@ -3670,14 +3753,23 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   /* Delete old row */
   if (*cur_row->tail_positions &&
       delete_tails(info, cur_row->tail_positions))
+  {
+    errpos= 4;
     goto err;
+  }
   if (cur_row->extents_count && free_full_pages(info, cur_row))
+  {
+    errpos= 5;
     goto err;
+  }
 
   head_length= uint2korr(dir + 2);
   if (_ma_bitmap_find_new_place(info, new_row, page, head_length +
                                 org_empty_size, blocks))
+  {
+    errpos= 6;
     goto err;
+  }
 
   /*
     Allocate all size in block for record
@@ -3704,10 +3796,14 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   row_pos.length= head_length;
   if ((res= write_block_record(info, oldrec, record, new_row, blocks, 1,
                                &row_pos, undo_lsn, old_checksum)))
+  {
+    errpos= 7;
     goto err;
+  }
   DBUG_RETURN(0);
 
 err:
+  DBUG_PRINT("error", ("errpos: %d", errpos));
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
@@ -3725,6 +3821,8 @@ err:
 
   This is the main reason we don't make a lot of subfunctions that are
   common between _ma_update_block_record2() and this function.
+
+  Note: If something goes wrong we mark the file crashed
 */
 
 static my_bool _ma_update_at_original_place(MARIA_HA *info,
@@ -3780,6 +3878,10 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
 
   if ((org_empty_size + cur_row->head_length) < length_on_head_page)
   {
+    DBUG_PRINT("error",
+               ("org_empty_size: %u  head_length: %u  length_on_page: %u",
+                org_empty_size, (uint) cur_row->head_length,
+                length_on_head_page));
     my_errno= HA_ERR_WRONG_IN_RECORD;
     goto err;
   }
@@ -3799,7 +3901,6 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
   row_pos.empty_space= empty_size;
   row_pos.dir= dir;
   row_pos.data= buff + rec_offset;
-  row_pos.length= length_on_head_page;
 
   /* Delete old row */
   if (*cur_row->tail_positions &&
@@ -3829,12 +3930,17 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
               max(new_row->total_length, share->base.min_block_length) <=
               length_on_head_page);
 
+  /* Store same amount of data on head page as on original page */
+  row_pos.length= (length_on_head_page - 
+                   (extent_count + 1 - blocks->count) * ROW_EXTENT_SIZE);
+  set_if_bigger(row_pos.length, share->base.min_block_length);
   if ((res= write_block_record(info, oldrec, record, new_row, blocks,
                                1, &row_pos, undo_lsn, old_checksum)))
     goto err;
   DBUG_RETURN(0);
 
 err:
+  _ma_mark_file_crashed(share);
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
@@ -3888,7 +3994,7 @@ static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
   }
 #endif
 
-  check_directory(buff, block_size, 0);
+  check_directory(buff, block_size, 0, (uint) -1);
   empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
   dir= dir_entry_pos(buff, block_size, record_number);
   length= uint2korr(dir + 2);
@@ -3963,7 +4069,7 @@ static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
 
   *empty_space_res= empty_space;
 
-  check_directory(buff, block_size, 0);
+  check_directory(buff, block_size, 0, empty_space);
   DBUG_RETURN(0);
 }
 
@@ -4165,7 +4271,8 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
     log_pos= log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE;
     dirpos_store(log_pos, record_number);
     log_pos+= DIRPOS_STORE_SIZE;
-    int2store(log_pos, info->cur_row.head_length);
+    int2store(log_pos, info->cur_row.head_length -
+              info->cur_row.header_length);
     log_pos+= 2;
     pagerange_store(log_pos, info->cur_row.extents_count);
     log_pos+= PAGERANGE_STORE_SIZE;
@@ -4543,6 +4650,8 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
   cur_row->head_length= (uint) (end_of_data - data);
   cur_row->full_page_count= cur_row->tail_count= 0;
   cur_row->blob_length= 0;
+  /* Number of bytes in header that we don't need to write during undo */
+  cur_row->header_length= total_header_size[(flag & PRECALC_HEADER_BITMASK)]-1;
 
   if (flag & ROW_FLAG_TRANSID)
   {
@@ -4554,7 +4663,7 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
   }
 
   /* Skip trans header (for now, until we have MVCC csupport) */
-  data+= total_header_size[(flag & PRECALC_HEADER_BITMASK)];
+  data+= cur_row->header_length + 1 ;
   if (flag & ROW_FLAG_NULLS_EXTENDED)
     cur_null_bytes+= data[-1];
 
@@ -4950,7 +5059,10 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
   uint offset;
   uint block_size= share->block_size;
   DBUG_ENTER("_ma_read_block_record");
-  DBUG_PRINT("enter", ("rowid: %lu", (long) record_pos));
+  DBUG_PRINT("enter", ("rowid: %lu  page: %lu  rownr: %u",
+                       (ulong) record_pos,
+                       (ulong) ma_recordpos_to_page(record_pos),
+                       ma_recordpos_to_dir_entry(record_pos)));
 
   offset= ma_recordpos_to_dir_entry(record_pos);
 
@@ -6698,7 +6810,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
   pgcache_page_no_t page;
   uint rownr;
   uchar *buff;
-  my_bool res= 1;
+  my_bool res;
   MARIA_PINNED_PAGE page_link;
   MARIA_SHARE *share= info->s;
   ha_checksum checksum;
@@ -6744,11 +6856,16 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
     goto err;
 
   res= 0;
-err:
+end:
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
+
+err:
+  res= 1;
+  _ma_mark_file_crashed(share);
+  goto end;
 }
 
 
@@ -6971,6 +7088,10 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
   {
     DBUG_ASSERT(row.checksum == (share->calc_checksum)(info, record));
   }
+  /* Store same amount of data on head page as on original page */
+  row_pos.length= (length_on_head_page - 
+                   (extent_count + 1 - blocks->count) * ROW_EXTENT_SIZE);
+  set_if_bigger(row_pos.length, share->base.min_block_length);
   if (write_block_record(info, (uchar*) 0, record, &row,
                          blocks, blocks->block->org_bitmap_value != 0,
                          &row_pos, undo_lsn, 0))
@@ -6980,6 +7101,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
   DBUG_RETURN(0);
 
 err:
+  _ma_mark_file_crashed(share);
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
@@ -7010,7 +7132,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
   pgcache_page_no_t page;
   ha_checksum checksum_delta;
   uint rownr, field_length_header, extent_count, length_on_head_page;
-  int error= 1;
+  int error;
   DBUG_ENTER("_ma_apply_undo_row_update");
   LINT_INIT(checksum_delta);
 
@@ -7018,6 +7140,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
   header+= PAGE_STORE_SIZE;
   rownr= dirpos_korr(header);
   header+= DIRPOS_STORE_SIZE;
+
   record_pos= ma_recordpos(page, rownr);
   DBUG_PRINT("enter", ("rowid: %lu  page: %lu  rownr: %u",
                        (ulong) record_pos, (ulong) page, rownr));
@@ -7147,9 +7270,14 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
     goto err;
 
   error= 0;
-err:
+end:
   my_free(current_record, MYF(0));
   DBUG_RETURN(error);
+
+err:
+  error= 1;
+  _ma_mark_file_crashed(share);
+  goto end;
 }
 
 
@@ -7229,3 +7357,25 @@ void maria_ignore_trids(MARIA_HA *info)
     info->trn->min_read_from= ~(TrID) 0;
   }
 }
+
+
+#ifndef DBUG_OFF
+
+/* The following functions are useful to call from debugger */
+
+void _ma_print_block_info(uchar *buff)
+{
+  LSN lsn= lsn_korr(buff);
+
+  printf("LSN: %lu,0x%lx  type: %u  dir_entries: %u  dir_free: %u  empty_space: %u\n",
+         LSN_IN_PARTS(lsn),
+         (uint)buff[PAGE_TYPE_OFFSET],
+         (uint)buff[DIR_COUNT_OFFSET],
+         (uint)buff[DIR_FREE_OFFSET],
+         (uint) uint2korr(buff + EMPTY_SPACE_OFFSET));
+  printf("Start of directory: %lu\n",
+         maria_block_size - PAGE_SUFFIX_SIZE -
+         (uint) buff[DIR_COUNT_OFFSET] * DIR_ENTRY_SIZE);
+  _ma_print_directory(stdout, buff, maria_block_size);
+}
+#endif

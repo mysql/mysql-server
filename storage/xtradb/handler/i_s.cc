@@ -3459,7 +3459,7 @@ i_s_innodb_table_stats_fill(
 
 		field_store_string(i_s_table->field[0], buf);
 		field_store_string(i_s_table->field[1], ptr);
-		i_s_table->field[2]->store(table->stat_n_rows);
+		i_s_table->field[2]->store(table->stat_n_rows, 1);
 		i_s_table->field[3]->store(table->stat_clustered_index_size);
 		i_s_table->field[4]->store(table->stat_sum_of_other_index_sizes);
 		i_s_table->field[5]->store(table->stat_modified_counter);

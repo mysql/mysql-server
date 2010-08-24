@@ -1638,8 +1638,22 @@ void Item_sum_hybrid::cleanup()
 
 void Item_sum_hybrid::no_rows_in_result()
 {
-  was_values= FALSE;
-  clear();
+  /* We may be called here twice in case of ref field in function */
+  if (was_values)
+  {
+    was_values= FALSE;
+    was_null_value= value->null_value;
+    clear();
+  }
+}
+
+void Item_sum_hybrid::restore_to_before_no_rows_in_result()
+{
+  if (!was_values)
+  {
+    was_values= TRUE;
+    null_value= value->null_value= was_null_value;
+  }
 }
 
 

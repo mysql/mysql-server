@@ -6,9 +6,6 @@
 # Run the master.sh script before starting this process
 #!run-master-sh
 
-log-bin=                 master-bin
-
-
 [mysqlbinlog]
 disable-force-if-open
 

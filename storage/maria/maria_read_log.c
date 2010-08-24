@@ -33,7 +33,7 @@ static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent;
 static my_bool opt_check;
 static const char *opt_tmpdir;
 static ulong opt_page_buffer_size;
-static ulonglong opt_start_from_lsn, opt_end_lsn;
+static ulonglong opt_start_from_lsn, opt_end_lsn, opt_start_from_checkpoint;
 static MY_TMPDIR maria_chk_tmpdir;
 
 
@@ -94,7 +94,6 @@ int main(int argc, char **argv)
   if (opt_display_only)
     printf("You are using --display-only, NOTHING will be written to disk\n");
 
-  /* LSN could be also --start-from-lsn=# */
   lsn= translog_first_lsn_in_log();
   if (lsn == LSN_ERROR)
   {
@@ -105,8 +104,16 @@ int main(int argc, char **argv)
   {
      fprintf(stdout, "The transaction log is empty\n");
   }
-  fprintf(stdout, "The transaction log starts from lsn (%lu,0x%lx)\n",
-          LSN_IN_PARTS(lsn));
+  if (opt_start_from_checkpoint && !opt_start_from_lsn &&
+      last_checkpoint_lsn != LSN_IMPOSSIBLE)
+  {
+    lsn= LSN_IMPOSSIBLE;             /* LSN set in maria_apply_log() */
+    fprintf(stdout, "Starting from checkpoint (%lu,0x%lx)\n",
+            LSN_IN_PARTS(last_checkpoint_lsn));
+  }
+  else
+    fprintf(stdout, "The transaction log starts from lsn (%lu,0x%lx)\n",
+            LSN_IN_PARTS(lsn));
 
   if (opt_start_from_lsn)
   {
@@ -183,7 +190,7 @@ static struct my_option my_long_options[] =
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"display-only", 'd', "display brief info read from records' header",
-   (uchar **) &opt_display_only, (uchar **) &opt_display_only, 0, GET_BOOL,
+   &opt_display_only, &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
   {"maria-log-dir-path", 'l',
     "Path to the directory where to store transactional log",
@@ -197,11 +204,17 @@ static struct my_option my_long_options[] =
   { "start-from-lsn", 'o', "Start reading log from this lsn",
     &opt_start_from_lsn, &opt_start_from_lsn,
     0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
+  {"start-from-checkpoint", 'C', "Start applying from last checkpoint",
+   &opt_start_from_checkpoint, &opt_start_from_checkpoint, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "end-lsn", 'e', "Stop applying at this lsn. If end-lsn is used, UNDO:s "
     "will not be applied", &opt_end_lsn, &opt_end_lsn,
     0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"silent", 's', "Print less information during apply/undo phase",
-   (uchar **) &opt_silent, (uchar **) &opt_silent, 0,
+   &opt_silent, &opt_silent, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print more information during apply/undo phase",
+   &maria_recovery_verbose, &maria_recovery_verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Path for temporary files. Multiple paths can be specified, "
    "separated by "

@@ -372,6 +372,7 @@ bool Log_to_csv_event_handler::
   Open_tables_state open_tables_backup;
   ulonglong save_thd_options;
   bool save_time_zone_used;
+  DBUG_ENTER("log_general");
 
   /*
     CSV uses TIME_to_timestamp() internally if table needs to be repaired
@@ -490,7 +491,7 @@ err:
 
   thd->options= save_thd_options;
   thd->time_zone_used= save_time_zone_used;
-  return result;
+  DBUG_RETURN(result);
 }
 
 

@@ -106,7 +106,7 @@ extern int skip_big_tests;
    @param count The planned number of tests to run.
 */
 
-void plan(int const count);
+void plan(int count);
 
 
 /**
@@ -125,7 +125,7 @@ void plan(int const count);
                which case nothing is printed.
 */
 
-void ok(int const pass, char const *fmt, ...)
+void ok(int pass, char const *fmt, ...)
   __attribute__((format(printf,2,3)));
 
 

@@ -44,6 +44,7 @@ buf/buf0buf\.c: .*block_mutex.* might be used uninitialized
 btr/btr0cur\.c: null argument where non-null required: 1800-3000
 btr/btr0btr\.c: null argument where non-null required: 2500-3000
 ibuf/ibuf0ibuf.c: null argument where non-null required: 700-1000
+fsp/fsp0fsp\.c: result of 32-bit shift implicitly converted to 64 bits
 
 #
 # bdb is not critical to keep up to date
@@ -108,6 +109,7 @@ signal\.c : .*unused parameter.*
 .* : conversion from '.*size_t' to 'UINT'.*
 .* : conversion from '.*size_t' to 'uInt'.*
 .* : conversion from '.*size_t' to 'uint16'.*
+.* : The following environment variables were not found.*
 
 #
 # The following should be fixed by the ndb team
@@ -125,6 +127,8 @@ storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 # Pbxt
 #
 xaction_xt\.cc: may be used uninitialized in this function
+lock_xt\.cc : uninitialized local variable .* used
+restart_xt\.cc : dereferencing pointer .* does break strict-aliasing
 
 #
 # I think these are due to mix of C and C++.

@@ -91,8 +91,8 @@ path=`dirname $0`
 get_make_parallel_flag
 
 # SSL library to use.--with-ssl will select our bundled yaSSL
-# implementation of SSL. To use openSSl you will nee too point out
-# the location of openSSL headers and lbs on your system.
+# implementation of SSL. To use OpenSSL you will need to specify
+# the location of OpenSSL headers and libs on your system.
 # Ex --with-ssl=/usr
 SSL_LIBRARY=--with-ssl
 
@@ -182,8 +182,7 @@ max_no_embedded_configs="$SSL_LIBRARY --with-plugins=max"
 max_no_qc_configs="$SSL_LIBRARY --with-plugins=max --without-query-cache"
 max_no_ndb_configs="$SSL_LIBRARY --with-plugins=max-no-ndb --with-embedded-server --with-libevent"
 max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server --with-libevent"
-# Disable NDB in maria max builds
-max_configs=$max_no_ndb_configs
+all_configs="$SSL_LIBRARY --with-plugins=max --with-plugin-ndbcluster --with-embedded-server --with-libevent"
 
 #
 # CPU and platform specific compilation flags.

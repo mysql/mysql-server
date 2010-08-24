@@ -807,10 +807,10 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 	/* get memory in huncs */
 #define ONCE_ALLOC_INIT		(uint) (4096-MALLOC_OVERHEAD)
-	/* Typical record cash */
-#define RECORD_CACHE_SIZE	(uint) (64*1024-MALLOC_OVERHEAD)
-	/* Typical key cash */
-#define KEY_CACHE_SIZE		(uint) (8*1024*1024-MALLOC_OVERHEAD)
+	/* Typical record cache */
+#define RECORD_CACHE_SIZE	(uint) (128*1024-MALLOC_OVERHEAD)
+	/* Typical key cache */
+#define KEY_CACHE_SIZE		(uint) (128L*1024L*1024L-MALLOC_OVERHEAD)
 	/* Default size of a key cache block  */
 #define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 

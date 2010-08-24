@@ -1688,6 +1688,16 @@ JOIN::reinit()
       func->clear();
   }
 
+  if (no_rows_in_result_called)
+  {
+    /* Reset effect of possible no_rows_in_result() */
+    List_iterator_fast<Item> it(fields_list);
+    Item *item;
+
+    no_rows_in_result_called= 0;
+    while ((item= it++))
+      item->restore_to_before_no_rows_in_result();
+  }  
   DBUG_RETURN(0);
 }
 
@@ -12697,8 +12707,11 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  {
             List_iterator_fast<Item> it(*join->fields);
             Item *item;
+            DBUG_PRINT("info", ("no matching rows"));
+
 	    /* No matching rows for group function */
 	    join->clear();
+            join->no_rows_in_result_called= 1;
 
             while ((item= it++))
               item->no_rows_in_result();
