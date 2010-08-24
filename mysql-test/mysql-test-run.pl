@@ -131,6 +131,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 my $DEFAULT_SUITES= "ndb,ndb_binlog,rpl_ndb,main,binlog,federated,rpl,innodb,ndb_team";
 my $opt_suites;
+my $opt_extra_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_mysql;
@@ -311,6 +312,12 @@ sub main {
       }
     }
   }
+  if ($opt_extra_suites)
+  {
+    # Append --extra-suites to --suites
+    $opt_suites= "$opt_suites,$opt_extra_suites";
+  }
+  mtr_report("opt_suites: $opt_suites");
 
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases);
@@ -835,6 +842,7 @@ sub command_line_setup {
              'with-ndbcluster-only'     => \&collect_option,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'suite|suites=s'           => \$opt_suites,
+             'extra-suites=s'           => \$opt_extra_suites,
              'skip-rpl'                 => \&collect_option,
              'skip-test=s'              => \&collect_option,
              'do-test=s'                => \&collect_option,
@@ -5465,6 +5473,8 @@ Options to control what test suites or cases to run
                         Collect tests in suites from the comma separated
                         list of suite names.
                         The default is: "$DEFAULT_SUITES"
+  extra-suites[s]=NAME1,...,NAMEN
+                        List of additional suites to collect tests from
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
   enable-disabled       Run also tests marked as disabled
