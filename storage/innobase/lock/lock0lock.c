@@ -2155,6 +2155,8 @@ lock_rec_has_to_wait_in_queue(
 	ulint	space;
 	ulint	page_no;
 	ulint	heap_no;
+	ulint	bit_mask;
+	ulint	bit_offset;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_wait(wait_lock));
@@ -2164,17 +2166,21 @@ lock_rec_has_to_wait_in_queue(
 	page_no = wait_lock->un_member.rec_lock.page_no;
 	heap_no = lock_rec_find_set_bit(wait_lock);
 
-	lock = lock_rec_get_first_on_page_addr(space, page_no);
+	bit_offset = heap_no / 8;
+	bit_mask = 1 << (heap_no % 8);
 
-	while (lock != wait_lock) {
+	for (lock = lock_rec_get_first_on_page_addr(space, page_no);
+	     lock != wait_lock;
+	     lock = lock_rec_get_next_on_page(lock)) {
 
-		if (lock_rec_get_nth_bit(lock, heap_no)
+		const byte*	p = (const byte*) &lock[1];
+
+		if (heap_no < lock_rec_get_n_bits(lock)
+		    && (p[bit_offset] & bit_mask)
 		    && lock_has_to_wait(wait_lock, lock)) {
 
 			return(TRUE);
 		}
-
-		lock = lock_rec_get_next_on_page(lock);
 	}
 
 	return(FALSE);
