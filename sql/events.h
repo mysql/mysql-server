@@ -91,7 +91,7 @@ public:
   */
   enum enum_opt_event_scheduler { EVENTS_OFF, EVENTS_ON, EVENTS_DISABLED };
   /* Protected using LOCK_global_system_variables only. */
-  static uint opt_event_scheduler;
+  static ulong opt_event_scheduler;
   static mysql_mutex_t LOCK_event_metadata;
   static bool check_if_system_tables_error();
   static bool start();

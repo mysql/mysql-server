@@ -2982,6 +2982,7 @@ public:
 class Cached_item_str :public Cached_item
 {
   Item *item;
+  uint32 value_max_length;
   String value,tmp_value;
 public:
   Cached_item_str(THD *thd, Item *arg);
@@ -3266,7 +3267,7 @@ public:
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
-  Item_result result_type()
+  Item_result result_type() const
   {
     if (!example)
       return INT_RESULT;

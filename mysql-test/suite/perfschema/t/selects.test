@@ -24,6 +24,12 @@
 
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
 
+# Disable ALL table IO, to avoid generating events from the selects
+# To be revised after WL#5342 PERFORMANCE SCHEMA SETUP OBJECTS
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'NO'
+  where NAME='wait/io/table/sql/handler';
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -45,7 +51,7 @@ LIMIT 1;
 --replace_column 1 [EVENT_ID]
 SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
 WHERE THREAD_ID IN
-  (SELECT THREAD_ID FROM performance_schema.PROCESSLIST)
+  (SELECT THREAD_ID FROM performance_schema.THREADS)
 AND EVENT_NAME IN
   (SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
    WHERE NAME LIKE "wait/synch/%")
@@ -138,7 +144,7 @@ delimiter |;
 
 CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
 BEGIN
-   SELECT id FROM performance_schema.PROCESSLIST
+   SELECT id FROM performance_schema.THREADS
    WHERE THREAD_ID = tid INTO pid;
 END;
 
@@ -157,7 +163,7 @@ delimiter |;
 
 CREATE FUNCTION t_ps_func(tid INT) RETURNS int
 BEGIN
-   return (SELECT id FROM performance_schema.PROCESSLIST
+   return (SELECT id FROM performance_schema.THREADS
            WHERE THREAD_ID = tid);
 END;
 
@@ -181,3 +187,6 @@ DROP PROCEDURE t_ps_proc;
 DROP FUNCTION t_ps_func;
 DROP TABLE t1;
 DROP TABLE t_event;
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+

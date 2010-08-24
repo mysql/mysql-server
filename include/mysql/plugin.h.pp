@@ -1,7 +1,5 @@
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
-#include <stdarg.h>
-#include <stdlib.h>
 extern struct my_snprintf_service_st {
   size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
   size_t (*my_vsnprintf_type)(char *, size_t, const char*, va_list);
@@ -9,7 +7,6 @@ extern struct my_snprintf_service_st {
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
 #include <mysql/service_thd_alloc.h>
-#include <stdlib.h>
 struct st_mysql_lex_string
 {
   char *str;
@@ -154,6 +151,7 @@ long long thd_test_options(const void* thd, long long test_options);
 int thd_sql_command(const void* thd);
 const char *thd_proc_info(void* thd, const char *info);
 void **thd_ha_data(const void* thd, const struct handlerton *hton);
+void thd_storage_lock_wait(void* thd, long long value);
 int thd_tx_isolation(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);

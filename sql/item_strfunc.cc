@@ -3136,7 +3136,7 @@ nl:
 }
 
 
-String *Item_func_hex::val_str(String *str)
+String *Item_func_hex::val_str_ascii(String *str)
 {
   String *res;
   DBUG_ASSERT(fixed == 1);
@@ -3175,6 +3175,7 @@ String *Item_func_hex::val_str(String *str)
   }
   null_value=0;
   tmp_value.length(res->length()*2);
+  tmp_value.set_charset(&my_charset_latin1);
 
   octet2hex((char*) tmp_value.ptr(), res->ptr(), res->length());
   return &tmp_value;

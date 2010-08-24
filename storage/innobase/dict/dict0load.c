@@ -1175,23 +1175,23 @@ static const char* dict_load_index_id_err = "SYS_INDEXES.TABLE_ID mismatch";
 
 /********************************************************************//**
 Loads an index definition from a SYS_INDEXES record to dict_index_t.
-If "cached" is set to "TRUE", we will create a dict_index_t structure
-and fill it accordingly. Otherwise, the dict_index_t will
-be supplied by the caller and filled with information read from
-the record.
-@return error message, or NULL on success */
+If allocate=TRUE, we will create a dict_index_t structure and fill it
+accordingly. If allocated=FALSE, the dict_index_t will be supplied by
+the caller and filled with information read from the record.  @return
+error message, or NULL on success */
 UNIV_INTERN
 const char*
 dict_load_index_low(
 /*================*/
 	byte*		table_id,	/*!< in/out: table id (8 bytes),
-					an "in" value if cached=TRUE
-					and "out" when cached=FALSE */
+					an "in" value if allocate=TRUE
+					and "out" when allocate=FALSE */
 	const char*	table_name,	/*!< in: table name */
 	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
-	ibool		cached,		/*!< in: TRUE = add to cache,
-					FALSE = do not */
+	ibool		allocate,	/*!< in: TRUE=allocate *index,
+					FALSE=fill in a pre-allocated
+					*index */
 	dict_index_t**	index)		/*!< out,own: index, or NULL */
 {
 	const byte*	field;
@@ -1203,8 +1203,8 @@ dict_load_index_low(
 	ulint		type;
 	ulint		space;
 
-	if (cached) {
-		/* If "cached" is set to TRUE, no dict_index_t will
+	if (allocate) {
+		/* If allocate=TRUE, no dict_index_t will
 		be supplied. Initialize "*index" to NULL */
 		*index = NULL;
 	}
@@ -1223,7 +1223,7 @@ err_len:
 		return("incorrect column length in SYS_INDEXES");
 	}
 
-	if (!cached) {
+	if (!allocate) {
 		/* We are reading a SYS_INDEXES record. Copy the table_id */
 		memcpy(table_id, (const char*)field, 8);
 	} else if (memcmp(field, table_id, 8)) {
@@ -1279,7 +1279,7 @@ err_len:
 		goto err_len;
 	}
 
-	if (cached) {
+	if (allocate) {
 		*index = dict_mem_index_create(table_name, name_buf,
 					       space, type, n_fields);
 	} else {

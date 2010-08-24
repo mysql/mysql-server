@@ -2191,14 +2191,21 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT)
   { // activating autocommit
 
-    if (trans_commit(thd))
+    if (trans_commit_stmt(thd) || trans_commit(thd))
     {
       thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
       return true;
     }
-    close_thread_tables(thd);
-    thd->mdl_context.release_transactional_locks();
-
+    /*
+      Don't close thread tables or release metadata locks: if we do so, we
+      risk releasing locks/closing tables of expressions used to assign
+      other variables, as in:
+      set @var=my_stored_function1(), @@autocommit=1, @var2=(select max(a)
+      from my_table), ...
+      The locks will be released at statement end anyway, as SET
+      statement that assigns autocommit is marked to commit
+      transaction implicitly at the end (@sa stmt_causes_implicitcommit()).
+    */
     thd->variables.option_bits&=
                  ~(OPTION_BEGIN | OPTION_KEEP_LOG | OPTION_NOT_AUTOCOMMIT);
     thd->transaction.all.modified_non_trans_table= false;

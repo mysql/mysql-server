@@ -432,6 +432,12 @@ void free_table_share(TABLE_SHARE *share)
       key_info->flags= 0;
     }
   }
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server && share->m_psi))
+    PSI_server->release_table_share(share->m_psi);
+#endif
+
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
   free_root(&mem_root, MYF(0));                 // Free's share
@@ -541,7 +547,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   int error, table_type;
   bool error_given;
   File file;
-  uchar head[64], *disk_buff;
+  uchar head[64];
   char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
@@ -550,7 +556,6 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   error= 1;
   error_given= 0;
-  disk_buff= NULL;
 
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= mysql_file_open(key_file_frm,
@@ -2031,7 +2036,7 @@ int closefrm(register TABLE *table, bool free_share)
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
-    error=table->file->close();
+    error=table->file->ha_close();
   my_free((void *) table->alias);
   table->alias= 0;
   if (table->field)
