@@ -997,6 +997,13 @@ sub collect_one_test_case {
     }
   }
 
+  if (not ref $::suites{$tinfo->{suite}})
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= $::suites{$tinfo->{suite}};
+    return $tinfo;
+  }
+
   # ----------------------------------------------------------------------
   # Append mysqld extra options to master and slave, as appropriate
   # ----------------------------------------------------------------------
