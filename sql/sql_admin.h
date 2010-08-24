@@ -24,25 +24,20 @@ int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
                              KEY_CACHE *dst_cache);
 
 /**
-  Analyze_statement represents the ANALYZE TABLE statement.
+  Sql_cmd_analyze_table represents the ANALYZE TABLE statement.
 */
-class Analyze_table_statement : public Sql_cmd
+class Sql_cmd_analyze_table : public Sql_cmd
 {
 public:
   /**
     Constructor, used to represent a ANALYZE TABLE statement.
   */
-  Analyze_table_statement()
+  Sql_cmd_analyze_table()
   {}
 
-  ~Analyze_table_statement()
+  ~Sql_cmd_analyze_table()
   {}
 
-  /**
-    Execute a ANALYZE TABLE statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
 
   virtual enum_sql_command sql_command_code() const
@@ -54,25 +49,20 @@ public:
 
 
 /**
-  Check_table_statement represents the CHECK TABLE statement.
+  Sql_cmd_check_table represents the CHECK TABLE statement.
 */
-class Check_table_statement : public Sql_cmd
+class Sql_cmd_check_table : public Sql_cmd
 {
 public:
   /**
     Constructor, used to represent a CHECK TABLE statement.
   */
-  Check_table_statement()
+  Sql_cmd_check_table()
   {}
 
-  ~Check_table_statement()
+  ~Sql_cmd_check_table()
   {}
 
-  /**
-    Execute a CHECK TABLE statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
 
   virtual enum_sql_command sql_command_code() const
@@ -83,25 +73,20 @@ public:
 
 
 /**
-  Optimize_table_statement represents the OPTIMIZE TABLE statement.
+  Sql_cmd_optimize_table represents the OPTIMIZE TABLE statement.
 */
-class Optimize_table_statement : public Sql_cmd
+class Sql_cmd_optimize_table : public Sql_cmd
 {
 public:
   /**
     Constructor, used to represent a OPTIMIZE TABLE statement.
   */
-  Optimize_table_statement()
+  Sql_cmd_optimize_table()
   {}
 
-  ~Optimize_table_statement()
+  ~Sql_cmd_optimize_table()
   {}
 
-  /**
-    Execute a OPTIMIZE TABLE statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
 
   virtual enum_sql_command sql_command_code() const
@@ -113,25 +98,20 @@ public:
 
 
 /**
-  Repair_table_statement represents the REPAIR TABLE statement.
+  Sql_cmd_repair_table represents the REPAIR TABLE statement.
 */
-class Repair_table_statement : public Sql_cmd
+class Sql_cmd_repair_table : public Sql_cmd
 {
 public:
   /**
     Constructor, used to represent a REPAIR TABLE statement.
   */
-  Repair_table_statement()
+  Sql_cmd_repair_table()
   {}
 
-  ~Repair_table_statement()
+  ~Sql_cmd_repair_table()
   {}
 
-  /**
-    Execute a REPAIR TABLE statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
 
   virtual enum_sql_command sql_command_code() const
