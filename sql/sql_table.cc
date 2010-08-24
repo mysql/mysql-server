@@ -4444,6 +4444,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         Alter_info *alter_info)
 {
   bool result;
+  bool is_trans= FALSE;
   DBUG_ENTER("mysql_create_table");
 
   /*
@@ -4458,7 +4459,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
 
-  bool is_trans;
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
                                      alter_info, FALSE, 0, &is_trans);
@@ -4630,6 +4630,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   HA_CREATE_INFO local_create_info;
   Alter_info local_alter_info;
   bool res= TRUE;
+  bool is_trans= FALSE;
   uint not_used;
   DBUG_ENTER("mysql_create_like_table");
 
@@ -4679,7 +4680,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   /* Reset auto-increment counter for the new table. */
   local_create_info.auto_increment_value= 0;
 
-  bool is_trans;
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
                                        FALSE, 0, &is_trans)))
