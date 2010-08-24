@@ -548,10 +548,34 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(TRUE);
   }
 
-  if (delayed_get_table(thd, table_list))
+  /*
+    In order for the deadlock detector to be able to find any deadlocks
+    caused by the handler thread locking this table, we take the metadata
+    lock inside the connection thread. If this goes ok, the ticket is cloned
+    and added to the list of granted locks held by the handler thread.
+  */
+  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  if (thd->mdl_context.acquire_lock(&table_list->mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    /*
+      If a lock can't be acquired, it makes no sense to try normal insert.
+      Therefore we just abort the statement.
+    */
     DBUG_RETURN(TRUE);
 
-  if (table_list->table)
+  /*
+    If a lock was acquired above, we should release it after delayed_get_table()
+    has cloned the ticket for the handler thread. Note that acquire_lock() can
+    succeed because of a lock already held by the connection. In this case we
+    should not release it here.
+  */
+  MDL_ticket *table_ticket = mdl_savepoint == thd->mdl_context.mdl_savepoint() ?
+    NULL: thd->mdl_context.mdl_savepoint();
+
+  bool error= FALSE;
+  if (delayed_get_table(thd, table_list))
+    error= TRUE;
+  else if (table_list->table)
   {
     /*
       Open tables used for sub-selects or in stored functions, will also
@@ -560,16 +584,30 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
     if (open_and_lock_tables(thd, table_list->next_global, TRUE, 0))
     {
       end_delayed_insert(thd);
-      DBUG_RETURN(TRUE);
+      error= TRUE;
     }
-    /*
-      First table was not processed by open_and_lock_tables(),
-      we need to set updatability flag "by hand".
-    */
-    if (!table_list->derived && !table_list->view)
-      table_list->updatable= 1;  // usual table
-    DBUG_RETURN(FALSE);
+    else
+    {
+      /*
+        First table was not processed by open_and_lock_tables(),
+        we need to set updatability flag "by hand".
+      */
+      if (!table_list->derived && !table_list->view)
+        table_list->updatable= 1;  // usual table
+    }
   }
+
+  if (table_ticket)
+    thd->mdl_context.release_lock(table_ticket);
+  /*
+    Clone_ticket() in delayed_get_table() causes TABLE_LIST::MDL_REQUEST::ticket
+    to be overwritten with the cloned ticket. Reset the ticket here in case
+    we end up having to use normal insert.
+  */
+  table_list->mdl_request.ticket= NULL;
+
+  if (error || table_list->table)
+    DBUG_RETURN(error);
 #endif
   /*
     * This is embedded library and we don't have auxiliary
@@ -2025,6 +2063,20 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       /* Replace volatile strings with local copies */
       di->table_list.alias= di->table_list.table_name= di->thd.query();
       di->table_list.db= di->thd.db;
+
+      /*
+        Clone the ticket representing the lock on the target table for
+        the insert and add it to the list of granted metadata locks held by
+        the handler thread. This is safe since the handler thread is
+        not holding nor waiting on any metadata locks.
+      */
+      if (di->thd.mdl_context.clone_ticket(&table_list->mdl_request))
+      {
+        delete di;
+        my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
+        goto end_create;
+      }
+
       di->lock();
       mysql_mutex_lock(&di->mutex);
       if ((error= mysql_thread_create(key_thread_delayed_insert,
@@ -2036,6 +2088,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
 		    error));
         mysql_mutex_unlock(&di->mutex);
 	di->unlock();
+        di->thd.mdl_context.release_lock(table_list->mdl_request.ticket);
 	delete di;
 	my_error(ER_CANT_CREATE_THREAD, MYF(ME_FATALERROR), error);
         goto end_create;
