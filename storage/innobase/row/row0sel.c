@@ -3243,7 +3243,7 @@ row_sel_push_cache_row_for_mysql(
 				1. Clear the null bit for this index entry.
 				2. Set the correct value for the
 				   null bit based on the null bit
-				   in the internal record representation 
+				   in the internal record representation
 				   found in remainder_buf. */
 				register byte*	null_byte;
 

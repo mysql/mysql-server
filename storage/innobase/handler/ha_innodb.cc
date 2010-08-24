@@ -11668,7 +11668,7 @@ test_innobase_convert_name()
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 /****************************************************************************
- * DS-MRR implementation 
+ * DS-MRR implementation
  ***************************************************************************/
 
 /**
