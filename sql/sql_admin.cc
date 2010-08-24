@@ -884,12 +884,12 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 }
 
 
-bool Analyze_table_statement::execute(THD *thd)
+bool Sql_cmd_analyze_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-  DBUG_ENTER("Analyze_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_analyze_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
@@ -914,12 +914,12 @@ error:
 }
 
 
-bool Check_table_statement::execute(THD *thd)
+bool Sql_cmd_check_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   bool res= TRUE;
-  DBUG_ENTER("Check_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_check_table::execute");
 
   if (check_table_access(thd, SELECT_ACL, first_table,
                          TRUE, UINT_MAX, FALSE))
@@ -938,11 +938,11 @@ error:
 }
 
 
-bool Optimize_table_statement::execute(THD *thd)
+bool Sql_cmd_optimize_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
-  DBUG_ENTER("Optimize_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_optimize_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
@@ -969,11 +969,11 @@ error:
 }
 
 
-bool Repair_table_statement::execute(THD *thd)
+bool Sql_cmd_repair_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
-  DBUG_ENTER("Repair_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_repair_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))

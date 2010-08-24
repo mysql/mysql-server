@@ -51,10 +51,10 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
-#include "sql_alter.h"                         // Alter_table*_statement
-#include "sql_truncate.h"                      // Truncate_statement
-#include "sql_admin.h"                         // Analyze/Check..._table_stmt
-#include "sql_partition_admin.h"               // Alter_table_*_partition_stmt
+#include "sql_alter.h"                         // Sql_cmd_alter_table*
+#include "sql_truncate.h"                      // Sql_cmd_truncate_table
+#include "sql_admin.h"                         // Sql_cmd_analyze/Check..._table
+#include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
 #include "sql_signal.h"
 #include "event_parse_data.h"
 #include <myisam.h>
@@ -6284,7 +6284,7 @@ alter:
             if (!lex->m_sql_cmd)
             {
               /* Create a generic ALTER TABLE statment. */
-              lex->m_sql_cmd= new (thd->mem_root) Alter_table_statement();
+              lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_alter_table();
               if (lex->m_sql_cmd == NULL)
                 MYSQL_YYABORT;
             }
@@ -6512,7 +6512,7 @@ alter_commands:
             lex->check_opt.init();
             DBUG_ASSERT(!lex->m_sql_cmd);
             lex->m_sql_cmd= new (thd->mem_root)
-                              Alter_table_optimize_partition_statement();
+                              Sql_cmd_alter_table_optimize_partition();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -6526,7 +6526,7 @@ alter_commands:
             lex->check_opt.init();
             DBUG_ASSERT(!lex->m_sql_cmd);
             lex->m_sql_cmd= new (thd->mem_root)
-                              Alter_table_analyze_partition_statement();
+                              Sql_cmd_alter_table_analyze_partition();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -6537,7 +6537,7 @@ alter_commands:
             lex->check_opt.init();
             DBUG_ASSERT(!lex->m_sql_cmd);
             lex->m_sql_cmd= new (thd->mem_root)
-                              Alter_table_check_partition_statement();
+                              Sql_cmd_alter_table_check_partition();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -6551,7 +6551,7 @@ alter_commands:
             lex->check_opt.init();
             DBUG_ASSERT(!lex->m_sql_cmd);
             lex->m_sql_cmd= new (thd->mem_root)
-                              Alter_table_repair_partition_statement();
+                              Sql_cmd_alter_table_repair_partition();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -6570,7 +6570,7 @@ alter_commands:
             lex->check_opt.init();
             DBUG_ASSERT(!lex->m_sql_cmd);
             lex->m_sql_cmd= new (thd->mem_root)
-                              Alter_table_truncate_partition_statement();
+                              Sql_cmd_alter_table_truncate_partition();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -6596,7 +6596,7 @@ alter_commands:
               MYSQL_YYABORT;
             DBUG_ASSERT(!lex->m_sql_cmd);
             lex->m_sql_cmd= new (thd->mem_root)
-                               Alter_table_exchange_partition_statement();
+                               Sql_cmd_alter_table_exchange_partition();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -7041,7 +7041,7 @@ repair:
             THD *thd= YYTHD;
             LEX* lex= thd->lex;
             DBUG_ASSERT(!lex->m_sql_cmd);
-            lex->m_sql_cmd= new (thd->mem_root) Repair_table_statement();
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_repair_table();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -7079,7 +7079,7 @@ analyze:
             THD *thd= YYTHD;
             LEX* lex= thd->lex;
             DBUG_ASSERT(!lex->m_sql_cmd);
-            lex->m_sql_cmd= new (thd->mem_root) Analyze_table_statement();
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_analyze_table();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -7114,7 +7114,7 @@ check:
             THD *thd= YYTHD;
             LEX* lex= thd->lex;
             DBUG_ASSERT(!lex->m_sql_cmd);
-            lex->m_sql_cmd= new (thd->mem_root) Check_table_statement();
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_check_table();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -7155,7 +7155,7 @@ optimize:
             THD *thd= YYTHD;
             LEX* lex= thd->lex;
             DBUG_ASSERT(!lex->m_sql_cmd);
-            lex->m_sql_cmd= new (thd->mem_root) Optimize_table_statement();
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_optimize_table();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -10940,7 +10940,7 @@ truncate:
             THD *thd= YYTHD;
             LEX* lex= thd->lex;
             DBUG_ASSERT(!lex->m_sql_cmd);
-            lex->m_sql_cmd= new (thd->mem_root) Truncate_statement();
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_truncate_table();
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
