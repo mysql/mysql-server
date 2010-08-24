@@ -21,7 +21,7 @@
 #include "sql_locale.h"
 #include "sql_plugin.h"
 #include "sql_parse.h"          // check_table_access
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "key.h"                                // key_copy
 #include "sql_show.h"           // remove_status_vars, add_status_vars
 #include "strfunc.h"            // find_set
@@ -1453,8 +1453,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
+  close_mysql_tables(new_thd);
 end:
-  close_thread_tables(new_thd);
   /* Remember that we don't have a THD */
   my_pthread_setspecific_ptr(THR_THD, 0);
   DBUG_VOID_RETURN;
@@ -1811,8 +1811,8 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   table->field[0]->store(name->str, name->length, system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
-  if (! table->file->index_read_idx_map(table->record[0], 0, user_key,
-                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  if (! table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     int error;
     /*
@@ -3025,11 +3025,11 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       Allocate temporary space for the value of the tristate.
       This option will have a limited lifetime and is not used beyond
       server initialization.
-      GET_ENUM value is an unsigned integer.
+      GET_ENUM value is an unsigned long integer.
     */
     options[0].value= options[1].value=
-                      (uchar **)alloc_root(mem_root, sizeof(uint));
-    *((uint*) options[0].value)= (uint) options[0].def_value;
+                      (uchar **)alloc_root(mem_root, sizeof(ulong));
+    *((ulong*) options[0].value)= (ulong) options[0].def_value;
 
     options+= 2;
   }
@@ -3328,7 +3328,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
      list is always the <plugin name> option value.
     */
     if (!tmp->is_mandatory)
-      plugin_load_policy= (enum_plugin_load_policy)*(uint*)opts[0].value;
+      plugin_load_policy= (enum_plugin_load_policy)*(ulong*)opts[0].value;
   }
 
   disable_plugin= (plugin_load_policy == PLUGIN_OFF);

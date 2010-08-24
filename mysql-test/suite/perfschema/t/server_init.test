@@ -69,13 +69,7 @@ select count(name) from COND_INSTANCES
 # Verify that these global mutexes have been properly initilized in sql
 
 select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_mysql_create_db";
-
-select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_open";
-
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_lock_db";
 
 select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_thread_count";

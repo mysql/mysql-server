@@ -293,22 +293,6 @@ struct PFS_triple_index
   }
 };
 
-struct PFS_instrument_view_constants
-{
-  static const uint VIEW_MUTEX= 1;
-  static const uint VIEW_RWLOCK= 2;
-  static const uint VIEW_COND= 3;
-  static const uint VIEW_FILE= 4;
-};
-
-struct PFS_object_view_constants
-{
-  static const uint VIEW_TABLE= 1;
-  static const uint VIEW_EVENT= 2;
-  static const uint VIEW_PROCEDURE= 3;
-  static const uint VIEW_FUNCTION= 4;
-};
-
 bool pfs_show_status(handlerton *hton, THD *thd,
                      stat_print_fn *print, enum ha_stat_type stat);
 

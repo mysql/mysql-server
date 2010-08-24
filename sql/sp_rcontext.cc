@@ -171,48 +171,50 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 #define IS_NOT_FOUND_CONDITION(S) ((S)[0] == '0' && (S)[1] == '2')
 #define IS_EXCEPTION_CONDITION(S) ((S)[0] != '0' || (S)[1] > '2')
 
-/*
-  Find a handler for the given errno.
-  This is called from all error message functions (e.g. push_warning,
-  net_send_error, et al) when a sp_rcontext is in effect. If a handler
-  is found, no error is sent, and the the SP execution loop will instead
-  invoke the found handler.
-  This might be called several times before we get back to the execution
-  loop, so m_hfound can be >= 0 if a handler has already been found.
-  (In which case we don't search again - the first found handler will
-   be used.)
-  Handlers are pushed on the stack m_handler, with the latest/innermost
+/**
+  Find an SQL handler for the given error.
+
+  SQL handlers are pushed on the stack m_handler, with the latest/innermost
   one on the top; we then search for matching handlers from the top and
   down.
+
   We search through all the handlers, looking for the most specific one
   (sql_errno more specific than sqlstate more specific than the rest).
   Note that mysql error code handlers is a MySQL extension, not part of
   the standard.
 
-  SYNOPSIS
-    sql_errno     The error code
-    level         Warning level
+  SQL handlers for warnings are searched in the current scope only.
 
-  RETURN
-    1             if a handler was found, m_hfound is set to its index (>= 0)
-    0             if not found, m_hfound is -1
+  SQL handlers for errors are searched in the current and in outer scopes.
+  That's why finding and activation of handler must be separated: an errror
+  handler might be located in the outer scope, which is not active at the
+  moment. Before such handler can be activated, execution flow should
+  unwind to that scope.
+
+  Found SQL handler is remembered in m_hfound for future activation.
+  If no handler is found, m_hfound is -1.
+
+  @param thd        Thread handle
+  @param sql_errno  The error code
+  @param sqlstate   The error SQL state
+  @param level      The error level
+  @param msg        The error message
+
+  @retval TRUE  if an SQL handler was found
+  @retval FALSE otherwise
 */
 
 bool
 sp_rcontext::find_handler(THD *thd,
                           uint sql_errno,
-                          const char* sqlstate,
+                          const char *sqlstate,
                           MYSQL_ERROR::enum_warning_level level,
-                          const char* msg,
-                          MYSQL_ERROR ** cond_hdl)
+                          const char *msg)
 {
-  if (m_hfound >= 0)
-  {
-    *cond_hdl= NULL;
-    return TRUE;			// Already got one
-  }
+  int i= m_hcount;
 
-  int i= m_hcount, found= -1;
+  /* Reset previously found handler. */
+  m_hfound= -1;
 
   /*
     If this is a fatal sub-statement error, and this runtime
@@ -240,105 +242,56 @@ sp_rcontext::find_handler(THD *thd,
     {
     case sp_cond_type_t::number:
       if (sql_errno == cond->mysqlerr &&
-          (found < 0 || m_handler[found].cond->type > sp_cond_type_t::number))
-	found= i;		// Always the most specific
+          (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_cond_type_t::number))
+	m_hfound= i;		// Always the most specific
       break;
     case sp_cond_type_t::state:
       if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
-	found= i;
+	  (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_cond_type_t::state))
+	m_hfound= i;
       break;
     case sp_cond_type_t::warning:
       if ((IS_WARNING_CONDITION(sqlstate) ||
            level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
-          found < 0)
-	found= i;
+          m_hfound < 0)
+	m_hfound= i;
       break;
     case sp_cond_type_t::notfound:
-      if (IS_NOT_FOUND_CONDITION(sqlstate) && found < 0)
-	found= i;
+      if (IS_NOT_FOUND_CONDITION(sqlstate) && m_hfound < 0)
+	m_hfound= i;
       break;
     case sp_cond_type_t::exception:
       if (IS_EXCEPTION_CONDITION(sqlstate) &&
 	  level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
-	  found < 0)
-	found= i;
+	  m_hfound < 0)
+	m_hfound= i;
       break;
     }
   }
-  if (found < 0)
+
+  if (m_hfound >= 0)
   {
-    /*
-      Only "exception conditions" are propagated to handlers in calling
-      contexts. If no handler is found locally for a "completion condition"
-      (warning or "not found") we will simply resume execution.
-    */
-    if (m_prev_runtime_ctx && IS_EXCEPTION_CONDITION(sqlstate) &&
-        level == MYSQL_ERROR::WARN_LEVEL_ERROR)
-      return m_prev_runtime_ctx->find_handler(thd,
-                                              sql_errno,
-                                              sqlstate,
-                                              level,
-                                              msg,
-                                              cond_hdl);
-    *cond_hdl= NULL;
-    return FALSE;
+    DBUG_ASSERT((uint) m_hfound < m_root_parsing_ctx->max_handler_index());
+
+    m_raised_conditions[m_hfound].clear();
+    m_raised_conditions[m_hfound].set(sql_errno, sqlstate, level, msg);
+
+    return TRUE;
   }
 
-  m_hfound= found;
-
-  MYSQL_ERROR *raised= NULL;
-  DBUG_ASSERT(m_hfound >= 0);
-  DBUG_ASSERT((uint) m_hfound < m_root_parsing_ctx->max_handler_index());
-  raised= & m_raised_conditions[m_hfound];
-  raised->clear();
-  raised->set(sql_errno, sqlstate, level, msg);
-
-  *cond_hdl= raised;
-  return TRUE;
-}
-
-/*
-   Handle the error for a given errno.
-   The severity of the error is adjusted depending of the current sql_mode.
-   If an handler is present for the error (see find_handler()),
-   this function will return true.
-   If a handler is found and if the severity of the error indicate
-   that the current instruction executed should abort,
-   the flag thd->net.report_error is also set.
-   This will cause the execution of the current instruction in a
-   sp_instr* to fail, and give control to the handler code itself
-   in the sp_head::execute() loop.
-
-  SYNOPSIS
-    sql_errno     The error code
-    level         Warning level
-    thd           The current thread
-
-  RETURN
-    TRUE       if a handler was found.
-    FALSE      if no handler was found.
-*/
-bool
-sp_rcontext::handle_condition(THD *thd,
-                              uint sql_errno,
-                              const char* sqlstate,
-                              MYSQL_ERROR::enum_warning_level level,
-                              const char* msg,
-                              MYSQL_ERROR ** cond_hdl)
-{
-  MYSQL_ERROR::enum_warning_level elevated_level= level;
-
-
-  /* Depending on the sql_mode of execution,
-     warnings may be considered errors */
-  if ((level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
-      thd->really_abort_on_warning())
+  /*
+    Only "exception conditions" are propagated to handlers in calling
+    contexts. If no handler is found locally for a "completion condition"
+    (warning or "not found") we will simply resume execution.
+  */
+  if (m_prev_runtime_ctx && IS_EXCEPTION_CONDITION(sqlstate) &&
+      level == MYSQL_ERROR::WARN_LEVEL_ERROR)
   {
-    elevated_level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+    return m_prev_runtime_ctx->find_handler(thd, sql_errno, sqlstate,
+                                            level, msg);
   }
 
-  return find_handler(thd, sql_errno, sqlstate, elevated_level, msg, cond_hdl);
+  return FALSE;
 }
 
 void
@@ -384,7 +337,9 @@ sp_rcontext::pop_handlers(uint count)
 {
   DBUG_ENTER("sp_rcontext::pop_handlers");
   DBUG_ASSERT(m_hcount >= count);
+
   m_hcount-= count;
+
   DBUG_PRINT("info", ("m_hcount: %d", m_hcount));
   DBUG_VOID_RETURN;
 }
@@ -394,7 +349,9 @@ sp_rcontext::push_hstack(uint h)
 {
   DBUG_ENTER("sp_rcontext::push_hstack");
   DBUG_ASSERT(m_hsp < m_root_parsing_ctx->max_handler_index());
+
   m_hstack[m_hsp++]= h;
+
   DBUG_PRINT("info", ("m_hsp: %d", m_hsp));
   DBUG_VOID_RETURN;
 }
@@ -405,21 +362,74 @@ sp_rcontext::pop_hstack()
   uint handler;
   DBUG_ENTER("sp_rcontext::pop_hstack");
   DBUG_ASSERT(m_hsp);
+
   handler= m_hstack[--m_hsp];
+
   DBUG_PRINT("info", ("m_hsp: %d", m_hsp));
   DBUG_RETURN(handler);
 }
 
-void
-sp_rcontext::enter_handler(uint hip, uint hindex)
+/**
+  Prepare found handler to be executed.
+
+  @retval TRUE if an SQL handler is activated (was found) and IP of the
+          first handler instruction.
+  @retval FALSE if there is no active handler
+*/
+
+bool
+sp_rcontext::activate_handler(THD *thd,
+                              uint *ip,
+                              sp_instr *instr,
+                              Query_arena *execute_arena,
+                              Query_arena *backup_arena)
 {
-  DBUG_ENTER("sp_rcontext::enter_handler");
-  DBUG_ASSERT(m_ihsp < m_root_parsing_ctx->max_handler_index());
-  m_in_handler[m_ihsp].ip= hip;
-  m_in_handler[m_ihsp].index= hindex;
-  m_ihsp++;
-  DBUG_PRINT("info", ("m_ihsp: %d", m_ihsp));
-  DBUG_VOID_RETURN;
+  if (m_hfound < 0)
+    return FALSE;
+
+  switch (m_handler[m_hfound].type) {
+  case SP_HANDLER_NONE:
+    break;
+
+  case SP_HANDLER_CONTINUE:
+    thd->restore_active_arena(execute_arena, backup_arena);
+    thd->set_n_backup_active_arena(execute_arena, backup_arena);
+    push_hstack(instr->get_cont_dest());
+
+    /* Fall through */
+
+  default:
+    /* End aborted result set. */
+
+    if (end_partial_result_set)
+      thd->protocol->end_partial_result_set(thd);
+
+    /* Enter handler. */
+
+    DBUG_ASSERT(m_ihsp < m_root_parsing_ctx->max_handler_index());
+    DBUG_ASSERT(m_hfound >= 0);
+
+    m_in_handler[m_ihsp].ip= m_handler[m_hfound].handler;
+    m_in_handler[m_ihsp].index= m_hfound;
+    m_ihsp++;
+
+    DBUG_PRINT("info", ("Entering handler..."));
+    DBUG_PRINT("info", ("m_ihsp: %d", m_ihsp));
+
+    /* Reset error state. */
+
+    thd->clear_error();
+    thd->killed= THD::NOT_KILLED; // Some errors set thd->killed
+                                  // (e.g. "bad data").
+
+    /* Return IP of the activated SQL handler. */
+    *ip= m_handler[m_hfound].handler;
+
+    /* Reset found handler. */
+    m_hfound= -1;
+  }
+
+  return TRUE;
 }
 
 void
@@ -427,9 +437,11 @@ sp_rcontext::exit_handler()
 {
   DBUG_ENTER("sp_rcontext::exit_handler");
   DBUG_ASSERT(m_ihsp);
+
   uint hindex= m_in_handler[m_ihsp-1].index;
   m_raised_conditions[hindex].clear();
   m_ihsp-= 1;
+
   DBUG_PRINT("info", ("m_ihsp: %d", m_ihsp));
   DBUG_VOID_RETURN;
 }
@@ -525,8 +537,7 @@ sp_cursor::open(THD *thd)
                MYF(0));
     return -1;
   }
-  if (mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR, &result,
-                        &server_side_cursor))
+  if (mysql_open_cursor(thd, &result, &server_side_cursor))
     return -1;
   return 0;
 }
@@ -567,6 +578,11 @@ sp_cursor::fetch(THD *thd, List<struct sp_variable> *vars)
                ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
     return -1;
   }
+
+  DBUG_EXECUTE_IF("bug23032_emit_warning",
+                  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                               ER_UNKNOWN_ERROR,
+                               ER(ER_UNKNOWN_ERROR)););
 
   result.set_spvar_list(vars);
 

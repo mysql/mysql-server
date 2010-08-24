@@ -43,7 +43,6 @@ class Security_context;
 struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
-struct TABLE_LIST;
 class Field;
 
 /*
@@ -629,7 +628,7 @@ struct TABLE_SHARE
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
   bool auto_partitioned;
-  const char *partition_info_str;
+  char *partition_info_str;
   uint  partition_info_str_len;
   uint  partition_info_buffer_size;
   handlerton *default_part_db_type;
@@ -1588,23 +1587,6 @@ struct TABLE_LIST
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
-  /**
-    Indicates the locking strategy for the object being opened.
-  */
-  enum
-  {
-    /*
-      Take metadata lock specified by 'mdl_request' member before
-      the object is opened. Do nothing after that.
-    */
-    OTLS_NONE= 0,
-    /*
-      Take (exclusive) metadata lock specified by 'mdl_request' member
-      before object is opened. If opening is successful, downgrade to
-      a shared lock.
-    */
-    OTLS_DOWNGRADE_IF_EXISTS
-  } lock_strategy;
   /* For transactional locking. */
   int           lock_timeout;           /* NOWAIT or WAIT [X]               */
   bool          lock_transactional;     /* If transactional lock requested. */

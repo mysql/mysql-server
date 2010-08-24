@@ -2989,12 +2989,12 @@ loop2:
 	}
 
 got_block:
-	ut_ad(page_zip_get_size(&block->page.zip) == zip_size);
-
 	/* We can release hash_mutex after we acquire block_mutex to
 	make sure that no state change takes place. */
 	block_mutex = buf_page_get_mutex(&block->page);
 	mutex_enter(block_mutex);
+
+	ut_ad(page_zip_get_size(&block->page.zip) == zip_size);
 
 	/* Now safe to release page_hash mutex */
 	mutex_exit(hash_mutex);

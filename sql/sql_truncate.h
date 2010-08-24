@@ -20,4 +20,30 @@ struct TABLE_LIST;
 
 bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref);
 
+/**
+  Truncate_statement represents the TRUNCATE statement.
+*/
+class Truncate_statement : public Sql_statement
+{
+public:
+  /**
+    Constructor, used to represent a ALTER TABLE statement.
+    @param lex the LEX structure for this statement.
+  */
+  Truncate_statement(LEX *lex)
+    : Sql_statement(lex)
+  {}
+
+  ~Truncate_statement()
+  {}
+
+  /**
+    Execute a TRUNCATE statement at runtime.
+    @param thd the current thread.
+    @return false on success.
+  */
+  bool execute(THD *thd);
+};
+
+
 #endif
