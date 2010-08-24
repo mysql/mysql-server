@@ -2217,7 +2217,7 @@ const int FORMAT_MAX_DECIMALS= 30;
 MY_LOCALE *Item_func_format::get_locale(Item *item)
 {
   DBUG_ASSERT(arg_count == 3);
-  String tmp, *locale_name= args[2]->val_str(&tmp);
+  String tmp, *locale_name= args[2]->val_str_ascii(&tmp);
   MY_LOCALE *lc;
   if (!locale_name ||
       !(lc= my_locale_by_name(locale_name->c_ptr_safe())))
@@ -2250,7 +2250,7 @@ void Item_func_format::fix_length_and_dec()
   are stored in more than one byte
 */
 
-String *Item_func_format::val_str(String *str)
+String *Item_func_format::val_str_ascii(String *str)
 {
   uint32 str_length;
   /* Number of decimal digits */
@@ -2290,8 +2290,7 @@ String *Item_func_format::val_str(String *str)
     if ((null_value=args[0]->null_value))
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
-    /* Here default_charset() is right as this is not an automatic conversion */
-    str->set_real(nr, dec, default_charset());
+    str->set_real(nr, dec, &my_charset_numeric);
     if (isnan(nr))
       return str;
     str_length=str->length();
@@ -2340,6 +2339,14 @@ String *Item_func_format::val_str(String *str)
     
     /* Put the rest of the integer part without grouping */
     str->copy(dst, buf + sizeof(buf) - dst, &my_charset_latin1);
+  }
+  else if (dec_length && lc->decimal_point != '.')
+  {
+    /*
+      For short values without thousands (<1000)
+      replace decimal point to localized value.
+    */
+    ((char*) str->ptr())[str_length - dec_length]= lc->decimal_point;
   }
   return str;
 }

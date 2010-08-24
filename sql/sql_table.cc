@@ -6740,6 +6740,54 @@ err_with_mdl:
 }
 /* mysql_alter_table */
 
+
+
+/**
+  Prepare the transaction for the alter table's copy phase.
+*/
+
+bool mysql_trans_prepare_alter_copy_data(THD *thd)
+{
+  DBUG_ENTER("mysql_prepare_alter_copy_data");
+  /*
+    Turn off recovery logging since rollback of an alter table is to
+    delete the new table so there is no need to log the changes to it.
+    
+    This needs to be done before external_lock.
+  */
+  if (ha_enable_transaction(thd, FALSE))
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Commit the copy phase of the alter table.
+*/
+
+bool mysql_trans_commit_alter_copy_data(THD *thd)
+{
+  bool error= FALSE;
+  DBUG_ENTER("mysql_commit_alter_copy_data");
+
+  if (ha_enable_transaction(thd, TRUE))
+    DBUG_RETURN(TRUE);
+  
+  /*
+    Ensure that the new table is saved properly to disk before installing
+    the new .frm.
+    And that InnoDB's internal latches are released, to avoid deadlock
+    when waiting on other instances of the table before rename (Bug#54747).
+  */
+  if (trans_commit_stmt(thd))
+    error= TRUE;
+  if (trans_commit_implicit(thd))
+    error= TRUE;
+
+  DBUG_RETURN(error);
+}
+
+
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,
 			 List<Create_field> &create,
@@ -6766,14 +6814,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   ulonglong prev_insert_id;
   DBUG_ENTER("copy_data_between_tables");
 
-  /*
-    Turn off recovery logging since rollback of an alter table is to
-    delete the new table so there is no need to log the changes to it.
-    
-    This needs to be done before external_lock
-  */
-  error= ha_enable_transaction(thd, FALSE);
-  if (error)
+  if (mysql_trans_prepare_alter_copy_data(thd))
     DBUG_RETURN(-1);
   
   if (!(copy= new Copy_field[to->s->fields]))
@@ -6932,20 +6973,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
-  if (ha_enable_transaction(thd, TRUE))
-  {
+  if (mysql_trans_commit_alter_copy_data(thd))
     error= 1;
-    goto err;
-  }
-  
-  /*
-    Ensure that the new table is saved properly to disk so that we
-    can do a rename
-  */
-  if (trans_commit_stmt(thd))
-    error=1;
-  if (trans_commit_implicit(thd))
-    error=1;
 
  err:
   thd->variables.sql_mode= save_sql_mode;
