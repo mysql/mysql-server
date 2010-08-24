@@ -1587,26 +1587,20 @@ srv_suspend_mysql_thread(
 	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {
+	case 0:
+		break;
 	case RW_S_LATCH:
 		/* Release foreign key check latch */
 		row_mysql_unfreeze_data_dictionary(trx);
 		break;
-	case RW_X_LATCH:
+	default:
 		/* There should never be a lock wait when the
 		dictionary latch is reserved in X mode.  Dictionary
 		transactions should only acquire locks on dictionary
 		tables, not other tables. All access to dictionary
 		tables should be covered by dictionary
 		transactions. */
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: dict X latch held in "
-		      "srv_suspend_mysql_thread\n", stderr);
-		/* This should never occur. This incorrect handling
-		was added in the early development of
-		ha_innobase::add_index() in InnoDB Plugin 1.0. */
-		/* Release fast index creation latch */
-		row_mysql_unlock_data_dictionary(trx);
-		break;
+		ut_error;
 	}
 
 	ut_a(trx->dict_operation_lock_mode == 0);
@@ -1618,16 +1612,8 @@ srv_suspend_mysql_thread(
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
 
-	switch (had_dict_lock) {
-	case RW_S_LATCH:
+	if (had_dict_lock) {
 		row_mysql_freeze_data_dictionary(trx);
-		break;
-	case RW_X_LATCH:
-		/* This should never occur. This incorrect handling
-		was added in the early development of
-		ha_innobase::add_index() in InnoDB Plugin 1.0. */
-		row_mysql_lock_data_dictionary(trx);
-		break;
 	}
 
 	if (was_declared_inside_innodb) {
