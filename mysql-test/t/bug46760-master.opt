@@ -1,2 +1,2 @@
---innodb-lock-wait-timeout=2
---innodb-file-per-table
+--loose-innodb-lock-wait-timeout=2
+--loose-innodb-file-per-table

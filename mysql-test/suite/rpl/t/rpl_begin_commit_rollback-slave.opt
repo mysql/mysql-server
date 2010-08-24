@@ -1,1 +1,1 @@
---innodb --replicate-do-db=db1
+--loose-innodb --replicate-do-db=db1
