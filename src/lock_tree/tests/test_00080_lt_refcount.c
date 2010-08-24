@@ -9,16 +9,18 @@
 static void initial_setup(void);
 
 static int r;
-static u_int32_t       lt_refs[100];
+static uint32_t       lt_refs[100];
 static toku_lock_tree* lts   [100];
 static toku_ltm*       ltm = NULL;
 static DICTIONARY_ID   dict_ids[100];
-static u_int32_t max_locks = 10;
+enum { MAX_LT_LOCKS = 10 };
+uint32_t max_locks = MAX_LT_LOCKS;
+uint64_t max_lock_memory = MAX_LT_LOCKS*64;
 int  nums[10000];
 
 static void setup_ltm(void) {
     assert(!ltm);
-    r = toku_ltm_create(&ltm, max_locks, dbpanic,
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
                         get_compare_fun_from_db,
                         toku_malloc, toku_free, toku_realloc);
     CKERR(r);
@@ -30,7 +32,7 @@ static void db_open_tree(size_t index, size_t db_id_index) {
            (lt_refs[index] > 0 && lts[index]));
     assert(ltm);
     lt_refs[index]++;
-    r = toku_ltm_get_lt(ltm, &lts[index], dict_ids[db_id_index]);
+    r = toku_ltm_get_lt(ltm, &lts[index], dict_ids[db_id_index], NULL);
     CKERR(r);
     assert(lts[index]);
 }
@@ -112,7 +114,7 @@ static void run_test(void) {
 }
 
 static void initial_setup(void) {
-    u_int32_t i;
+    uint32_t i;
 
     ltm = NULL;
     assert(sizeof(dict_ids) / sizeof(dict_ids[0]) == sizeof(lts) / sizeof(lts[0]));
@@ -127,7 +129,7 @@ static void initial_setup(void) {
 }
 
 static void close_test(void) {
-    u_int32_t i;
+    uint32_t i;
     for (i = 0; i < sizeof(lts) / sizeof(lts[0]); i++) {
         assert(lt_refs[i]==0); //The internal reference isn't counted.
         assert(dict_ids[i].dictid != DICTIONARY_ID_NONE.dictid);
@@ -137,7 +139,6 @@ static void close_test(void) {
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
     compare_fun = intcmp;
-    dup_compare = intcmp;
 
     r = system("rm -rf " TESTDIR);
     CKERR(r);

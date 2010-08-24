@@ -24,6 +24,7 @@
 #include <lth.h>
 #include <rth.h>
 #include <idlth.h>
+#include <omt.h>
 
 #include "toku_assert.h"
 
@@ -93,7 +94,7 @@ struct __toku_lock_tree {
        the lt, we made copies from the DB at some point
     */
     toku_range*         buf;      
-    u_int32_t           buflen;      /**< The length of buf */
+    uint32_t           buflen;      /**< The length of buf */
     /** Whether lock escalation is allowed. */
     BOOL                lock_escalation_allowed;
     /** Lock tree manager */
@@ -110,16 +111,13 @@ struct __toku_lock_tree {
     void              (*free)   (void*);
     /** The user realloc function */
     void*             (*realloc)(void*, size_t);
-    /** The maximum number of locks allowed for this lock tree. */
-    u_int32_t          max_locks;
-    /** The current number of locks for this lock tree. */
-    u_int32_t          curr_locks;
     /** The number of references held by DB instances and transactions to this lock tree*/
-    u_int32_t          ref_count;
+    uint32_t          ref_count;
     /** DICTIONARY_ID associated with the lock tree */
     DICTIONARY_ID      dict_id;
     TXNID              table_lock_owner;
     BOOL               table_is_locked;
+    OMT                dbs; //The extant dbs using this lock tree.
 };
 
 
@@ -139,11 +137,13 @@ typedef struct ltm_status {
 
 struct __toku_ltm {
     /** The maximum number of locks allowed for the environment. */
-    u_int32_t          max_locks;
+    uint32_t          max_locks;
     /** The current number of locks for the environment. */
-    u_int32_t          curr_locks;
-    /** The maximum number of locks allowed for the db. */
-    u_int32_t          max_locks_per_db;
+    uint32_t          curr_locks;
+    /** The maximum amount of memory for locks allowed for the environment. */
+    uint64_t          max_lock_memory;
+    /** The current amount of memory for locks for the environment. */
+    uint64_t          curr_lock_memory;
     /** Status / accountability information */
     LTM_STATUS_S       status;
     /** The list of lock trees it manages. */
@@ -185,7 +185,7 @@ struct __toku_point {
     toku_lock_tree* lt;           /**< The lock tree, where toku_lt_point_cmp 
                                        is defined */
     void*           key_payload;  /**< The key ... */
-    u_int32_t       key_len;      /**< and its length */
+    uint32_t        key_len;      /**< and its length */
 };
 #if !defined(__TOKU_POINT)
 #define __TOKU_POINT
@@ -229,7 +229,7 @@ int toku_lt_create(toku_lock_tree** ptree,
     Gets a lock tree for a given DB with id dict_id
 */
 int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
-                    DICTIONARY_ID dict_id);
+                    DICTIONARY_ID dict_id, DB *db);
 
 void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id);
 
@@ -419,7 +419,8 @@ int toku_lt_unlock(toku_lock_tree* tree, TXNID txn);
     - May return other errors due to system calls.
 */
 int toku_ltm_create(toku_ltm** pmgr,
-                    u_int32_t max_locks,
+                    uint32_t max_locks,
+                    uint64_t max_lock_memory,
                     int   (*panic)(DB*, int), 
                     toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
                     void* (*user_malloc) (size_t),
@@ -450,50 +451,29 @@ int toku_ltm_close(toku_ltm* mgr);
     - EDOM   if max_locks is less than the number of locks held by any lock tree
          held by the manager
 */
-int toku_ltm_set_max_locks(toku_ltm* mgr, u_int32_t max_locks);
+int toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t max_locks);
 
-/**
-    Sets the maximum number of locks for each lock tree.
-    This is a temporary function until we can complete ticket #596.
-    This will be used instead of toku_ltm_set_max_locks.
-    
-    \param mgr       The lock tree manager to which to set max_locks.
-    \param max_locks    The new maximum number of locks.
+int toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* max_lock_memory);
 
-    \return
-    - 0 on success.
-    - EINVAL if tree is NULL or max_locks is 0
-    - EDOM   if max_locks is less than the number of locks held by any lock tree
-         held by the manager
-*/
-int toku_ltm_set_max_locks_per_db(toku_ltm* mgr, u_int32_t max_locks);
+int toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t max_lock_memory);
 
-/**
-    Sets the maximum number of locks on the lock tree manager.
-    
-    \param mgr          The lock tree manager to which to set max_locks.
-    \param max_locks    A buffer to return the number of max locks.
+void toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_locks, 
+			 uint64_t *max_lock_memory, uint64_t *curr_lock_memory,
+			 LTM_STATUS s);
 
-    \return
-    - 0 on success.
-    - EINVAL if any parameter is NULL.
-*/
-
-void toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_locks, uint32_t * max_locks_per_db, LTM_STATUS s);
-
-int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks);
-
-int toku_ltm_get_max_locks_per_db(toku_ltm* mgr, u_int32_t* max_locks);
+int toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* max_locks);
 
 void toku_lt_add_ref(toku_lock_tree* tree);
 
 int toku_lt_remove_ref(toku_lock_tree* tree);
 
-int toku__lt_point_cmp(const toku_point* x, const toku_point* y);
+void toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db);
 
-toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
+int toku_lt_point_cmp(const toku_point* x, const toku_point* y);
 
-toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
+toku_range_tree* toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
+
+toku_range_tree* toku_lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
 
 #if defined(__cplusplus)
 }

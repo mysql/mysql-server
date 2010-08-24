@@ -10,12 +10,14 @@ int r;
 toku_lock_tree* lt [10] = {0};
 toku_ltm*       ltm = NULL;
 DB*             db  = (DB*)1;
-u_int32_t max_locks = 10;
+enum { MAX_LT_LOCKS = 10 };
+uint32_t max_locks = MAX_LT_LOCKS;
+uint64_t max_lock_memory = MAX_LT_LOCKS*64;
 int  nums[10000];
 
 static void setup_ltm(void) {
     assert(!ltm);
-    r = toku_ltm_create(&ltm, max_locks, dbpanic,
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
                         get_compare_fun_from_db,
                         toku_malloc, toku_free, toku_realloc);
     CKERR(r);
@@ -24,7 +26,7 @@ static void setup_ltm(void) {
 
 static void setup_tree(size_t index, DICTIONARY_ID dict_id) {
     assert(!lt[index] && ltm);
-    r = toku_ltm_get_lt(ltm, &lt[index], dict_id);
+    r = toku_ltm_get_lt(ltm, &lt[index], dict_id, NULL);
     CKERR(r);
     assert(lt[index]);
 }
@@ -34,7 +36,7 @@ static void close_ltm(void) {
     assert(ltm);
     r = toku_ltm_close(ltm);
     CKERR(r);
-    u_int32_t i = 0;
+    uint32_t i = 0;
     for (i = 0; i < sizeof(lt)/sizeof(*lt); i++) { lt[i] = NULL; }
     ltm = NULL;
 }
@@ -68,7 +70,6 @@ static void run_test(void) {
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
     compare_fun = intcmp;
-    dup_compare = intcmp;
 
     r = system("rm -rf " TESTDIR);
     CKERR(r);

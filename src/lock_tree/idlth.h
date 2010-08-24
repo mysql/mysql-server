@@ -42,8 +42,8 @@ struct __toku_idlth_elt {
 typedef struct __toku_idlth toku_idlth;
 struct __toku_idlth {
     toku_idlth_elt* buckets;
-    u_int32_t       num_buckets;
-    u_int32_t       num_keys;
+    uint32_t       num_buckets;
+    uint32_t       num_keys;
     toku_idlth_elt  iter_head;
     toku_idlth_elt* iter_curr;
     BOOL            iter_is_valid;

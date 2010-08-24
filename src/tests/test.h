@@ -287,6 +287,23 @@ toku_hard_crash_on_purpose(void) {
     fflush(stderr);
 }
 
+static void UU()
+multiply_locks_for_n_dbs(DB_ENV *env, int num_dbs) {
+    int r;
+    uint32_t current_max_locks;
+    r = env->get_lk_max_locks(env, &current_max_locks);
+    CKERR(r);
+    r = env->set_lk_max_locks(env, current_max_locks * num_dbs);
+    CKERR(r);
+#if defined(USE_TDB)
+    uint64_t current_max_lock_memory;
+    r = env->get_lk_max_memory(env, &current_max_lock_memory);
+    CKERR(r);
+    r = env->set_lk_max_memory(env, current_max_lock_memory * num_dbs);
+    CKERR(r);
+#endif
+}
+
 #if defined(__cilkplusplus) || defined(__cplusplus)
 }
 #endif

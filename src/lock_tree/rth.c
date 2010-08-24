@@ -16,11 +16,11 @@
 #include <string.h>
 
 /* TODO: reallocate the hash rth if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
-const u_int32_t __toku_rth_init_size = 521;
+const uint32_t __toku_rth_init_size = 521;
 
-static inline u_int32_t toku__rth_hash(toku_rth* rth, TXNID key) {
-    u_int64_t tmp = (u_int64_t)key;
-    return (u_int32_t)(tmp % rth->num_buckets);
+static inline uint32_t toku__rth_hash(toku_rth* rth, TXNID key) {
+    uint64_t tmp = (uint64_t)key;
+    return (uint32_t)(tmp % rth->num_buckets);
 }
 
 static inline void toku__invalidate_scan(toku_rth* rth) {
@@ -65,7 +65,7 @@ cleanup:
 rt_forest* toku_rth_find(toku_rth* rth, TXNID key) {
     assert(rth);
 
-    u_int32_t index          = toku__rth_hash(rth, key);
+    uint32_t index          = toku__rth_hash(rth, key);
     toku_rth_elt* head    = &rth->buckets[index];
     toku_rth_elt* current = head->next_in_bucket;
     while (current) {
@@ -104,7 +104,7 @@ void toku_rth_delete(toku_rth* rth, TXNID key) {
     /* Must have elements. */
     assert(rth->num_keys);
 
-    u_int32_t index = toku__rth_hash(rth, key);
+    uint32_t index = toku__rth_hash(rth, key);
     toku_rth_elt* head    = &rth->buckets[index]; 
     toku_rth_elt* prev    = head; 
     toku_rth_elt* current = prev->next_in_bucket;
@@ -130,7 +130,7 @@ int toku_rth_insert(toku_rth* rth, TXNID key) {
     assert(rth);
     toku__invalidate_scan(rth);
 
-    u_int32_t index = toku__rth_hash(rth, key);
+    uint32_t index = toku__rth_hash(rth, key);
 
     /* Allocate a new one. */
     toku_rth_elt* element = (toku_rth_elt*)rth->malloc(sizeof(*element));

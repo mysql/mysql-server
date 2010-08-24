@@ -95,6 +95,7 @@ single_process_unlock(int *lockfd) {
 
 /** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
+const uint64_t __toku_env_default_max_lock_memory = 1000*1024;
 
 static inline DBT*
 init_dbt_realloc(DBT *dbt) {
@@ -1103,7 +1104,7 @@ static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
     int r = ENOSYS;
     HANDLE_PANICKED_ENV(dbenv);
     if (env_opened(dbenv))         { return EINVAL; }
-    r = toku_ltm_set_max_locks_per_db(dbenv->i->ltm, max);
+    r = toku_ltm_set_max_locks(dbenv->i->ltm, max);
     return r;
 }
 
@@ -1119,15 +1120,36 @@ static int locked_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
 
 static int toku_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
     HANDLE_PANICKED_ENV(dbenv);
-    return toku_ltm_get_max_locks_per_db(dbenv->i->ltm, lk_maxp);
+    return toku_ltm_get_max_locks(dbenv->i->ltm, lk_maxp);
 }
 
 static int locked_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
     toku_ydb_lock(); int r = toku_env_set_lk_max_locks(dbenv, max); toku_ydb_unlock(); return r;
 }
 
-static int __attribute__((unused)) locked_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
+static int locked_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
     toku_ydb_lock(); int r = toku_env_get_lk_max_locks(dbenv, lk_maxp); toku_ydb_unlock(); return r;
+}
+
+static int toku_env_set_lk_max_memory(DB_ENV *dbenv, uint64_t max) {
+    int r = ENOSYS;
+    HANDLE_PANICKED_ENV(dbenv);
+    if (env_opened(dbenv))         { return EINVAL; }
+    r = toku_ltm_set_max_lock_memory(dbenv->i->ltm, max);
+    return r;
+}
+
+static int toku_env_get_lk_max_memory(DB_ENV *dbenv, uint64_t *lk_maxp) {
+    HANDLE_PANICKED_ENV(dbenv);
+    return toku_ltm_get_max_lock_memory(dbenv->i->ltm, lk_maxp);
+}
+
+static int locked_env_set_lk_max_memory(DB_ENV *dbenv, uint64_t max) {
+    toku_ydb_lock(); int r = toku_env_set_lk_max_memory(dbenv, max); toku_ydb_unlock(); return r;
+}
+
+static int locked_env_get_lk_max_memory(DB_ENV *dbenv, uint64_t *lk_maxp) {
+    toku_ydb_lock(); int r = toku_env_get_lk_max_memory(dbenv, lk_maxp); toku_ydb_unlock(); return r;
 }
 
 //void toku__env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
@@ -1524,11 +1546,15 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	{
 	    toku_ltm* ltm = env->i->ltm;
 	    LTM_STATUS_S ltmstat;
-	    uint32_t max_locks, curr_locks, max_locks_per_db;
-	    toku_ltm_get_status(ltm, &max_locks, &curr_locks, &max_locks_per_db, &ltmstat);
+	    uint32_t max_locks, curr_locks;
+	    uint64_t max_lock_memory, curr_lock_memory;
+	    toku_ltm_get_status(ltm, &max_locks, &curr_locks, 
+				&max_lock_memory, &curr_lock_memory,
+				&ltmstat);
 	    engstat->range_locks_max                 = max_locks;
-	    engstat->range_locks_max_per_index       = max_locks_per_db;
 	    engstat->range_locks_curr                = curr_locks;
+	    engstat->range_locks_max_memory          = max_lock_memory;
+	    engstat->range_locks_curr_memory         = curr_lock_memory;
 	    engstat->range_lock_escalation_successes = ltmstat.lock_escalation_successes;
 	    engstat->range_lock_escalation_failures  = ltmstat.lock_escalation_failures;
 	    engstat->range_read_locks                = ltmstat.read_lock;
@@ -1657,8 +1683,9 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "local_checkpoint_files           %"PRId64"\n", engstat.local_checkpoint_files);
     n += snprintf(buff + n, bufsiz - n, "local_checkpoint_during_checkpoint  %"PRId64"\n", engstat.local_checkpoint_during_checkpoint);
     n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu32"\n", engstat.range_locks_max);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_max_per_index        %"PRIu32"\n", engstat.range_locks_max_per_index);
     n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu32"\n", engstat.range_locks_curr);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_max_memory           %"PRIu64"\n", engstat.range_locks_max_memory);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_curr_memory          %"PRIu64"\n", engstat.range_locks_curr_memory);
     n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_successes %"PRIu32"\n", engstat.range_lock_escalation_successes);
     n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_failures  %"PRIu32"\n", engstat.range_lock_escalation_failures);
     n += snprintf(buff + n, bufsiz - n, "range_read_locks                 %"PRIu64"\n", engstat.range_read_locks);
@@ -1756,6 +1783,8 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(get_lg_max);
     SENV(set_lk_max_locks);
     SENV(get_lk_max_locks);
+    SENV(set_lk_max_memory);
+    SENV(get_lk_max_memory);
     SENV(set_cachesize);
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     SENV(get_cachesize);
@@ -1781,7 +1810,8 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     env_init_open_txn(result);
     env_fs_init(result);
 
-    r = toku_ltm_create(&result->i->ltm, __toku_env_default_max_locks,
+    r = toku_ltm_create(&result->i->ltm,
+                        __toku_env_default_max_locks, __toku_env_default_max_lock_memory,
                          toku_db_lt_panic, 
                          toku_db_get_compare_fun,
                          toku_malloc, toku_free, toku_realloc);
@@ -2176,11 +2206,7 @@ db_close_before_brt(DB *db, u_int32_t UU(flags)) {
     assert(error_string==0);
     int r2 = 0;
     if (db->i->lt) {
-        r2 = toku_lt_remove_ref(db->i->lt);
-	if (r2) {
-	    db->dbenv->i->is_panicked = r2; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
-	    db->dbenv->i->panic_string = 0;
-	}
+        toku_lt_remove_db_ref(db->i->lt, db);
     }
     // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
     // Even if panicked, let's close as much as we can.
@@ -3780,7 +3806,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     db->i->opened = 1;
     if (need_locktree) {
 	db->i->dict_id = toku_brt_get_dictionary_id(db->i->brt);
-        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id);
+        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db);
         if (r!=0) { goto error_cleanup; }
     }
     //Add to transaction's list of 'must close' if necessary.
@@ -3796,7 +3822,7 @@ error_cleanup:
     db->i->dict_id = DICTIONARY_ID_NONE;
     db->i->opened = 0;
     if (db->i->lt) {
-        toku_lt_remove_ref(db->i->lt);
+        toku_lt_remove_db_ref(db->i->lt, db);
         db->i->lt = NULL;
     }
     return r;
@@ -4754,11 +4780,21 @@ char *db_strerror(int error) {
             return errorstr;
     }
     
-    if (error==DB_BADFORMAT) {
-	return "Database Bad Format (probably a corrupted database)";
-    }
-    if (error==DB_NOTFOUND) {
-	return "Not found";
+    switch (error) {
+        case DB_BADFORMAT:
+            return "Database Bad Format (probably a corrupted database)";
+        case DB_NOTFOUND:
+            return "Not found";
+        case TOKUDB_OUT_OF_LOCKS:
+            return "Out of locks";
+        case TOKUDB_DICTIONARY_TOO_OLD:
+            return "Dictionary too old for this version of TokuDB";
+        case TOKUDB_DICTIONARY_TOO_NEW:
+            return "Dictionary too new for this version of TokuDB";
+        case TOKUDB_CANCELED:
+            return "User cancelled operation";
+        case TOKUDB_NO_DATA:
+            return "Ran out of data (not EOF)";
     }
 
     static char unknown_result[100];    // Race condition if two threads call this at the same time. However even in a bad case, it should be some sort of null-terminated string.
