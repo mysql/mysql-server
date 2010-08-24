@@ -1814,7 +1814,7 @@ int ha_maria::enable_indexes(uint mode)
                         "retrying",
                         my_errno, param.db_name, param.table_name);
       /* This should never fail normally */
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(thd->killed != 0);
       /* Repairing by sort failed. Now try standard repair method. */
       param.testflag &= ~T_REP_BY_SORT;
       error= (repair(thd, &param, 0) != HA_ADMIN_OK);
