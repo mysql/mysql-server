@@ -867,8 +867,8 @@ lock_mode_stronger_or_eq(
 	enum lock_mode	mode1,	/*!< in: lock mode */
 	enum lock_mode	mode2)	/*!< in: lock mode */
 {
-	ut_a(mode1 < lock_types);
-	ut_a(mode2 < lock_types);
+	ut_ad(mode1 < lock_types);
+	ut_ad(mode2 < lock_types);
 
 	return(lock_strength_matrix[mode1][mode2]);
 }
@@ -883,8 +883,8 @@ lock_mode_compatible(
 	enum lock_mode	mode1,	/*!< in: lock mode */
 	enum lock_mode	mode2)	/*!< in: lock mode */
 {
-	ut_a(mode1 < lock_types);
-	ut_a(mode2 < lock_types);
+	ut_ad(mode1 < lock_types);
+	ut_ad(mode2 < lock_types);
 
 	return(lock_compatibility_matrix[mode1][mode2]);
 }
@@ -1993,9 +1993,9 @@ lock_rec_lock_fast(
 			UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
 
 			trx_mutex_exit(trx);
-
-			status = LOCK_REC_SUCCESS_CREATED;
 		}
+
+		status = LOCK_REC_SUCCESS_CREATED;
 	} else {
 		trx_mutex_enter(trx);
 
@@ -5272,11 +5272,7 @@ lock_rec_convert_impl_to_expl(
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 
 	if (dict_index_is_clust(index)) {
-		trx_sys_mutex_enter();
-
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
-
-		trx_sys_mutex_exit();
 	} else {
 		trx_id  = lock_sec_rec_some_has_impl(rec, index, offsets);
 	}
