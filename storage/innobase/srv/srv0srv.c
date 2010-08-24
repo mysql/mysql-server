@@ -2807,7 +2807,6 @@ srv_purge_coordinator_thread(
 	srv_sys_mutex_exit();
 
 	for (;;) {
-		ulint	iterations = 0;
 		ulint	last_time = ut_time();
 		ulint	count = srv_sys->activity_count;
 		ulint	batch_size = srv_purge_batch_size;
@@ -2842,8 +2841,6 @@ srv_purge_coordinator_thread(
 				}
 
 			} while (n_pages_purged > 0 && srv_fast_shutdown == 0);
-
-			++iterations;
 
 			/* Take snapshot to check for user
 			activity later every 3 seconds. */
@@ -2888,8 +2885,6 @@ srv_purge_coordinator_thread(
 
 					batch_size = srv_purge_batch_size;
 				}
-
-				++iterations;
 
 				/* Take snapshot to check for user
 				activity later every 3 seconds. */
