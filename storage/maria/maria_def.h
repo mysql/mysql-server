@@ -459,8 +459,9 @@ typedef struct st_maria_row
   uint *null_field_lengths;             /* All null field lengths */
   ulong *blob_lengths;                  /* Length for each blob */
   ulong min_length, normal_length, char_length, varchar_length;
-  ulong blob_length, head_length, total_length;
+  ulong blob_length, total_length;
   size_t extents_buffer_length;         /* Size of 'extents' buffer */
+  uint head_length, header_length;
   uint field_lengths_length;            /* Length of data in field_lengths */
   uint extents_count;                   /* number of extents in 'extents' */
   uint full_page_count, tail_count;     /* For maria_chk */

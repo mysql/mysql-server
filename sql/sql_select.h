@@ -365,6 +365,11 @@ public:
     the number of rows in it may vary from one subquery execution to another.
   */
   bool no_const_tables; 
+  /*
+    This flag is set if we call no_rows_in_result() as par of end_group().
+    This is used as a simple speed optimization to avoiding calling
+    restore_no_rows_in_result() in ::reinit()
+  */
   bool no_rows_in_result_called;
   
   /**
