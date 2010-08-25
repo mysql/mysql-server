@@ -5374,7 +5374,12 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
         acquire_table_lock(trx->sub_sp_level,lock_read);
     }
     else {
-        acquire_table_lock(trx->sub_sp_level,lock_write);
+        if (!(thd_sql_command(thd) == SQLCOM_CREATE_INDEX ||
+            thd_sql_command(thd) == SQLCOM_ALTER_TABLE ||
+            thd_sql_command(thd) == SQLCOM_DROP_INDEX ||
+            thd_sql_command(thd) == SQLCOM_TRUNCATE)) {
+            acquire_table_lock(trx->sub_sp_level,lock_write);
+        }
     }    
     if (added_rows > deleted_rows) {
         share->rows_from_locked_table = added_rows - deleted_rows;
