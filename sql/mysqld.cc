@@ -192,6 +192,9 @@ typedef fp_except fp_except_t;
 # endif
 #endif
 
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream);
+
 inline void setup_fpu()
 {
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
@@ -3741,13 +3744,15 @@ static int init_server_components()
       opt_error_log= 0;                         // Too long file name
     else
     {
+      my_bool res;
 #ifndef EMBEDDED_LIBRARY
-      if (freopen(log_error_file, "a+", stdout))
+      res= reopen_fstreams(log_error_file, stdout, stderr);
+#else
+      res= reopen_fstreams(log_error_file, NULL, stderr);
 #endif
-      {
-        if (freopen(log_error_file, "a+", stderr))
-          setbuf(stderr, NULL);
-      }
+
+      if (!res)
+        setbuf(stderr, NULL);
     }
   }
 
@@ -4460,8 +4465,8 @@ int mysqld_main(int argc, char **argv)
 #ifdef __WIN__
   if (!opt_console)
   {
-    freopen(log_error_file,"a+",stdout);
-    freopen(log_error_file,"a+",stderr);
+    if (reopen_fstreams(log_error_file, stdout, stderr))
+      unireg_abort(1);
     setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
