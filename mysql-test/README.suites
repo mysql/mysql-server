@@ -20,11 +20,18 @@ subdirectories under the suitedir or directly in the suitedir
 (that is suitedir/t/*.test or suitedir/*.test, same for *.result))
 
 ==========================
-A suite can contain a suite.opt file - at the same location where .test
-files are. As usual, the .opt file can use $-substitutions for the
-environment variables.
+A suite can contain a suite.opt file - at the same location where .test files
+are or in the suite directory. As usual, the .opt file can use $-substitutions
+for the environment variables.
 
 Usually, using my.cnf template (see below) is preferrable.
+
+But command line options (.opt files and combinations file) get special
+treatment - they can have special options that affect mtr behavior. cnf
+files cannot. Special options are
+ --timezone, --plugin-load, --result-file, --config-file-template,
+ --default-time-zone, --force-restart
+
 ==========================
 A suite can have suite.pm file in the suitedir. It must declare a
 package that inherits from My::Suite.
@@ -108,8 +115,8 @@ Most probably a suite my.cnf will need to start from
   !include include/default_my.cnf
 
 and then modify the configuration as necessary.
-==========================
 
+==========================
 A suite can have combinations file in the suitedir. It uses my.cnf syntax
 but it cannot use @-substitutions. Instead, it can use $-substitutions for
 the environment variables. Because the combination options will not be

@@ -3564,8 +3564,9 @@ sub timezone {
   my ($tinfo)= @_;
   local $_ = $tinfo->{timezone};
   return 'DEFAULT' unless defined $_;
-  s/\$\{(\w+)\}/envsubst($1)/ge;
-  s/\$(\w+)/envsubst($1)/ge;
+  no warnings 'uninitialized';
+  s/\$\{(\w+)\}/$ENV{$1}/ge;
+  s/\$(\w+)/$ENV{$1}/ge;
   $_;
 }
 
@@ -5071,18 +5072,6 @@ sub started { return grep(defined $_, map($_->{proc}, @_));  }
 sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 
-sub envsubst {
-  my $string= shift;
-
-  if ( ! defined $ENV{$string} )
-  {
-    mtr_error(".opt file references '$string' which is not set");
-  }
-
-  return $ENV{$string};
-}
-
-
 sub get_extra_opts {
   my ($mysqld, $tinfo)= @_;
 
@@ -5093,8 +5082,9 @@ sub get_extra_opts {
   # Expand environment variables
   foreach my $opt ( @$opts )
   {
-    $opt =~ s/\$\{(\w+)\}/envsubst($1)/ge;
-    $opt =~ s/\$(\w+)/envsubst($1)/ge;
+    no warnings 'uninitialized';
+    $opt =~ s/\$\{(\w+)\}/$ENV{$1}/ge;
+    $opt =~ s/\$(\w+)/$ENV{$1}/ge;
   }
   return $opts;
 }

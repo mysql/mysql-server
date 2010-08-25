@@ -325,12 +325,8 @@ sub collect_one_suite
   }
 
   # Read suite.opt file
-  my $suite_opt_file=  "$testdir/suite.opt";
-  my $suite_opts= [];
-  if ( -f $suite_opt_file )
-  {
-    $suite_opts= opts_from_file($suite_opt_file);
-  }
+  my $suite_opts= [ opts_from_file("$testdir/suite.opt") ];
+  $suite_opts = [ opts_from_file("$suitedir/suite.opt") ] unless @$suite_opts;
 
   if ( @$opt_cases )
   {
@@ -618,67 +614,78 @@ sub optimize_cases {
 # Read options from the given opt file and append them as an array
 # to $tinfo->{$opt_name}
 #
-sub process_opts_file {
-  my ($tinfo, $opt_file, $opt_name)= @_;
+sub process_opts {
+  my ($tinfo, $opt_name)= @_;
 
-  if ( -f $opt_file )
+  my @opts= @{$tinfo->{$opt_name}};
+  $tinfo->{$opt_name} = [];
+
+  my @plugins;
+
+  foreach my $opt (@opts)
   {
-    my $opts= opts_from_file($opt_file);
+    my $value;
 
-    foreach my $opt ( @$opts )
+    # The opt file is used both to send special options to the mysqld
+    # as well as pass special test case specific options to this
+    # script
+
+    $value= mtr_match_prefix($opt, "--timezone=");
+    if ( defined $value )
     {
-      my $value;
-
-      # The opt file is used both to send special options to the mysqld
-      # as well as pass special test case specific options to this
-      # script
-
-      $value= mtr_match_prefix($opt, "--timezone=");
-      if ( defined $value )
-      {
-	$tinfo->{'timezone'}= $value;
-	next;
-      }
-
-      $value= mtr_match_prefix($opt, "--result-file=");
-      if ( defined $value )
-      {
-	# Specifies the file mysqltest should compare
-	# output against
-	$tinfo->{'result_file'}= "r/$value.result";
-	next;
-      }
-
-      $value= mtr_match_prefix($opt, "--config-file-template=");
-      if ( defined $value)
-      {
-	# Specifies the configuration file to use for this test
-	$tinfo->{'template_path'}= dirname($tinfo->{path})."/$value";
-	next;
-      }
-
-      # If we set default time zone, remove the one we have
-      $value= mtr_match_prefix($opt, "--default-time-zone=");
-      if ( defined $value )
-      {
-	# Set timezone for this test case to something different
-	$tinfo->{'timezone'}= "GMT-8";
-	# Fallthrough, add the --default-time-zone option
-      }
-
-      # The --restart option forces a restart even if no special
-      # option is set. If the options are the same as next testcase
-      # there is no need to restart after the testcase
-      # has completed
-      if ( $opt eq "--force-restart" )
-      {
-	$tinfo->{'force_restart'}= 1;
-	next;
-      }
-
-      # Ok, this was a real option, add it
-      push(@{$tinfo->{$opt_name}}, $opt);
+      $tinfo->{'timezone'}= $value;
+      next;
     }
+
+    $value= mtr_match_prefix($opt, "--plugin-load=");
+    if (defined $value)
+    {
+      push @plugins, $value;
+      next;
+    }
+
+    $value= mtr_match_prefix($opt, "--result-file=");
+    if ( defined $value )
+    {
+      # Specifies the file mysqltest should compare
+      # output against
+      $tinfo->{'result_file'}= "r/$value.result";
+      next;
+    }
+
+    $value= mtr_match_prefix($opt, "--config-file-template=");
+    if ( defined $value)
+    {
+      # Specifies the configuration file to use for this test
+      $tinfo->{'template_path'}= dirname($tinfo->{path})."/$value";
+      next;
+    }
+
+    # If we set default time zone, remove the one we have
+    $value= mtr_match_prefix($opt, "--default-time-zone=");
+    if ( defined $value )
+    {
+      # Set timezone for this test case to something different
+      $tinfo->{'timezone'}= "GMT-8";
+      # Fallthrough, add the --default-time-zone option
+    }
+
+    # The --restart option forces a restart even if no special
+    # option is set. If the options are the same as next testcase
+    # there is no need to restart after the testcase
+    # has completed
+    if ( $opt eq "--force-restart" )
+    {
+      $tinfo->{'force_restart'}= 1;
+      next;
+    }
+
+    # Ok, this was a real option, add it
+    push(@{$tinfo->{$opt_name}}, $opt);
+  }
+
+  if (@plugins) {
+    push @{$tinfo->{$opt_name}}, "--plugin-load=" . join(':', @plugins);
   }
 }
 
@@ -1009,15 +1016,17 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   for (@source_files) {
     s/\.\w+$//;
-    process_opts_file($tinfo, "$_.opt", 'master_opt');
-    process_opts_file($tinfo, "$_.opt", 'slave_opt');
-    process_opts_file($tinfo, "$_-master.opt", 'master_opt');
-    process_opts_file($tinfo, "$_-slave.opt", 'slave_opt');
+    push @{$tinfo->{master_opt}}, opts_from_file("$_.opt");
+    push @{$tinfo->{slave_opt}}, opts_from_file("$_.opt");
+    push @{$tinfo->{master_opt}}, opts_from_file("$_-master.opt");
+    push @{$tinfo->{slave_opt}}, opts_from_file("$_-slave.opt");
   }
 
   push(@{$tinfo->{'master_opt'}}, @::opt_extra_mysqld_opt);
   push(@{$tinfo->{'slave_opt'}}, @::opt_extra_mysqld_opt);
 
+  process_opts($tinfo, 'master_opt');
+  process_opts($tinfo, 'slave_opt');
 
   return $tinfo;
 }
@@ -1103,6 +1112,8 @@ sub opts_from_file ($) {
   my $file=  shift;
   local $_;
 
+  return () unless -f $file;
+
   open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
   my @args;
   while ( <FILE> )
@@ -1143,7 +1154,7 @@ sub opts_from_file ($) {
     }
   }
   close FILE;
-  return \@args;
+  return @args;
 }
 
 sub print_testcases {
