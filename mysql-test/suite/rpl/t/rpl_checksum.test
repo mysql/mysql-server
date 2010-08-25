@@ -18,7 +18,7 @@ connection master;
 set @master_save_binlog_checksum= @@global.binlog_checksum;
 set @save_master_verify_checksum =  @@global.master_verify_checksum;
 
-select @@global.binlog_checksum as 'must be one because of the command line option';
+select @@global.binlog_checksum as 'must be CRC32 because of the command line option';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.binlog_checksum as 'no session var';
 
@@ -103,6 +103,7 @@ source include/wait_for_slave_io_to_stop.inc;
 
 let $errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
 let $error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $error= `select substring("$error", 17)`;
 --echo *** Got IO thread error code: $errno, text: $error ***
 
 select count(*) as zero from t1;
@@ -145,6 +146,7 @@ start slave io_thread;
 source include/wait_for_slave_io_to_stop.inc;
 let $errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
 let $error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $error= `select substring("$error", 17)`;
 --echo *** Got IO thread error code: $errno, text: $error ***
 set @@global.debug=''; # todo: merge
 
@@ -164,6 +166,7 @@ start slave sql_thread;
 source include/wait_for_slave_sql_to_stop.inc;
 let $errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 let $error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
+let $error= `select substring("$error", 17)`;
 --echo *** Got SQL thread error code: $errno, text: $error ***
 
 # resuming SQL thread to parse out the event w/o the failure
