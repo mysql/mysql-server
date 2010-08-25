@@ -83,3 +83,6 @@ ctype-simple.c : .*unary minus operator applied to unsigned type, result still u
 
 # Ignore warnings in instance manager
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
+
+# Ignore warnings in innodb_plugin
+.*/storage/innodb_plugin/.* : .*
