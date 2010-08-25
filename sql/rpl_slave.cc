@@ -3227,8 +3227,6 @@ Stopping slave I/O thread due to out-of-memory error from master");
 
       if (flush_master_info(mi, FALSE))
       {
-        // By default the option is TRUE, however we have changed it to do
-        // some tests. /Alfranio
         sql_print_error("Failed to flush master info file");
         goto err;
       }
@@ -5427,7 +5425,7 @@ bool change_master(THD* thd, Master_info* mi)
     ret= TRUE;
     goto err;
   }
-  thread_mask= SLAVE_IO | SLAVE_SQL; // Temporary Alfranio
+  thread_mask= SLAVE_IO | SLAVE_SQL;
 
   thd_proc_info(thd, "Changing master");
   /* 
