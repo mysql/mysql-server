@@ -3,7 +3,7 @@ FLUSH TABLES;
 SELECT * FROM t1;
 ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 TRUNCATE TABLE t1;
-ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+ERROR 42S02: Table 'test.t1' doesn't exist
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement

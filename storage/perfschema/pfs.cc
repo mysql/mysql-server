@@ -1625,7 +1625,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
   if (flag_events_waits_history_long)
     insert_events_waits_history_long(wait);
 
-  if (rc == 0)
+  if (rc == 0 && wait->m_timer_state == TIMER_STATE_TIMED)
   {
     /* Thread safe: we are protected by the instrumented mutex */
     PFS_single_stat_chain *stat;
@@ -1635,9 +1635,8 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
 
     ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
     aggregate_single_stat_chain(&mutex->m_wait_stat, wait_time);
-    stat= find_per_thread_mutex_class_wait_stat(wait->m_thread,
-                                                mutex->m_class);
-   aggregate_single_stat_chain(stat, wait_time);
+    stat= find_per_thread_mutex_class_wait_stat(wait->m_thread, mutex->m_class);
+    aggregate_single_stat_chain(stat, wait_time);
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1690,11 +1689,13 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
     rwlock->m_writer= NULL;
     rwlock->m_readers++;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
-    stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread,
-                                                   rwlock->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
+      stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread, rwlock->m_class);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1742,11 +1743,13 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
     rwlock->m_readers= 0;
     rwlock->m_last_read= 0;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
-    stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread,
-                                                 rwlock->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
+      stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread, rwlock->m_class);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1803,11 +1806,13 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
     PFS_single_stat_chain *stat;
     PFS_cond *cond= pfs_locker->m_target.m_cond;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&cond->m_wait_stat, wait_time);
-    stat= find_per_thread_cond_class_wait_stat(wait->m_thread,
-                                               cond->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&cond->m_wait_stat, wait_time);
+      stat= find_per_thread_cond_class_wait_stat(wait->m_thread, cond->m_class);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1850,9 +1855,12 @@ static void end_table_wait_v1(PSI_table_locker* locker)
   if (flag_events_waits_history_long)
     insert_events_waits_history_long(wait);
 
-  PFS_table *table= pfs_locker->m_target.m_table;
-  ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-  aggregate_single_stat_chain(&table->m_wait_stat, wait_time);
+  if (wait->m_timer_state == TIMER_STATE_TIMED)
+  {
+    PFS_table *table= pfs_locker->m_target.m_table;
+    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+    aggregate_single_stat_chain(&table->m_wait_stat, wait_time);
+  }
 
   /*
     There is currently no per table and per thread aggregation.

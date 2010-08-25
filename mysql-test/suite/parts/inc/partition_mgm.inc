@@ -533,6 +533,8 @@ PARTITION BY KEY (a)
 INSERT INTO t1 VALUES (NULL, "First"), (NULL, "Second"), (999, "Last in LT1000"), (NULL, "First in LT2000"), (NULL, "Second in LT2000"), (1999, "Last in LT2000"), (NULL, "First in MAX"), (NULL, "Second in MAX");
 --error ER_PARTITION_MGMT_ON_NONPARTITIONED, ER_ILLEGAL_HA
 ALTER TABLE t1 TRUNCATE PARTITION MAX;
+--sorted_result
+SELECT * FROM t1;
 }
 if (!$no_truncate)
 {

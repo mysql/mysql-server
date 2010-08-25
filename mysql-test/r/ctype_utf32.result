@@ -1091,5 +1091,28 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1, t2;
 #
+# Bug#45263 utf32_general_ci, bad effects around CREATE TABLE AS SELECT
+#
+SET collation_connection=utf32_general_ci;
+CREATE TABLE t1 AS SELECT HEX(0x00) AS my_col;
+SELECT * FROM t1;
+my_col
+00
+DROP TABLE t1;
+#
+# Bug#55912 FORMAT with locale set fails for numbers < 1000
+#
+SET collation_connection=utf32_general_ci;
+CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `format(123,2,'no_NO')` varchar(37) CHARACTER SET utf32 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+format(123,2,'no_NO')
+123,00
+DROP TABLE t1;
+#
 # End of 5.5 tests
 #
