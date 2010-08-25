@@ -5220,8 +5220,10 @@ void do_connect(struct st_command *command)
   }
 #endif
 
+#ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+#endif
 
 #ifdef HAVE_SMEM
   if (con_shm)
@@ -6179,8 +6181,10 @@ get_one_option(int optid, const struct my_option *opt,
     print_version();
     exit(0);
   case OPT_MYSQL_PROTOCOL:
+#ifndef EMBEDDED_LIBRARY
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
+#endif
     break;
   case '?':
     usage();
@@ -7932,8 +7936,10 @@ int main(int argc, char **argv)
     mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
+#ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
     mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#endif
 
 #ifdef HAVE_OPENSSL
 
