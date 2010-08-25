@@ -2677,29 +2677,24 @@ srv_task_execute(void)
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-	/* Normally there shouldn't be any tasks in the work
-	queue, but we play it safe just in case. */
-	if (srv_shutdown_state == 0 && !srv_fast_shutdown) {
+	mutex_enter(&srv_sys->tasks_mutex);
 
-		mutex_enter(&srv_sys->tasks_mutex);
+	if (UT_LIST_GET_LEN(srv_sys->tasks) > 0) {
 
-		if (UT_LIST_GET_LEN(srv_sys->tasks) > 0) {
+		thr = UT_LIST_GET_FIRST(srv_sys->tasks);
 
-			thr = UT_LIST_GET_FIRST(srv_sys->tasks);
+		ut_a(que_node_get_type(thr->child) == QUE_NODE_PURGE);
 
-			ut_a(que_node_get_type(thr->child) == QUE_NODE_PURGE);
+		UT_LIST_REMOVE(queue, srv_sys->tasks, thr);
+	}
 
-			UT_LIST_REMOVE(queue, srv_sys->tasks, thr);
-		}
+	mutex_exit(&srv_sys->tasks_mutex);
 
-		mutex_exit(&srv_sys->tasks_mutex);
+	if (thr != NULL) {
+		que_run_threads(thr);
 
-		if (thr != NULL) {
-			que_run_threads(thr);
-
-			os_atomic_inc_ulint(
-				&purge_sys->mutex, &purge_sys->n_completed, 1);
-		}
+		os_atomic_inc_ulint(
+			&purge_sys->mutex, &purge_sys->n_completed, 1);
 	}
 
 	return(thr != NULL);
@@ -2741,6 +2736,7 @@ srv_worker_thread(
 
 		/* If there is no task in the queue, wakeup the purge
 		coordinator thread. */
+
 		srv_task_execute();
 
 		srv_wake_purge_thread_if_not_active();
@@ -2862,8 +2858,12 @@ srv_purge_coordinator_thread(
 				tasks from the work queue. */
 				while (srv_get_task_queue_length() > 0) {
 
+					ibool	success;
+
 					ut_a(srv_shutdown_state);
-					srv_task_execute();
+
+					success = srv_task_execute();
+					ut_a(success);
 				}
 
 				/* No point in sleeping during shutdown. */
