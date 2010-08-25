@@ -1086,7 +1086,7 @@ drop table t1;
 --echo End of 5.1 tests
 
 --echo #
---echo # Bug#55648: Server crash on MIN/MAX on maximum time value
+--echo # Bug#55648: Server crash on MIX/MAX on maximum time value
 --echo #
 CREATE TABLE t1(c1 TIME NOT NULL);
 INSERT INTO t1 VALUES('837:59:59');
@@ -1094,13 +1094,4 @@ INSERT INTO t1 VALUES('838:59:59');
 SELECT MAX(c1) FROM t1;
 DROP TABLE t1;
 --echo # End of the bug#55648
-
---echo #
---echo # Bug#56120: Failed assertion on MIN/MAX on negative time value
---echo #
-CREATE TABLE t1(c1 TIME NOT NULL);
-INSERT INTO t1 VALUES('-00:00:01');
-SELECT MAX(c1),MIN(c1) FROM t1;
-DROP TABLE t1;
---echo # End of the bug#56120
 
