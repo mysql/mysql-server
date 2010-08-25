@@ -12723,7 +12723,9 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     copy_fields(&join->tmp_table_param);
-    copy_funcs(join->tmp_table_param.items_to_copy);
+    if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+
     if (!join->having || join->having->val_int())
     {
       int error;
@@ -12813,7 +12815,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       memcpy(table->record[0]+key_part->offset, group->buff, 1);
   }
   init_tmptable_sum_functions(join->sum_funcs);
-  copy_funcs(join->tmp_table_param.items_to_copy);
+  if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
   if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
@@ -12848,7 +12851,8 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   init_tmptable_sum_functions(join->sum_funcs);
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
-  copy_funcs(join->tmp_table_param.items_to_copy);
+  if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
   if (!(error=table->file->ha_write_row(table->record[0])))
     join->send_records++;			// New group
@@ -12935,7 +12939,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (idx < (int) join->send_group_parts)
     {
       copy_fields(&join->tmp_table_param);
-      copy_funcs(join->tmp_table_param.items_to_copy);
+      if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (join->procedure)
@@ -15807,14 +15812,39 @@ update_sum_func(Item_sum **func_ptr)
   return 0;
 }
 
-/** Copy result of functions to record in tmp_table. */
+/** 
+  Copy result of functions to record in tmp_table. 
 
-void
-copy_funcs(Item **func_ptr)
+  Uses the thread pointer to check for errors in 
+  some of the val_xxx() methods called by the 
+  save_in_result_field() function.
+  TODO: make the Item::val_xxx() return error code
+
+  @param func_ptr  array of the function Items to copy to the tmp table
+  @param thd       pointer to the current thread for error checking
+  @retval
+    FALSE if OK
+  @retval
+    TRUE on error  
+*/
+
+bool
+copy_funcs(Item **func_ptr, const THD *thd)
 {
   Item *func;
   for (; (func = *func_ptr) ; func_ptr++)
+  {
     func->save_in_result_field(1);
+    /*
+      Need to check the THD error state because Item::val_xxx() don't
+      return error code, but can generate errors
+      TODO: change it for a real status check when Item::val_xxx()
+      are extended to return status code.
+    */  
+    if (thd->is_error())
+      return TRUE;
+  }
+  return FALSE;
 }
 
 
