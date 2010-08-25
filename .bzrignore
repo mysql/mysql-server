@@ -997,6 +997,7 @@ libmysqld/.deps/sql_cursor.Po
 libmysqld/.deps/sql_db.Po
 libmysqld/.deps/sql_delete.Po
 libmysqld/.deps/sql_truncate.Po
+libmysqld/.deps/sql_reload.Po
 libmysqld/.deps/datadict.Po
 libmysqld/.deps/sql_derived.Po
 libmysqld/.deps/sql_do.Po
@@ -1175,6 +1176,7 @@ libmysqld/sql_cursor.h
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
 libmysqld/sql_truncate.cc
+libmysqld/sql_reload.cc
 libmysqld/datadict.cc
 libmysqld/sql_derived.cc
 libmysqld/sql_do.cc
@@ -2067,6 +2069,7 @@ sql/.deps/sql_cursor.Po
 sql/.deps/sql_db.Po
 sql/.deps/sql_delete.Po
 sql/.deps/sql_truncate.Po
+sql/.deps/sql_reload.Po
 sql/.deps/datadict.Po
 sql/.deps/sql_derived.Po
 sql/.deps/sql_do.Po

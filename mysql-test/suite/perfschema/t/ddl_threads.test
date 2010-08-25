@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (C) 2008-2009 Sun Microsystems, Inc
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,15 +18,15 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_result '\'setup_objects' '\'SETUP_OBJECTS'
 -- error ER_DBACCESS_DENIED_ERROR
-alter table performance_schema.SETUP_OBJECTS add column foo integer;
+alter table performance_schema.THREADS add column foo integer;
 
-truncate table performance_schema.SETUP_OBJECTS;
-
--- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.SETUP_OBJECTS ADD INDEX test_index(OBJECT_NAME);
+-- error ER_WRONG_PERFSCHEMA_USAGE
+truncate table performance_schema.THREADS;
 
 -- error ER_DBACCESS_DENIED_ERROR
-CREATE UNIQUE INDEX test_index ON performance_schema.SETUP_OBJECTS(OBJECT_NAME);
+ALTER TABLE performance_schema.THREADS ADD INDEX test_index(ID);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.THREADS(ID);
 
