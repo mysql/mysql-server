@@ -2830,6 +2830,15 @@ row_truncate_table_for_mysql(
 
 	trx->table_id = table->id;
 
+	/* Lock all index trees for this table, as we will
+	truncate the table/index and possibly change their metadata.
+	All DML/DDL are blocked by table level lock, with
+	a few exceptions such as queries into information schema
+	about the table, MySQL could try to access index stats
+	for this kind of query, we need to use index locks to
+	sync up */
+	dict_table_x_lock_indexes(table);
+
 	/* scan SYS_INDEXES for all indexes of the table */
 	heap = mem_heap_create(800);
 
@@ -2901,6 +2910,10 @@ next_rec:
 	mtr_commit(&mtr);
 
 	mem_heap_free(heap);
+
+	/* Done with index truncation, release index tree locks,
+	subsequent work relates to table level metadata change */
+	dict_table_x_unlock_indexes(table);
 
 	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
