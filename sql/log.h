@@ -394,10 +394,10 @@ public:
   /* Use this to start writing a new log file */
   void new_file();
 
-  bool write(Log_event* event_info);
+  bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-  bool write_incident(THD *thd, bool lock);
 
+  bool write_incident(THD *thd, bool lock);
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
   void set_write_error(THD *thd);
   bool check_write_error(THD *thd);
