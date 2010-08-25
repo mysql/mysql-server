@@ -322,15 +322,15 @@ public:
   bool isEmpty() const
   { return m_iterState == Iter_finished; }
 
-  /** This method is only relevant for scan nodes. It is used for marking 
-   * a resuilt stream as holding the last batch of a sub scan, 
+  /** This method is used for marking a result stream to tell that it (or its 
+   * closest scan decendant stream) is holding the last batch of a sub scan, 
    * meaning that it is the last batch of the scan that was instantiated from 
    * the current batch of its parent operation.*/
   void setSubScanComplete(bool complete)
   { m_subScanComplete = complete; }
 
-  /** This method is only relevant for scan nodes. It returns true if the
-   * current batch is the last batch of a sub scan, meaning that it is the
+  /** This method returns true if this result stream (or its closest scan 
+   * descendant) holds the last batch of a sub scan, meaning that it is the
    * last batch of the scan that was instantiated from the current batch
    * of its parent operation.*/
   bool isSubScanComplete()
@@ -374,10 +374,10 @@ private:
    * getNextScanRow())*/
   Uint16 m_currentParentId;
   
-  /** This field is only relevant for scan nodes. It is true if the
-   * current batch is the last batch of a sub scan, meaning that it is the
-   * last batch of the scan that was instantiated from the current batch
-   * of its parent operation.*/
+  /** This field is used for marking a result stream to tell that it (or its 
+   * closest scan decendant stream) is holding the last batch of a sub scan, 
+   * meaning that it is the last batch of the scan that was instantiated from 
+   * the current batch of its parent operation.*/
   bool m_subScanComplete;
 
   /**
@@ -767,8 +767,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
       {
         return ScanRowResult_endOfScan;
       }
-      else if(isSubScanComplete() || 
-              !m_operation.getQueryOperationDef().isScanOperation())
+      else if(isSubScanComplete())
       {
         /* Next batch will contain rows related the next batch of the
          * parent scan. So if this is a left outer join, we can generate
@@ -4325,6 +4324,9 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   }
 
   const NdbQueryDefImpl& queryDef = m_queryImpl.getQueryDef();
+  /* Mark each scan node to indicate if the current batch is the last in the
+   * current sub-scan or not.
+   */
   for(Uint32 opNo = 0; opNo <  queryDef.getNoOfOperations(); opNo++)
   {
     /* Find the node number seen by the SPJ block. Since a unique index
@@ -4333,11 +4335,23 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     const Uint32 internalOpNo = 
       queryDef.getQueryOperation(opNo).getQueryOperationId();
     assert(internalOpNo >= opNo);
-    /* Mark each scan node to indicate if the current batch is the last in the
-     * current sub-scan.
-     */
-    rootFrag.getResultStream(opNo)
-      .setSubScanComplete((nodeMask & (1 << internalOpNo)) == 0);
+    if (((nodeMask >> internalOpNo) & 1) == 1)
+    {
+      NdbQueryOperationImpl* ancestor = &m_queryImpl.getQueryOperation(opNo);
+      assert(ancestor->getQueryOperationDef().isScanOperation());
+      do
+      {
+        // Mark this scan and its lookup ancestors as not complete.
+        assert(ancestor->getQueryOperationDef().getQueryOperationIx() <= opNo);
+        ancestor->getResultStream(rootFrag.getFragNo()).setSubScanComplete(false);
+        ancestor = ancestor->getParentOperation();
+      } while (ancestor != NULL && 
+               !ancestor->getQueryOperationDef().isScanOperation());
+    }
+    else
+    {
+      rootFrag.getResultStream(opNo).setSubScanComplete(true);
+    }
   }
 #ifndef NDEBUG
   const NdbQueryOperationDefImpl& finalOpDef = 

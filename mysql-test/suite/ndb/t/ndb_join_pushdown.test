@@ -2418,6 +2418,27 @@ insert into t1 values (12,12,20,10);
 explain select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
 select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
 
+# Test left join with mix of scan and lookup.
+explain select count(*) from t1 as x1 
+left join t1 as x2 on x1.u=x2.pk 
+left join t1 as x3 on x2.a=x3.b;
+
+select count(*) from t1 as x1 
+left join t1 as x2 on x1.u=x2.pk 
+left join t1 as x3 on x2.a=x3.b;
+
+explain select count(*) from t1 as x1
+left join t1 as x2 on x1.u=x2.pk
+left join t1 as x3 on x2.a=x3.b
+left join t1 as x4 on x3.u=x4.pk
+left join t1 as x5 on x4.a=x5.b;
+
+select count(*) from t1 as x1
+left join t1 as x2 on x1.u=x2.pk
+left join t1 as x3 on x2.a=x3.b
+left join t1 as x4 on x3.u=x4.pk
+left join t1 as x5 on x4.a=x5.b;
+
 drop table t1;
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
