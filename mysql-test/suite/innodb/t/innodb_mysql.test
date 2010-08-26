@@ -768,9 +768,14 @@ START TRANSACTION;
 SELECT * FROM t1 LOCK IN SHARE MODE;
 
 connection con1;
+let $conn_id= `SELECT CONNECTION_ID()`;
 --send SELECT * FROM t1 FOR UPDATE
 
 connection con2;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=$conn_id AND STATE='Sending data';
+--source include/wait_condition.inc
 --echo # should not crash
 --error ER_LOCK_DEADLOCK
 SELECT * FROM t1 GROUP BY (SELECT a FROM t2 LIMIT 1 FOR UPDATE) + t1.a;
