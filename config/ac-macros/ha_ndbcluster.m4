@@ -206,7 +206,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   else
     # no extra ndb debug but still do asserts if debug version
-    if test "$with_debug" = "yes" -o "$with_debug" = "full"
+    if test "$with_debug" = "yes"
     then
       NDB_DEFS=""
     else

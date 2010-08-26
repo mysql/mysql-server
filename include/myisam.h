@@ -118,7 +118,7 @@ extern "C" {
                             (_to_)= (mi_get_mask_all_keys_active(_maxkeys_) & \
                                      (_from_))
 
-	/* Param to/from mi_info */
+	/* Param to/from mi_status */
 
 typedef struct st_mi_isaminfo		/* Struct from h_info */
 {
@@ -249,7 +249,7 @@ typedef struct st_columndef		/* column information */
 
 extern char * myisam_log_filename;		/* Name of logfile */
 extern ulong myisam_block_size;
-extern uint myisam_concurrent_insert;
+extern ulong myisam_concurrent_insert;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_off_t myisam_max_temp_length;
 extern ulong myisam_data_pointer_size;
