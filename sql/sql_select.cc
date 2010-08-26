@@ -8885,10 +8885,10 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     
   /* Flatten nested joins that can be flattened. */
   TABLE_LIST *right_neighbor= NULL;
-  bool fix_name_res= FALSE;
   li.rewind();
   while ((table= li++))
   {
+    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (nested_join && !table->on_expr)
     {
