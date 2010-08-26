@@ -3309,11 +3309,17 @@ Ndbcntr::StopRecord::checkLqhTimeout_1(Signal* signal){
   cntr.sendSignalWithDelay(cntr.reference(), GSN_CONTINUEB, signal, 100, 1);
 }
 
-void Ndbcntr::execCHANGE_NODE_STATE_CONF(Signal* signal){
+void
+Ndbcntr::execCHANGE_NODE_STATE_CONF(Signal* signal)
+{
   jamEntry();
+
+  /**
+   * stop replication stream
+   */
   signal->theData[0] = reference();
   signal->theData[1] = 12;
-  sendSignal(DBDIH_REF, GSN_STOP_ME_REQ, signal, 2, JBB);
+  sendSignal(SUMA_REF, GSN_STOP_ME_REQ, signal, 2, JBB);
 }
 
 void Ndbcntr::execSTOP_ME_REF(Signal* signal){
@@ -3324,6 +3330,18 @@ void Ndbcntr::execSTOP_ME_REF(Signal* signal){
 
 void Ndbcntr::execSTOP_ME_CONF(Signal* signal){
   jamEntry();
+
+  const StopMeConf * conf = CAST_CONSTPTR(StopMeConf, signal->getDataPtr());
+  if (conf->senderData == 12)
+  {
+    /**
+     * Remove node from transactions
+     */
+    signal->theData[0] = reference();
+    signal->theData[1] = 13;
+    sendSignal(DBDIH_REF, GSN_STOP_ME_REQ, signal, 2, JBB);
+    return;
+  }
 
   NodeState newState(NodeState::SL_STOPPING_4, 
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
