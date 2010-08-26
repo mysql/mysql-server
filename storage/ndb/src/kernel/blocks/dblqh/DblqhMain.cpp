@@ -10291,10 +10291,12 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
      * scans initiated by the same SPJ block will have the same root fragment 
      * id.)
      * FIXME: The code below will break if there are more than 255 tuples in a 
-     * batch or more than 255 data nodes.
+     * batch or more than 255 fragments.
+     *
+     * NOTE: this can be fixed "only" in Dbspj...
      */
-    ndbassert(getOwnNodeId() < 0x100);
-    tcPtrP->m_anyValue |= getOwnNodeId() << 8;
+    ndbassert(tcPtrP->fragmentid < 0x100);
+    tcPtrP->m_anyValue |= (tcPtrP->fragmentid << 8);
     firstWord &= 0xF; // Remove length+range num from first word
     
     /* Write range info to dst */
