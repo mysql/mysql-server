@@ -44,18 +44,20 @@ struct view {
   const char* sql;
 } views[] =
 {
+#if 0
   { "pools",
     "SELECT node_id, b.block_name, block_instance, pool_name, "
     "used, total, high, entry_size, cp1.param_name AS param_name1, "
     "cp2.param_name AS param_name2, cp3.param_name AS param_name3, "
     "cp4.param_name AS param_name4 "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>pools p "
-    "JOIN <NDBINFO_DB>.blocks b ON p.block_number = b.block_number "
+    "LEFT JOIN <NDBINFO_DB>.blocks b ON p.block_number = b.block_number "
     "LEFT JOIN <NDBINFO_DB>.config_params cp1 ON p.config_param1 = cp1.param_number "
     "LEFT JOIN <NDBINFO_DB>.config_params cp2 ON p.config_param2 = cp2.param_number "
     "LEFT JOIN <NDBINFO_DB>.config_params cp3 ON p.config_param3 = cp3.param_number "
     "LEFT JOIN <NDBINFO_DB>.config_params cp4 ON p.config_param4 = cp4.param_number"
   },
+#endif
   { "transporters",
     "SELECT node_id, remote_node_id, "
     " CASE connection_status"
@@ -126,9 +128,9 @@ struct view {
     "  ELSE \"<unknown>\" "
     " END AS counter_name, "
     "val "
-    "FROM <NDBINFO_DB>.<TABLE_PREFIX>counters c, "
-    "<NDBINFO_DB>.blocks b "
-    "WHERE c.block_number = b.block_number"
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>counters c "
+    "LEFT JOIN <NDBINFO_DB>.blocks b "
+    "ON c.block_number = b.block_number"
    },
    { "nodes",
     "SELECT node_id, "
@@ -203,12 +205,12 @@ struct lookup {
 } lookups[] =
 {
   { "blocks",
-    "block_number INT UNSIGNED, "
+    "block_number INT UNSIGNED PRIMARY KEY, "
     "block_name VARCHAR(512)",
     &fill_blocks
    },
   { "config_params",
-    "param_number INT UNSIGNED, "
+    "param_number INT UNSIGNED PRIMARY KEY, "
     "param_name VARCHAR(512)",
     &fill_config_params
    }
@@ -409,7 +411,7 @@ int main(int argc, char** argv){
 
     /* Create or replace the view */
     BaseString sql;
-    sql.assfmt("CREATE OR REPLACE "
+    sql.assfmt("CREATE OR REPLACE DEFINER=`root@localhost` "
                "SQL SECURITY INVOKER VIEW `%s`.`%s` AS %s",
                opt_ndbinfo_db, v.name, view_sql.c_str());
     print_conditional_sql(sql);

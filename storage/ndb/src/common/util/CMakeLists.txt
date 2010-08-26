@@ -45,7 +45,7 @@ ADD_LIBRARY(ndbgeneral STATIC
             uucode.c
             random.c
             ndb_rand.c
-            version.c
+            version.cpp
             strdup.c
             ConfigValues.cpp
             ndb_init.cpp
@@ -70,6 +70,11 @@ ADD_EXECUTABLE(Parser-t Parser.cpp)
 SET_TARGET_PROPERTIES(Parser-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_PARSER")
 TARGET_LINK_LIBRARIES(Parser-t ndbgeneral)
+
+ADD_EXECUTABLE(ndb_version-t version.cpp)
+SET_TARGET_PROPERTIES(ndb_version-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_VERSION")
+TARGET_LINK_LIBRARIES(ndb_version-t ndbgeneral)
 
 ADD_EXECUTABLE(require-test require.c)
 SET_TARGET_PROPERTIES(require-test

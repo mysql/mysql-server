@@ -28,7 +28,6 @@
 #include <sys/locking.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <math.h>			/* Because of rint() */
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>

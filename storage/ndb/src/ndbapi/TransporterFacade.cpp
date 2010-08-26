@@ -365,7 +365,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        {
 	 Uint32* send= tSignal.getDataPtrSend();
 	 memcpy(send, theData, tSignal.getLength() << 2);
-	 ((SubGcpCompleteAck*)send)->rep.senderRef = 
+	 CAST_PTR(SubGcpCompleteAck, send)->rep.senderRef = 
 	   numberToRef(API_CLUSTERMGR, theOwnId);
 	 Uint32 ref= header->theSendersBlockRef;
 	 Uint32 aNodeId= refToNode(ref);
@@ -439,6 +439,10 @@ TransporterFacade::start_instance(NodeId nodeId,
   assert(theOwnId == 0);
   theOwnId = nodeId;
 
+#if defined SIGPIPE && !defined _WIN32
+  (void)signal(SIGPIPE, SIG_IGN);
+#endif
+
   theTransporterRegistry = new TransporterRegistry(this);
   if (theTransporterRegistry == NULL)
     return -1;
@@ -471,16 +475,6 @@ TransporterFacade::start_instance(NodeId nodeId,
                                    NDB_THREAD_PRIO_LOW);
 
   theClusterMgr->startThread();
-
-  /**
-   * Install signal handler for SIGPIPE
-   *
-   * This due to the fact that a socket connection might have
-   * been closed in between a select and a corresponding send
-   */
-#if !defined NDB_WIN32
-  signal(SIGPIPE, SIG_IGN);
-#endif
 
   return 0;
 }

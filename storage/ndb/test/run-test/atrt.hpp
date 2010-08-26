@@ -193,7 +193,6 @@ extern const char * g_clusters;
 #ifdef _WIN32
 #include <direct.h>
 #include <sys/stat.h>
-#include <io.h>
 
 inline int lstat(const char *name, struct stat *buf) {
   return stat(name, buf);
@@ -207,11 +206,6 @@ inline int S_ISDIR(int x) {
   return x & _S_IFDIR;
 }
 
-#define S_IRUSR _S_IREAD
-#define S_IWUSR _S_IWRITE
-#define S_IXUSR _S_IEXEC
-#define S_IXGRP _S_IEXEC
-#define S_IRGRP _S_IREAD
 #endif
 
 

@@ -88,6 +88,16 @@ struct CntrWaitRep
 {
   Uint32 nodeId;
   Uint32 waitPoint;
+  Uint32 request;
+  Uint32 sp;
+
+  enum Request
+  {
+    WaitFor = 1,
+    Grant = 2
+  };
+
+  STATIC_CONST( SignalLength = 4 );
 
   enum WaitPos
   {

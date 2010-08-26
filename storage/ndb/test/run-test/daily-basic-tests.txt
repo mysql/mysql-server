@@ -243,7 +243,7 @@ max-time: 500
 cmd: testBasic
 args: -n InsertError2 T1
 
-max-time: 500
+max-time: 600
 cmd: testTimeout
 args: T1 
 
@@ -1032,6 +1032,11 @@ cmd: test_event
 args: -n EventOperationApplier_NR -l 2
 
 #
+max-time: 600
+cmd: test_event
+args: -n EventOperationApplier_NS T1
+
+#
 max-time: 3600
 cmd: test_event
 args: -n MergeEventOperationApplier_NR -l 2
@@ -1162,6 +1167,10 @@ args: -n GCP -l 1 T1
 max-time: 1200
 cmd: testNodeRestart
 args: -n Bug41469 T1
+
+max-time: 600
+cmd: testBasic
+args: -n Bug54986 D2
 
 max-time: 1500
 cmd: testSystemRestart
@@ -1474,6 +1483,10 @@ args: -n Bug44915 T1
 max-time: 3600
 cmd: testNodeRestart
 args: -n Bug44952 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug56044 T1
 
 max-time: 300
 cmd: testSystemRestart

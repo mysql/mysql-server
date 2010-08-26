@@ -64,6 +64,9 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_SUB_GCP_COMPLETE_ACK, 
 	       &Suma::execSUB_GCP_COMPLETE_ACK);
   
+  addRecSignal(GSN_STOP_ME_REQ,
+               &Suma::execSTOP_ME_REQ);
+
   /**
    * SUMA participant if
    */
@@ -134,6 +137,7 @@ Suma::Suma(Block_context& ctx) :
   c_current_seq = 0;
   c_restart.m_ref = 0;
   c_startup.m_restart_server_node_id = RNIL; // Server for my NR
+  c_shutdown.m_wait_handover = false;
 
 #ifdef VM_TRACE
   m_gcp_monitor = 0;

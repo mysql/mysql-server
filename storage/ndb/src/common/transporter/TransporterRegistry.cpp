@@ -1052,7 +1052,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     hasdata |= t->hasReceiveData();
   }
 
-  tcpReadSelectReply = m_socket_poller.poll(hasdata ? 0 : timeOutMillis);
+  tcpReadSelectReply = m_socket_poller.poll_unsafe(hasdata ? 0 : timeOutMillis);
 
   return tcpReadSelectReply || hasdata;
 }
@@ -1399,7 +1399,7 @@ TransporterRegistry::setIOState(NodeId nodeId, IOState state) {
   ioStates[nodeId] = state;
 }
 
-static void * 
+extern "C" void *
 run_start_clients_C(void * me)
 {
   ((TransporterRegistry*) me)->start_clients_thread();
@@ -1827,7 +1827,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 }
 
 #ifdef NDB_SHM_TRANSPORTER
-static
+extern "C"
 RETSIGTYPE 
 shm_sig_handler(int signo)
 {

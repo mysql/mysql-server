@@ -630,4 +630,23 @@ SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newO
 
 drop table t1;
 
---echo End of ndb native default support test
+--echo Bug#55121 error 839 'Illegal null attribute' from NDB for fields with default value
+--echo Ensure that Ndb handler doesn't expect native defaults for Blobs.
+
+CREATE TABLE t1 (
+  fid smallint(6) unsigned NOT NULL DEFAULT '0',
+  f01 text NOT NULL,
+  f02 varchar(255) NOT NULL DEFAULT '',
+  f03 text NOT NULL DEFAULT '',
+  PRIMARY KEY (fid)
+) engine=ndb;
+
+show warnings;
+
+show create table t1;
+
+insert into t1(fid) value(100);
+
+select fid, isnull(f01), isnull(f02), isnull(f03) from t1;
+
+drop table t1;

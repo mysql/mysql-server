@@ -27,6 +27,7 @@
 #include "APIService.hpp"
 #include <NdbMain.h>
 #include <NdbSleep.h>
+#include <portlib/NdbDir.hpp>
 #include <BaseString.hpp>
 #include <logger/Logger.hpp>
 #include <logger/FileLogHandler.hpp>
@@ -71,28 +72,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 
 static CPCD * g_cpcd = 0;
-
-
-static bool
-create_directory(const char* dir)
-{
-#ifdef _WIN32
-  if (CreateDirectory(dir, NULL) == 0)
-  {
-    logger.warning("Failed to create directory '%s', error: %d",
-                     dir, GetLastError());
-    return false;
-  }
-#else
-  if (mkdir(dir, S_IRWXU | S_IRGRP | S_IROTH) != 0)
-  {
-    logger.warning("Failed to create directory '%s', error: %d",
-                    dir, errno);
-    return false;
-  }
-#endif
-  return true;
-}
 
 
 int main(int argc, char** argv){
@@ -152,7 +131,8 @@ int main(int argc, char** argv){
   {
     logger.info("Working directory '%s' does not exist, trying "
                 "to create it", work_dir);
-    if (!create_directory(work_dir))
+    if (!NdbDir::create(work_dir,
+                        NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::o_r()))
     {
       logger.error("Failed to create working directory, terminating!");
       exit(1);

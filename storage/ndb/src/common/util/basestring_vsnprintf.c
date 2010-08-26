@@ -22,7 +22,6 @@
 #endif
 #include <stdio.h>
 #include <basestring_vsnprintf.h>
-#include <my_global.h>
 
 int
 basestring_snprintf(char *str, size_t size, const char *format, ...)

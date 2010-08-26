@@ -16,7 +16,6 @@
 
 #include <ndb_global.h>
 #include <ndb_version.h>
-#include <signal.h>
 
 #include "angel.hpp"
 #include "ndbd.hpp"
@@ -50,7 +49,7 @@ reportShutdown(const ndb_mgm_configuration* config,
          (!restart && !initial && !nostart));
 
   Uint32 length, theData[25];
-  EventReport *rep=(EventReport *) theData;
+  EventReport *rep= CAST_PTR(EventReport, &theData[0]);
 
   rep->setNodeId(nodeid);
   if (restart)
@@ -378,6 +377,8 @@ spawn_process(const char* progname, const BaseString& args)
 }
 
 static Uint32 stop_on_error;
+static Uint32 config_max_start_fail_retries;
+static Uint32 config_restart_delay_secs; 
 
 
 /*
@@ -412,6 +413,18 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
   }
   g_eventLogger->debug("Using StopOnError: %u", stop_on_error);
 
+  if (iter.get(CFG_DB_MAX_START_FAIL, &config_max_start_fail_retries))
+  {
+    /* Old Management node, use default value */
+    config_max_start_fail_retries = 3;
+  }
+
+  if (iter.get(CFG_DB_START_FAIL_DELAY_SECS, &config_restart_delay_secs))
+  {
+    /* Old Management node, use default value */
+    config_restart_delay_secs = 0;
+  }
+  
   const char * datadir;
   if (iter.get(CFG_NODE_DATADIR, &datadir))
   {
@@ -667,11 +680,11 @@ angel_run(const BaseString& original_args,
 
     // Check startup failure
     const Uint32 STARTUP_FAILURE_SPHASE = 6;
-    const Uint32 MAX_FAILED_STARTUPS = 3;
+    Uint32 restart_delay_secs = 0;
     if (error_exit && // Only check startup failure if ndbd exited uncontrolled
         child_sphase <= STARTUP_FAILURE_SPHASE)
     {
-      if (++failed_startups_counter >= MAX_FAILED_STARTUPS)
+      if (++failed_startups_counter >= config_max_start_fail_retries)
       {
         g_eventLogger->alert("Angel detected too many startup failures(%d), "
                              "not restarting again", failed_startups_counter);
@@ -682,6 +695,8 @@ angel_run(const BaseString& original_args,
       }
       g_eventLogger->info("Angel detected startup failure, count: %u",
                           failed_startups_counter);
+      
+      restart_delay_secs = config_restart_delay_secs;
     }
     else
     {
@@ -698,6 +713,13 @@ angel_run(const BaseString& original_args,
 
     g_eventLogger->debug("Angel reconnecting to management server");
     (void)retriever.disconnect();
+
+    if (restart_delay_secs > 0)
+    {
+      g_eventLogger->info("Delaying Ndb restart for %u seconds.",
+                          restart_delay_secs);
+      NdbSleep_SecSleep(restart_delay_secs);
+    };
 
     const int connnect_retries = 12;
     const int connect_delay = 5;
