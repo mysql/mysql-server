@@ -16,11 +16,6 @@
 # in order to not slow down much `make test'.
 #
 --source include/have_binlog_format_mixed.inc
-####
-# We are temporary disabling this until we finish WL#2775.
---source include/not_master_info_table.inc
---source include/not_relay_log_info_table.inc
-####
 --echo
 
 --echo *** Preparing ***
