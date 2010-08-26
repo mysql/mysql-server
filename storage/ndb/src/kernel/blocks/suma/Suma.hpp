@@ -464,6 +464,8 @@ public:
   void execSUMA_START_ME_REF(Signal* signal);
   void execSUMA_START_ME_CONF(Signal* signal);
 
+  void execSTOP_ME_REQ(Signal*);
+
   void copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator);
   void sendSubCreateReq(Signal* signal, Ptr<Subscription>);
   void copySubscriber(Signal*, Ptr<Subscription>, Ptr<Subscriber>);
@@ -508,6 +510,16 @@ private:
     NdbNodeBitmask m_handover_nodes;
   } c_startup;
 
+  /**
+   * for graceful shutdown
+   */
+  struct Shutdown
+  {
+    bool m_wait_handover;
+    Uint32 m_senderRef;
+    Uint32 m_senderData;
+  } c_shutdown;
+
   struct Restart
   {
     Uint16 m_abort;
@@ -535,7 +547,7 @@ private:
   void send_dict_lock_req(Signal* signal);
   void send_start_me_req(Signal* signal);
   void check_start_handover(Signal* signal);
-  void send_handover_req(Signal* signal);
+  void send_handover_req(Signal* signal, Uint32 type);
 
   Uint32 get_responsible_node(Uint32 B) const;
   Uint32 get_responsible_node(Uint32 B, const NdbNodeBitmask& mask) const;
@@ -558,6 +570,7 @@ private:
       ,BUCKET_HANDOVER = 0x2 // On running node
       ,BUCKET_TAKEOVER = 0x4 // On takeing over node
       ,BUCKET_RESEND   = 0x8 // On takeing over node
+      ,BUCKET_SHUTDOWN = 0x10 // Graceful shutdown
     };
     Uint16 m_state;
     Uint16 m_switchover_node;
