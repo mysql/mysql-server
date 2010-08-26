@@ -2417,6 +2417,9 @@ insert into t1 values (12,12,20,10);
 
 explain select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
 select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
+set ndb_join_pushdown=off;
+select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
+set ndb_join_pushdown=on;
 
 # Test left join with mix of scan and lookup.
 explain select count(*) from t1 as x1 
@@ -2426,6 +2429,11 @@ left join t1 as x3 on x2.a=x3.b;
 select count(*) from t1 as x1 
 left join t1 as x2 on x1.u=x2.pk 
 left join t1 as x3 on x2.a=x3.b;
+set ndb_join_pushdown=off;
+select count(*) from t1 as x1 
+left join t1 as x2 on x1.u=x2.pk 
+left join t1 as x3 on x2.a=x3.b;
+set ndb_join_pushdown=on;
 
 explain select count(*) from t1 as x1
 left join t1 as x2 on x1.u=x2.pk
@@ -2433,11 +2441,22 @@ left join t1 as x3 on x2.a=x3.b
 left join t1 as x4 on x3.u=x4.pk
 left join t1 as x5 on x4.a=x5.b;
 
+###
+#
+# NOTE!!!! This returns incorrect count(*) when pushed...
+#          (almost always :()
 select count(*) from t1 as x1
 left join t1 as x2 on x1.u=x2.pk
 left join t1 as x3 on x2.a=x3.b
 left join t1 as x4 on x3.u=x4.pk
 left join t1 as x5 on x4.a=x5.b;
+set ndb_join_pushdown=off;
+select count(*) from t1 as x1
+left join t1 as x2 on x1.u=x2.pk
+left join t1 as x3 on x2.a=x3.b
+left join t1 as x4 on x3.u=x4.pk
+left join t1 as x5 on x4.a=x5.b;
+set ndb_join_pushdown=on;
 
 drop table t1;
 
