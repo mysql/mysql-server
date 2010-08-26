@@ -47,6 +47,7 @@
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/DihFragCount.hpp>
 #include <signaldata/SystemError.hpp>
+#include <signaldata/StopMe.hpp>
 
 #include <signaldata/DictLock.hpp>
 #include <ndbapi/NdbDictionary.hpp>
@@ -618,12 +619,12 @@ Suma::check_start_handover(Signal* signal)
     }
     
     c_startup.m_wait_handover= false;
-    send_handover_req(signal);
+    send_handover_req(signal, SumaHandoverReq::RT_START_NODE);
   }
 }
 
 void
-Suma::send_handover_req(Signal* signal)
+Suma::send_handover_req(Signal* signal, Uint32 type)
 {
   c_startup.m_handover_nodes.assign(c_alive_nodes);
   c_startup.m_handover_nodes.bitAND(c_nodes_in_nodegroup_mask);
@@ -633,12 +634,15 @@ Suma::send_handover_req(Signal* signal)
   SumaHandoverReq* req= (SumaHandoverReq*)signal->getDataPtrSend();
   char buf[255];
   c_startup.m_handover_nodes.getText(buf);
-  infoEvent("Suma: initiate handover with nodes %s GCI: %d",
-	    buf, gci);
+  infoEvent("Suma: initiate handover for %s with nodes %s GCI: %d",
+            (type == SumaHandoverReq::RT_START_NODE ? "startup" : "shutdown"),
+            buf,
+            gci);
 
   req->gci = gci;
   req->nodeId = getOwnNodeId();
-  
+  req->requestType = type;
+
   NodeReceiverGroup rg(SUMA, c_startup.m_handover_nodes);
   sendSignal(rg, GSN_SUMA_HANDOVER_REQ, signal, 
 	     SumaHandoverReq::SignalLength, JBB);
@@ -1097,6 +1101,14 @@ Suma::execNODE_FAILREP(Signal* signal){
 	  progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
 		    "Nodefailure during SUMA takeover");
 	}
+        else if (state & Bucket::BUCKET_SHUTDOWN)
+        {
+          jam();
+          c_buckets[i].m_state &= ~Uint32(Bucket::BUCKET_SHUTDOWN);
+          m_switchover_buckets.clear(i);
+          ndbrequire(get_responsible_node(i, tmp) == getOwnNodeId());
+          start_resend(signal, i);
+        }
       }
       else if(get_responsible_node(i, tmp) == getOwnNodeId())
       {
@@ -3791,6 +3803,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   {
     NdbNodeBitmask takeover_nodes;
     NdbNodeBitmask handover_nodes;
+    NdbNodeBitmask shutdown_nodes;
     Uint32 i = m_switchover_buckets.find(0);
     for(; i != Bucket_mask::NotFound; i = m_switchover_buckets.find(i + 1))
     {
@@ -3840,6 +3853,27 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_TAKEOVER;
 	  takeover_nodes.set(c_buckets[i].m_switchover_node);
 	}
+        else if (state & Bucket::BUCKET_SHUTDOWN)
+        {
+          Uint32 nodeId = c_buckets[i].m_switchover_node;
+          if (nodeId == getOwnNodeId())
+          {
+            jam();
+            m_active_buckets.clear(i);
+            shutdown_nodes.set(nodeId);
+          }
+          else
+          {
+            jam();
+            NdbNodeBitmask nodegroup = c_nodes_in_nodegroup_mask;
+            nodegroup.clear(nodeId);
+            ndbrequire(get_responsible_node(i) == nodeId &&
+                       get_responsible_node(i, nodegroup) == getOwnNodeId());
+            m_active_buckets.set(i);
+            takeover_nodes.set(nodeId);
+          }
+          c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_SHUTDOWN;
+        }
 	else
 	{
 	  /**
@@ -3854,14 +3888,28 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     }
     ndbassert(handover_nodes.count() == 0 || 
 	      m_gcp_complete_rep_count > handover_nodes.count());
-    m_gcp_complete_rep_count -= handover_nodes.count();
     m_gcp_complete_rep_count += takeover_nodes.count();
+    m_gcp_complete_rep_count -= handover_nodes.count();
+    m_gcp_complete_rep_count -= shutdown_nodes.count();
 
-    if(getNodeState().startLevel == NodeState::SL_STARTING && 
-       m_switchover_buckets.isclear() && 
-       c_startup.m_handover_nodes.isclear())
+    if (m_switchover_buckets.isclear() && c_startup.m_handover_nodes.isclear())
     {
-      sendSTTORRY(signal);
+      if(getNodeState().startLevel == NodeState::SL_STARTING)
+      {
+        sendSTTORRY(signal);
+      }
+      else if (getNodeState().startLevel >= NodeState::SL_STOPPING_1)
+      {
+        jam();
+        ndbrequire(c_shutdown.m_wait_handover);
+        StopMeConf * conf = CAST_PTR(StopMeConf, signal->getDataPtrSend());
+        conf->senderData = c_shutdown.m_senderData;
+        conf->senderRef = reference();
+        sendSignal(c_shutdown.m_senderRef, GSN_STOP_ME_CONF, signal,
+                   StopMeConf::SignalLength, JBB);
+        c_shutdown.m_wait_handover = false;
+        infoEvent("Suma: handover complete");
+      }
     }
   }
 
@@ -4763,47 +4811,90 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
   jamEntry();
   DBUG_ENTER("Suma::execSUMA_HANDOVER_REQ");
   //  Uint32 sumaRef = signal->getSendersBlockRef();
-  SumaHandoverReq const * req = (SumaHandoverReq *)signal->getDataPtr();
+  const SumaHandoverReq * req = CAST_CONSTPTR(SumaHandoverReq,
+                                              signal->getDataPtr());
 
   Uint32 gci = req->gci;
   Uint32 nodeId = req->nodeId;
   Uint32 new_gci = (m_last_complete_gci >> 32) + MAX_CONCURRENT_GCP + 1;
+  Uint32 requestType = req->requestType;
   
   Uint32 start_gci = (gci > new_gci ? gci : new_gci);
   // mark all active buckets really belonging to restarting SUMA
 
-  c_alive_nodes.set(nodeId);
-  
   Bucket_mask tmp;
-  for( Uint32 i = 0; i < c_no_of_buckets; i++) 
+  if (requestType == SumaHandoverReq::RT_START_NODE)
   {
-    if(get_responsible_node(i) == nodeId)
+    jam();
+    c_alive_nodes.set(nodeId);
+
+    for( Uint32 i = 0; i < c_no_of_buckets; i++)
     {
-      if (m_active_buckets.get(i))
+      if(get_responsible_node(i) == nodeId)
       {
-	// I'm running this bucket but it should really be the restarted node
-	tmp.set(i);
-	m_active_buckets.clear(i);
-	m_switchover_buckets.set(i);
-	c_buckets[i].m_switchover_gci = (Uint64(start_gci) << 32) - 1;
-	c_buckets[i].m_state |= Bucket::BUCKET_HANDOVER;
-	c_buckets[i].m_switchover_node = nodeId;
-	ndbout_c("prepare to handover bucket: %d", i);
-      }
-      else if(m_switchover_buckets.get(i))
-      {
-	ndbout_c("dont handover bucket: %d %d", i, nodeId);
+        if (m_active_buckets.get(i))
+        {
+          // I'm running this bucket but it should really be the restarted node
+          tmp.set(i);
+          m_active_buckets.clear(i);
+          m_switchover_buckets.set(i);
+          c_buckets[i].m_switchover_gci = (Uint64(start_gci) << 32) - 1;
+          c_buckets[i].m_state |= Bucket::BUCKET_HANDOVER;
+          c_buckets[i].m_switchover_node = nodeId;
+          ndbout_c("prepare to handover bucket: %d", i);
+        }
+        else if(m_switchover_buckets.get(i))
+        {
+          ndbout_c("dont handover bucket: %d %d", i, nodeId);
+        }
       }
     }
   }
-  
-  SumaHandoverConf* conf= (SumaHandoverConf*)signal->getDataPtrSend();
-  tmp.copyto(BUCKET_MASK_SIZE, conf->theBucketMask);
-  conf->gci = start_gci;
-  conf->nodeId = getOwnNodeId();
-  sendSignal(calcSumaBlockRef(nodeId), GSN_SUMA_HANDOVER_CONF, signal,
-	     SumaHandoverConf::SignalLength, JBB);
-  
+  else if (requestType == SumaHandoverReq::RT_STOP_NODE)
+  {
+    jam();
+
+    for( Uint32 i = 0; i < c_no_of_buckets; i++)
+    {
+      NdbNodeBitmask nodegroup = c_nodes_in_nodegroup_mask;
+      nodegroup.clear(nodeId);
+      if(get_responsible_node(i) == nodeId &&
+         get_responsible_node(i, nodegroup) == getOwnNodeId())
+      {
+        // I'm will be running this bucket when nodeId shutdown
+        jam();
+        tmp.set(i);
+        m_switchover_buckets.set(i);
+        c_buckets[i].m_switchover_gci = (Uint64(start_gci) << 32) - 1;
+        c_buckets[i].m_state |= Bucket::BUCKET_SHUTDOWN;
+        c_buckets[i].m_switchover_node = nodeId;
+        ndbout_c("prepare to takeover bucket: %d", i);
+      }
+    }
+  }
+  else
+  {
+    jam();
+    goto ref;
+  }
+
+  {
+    SumaHandoverConf *conf= CAST_PTR(SumaHandoverConf,signal->getDataPtrSend());
+    tmp.copyto(BUCKET_MASK_SIZE, conf->theBucketMask);
+    conf->gci = start_gci;
+    conf->nodeId = getOwnNodeId();
+    conf->requestType = requestType;
+    sendSignal(calcSumaBlockRef(nodeId), GSN_SUMA_HANDOVER_CONF, signal,
+               SumaHandoverConf::SignalLength, JBB);
+  }
+
+  DBUG_VOID_RETURN;
+
+ref:
+  signal->theData[0] = 111;
+  signal->theData[1] = getOwnNodeId();
+  signal->theData[2] = nodeId;
+  sendSignal(calcSumaBlockRef(nodeId), GSN_SUMA_HANDOVER_REF, signal, 3, JBB);
   DBUG_VOID_RETURN;
 }
 
@@ -4819,34 +4910,102 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
   jamEntry();
   DBUG_ENTER("Suma::execSUMA_HANDOVER_CONF");
 
-  SumaHandoverConf const * conf = (SumaHandoverConf *)signal->getDataPtr();
+  const SumaHandoverConf * conf = CAST_CONSTPTR(SumaHandoverConf,
+                                                signal->getDataPtr());
+
+  CRASH_INSERTION(13043);
 
   Uint32 gci = conf->gci;
   Uint32 nodeId = conf->nodeId;
+  Uint32 requestType = conf->requestType;
   Bucket_mask tmp;
   tmp.assign(BUCKET_MASK_SIZE, conf->theBucketMask);
 #ifdef HANDOVER_DEBUG
   ndbout_c("Suma::execSUMA_HANDOVER_CONF, gci = %u", gci);
 #endif
 
-  for( Uint32 i = 0; i < c_no_of_buckets; i++) 
+  if (requestType == SumaHandoverReq::RT_START_NODE)
   {
-    if (tmp.get(i))
+    jam();
+    for (Uint32 i = 0; i < c_no_of_buckets; i++)
     {
-      ndbrequire(get_responsible_node(i) == getOwnNodeId());
-      // We should run this bucket, but _nodeId_ is
-      c_buckets[i].m_switchover_gci = (Uint64(gci) << 32) - 1;
-      c_buckets[i].m_state |= Bucket::BUCKET_STARTING;
+      if (tmp.get(i))
+      {
+        ndbrequire(get_responsible_node(i) == getOwnNodeId());
+        // We should run this bucket, but _nodeId_ is
+        c_buckets[i].m_switchover_gci = (Uint64(gci) << 32) - 1;
+        c_buckets[i].m_state |= Bucket::BUCKET_STARTING;
+      }
+    }
+
+    char buf[255];
+    tmp.getText(buf);
+    infoEvent("Suma: handover from node %d gci: %d buckets: %s (%d)",
+              nodeId, gci, buf, c_no_of_buckets);
+    m_switchover_buckets.bitOR(tmp);
+    c_startup.m_handover_nodes.clear(nodeId);
+    DBUG_VOID_RETURN;
+  }
+  else if (requestType == SumaHandoverReq::RT_STOP_NODE)
+  {
+    jam();
+    for (Uint32 i = 0; i < c_no_of_buckets; i++)
+    {
+      if (tmp.get(i))
+      {
+        ndbrequire(get_responsible_node(i) == getOwnNodeId());
+        // We should run this bucket, but _nodeId_ is
+        c_buckets[i].m_switchover_node = getOwnNodeId();
+        c_buckets[i].m_switchover_gci = (Uint64(gci) << 32) - 1;
+        c_buckets[i].m_state |= Bucket::BUCKET_SHUTDOWN;
+      }
+    }
+  
+    char buf[255];
+    tmp.getText(buf);
+    infoEvent("Suma: handover to node %d gci: %d buckets: %s (%d)",
+              nodeId, gci, buf, c_no_of_buckets);
+    m_switchover_buckets.bitOR(tmp);
+    c_startup.m_handover_nodes.clear(nodeId);
+    DBUG_VOID_RETURN;
+  }
+}
+
+void
+Suma::execSTOP_ME_REQ(Signal* signal)
+{
+  jam();
+  StopMeReq req = * CAST_CONSTPTR(StopMeReq, signal->getDataPtr());
+
+  ndbrequire(refToNode(req.senderRef) == getOwnNodeId());
+  ndbrequire(c_shutdown.m_wait_handover == false);
+  c_shutdown.m_wait_handover = true;
+  c_shutdown.m_senderRef = req.senderRef;
+  c_shutdown.m_senderData = req.senderData;
+
+  for (Uint32 i = c_nodes_in_nodegroup_mask.find(0);
+       i != c_nodes_in_nodegroup_mask.NotFound ;
+       i = c_nodes_in_nodegroup_mask.find(i + 1))
+  {
+    /**
+     * Check that all SUMA nodes support graceful shutdown...
+     *   and it's too late to stop it...
+     * Shutdown instead...
+     */
+    if (!ndbd_suma_stop_me(getNodeInfo(i).m_version))
+    {
+      jam();
+      char buf[255];
+      BaseString::snprintf(buf, sizeof(buf),
+			   "Not all versions support graceful shutdown (suma)."
+			   " Shutdown directly instead");
+      progError(__LINE__,
+		NDBD_EXIT_GRACEFUL_SHUTDOWN_ERROR,
+		buf);
+      ndbrequire(false);
     }
   }
-  
-  char buf[255];
-  tmp.getText(buf);
-  infoEvent("Suma: handover from node %d gci: %d buckets: %s (%d)",
-	    nodeId, gci, buf, c_no_of_buckets);
-  m_switchover_buckets.bitOR(tmp);
-  c_startup.m_handover_nodes.clear(nodeId);
-  DBUG_VOID_RETURN;
+  send_handover_req(signal, SumaHandoverReq::RT_STOP_NODE);
 }
 
 #ifdef NOT_USED

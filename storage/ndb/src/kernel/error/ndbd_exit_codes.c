@@ -171,7 +171,9 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_INSUFFICENT_NODES, XRE, "Insufficent nodes for system restart" },
    
    {NDBD_EXIT_UNSUPPORTED_VERSION, XRE, "Unsupported version" },
-   
+   {NDBD_EXIT_GRACEFUL_SHUTDOWN_ERROR, XNE,
+    "Graceful shutdown not 100% possible due to mixed ndbd versions" },
+
    /* Sentinel */
    {0, XUE,
     "No message slogan found (please report a bug if you get this error code)"}

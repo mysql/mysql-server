@@ -151,6 +151,14 @@ Ndb::NDB_connect(Uint32 tNode)
 
   DBUG_ENTER("Ndb::NDB_connect");
 
+  {
+    TransporterFacade *tp = theImpl->m_transporter_facade;
+    if (tp->get_node_stopping(tNode))
+    {
+      DBUG_RETURN(0);
+    }
+  }
+
   NdbTransaction * tConArray = theConnectionArray[tNode];
   if (tConArray != NULL) {
     DBUG_RETURN(2);

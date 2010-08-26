@@ -1011,6 +1011,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   int i = 0;
   int lastId = 0;
+  bool abort = ctx->getProperty("Graceful", Uint32(0)) == 0;
 
   if (restarter.getNumDbNodes() < 2){
     ctx->stopTest();
@@ -1027,7 +1028,12 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     int id = lastId % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
     ndbout << "Restart node " << nodeId << endl; 
-    if(restarter.restartOneDbNode(nodeId, false, false, true) != 0){
+    if (abort == false && ((i % 3) == 0))
+    {
+      restarter.insertErrorInNode(nodeId, 13043);
+    }
+
+    if(restarter.restartOneDbNode(nodeId, false, false, abort) != 0){
       g_err << "Failed to restartNextDbNode" << endl;
       result = NDBT_FAILED;
       break;
@@ -3336,6 +3342,20 @@ TESTCASE("EventOperationApplier_NR",
 	 "Verify that if we apply the data we get from event "
 	 "operation is the same as the original table"
 	 "NOTE! No errors are allowed!" ){
+  INITIALIZER(runCreateEvent);
+  INITIALIZER(runCreateShadowTable);
+  STEP(runEventApplier);
+  STEP(runEventMixedLoad);
+  STEP(runRestarter);
+  FINALIZER(runDropEvent);
+  FINALIZER(runVerify);
+  FINALIZER(runDropShadowTable);
+}
+TESTCASE("EventOperationApplier_NS",
+	 "Verify that if we apply the data we get from event "
+	 "operation is the same as the original table"
+	 "NOTE! No errors are allowed!" ){
+  TC_PROPERTY("Graceful", 1);
   INITIALIZER(runCreateEvent);
   INITIALIZER(runCreateShadowTable);
   STEP(runEventApplier);
