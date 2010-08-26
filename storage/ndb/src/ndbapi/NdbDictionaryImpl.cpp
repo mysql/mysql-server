@@ -61,6 +61,19 @@ is_ndb_blob_table(const NdbTableImpl* t)
   return is_ndb_blob_table(t->m_internalName.c_str());
 }
 
+bool
+ignore_broken_blob_tables()
+{
+  /* To be able to fix broken blob tables, we must be able
+   * to ignore them when getting the table description
+   */
+  char envBuf[10];
+  const char* v = NdbEnv_GetEnv("NDB_FORCE_IGNORE_BROKEN_BLOB",
+                                envBuf,
+                                10);
+  return (v != NULL && *v != 0 && *v != '0' && *v != 'n' && *v != 'N');
+}
+
 //#define EVENT_DEBUG
 
 /**
@@ -1885,7 +1898,7 @@ int
 NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
 {
   unsigned n= t.m_noOfBlobs;
-  DBUG_ENTER("NdbDictionaryImpl::addBlobTables");
+  DBUG_ENTER("NdbDictionaryImpl::getBlobTables");
   // optimized for blob column being the last one
   // and not looking for more than one if not neccessary
   for (unsigned i = t.m_columns.size(); i > 0 && n > 0;) {
@@ -1901,7 +1914,14 @@ NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
     NdbTableImpl* bt =
       m_receiver.getTable(btname_internal, m_ndb.usingFullyQualifiedNames());
     if (bt == NULL)
+    {
+      if (ignore_broken_blob_tables())
+      {
+        DBUG_PRINT("info", ("Blob table %s not found, continuing", btname));
+        continue;
+      }
       DBUG_RETURN(-1);
+    }
 
     // TODO check primary id/version when returned by DICT
 
@@ -3160,13 +3180,24 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   DBUG_ENTER("compChangeMask");
   bool found_varpart;
   change_mask= 0;
+  Uint32 old_sz= old_impl.m_columns.size();
+  Uint32 sz= impl.m_columns.size();
 
   /* These are the supported properties that may be altered. */
   DBUG_PRINT("info", ("old_impl.m_internalName='%s' impl.m_internalName='%s'",
                       old_impl.m_internalName.c_str(),
                       impl.m_internalName.c_str()));
   if(impl.m_internalName != old_impl.m_internalName)
+  {
+    if (unlikely(is_ndb_blob_table(old_impl.m_externalName.c_str()) ||
+                 is_ndb_blob_table(impl.m_externalName.c_str())))
+    {
+      /* Attempt to alter to/from Blob part table name */
+      DBUG_PRINT("info", ("Attempt to alter to/from Blob part table name"));
+      goto invalid_alter_table;
+    }
     AlterTableReq::setNameFlag(change_mask, true);
+  }
   if(!impl.m_frm.equal(old_impl.m_frm))
     AlterTableReq::setFrmFlag(change_mask, true);
   if(!impl.m_fd.equal(old_impl.m_fd))
@@ -3175,8 +3206,6 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     AlterTableReq::setRangeListFlag(change_mask, true);
 
   /* No other property can be changed in alter table. */
-  Uint32 old_sz= old_impl.m_columns.size();
-  Uint32 sz= impl.m_columns.size();
   if(impl.m_logging != old_impl.m_logging ||
      impl.m_temporary != old_impl.m_temporary ||
      impl.m_row_gci != old_impl.m_row_gci ||
@@ -6342,13 +6371,25 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
        */
       if (col->getBlobType() && col->getPartSize() != 0)
       {
-        assert(col->m_blobTable != NULL);
-
-        int res= createDefaultNdbRecord(col->m_blobTable, NULL);
-        if (res != 0)
+        if (likely(col->m_blobTable != NULL))
         {
-          free(pkMask);
-          DBUG_RETURN(-1);
+          int res= createDefaultNdbRecord(col->m_blobTable, NULL);
+          if (res != 0)
+          {
+            free(pkMask);
+            DBUG_RETURN(-1);
+          }
+        } 
+        else
+        {
+          if (!ignore_broken_blob_tables())
+          {
+            assert(false);
+            /* 4263 - Invalid blob attributes or invalid blob parts table */
+            m_error.code = 4263;
+            free(pkMask);
+            DBUG_RETURN(-1);
+          }
         }
       } 
     }

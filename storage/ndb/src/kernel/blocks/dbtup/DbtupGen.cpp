@@ -68,9 +68,9 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     c_storedProcPool(),
     c_buildIndexList(c_buildIndexPool),
     c_undo_buffer(&ctx.m_mm),
-    f_undo_done(true),
     m_pages_allocated(0),
-    m_pages_allocated_max(0)
+    m_pages_allocated_max(0),
+    f_undo_done(true)
 {
   BLOCK_CONSTRUCTOR(Dbtup);
 

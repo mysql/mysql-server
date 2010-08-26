@@ -72,6 +72,7 @@ Arguments:
 extern "C" { static void* flexBenchThread(void*); }
 static int readArguments(int argc, const char** argv);
 static int createTables(Ndb*);
+static int dropTables(Ndb*);
 static void sleepBeforeStartingTest(int seconds);
 static void input_error();
 
@@ -162,7 +163,7 @@ statReport(enum StartType st, int ops)
   static int nodeid;
   // open connection
   if (statState != statOpen) {
-    char *p = getenv("NDB_NODEID");		// ndbnet sets NDB_NODEID
+    char *p = getenv("NDB_NODEID");
     nodeid = p == 0 ? 0 : atoi(p);
     if ((statSock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
       if (statState != statError) {
@@ -556,6 +557,8 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
       free(longKeyAttrName[i]);
     free(longKeyAttrName);
   } // if
+
+  dropTables(pNdb);
 
   delete [] pThreadsData;
   delete pNdb;
@@ -1247,6 +1250,21 @@ createTables(Ndb* pMyNdb){
     if(pMyNdb->getDictionary()->createTable(tmpTable) == -1){
       return -1;
     }
+    ndbout << "done" << endl;
+  }
+  
+  return 0;
+}
+
+static int
+dropTables(Ndb* pMyNdb){
+  unsigned int i;
+
+  // Note! Uses only uppercase letters in table name's
+  // so that we can look at the tables with SQL
+  for(i = 0; i < tNoOfTables; i++){
+    ndbout << "Dropping " << tableName[i] << "... ";
+    pMyNdb->getDictionary()->dropTable(tableName[i]);
     ndbout << "done" << endl;
   }
   

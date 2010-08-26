@@ -1233,6 +1233,21 @@ inline
 NdbTableImpl *
 NdbDictionaryImpl::getTableGlobal(const char * table_name)
 {
+  if (unlikely(strchr(table_name, '$') != 0)) {
+    if (is_ndb_blob_table(table_name)) 
+    {
+      /* Could attempt to get the Blob table here, but
+       * instead we will generate an error.
+       * The non-global getTable() calls can fetch Blob
+       * tables correctly if necessary.
+       *
+       * 4307 Invalid Table name
+       */
+      m_error.code = 4307;
+      return NULL;
+    }
+  }
+
   const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
   return fetchGlobalTableImplRef(InitTable(internal_tabname));
 }

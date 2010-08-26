@@ -7109,7 +7109,9 @@ void Dbacc::putOpScanLockQue()
     numLockedOpsBefore++;
     ptrCheckGuard(tmpOp, coprecsize, operationrec);
     if (tmpOp.p->nextOp == RNIL)
+    {
       ndbrequire(tmpOp.i == scanPtr.p->scanLastLockedOp);
+    }
     tmpOp.i = tmpOp.p->nextOp;
   } 
   ndbrequire(numLockedOpsBefore==scanPtr.p->scanLockHeld);
@@ -7484,7 +7486,9 @@ void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex)
     numLockedOps++;
     ptrCheckGuard(tmpOp, coprecsize, operationrec);
     if (tmpOp.p->nextOp == RNIL)
+    {
       ndbrequire(tmpOp.i == TscanPtr.p->scanLastLockedOp);
+    }
     tmpOp.i = tmpOp.p->nextOp;
   } 
   ndbrequire(numLockedOps==TscanPtr.p->scanLockHeld);
@@ -8227,7 +8231,7 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
   jamEntry();
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
   const Ndbinfo::ScanCursor* cursor =
-    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
 
   Ndbinfo::Ratelimit rl;
 

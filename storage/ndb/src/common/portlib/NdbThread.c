@@ -39,8 +39,6 @@
 #include <sys/procset.h>
 #endif
 
-#define MAX_THREAD_NAME 16
-
 static int g_min_prio = 0;
 static int g_max_prio = 0;
 static int g_prio = 0;
@@ -65,7 +63,7 @@ struct NdbThread
 #elif defined HAVE_LINUX_SCHEDULING
   pid_t tid;
 #endif
-  char thread_name[MAX_THREAD_NAME];
+  char thread_name[16];
   NDB_THREAD_FUNC * func;
   void * object;
 };

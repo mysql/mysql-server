@@ -1137,15 +1137,27 @@ Dbtux::NodeHandle::getNodeScan()
 inline void
 Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
 {
-  ndbrequire(i <= 2);
-  m_node->m_link[i] = loc;
+  if (likely(i <= 2))
+  {
+    m_node->m_link[i] = loc;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
 }
 
 inline void
 Dbtux::NodeHandle::setSide(unsigned i)
 {
-  ndbrequire(i <= 2);
-  m_node->m_side = i;
+  if (likely(i <= 2))
+  {
+    m_node->m_side = i;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
 }
 
 inline void

@@ -70,7 +70,7 @@ static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
-
+extern ulong opt_server_id_mask;
 
 static MYSQL_THDVAR_UINT(
   autoincrement_prefetch_sz,         /* name */
@@ -80,7 +80,7 @@ static MYSQL_THDVAR_UINT(
   NULL,                              /* update func. */
   1,                                 /* default */
   1,                                 /* min */
-  65536,                             /* max */
+  65535,                             /* max */
   0                                  /* block */
 );
 
@@ -5254,6 +5254,7 @@ inline void
 ha_ndbcluster::eventSetAnyValue(THD *thd, 
                                 NdbOperation::OperationOptions *options)
 {
+  options->anyValue= 0;
   if (unlikely(m_slow_path))
   {
     /*
@@ -5265,15 +5266,36 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     if (thd->slave_thread)
     {
+      /*
+        Slave-thread, we are applying a replicated event.
+        We set the server_id to the value received from the log which
+        may be a composite of server_id and other data according
+        to the server_id_bits option.
+        In future it may be useful to support *not* mapping composite
+        AnyValues to/from Binlogged server-ids
+      */
+      assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue=thd->server_id;
+      options->anyValue = thd->unmasked_server_id;
     }
     else if (thd_ndb->trans_options & TNTO_NO_LOGGING)
     {
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue=NDB_ANYVALUE_FOR_NOLOGGING;
+      ndbcluster_anyvalue_set_nologging(options->anyValue);
     }
   }
+#ifndef DBUG_OFF
+  /*
+    MySQLD will set the user-portion of AnyValue (if any) to all 1s
+    This tests code filtering ServerIds on the value of server-id-bits.
+  */
+  const char* p = getenv("NDB_TEST_ANYVALUE_USERDATA");
+  if (p != 0  && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
+  {
+    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+    dbug_ndbcluster_anyvalue_set_userbits(options->anyValue);
+  }
+#endif
 }
 
 bool ha_ndbcluster::isManualBinlogExec(THD *thd)
@@ -5618,8 +5640,16 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       for (uint i= 0; i < table->s->fields; i++)
       {
         Field *field= table->field[i];
-        if (field->flags & (NO_DEFAULT_VALUE_FLAG | // bug 41616
-                            PRI_KEY_FLAG))          // bug 42238
+        DBUG_PRINT("info", ("Field#%u, (%u), Type : %u "
+                            "NO_DEFAULT_VALUE_FLAG : %u PRI_KEY_FLAG : %u",
+                            i, 
+                            field->field_index,
+                            field->real_type(),
+                            field->flags & NO_DEFAULT_VALUE_FLAG,
+                            field->flags & PRI_KEY_FLAG));
+        if ((field->flags & (NO_DEFAULT_VALUE_FLAG | // bug 41616
+                             PRI_KEY_FLAG)) ||       // bug 42238
+            ! type_supports_default_value(field->real_type()))
         {
           bitmap_set_bit(user_cols_written_bitmap, field->field_index);
         }
@@ -11203,7 +11233,10 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
     DBUG_PRINT("info", ("Found %s/%s in NDB", elmt.database, elmt.name));     
     
     // Add only tables that belongs to db
-    if (my_strcasecmp(system_charset_info, elmt.database, dbname))
+    // Ignore Blob part tables - they are deleted when their table
+    // is deleted.
+    if (my_strcasecmp(system_charset_info, elmt.database, dbname) ||
+        IS_NDB_BLOB_PREFIX(elmt.name))
       continue;
     DBUG_PRINT("info", ("%s must be dropped", elmt.name));     
     drop_list.push_back(thd->strdup(elmt.name));
@@ -15831,13 +15864,13 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_TOTAL_EXTENTS]->store(df.getSize()
                                                   / ts.getExtentSize(), true);
       table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-      table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
+      table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize(), true);
       table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
       table->field[IS_FILES_INITIAL_SIZE]->store(df.getSize(), true);
       table->field[IS_FILES_MAXIMUM_SIZE]->set_notnull();
       table->field[IS_FILES_MAXIMUM_SIZE]->store(df.getSize(), true);
       table->field[IS_FILES_VERSION]->set_notnull();
-      table->field[IS_FILES_VERSION]->store(df.getObjectVersion());
+      table->field[IS_FILES_VERSION]->store(df.getObjectVersion(), true);
 
       table->field[IS_FILES_ROW_FORMAT]->set_notnull();
       table->field[IS_FILES_ROW_FORMAT]->store("FIXED", 5, system_charset_info);
@@ -15890,10 +15923,10 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                          system_charset_info);
 
     table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-    table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
+    table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize(), true);
 
     table->field[IS_FILES_VERSION]->set_notnull();
-    table->field[IS_FILES_VERSION]->store(ts.getObjectVersion());
+    table->field[IS_FILES_VERSION]->store(ts.getObjectVersion(), true);
 
     schema_table_store_record(thd, table);
   }
@@ -15948,7 +15981,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                                   strlen(uf.getLogfileGroup()),
                                                        system_charset_info);
       table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
-      table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(objid.getObjectId());
+      table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(objid.getObjectId(), true);
       table->field[IS_FILES_ENGINE]->set_notnull();
       table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
                                            ndbcluster_hton_name_length,
@@ -15957,7 +15990,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_TOTAL_EXTENTS]->set_notnull();
       table->field[IS_FILES_TOTAL_EXTENTS]->store(uf.getSize()/4, true);
       table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-      table->field[IS_FILES_EXTENT_SIZE]->store(4);
+      table->field[IS_FILES_EXTENT_SIZE]->store(4, true);
 
       table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
       table->field[IS_FILES_INITIAL_SIZE]->store(uf.getSize(), true);
@@ -15965,7 +15998,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_MAXIMUM_SIZE]->store(uf.getSize(), true);
 
       table->field[IS_FILES_VERSION]->set_notnull();
-      table->field[IS_FILES_VERSION]->store(uf.getObjectVersion());
+      table->field[IS_FILES_VERSION]->store(uf.getObjectVersion(), true);
 
       char extra[100];
       int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",
@@ -16006,7 +16039,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                                      strlen(elt.name),
                                                      system_charset_info);
     table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
-    table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(lfg.getObjectId());
+    table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(lfg.getObjectId(), true);
     table->field[IS_FILES_ENGINE]->set_notnull();
     table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
                                          ndbcluster_hton_name_length,
@@ -16015,10 +16048,10 @@ static int ndbcluster_fill_files_table(handlerton *hton,
     table->field[IS_FILES_FREE_EXTENTS]->set_notnull();
     table->field[IS_FILES_FREE_EXTENTS]->store(lfg.getUndoFreeWords(), true);
     table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-    table->field[IS_FILES_EXTENT_SIZE]->store(4);
+    table->field[IS_FILES_EXTENT_SIZE]->store(4, true);
 
     table->field[IS_FILES_VERSION]->set_notnull();
-    table->field[IS_FILES_VERSION]->store(lfg.getObjectVersion());
+    table->field[IS_FILES_VERSION]->store(lfg.getObjectVersion(), true);
 
     char extra[100];
     int len= my_snprintf(extra,sizeof(extra),

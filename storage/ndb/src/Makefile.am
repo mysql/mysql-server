@@ -39,5 +39,3 @@ libndbclient_la_LIBADD =  \
               common/portlib/libportlib.la      \
               common/util/libgeneral.la  @ZLIB_LIBS@
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%

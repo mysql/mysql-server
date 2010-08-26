@@ -45,7 +45,6 @@ const char* g_szTableName = c_szTableNameStored;
 #ifdef NDB_WIN32
 HANDLE hShutdownEvent = 0;
 #else
-#include <signal.h>
 bool bShutdownEvent = false;
 #endif
 long g_nMaxContextIdPerThread = 5000;

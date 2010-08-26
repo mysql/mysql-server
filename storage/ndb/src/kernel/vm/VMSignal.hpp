@@ -81,6 +81,7 @@ class Signal {
   friend class APZJobBuffer;
   friend class FastScheduler;
 public:
+  Signal(int); // for placement new
   Signal();
   
   Uint32 getLength() const;

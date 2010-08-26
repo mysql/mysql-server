@@ -42,7 +42,7 @@ class DirIteratorImpl {
                         "%s/%s", m_path, dp->d_name);
 
     struct stat buf;
-    if (stat(m_buf, &buf))
+    if (lstat(m_buf, &buf)) // Use lstat to not follow symlinks
       return false; // 'stat' failed
 
     return S_ISREG(buf.st_mode);
@@ -75,14 +75,14 @@ public:
     m_dirp = NULL;
   }
 
-  const char* next_entry(bool& is_directory)
+  const char* next_entry(bool& is_reg)
   {
     struct dirent* dp = readdir(m_dirp);
 
     if (dp == NULL)
       return NULL;
 
-    is_directory = !is_regular_file(dp);
+    is_reg = is_regular_file(dp);
     return dp->d_name;
   }
 };
@@ -96,6 +96,9 @@ class DirIteratorImpl {
 
   bool is_dir(const WIN32_FIND_DATA find_data) const {
     return (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+  }
+  bool is_regular_file(const WIN32_FIND_DATA find_data) const {
+    return !is_dir(find_data);
   }
 
 public:
@@ -129,12 +132,12 @@ public:
     m_find_handle = NULL;
   }
 
-  const char* next_entry(bool& is_directory)
+  const char* next_entry(bool& is_reg)
   {
     if (m_first || FindNextFile(m_find_handle, &m_find_data))
     {
       m_first = false;
-      is_directory = is_dir(m_find_data);
+      is_reg = is_regular_file(m_find_data);
       return m_find_data.cFileName;
     }
     return NULL;
@@ -167,24 +170,36 @@ void NdbDir::Iterator::close(void)
 
 const char* NdbDir::Iterator::next_file(void)
 {
-  bool is_dir;
+  bool is_reg;
   const char* name;
-  while((name = m_impl.next_entry(is_dir)) != NULL){
-    if (!is_dir)
-      return name; // Found  some sort of file 
-  } 
+  while((name = m_impl.next_entry(is_reg)) != NULL){
+    if (is_reg == true)
+      return name; // Found regular file
+  }
   return NULL;
 }
 
 const char* NdbDir::Iterator::next_entry(void)
 {
-  bool is_dir;
-  return m_impl.next_entry(is_dir);
+  bool is_reg;
+  return m_impl.next_entry(is_reg);
 }
+
+mode_t NdbDir::u_r(void) { return IF_WIN(0, S_IRUSR); };
+mode_t NdbDir::u_w(void) { return IF_WIN(0, S_IWUSR); };
+mode_t NdbDir::u_x(void) { return IF_WIN(0, S_IXUSR); };
+
+mode_t NdbDir::g_r(void) { return IF_WIN(0, S_IRGRP); };
+mode_t NdbDir::g_w(void) { return IF_WIN(0, S_IWGRP); };
+mode_t NdbDir::g_x(void) { return IF_WIN(0, S_IXGRP); };
+
+mode_t NdbDir::o_r(void) { return IF_WIN(0, S_IROTH); };
+mode_t NdbDir::o_w(void) { return IF_WIN(0, S_IWOTH); };
+mode_t NdbDir::o_x(void) { return IF_WIN(0, S_IXOTH); };
 
 
 bool
-NdbDir::create(const char *dir)
+NdbDir::create(const char *dir, mode_t mode)
 {
 #ifdef _WIN32
   if (CreateDirectory(dir, NULL) == 0)
@@ -195,7 +210,7 @@ NdbDir::create(const char *dir)
     return false;
   }
 #else
-  if (mkdir(dir, S_IRUSR | S_IWUSR | S_IXUSR) != 0)
+  if (mkdir(dir, mode) != 0)
   {
     fprintf(stderr,
             "Failed to create directory '%s', error: %d",
@@ -394,7 +409,7 @@ TAPTEST(DirIterator)
 
   // Build dir tree 
   build_tree(path);
-  // Test to iterate over filesa
+  // Test to iterate over files
   { 
     NdbDir::Iterator iter;
     CHECK(iter.open(path) == 0);
@@ -430,6 +445,13 @@ TAPTEST(DirIterator)
 
   // Remove non exisiting directory(again)
   CHECK(!NdbDir::remove_recursive(path));
+  CHECK(gone(path));
+
+  // Create directory with non default mode
+  CHECK(NdbDir::create(path,
+                       NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::o_r()));
+  CHECK(!gone(path));
+  CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
   return 1; // OK

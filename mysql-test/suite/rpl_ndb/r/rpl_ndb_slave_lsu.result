@@ -97,6 +97,32 @@ master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
 
 
 
@@ -151,6 +177,32 @@ master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
 
 
 
@@ -205,6 +257,32 @@ slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_1`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_2`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_3`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
 
 
 
@@ -268,6 +346,56 @@ slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_1`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_2`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_3`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
 *** Configuring replication via Slave1 ***
 STOP SLAVE;
 STOP SLAVE;
@@ -366,6 +494,32 @@ master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
 
 
 
@@ -420,6 +574,32 @@ master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
 
 
 
@@ -474,6 +654,32 @@ slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_1`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_2`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_3`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
 
 
 
@@ -537,6 +743,56 @@ slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_1`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_2`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_3`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
 *** Configuring replication via Slave2 ***
 STOP SLAVE;
 STOP SLAVE;
@@ -635,6 +891,32 @@ master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 1    	Table_map: `mysql`.`ndb_apply_status`  
+server id 1    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
 
 
 
@@ -689,6 +971,32 @@ master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
+server id 3    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 3    	Table_map: `mysql`.`ndb_apply_status`  
+server id 3    	Write_rows:  
+server id 3    	Write_rows:   flags: STMT_END_F
+server id 3    	Query	 	 	 
+server id 3    	Query	 	 	 
 
 
 
@@ -743,6 +1051,32 @@ slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_1`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_2`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
+server id 5    	Table_map: `test`.`bug_45756_slave_logged_3`  
+server id 5    	Table_map: `mysql`.`ndb_apply_status`  
+server id 5    	Write_rows:  
+server id 5    	Write_rows:   flags: STMT_END_F
+server id 5    	Query	 	 	 
+server id 5    	Query	 	 	 
 
 
 
@@ -806,3 +1140,53 @@ slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+binlog_entries
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_1`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_2`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug_45756_slave_logged_3`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 6    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_1`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_2`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 1    	Query	 	 	 
+server id 6    	Query	 	 	 
+server id 6    	Table_map: `test`.`bug45756_master_logged_3`  
+server id 6    	Table_map: `mysql`.`ndb_apply_status`  
+server id 6    	Write_rows:  
+server id 1    	Write_rows:   flags: STMT_END_F
+server id 6    	Query	 	 	 
+server id 1    	Query	 	 	 

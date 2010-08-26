@@ -151,6 +151,13 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
     }
     // convert to pages
     Uint32 page_cnt = Uint32((page_buffer + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE);
+
+    if (ERROR_INSERTED(11009))
+    {
+      page_cnt = 25;
+      ndbout_c("Setting page_cnt = %u", page_cnt);
+    }
+
     m_param.m_max_pages = page_cnt;
     m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_cnt);
     m_param.m_max_hot_pages = (page_cnt * 9) / 10;
@@ -2305,19 +2312,19 @@ Pgman::verify_page_entry(Ptr<Page_entry> ptr)
   Uint32 no = get_sublist_no(state);
   switch (no) {
   case Page_entry::SL_BIND:
-    ndbrequire(! pagein && ! pageout || dump_page_lists(ptrI));
+    ndbrequire((! pagein && ! pageout) || dump_page_lists(ptrI));
     break;
   case Page_entry::SL_MAP:
-    ndbrequire(! pagein && ! pageout || dump_page_lists(ptrI));
+    ndbrequire((! pagein && ! pageout) || dump_page_lists(ptrI));
     break;
   case Page_entry::SL_MAP_IO:
-    ndbrequire(pagein && ! pageout || dump_page_lists(ptrI));
+    ndbrequire((pagein && ! pageout) || dump_page_lists(ptrI));
     break;
   case Page_entry::SL_CALLBACK:
-    ndbrequire(! pagein && ! pageout || dump_page_lists(ptrI));
+    ndbrequire((! pagein && ! pageout) || dump_page_lists(ptrI));
     break;
   case Page_entry::SL_CALLBACK_IO:
-    ndbrequire(! pagein && pageout || dump_page_lists(ptrI));
+    ndbrequire((! pagein && pageout) || dump_page_lists(ptrI));
     break;
   case Page_entry::SL_BUSY:
     break;
@@ -2389,7 +2396,9 @@ Pgman::verify_page_lists()
     Page_state state = ptr.p->m_state;
     ndbrequire(state & Page_entry::ONSTACK || dump_page_lists(ptr.i));
     if (! pl_stack.hasPrev(ptr))
+    {
       ndbrequire(state & Page_entry::HOT || dump_page_lists(ptr.i));
+    }
   }
 
   for (pl_queue.first(ptr); ptr.i != RNIL; pl_queue.next(ptr))
@@ -2764,5 +2773,10 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 11008)
   {
     SET_ERROR_INSERT_VALUE(11008);
+  }
+
+  if (signal->theData[0] == 11009)
+  {
+    SET_ERROR_INSERT_VALUE(11009);
   }
 }

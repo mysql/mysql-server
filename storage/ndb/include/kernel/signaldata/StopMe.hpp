@@ -28,27 +28,28 @@
  * @see StartMeReq
  * @see StartPermReq
  */
-class StopMeReq {
+struct StopMeReq
+{
   
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
+  friend class Suma;
   
   /**
    * Sender
    */
   friend class Ndbcntr;
 
-public:
   STATIC_CONST( SignalLength = 2 );
-private:
   
   Uint32 senderRef;
   Uint32 senderData;
 };
 
-class StopMeConf {
+struct StopMeConf
+{
 
   /**
    * Sender(s) / Reciver(s)
@@ -60,10 +61,8 @@ class StopMeConf {
    */
   friend class Ndbcntr;
 
-public:
   STATIC_CONST( SignalLength = 2 );
   
-private:
   Uint32 senderRef;
   Uint32 senderData;
 };

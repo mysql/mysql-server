@@ -23,7 +23,6 @@
 #include "ndb_nodegroup_map.h"
 
 #include "../../../../sql/ha_ndbcluster_tables.h"
-extern const char *Ndb_apply_table;
 
 class BackupConsumer {
 public:
