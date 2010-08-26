@@ -511,35 +511,18 @@ int handle_options(int *argc, char ***argv,
             {
               /*
                 We are currently parsing a single argv[] argument
-                of the form "-XYZ", and parsing is done in multiple phases.
-                One or the argument found is not an option.
+                of the form "-XYZ".
+                One or the argument found (say Y) is not an option.
+                Hack the string "-XYZ" to make a "-YZ" substring in it,
+                and push that to the output as an unrecognized parameter.
               */
-              if (optend == cur_arg)
-              {
-                /*
-                  The first argument, "-X", is not an option
-                  In this case, the entire argument "-XYZ" is rejected
-                  from this phase, and preserved as is for later parsing.
-                */
-                (*argv)[argvpos++]= *pos;
-              }
-              else
-              {
-                /*
-                  We are in the middle of an "-XYZ" string already,
-                  "-X" has already been parsed, and "Y" (pointed by optend)
-                  is not an option.
-                  Hack the string "-XYZ" to make a "-YZ" substring in it,
-                  and push that to the next parsing phase.
-                */
-                DBUG_ASSERT(optend > *pos);
-                DBUG_ASSERT(optend > cur_arg);
-                DBUG_ASSERT(optend <= *pos + strlen(*pos));
-                DBUG_ASSERT(*optend);
-                optend--;
-                optend[0]= '-'; /* replace 'X' by '-' */
-                (*argv)[argvpos++]= optend;
-              }
+              DBUG_ASSERT(optend > *pos);
+              DBUG_ASSERT(optend >= cur_arg);
+              DBUG_ASSERT(optend <= *pos + strlen(*pos));
+              DBUG_ASSERT(*optend);
+              optend--;
+              optend[0]= '-'; /* replace 'X' or '-' by '-' */
+              (*argv)[argvpos++]= optend;
               /*
                 Do not continue to parse at the current "-XYZ" argument,
                 skip to the next argv[] argument instead.
