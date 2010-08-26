@@ -446,3 +446,34 @@ LIMIT  1;
 col_varchar
 DROP TABLE C;
 # End on bug#55561
+#
+# Bug#56233: Hang during key generation for derived tables
+#
+CREATE TABLE C (
+col_varchar_10_key varchar(10) DEFAULT NULL,
+col_int_key int DEFAULT NULL,
+pk int NOT NULL AUTO_INCREMENT,
+col_date_key date DEFAULT NULL,
+PRIMARY KEY (`pk`),
+KEY `col_varchar_10_key` (`col_varchar_10_key`),
+KEY `col_int_key` (`col_int_key`),
+KEY `col_date_key` (`col_date_key`)
+);
+INSERT INTO C VALUES ('ok',3,1,'2003-04-02');
+CREATE ALGORITHM=TEMPTABLE VIEW viewC AS SELECT * FROM C;
+SELECT  table1.col_date_key AS field1 
+FROM
+C AS table1
+WHERE 
+(table1.col_int_key <=ANY 
+( SELECT SUBQUERY1_t1.col_int_key 
+FROM viewC AS SUBQUERY1_t1 
+WHERE SUBQUERY1_t1.col_varchar_10_key <= table1.col_varchar_10_key 
+) 
+)
+;
+field1
+2003-04-02
+DROP TABLE C;
+DROP VIEW viewC;
+#

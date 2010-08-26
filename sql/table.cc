@@ -5263,8 +5263,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
 
   for (i= 0; i < num_values; i++)
   {
-    uint tbl;
-    table_map tables= values[i]->used_tables();
+    table_map tbl, tables= values[i]->used_tables();
     if (!tables)
       continue;
     for (tbl= 1; tables >= tbl; tbl<<= 1)
