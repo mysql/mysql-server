@@ -86,3 +86,4 @@ listener.cc : .*conversion from 'SOCKET' to 'int'.*
 
 # Ignore warnings in innodb_plugin
 .*/storage/innodb_plugin/.* : .*
+
