@@ -1016,6 +1016,11 @@ cmd: test_event
 args: -n EventOperationApplier_NR -l 2
 
 #
+max-time: 600
+cmd: test_event
+args: -n EventOperationApplier_NS T1
+
+#
 max-time: 3600
 cmd: test_event
 args: -n MergeEventOperationApplier_NR -l 2

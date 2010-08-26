@@ -174,6 +174,9 @@ static const ErrStruct errArray[] =
    
    {NDBD_EXIT_RESTORE_SCHEMA, XCR, "Failure to restore schema" },
    
+   {NDBD_EXIT_GRACEFUL_SHUTDOWN_ERROR, XNE,
+    "Graceful shutdown not 100% possible due to mixed ndbd versions" },
+
    /* Sentinel */
    {0, XUE,
     "No message slogan found (please report a bug if you get this error code)"}
