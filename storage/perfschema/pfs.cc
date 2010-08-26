@@ -1370,7 +1370,6 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
     pfs_locker->m_waits_current.m_nesting_event_id=
       parent_locker->m_waits_current.m_event_id;
   }
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_mutex= pfs_mutex;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1424,7 +1423,6 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
     pfs_locker->m_waits_current.m_nesting_event_id=
       parent_locker->m_waits_current.m_event_id;
   }
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_rwlock= pfs_rwlock;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1491,7 +1489,6 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
     pfs_locker->m_waits_current.m_nesting_event_id=
       parent_locker->m_waits_current.m_event_id;
   }
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_cond= pfs_cond;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1558,7 +1555,6 @@ get_thread_table_locker_v1(PSI_table_locker_state *state,
     pfs_locker->m_waits_current.m_nesting_event_id=
       parent_locker->m_waits_current.m_event_id;
   }
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_table= pfs_table;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1622,7 +1618,6 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
     pfs_locker->m_waits_current.m_nesting_event_id=
       parent_locker->m_waits_current.m_event_id;
   }
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_file= pfs_file;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1682,7 +1677,6 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
     pfs_locker->m_waits_current.m_nesting_event_id=
       parent_locker->m_waits_current.m_event_id;
   }
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_file= pfs_file;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1759,7 +1753,6 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
         pfs_locker->m_waits_current.m_nesting_event_id=
           parent_locker->m_waits_current.m_event_id;
       }
-      pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
       pfs_locker->m_target.m_file= pfs_file;
       pfs_locker->m_waits_current.m_thread= pfs_thread;

@@ -3057,7 +3057,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       file= cache_mngr->get_binlog_cache_log(is_trans_cache);
       cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
 
-      if (thd->stmt_accessed_non_trans_temp_table())
+      if (thd->lex->stmt_accessed_non_trans_temp_table())
         cache_data->set_changes_to_non_trans_temp_table();
 
       thd->binlog_start_trans_and_stmt();
@@ -4182,8 +4182,17 @@ int THD::decide_logging_format(TABLE_LIST *tables)
        Innodb and Falcon; Innodb and MyIsam.
     */
     my_bool multi_access_engine= FALSE;
-
+    /*
+       Identifies if a table is changed.
+    */
+    my_bool is_write= FALSE;
+    /*
+       A pointer to a previous table that was changed.
+    */
     TABLE* prev_write_table= NULL;
+    /*
+       A pointer to a previous table that was accessed.
+    */
     TABLE* prev_access_table= NULL;
 
 #ifndef DBUG_OFF
@@ -4207,7 +4216,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       if (table->placeholder())
         continue;
 
-      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
+      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE ||
+          table->table->s->table_category == TABLE_CATEGORY_LOG)
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
 
       handler::Table_flags const flags= table->table->file->ha_table_flags();
@@ -4223,14 +4233,15 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         my_bool trans= table->table->file->has_transactions();
 
         if (table->table->s->tmp_table)
-          set_stmt_accessed_table(trans ? STMT_WRITES_TEMP_TRANS_TABLE :
-                                          STMT_WRITES_TEMP_NON_TRANS_TABLE);
+          lex->set_stmt_accessed_table(trans ? LEX::STMT_WRITES_TEMP_TRANS_TABLE :
+                                               LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE);
         else
-          set_stmt_accessed_table(trans ? STMT_WRITES_TRANS_TABLE :
-                                          STMT_WRITES_NON_TRANS_TABLE);
+          lex->set_stmt_accessed_table(trans ? LEX::STMT_WRITES_TRANS_TABLE :
+                                               LEX::STMT_WRITES_NON_TRANS_TABLE);
 
         flags_write_all_set &= flags;
         flags_write_some_set |= flags;
+        is_write= TRUE;
 
         prev_write_table= table->table;
       }
@@ -4243,11 +4254,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         my_bool trans= table->table->file->has_transactions();
 
         if (table->table->s->tmp_table)
-          set_stmt_accessed_table(trans ? STMT_READS_TEMP_TRANS_TABLE :
-                                          STMT_READS_TEMP_NON_TRANS_TABLE);
+          lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
+                                               LEX::STMT_READS_TEMP_NON_TRANS_TABLE);
         else
-          set_stmt_accessed_table(trans ? STMT_READS_TRANS_TABLE :
-                                          STMT_READS_NON_TRANS_TABLE);
+          lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TRANS_TABLE :
+                                               LEX::STMT_READS_NON_TRANS_TABLE);
       }
 
       if (prev_access_table && prev_access_table->file->ht !=
@@ -4320,24 +4331,24 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       my_bool non_trans_unsafe= FALSE;
 
       /* Case 1. */
-      if (stmt_accessed_table(STMT_WRITES_TRANS_TABLE) &&
-          stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE))
+      if (lex->stmt_accessed_table(LEX::STMT_WRITES_TRANS_TABLE) &&
+          lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
         mixed_unsafe= TRUE;
       /* Case 2. */
-      else if (stmt_accessed_table(STMT_WRITES_TEMP_TRANS_TABLE) &&
-               stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE))
+      else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_TRANS_TABLE) &&
+               lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
         mixed_unsafe= TRUE;
       /* Case 3. */
-      else if (stmt_accessed_table(STMT_WRITES_TRANS_TABLE) &&
-               stmt_accessed_table(STMT_READS_NON_TRANS_TABLE))
+      else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TRANS_TABLE) &&
+               lex->stmt_accessed_table(LEX::STMT_READS_NON_TRANS_TABLE))
         mixed_unsafe= TRUE;
       /* Case 4. */
-      else if (stmt_accessed_table(STMT_WRITES_TEMP_TRANS_TABLE) &&
-               stmt_accessed_table(STMT_READS_NON_TRANS_TABLE))
+      else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_TRANS_TABLE) &&
+               lex->stmt_accessed_table(LEX::STMT_READS_NON_TRANS_TABLE))
         mixed_unsafe= TRUE;
       /* Case 5. */
-      else if (stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE) &&
-               stmt_accessed_table(STMT_READS_TRANS_TABLE) &&
+      else if (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) &&
+               lex->stmt_accessed_table(LEX::STMT_READS_TRANS_TABLE) &&
                tx_isolation < ISO_REPEATABLE_READ)
         /*
            By default, InnoDB operates in REPEATABLE READ and with the option
@@ -4355,28 +4366,28 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       if (trans_has_updated_trans_table(this))
       {
         /* Case 6. */
-        if (stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE) &&
-            stmt_accessed_table(STMT_READS_TRANS_TABLE))
+        if (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) &&
+            lex->stmt_accessed_table(LEX::STMT_READS_TRANS_TABLE))
           mixed_unsafe= TRUE;
         /* Case 7. */
-        else if (stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE) &&
-                 stmt_accessed_table(STMT_READS_TEMP_TRANS_TABLE))
+        else if (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) &&
+                 lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE))
           mixed_unsafe= TRUE;
         /* Case 8. */
-        else if (stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE) &&
-                 stmt_accessed_table(STMT_READS_TEMP_NON_TRANS_TABLE))
+        else if (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) &&
+                 lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE))
           mixed_unsafe= TRUE;
         /* Case 9. */
-        else if (stmt_accessed_table(STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
-                 stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE))
+        else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
+                 lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
           mixed_unsafe= TRUE;
         /* Case 10. */
-        else if (stmt_accessed_table(STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
-                 stmt_accessed_table(STMT_READS_NON_TRANS_TABLE))
+        else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
+                 lex->stmt_accessed_table(LEX::STMT_READS_NON_TRANS_TABLE))
         mixed_unsafe= TRUE;
         /* Case 11. */
         else if (!variables.binlog_direct_non_trans_update &&
-                 stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE))
+                 lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
           non_trans_unsafe= TRUE;
       }
 
@@ -4467,7 +4478,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           */
           my_error((error= ER_BINLOG_STMT_MODE_AND_ROW_ENGINE), MYF(0), "");
         }
-        else if ((unsafe_flags= lex->get_stmt_unsafe_flags()) != 0)
+        else if (is_write && (unsafe_flags= lex->get_stmt_unsafe_flags()) != 0)
         {
           /*
             7. Warning: Unsafe statement logged as statement due to
@@ -4949,22 +4960,10 @@ void THD::issue_unsafe_warnings()
     Ensure that binlog_unsafe_warning_flags is big enough to hold all
     bits.  This is actually a constant expression.
   */
-  DBUG_ASSERT(2 * LEX::BINLOG_STMT_UNSAFE_COUNT <=
+  DBUG_ASSERT(LEX::BINLOG_STMT_UNSAFE_COUNT <=
               sizeof(binlog_unsafe_warning_flags) * CHAR_BIT);
 
   uint32 unsafe_type_flags= binlog_unsafe_warning_flags;
-
-  /*
-    Clear: (1) bits above BINLOG_STMT_UNSAFE_COUNT; (2) bits for
-    warnings that have been printed already.
-  */
-  unsafe_type_flags &= (LEX::BINLOG_STMT_UNSAFE_ALL_FLAGS ^
-                        (unsafe_type_flags >> LEX::BINLOG_STMT_UNSAFE_COUNT));
-  /* If all warnings have been printed already, return. */
-  if (unsafe_type_flags == 0)
-    DBUG_VOID_RETURN;
-
-  DBUG_PRINT("info", ("unsafe_type_flags: 0x%x", unsafe_type_flags));
 
   /*
     For each unsafe_type, check if the statement is unsafe in this way
@@ -4989,12 +4988,6 @@ void THD::issue_unsafe_warnings()
       }
     }
   }
-  /*
-    Mark these unsafe types as already printed, to avoid printing
-    warnings for them again.
-  */
-  binlog_unsafe_warning_flags|=
-    unsafe_type_flags << LEX::BINLOG_STMT_UNSAFE_COUNT;
   DBUG_VOID_RETURN;
 }
 
@@ -5048,17 +5041,28 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
   /*
     Warnings for unsafe statements logged in statement format are
-    printed here instead of in decide_logging_format().  This is
-    because the warnings should be printed only if the statement is
-    actually logged. When executing decide_logging_format(), we cannot
-    know for sure if the statement will be logged.
+    printed in three places instead of in decide_logging_format().
+    This is because the warnings should be printed only if the statement
+    is actually logged. When executing decide_logging_format(), we cannot
+    know for sure if the statement will be logged:
 
+    1 - sp_head::execute_procedure which prints out warnings for calls to
+    stored procedures.
+
+    2 - sp_head::execute_function which prints out warnings for calls
+    involving functions.
+
+    3 - THD::binlog_query (here) which prints warning for top level
+    statements not covered by the two cases above: i.e., if not insided a
+    procedure and a function.
+ 
     Besides, we should not try to print these warnings if it is not
     possible to write statements to the binary log as it happens when
     the execution is inside a function, or generaly speaking, when
     the variables.option_bits & OPTION_BIN_LOG is false.
   */
-  if (variables.option_bits & OPTION_BIN_LOG)
+  if ((variables.option_bits & OPTION_BIN_LOG) &&
+      spcont == NULL && !binlog_evt_union.do_union)
     issue_unsafe_warnings();
 
   switch (qtype) {

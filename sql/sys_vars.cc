@@ -833,6 +833,19 @@ static Sys_var_ulong Sys_join_buffer_size(
        SESSION_VAR(join_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(128, ULONG_MAX), DEFAULT(128*1024), BLOCK_SIZE(128));
 
+static Sys_var_ulong Sys_optimizer_join_cache_level(
+       "optimizer_join_cache_level",
+       "Controls what join operations can be executed with join buffers. "
+       "Odd numbers are used for plain join buffers while even numbers "
+       "are used for linked buffers",
+       SESSION_VAR(optimizer_join_cache_level), CMD_LINE(REQUIRED_ARG),
+#ifdef OPTIMIZER_SWITCH_ALL
+       VALID_RANGE(0, 8),
+#else
+       VALID_RANGE(0, 1),
+#endif
+       DEFAULT(1), BLOCK_SIZE(1));
+
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
        "index blocks for MyISAM tables. Increase this to get better index "
@@ -1357,6 +1370,10 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
+#ifdef OPTIMIZER_SWITCH_ALL
+  "materialization", "semijoin", "loosescan", "firstmatch",
+  "mrr", "mrr_cost_based", "index_condition_pushdown",
+#endif
   "default", NullS
 };
 /** propagates changes to @@engine_condition_pushdown */
@@ -1372,8 +1389,13 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
-       "index_merge_intersection, engine_condition_pushdown}"
-       " and val is one of {on, off, default}",
+       "index_merge_intersection, engine_condition_pushdown"
+#ifdef OPTIMIZER_SWITCH_ALL
+       ", materialization, "
+       "semijoin, loosescan, firstmatch, mrr, mrr_cost_based, "
+       "index_condition_pushdown"
+#endif
+       "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),

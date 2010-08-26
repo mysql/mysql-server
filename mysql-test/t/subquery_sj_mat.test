@@ -1,0 +1,31 @@
+# 
+# Run subquery_sj.inc with semijoin and turn off all strategies, but Materialization
+#
+
+--source include/have_semijoin.inc
+--source include/have_materialization.inc
+set optimizer_switch='semijoin=on,materialization=on';
+
+--disable_query_log
+if (`select locate('loosescan', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='loosescan=off';
+}
+if (`select locate('firstmatch', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='firstmatch=off';
+}
+if (`select locate('index_condition_pushdown', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='index_condition_pushdown=off';
+}
+if (`select locate('mrr', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='mrr=off';
+}
+--enable_query_log
+
+--source include/subquery_sj.inc
+
+set optimizer_switch=default;
+
