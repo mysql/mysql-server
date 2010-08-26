@@ -76,7 +76,8 @@ public:
 	virtual double	scan_time ()	{ return (double)( records+deleted )/20.0 + 10; }				///< called in test_quick_select to determine if indexes should be used
 	#endif
 
-	virtual double	read_time ( ha_rows rows )	{ return (double)rows/20.0 + 1; }					///< index read time estimate
+	virtual double	read_time(uint index, uint ranges, ha_rows rows)
+        { return (double)rows/20.0 + 1; }					///< index read time estimate
 
 public:
 	int				open ( const char * name, int mode, uint test_if_locked );

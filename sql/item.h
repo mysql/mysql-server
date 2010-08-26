@@ -1887,7 +1887,7 @@ public:
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
-  bool check_vcol_func_processor(uchar arg) { return FALSE;}
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 };
 
 

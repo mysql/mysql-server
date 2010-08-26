@@ -11,13 +11,6 @@
 // did not, you can find it at http://www.gnu.org/
 //
 
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-
-#include <sys/un.h>
-#include <netdb.h>
-
 #include <mysql_version.h>
 
 #if MYSQL_VERSION_ID>50100
@@ -26,6 +19,13 @@
 #else
 #include "../mysql_priv.h"
 #endif
+
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+
+#include <sys/un.h>
+#include <netdb.h>
 
 #include <mysys_err.h>
 #include <my_sys.h>
