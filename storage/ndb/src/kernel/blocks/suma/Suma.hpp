@@ -473,6 +473,8 @@ public:
   void execSUMA_START_ME_REF(Signal* signal);
   void execSUMA_START_ME_CONF(Signal* signal);
 
+  void execSTOP_ME_REQ(Signal*);
+
   void copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator);
   void sendSubCreateReq(Signal* signal, Ptr<Subscription>);
   void copySubscriber(Signal*, Ptr<Subscription>, Ptr<Subscriber>);
@@ -517,6 +519,16 @@ private:
     NdbNodeBitmask m_handover_nodes;
   } c_startup;
 
+  /**
+   * for graceful shutdown
+   */
+  struct Shutdown
+  {
+    bool m_wait_handover;
+    Uint32 m_senderRef;
+    Uint32 m_senderData;
+  } c_shutdown;
+
   struct Restart
   {
     Uint16 m_abort;
@@ -545,7 +557,7 @@ private:
   void send_dict_unlock_ord(Signal* signal, Uint32 state);
   void send_start_me_req(Signal* signal);
   void check_start_handover(Signal* signal);
-  void send_handover_req(Signal* signal);
+  void send_handover_req(Signal* signal, Uint32 type);
 
   Uint32 get_responsible_node(Uint32 B) const;
   Uint32 get_responsible_node(Uint32 B, const NdbNodeBitmask& mask) const;
@@ -576,6 +588,7 @@ private:
       ,BUCKET_DROPPED_SELF  = 0x40 // New nodegroup (me) uses hi 8 bit for cnt
       ,BUCKET_DROPPED_OTHER = 0x80 // New nodegroup (not me)
       ,BUCKET_DROPPED_MASK  = (BUCKET_DROPPED_SELF | BUCKET_DROPPED_OTHER)
+      ,BUCKET_SHUTDOWN = 0x100 // Graceful shutdown
     };
     Uint16 m_state;
     Uint16 m_switchover_node;
