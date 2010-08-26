@@ -1,4 +1,0 @@
-perl mysql-test-run.pl --timer --force --comment=1st --experimental=collections/default.experimental 1st
-perl mysql-test-run.pl --timer --force --comment=1st_relay --experimental=collections/default.experimental 1st --mysqld=--relay-log-info-repository=TABLE
-perl mysql-test-run.pl --timer --force --comment=1st_master --experimental=collections/default.experimental 1st --mysqld=--master-info-repository=TABLE
-perl mysql-test-run.pl --timer --force --comment=1st_both --experimental=collections/default.experimental 1st --mysqld=--master-info-repository=TABLE --mysqld=--relay-log-info-repository=TABLE
