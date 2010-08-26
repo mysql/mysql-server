@@ -1184,13 +1184,9 @@ Ndb::sendPrepTrans(int forceSend)
     NdbTransaction * a_con = thePreparedTransactionsArray[i];
     thePreparedTransactionsArray[i] = NULL;
     Uint32 node_id = a_con->getConnectedNodeId();
-    if (((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
-         tp->get_node_alive(node_id)) ||
-        ((tp->get_node_stopping(node_id) && 
-          ((a_con->theSendStatus == NdbTransaction::sendABORT) ||
-           (a_con->theSendStatus == NdbTransaction::sendABORTfail) ||
-           (a_con->theSendStatus == NdbTransaction::sendCOMMITstate) ||
-           (a_con->theSendStatus == NdbTransaction::sendCompleted))))) {
+    if ((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
+        (tp->get_node_alive(node_id) || tp->get_node_stopping(node_id)))
+    {
       /*
       We will send if
       1) Node is alive and sequences are correct OR
@@ -1236,27 +1232,15 @@ Ndb::sendPrepTrans(int forceSend)
 #ifdef VM_TRACE
       a_con->printState();
 #endif
-      if ((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
-          tp->get_node_stopping(node_id)) {
-        /*
-        The node we are connected to is currently in an early stopping phase
-        of a graceful stop. We will not send the prepared transactions. We
-        will simply refuse and let the application code handle the abort.
-        */
-        TRACE_DEBUG("Abort a transaction when stopping a node");
-        a_con->setOperationErrorCodeAbort(4023);
-        a_con->theCommitStatus = NdbTransaction::NeedAbort;
-      } else {
-        /*
+      /*
         The node is hard dead and we cannot continue. We will also release
         the connection to the free pool.
-        */
-        TRACE_DEBUG("The node was stone dead, inform about abort");
-        a_con->setOperationErrorCodeAbort(4025);
-        a_con->theReleaseOnClose = true;
-        a_con->theTransactionIsStarted = false;
-        a_con->theCommitStatus = NdbTransaction::Aborted;
-      }//if
+      */
+      TRACE_DEBUG("The node was stone dead, inform about abort");
+      a_con->setOperationErrorCodeAbort(4025);
+      a_con->theReleaseOnClose = true;
+      a_con->theTransactionIsStarted = false;
+      a_con->theCommitStatus = NdbTransaction::Aborted;
     }//if
     a_con->theReturnStatus = NdbTransaction::ReturnFailure;
     a_con->theCompletionStatus = NdbTransaction::CompletedFailure;
