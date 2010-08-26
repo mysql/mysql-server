@@ -22040,7 +22040,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       the UNION to provide precise EXPLAIN information will hardly be
       appreciated :)
     */
-    char table_name_buffer[NAME_LEN];
+    char table_name_buffer[NAME_CHAR_LEN];
     item_list.empty();
     /* id */
     item_list.push_back(new Item_null);
@@ -22050,25 +22050,35 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					cs));
     /* table */
     {
+      SELECT_LEX *last_select= join->unit->first_select()->last_select();
+      // # characters needed to print select_number of last select
+      int last_length= log10(last_select->select_number)+1;
+
       SELECT_LEX *sl= join->unit->first_select();
       uint len= 6, lastop= 0;
       memcpy(table_name_buffer, STRING_WITH_LEN("<union"));
-      for (; sl && len + lastop + 5 < NAME_LEN; sl= sl->next_select())
+      /*
+        - len + lastop: current position in table_name_buffer
+        - 6 + last_length: the number of characters needed to print
+          '...,'<last_select->select_number>'>\0'
+      */
+      for (; 
+           sl && len + lastop + 6 + last_length < NAME_CHAR_LEN; 
+           sl= sl->next_select())
       {
         len+= lastop;
-        lastop= my_snprintf(table_name_buffer + len, NAME_LEN - len,
+        lastop= my_snprintf(table_name_buffer + len, NAME_CHAR_LEN - len,
                             "%u,", sl->select_number);
       }
-      if (sl || len + lastop >= NAME_LEN)
+      if (sl || len + lastop >= NAME_CHAR_LEN)
       {
-        memcpy(table_name_buffer + len, STRING_WITH_LEN("...>") + 1);
+        memcpy(table_name_buffer + len, STRING_WITH_LEN("...,"));
         len+= 4;
+        lastop= my_snprintf(table_name_buffer + len, NAME_CHAR_LEN - len,
+                            "%u,", last_select->select_number);
       }
-      else
-      {
-        len+= lastop;
-        table_name_buffer[len - 1]= '>';  // change ',' to '>'
-      }
+      len+= lastop;
+      table_name_buffer[len - 1]= '>';  // change ',' to '>'
       item_list.push_back(new Item_string(table_name_buffer, len, cs));
     }
     /* partitions */
