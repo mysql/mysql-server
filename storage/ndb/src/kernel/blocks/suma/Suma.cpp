@@ -5418,6 +5418,11 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
   Uint32 nodeId = req->nodeId;
   Uint32 new_gci = Uint32(m_last_complete_gci >> 32) + MAX_CONCURRENT_GCP + 1;
   Uint32 requestType = req->requestType;
+  if (!ndbd_suma_stop_me(getNodeInfo(nodeId).m_version))
+  {
+    jam();
+    requestType = SumaHandoverReq::RT_START_NODE;
+  }
   
   Uint32 start_gci = (gci > new_gci ? gci : new_gci);
   // mark all active buckets really belonging to restarting SUMA
@@ -5525,6 +5530,12 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
 #ifdef HANDOVER_DEBUG
   ndbout_c("Suma::execSUMA_HANDOVER_CONF, gci = %u", gci);
 #endif
+
+  if (!ndbd_suma_stop_me(getNodeInfo(nodeId).m_version))
+  {
+    jam();
+    requestType = SumaHandoverReq::RT_START_NODE;
+  }
 
   if (requestType == SumaHandoverReq::RT_START_NODE)
   {
