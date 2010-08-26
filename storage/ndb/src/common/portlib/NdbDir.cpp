@@ -98,7 +98,7 @@ class DirIteratorImpl {
     return (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
   }
   bool is_regular_file(const WIN32_FIND_DATA find_data) const {
-    return (find_data.dwFileAttributes & FILE_ATTRIBUTE_NORMAL);
+    return !is_dir(find_data);
   }
 
 public:
