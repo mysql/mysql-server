@@ -16640,7 +16640,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (tab->select && tab->select->quick)
           examined_rows= tab->select->quick->records;
         else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-          examined_rows= tab->limit ? tab->limit : tab->table->file->records();
+        {
+          if (tab->limit)
+            examined_rows= tab->limit;
+          else
+          {
+            tab->table->file->info(HA_STATUS_VARIABLE);
+            examined_rows= tab->table->file->stats.records;
+          }
+        }
         else
           examined_rows=(ha_rows)join->best_positions[i].records_read; 
  
