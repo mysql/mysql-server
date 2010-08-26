@@ -128,7 +128,8 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
   }
   ctx->setTab(pTab2);
 
-  BaseString::snprintf(f_tablename, sizeof(f_tablename), pTab->getName());
+  BaseString::snprintf(f_tablename, sizeof(f_tablename), 
+                       "%s", pTab->getName());
 
   return NDBT_OK;
 }
@@ -3394,9 +3395,8 @@ runDropDDObjects(NDBT_Context* ctx, NDBT_Step* step){
         tableFound = list.elements[i].name;
         if(tableFound != 0){
           if(strcmp(list.elements[i].database, "TEST_DB") == 0 &&
-             strcmp(tableFound, "ndb_apply_status") != 0 &&
-             strcmp(tableFound, "NDB$BLOB_2_3") != 0 &&
-             strcmp(tableFound, "ndb_schema") != 0){
+             !is_prefix(tableFound, "NDB$BLOB"))
+          { 
       	    if(pDict->dropTable(tableFound) != 0){
               g_err << "Failed to drop table: " << tableFound << pDict->getNdbError() << endl;
               return NDBT_FAILED;
