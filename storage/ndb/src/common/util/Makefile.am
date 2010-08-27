@@ -27,7 +27,7 @@ libgeneral_la_SOURCES = \
             uucode.c random.c version.cpp ndb_opts.c \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
-            Bitmask.cpp SparseBitmask.cpp \
+            Bitmask.cpp SparseBitmask.cpp parse_mask.hpp \
 	    ndb_rand.c require.c
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
