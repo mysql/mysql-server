@@ -637,9 +637,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "CPU list indicating which CPU will run the execution thread(s)",
     ConfigInfo::CI_USED,
     0,
-    ConfigInfo::CI_STRING,
+    ConfigInfo::CI_BITMASK,
     0,
-    0, 0 },
+    0,
+    "65535"
+  },
 
   {
     CFG_DB_MAINT_LOCK_CPU,
@@ -3013,6 +3015,20 @@ ConfigInfo::ConfigInfo()
         else if(param._default)
           pinfo.put("Default", param._default);
 	break;
+
+      case CI_BITMASK:
+        assert(param._min == 0); // Bitmask can't have min value
+
+	Uint64 tmp_uint64;
+	require(InitConfigFileParser::convertStringToUint64(param._max,
+                                                            tmp_uint64));
+	pinfo.put64("Max", tmp_uint64);
+
+        if(param._default == MANDATORY)
+          pinfo.put("Mandatory", (Uint32)1);
+        else if(param._default)
+          pinfo.put("Default", param._default);
+        break;
     }
 
     // Check that pinfo is really new
@@ -3043,6 +3059,7 @@ ConfigInfo::ConfigInfo()
 	    break;
 	  case CI_ENUM:
 	  case CI_STRING:
+          case CI_BITMASK:
 	    require(p->put(param._fname, param._default));
 	    break;
 	  case CI_BOOL:
@@ -3429,6 +3446,7 @@ public:
       fprintf(m_out, "\n");
       break;
 
+    case ConfigInfo::CI_BITMASK:
     case ConfigInfo::CI_ENUM:
     case ConfigInfo::CI_STRING:
       fprintf(m_out, "%s (String)\n", param_name);
@@ -3552,6 +3570,7 @@ public:
       pairs.put("max", buf.c_str());
     break;
 
+    case ConfigInfo::CI_BITMASK:
     case ConfigInfo::CI_ENUM:
     case ConfigInfo::CI_STRING:
       pairs.put("type", "string");
@@ -3959,6 +3978,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
           DBUG_PRINT("info",("%s=%lld #default",name,val));
 	  break;
 	}
+        case ConfigInfo::CI_BITMASK:
 	case ConfigInfo::CI_STRING:{
 	  const char * val;
 	  require(defaults->get(name, &val));
@@ -3987,6 +4007,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
           DBUG_PRINT("info",("%s=%lld",name,val));
           break;
         }
+        case ConfigInfo::CI_BITMASK:
         case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_STRING:{
           const char * val;
