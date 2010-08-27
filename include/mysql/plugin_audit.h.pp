@@ -1,3 +1,4 @@
+#include "plugin.h"
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
 extern struct my_snprintf_service_st {
@@ -166,3 +167,30 @@ void mysql_query_cache_invalidate4(void* thd,
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
+struct mysql_event
+{
+  unsigned int event_class;
+};
+struct mysql_event_general
+{
+  unsigned int event_class;
+  unsigned int event_subclass;
+  int general_error_code;
+  unsigned long general_thread_id;
+  const char *general_user;
+  unsigned int general_user_length;
+  const char *general_command;
+  unsigned int general_command_length;
+  const char *general_query;
+  unsigned int general_query_length;
+  struct charset_info_st *general_charset;
+  unsigned long long general_time;
+  unsigned long long general_rows;
+};
+struct st_mysql_audit
+{
+  int interface_version;
+  void (*release_thd)(void*);
+  void (*event_notify)(void*, const struct mysql_event *);
+  unsigned long class_mask[1];
+};
