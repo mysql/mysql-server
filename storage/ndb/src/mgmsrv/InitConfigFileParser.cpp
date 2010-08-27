@@ -945,6 +945,9 @@ InitConfigFileParser::parse_mycnf()
 	const char * defaults_groups[] = { 0,  0, 0 };
 	for(unsigned j = 0; j<list.size(); j++)
 	{
+          // Remove leading and trailing spaces from hostname
+          list[j].trim();
+
 	  BaseString group_idx;
 	  BaseString group_host;
 	  group_idx.assfmt("%s.%s.%d", groups[0], 
