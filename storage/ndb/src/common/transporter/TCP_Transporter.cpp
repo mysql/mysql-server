@@ -255,10 +255,15 @@ bool TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket)
 bool
 TCP_Transporter::send_is_possible(int timeout_millisec) const
 {
+  ndb_socket_poller poller;
+
   if (!my_socket_valid(theSocket))
     return false;
 
-  if (ndb_poll(theSocket, false, true, false, timeout_millisec) <= 0)
+  poller.clear();
+  poller.add(theSocket, false, true, false);
+
+  if (poller.poll_unsafe(timeout_millisec) <= 0)
     return false; // Timeout or error occured
 
   return true;

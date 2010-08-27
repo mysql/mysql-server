@@ -563,6 +563,7 @@ public:
 
   CArray<SchemaPageRecord> c_schemaPageRecordArray;
 
+  unsigned g_trace;
   DictTabInfo::Table c_tableDesc;
 
   /**
@@ -1040,7 +1041,8 @@ private:
 
     /**    The active table at restart process */
     BlockReference returnBlockRef;
-    
+    Uint32 m_senderData;
+
     Uint32 m_pass;     // 0 tablespaces/logfilegroups, 1 tables, 2 indexes
     Uint32 m_end_pass; //
     const char * m_start_banner;
@@ -1267,6 +1269,7 @@ private:
     // for CreateTable
     Uint32 errorStatus;
     Uint32 errorKey;
+    char errorObjectName[MAX_TAB_NAME_SIZE];
     ErrorInfo() {
       errorCode = 0;
       errorLine = 0;
@@ -1274,7 +1277,7 @@ private:
       errorCount = 0;
       errorStatus = 0;
       errorKey = 0;
-
+      errorObjectName[0] = 0;
     }
 #ifdef VM_TRACE
     void print(NdbOut&) const;
@@ -1288,7 +1291,13 @@ private:
                 Uint32 line,
                 Uint32 nodeId = 0,
                 Uint32 status = 0,
-                Uint32 key = 0);
+                Uint32 key = 0,
+                const char * name = 0);
+
+  void setError(ErrorInfo&, 
+                Uint32 code,
+                Uint32 line,
+                const char * name);
 
   void setError(ErrorInfo&, const ErrorInfo&);
   void setError(ErrorInfo&, const ParseDictTabInfoRecord&);
@@ -3736,7 +3745,7 @@ private:
   void restart_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void restartEndPass_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void restart_fromWriteSchemaFile(Signal*, Uint32, Uint32);
-  void restart_nextOp(Signal*);
+  void restart_nextOp(Signal*, bool commit = false);
 
   void checkSchemaStatus(Signal* signal);
   void checkPendingSchemaTrans(XSchemaFile* xsf);

@@ -3047,11 +3047,62 @@ Dbspj::lookup_parent_row(Signal* signal,
       LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
       Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
 
-      err = expand(ptrI, pattern, rowRef);
+      bool keyIsNull;
+      err = expand(ptrI, pattern, rowRef, keyIsNull);
       if (unlikely(err != 0))
         break;
 
-      if (ptrI == RNIL)
+      if (keyIsNull)
+      {
+        jam();
+        DEBUG("Key contain NULL values");
+        /**
+         * When the key contains NULL values, an EQ-match is impossible!
+         * Entire lookup request can therefore be eliminate as it is known
+         * to be REFused with errorCode = 626 (Row not found).
+         * Different handling is required depening of request being a 
+         * scan or lookup:
+         */
+        if (requestPtr.p->isScan())
+        {
+          /**
+           * Scan request: We can simply ignore lookup operation:
+           * As rowCount in SCANCONF will not include this KEYREQ,
+           * we dont have to send a KEYREF either.
+           */
+          jam();
+          DEBUG("..Ignore impossible KEYREQ");
+          if (ptrI != RNIL)
+          {
+            releaseSection(ptrI);
+          }
+          return;  // Bailout, KEYREQ would have returned KEYREF(626)
+        }
+        else  // isLookup()
+        {
+          /**
+           * Ignored lookup request need a faked KEYREF for the lookup operation.
+           * Furthermore, if this is a leaf treeNode, a KEYCONF is also
+           * expected by the API.
+           *
+           * TODO: Not implemented yet as we believe  
+           *       elimination of NULL key access for scan request
+           *       will have the most performance impact.           
+           */
+          jam();
+        }
+      }
+      /**
+       * NOTE:
+       *    The logic below contradicts 'keyIsNull' logic above and should
+       *    be removed.
+       *    However, it's likely that scanIndex should have similar
+       *    logic as 'Null as wildcard' may make sense for a range bound.
+       * NOTE2:
+       *    Until 'keyIsNull' also cause bailout for request->isLookup()
+       *    createEmptySection *is* require to avoid crash due to empty keys.
+       */
+      if (ptrI == RNIL)  // TODO: remove when keyIsNull is completely handled
       {
         jam();
         /**
@@ -3094,11 +3145,13 @@ Dbspj::lookup_parent_row(Signal* signal,
         org_size = ptr.sz;
       }
 
+      bool hasNull;
       LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
       Local_pattern_store pattern(pool, treeNodePtr.p->m_attrParamPattern);
-      err = expand(tmp, pattern, rowRef);
+      err = expand(tmp, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
         break;
+//    ndbrequire(!hasNull);
 
       /**
        * Update size of subsrouting section, which contains arguments
@@ -4101,7 +4154,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
       Uint32 len_cnt = * tree.ptr ++;
       Uint32 len = len_cnt & 0xFFFF; // length of pattern in words
       Uint32 cnt = len_cnt >> 16;    // no of parameters
-      
+ 
       LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
       ndbrequire((cnt==0) == ((treeBits & Node::SI_PRUNE_PARAMS) ==0));
       ndbrequire((cnt==0) == ((paramBits & Params::SIP_PRUNE_PARAMS)==0));
@@ -4129,8 +4182,11 @@ Dbspj::parseScanIndex(Build_context& ctx,
          *   i.e guaranteed single partition
          */
         Uint32 prunePtrI = RNIL;
-        err = expand(prunePtrI, tree, len, param, cnt);
+        bool hasNull;
+        err = expand(prunePtrI, tree, len, param, cnt, hasNull);
         data.m_constPrunePtrI = prunePtrI;
+
+//      ndbrequire(!hasNull);  /* todo: can we take advantage of NULLs in range scan? */
 
         /**
          * We may not compute the partition for the hash-key here
@@ -4409,12 +4465,14 @@ Dbspj::scanIndex_parent_row(Signal* signal,
        */
       Local_pattern_store pattern(pool, data.m_prunePattern);
       Uint32 pruneKeyPtrI = RNIL;
-      err = expand(pruneKeyPtrI, pattern, rowRef);
+      bool hasNull;
+      err = expand(pruneKeyPtrI, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
       {
         DEBUG_CRASH();
         break;
       }
+//    ndbrequire(!hasNull);
 
       // TODO we need a different variant of computeHash here,
       // since pruneKeyPtrI does not contain full primary key
@@ -4471,11 +4529,12 @@ Dbspj::scanIndex_parent_row(Signal* signal,
     }
     
     Uint32 ptrI = fragPtr.p->m_rangePtrI;
+    bool hasNull;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
       jam();
       Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
-      err = expand(ptrI, pattern, rowRef);
+      err = expand(ptrI, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
       {
         DEBUG_CRASH();
@@ -4488,6 +4547,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       // Fixed key...fix later...
       ndbrequire(false);
     }
+//  ndbrequire(!hasNull);
     fragPtr.p->m_rangePtrI = ptrI;
     scanIndex_fixupBound(fragPtr, ptrI, rowRef.m_src_correlation);
 
@@ -5224,7 +5284,8 @@ Dbspj::getCorrelationData(const RowPtr::Linear & row,
 }
 
 Uint32
-Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Section & row, Uint32 col)
+Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Section & row,
+                          Uint32 col, bool& hasNull)
 {
   /**
    * TODO handle errors
@@ -5236,11 +5297,18 @@ Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Section & row, Uint32 col)
   Uint32 tmp;
   ndbrequire(reader.getWord(&tmp));
   Uint32 len = AttributeHeader::getDataSize(tmp);
+  if (unlikely(len==0))
+  {
+    jam();
+    hasNull = true;  // NULL-value in key
+    return 0;
+  }
   return appendTreeToSection(dst, reader, len);
 }
 
 Uint32
-Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Linear & row, Uint32 col)
+Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Linear & row,
+                          Uint32 col, bool& hasNull)
 {
   /**
    * TODO handle errors
@@ -5248,12 +5316,18 @@ Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Linear & row, Uint32 col)
   Uint32 offset = row.m_header->m_offset[col];
   const Uint32 * ptr = row.m_data + offset;
   Uint32 len = AttributeHeader::getDataSize(* ptr ++);
+  if (unlikely(len==0))
+  {
+    jam();
+    hasNull = true;  // NULL-value in key
+    return 0;
+  }
   return appendToSection(dst, ptr, len) ? 0 : DbspjErr::InvalidPattern;
 }
 
 Uint32
 Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Linear & row, 
-                               Uint32 col)
+                               Uint32 col, bool& hasNull)
 {
   /**
    * TODO handle errors
@@ -5261,12 +5335,17 @@ Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Linear & row,
   Uint32 offset = row.m_header->m_offset[col];
   const Uint32 * ptr = row.m_data + offset;
   Uint32 len = AttributeHeader::getDataSize(* ptr);
+  if (unlikely(len==0))
+  {
+    jam();
+    hasNull = true;  // NULL-value in key
+  }
   return appendToSection(dst, ptr, 1 + len) ? 0 : DbspjErr::InvalidPattern;
 }
 
 Uint32
 Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Section & row, 
-                               Uint32 col)
+                               Uint32 col, bool& hasNull)
 {
   /**
    * TODO handle errors
@@ -5278,6 +5357,11 @@ Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Section & row,
   Uint32 tmp;
   ndbrequire(reader.peekWord(&tmp));
   Uint32 len = AttributeHeader::getDataSize(tmp);
+  if (unlikely(len==0))
+  {
+    jam();
+    hasNull = true;  // NULL-value in key
+  }
   return appendTreeToSection(dst, reader, 1 + len);
 }
 
@@ -5298,6 +5382,7 @@ Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Section & row, Uint32 co
   Uint32 tmp;
   ndbrequire(reader.getWord(&tmp));
   Uint32 len = AttributeHeader::getDataSize(tmp);
+  ndbrequire(len>1);  // NULL-value in PkKey is an error
   ndbrequire(reader.step(1)); // Skip fragid
   return appendTreeToSection(dst, reader, len-1);
 }
@@ -5312,13 +5397,15 @@ Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Linear & row, Uint32 col
   Uint32 offset = row.m_header->m_offset[col];
   Uint32 tmp = row.m_data[offset];
   Uint32 len = AttributeHeader::getDataSize(tmp);
+  ndbrequire(len>1);  // NULL-value in PkKey is an error
   return appendToSection(dst, row.m_data+offset+2, len - 1) ? 0 : /** todo error code */ 1;
 }
 
 Uint32
 Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
                         Local_pattern_store::ConstDataBufferIterator& it,
-                        Uint32 levels, const RowPtr & rowptr)
+                        Uint32 levels, const RowPtr & rowptr,
+                        bool& hasNull)
 {
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, rowptr.m_src_node_ptrI);
@@ -5401,7 +5488,7 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
   switch(type){
   case QueryPattern::P_COL:
     jam();
-    return appendColToSection(dst, targetRow.m_row_data.m_linear, val);
+    return appendColToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
     break;
   case QueryPattern::P_UNQ_PK:
     jam();
@@ -5409,7 +5496,7 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
     break;
   case QueryPattern::P_ATTRINFO:
     jam();
-    return appendAttrinfoToSection(dst, targetRow.m_row_data.m_linear, val);
+    return appendAttrinfoToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
     break;
   case QueryPattern::P_DATA:
     jam();
@@ -5434,8 +5521,14 @@ Uint32
 Dbspj::appendDataToSection(Uint32 & ptrI,
                            Local_pattern_store& pattern,
 			   Local_pattern_store::ConstDataBufferIterator& it,
-			   Uint32 len)
+			   Uint32 len, bool& hasNull)
 {
+  if (unlikely(len==0))
+  {
+    jam();
+    hasNull = true;
+    return 0;
+  }
 
 #if 0
   /**
@@ -5486,28 +5579,6 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
 }
 
 Uint32
-Dbspj::zeroFill(Uint32 & dst, Uint32 cnt)
-{
-  Uint32 tmp[NDB_SECTION_SEGMENT_SZ];
-  bzero(tmp, sizeof(tmp));
-  while (cnt > NDB_SECTION_SEGMENT_SZ)
-  {
-    if (unlikely(appendToSection(dst, tmp, NDB_SECTION_SEGMENT_SZ) == false))
-      goto error;
-    cnt -= NDB_SECTION_SEGMENT_SZ;
-  }
-
-  if (unlikely(appendToSection(dst, tmp, cnt) == false))
-    goto error;
-
-  return 0;
-
-error:
-  jam();
-  return DbspjErr::OutOfSectionMemory;
-}
-
-Uint32
 Dbspj::createEmptySection(Uint32 & dst)
 {
   Uint32 tmp;
@@ -5528,10 +5599,11 @@ Dbspj::createEmptySection(Uint32 & dst)
  */
 Uint32
 Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
-               const RowPtr & row)
+               const RowPtr & row, bool& hasNull)
 {
   Uint32 err;
   Uint32 dst = _dst;
+  hasNull = false;
   Local_pattern_store::ConstDataBufferIterator it;
   pattern.first(it);
   while (!it.isNull())
@@ -5543,7 +5615,7 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
     switch(type){
     case QueryPattern::P_COL:
       jam();
-      err = appendColToSection(dst, row.m_row_data.m_section, val);
+      err = appendColToSection(dst, row.m_row_data.m_section, val, hasNull);
       break;
     case QueryPattern::P_UNQ_PK:
       jam();
@@ -5551,20 +5623,20 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
       break;
     case QueryPattern::P_ATTRINFO:
       jam();
-      err = appendAttrinfoToSection(dst, row.m_row_data.m_section, val);
+      err = appendAttrinfoToSection(dst, row.m_row_data.m_section, val, hasNull);
       break;
     case QueryPattern::P_DATA:
       jam();
-      err = appendDataToSection(dst, pattern, it, val);
+      err = appendDataToSection(dst, pattern, it, val, hasNull);
       break;
     case QueryPattern::P_PARENT:
       jam();
       // P_PARENT is a prefix to another pattern token
-      // that permits code to access rows from earlier than imediate parent
+      // that permits code to access rows from earlier than imediate parent.
       // val is no of levels to move up the tree
-      err = appendFromParent(dst, pattern, it, val, row);
+      err = appendFromParent(dst, pattern, it, val, row, hasNull);
       break;
-    // PARAM's converted to DATA by ::expand(pattern...)
+    // PARAM's was converted to DATA by ::expand(pattern...)
     case QueryPattern::P_PARAM:
     case QueryPattern::P_PARAM_HEADER:
     default:
@@ -5592,10 +5664,11 @@ error:
  */
 Uint32
 Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
-               const RowPtr & row)
+               const RowPtr & row, bool& hasNull)
 {
   Uint32 err;
   Uint32 dst = _dst;
+  hasNull = false;
   Local_pattern_store::ConstDataBufferIterator it;
   pattern.first(it);
   while (!it.isNull())
@@ -5607,7 +5680,7 @@ Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
     switch(type){
     case QueryPattern::P_COL:
       jam();
-      err = appendColToSection(dst, row.m_row_data.m_linear, val);
+      err = appendColToSection(dst, row.m_row_data.m_linear, val, hasNull);
       break;
     case QueryPattern::P_UNQ_PK:
       jam();
@@ -5615,20 +5688,20 @@ Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
       break;
     case QueryPattern::P_ATTRINFO:
       jam();
-      err = appendAttrinfoToSection(dst, row.m_row_data.m_linear, val);
+      err = appendAttrinfoToSection(dst, row.m_row_data.m_linear, val, hasNull);
       break;
     case QueryPattern::P_DATA:
       jam();
-      err = appendDataToSection(dst, pattern, it, val);
+      err = appendDataToSection(dst, pattern, it, val, hasNull);
       break;
     case QueryPattern::P_PARENT:
       jam();
       // P_PARENT is a prefix to another pattern token
       // that permits code to access rows from earlier than imediate parent
       // val is no of levels to move up the tree
-      err = appendFromParent(dst, pattern, it, val, row);
+      err = appendFromParent(dst, pattern, it, val, row, hasNull);
       break;
-    // PARAM's converted to DATA by ::expand(pattern...)
+    // PARAM's was converted to DATA by ::expand(pattern...)
     case QueryPattern::P_PARAM:
     case QueryPattern::P_PARAM_HEADER:
     default:
@@ -5653,7 +5726,7 @@ error:
 
 Uint32
 Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
-              DABuffer& param, Uint32 paramCnt)
+              DABuffer& param, Uint32 paramCnt, bool& hasNull)
 {
   /**
    * TODO handle error
@@ -5668,6 +5741,7 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
   Uint32 dst = ptrI;
   const Uint32 * ptr = pattern.ptr;
   const Uint32 * end = ptr + len;
+  hasNull = false;
 
   for (; ptr < end; )
   {
@@ -5678,18 +5752,24 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
     case QueryPattern::P_PARAM:
       jam();
       ndbassert(val < paramCnt);
-      err = appendColToSection(dst, row, val);
+      err = appendColToSection(dst, row, val, hasNull);
       break;
     case QueryPattern::P_PARAM_HEADER:
       jam();
       ndbassert(val < paramCnt);
-      err = appendAttrinfoToSection(dst, row, val);
+      err = appendAttrinfoToSection(dst, row, val, hasNull);
       break;
     case QueryPattern::P_DATA:
-      if (likely(appendToSection(dst, ptr, val)))
+      if (unlikely(val==0))
       {
         jam();
-	err = 0;
+        hasNull = true;
+        err = 0;
+      }
+      else if (likely(appendToSection(dst, ptr, val)))
+      {
+        jam();
+        err = 0;
       }
       else
       {
@@ -5936,8 +6016,10 @@ Dbspj::parseDA(Build_context& ctx,
          * Expand pattern directly into keyinfo
          *   This means a "fixed" key from here on
          */
+        bool hasNull;
         Uint32 keyInfoPtrI = RNIL;
-        err = expand(keyInfoPtrI, tree, len, param, cnt);
+        err = expand(keyInfoPtrI, tree, len, param, cnt, hasNull);
+//      ndbrequire(!hasNull);
         treeNodePtr.p->m_send.m_keyInfoPtrI = keyInfoPtrI;
       }
 
@@ -6062,7 +6144,9 @@ Dbspj::parseDA(Build_context& ctx,
              * Expand pattern directly into attr-info param
              *   This means a "fixed" attr-info param from here on
              */
-            err = expand(attrParamPtrI, tree, len_pattern, param, cnt);
+            bool hasNull;
+            err = expand(attrParamPtrI, tree, len_pattern, param, cnt, hasNull);
+//          ndbrequire(!hasNull);
           }
         }
         else // if (treeBits & DABits::NI_ATTR_INTERPRET)

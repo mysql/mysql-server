@@ -997,31 +997,31 @@ private:
                                   Uint32);
 
   Uint32 appendTreeToSection(Uint32 & ptrI, SectionReader &, Uint32);
-  Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Linear&, Uint32 col);
-  Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Section&, Uint32 col);
+  Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Linear&, Uint32 col, bool& hasNull);
+  Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Section&, Uint32 col, bool& hasNull);
   Uint32 appendPkColToSection(Uint32 & ptrI, const RowPtr::Section&,Uint32 col);
   Uint32 appendPkColToSection(Uint32 & ptrI, const RowPtr::Linear&, Uint32 col);
-  Uint32 appendAttrinfoToSection(Uint32 &, const RowPtr::Linear&, Uint32 col);
-  Uint32 appendAttrinfoToSection(Uint32 &, const RowPtr::Section&, Uint32 col);
+  Uint32 appendAttrinfoToSection(Uint32 &, const RowPtr::Linear&, Uint32 col, bool& hasNull);
+  Uint32 appendAttrinfoToSection(Uint32 &, const RowPtr::Section&, Uint32 col, bool& hasNull);
   Uint32 appendDataToSection(Uint32 & ptrI, Local_pattern_store&,
 			     Local_pattern_store::ConstDataBufferIterator&,
-			     Uint32 len);
+			     Uint32 len, bool& hasNull);
   Uint32 appendFromParent(Uint32 & ptrI, Local_pattern_store&,
                           Local_pattern_store::ConstDataBufferIterator&,
-                          Uint32 level, const RowPtr&);
-  Uint32 expand(Uint32 & ptrI, Local_pattern_store& p, const RowPtr& r){
+                          Uint32 level, const RowPtr&, bool& hasNull);
+  Uint32 expand(Uint32 & ptrI, Local_pattern_store& p, const RowPtr& r, bool& hasNull){
     switch(r.m_type){
     case RowPtr::RT_SECTION:
-      return expandS(ptrI, p, r);
+      return expandS(ptrI, p, r, hasNull);
     case RowPtr::RT_LINEAR:
-      return expandL(ptrI, p, r);
+      return expandL(ptrI, p, r, hasNull);
     }
     return DbspjErr::InternalError;
   }
-  Uint32 expandS(Uint32 & ptrI, Local_pattern_store&, const RowPtr&);
-  Uint32 expandL(Uint32 & ptrI, Local_pattern_store&, const RowPtr&);
+  Uint32 expandS(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
+  Uint32 expandL(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
   Uint32 expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
-                DABuffer & param, Uint32 cnt);
+                DABuffer & param, Uint32 cnt, bool& hasNull);
   Uint32 expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
                 DABuffer & pattern, Uint32 len,
                 DABuffer & param, Uint32 cnt);
@@ -1029,7 +1029,6 @@ private:
                  DABuffer tree, Uint32 treeBits,
                  DABuffer param, Uint32 paramBits);
 
-  Uint32 zeroFill(Uint32 & ptrI, Uint32 cnt);
   Uint32 createEmptySection(Uint32 & ptrI);
 
   Uint32 getResultRef(Ptr<Request> requestPtr);

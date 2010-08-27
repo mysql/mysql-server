@@ -23,7 +23,7 @@ include $(top_srcdir)/storage/ndb/config/type_mgmapiclient.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 
 test_PROGRAMS = atrt
-test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
+test_DATA=daily-basic-tests.txt daily-devel-tests.txt release-bigmem-tests.txt 16node-tests.txt \
           conf-ndbmaster.cnf \
           conf-fimafeng08.cnf conf-dl145a.cnf test-tests.txt conf-test.cnf \
           conf-upgrade.cnf upgrade-tests.txt \
@@ -50,9 +50,7 @@ atrt_CXXFLAGS = -I$(top_srcdir)/ndb/src/mgmapi \
 atrt_LDFLAGS = -static @ndb_bin_am_ldflags@
 
 wrappersdir=$(prefix)/bin
-wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run
+wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run atrt-mysqltest
 
 EXTRA_DIST = $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT atrt.hpp CMakeLists.txt
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%

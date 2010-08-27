@@ -29,12 +29,14 @@ class ErrorReporter
 public:
   static void handleAssert(const char* message, 
 			   const char* file, 
-			   int line, int ec = NDBD_EXIT_PRGERR)  __attribute__((__noreturn__));
+			   int line, int ec = NDBD_EXIT_PRGERR)
+    ATTRIBUTE_NORETURN;
   
   static void handleError(int faultID, 
 			  const char* problemData,
                           const char* objRef,
-			  enum NdbShutdownType = NST_ErrorHandler);
+			  enum NdbShutdownType = NST_ErrorHandler)
+    ATTRIBUTE_NORETURN;
   
   static void formatMessage(int thr_no,
                             Uint32 num_threads, int faultID,

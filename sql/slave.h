@@ -223,7 +223,8 @@ extern char *report_host, *report_password;
 extern my_bool master_ssl;
 extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert;
 extern char *master_ssl_cipher, *master_ssl_key;
-       
+extern ulong opt_server_id_mask;
+
 extern I_List<THD> threads;
 
 #endif /* HAVE_REPLICATION */

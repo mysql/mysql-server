@@ -65,6 +65,8 @@
 
 #include "events.h"
 
+extern uint opt_server_id_bits;
+
 extern CHARSET_INFO *character_set_filesystem;
 
 
@@ -695,6 +697,10 @@ static sys_var_thd_ulong	sys_net_wait_timeout(&vars, "wait_timeout",
 static sys_var_thd_bool
 sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
 			      &SV::engine_condition_pushdown);
+
+static sys_var_const
+sys_server_id_bits(&vars, "server_id_bits", OPT_GLOBAL, SHOW_INT, 
+                   (uchar*) &opt_server_id_bits);
 
 /* Time/date/datetime formats */
 

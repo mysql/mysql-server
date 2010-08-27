@@ -43,5 +43,3 @@ NdbDir_t_LDADD = \
        libportlib.la \
        $(top_builddir)/mysys/libmysyslt.la
 
-
-%::SCCS/s.%

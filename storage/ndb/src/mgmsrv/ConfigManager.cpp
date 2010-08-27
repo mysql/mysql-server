@@ -345,13 +345,14 @@ ConfigManager::init(void)
     Config* conf = NULL;
     if (!(conf = load_saved_config(config_bin_name)))
       DBUG_RETURN(false);
-    g_eventLogger->info("Loaded config from '%s'", config_bin_name.c_str());
 
     if (!config_ok(conf))
       DBUG_RETURN(false);
 
     set_config(conf);
     m_config_state = CS_CONFIRMED;
+
+    g_eventLogger->info("Loaded config from '%s'", config_bin_name.c_str());
 
     if (m_opts.reload && // --reload
         (m_opts.mycnf || m_opts.config_filename))
@@ -1735,6 +1736,11 @@ ConfigManager::run()
 
   if (!m_opts.config_cache)   
   {
+    /* Stop receiving signals by closing ConfigManager's
+       block in TransporterFacade */
+    delete m_ss;
+    m_ss = NULL;
+
     /* Confirm the present config, free the space that was allocated for a
        new one, and terminate the manager thread */
     delete m_new_config; 
@@ -1929,8 +1935,6 @@ Config*
 ConfigManager::load_init_config(const char* config_filename)
 {
    InitConfigFileParser parser;
-   g_eventLogger->info("Reading cluster configuration from '%s'",
-                       config_filename);
   return parser.parseConfig(config_filename);
 }
 
@@ -1939,7 +1943,6 @@ Config*
 ConfigManager::load_init_mycnf(void)
 {
   InitConfigFileParser parser;
-  g_eventLogger->info("Reading cluster configuration using my.cnf");
   return parser.parse_mycnf();
 }
 

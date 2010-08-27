@@ -76,6 +76,7 @@ public:
     // validate() might cause initialization order problem with charset
     NdbError error;
     int ret = aggregate(error);
+    (void)ret;
     assert(ret == 0);
   }
 

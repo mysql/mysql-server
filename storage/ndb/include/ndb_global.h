@@ -43,8 +43,6 @@
 #define DIR_SEPARATOR "/"
 #endif
 
-#include <my_global.h>
-
 #if ! (NDB_SIZEOF_CHAR == SIZEOF_CHAR)
 #error "Invalid define for Uint8"
 #endif
@@ -57,7 +55,7 @@
 #error "Invalid define for Uint64"
 #endif
 
-#include <my_alarm.h>
+#include <signal.h>
 
 #ifdef _AIX
 #undef _H_STRINGS
@@ -80,16 +78,6 @@
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#endif
-
-#ifdef HAVE_SYS_STAT_H
-  #if defined(__cplusplus) && defined(_APP32_64BIT_OFF_T) && defined(_INCLUDE_AES_SOURCE)
-    #undef _INCLUDE_AES_SOURCE
-    #include <sys/stat.h>
-    #define _INCLUDE_AES_SOURCE
-  #else
-    #include <sys/stat.h>
-  #endif
 #endif
 
 #ifdef HAVE_SYS_RESOURCE_H
@@ -211,6 +199,29 @@ extern "C" {
   NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
 #else
 #define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
+#endif
+
+/**
+ * visual studio is stricter than gcc for __is_pod, settle for __has_trivial_constructor
+ *  until we really really made all signal data classes POD
+ */
+#if (_MSC_VER > 1500)
+#define NDB_ASSERT_POD(x) \
+  NDB_STATIC_ASSERT(__has_trivial_constructor(x))
+#elif defined __GXX_EXPERIMENTAL_CXX0X__
+#define NDB_ASSERT_POD(x) \
+  NDB_STATIC_ASSERT(__is_pod(x))
+#else
+#define NDB_ASSERT_POD(x)
+#endif
+
+/**
+ *  __attribute__((noreturn)) was introduce in gcc 2.5
+ */
+#if (GCC_VERSION >= 2005)
+#define ATTRIBUTE_NORETURN __attribute__((noreturn))
+#else
+#define ATTRIBUTE_NORETURN
 #endif
 
 /*

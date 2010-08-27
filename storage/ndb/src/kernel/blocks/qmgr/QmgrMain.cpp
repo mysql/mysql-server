@@ -2517,11 +2517,16 @@ void Qmgr::timerHandlingLab(Signal* signal)
   Uint32 sentLo = signal->theData[2];
   Uint64 sent = (Uint64(sentHi) << 32) + sentLo;
 
-  if (TcurrentTime >= sent + 50 || (TcurrentTime < sent))
+  if (TcurrentTime >= sent + 1000 || (TcurrentTime < sent))
   {
     jam();
-    ndbout_c("WARNING: timerHandlingLab now: %llu sent: %llu diff: %d",
-             TcurrentTime, sent, int(TcurrentTime - sent));
+    g_eventLogger->warning("timerHandlingLab now: %llu sent: %llu diff: %d",
+                           TcurrentTime, sent, int(TcurrentTime - sent));
+  }
+  else if (TcurrentTime >= sent + 150)
+  {
+    g_eventLogger->info("timerHandlingLab now: %llu sent: %llu diff: %d",
+                        TcurrentTime, sent, int(TcurrentTime - sent));
   }
 
   if (myNodePtr.p->phase == ZRUNNING) {
@@ -2776,16 +2781,31 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
         signal->theData[0] = 0;
         signal->theData[1] = nodePtr.i;
         sendSignal(CMVMI_REF, GSN_OPEN_COMREQ, signal, 2, JBA);
-      } else {
-	if(((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 60) == 0){
+      }
+      else
+      {
+        jam();
+        if(((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 60) == 0)
+        {
+          jam();
 	  char buf[100];
 	  BaseString::snprintf(buf, sizeof(buf), 
-		   "Failure handling of node %d has not completed in %d min."
-		   " - state = %d",
-		   nodePtr.i, 
-		   (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
-		   nodePtr.p->failState);
+                               "Failure handling of node %d has not completed"
+                               " in %d min - state = %d",
+                               nodePtr.i, 
+                               (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
+                               nodePtr.p->failState);
 	  warningEvent(buf);
+          if (((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 300) == 0)
+          {
+            jam();
+            /**
+             * Also dump DIH nf-state
+             */
+            signal->theData[0] = 7019;
+            signal->theData[1] = nodePtr.i;
+            sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+          }
 	}
       }
     }
@@ -5795,6 +5815,7 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
   if (mask.isclear())
   {
     jam();
+    releaseSections(handle);
     return;
   }
 

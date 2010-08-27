@@ -665,7 +665,7 @@ const char* Log_event::get_type_str()
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg), thd(thd_arg)
 {
-  server_id=	thd->server_id;
+  unmasked_server_id= server_id= thd->server_id;
   when=		thd->start_time;
   cache_stmt=	using_trans;
 }
@@ -682,7 +682,7 @@ Log_event::Log_event()
   :temp_buf(0), exec_time(0), flags(0), cache_stmt(0),
    thd(0)
 {
-  server_id=	::server_id;
+  unmasked_server_id= server_id= ::server_id;
   /*
     We can't call my_time() here as this would cause a call before
     my_init() is called
@@ -705,7 +705,15 @@ Log_event::Log_event(const char* buf,
   thd = 0;
 #endif
   when = uint4korr(buf);
-  server_id = uint4korr(buf + SERVER_ID_OFFSET);
+  unmasked_server_id = uint4korr(buf + SERVER_ID_OFFSET);
+  /* 
+     Mask out any irrelevant parts of the server_id
+  */
+#ifdef HAVE_REPLICATION
+  server_id = unmasked_server_id & opt_server_id_mask;
+#else
+  server_id = unmasked_server_id;
+#endif
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
   {
