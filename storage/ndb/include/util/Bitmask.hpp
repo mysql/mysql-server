@@ -179,15 +179,6 @@ public:
    */
   static char* getText(unsigned size, const Uint32 data[], char* buf);
 
-  /**
-   * Parse string with numbers format
-   *   1,2,3-5
-   * @return -1 if unparsable chars found, 
-   *         -2 str has number > bitmask size
-   *            else returns number of bits set 
-   */
-  static int parseMask(unsigned size, Uint32 data[], const char * str);
-
   /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
   static inline Uint32 count_bits(Uint32 x);
 
@@ -502,6 +493,8 @@ public:
 
   Uint32 getSizeInWords() const { return Size;}
 
+  unsigned max_size() const { return (size * 32) - 1; }
+
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
@@ -649,7 +642,13 @@ public:
   static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
 
-  static int parseMask(Uint32 data[], const char * src);
+  /**
+   * Parse string with numbers format
+   *   1,2,3-5
+   * @return -1 if unparsable chars found,
+   *         -2 str has number > bitmask size
+   *            else returns number of bits set
+   */
   int parseMask(const char * src);
 };
 
@@ -979,21 +978,6 @@ inline bool
 BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
 {
   return BitmaskPOD<size>::overlaps(this->rep.data, that.rep.data);
-}
-
-template <unsigned size>
-int
-BitmaskPOD<size>::parseMask(Uint32 data[], const char* buf)
-{
-  return BitmaskImpl::parseMask(size, data, buf);
-}
-
-template <unsigned size>
-inline
-int
-BitmaskPOD<size>::parseMask(const char* buf)
-{
-  return BitmaskPOD<size>::parseMask(rep.data, buf);
 }
 
 template <unsigned size>
