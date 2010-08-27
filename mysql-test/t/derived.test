@@ -383,3 +383,42 @@ DROP TABLE C;
 DROP VIEW viewC;
 --echo #
 
+--echo #
+--echo # Bug#55950: FROM Subquery joined by 2 varchar fields returns empty
+--echo #            set
+--echo #
+CREATE TABLE `CC` (
+  `i1` varchar(1) DEFAULT NULL,
+  `i2` varchar(1) DEFAULT NULL
+);
+
+INSERT INTO `CC` VALUES ('m','m');
+INSERT INTO `CC` VALUES ('c','c');
+
+CREATE TABLE `C` (
+  `o1` varchar(1) DEFAULT NULL
+);
+
+INSERT INTO `C` VALUES ('m');
+ 
+SELECT table1 . o1 
+FROM C table1  
+  JOIN ( C table2  
+    JOIN ( SELECT * FROM CC ) table3  
+    ON table3 .`i1`  = table2 .o1  
+  ) ON table3 .`i2`  = table2 .o1   
+;
+
+--echo # Ref access to the derived table should be used.
+EXPLAIN SELECT table1 . o1 
+FROM C table1  
+  JOIN ( C table2  
+    JOIN ( SELECT * FROM CC ) table3  
+    ON table3 .`i1`  = table2 .o1  
+  ) ON table3 .`i2`  = table2 .o1   
+;
+
+DROP TABLE CC;
+DROP TABLE C;
+--echo # End of test for bug#55950
+
