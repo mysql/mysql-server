@@ -477,3 +477,42 @@ field1
 DROP TABLE C;
 DROP VIEW viewC;
 #
+#
+# Bug#55950: FROM Subquery joined by 2 varchar fields returns empty
+#            set
+#
+CREATE TABLE `CC` (
+`i1` varchar(1) DEFAULT NULL,
+`i2` varchar(1) DEFAULT NULL
+);
+INSERT INTO `CC` VALUES ('m','m');
+INSERT INTO `CC` VALUES ('c','c');
+CREATE TABLE `C` (
+`o1` varchar(1) DEFAULT NULL
+);
+INSERT INTO `C` VALUES ('m');
+SELECT table1 . o1 
+FROM C table1  
+JOIN ( C table2  
+JOIN ( SELECT * FROM CC ) table3  
+ON table3 .`i1`  = table2 .o1  
+) ON table3 .`i2`  = table2 .o1   
+;
+o1
+m
+# Ref access to the derived table should be used.
+EXPLAIN SELECT table1 . o1 
+FROM C table1  
+JOIN ( C table2  
+JOIN ( SELECT * FROM CC ) table3  
+ON table3 .`i1`  = table2 .o1  
+) ON table3 .`i2`  = table2 .o1   
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	table1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	table2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	8	const,const	0	Using index
+2	DERIVED	CC	ALL	NULL	NULL	NULL	NULL	2	
+DROP TABLE CC;
+DROP TABLE C;
+# End of test for bug#55950

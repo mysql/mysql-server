@@ -4771,7 +4771,7 @@ int TABLE::add_tmp_key(ulonglong key_parts, char *key_name, bool covering)
                                             (uchar*) record[0]);
       key_part_info->field=    *reg_field;
       key_part_info->offset=   (*reg_field)->offset(record[0]);
-      key_part_info->length=   (uint16) (*reg_field)->pack_length();
+      key_part_info->length=   (uint16) (*reg_field)->key_length();
       keyinfo->key_length+= key_part_info->length;
       /* TODO:
         The below method of computing the key format length of the
@@ -4789,7 +4789,7 @@ int TABLE::add_tmp_key(ulonglong key_parts, char *key_name, bool covering)
       if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
           (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
       {
-        key_part_info->store_length|= HA_KEY_BLOB_LENGTH;
+        key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
         key_part_info->key_part_flag|= HA_BLOB_PART;
       }
 
@@ -5217,9 +5217,9 @@ int TABLE_LIST::fetch_number_of_rows()
     TABLE_LIST::generate_keys
                           Walks over list of possible keys for this derived
                           table/view to add keys to the result table.
-                          Calls to TABLE::add_tmp_index to actually add
+                          Calls to TABLE::add_tmp_key to actually add
                           keys. (Step two)
-    TABLE::add_tmp_index  Creates one index description according to given
+    TABLE::add_tmp_key    Creates one index description according to given
                           bitmap of used fields. (Step two)
   There is also the fifth function called TABLE::use_index. It saves used
   key and frees others. It is called when the optimizer has chosen which key
@@ -5320,7 +5320,7 @@ static int DKL_sort_func(DERIVED_KEY_MAP *e1, DERIVED_KEY_MAP *e2, void *arg)
   @details
   This function adds keys to the result table by walking over the list of
   possible keys for this derived table/view and calling to the
-  TABLE::add_tmp_index to actually add keys. A name "auto_key" with a
+  TABLE::add_tmp_key to actually add keys. A name "auto_key" with a
   sequential number is given to each key to ease debugging.
 
   @return TRUE  an error occur.
