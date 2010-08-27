@@ -371,17 +371,17 @@ static Sys_var_mybool Sys_binlog_direct(
 
 static const char *repository_names[]=
 {
-  "FILE", "TABLE"
+  "FILE", "TABLE", 0
 };
 
-uint opt_mi_repository_id;
+ulong opt_mi_repository_id;
 static Sys_var_enum Sys_mi_repository(
        "master_info_repository",
        "Defines the type of the repository for the master information."
        , READ_ONLY GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
        repository_names, DEFAULT(0));
 
-uint opt_rli_repository_id;
+ulong opt_rli_repository_id;
 static Sys_var_enum Sys_rli_repository(
        "relay_log_info_repository",
        "Defines the type of the repository for the relay log information."
