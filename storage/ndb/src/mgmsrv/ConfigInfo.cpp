@@ -34,7 +34,6 @@
 #include <mgmapi_config_parameters.h>
 #endif /* NDB_MGMAPI */
 
-#define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
 #define MAX_PORT_NO 65535
@@ -4058,20 +4057,22 @@ static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
     return false;
   }
 
-  char tmpLine[MAX_LINE_LENGTH];
-  strncpy(tmpLine, nodeId, MAX_LINE_LENGTH);
-  char* token1 = strtok(tmpLine, ".");
-  char* token2 = strtok(NULL, ".");
+  BaseString str(nodeId);
+  Vector<BaseString> token_list;
+  int tokens = str.split(token_list, ".", 2);
+
   Uint32 id;
-  
-  if(!token1)
+
+  if (tokens == 0)
   {
     ctx.reportError("Value for mandatory parameter %s missing from section "
                     "[%s] starting at line: %d",
                     buf, ctx.fname, ctx.m_sectionLineno);
     return false;
   }
-  if (token2 == NULL) {                // Only a number given
+
+  const char* token1 = token_list[0].c_str();
+  if (tokens == 1) {                // Only a number given
     errno = 0;
     char* p;
     id = strtol(token1, &p, 10);
@@ -4084,6 +4085,9 @@ static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
     }
     require(ctx.m_currentSection->put(buf, id, true));
   } else {                             // A pair given (e.g. "uppsala.32")
+    assert(tokens == 2 && token_list.size() == 2);
+    const char* token2 = token_list[1].c_str();
+
     errno = 0;
     char* p;
     id = strtol(token2, &p, 10);
