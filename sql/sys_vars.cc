@@ -145,7 +145,7 @@ static Sys_var_ulong Sys_pfs_max_mutex_instances(
        "performance_schema_max_mutex_instances",
        "Maximum number of instrumented MUTEX objects.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100*1024*1024),
        DEFAULT(PFS_MAX_MUTEX),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -161,7 +161,7 @@ static Sys_var_ulong Sys_pfs_max_rwlock_instances(
        "performance_schema_max_rwlock_instances",
        "Maximum number of instrumented RWLOCK objects.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100*1024*1024),
        DEFAULT(PFS_MAX_RWLOCK),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
