@@ -63,7 +63,8 @@ check_param(const ConfigInfo::ParamInfo & param)
   else
   {
     fprintf(config_file, "[%s]\n", section);
-    fprintf(config_file, "%s=%s\n", param._fname, param._default);
+    fprintf(config_file, "%s=%s\n", param._fname,
+            param._default ? param._default : "some value");
   }
 
   // Fill in lines needed for a minimal config
