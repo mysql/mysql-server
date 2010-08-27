@@ -24,6 +24,7 @@
 #include "ConfigInfo.hpp"
 #include "EventLogger.hpp"
 #include <m_string.h>
+#include <util/SparseBitmask.hpp>
 
 extern EventLogger *g_eventLogger;
 
@@ -345,6 +346,40 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       return false;
     }
     require(ctx.m_currentSection->put(fname, value_int));
+    break;
+  }
+
+  case ConfigInfo::CI_BITMASK:{
+    if (strlen(value) <= 0)
+    {
+      ctx.reportError("Illegal value '%s' for parameter %s. "
+                      "Error: Zero length string",
+                      value, fname);
+      return false;
+    }
+    Uint64 max = m_info->getMax(ctx.m_currentInfo, fname);
+    SparseBitmask mask(max);
+    int res = mask.parseMask(value);
+    if (res < 0)
+    {
+      BaseString desc("Unknown error.");
+      switch(res)
+      {
+      case -1:
+        desc.assign("Invalid syntax for bitmask");
+        break;
+      case -2:
+        desc.assfmt("Too large id used in bitmask, max is %llu", max);
+        break;
+      default:
+        break;
+      }
+
+      ctx.reportError("Illegal value '%s' for parameter %s. Error: %s",
+                      value, fname, desc.c_str());
+      return false;
+    }
+    require(ctx.m_currentSection->put(fname, value));
     break;
   }
 
@@ -792,6 +827,7 @@ InitConfigFileParser::parse_mycnf()
 	break;
       case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 
+      case ConfigInfo::CI_BITMASK:
 	opt.value = (uchar**)malloc(sizeof(char *));
 	opt.var_type = GET_STR;
 	break;
