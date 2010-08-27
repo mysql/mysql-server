@@ -333,7 +333,7 @@ public:
    * descendant) holds the last batch of a sub scan, meaning that it is the
    * last batch of the scan that was instantiated from the current batch
    * of its parent operation.*/
-  bool isSubScanComplete()
+  bool isSubScanComplete() const
   { return m_subScanComplete; }
 
   /** For debugging.*/
@@ -767,7 +767,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
       {
         return ScanRowResult_endOfScan;
       }
-      else if(isSubScanComplete())
+      else if (isSubScanComplete())
       {
         /* Next batch will contain rows related the next batch of the
          * parent scan. So if this is a left outer join, we can generate
@@ -1472,7 +1472,6 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
   assert (getRoot().getQueryOperationDef().getType() 
           == NdbQueryOperationDef::OrderedIndexScan);
   int startPos = m_keyInfo.getSize();
-//assert (startPos == 0);  // Assumed by ::checkPrunable
 
   // We don't handle both NdbQueryIndexBound defined in ::scanIndex()
   // in combination with a later ::setBound(NdbIndexScanOperation::IndexBound)
@@ -4035,7 +4034,8 @@ NdbQueryOperationImpl::prepareIndexKeyInfo(
                      const NdbQueryParamValue* actualParam)
 {
   int startPos = keyInfo.getSize();
-  assert (startPos == 0);  // Assumed by ::checkPrunable
+  if (bounds->lowKeys==0 && bounds->highKeys==0)  // No Bounds defined
+    return 0;
 
   const unsigned key_count = 
      (bounds->lowKeys >= bounds->highKeys) ? bounds->lowKeys : bounds->highKeys;
@@ -4092,6 +4092,7 @@ NdbQueryOperationImpl::prepareIndexKeyInfo(
     keyInfo.put(startPos, keyInfo.get(startPos) | (length << 16));
   }
 
+  m_queryImpl.m_shortestBound =(bounds->lowKeys <= bounds->highKeys) ? bounds->lowKeys : bounds->highKeys;
   return 0;
 } // NdbQueryOperationImpl::prepareIndexKeyInfo
 
