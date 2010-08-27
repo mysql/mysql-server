@@ -1097,6 +1097,7 @@ public:
 #endif
   MDL_ticket *mdl_ticket;
 
+  void init(THD *thd, TABLE_LIST *tl);
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
   void clear_column_bitmaps(void);
