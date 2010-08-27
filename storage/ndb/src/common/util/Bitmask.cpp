@@ -119,68 +119,22 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
  * to get coverage from automated testing
  */
 
-int
-BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
-{
-  int cnt = 0;
-  BaseString tmp(src);
-  Vector<BaseString> list;
-  tmp.split(list, ",");
-  for (unsigned i = 0; i<list.size(); i++)
-  {
-    list[i].trim();
-    if (list[i].empty())
-      continue;
-    char * delim = (char*)strchr(list[i].c_str(), '-');
-    unsigned first = 0;
-    unsigned last = 0;
-    if (delim == 0)
-    {
-      int res = sscanf(list[i].c_str(), "%u", &first);
-      if (res != 1)
-      {
-        return -1;
-      }
-      last = first;
-    }
-    else
-    {
-      * delim = 0;
-      delim++;
-      int res0 = sscanf(list[i].c_str(), "%u", &first);
-      if (res0 != 1)
-      {
-        return -1;
-      }
-      int res1 = sscanf(delim, "%u", &last);
-      if (res1 != 1)
-      {
-        return -1;
-      }
-      if (first > last)
-      {
-        unsigned tmp = first;
-        first = last;
-        last = tmp;
-      }
-    }
-    
-    for (unsigned j = first; j<(last+1); j++)
-    {
-      if (j >= (size << 5))
-        return -2;
+#include "parse_mask.hpp"
 
-      cnt++;
-      BitmaskImpl::set(size, data, j);
-    }
-  }
-  return cnt;
+template <unsigned size>
+int
+BitmaskPOD<size>::parseMask(const char* src)
+{
+  return parse_mask(src, *this);
 }
 
+template struct BitmaskPOD<2>; // NdbNodeBitmask
+template struct BitmaskPOD<8>; // NodeBitmask
 template struct BitmaskPOD<16>;
 
 #ifdef TEST_BITMASK
-#include <NdbTap.hpp>
+#include <util/NdbTap.hpp>
+#include <util/BaseString.hpp>
 
 TAPTEST(Bitmask)
 {
@@ -251,10 +205,45 @@ TAPTEST(Bitmask)
     OK(d.count() == 3);
     printf("getPrettyTextShort(d 3): %s\n",
            BaseString::getPrettyTextShort(d).c_str());
+
+    /*
+      Bitmask::parseMask
+    */
+    Bitmask<8> mask;
+    OK(mask.parseMask("1,2,5-7") == 5);
+
+    // Check all specified bits set
+    OK(mask.get(1));
+    OK(mask.get(2));
+    OK(mask.get(5));
+    OK(mask.get(6));
+    OK(mask.get(7));
+
+    // Check some random bits not set
+    OK(!mask.get(0));
+    OK(!mask.get(4));
+    OK(!mask.get(3));
+    OK(!mask.get(8));
+    OK(!mask.get(22));
+
+    // Parse at the limit
+    OK(mask.parseMask("254") == 1);
+    OK(mask.parseMask("255") == 1);
+
+    // Parse invalid spec(s)
+    OK(mask.parseMask("xx") == -1);
+    OK(mask.parseMask("5-") == -1);
+    OK(mask.parseMask("-5") == -1);
+    OK(mask.parseMask("1,-5") == -1);
+
+    // Parse too large spec
+    OK(mask.parseMask("256") == -2);
+    OK(mask.parseMask("1-255,256") == -2);
+
+
     return 1; // OK
 }
 
-template struct BitmaskPOD<8>;
 template struct BitmaskPOD<1>;
 
 #endif
