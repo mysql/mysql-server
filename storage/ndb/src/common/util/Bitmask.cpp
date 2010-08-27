@@ -128,6 +128,7 @@ BitmaskPOD<size>::parseMask(const char* src)
   return parse_mask(src, *this);
 }
 
+template struct BitmaskPOD<1>;
 template struct BitmaskPOD<2>; // NdbNodeBitmask
 template struct BitmaskPOD<8>; // NodeBitmask
 template struct BitmaskPOD<16>;
@@ -244,7 +245,6 @@ TAPTEST(Bitmask)
     return 1; // OK
 }
 
-template struct BitmaskPOD<1>;
 
 #endif
 
