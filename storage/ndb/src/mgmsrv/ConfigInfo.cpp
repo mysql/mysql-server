@@ -320,7 +320,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_DEPRICATED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0,
     0 },
   
@@ -459,7 +459,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -494,7 +494,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "1",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -615,7 +615,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
   
   {
@@ -638,7 +638,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -649,7 +649,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     "65535" },
 
@@ -769,7 +769,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "32",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -781,7 +781,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "32",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1081,7 +1081,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1104,7 +1104,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "20",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1258,7 +1258,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_ENUM,
-    UNDEFINED,
+    0,
     (const char*)arbit_method_typelib,
     0
   },
@@ -1282,7 +1282,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1416,7 +1416,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
   
   { 
@@ -1645,7 +1645,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     STR_VALUE(NDB_NO_NODEGROUP)
   },
@@ -1671,7 +1671,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "1",
     "4"
   },
@@ -1684,7 +1684,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "1",
     "4"
   },
@@ -1697,7 +1697,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
-    UNDEFINED,
+    0,
     "false",
     "true"
   },
@@ -1710,7 +1710,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1721,7 +1721,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1732,7 +1732,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1743,7 +1743,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_SYSTEM | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1754,7 +1754,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_SYSTEM | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1804,7 +1804,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     "100" },
 
@@ -1883,7 +1883,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1918,7 +1918,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1989,7 +1989,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0,
     0
   },
@@ -2088,7 +2088,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2169,7 +2169,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -2244,7 +2244,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2255,7 +2255,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2371,7 +2371,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2382,7 +2382,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2393,7 +2393,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2482,7 +2482,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2493,7 +2493,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2516,7 +2516,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0", 
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -2597,7 +2597,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -2621,7 +2621,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2632,7 +2632,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2716,7 +2716,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2727,7 +2727,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2846,7 +2846,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2857,7 +2857,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2959,7 +2959,7 @@ ConfigInfo::ConfigInfo()
 
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
-        else if(param._default != UNDEFINED)
+        else if(param._default)
         {
           require(InitConfigFileParser::convertStringToBool(param._default,
                                                             tmp_bool));
@@ -2979,7 +2979,7 @@ ConfigInfo::ConfigInfo()
 
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
-        else if(param._default != UNDEFINED)
+        else if(param._default)
         {
           require(InitConfigFileParser::convertStringToUint64(param._default,
                                                               tmp_uint64));
@@ -3010,7 +3010,7 @@ ConfigInfo::ConfigInfo()
 
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
-        else if(param._default != UNDEFINED)
+        else if(param._default)
           pinfo.put("Default", param._default);
 	break;
     }
@@ -3035,7 +3035,7 @@ ConfigInfo::ConfigInfo()
       if(!m_systemDefaults.getCopy(param._section, &p)){
 	p = new Properties(true);
       }
-      if(param._default != UNDEFINED &&
+      if(param._default &&
 	 param._default != MANDATORY){
 	switch (param._type)
         {
