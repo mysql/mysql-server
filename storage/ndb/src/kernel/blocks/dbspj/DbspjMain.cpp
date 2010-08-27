@@ -4147,7 +4147,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
 
     ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
     data.m_fragments.init();
-    data.m_frags_complete = 0;
+    data.m_frags_not_complete = 0;
 
     if (treeBits & Node::SI_PRUNE_PATTERN)
     {
@@ -4679,7 +4679,7 @@ Dbspj::scanIndex_send(Signal* signal,
     }
   }
 
-  data.m_frags_complete = data.m_fragCount;
+  data.m_frags_not_complete = 0;
   list.first(fragPtr);
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
   {
@@ -4759,7 +4759,7 @@ Dbspj::scanIndex_send(Signal* signal,
     i++;
     fragPtr.p->m_state = 0; // running
     data.m_frags_outstanding++;
-    data.m_frags_complete--;
+    data.m_frags_not_complete++;
   }
 
   if (release == false)
@@ -4863,10 +4863,10 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
     }
     ndbrequire(fragPtr.p->m_state == 0);
     fragPtr.p->m_state = done;
-    data.m_frags_complete ++;
-    ndbrequire(data.m_frags_complete <= data.m_fragCount);
+    ndbrequire(data.m_frags_not_complete>0)
+    data.m_frags_not_complete--;
 
-    if (data.m_frags_complete == data.m_fragCount)
+    if (data.m_frags_not_complete == 0)
     {
       jam();
       ndbrequire(requestPtr.p->m_cnt_active);
@@ -4925,8 +4925,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   data.m_rows_expecting = 0;
   ndbassert(data.m_frags_outstanding == 0);
 
-  ndbrequire(data.m_fragCount > data.m_frags_complete);
-  Uint32 cnt = data.m_fragCount - data.m_frags_complete;
+  ndbrequire(data.m_frags_not_complete>0);
+  Uint32 cnt = data.m_frags_not_complete;
   if ((treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL) == 0)
   {
     jam();
