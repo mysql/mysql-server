@@ -27,15 +27,8 @@
 #include "InitConfigFileParser.hpp"
 #endif /* NDB_MGMAPI */
 
-/**
- * A MANDATORY parameters must be specified in the config file
- * An UNDEFINED parameter may or may not be specified in the config file
- */
-
-// Default value for mandatory params.
+// Parameter must be specified in config file
 #define MANDATORY ((char*)~(UintPtr)0)
-// Default value for undefined params.
-#define UNDEFINED ((char*) 0)
 
 /**
  * @class  ConfigInfo
