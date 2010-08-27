@@ -3023,41 +3023,11 @@ retry_share:
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
-  DBUG_ASSERT(table->s->ref_count > 0 || table->s->tmp_table != NO_TMP_TABLE);
-
-  if (thd->lex->need_correct_ident())
-    table->alias_name_used= my_strcasecmp(table_alias_charset,
-                                          table->s->table_name.str, alias);
-  /* Fix alias if table name changes */
-  if (strcmp(table->alias, alias))
-  {
-    uint length=(uint) strlen(alias)+1;
-    table->alias= (char*) my_realloc((char*) table->alias, length,
-                                     MYF(MY_WME));
-    memcpy((char*) table->alias, alias, length);
-  }
-  table->tablenr=thd->current_tablenr++;
-  table->used_fields=0;
-  table->const_table=0;
-  table->null_row= table->maybe_null= 0;
-  table->force_index= table->force_index_order= table->force_index_group= 0;
-  table->status=STATUS_NO_RECORD;
-  table->insert_values= 0;
-  table->fulltext_searched= 0;
-  table->file->ft_handler= 0;
-  table->reginfo.impossible_range= 0;
-  /* Catch wrong handling of the auto_increment_field_not_null. */
-  DBUG_ASSERT(!table->auto_increment_field_not_null);
-  table->auto_increment_field_not_null= FALSE;
-  if (table->timestamp_field)
-    table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
-  table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
-  table->clear_column_bitmaps();
   table_list->table= table;
-  DBUG_ASSERT(table->key_read == 0);
-  /* Tables may be reused in a sub statement. */
-  DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+
+  table->init(thd, table_list);
+
   DBUG_RETURN(FALSE);
 
 err_lock:
