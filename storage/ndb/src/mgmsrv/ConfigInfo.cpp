@@ -2995,6 +2995,9 @@ ConfigInfo::ConfigInfo()
 	break;
       case CI_ENUM:
       {
+       assert(param._min); // Enums typelib pointer is stored in _min
+       assert(param._max == 0); // Enums can't have max
+
         Properties values(true); // case insensitive
         // Put the list of allowed enum values in pinfo
         for (const Typelib* entry = ConfigInfo::getTypelibPtr(param);
