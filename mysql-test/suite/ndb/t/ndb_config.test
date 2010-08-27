@@ -54,3 +54,10 @@ echo == 17 == bug49400;
 --error 255
 --exec $NDB_CONFIG --no-defaults --config-file=$MYSQL_TEST_DIR/suite/ndb/bug49400.ini 2>&1
 
+echo == 18 == bug56185;
+# Read bitmask value and enum from my.cnf
+--exec $NDB_CONFIG --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --defaults-group-suffix=.bug56185 --query=Arbitration,LockExecuteThreadToCPU --type=ndbd --mycnf
+
+# Read bitmask value and enum from config.ini
+--exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/bug56185.ini --query=Arbitration,LockExecuteThreadToCPU --type=ndbd
+
