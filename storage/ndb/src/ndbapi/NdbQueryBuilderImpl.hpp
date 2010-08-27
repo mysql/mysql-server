@@ -488,6 +488,9 @@ protected:
   virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const
   { return 0; }
 
+  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef) const
+  { return 0; }
+
 }; // class NdbQueryScanOperationDefImpl
 
 
@@ -519,6 +522,8 @@ protected:
   // Append pattern for creating complete range bounds to serialized code 
   virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const;
 
+  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef) const;
+
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
   explicit NdbQueryIndexScanOperationDefImpl (
@@ -540,7 +545,6 @@ private:
   const NdbIndexImpl& m_index;
 
   /** True if there is a set of bounds.*/
-  const bool m_hasBound;
   IndexBound m_bound;
 }; // class NdbQueryIndexScanOperationDefImpl
 

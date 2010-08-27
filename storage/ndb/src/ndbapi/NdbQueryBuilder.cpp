@@ -1391,7 +1391,6 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
 : NdbQueryScanOperationDefImpl(table,options,ident,ix),
   m_interface(*this), 
   m_index(index), 
-  m_hasBound(bound != NULL),
   m_bound()
 {
   if (bound!=NULL) {
@@ -1427,7 +1426,6 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
   }
 }
 
-
 int
 NdbQueryIndexScanOperationDefImpl::checkPrunable(
                               const Uint32Buffer& keyInfo,
@@ -1451,17 +1449,14 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
   {
     return 0; // Index does not contain all fields in the distribution key.
   } 
-  else if (m_hasBound && 
-           (m_bound.lowKeys < prefixLength || m_bound.highKeys < prefixLength)) 
-  {
-    // Bounds set on query definition are to short to contain full dist key.
-    return 0; 
-  }
   else if (shortestBound < prefixLength)
   {
     // Bounds set on query instance are to short to contain full dist key.
     return 0; 
   }
+  // Bounds being part of query definitions should have been covered by 'shortestBound' above
+  assert( (m_bound.lowKeys+m_bound.highKeys==0) ||
+          (m_bound.lowKeys >= prefixLength && m_bound.highKeys >= prefixLength));
 
   /** 
    * The scan will be prunable if all upper and lower bound pairs are equal
@@ -2027,6 +2022,113 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
 
 
 Uint32
+NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDef) const
+{
+  Uint32 appendedPattern = 0;
+
+  /**
+   * Bound value for root operation is constructed when query is instantiated with
+   * NdbQueryOperationImpl::prepareIndexKeyInfo()
+   */
+  if (getQueryOperationIx() == 0)
+    return 0;
+
+  if (m_bound.lowKeys>0 || m_bound.highKeys>0)
+  {
+    const NdbRecord* const tableRecord = getTable().getDefaultRecord();
+    const NdbRecord* const indexRecord = m_index.getDefaultRecord();
+
+    if (indexRecord->m_no_of_distribution_keys != tableRecord->m_no_of_distribution_keys)
+    {
+      return 0; // Index does not contain all fields in the distribution key.
+    } 
+
+    /**
+     * This is the prefix (in number of fields) of the index key that will contain
+     * all the distribution key fields.
+     */
+    Uint32 distKeys = indexRecord->m_min_distkey_prefix_length;
+    if (m_bound.lowKeys < distKeys || m_bound.highKeys < distKeys)
+    {
+      // Bounds set on query definition are to short to contain full dist key.
+      return 0; 
+    }
+
+    /* All low/high bounds should be defined equal within the 'distKey' */
+    for (unsigned keyNo = 0; keyNo < distKeys; keyNo++)
+    {
+      if (m_bound.low[keyNo] != m_bound.high[keyNo])
+        return 0; 
+    }
+
+    {
+      int paramCnt = 0;
+      Uint32 startPos = serializedDef.getSize();
+      serializedDef.append(0);     // Grab first word for length field, updated at end
+
+      for (unsigned i = 0; i < indexRecord->distkey_index_length; i++)
+      {
+        unsigned keyNo = indexRecord->distkey_indexes[i];
+        assert(keyNo<distKeys);
+        assert(indexRecord->columns[keyNo].flags & NdbRecord::IsDistributionKey);
+        const NdbQueryOperandImpl* key = m_bound.low[keyNo];
+
+        switch(key->getKind())
+        {
+          case NdbQueryOperandImpl::Linked:
+          {
+            appendedPattern |= QN_ScanIndexNode::SI_PRUNE_LINKED;
+            const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(key);
+            const NdbQueryOperationDefImpl* parent = getParentOperation();
+            uint32 levels = 0;
+            while (parent != &linkedOp.getParentOperation())
+            {
+              if (parent->getType() == NdbQueryOperationDef::UniqueIndexAccess)  // Represented with two nodes in QueryTree
+                levels+=2;
+              else
+                levels+=1;
+              parent = parent->getParentOperation();
+              assert(parent != NULL);
+            }
+            if (levels > 0)
+            {
+              serializedDef.append(QueryPattern::parent(levels));
+            }
+            serializedDef.append(QueryPattern::col(linkedOp.getLinkedColumnIx()));
+            break;
+          }
+          case NdbQueryOperandImpl::Const:
+          {
+//          appendedPattern |= QN_ScanIndexNode::SI_PRUNE_CONST;
+            const NdbConstOperandImpl& constOp = *static_cast<const NdbConstOperandImpl*>(key);
+     
+            // No of words needed for storing the constant data.
+            const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getSizeInBytes());
+            // Set type and length in words of key pattern field. 
+            serializedDef.append(QueryPattern::data(wordCount));
+            serializedDef.append(constOp.getAddr(),constOp.getSizeInBytes());
+            break;
+          }
+          case NdbQueryOperandImpl::Param:
+            appendedPattern |= QN_ScanIndexNode::SI_PRUNE_PARAMS;
+            serializedDef.append(QueryPattern::param(paramCnt++));
+            break;
+          default:
+            assert(false);
+        }
+      }
+
+      // Set total length of bound pattern.
+      Uint32 len = serializedDef.getSize() - startPos -1;
+      serializedDef.put(startPos, (paramCnt << 16) | (len));
+      appendedPattern |= QN_ScanIndexNode::SI_PRUNE_PATTERN;
+    }
+  }
+  return appendedPattern;
+} // NdbQueryIndexScanOperationDefImpl::appendPrunePattern
+
+
+Uint32
 NdbQueryIndexScanOperationDefImpl::appendBoundValue(
                                  Uint32Buffer& serializedDef,
                                  NdbIndexScanOperation::BoundType type,
@@ -2098,7 +2200,7 @@ NdbQueryIndexScanOperationDefImpl::appendBoundValue(
 
 
 /**
- * Append the complete patterns for hi & low bound for an index range scan
+ * Append the complete patterns for hi & low bound for an index range scan.
  * Each bound may consist of multiple values which in turn are
  * added with NdbQueryIndexScanOperationDefImpl::appendBoundPattern()
  */
@@ -2164,13 +2266,13 @@ NdbQueryIndexScanOperationDefImpl::appendBoundPattern(Uint32Buffer& serializedDe
       }
     } // for 'all bound values'
 
-    // Set total length of key pattern.
+    // Set total length of bound pattern.
     Uint32 len = serializedDef.getSize() - startPos -1;
     serializedDef.put(startPos, (paramCnt << 16) | (len));
   }
 
   return appendedPattern;
-} // NdbQueryIndexScanOperationDefImpl::appendPattern
+} // NdbQueryIndexScanOperationDefImpl::appendBoundPattern
 
 
 int
@@ -2377,6 +2479,9 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   assert (QN_ScanFragNode::NodeSize==QN_ScanIndexNode::NodeSize);
   serializedDef.alloc(QN_ScanFragNode::NodeSize);
   Uint32 requestInfo = 0;
+
+  // Optional prefix part0: Pattern to creating a prune key for range scan
+  requestInfo |= appendPrunePattern(serializedDef);
 
   // Optional part1: Make list of parent nodes.
   requestInfo |= appendParentList (serializedDef);
