@@ -3044,7 +3044,7 @@ fil_open_single_table_tablespace(
 		dulint		new_id[31];
 		ulint		root_page[31];
 		ulint		n_index;
-		os_file_t	info_file = -1;
+		os_file_t	info_file = (os_file_t) -1;
 		char*		info_file_path;
 		ulint	i;
 		int		len;
@@ -3130,7 +3130,7 @@ fil_open_single_table_tablespace(
 		}
 
 skip_info:
-		if (info_file != -1)
+		if (info_file != (os_file_t) -1)
 			os_file_close(info_file);
 
 		/*

@@ -2131,7 +2131,7 @@ ibool
 buf_LRU_file_dump(void)
 /*===================*/
 {
-	os_file_t	dump_file = -1;
+	os_file_t	dump_file = (os_file_t) -1;
 	ibool		success;
 	byte*		buffer_base = NULL;
 	byte*		buffer = NULL;
@@ -2221,7 +2221,7 @@ buf_LRU_file_dump(void)
 
 	ret = TRUE;
 end:
-	if (dump_file != -1)
+	if (dump_file != (os_file_t) -1)
 		os_file_close(dump_file);
 	if (buffer_base)
 		ut_free(buffer_base);
@@ -2235,7 +2235,7 @@ ibool
 buf_LRU_file_restore(void)
 /*======================*/
 {
-	os_file_t	dump_file = -1;
+	os_file_t	dump_file = (os_file_t) -1;
 	ibool		success;
 	byte*		buffer_base = NULL;
 	byte*		buffer = NULL;
@@ -2326,7 +2326,7 @@ buf_LRU_file_restore(void)
 		" (requested: %lu, read: %lu)\n", req, reads);
 	ret = TRUE;
 end:
-	if (dump_file != -1)
+	if (dump_file != (os_file_t) -1)
 		os_file_close(dump_file);
 	if (buffer_base)
 		ut_free(buffer_base);

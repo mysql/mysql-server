@@ -187,7 +187,7 @@ typedef fp_except fp_except_t;
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
 # define _FPU_DOUBLE 0x200
-# if defined(__GNUC__) || defined(__SUNPRO_CC)
+# if defined(__GNUC__) || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
 #  define _FPU_GETCW(cw) asm volatile ("fnstcw %0" : "=m" (*&cw))
 #  define _FPU_SETCW(cw) asm volatile ("fldcw %0" : : "m" (*&cw))
 # else
@@ -418,6 +418,7 @@ static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
+static my_bool opt_sync= 0;
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 static ulong max_used_connections;
@@ -572,7 +573,7 @@ ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
-const char *slave_exec_mode_str= "STRICT";
+static const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
@@ -2548,7 +2549,9 @@ extern "C" sig_handler handle_segfault(int sig)
 {
   time_t curr_time;
   struct tm tm;
+#ifdef HAVE_STACKTRACE
   THD *thd=current_thd;
+#endif
 
   /*
     Strictly speaking, one needs a mutex here
@@ -2615,13 +2618,14 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 #endif /* HAVE_LINUXTHREADS */
 
 #ifdef HAVE_STACKTRACE
+
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr,"thd: 0x%lx\n",(long) thd);
-    fprintf(stderr,"\
-Attempting backtrace. You can use the following information to find out\n\
-where mysqld died. If you see no messages after this, something went\n\
-terribly wrong...\n");  
+    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Attempting backtrace. You can use the following "
+                    "information to find out\nwhere mysqld died. If "
+                    "you see no messages after this, something went\n"
+                    "terribly wrong...\n");
     my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
                         my_thread_stack_size);
   }
@@ -5897,7 +5901,7 @@ enum options_mysqld
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
-  OPT_SYNC_FRM, OPT_SYNC_BINLOG,
+  OPT_SYNC_FRM, OPT_SYNC_BINLOG, OPT_SYNC,
   OPT_SYNC_REPLICATION,
   OPT_SYNC_REPLICATION_SLAVE_ID,
   OPT_SYNC_REPLICATION_TIMEOUT,
@@ -7417,6 +7421,10 @@ thread is in the relay logs.",
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    &opt_sync_frm, &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
+  {"sync-sys", OPT_SYNC,
+   "Enable/disable system sync calls. Should only be turned off when running "
+   "tests or debugging!!",
+   &opt_sync, &opt_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"table_cache", OPT_TABLE_OPEN_CACHE,
    "Deprecated; use --table_open_cache instead.",
    &table_cache_size, &table_cache_size, 0, GET_ULONG,
@@ -8149,10 +8157,11 @@ static int mysql_init_variables(void)
 
   /* Things with default values that are not zero */
   delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
-  slave_exec_mode_options= 0;
-  slave_exec_mode_options= (uint)
-    find_bit_type_or_exit(slave_exec_mode_str, &slave_exec_mode_typelib, NULL,
-                          &error);
+  slave_exec_mode_options= find_bit_type_or_exit(slave_exec_mode_str,
+                                                 &slave_exec_mode_typelib,
+                                                 NULL, &error);
+  /* Default mode string must not yield a error. */
+  DBUG_ASSERT(!error);
   if (error)
     return 1;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -8443,8 +8452,9 @@ mysqld_get_one_option(int optid,
     init_slave_skip_errors(argument);
     break;
   case OPT_SLAVE_EXEC_MODE:
-    slave_exec_mode_options= (uint)
-      find_bit_type_or_exit(argument, &slave_exec_mode_typelib, "", &error);
+    slave_exec_mode_options= find_bit_type_or_exit(argument,
+                                                   &slave_exec_mode_typelib,
+                                                   "", &error);
     if (error)
       return 1;
     break;
@@ -8548,7 +8558,7 @@ mysqld_get_one_option(int optid,
     *val= 0;
     val+= 2;
     while (*val && my_isspace(mysqld_charset, *val))
-      *val++;
+      val++;
     if (!*val)
     {
       sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
@@ -9138,7 +9148,7 @@ static int get_options(int *argc,char **argv)
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write((THD*) 0, OPT_GLOBAL);
   /* Set global slave_exec_mode from its option */
-  fix_slave_exec_mode(OPT_GLOBAL);
+  fix_slave_exec_mode();
 
   global_system_variables.log_slow_filter=
     fix_log_slow_filter(global_system_variables.log_slow_filter);
@@ -9158,6 +9168,7 @@ static int get_options(int *argc,char **argv)
     In most cases the global variables will not be used
   */
   my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
+  my_disable_sync= opt_sync == 0;
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
     (my_off_t) global_system_variables.myisam_max_sort_file_size;
@@ -9303,6 +9314,8 @@ bool is_secure_file_path(char *path)
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
+  DBUG_ENTER("fix_paths");
+
   convert_dirname(mysql_home,mysql_home,NullS);
   /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
   my_realpath(mysql_home,mysql_home,MYF(0));
@@ -9347,12 +9360,12 @@ static int fix_paths(void)
   charsets_dir=mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
-    return 1;
+    DBUG_RETURN(1);
 #ifdef HAVE_REPLICATION
   if (!slave_load_tmpdir)
   {
     if (!(slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE))))
-      return 1;
+      DBUG_RETURN(1);
   }
 #endif /* HAVE_REPLICATION */
   /*
@@ -9373,7 +9386,7 @@ static int fix_paths(void)
       if (my_realpath(buff, opt_secure_file_priv, 0))
       {
         sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
-        return 1;
+        DBUG_RETURN(1);
       }
       secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
       convert_dirname(secure_file_real_path, buff, NullS);
@@ -9381,7 +9394,7 @@ static int fix_paths(void)
       opt_secure_file_priv= secure_file_real_path;
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 

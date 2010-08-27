@@ -266,6 +266,7 @@ extern size_t sf_malloc_cur_memory, sf_malloc_max_memory;
 extern ulong	my_default_record_cache_size;
 extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
                NEAR my_disable_flush_key_blocks, NEAR my_disable_symlinks;
+extern my_bool my_disable_sync;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 /* from default.c */

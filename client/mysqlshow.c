@@ -164,7 +164,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"character-sets-dir", 'c', "Directory for character set files.",
-   &charsets_dir, &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
+   (char**) &charsets_dir, (char**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", &default_charset,
@@ -669,8 +669,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   char query[1024],*end;
   MYSQL_RES *result;
   MYSQL_ROW row;
-  ulong rows;
-  LINT_INIT(rows);
+  ulong UNINIT_VAR(rows);
 
   if (mysql_select_db(mysql,db))
   {

@@ -8567,7 +8567,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
@@ -8600,7 +8600,7 @@ CHARSET_INFO my_charset_ujis_bin=
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,

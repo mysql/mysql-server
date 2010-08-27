@@ -93,7 +93,10 @@
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
   If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, it means that to position()
-  uses a primary key. Without primary key, we can't call position().
+  uses a primary key given by the record argument.
+  Without primary key, we can't call position().
+  If not set, the position is returned as the current rows position
+  regardless of what argument is given.
 */ 
 #define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16) 
 #define HA_CAN_RTREEKEYS       (1 << 17)
@@ -1129,6 +1132,7 @@ public:
   enum {NONE=0, INDEX, RND} inited;
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
+  bool cloned;                          /* 1 if this was created with clone */
   const COND *pushed_cond;
   /**
     next_insert_id is the next value which should be inserted into the
@@ -1166,7 +1170,7 @@ public:
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0),
+    locked(FALSE), implicit_emptied(0), cloned(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0)
     {}
@@ -1460,10 +1464,9 @@ public:
   virtual int rnd_next(uchar *buf)=0;
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
   /**
-    One has to use this method when to find
-    random position by record as the plain
-    position() call doesn't work for some
-    handlers for random position.
+    This function only works for handlers having
+    HA_PRIMARY_KEY_REQUIRED_FOR_POSITION set.
+    It will return the row with the PK given in the record argument.
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
@@ -1485,6 +1488,12 @@ public:
   virtual ha_rows records_in_range(uint inx, key_range *min_key,
                                    key_range *max_key)
     { return (ha_rows) 10; }
+  /*
+    If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, then it sets ref
+    (reference to the row, aka position, with the primary key given in
+    the record).
+    Otherwise it set ref to the current row.
+  */
   virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,

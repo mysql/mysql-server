@@ -91,29 +91,26 @@ path=`dirname $0`
 get_make_parallel_flag
 
 # SSL library to use.--with-ssl will select our bundled yaSSL
-# implementation of SSL. To use openSSl you will nee too point out
-# the location of openSSL headers and lbs on your system.
+# implementation of SSL. To use OpenSSL you will need to specify
+# the location of OpenSSL headers and libs on your system.
 # Ex --with-ssl=/usr
 SSL_LIBRARY=--with-ssl
 
 if [ "x$warning_mode" != "xpedantic" ]; then
 # Both C and C++ warnings
-  warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
-  warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
-  warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
+  warnings="-Wall -Wextra -Wunused -Wwrite-strings"
 
 # For more warnings, uncomment the following line
-# warnings="$global_warnings -Wshadow"
+# warnings="$warnings -Wshadow"
 
 # C warnings
-  c_warnings="$warnings -Wunused-parameter"
+  c_warnings="$warnings"
 # C++ warnings
-  cxx_warnings="$warnings"
+  cxx_warnings="$warnings -Wno-unused-parameter"
 # cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"
-  cxx_warnings="$cxx_warnings -Wreorder"
   cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
 # Added unless --with-debug=full
-  debug_extra_cflags="-O0 -g3 -gdwarf-2" #1 -Wuninitialized"
+  debug_extra_cflags="-O0 -g3 -gdwarf-2"
 else
   warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
   c_warnings="$warnings"
@@ -182,8 +179,7 @@ max_no_embedded_configs="$SSL_LIBRARY --with-plugins=max"
 max_no_qc_configs="$SSL_LIBRARY --with-plugins=max --without-query-cache"
 max_no_ndb_configs="$SSL_LIBRARY --with-plugins=max-no-ndb --with-embedded-server --with-libevent"
 max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server --with-libevent"
-# Disable NDB in maria max builds
-max_configs=$max_no_ndb_configs
+all_configs="$SSL_LIBRARY --with-plugins=max --with-plugin-ndbcluster --with-embedded-server --with-libevent"
 
 #
 # CPU and platform specific compilation flags.

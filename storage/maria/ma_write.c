@@ -1416,7 +1416,8 @@ static int _ma_balance_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     /* Log changes to father (one level up) page */
 
     if (share->now_transactional &&
-        _ma_log_change(father_page, father_key_pos, k_length))
+        _ma_log_change(father_page, father_key_pos, k_length,
+                       KEY_OP_DEBUG_FATHER_CHANGED_1))
       goto err;
 
     /*
@@ -1583,7 +1584,8 @@ static int _ma_balance_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
     /* Log changes to father (one level up) page */
     if (share->now_transactional &&
-        _ma_log_change(father_page, father_key_pos, k_length))
+        _ma_log_change(father_page, father_key_pos, k_length,
+                       KEY_OP_DEBUG_FATHER_CHANGED_2))
       goto err;
   }
 
@@ -1905,32 +1907,39 @@ my_bool _ma_log_new(MARIA_PAGE *ma_page, my_bool root_page)
    Log when some part of the key page changes
 */
 
-my_bool _ma_log_change(MARIA_PAGE *ma_page,
-                       const uchar *key_pos, uint length)
+my_bool _ma_log_change(MARIA_PAGE *ma_page, const uchar *key_pos, uint length,
+                       enum en_key_debug debug_marker __attribute__((unused)))
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 6 + 7], *log_pos;
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 6 + 7], *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
   uint offset= (uint) (key_pos - ma_page->buff), translog_parts;
-  uint extra_length= 0;
   my_off_t page;
   MARIA_HA *info= ma_page->info;
   DBUG_ENTER("_ma_log_change");
   DBUG_PRINT("enter", ("page: %lu length: %u", (ulong) ma_page->pos, length));
 
   DBUG_ASSERT(info->s->now_transactional);
+  DBUG_ASSERT(offset + length <= ma_page->size);
 
   /* Store address of new root page */
   page= ma_page->pos / info->s->block_size;
   page_store(log_data + FILEID_STORE_SIZE, page);
   log_pos= log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE;
+
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  (*log_pos++)= KEY_OP_DEBUG;
+  (*log_pos++)= debug_marker;
+#endif
+
   log_pos[0]= KEY_OP_OFFSET;
   int2store(log_pos+1, offset);
   log_pos[3]= KEY_OP_CHANGE;
   int2store(log_pos+4, length);
+  log_pos+= 6;
 
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data) - 7;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (log_pos - log_data);
   log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_pos;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
   translog_parts= 2;
@@ -1941,21 +1950,19 @@ my_bool _ma_log_change(MARIA_PAGE *ma_page,
     ha_checksum crc;
     crc= my_checksum(0, ma_page->buff + LSN_STORE_SIZE,
                      page_length - LSN_STORE_SIZE);
-    log_pos+= 6;
     log_pos[0]= KEY_OP_CHECK;
     int2store(log_pos+1, page_length);
     int4store(log_pos+3, crc);
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
-    extra_length+= 7;
+    log_pos+= 7;
     translog_parts++;
   }
 #endif
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,
-                            (translog_size_t) (sizeof(log_data) - 7 + length +
-                                               extra_length),
+                            (translog_size_t) (log_pos - log_data) + length,
                             TRANSLOG_INTERNAL_PARTS + translog_parts,
                             log_array, log_data, NULL))
     DBUG_RETURN(1);
@@ -1966,6 +1973,21 @@ my_bool _ma_log_change(MARIA_PAGE *ma_page,
 /**
    @brief Write log entry for page splitting
 
+   @fn     _ma_log_split()
+   @param
+     ma_page		Page that is changed
+     org_length	        Original length of page
+     new_length		New length of page
+     key_pos		Where key is inserted on page (may be 0 if no key)
+     key_length		Number of bytes changed at key_pos
+     move_length	Number of bytes moved at key_pos to make room for key
+     prefix_or_suffix   KEY_OP_NONE	    Ignored
+   			KEY_OP_ADD_PREFIX   Add data to start of page
+			KEY_OP_ADD_SUFFIX   Add data to end of page
+     data		What data was added
+     data_length	Number of bytes added first or last
+     changed_length	Number of bytes changed first or last.
+
    @note
      Write log entry for page that has got a key added to the page under
      one and only one of the following senarios:
@@ -1973,9 +1995,6 @@ my_bool _ma_log_change(MARIA_PAGE *ma_page,
      - Data is added to end of page
      - Data added at front of page
 
-   @param prefix_or_suffix  KEY_OP_NONE		Ignored
-   			    KEY_OP_ADD_PREFIX   Add data to start of page
-			    KEY_OP_ADD_SUFFIX   Add data to end of page
 
 */
 
@@ -1987,7 +2006,7 @@ static my_bool _ma_log_split(MARIA_PAGE *ma_page,
                              uint changed_length)
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3+3+3+3+3+2 +7];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 3+3+3+3+3+2 +7];
   uchar *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
   uint offset= (uint) (key_pos - ma_page->buff);
@@ -1998,10 +2017,17 @@ static my_bool _ma_log_split(MARIA_PAGE *ma_page,
   DBUG_PRINT("enter", ("page: %lu  org_length: %u  new_length: %u",
                        (ulong) ma_page->pos, org_length, new_length));
 
+  DBUG_ASSERT(changed_length >= data_length);
+
   log_pos= log_data + FILEID_STORE_SIZE;
   page= ma_page->pos / info->s->block_size;
   page_store(log_pos, page);
   log_pos+= PAGE_STORE_SIZE;
+
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  (*log_pos++)= KEY_OP_DEBUG;
+  (*log_pos++)= KEY_OP_DEBUG_LOG_SPLIT;
+#endif
 
   if (new_length <= offset || !key_pos)
   {
@@ -2015,6 +2041,7 @@ static my_bool _ma_log_split(MARIA_PAGE *ma_page,
     log_pos+= 3;
     translog_parts= 1;
     extra_length= 0;
+    DBUG_ASSERT(data_length == 0);
   }
   else
   {
@@ -2034,10 +2061,13 @@ static my_bool _ma_log_split(MARIA_PAGE *ma_page,
       log_pos[0]= KEY_OP_DEL_SUFFIX;
       int2store(log_pos + 1, diff);
       log_pos+= 3;
+      DBUG_ASSERT(data_length == 0);            /* Page is shortened */
+      DBUG_ASSERT(offset <= org_length - diff);
     }
     else
     {
       DBUG_ASSERT(new_length == org_length + move_length + data_length);
+      DBUG_ASSERT(offset <= org_length);
     }
 
     log_pos[0]= KEY_OP_OFFSET;

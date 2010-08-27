@@ -550,7 +550,7 @@ uint bitmap_get_first(const MY_BITMAP *map)
     {
       byte_ptr= (uchar*)data_ptr;
       for (j=0; ; j++, byte_ptr++)
-      { 
+      {
         if (*byte_ptr != 0xFF)
         {
           for (k=0; ; k++)

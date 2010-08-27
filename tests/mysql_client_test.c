@@ -3325,7 +3325,7 @@ static void test_long_data_str()
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
-  my_sprintf(data, (data, "%d", i*5));
+  sprintf(data, "%d", i*5);
   verify_col_data("test_long_data_str", "LENGTH(longstr)", data);
   data[0]= '\0';
   while (i--)
@@ -3423,10 +3423,10 @@ static void test_long_data_str1()
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
-  my_sprintf(data, (data, "%ld", (long)i*length));
+  sprintf(data, "%ld", (long)i*length);
   verify_col_data("test_long_data_str", "length(longstr)", data);
 
-  my_sprintf(data, (data, "%d", i*2));
+  sprintf(data, "%d", i*2);
   verify_col_data("test_long_data_str", "length(blb)", data);
 
   /* Test length of field->max_length */
@@ -13286,36 +13286,51 @@ static void test_bug15518()
 }
 
 
-static void disable_general_log()
+static void disable_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=off");
   myquery(rc);
+  rc= mysql_query(mysql, "set @@global.slow_query_log=off");
+  myquery(rc);
 }
 
 
-static void enable_general_log(int truncate)
+static void enable_query_logs(int truncate)
 {
   int rc;
 
   rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
   myquery(rc);
 
+  rc= mysql_query(mysql, "set @save_global_slow_query_log=@@global.slow_query_log");
+  myquery(rc);
+
   rc= mysql_query(mysql, "set @@global.general_log=on");
   myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=on");
+  myquery(rc);
+
 
   if (truncate)
   {
     rc= mysql_query(mysql, "truncate mysql.general_log");
     myquery(rc);
+
+    rc= mysql_query(mysql, "truncate mysql.slow_log");
+    myquery(rc);
   }
 }
 
 
-static void restore_general_log()
+static void restore_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=@save_global_slow_query_log");
   myquery(rc);
 }
 
@@ -15487,7 +15502,7 @@ static void test_bug17667()
     return;
   }
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
        statement_cursor++)
@@ -15567,7 +15582,7 @@ static void test_bug17667()
              statement_cursor->buffer);
   }
 
-  restore_general_log();
+  restore_query_logs();
 
   if (!opt_silent)
     printf("success.  All queries found intact in the log.\n");
@@ -17431,7 +17446,7 @@ static void test_bug28386()
   }
   mysql_free_result(result);
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   stmt= mysql_simple_prepare(mysql, "SELECT ?");
   check_stmt(stmt);
@@ -17470,7 +17485,7 @@ static void test_bug28386()
 
   mysql_free_result(result);
 
-  restore_general_log();
+  restore_query_logs();
 
   DBUG_VOID_RETURN;
 }
@@ -18139,7 +18154,7 @@ static void test_bug53371()
 static void test_bug53907()
 {
   int rc;
-  char buf[] = "\x4test\x14../client_test_db/t1";
+  uchar buf[] = "\x4test\x14../client_test_db/t1";
 
   myheader("test_bug53907");
 
@@ -18159,7 +18174,7 @@ static void test_bug53907()
   rc= mysql_change_user(mysql, "testbug", NULL, "bug53907");
   myquery(rc);
 
-  rc= simple_command(mysql, COM_TABLE_DUMP, (uchar*) buf, sizeof(buf), 0);
+  rc= simple_command(mysql, COM_TABLE_DUMP, buf, sizeof(buf), 0);
   fprintf(stderr, ">>>>>>>>> %d\n", mysql_errno(mysql));
   DIE_UNLESS(mysql_errno(mysql) == 1103); /* ER_WRONG_TABLE_NAME */
 
@@ -18258,7 +18273,7 @@ static void test_bug42373()
   Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
 */
 
-static void test_bug54041()
+static void test_bug54041_impl()
 {
   int rc;
   MYSQL_STMT *stmt;
@@ -18273,7 +18288,7 @@ static void test_bug54041()
   rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
   myquery(rc);
 
-  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 (a) VALUES (?)");
+  stmt= mysql_simple_prepare(mysql, "SELECT a FROM t1 WHERE a > ?");
   check_stmt(stmt);
   verify_param_count(stmt, 1);
 
@@ -18311,6 +18326,20 @@ static void test_bug54041()
 }
 
 
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041()
+{
+  enable_query_logs(0);
+  test_bug54041_impl();
+  disable_query_logs();
+  test_bug54041_impl();
+  restore_query_logs();
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -18320,14 +18349,14 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
-  {"basedir", 'b', "Basedir for tests.", &opt_basedir,
-   &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"basedir", 'b', "Basedir for tests.", (char**) &opt_basedir,
+   (char**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 't', "Number of times test to be executed", &opt_count,
    &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use", &opt_db, &opt_db,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", '#', "Output debug log", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (char**) &default_dbug_option,
+   (char**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host", &opt_host, &opt_host,
@@ -18363,8 +18392,8 @@ static struct my_option client_test_long_options[] =
   {"user", 'u', "User for login if not current user", &opt_user,
    &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"vardir", 'v', "Data dir for tests.", &opt_vardir,
-   &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"vardir", 'v', "Data dir for tests.", (char**) &opt_vardir,
+   (char**) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
    &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
@@ -18391,7 +18420,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 
 static struct my_tests_st my_tests[]= {
-  { "disable_general_log", disable_general_log },
+  { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},

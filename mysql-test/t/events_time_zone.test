@@ -5,7 +5,7 @@
 #    to wait for operation to complete.  Should be positive.  Test runs
 #    about 25*N seconds (it sleeps most of the time, so CPU speed is not
 #    relevant).
-let $N = 5;
+let $N = 6;
 #
 # 2. Some subtests
 #    - create a new time zone

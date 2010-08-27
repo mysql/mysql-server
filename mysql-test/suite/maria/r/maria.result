@@ -2139,7 +2139,7 @@ Data records:                       0  Deleted blocks:                      0
 Block_size:                      8192
 Recordlength:                      99
 
-table description:
+Table description:
 Key Start Len Index   Type
 1   2     30  multip. varchar                
 2   33    30  multip. char NULL              
@@ -2606,4 +2606,21 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+drop table t1;
+CREATE TABLE t1 ( f1 DOUBLE , f2 DOUBLE , f3 DOUBLE , f4 DOUBLE , v3 DOUBLE , v4 DOUBLE , KEY ( v3 ) , KEY ( v4 ) ) engine=maria;
+REPLACE t1 ( f2 , f1 ) VALUES ( f2 , 56 ) ;
+INSERT t1 ( f1 , f2 , f3 , f4 ) VALUES ( 0 , f2 , 8 , f3 ) ;
+INSERT t1 ( f4 , f2 ) VALUES ( 4 , 92 ) ;
+DELETE FROM t1 WHERE v3 = 173 OR v4 = 9 ;
+drop table t1;
+CREATE TABLE t1 (
+f1 CHAR(255) BINARY ,
+f2 CHAR(255) BINARY NOT NULL DEFAULT '0',
+f3 CHAR(255) BINARY NOT NULL ,
+f4 CHAR(255) BINARY NOT NULL DEFAULT '0' ,
+v3 CHAR(255) BINARY NOT NULL DEFAULT '0' ,
+KEY (v3)
+) ENGINE=Maria;
+INSERT INTO t1 ( f1 , f2 , f3 , f4 ) SELECT f1 , f4 , f1 , f4 FROM t1;
+DELETE FROM t1;
 drop table t1;

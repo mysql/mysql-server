@@ -120,7 +120,7 @@ sub new {
   my $input    = delete($opts{'input'});
   my $output   = delete($opts{'output'});
   my $error    = delete($opts{'error'});
-  my $verbose  = delete($opts{'verbose'});
+  my $verbose  = delete($opts{'verbose'}) || $::opt_verbose;
   my $nocore   = delete($opts{'nocore'});
   my $host     = delete($opts{'host'});
   my $shutdown = delete($opts{'shutdown'});

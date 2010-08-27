@@ -2897,7 +2897,7 @@ loop:
 					if (bpl) {
 retry_flush_batch:
 						n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
-									bpl,
+									(ulint) bpl,
 									oldest_lsn + (lsn - lsn_old));
 						if (n_pages_flushed == ULINT_UNDEFINED) {
 							os_thread_sleep(5000);

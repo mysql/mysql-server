@@ -459,8 +459,9 @@ typedef struct st_maria_row
   uint *null_field_lengths;             /* All null field lengths */
   ulong *blob_lengths;                  /* Length for each blob */
   ulong min_length, normal_length, char_length, varchar_length;
-  ulong blob_length, head_length, total_length;
+  ulong blob_length, total_length;
   size_t extents_buffer_length;         /* Size of 'extents' buffer */
+  uint head_length, header_length;
   uint field_lengths_length;            /* Length of data in field_lengths */
   uint extents_count;                   /* number of extents in 'extents' */
   uint full_page_count, tail_count;     /* For maria_chk */
@@ -797,6 +798,7 @@ extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
 extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
+extern my_bool maria_recovery_verbose;
 extern HASH maria_stored_state;
 extern int (*maria_create_trn_hook)(MARIA_HA *);
 
@@ -1081,7 +1083,7 @@ typedef struct st_maria_block_info
 
 #define USE_BUFFER_INIT		(((1024L*1024L*128-MALLOC_OVERHEAD)/8192)*8192)
 #define READ_BUFFER_INIT	(1024L*256L-MALLOC_OVERHEAD)
-#define SORT_BUFFER_INIT	(1024L*1024L*64-MALLOC_OVERHEAD)
+#define SORT_BUFFER_INIT	(1024L*1024L*256-MALLOC_OVERHEAD)
 #define MIN_SORT_BUFFER		(4096-MALLOC_OVERHEAD)
 
 #define fast_ma_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _ma_writeinfo((INFO),0)

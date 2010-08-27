@@ -71,6 +71,14 @@ static const char *record_formats[]=
   "Fixed length", "Packed", "Compressed", "Block", "?"
 };
 
+static const char *bitmap_description[]=
+{
+  "Empty page", "Part filled head page","Part filled head page",
+  "Part filled head page", "Full head page",
+  "Part filled tail page","Part filled tail page",
+  "Full tail or blob page"
+};
+
 static const char *maria_stats_method_str="nulls_unequal";
 static char default_open_errmsg[]=  "%d when opening MARIA-table '%s'";
 static char default_close_errmsg[]= "%d when closing MARIA-table '%s'";
@@ -106,7 +114,9 @@ int main(int argc, char **argv)
   error=0;
   maria_init();
 
-  if (ma_control_file_open(FALSE, opt_require_control_file) &&
+  maria_block_size= 0;                 /* Use block size from control file */
+  if (ma_control_file_open(FALSE, opt_require_control_file ||
+                           !(check_param.testflag & T_SILENT)) &&
       (opt_require_control_file ||
        (opt_transaction_logging && (check_param.testflag & T_REP_ANY))))
   {
@@ -1242,7 +1252,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
   }
   else if ((param->testflag & T_CHECK) || !(param->testflag & T_AUTO_INC))
   {
-    if (!(param->testflag & T_SILENT) || param->testflag & T_INFO)
+    if (!(param->testflag & T_VERY_SILENT) || param->testflag & T_INFO)
       printf("Checking MARIA file: %s\n",filename);
     if (!(param->testflag & T_SILENT))
       printf("Data records: %7s   Deleted blocks: %7s\n",
@@ -1516,7 +1526,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     printf("Using only keys '%s' of %d possibly keys\n",
 	   buff, share->base.keys);
   }
-  puts("\ntable description:");
+  puts("\nTable description:");
   printf("Key Start Len Index   Type");
   if (param->testflag & T_VERBOSE)
     printf("                     Rec/key         Root  Blocksize");
@@ -1657,6 +1667,14 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
 		 share->columndef[field].huff_tree->quick_table_bits);
       }
       VOID(putchar('\n'));
+    }
+    if (share->data_file_type == BLOCK_RECORD)
+    {
+      uint i;
+      puts("\nBitmap  Data size  Description");
+      for (i=0 ; i <= 7 ; i++)
+        printf("%u           %5u  %s\n", i, share->bitmap.sizes[i],
+               bitmap_description[i]);
     }
   }
   DBUG_VOID_RETURN;

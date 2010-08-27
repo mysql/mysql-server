@@ -398,7 +398,7 @@ CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
   }
 
   new_block_size= uint2korr(buffer + CF_BLOCKSIZE_OFFSET);
-  if (new_block_size != maria_block_size)
+  if (new_block_size != maria_block_size && maria_block_size)
   {
     error= CONTROL_FILE_WRONG_BLOCKSIZE;
     sprintf(errmsg_buff,
@@ -407,6 +407,7 @@ CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
     errmsg= errmsg_buff;
     goto err;
   }
+  maria_block_size= new_block_size;
 
   if (my_checksum(0, buffer, new_cf_create_time_size - CF_CHECKSUM_SIZE) !=
       uint4korr(buffer + new_cf_create_time_size - CF_CHECKSUM_SIZE))

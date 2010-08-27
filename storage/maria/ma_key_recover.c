@@ -64,8 +64,9 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
       builds.
     */
 #ifdef EXTRA_DEBUG
-    DBUG_ASSERT(!pinned_page->changed ||
-                undo_lsn != LSN_IMPOSSIBLE || !info->s->now_transactional);
+    DBUG_ASSERT((!pinned_page->changed ||
+                 undo_lsn != LSN_IMPOSSIBLE || !info->s->now_transactional) ||
+                (info->s->state.changed & STATE_CRASHED));
 #endif
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,
@@ -494,7 +495,8 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
                     my_bool handle_overflow __attribute__ ((unused)))
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3 + 3 + 3 + 3 + 7 + 2];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 3 + 3 + 3 + 3 + 7 +
+                 2];
   uchar *log_pos;
   uchar *buff= ma_page->buff;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
@@ -509,6 +511,7 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
                        (ulong) ma_page->pos, org_page_length, changed_length,
                        move_length));
   DBUG_ASSERT(info->s->now_transactional);
+  DBUG_ASSERT(move_length <= (int) changed_length);
 
   /*
     Write REDO entry that contains the logical operations we need
@@ -518,6 +521,11 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
   page_pos= ma_page->pos / info->s->block_size;
   page_store(log_pos, page_pos);
   log_pos+= PAGE_STORE_SIZE;
+
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  *log_pos++= KEY_OP_DEBUG;
+  *log_pos++= KEY_OP_DEBUG_LOG_ADD;
+#endif
 
   /* Store keypage_flag */
   *log_pos++= KEY_OP_SET_PAGEFLAG;
@@ -533,21 +541,31 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
     DBUG_ASSERT(handle_overflow);
     if (offset + changed_length > page_length)
     {
+      /* Log that data changed to end of page */
       changed_length= page_length - offset;
       move_length= 0;
+      /* Set page to max length */
+      org_page_length= page_length;
+      *log_pos++= KEY_OP_MAX_PAGELENGTH;
     }
     else
     {
+      /* They key will not be part of the page ; Don't log it */
       uint diff= org_page_length + move_length - page_length;
       log_pos[0]= KEY_OP_DEL_SUFFIX;
       int2store(log_pos+1, diff);
       log_pos+= 3;
-      org_page_length= page_length - move_length;
+      org_page_length-= diff;
+      DBUG_ASSERT(org_page_length == page_length - move_length);
     }
+    DBUG_ASSERT(offset != org_page_length);
   }
 
   if (offset == org_page_length)
+  {
+    DBUG_ASSERT(move_length == (int) changed_length);
     log_pos[0]= KEY_OP_ADD_SUFFIX;
+  }
   else
   {
     log_pos[0]= KEY_OP_OFFSET;
@@ -832,6 +850,8 @@ err:
    KEY_OP_CHECK      6 page_length[2},CRC Used only when debugging
    KEY_OP_COMPACT_PAGE  6 transid
    KEY_OP_SET_PAGEFLAG  1 flag for page
+   KEY_OP_MAX_PAGELENGTH 0                Set page to max length
+   KEY_OP_DEBUG	     1                    Info where logging was done
 
    @return Operation status
      @retval 0      OK
@@ -850,6 +870,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   const uchar *header_end= header + head_length;
   uint page_offset= 0, org_page_length;
   uint nod_flag, page_length, keypage_header, keynr;
+  uint max_page_length= share->block_size - KEYPAGE_CHECKSUM_SIZE;
   int result;
   MARIA_PAGE page;
   DBUG_ENTER("_ma_apply_redo_index");
@@ -898,12 +919,12 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       header+= 2;
       DBUG_PRINT("redo", ("key_op_shift: %d", length));
       DBUG_ASSERT(page_offset != 0 && page_offset <= page_length &&
-                  page_length + length < share->block_size);
+                  page_length + length <= max_page_length);
 
       if (length < 0)
         bmove(buff + page_offset, buff + page_offset - length,
               page_length - page_offset + length);
-      else
+      else if (page_length != page_offset)
         bmove_upp(buff + page_length + length, buff + page_length,
                   page_length - page_offset);
       page_length+= length;
@@ -927,7 +948,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
                           insert_length, changed_length));
 
       DBUG_ASSERT(insert_length <= changed_length &&
-                  page_length + changed_length <= share->block_size);
+                  page_length + changed_length <= max_page_length);
 
       bmove_upp(buff + page_length + insert_length, buff + page_length,
                 page_length - keypage_header);
@@ -954,7 +975,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     {
       uint insert_length= uint2korr(header);
       DBUG_PRINT("redo", ("key_op_add_prefix: %u", insert_length));
-      DBUG_ASSERT(page_length + insert_length <= share->block_size);
+      DBUG_ASSERT(page_length + insert_length <= max_page_length);
       memcpy(buff + page_length, header+2, insert_length);
 
       page_length+= insert_length;
@@ -983,7 +1004,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
                                       page_length - LSN_STORE_SIZE))
       {
         DBUG_PRINT("error", ("page_length %u",page_length));
-        DBUG_DUMP("KEY_OP_CHECK bad page", buff, share->block_size);
+        DBUG_DUMP("KEY_OP_CHECK bad page", buff, max_page_length);
         DBUG_ASSERT("crc" == "failure in REDO_INDEX");
       }
 #endif
@@ -991,6 +1012,14 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       header+= 6;
       break;
     }
+    case KEY_OP_DEBUG:
+      DBUG_PRINT("redo", ("Debug: %u", (uint) header[0]));
+      header++;
+      break;
+    case KEY_OP_MAX_PAGELENGTH:
+      DBUG_PRINT("redo", ("key_op_max_page_length"));
+      page_length= max_page_length;
+      break;
     case KEY_OP_MULTI_COPY:                     /* 9 */
     {
       /*
@@ -1011,7 +1040,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       log_memcpy_length= uint2korr(header);
       header+= 2;
       log_memcpy_end= header + log_memcpy_length;
-      DBUG_ASSERT(full_length < share->block_size);
+      DBUG_ASSERT(full_length <= max_page_length);
       while (header < log_memcpy_end)
       {
         uint to, from;
@@ -1020,7 +1049,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
         from= uint2korr(header);
         header+= 2;
         /* "from" is a place in the existing page */
-        DBUG_ASSERT(max(from, to) < share->block_size);
+        DBUG_ASSERT(max(from, to) < max_page_length);
         memcpy(buff + to, buff + from, full_length);
       }
       break;

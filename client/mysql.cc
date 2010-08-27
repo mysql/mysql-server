@@ -156,6 +156,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 static my_bool debug_info_flag, debug_check_flag, batch_abort_on_error;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
+static my_bool in_com_source, aborted= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static uint my_end_arg;
@@ -1087,6 +1088,7 @@ int main(int argc,char *argv[])
 			     "\\N [\\d]> ",MYF(MY_WME));
   current_prompt = my_strdup(default_prompt,MYF(MY_WME));
   prompt_counter=0;
+  aborted= 0;
 
   outfile[0]=0;			// no (default) outfile
   strmov(pager, "stdout");	// the default, if --pager wasn't given
@@ -1281,8 +1283,10 @@ sig_handler mysql_end(int sig)
 /*
   This function handles sigint calls
   If query is in process, kill query
+  If 'source' is executed, abort source command
   no query in process, terminate like previous behavior
  */
+
 sig_handler handle_sigint(int sig)
 {
   char kill_buffer[40];
@@ -1321,7 +1325,8 @@ sig_handler handle_sigint(int sig)
   mysql_close(kill_mysql);
   tee_fprintf(stdout, "Ctrl-C -- query killed. Continuing normally.\n");
   interrupted_query= 0;
-
+  if (in_com_source)
+    aborted= 1;                                 // Abort source command
   return;
 
 err:
@@ -1878,7 +1883,7 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
-  char	*line;
+  char	*line= 0;
   char	in_string=0;
   ulong line_number=0;
   bool ml_comment= 0;  
@@ -1886,7 +1891,7 @@ static int read_and_execute(bool interactive)
   bool truncated= 0;
   status.exit_status=1;
   
-  for (;;)
+  while (!aborted)
   {
     if (!interactive)
     {
@@ -3650,7 +3655,7 @@ xmlencode_print(const char *src, uint length)
     tee_fputs("NULL", PAGER);
   else
   {
-    for (const char *p = src; length; *p++, length--)
+    for (const char *p = src; length; p++, length--)
     {
       const char *t;
       if ((t = array_value(xmlmeta, *p)))
@@ -4066,17 +4071,19 @@ static int com_source(String *buffer, char *line)
   status.file_name=source_name;
   glob_buffer.length(0);			// Empty command buffer
   ignore_errors= !batch_abort_on_error;
+  in_com_source= 1;
   error= read_and_execute(false);
   ignore_errors= save_ignore_errors;
   status=old_status;				// Continue as before
+  in_com_source= aborted= 0;
   my_fclose(sql_file,MYF(0));
   batch_readline_end(line_buff);
   /*
     If we got an error during source operation, don't abort the client
     if ignore_errors is set
   */
-  if (error && batch_abort_on_error && ignore_errors)
-    error= -1;
+  if (error && !batch_abort_on_error && ignore_errors)
+    error= -1;                                  // Ignore error
   return error;
 }
 
@@ -4760,7 +4767,7 @@ static const char *construct_prompt()
   struct tm *t = localtime(&lclock);
 
   /* parse thru the settings for the prompt */
-  for (char *c = current_prompt; *c ; *c++)
+  for (char *c = current_prompt; *c ; c++)
   {
     if (*c != PROMPT_CHAR)
 	processed_prompt.append(*c);
