@@ -4456,7 +4456,6 @@ Dbspj::scanIndex_parent_row(Signal* signal,
     if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
     {
       jam();
-//    ndbrequire(false);
 
       /**
        * TODO: Expand into linear memory instead
@@ -4586,8 +4585,9 @@ Dbspj::scanIndex_fixupBound(Ptr<ScanIndexFrag> fragPtr,
   ndbrequire(r0.peekWord(&tmp));
   tmp |= (boundsz << 16) | ((corrVal & 0xFFF) << 4);
   ndbrequire(r0.updateWord(tmp));
-  ndbrequire(r0.step(1));
+  ndbrequire(r0.step(1));    // Skip first BoundType
 
+  // TODO: Renumbering below assume there are only EQ-bounds !!
   Uint32 id = 0;
   Uint32 len32;
   do 
@@ -4598,7 +4598,7 @@ Dbspj::scanIndex_fixupBound(Ptr<ScanIndexFrag> fragPtr,
     AttributeHeader::init(&tmp, id++, len);
     ndbrequire(r0.updateWord(tmp));
     len32 = (len + 3) >> 2;
-  } while (r0.step(2 + len32));  // Skip BoundType(1) + AttributeHeader(1) + Attribute(len32)
+  } while (r0.step(2 + len32));  // Skip AttributeHeader(1) + Attribute(len32) + next BoundType(1)
 
   fragPtr.p->m_range_builder.m_range_cnt = boundno;
   fragPtr.p->m_range_builder.m_range_size = r0.getSize();
@@ -4637,9 +4637,10 @@ Dbspj::scanIndex_send(Signal* signal,
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
-    ndbrequire(data.m_frags_complete == 0);
     ndbrequire(data.m_fragCount > 0);
     cnt = data.m_fragCount;
+
+    // TODO: In case of pruned scan, divide batchsize by how many fragments we will actually involve.
     bs_rows /= cnt;
     bs_bytes /= cnt;
 
@@ -4678,6 +4679,7 @@ Dbspj::scanIndex_send(Signal* signal,
     }
   }
 
+  data.m_frags_complete = data.m_fragCount;
   list.first(fragPtr);
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
   {
@@ -4757,6 +4759,7 @@ Dbspj::scanIndex_send(Signal* signal,
     i++;
     fragPtr.p->m_state = 0; // running
     data.m_frags_outstanding++;
+    data.m_frags_complete--;
   }
 
   if (release == false)
@@ -4870,7 +4873,6 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
       requestPtr.p->m_cnt_active --;
       treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
       mark_active(requestPtr, treeNodePtr, false);
-      data.m_frags_complete = 0; // reset
     }
   }
 
@@ -5956,7 +5958,7 @@ Dbspj::parseDA(Build_context& ctx,
 
       if (unlikely(err != 0))
         break;
-    }
+    } // DABits::NI_HAS_PARENT
 
     err = DbspjErr::InvalidTreeParametersSpecificationKeyParamBitsMissmatch;
     if (unlikely( ((treeBits  & DABits::NI_KEY_PARAMS)==0) !=
@@ -6028,7 +6030,7 @@ Dbspj::parseDA(Build_context& ctx,
         DEBUG_CRASH();
         break;
       }
-    }
+    } // DABits::NI_KEY_...
 
     const Uint32 mask =
       DABits::NI_LINKED_ATTR | DABits::NI_ATTR_INTERPRET |
