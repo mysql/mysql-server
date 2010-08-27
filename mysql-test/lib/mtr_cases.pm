@@ -621,6 +621,7 @@ sub process_opts {
   $tinfo->{$opt_name} = [];
 
   my @plugins;
+  my %seen;
 
   foreach my $opt (@opts)
   {
@@ -640,7 +641,8 @@ sub process_opts {
     $value= mtr_match_prefix($opt, "--plugin-load=");
     if (defined $value)
     {
-      push @plugins, $value;
+      push @plugins, $value unless $seen{$value};
+      $seen{$value}=1;
       next;
     }
 
@@ -685,7 +687,8 @@ sub process_opts {
   }
 
   if (@plugins) {
-    push @{$tinfo->{$opt_name}}, "--plugin-load=" . join(':', @plugins);
+    my $sep = (IS_WIN32PERL) ? ';' : ':';
+    push @{$tinfo->{$opt_name}}, "--plugin-load=" .  join($sep, @plugins);
   }
 }
 

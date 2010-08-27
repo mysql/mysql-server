@@ -5840,7 +5840,7 @@ sub time_format($) {
 my $num_tests;
 
 sub xterm_stat {
-  if (-t STDOUT and $ENV{TERM} =~ /xterm/) {
+  if (-t STDOUT and defined $ENV{TERM} and $ENV{TERM} =~ /xterm/) {
     my ($left) = @_;
 
     # 2.5 -> best by test
