@@ -750,5 +750,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_ALLOC_MEM_REQ, "ALLOC_MEM_REQ" }
   ,{ GSN_ALLOC_MEM_REF, "ALLOC_MEM_REF" }
   ,{ GSN_ALLOC_MEM_CONF, "ALLOC_MEM_CONF" }
+
+  ,{ GSN_DIH_GET_TABINFO_REQ, "DIH_GET_TABINFO_REQ" }
+  ,{ GSN_DIH_GET_TABINFO_REF, "DIH_GET_TABINFO_REF" }
+  ,{ GSN_DIH_GET_TABINFO_CONF, "DIH_GET_TABINFO_CONF" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

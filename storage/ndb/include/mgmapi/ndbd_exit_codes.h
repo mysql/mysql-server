@@ -123,6 +123,8 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_NO_RESTORABLE_REPLICA       6303
 #define NDBD_EXIT_UNSUPPORTED_VERSION         6304
 
+#define NDBD_EXIT_GRACEFUL_SHUTDOWN_ERROR     6305
+
 /* ACC 6600-> */
 #define NDBD_EXIT_SR_OUT_OF_INDEXMEMORY       6600
 /* TUP 6800-> */

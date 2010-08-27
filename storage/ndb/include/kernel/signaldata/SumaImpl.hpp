@@ -519,18 +519,28 @@ struct SumaStartMeConf {
   Uint32 unused;
 };
 
-struct SumaHandoverReq {
-  STATIC_CONST( SignalLength = 3 );
+struct SumaHandoverReq
+{
+  STATIC_CONST( SignalLength = 4 );
   Uint32 gci;
   Uint32 nodeId;
   Uint32 theBucketMask[1];
+  Uint32 requestType;
+
+  enum RequestType
+  {
+    RT_START_NODE = 0,
+    RT_STOP_NODE = 1
+  };
 };
 
-struct SumaHandoverConf {
-  STATIC_CONST( SignalLength = 3 );
+struct SumaHandoverConf
+{
+  STATIC_CONST( SignalLength = 4 );
   Uint32 gci;
   Uint32 nodeId;
   Uint32 theBucketMask[1];
+  Uint32 requestType;
 };
 
 struct SumaContinueB

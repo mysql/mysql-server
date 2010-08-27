@@ -184,6 +184,8 @@ static int mgmd_main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
 
+  printf("MySQL Cluster Management Server %s\n", NDB_VERSION_STRING);
+
   ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
 
   load_defaults("my",load_default_groups,&argc,&argv);
@@ -205,6 +207,30 @@ static int mgmd_main(int argc, char** argv)
     opts.daemon= 0;
   }
 
+  if (opts.mycnf && opts.config_filename)
+  {
+    fprintf(stderr, "ERROR: Both --mycnf and -f is not supported\n");
+    mgmd_exit(1);
+  }
+
+  if (opt_nowait_nodes)
+  {
+    int res = opts.nowait_nodes.parseMask(opt_nowait_nodes);
+    if(res == -2 || (res > 0 && opts.nowait_nodes.get(0)))
+    {
+      fprintf(stderr, "ERROR: Invalid nodeid specified in nowait-nodes: '%s'\n",
+              opt_nowait_nodes);
+      mgmd_exit(1);
+    }
+    else if (res < 0)
+    {
+      fprintf(stderr, "ERROR: Unable to parse nowait-nodes argument: '%s'\n",
+              opt_nowait_nodes);
+      mgmd_exit(1);
+    }
+  }
+
+  /* Setup use of event logger */
   g_eventLogger->setCategory(opt_logname);
 
   /* Output to console initially */
@@ -216,31 +242,7 @@ static int mgmd_main(int argc, char** argv)
 #endif
 
   if (opts.verbose)
-    g_eventLogger->enable(Logger::LL_DEBUG);
-
-  if (opts.mycnf && opts.config_filename)
-  {
-    g_eventLogger->error("Both --mycnf and -f is not supported");
-    mgmd_exit(1);
-  }
-
-
-  if (opt_nowait_nodes)
-  {
-    int res = opts.nowait_nodes.parseMask(opt_nowait_nodes);
-    if(res == -2 || (res > 0 && opts.nowait_nodes.get(0)))
-    {
-      g_eventLogger->error("Invalid nodeid specified in nowait-nodes: '%s'",
-                           opt_nowait_nodes);
-      mgmd_exit(1);
-    }
-    else if (res < 0)
-    {
-      g_eventLogger->error("Unable to parse nowait-nodes argument: '%s'",
-                           opt_nowait_nodes);
-      mgmd_exit(1);
-    }
-  }
+    g_eventLogger->enable(Logger::LL_ALL); // --verbose turns on everything
 
   /**
      Install signal handler for SIGPIPE
@@ -252,9 +254,6 @@ static int mgmd_main(int argc, char** argv)
 
   while (!g_StopServer)
   {
-    g_eventLogger->info("NDB Cluster Management Server. %s",
-                        NDB_VERSION_STRING);
-
     mgm= new MgmtSrvr(opts);
     if (mgm == NULL) {
       g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
@@ -307,7 +306,11 @@ static int mgmd_main(int argc, char** argv)
           g_StopServer = true;
       }
     }
-    else {
+    else
+    {
+      g_eventLogger->info("MySQL Cluster Management Server %s started",
+                          NDB_VERSION_STRING);
+
       while (!g_StopServer)
         NdbSleep_MilliSleep(500);
     }

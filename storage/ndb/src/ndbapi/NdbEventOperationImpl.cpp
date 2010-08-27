@@ -2169,7 +2169,7 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 
     m_total_buckets += cnt;
 
-    pos = pos = (pos + 1) & mask;
+    pos = (pos + 1) & mask;
     for (; pos != maxpos; pos = (pos + 1) & mask)
     {
       assert(array[pos] > gci);
@@ -2228,7 +2228,7 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 
     m_total_buckets -= cnt;
 
-    pos = pos = (pos + 1) & mask;
+    pos = (pos + 1) & mask;
     for (; pos != maxpos; pos = (pos + 1) & mask)
     {
       assert(array[pos] > gci);

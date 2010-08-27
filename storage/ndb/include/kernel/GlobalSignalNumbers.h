@@ -295,9 +295,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_TAB_REF                203
 #define GSN_DROP_TAB_CONF               204
 
-#define GSN_208
-#define GSN_209
-#define GSN_216
+#define GSN_DIH_GET_TABINFO_REQ         208 /* distr. */
+#define GSN_DIH_GET_TABINFO_REF         209 /* distr. */
+#define GSN_DIH_GET_TABINFO_CONF        232 /* distr. */
 
 /*****************************************/
 
@@ -334,7 +334,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 230 not unused */
 /* 231 not unused */
 
-/* 232 unused */
+/* 232 not unused */
 /* 233 unused */
 /* 234 unused */
 #define GSN_DISCONNECT_REP              235

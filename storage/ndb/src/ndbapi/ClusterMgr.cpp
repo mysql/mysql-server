@@ -52,9 +52,6 @@ runClusterMgr_C(void * me)
   return NULL;
 }
 
-extern "C" {
-  void ndbSetOwnVersion();
-}
 ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   theStop(0),
   theFacade(_facade),
@@ -68,7 +65,6 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   m_cluster_state(CS_waiting_for_clean_cache)
 {
   DBUG_ENTER("ClusterMgr::ClusterMgr");
-  ndbSetOwnVersion();
   clusterMgrThreadMutex = NdbMutex_Create();
   waitForHBCond= NdbCondition_Create();
   m_auto_reconnect = -1;

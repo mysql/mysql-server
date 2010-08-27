@@ -217,9 +217,9 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
   }
 
   // TODO Check all scan parameters
-
   Ndbinfo::ScanCursor* cursor =
-    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+    CAST_PTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtrSend(&req));
+
   Uint32 signal_length = signal->getLength();
   if (signal_length == DbinfoScanReq::SignalLength)
   {
@@ -367,7 +367,7 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
 {
   const DbinfoScanConf* conf_ptr= (const DbinfoScanConf*)signal->getDataPtr();
   // Copy signal on stack
-  const DbinfoScanConf conf= *conf_ptr;
+  DbinfoScanConf conf= *conf_ptr;
 
   jamEntry();
 
@@ -387,7 +387,7 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
   // Copy cursor on stack
   ndbrequire(conf.cursor_sz);
   Ndbinfo::ScanCursor* cursor =
-    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&conf);
+    CAST_PTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtrSend(&conf));
 
   if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags) || conf.returnedRows)
   {

@@ -190,7 +190,7 @@ statReport(enum StartType st, int ops)
   static int nodeid;
   // open connection
   if (statState != statOpen) {
-    char *p = getenv("NDB_NODEID");		// ndbnet sets NDB_NODEID
+    char *p = getenv("NDB_NODEID");
     nodeid = p == 0 ? 0 : atoi(p);
     if ((statSock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
       if (statState != statError) {

@@ -6455,8 +6455,10 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   else
   {
     if (fragptr.p->m_copy_started_state != Fragrecord::AC_IGNORED)
+    {
       ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT ||
                 get_node_status(nextNodeId) != ZNODE_UP);
+    }
   }
   
   UintR TreadLenAiInd = (regTcPtr->readlenAi == 0 ? 0 : 1);
@@ -13517,6 +13519,8 @@ void Dblqh::execEND_LCPCONF(Signal* signal)
     jam();
     clcpCompletedState = LCP_IDLE;
     sendLCP_COMPLETE_REP(signal, lcpPtr.p->currentFragment.lcpFragOrd.lcpId);
+
+    CRASH_INSERTION(5056);
   }
 }//Dblqh::execEND_LCPCONF()
 
@@ -22279,7 +22283,7 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
 {
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
   const Ndbinfo::ScanCursor* cursor =
-    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
   Ndbinfo::Ratelimit rl;
 
   jamEntry();

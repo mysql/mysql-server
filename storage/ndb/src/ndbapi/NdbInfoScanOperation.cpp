@@ -24,9 +24,6 @@
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/NodeFailRep.hpp>
 
-#define CAST_PTR(X,Y) static_cast<X*>(static_cast<void*>(Y))
-#define CAST_CONSTPTR(X,Y) static_cast<const X*>(static_cast<const void*>(Y))
-
 struct NdbInfoScanOperationImpl
 {
   NodeBitmask m_nodes_to_scan;
