@@ -5380,7 +5380,7 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
       require(tmp->get("Type", &type) != 0);
       require((ctx.m_currentInfo = ctx.m_info->getInfo(type)) != 0);
       ctx.m_currentSection = const_cast<Properties*>(tmp);
-      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), type);
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", type);
       saveInConfigValues(ctx, 0);
     }
   }
