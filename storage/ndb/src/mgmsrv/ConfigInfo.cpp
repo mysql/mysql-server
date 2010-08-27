@@ -639,8 +639,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     ConfigInfo::CI_STRING,
     UNDEFINED,
-    "0",
-    "65535" },
+    0, 0 },
 
   {
     CFG_DB_MAINT_LOCK_CPU,
@@ -2674,8 +2673,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_STRING,
     MANDATORY,
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -2686,8 +2684,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_STRING,
     MANDATORY,
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
+    0, 0 },
 
   {
     CFG_CONNECTION_GROUP,
@@ -3007,6 +3004,10 @@ ConfigInfo::ConfigInfo()
         // fallthrough
       }
       case CI_STRING:
+        assert(param._type == CI_ENUM || // Allow fallthrough from enum
+               param._min == 0); // String can't have min value
+        assert(param._max == 0); // String can't have max value
+
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
         else if(param._default != UNDEFINED)
