@@ -3073,8 +3073,10 @@ where new_count.counter_name = old_count.counter_name
 and new_count.counter_name <> 'LOCAL_READS_SENT'
        and new_count.counter_name <> 'REMOTE_READS_SENT';
 counter_name	new_count.val - old_count.val
+CONST_PRUNED_RANGE_SCANS_RECEIVED	0
 LOCAL_RANGE_SCANS_SENT	2
 LOCAL_TABLE_SCANS_SENT	2
+PRUNED_RANGE_SCANS_RECEIVED	0
 RANGE_SCANS_RECEIVED	2
 READS_NOT_FOUND	2
 READS_RECEIVED	1
@@ -3559,5 +3561,86 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
+alter table t1 partition by key (b);
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
+d	e	f	a	b	c	d	e	f	a	b	c
+1	2	3	1	2	3	1	2	3	1	2	3
+1	2	3	1	2	3	1	2	3	1	2	4
+1	2	3	1	2	4	1	2	3	1	2	3
+1	2	3	1	2	4	1	2	3	1	2	4
+1	2	3	2	3	4	1	2	3	1	2	3
+1	2	3	2	3	4	1	2	3	1	2	4
+1	2	3	3	4	5	1	2	3	1	2	3
+1	2	3	3	4	5	1	2	3	1	2	4
+1	2	3	4	5	6	1	2	3	1	2	3
+1	2	3	4	5	6	1	2	3	1	2	4
+1	2	3	5	6	7	1	2	3	1	2	3
+1	2	3	5	6	7	1	2	3	1	2	4
+1	2	3	6	7	8	1	2	3	1	2	3
+1	2	3	6	7	8	1	2	3	1	2	4
+1	2	3	7	8	9	1	2	3	1	2	3
+1	2	3	7	8	9	1	2	3	1	2	4
+alter table t1 partition by key (a);
+select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
+d	e	f	a	b	c	d	e	f	a	b	c
+1	2	3	1	2	3	1	2	3	1	2	3
+1	2	3	1	2	3	1	2	3	1	2	4
+1	2	3	1	2	4	1	2	3	1	2	3
+1	2	3	1	2	4	1	2	3	1	2	4
+1	2	3	2	3	4	1	2	3	1	2	3
+1	2	3	2	3	4	1	2	3	1	2	4
+1	2	3	3	4	5	1	2	3	1	2	3
+1	2	3	3	4	5	1	2	3	1	2	4
+1	2	3	4	5	6	1	2	3	1	2	3
+1	2	3	4	5	6	1	2	3	1	2	4
+1	2	3	5	6	7	1	2	3	1	2	3
+1	2	3	5	6	7	1	2	3	1	2	4
+1	2	3	6	7	8	1	2	3	1	2	3
+1	2	3	6	7	8	1	2	3	1	2	4
+1	2	3	7	8	9	1	2	3	1	2	3
+1	2	3	7	8	9	1	2	3	1	2	4
+select straight_join * from t1 x, t1 y where y.a=0 and y.b=x.e;
+d	e	f	a	b	c	d	e	f	a	b	c
+alter table t1 partition by key (a,b);
+select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
+d	e	f	a	b	c	d	e	f	a	b	c
+1	2	3	1	2	3	1	2	3	1	2	3
+1	2	3	1	2	3	1	2	3	1	2	4
+1	2	3	1	2	4	1	2	3	1	2	3
+1	2	3	1	2	4	1	2	3	1	2	4
+1	2	3	2	3	4	1	2	3	1	2	3
+1	2	3	2	3	4	1	2	3	1	2	4
+1	2	3	3	4	5	1	2	3	1	2	3
+1	2	3	3	4	5	1	2	3	1	2	4
+1	2	3	4	5	6	1	2	3	1	2	3
+1	2	3	4	5	6	1	2	3	1	2	4
+1	2	3	5	6	7	1	2	3	1	2	3
+1	2	3	5	6	7	1	2	3	1	2	4
+1	2	3	6	7	8	1	2	3	1	2	3
+1	2	3	6	7	8	1	2	3	1	2	4
+1	2	3	7	8	9	1	2	3	1	2	3
+1	2	3	7	8	9	1	2	3	1	2	4
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
+d	e	f	a	b	c	d	e	f	a	b	c
+1	2	3	1	2	3	1	2	3	1	2	3
+1	2	3	1	2	3	1	2	3	1	2	4
+1	2	3	1	2	4	1	2	3	1	2	3
+1	2	3	1	2	4	1	2	3	1	2	4
+1	2	3	2	3	4	1	2	3	1	2	3
+1	2	3	2	3	4	1	2	3	1	2	4
+1	2	3	3	4	5	1	2	3	1	2	3
+1	2	3	3	4	5	1	2	3	1	2	4
+1	2	3	4	5	6	1	2	3	1	2	3
+1	2	3	4	5	6	1	2	3	1	2	4
+1	2	3	5	6	7	1	2	3	1	2	3
+1	2	3	5	6	7	1	2	3	1	2	4
+1	2	3	6	7	8	1	2	3	1	2	3
+1	2	3	6	7	8	1	2	3	1	2	4
+1	2	3	7	8	9	1	2	3	1	2	3
+1	2	3	7	8	9	1	2	3	1	2	4
+pruned
+12
+const_pruned
+6
 drop table t1;
 set ndb_join_pushdown = @save_ndb_join_pushdown;

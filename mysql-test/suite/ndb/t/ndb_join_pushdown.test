@@ -2072,13 +2072,6 @@ select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
 drop table T1;
 
-if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
-{
-  --disable_query_log
-  DROP DATABASE ndbinfo;
-  --enable_query_log
-}
-
 # Test and server status variables (i.e. mysqld counters)
 
 create table T1(
@@ -2496,6 +2489,12 @@ insert into t1(a,b,c,d,e,f) values
  (6, 7, 8, 1, 2, 3),
  (7, 8, 9, 1, 2, 3);
 
+# Find the total number of pruned range scans so far
+let $pruned_range = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name='PRUNED_RANGE_SCANS_RECEIVED', Value, 1);
+
+let $const_pruned_range = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name='CONST_PRUNED_RANGE_SCANS_RECEIVED', Value, 1);
+
+
 set ndb_join_pushdown=on;
 
 explain
@@ -2516,8 +2515,41 @@ alter table t1 partition by key (b,a);
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
+#########
+# const pruned testcase 
+#########
+alter table t1 partition by key (b);
+--sorted_result
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
+
+alter table t1 partition by key (a);
+--sorted_result
+select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
+select straight_join * from t1 x, t1 y where y.a=0 and y.b=x.e;
+
+# Non-const pruned as both partition keys are not const
+alter table t1 partition by key (a,b);
+--sorted_result
+select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
+--sorted_result
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
+
+
+# Verify pruned execution by comparing the NDB$INFO counters
+--disable_query_log
+--eval select sum(val) - $pruned_range AS pruned from ndbinfo.counters where block_name='DBSPJ' and counter_name='PRUNED_RANGE_SCANS_RECEIVED'
+--eval select sum(val) - $const_pruned_range AS const_pruned from ndbinfo.counters where block_name='DBSPJ' and counter_name='CONST_PRUNED_RANGE_SCANS_RECEIVED'
+--enable_query_log
+
 drop table t1;
 
+
+if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
+{
+  --disable_query_log
+  DROP DATABASE ndbinfo;
+  --enable_query_log
+}
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 
