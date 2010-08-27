@@ -26,14 +26,14 @@ enum enum_mi_repository
   MI_REPOSITORY_FILE= 0,
   MI_REPOSITORY_TABLE= 1
 };
-extern uint opt_mi_repository_id;
+extern ulong opt_mi_repository_id;
 
 enum enum_rli_repository
 {
   RLI_REPOSITORY_FILE= 0,
   RLI_REPOSITORY_TABLE= 1
 };
-extern uint opt_rli_repository_id;
+extern ulong opt_rli_repository_id;
 
 #define MI_FIELD_ID 0
 
