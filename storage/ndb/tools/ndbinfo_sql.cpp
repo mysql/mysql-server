@@ -129,6 +129,8 @@ struct view {
     "  WHEN 19 THEN \"REMOTE_RANGE_SCANS_SENT\""
     "  WHEN 20 THEN \"SCAN_BATCHES_COMPLETED\""
     "  WHEN 21 THEN \"SCAN_ROWS_RETURNED\""
+    "  WHEN 22 THEN \"PRUNED_RANGE_SCANS_RECEIVED\""
+    "  WHEN 23 THEN \"CONST_PRUNED_RANGE_SCANS_RECEIVED\""
     "  ELSE \"<unknown>\" "
     " END AS counter_name, "
     "val "

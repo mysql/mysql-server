@@ -4287,7 +4287,6 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   if (treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE)
   {
     jam();
-//  ndbrequire(false);
 
     // TODO we need a different variant of computeHash here,
     // since m_constPrunePtrI does not contain full primary key
@@ -4314,7 +4313,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     jam();
     /**
      * This is roughly equivalent to T_CONST_PRUNE
-     *   pretend that is it const-pruned
+     *   pretend that it is const-pruned
      */
     if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
     {
@@ -6375,7 +6374,11 @@ void Dbspj::execDBINFO_SCANREQ(Signal *signal)
       { Ndbinfo::SPJ_SCAN_BATCHES_COMPLETED_COUNTER, 
         c_Counters.get_counter(CI_SCAN_BATCHES_COMPLETED) },
       { Ndbinfo::SPJ_SCAN_ROWS_RETURNED_COUNTER, 
-        c_Counters.get_counter(CI_SCAN_ROWS_RETURNED) }
+        c_Counters.get_counter(CI_SCAN_ROWS_RETURNED) },
+      { Ndbinfo::SPJ_PRUNED_RANGE_SCANS_RECEIVED_COUNTER, 
+        c_Counters.get_counter(CI_PRUNED_RANGE_SCANS_RECEIVED) },
+      { Ndbinfo::SPJ_CONST_PRUNED_RANGE_SCANS_RECEIVED_COUNTER, 
+        c_Counters.get_counter(CI_CONST_PRUNED_RANGE_SCANS_RECEIVED) }
     };
     const size_t num_counters = sizeof(counters) / sizeof(counters[0]);
 
