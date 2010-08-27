@@ -2347,6 +2347,10 @@ where y.pk = 2;
 
 drop table t1;
 
+#########################################
+# Test section for scan-child operations
+#########################################
+
 # Test scan-lookup-scan query (see http://lists.mysql.com/commits/115164)
 
 create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
@@ -2469,6 +2473,51 @@ left join t1 as x5 on x4.a=x5.b;
 set ndb_join_pushdown=on;
 
 drop table t1;
+
+#############################################
+# Test pruned index scan:
+create table t1(
+       d int not null,
+       e int not null,
+       f int not null,
+       a int not null,
+       b int not null,
+       c int not null,
+       primary key (a,b,c))
+engine = ndb partition by key (b);
+
+insert into t1(a,b,c,d,e,f) values
+ (1, 2, 3, 1, 2, 3),
+ (1, 2, 4, 1, 2, 3),
+ (2, 3, 4, 1, 2, 3),
+ (3, 4, 5, 1, 2, 3),
+ (4, 5, 6, 1, 2, 3),
+ (5, 6, 7, 1, 2, 3),
+ (6, 7, 8, 1, 2, 3),
+ (7, 8, 9, 1, 2, 3);
+
+set ndb_join_pushdown=on;
+
+explain
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+--sorted_result
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+alter table t1 partition by key (a);
+--sorted_result
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+alter table t1 partition by key (a,b);
+--sorted_result
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+alter table t1 partition by key (b,a);
+--sorted_result
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+drop table t1;
+
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 
