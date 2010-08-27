@@ -18,7 +18,7 @@
 #include <util/BaseString.hpp>
 
 template <typename T>
-static int parse_mask(const char * src, T& mask)
+static inline int parse_mask(const char * src, T& mask)
 {
   int cnt = 0;
   BaseString tmp(src);
