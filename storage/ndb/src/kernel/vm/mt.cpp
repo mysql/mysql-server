@@ -3429,7 +3429,7 @@ static
 void
 setcpuaffinity(struct thr_repository* rep)
 {
-  Bitmask<NDB_CPU_MASK_SZ/32> mask =
+  SparseBitmask mask =
     globalEmulatorData.theConfiguration->getExecuteCpuMask();
 
 
@@ -3439,8 +3439,18 @@ setcpuaffinity(struct thr_repository* rep)
   {
     return;
   }
-  else if (cnt >= num_threads)
+
+  if (cnt < num_threads)
   {
+    ndbout_c("WARNING: Too few CPU's specified with "
+             "LockExecuteThreadToCPU. Only %d specified "
+             " but %d was needed, this may cause contention.",
+             cnt, num_threads);
+  }
+
+  if (cnt >= num_threads)
+  {
+    ndbout_c("Assigning each thread its own CPU");
     unsigned cpu = mask.find(0);
     for (unsigned thr_no = 0; thr_no < num_threads; thr_no++)
     {
@@ -3451,6 +3461,7 @@ setcpuaffinity(struct thr_repository* rep)
   else if (cnt == 1)
   {
     unsigned cpu = mask.find(0);
+    ndbout_c("Assigning all threads to CPU %u", cpu);
     for (unsigned thr_no = 0; thr_no < num_threads; thr_no++)
     {
       rep->m_thread[thr_no].m_cpu = cpu;
@@ -3463,6 +3474,8 @@ setcpuaffinity(struct thr_repository* rep)
       /**
        * let each LQH have it's own CPU and rest share...
        */
+      ndbout_c("Assigning LQH threads to dedicated CPU(s) and "
+               "other threads will share remaining");
       // LQH threads start with 2
       unsigned cpu = mask.find(0);
       for (unsigned thr_no = 2; thr_no < num_threads - 1; thr_no++)
@@ -3486,6 +3499,8 @@ setcpuaffinity(struct thr_repository* rep)
       // put receiver, tc, backup/suma in 1 thread,
       // and round robin LQH for rest
       unsigned cpu = mask.find(0);
+      ndbout_c("Assigning LQH threads round robin to CPU(s) and "
+               "other threads will share CPU %u", cpu);
       rep->m_thread[0].m_cpu = cpu; // TC
       rep->m_thread[1].m_cpu = cpu; // backup/suma
       rep->m_thread[receiver_thread_no].m_cpu = cpu; // receiver
@@ -3509,11 +3524,14 @@ setcpuaffinity(struct thr_repository* rep)
      */
     require(num_threads == 3);
     unsigned cpu = mask.find(0);
+    ndbout_c("Assigning LQH thread to CPU %u and "
+             "other threads will share", cpu);
     rep->m_thread[1].m_cpu = cpu; // LQH
     cpu = mask.find(cpu + 1);
     rep->m_thread[0].m_cpu = cpu;
     rep->m_thread[2].m_cpu = cpu;
   }
+
 }
 
 void

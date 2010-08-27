@@ -114,7 +114,8 @@ InitConfigFileParser::parseConfig(FILE * file) {
 			"of configuration file.");
 	return 0;
       }
-      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), section); free(section);
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", section);
+      free(section);
       ctx.type             = InitConfigFileParser::DefaultSection;
       ctx.m_sectionLineno  = ctx.m_lineno;
       ctx.m_currentSection = new Properties(true);
@@ -134,7 +135,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
 			"of configuration file.");
 	return 0;
       }
-      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), section);
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", section);
       free(section);
       ctx.type             = InitConfigFileParser::Section;
       ctx.m_sectionLineno  = ctx.m_lineno;      
@@ -184,7 +185,8 @@ InitConfigFileParser::run_config_rules(Context& ctx)
       return 0;
 
     for(size_t j = 0; j<tmp.size(); j++){
-      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), tmp[j].m_sectionType.c_str());
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname),
+                           "%s", tmp[j].m_sectionType.c_str());
       ctx.type             = InitConfigFileParser::Section;
       ctx.m_currentSection = tmp[j].m_sectionData;
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
@@ -560,13 +562,15 @@ InitConfigFileParser::storeSection(Context& ctx){
   for(int i = strlen(ctx.fname) - 1; i>=0; i--){
     ctx.fname[i] = toupper(ctx.fname[i]);
   }
-  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), ctx.fname);
+  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "%s", ctx.fname);
+
   char buf[255];
   if(ctx.type == InitConfigFileParser::Section)
     BaseString::snprintf(buf, sizeof(buf), "%s", ctx.fname);
   if(ctx.type == InitConfigFileParser::DefaultSection)
     BaseString::snprintf(buf, sizeof(buf), "%s DEFAULT", ctx.fname);
-  BaseString::snprintf(ctx.fname, sizeof(ctx.fname), buf);
+  BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", buf);
+
   if(ctx.type == InitConfigFileParser::Section){
     for(int i = 0; i<m_info->m_NoOfRules; i++){
       const ConfigInfo::SectionRule & rule = m_info->m_SectionRules[i];
