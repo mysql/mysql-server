@@ -33,10 +33,6 @@
 /* need by my_vsnprintf */
 #include <stdarg.h> 
 
-#ifdef _AIX
-#undef HAVE_BCMP
-#endif
-
 /*  This is needed for the definitions of bzero... on solaris */
 #if defined(HAVE_STRINGS_H)
 #include <strings.h>
@@ -114,7 +110,7 @@ extern	void bfill(uchar *dst,size_t len,pchar fill);
 #endif
 
 #if !defined(bzero) && !defined(HAVE_BZERO)
-extern	void bzero(uchar * dst,size_t len);
+extern	void bzero(void * dst,size_t len);
 #endif
 
 #if !defined(bcmp) && !defined(HAVE_BCMP)

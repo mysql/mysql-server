@@ -324,7 +324,7 @@ abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
 do_abi_check:
 	set -ex; \
 	for file in $(abi_headers); do \
-	         @CC@ -E -nostdinc -dI \
+	         @CC@ -E -nostdinc -dI -DMYSQL_ABI_CHECK \
 	                  -I$(top_srcdir)/include \
 	                  -I$(top_srcdir)/include/mysql \
 	                  -I$(top_srcdir)/sql \
@@ -340,6 +340,3 @@ do_abi_check:
 	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

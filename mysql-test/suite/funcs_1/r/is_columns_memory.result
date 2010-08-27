@@ -437,9 +437,9 @@ NULL	test	tb1	f27	19	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned zero
 NULL	test	tb1	f28	20	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references	
 NULL	test	tb1	f29	21	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
 NULL	test	tb1	f3	3	NULL	YES	char	1	1	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references	
-NULL	test	tb1	f30	22	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-NULL	test	tb1	f31	23	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references	
-NULL	test	tb1	f32	24	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references	
+NULL	test	tb1	f30	22	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+NULL	test	tb1	f31	23	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references	
+NULL	test	tb1	f32	24	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references	
 NULL	test	tb1	f33	25	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0)			select,insert,update,references	
 NULL	test	tb1	f34	26	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references	
 NULL	test	tb1	f35	27	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references	
@@ -540,9 +540,9 @@ NULL	test	tb3	f143	20	99999	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			s
 NULL	test	tb3	f144	21	0000099999	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references	
 NULL	test	tb3	f145	22	0000099999	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references	
 NULL	test	tb3	f146	23	999999	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
-NULL	test	tb3	f147	24	999999	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-NULL	test	tb3	f148	25	00000000000000999999	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references	
-NULL	test	tb3	f149	26	00000000000000999999	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references	
+NULL	test	tb3	f147	24	999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+NULL	test	tb3	f148	25	00000000000000999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references	
+NULL	test	tb3	f149	26	00000000000000999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references	
 NULL	test	tb3	f150	27	1000	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0)			select,insert,update,references	
 NULL	test	tb3	f151	28	999	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references	
 NULL	test	tb3	f152	29	0000001000	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references	

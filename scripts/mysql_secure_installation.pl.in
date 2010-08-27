@@ -208,7 +208,7 @@ sub remove_anonymous_users {
 }
 
 sub remove_remote_root {
-  if (do_query("DELETE FROM mysql.user WHERE User='root' AND Host!='localhost';")) {
+  if (do_query("DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');")) {
     print " ... Success!\n";
   } else {
     print " ... Failed!\n";

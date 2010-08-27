@@ -255,8 +255,9 @@ my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 {
   String *res;
+
   if (!(res= val_str(&str_value)))
-    return 0;                                   // NULL or EOM
+    return 0;
 
   if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
                      res->ptr(), res->length(), res->charset(),
@@ -4139,8 +4140,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                            context->first_name_resolution_table,
                            context->last_name_resolution_table,
                            reference, REPORT_ALL_ERRORS,
-                           !any_privileges &&
-                           TRUE, TRUE);
+                           !any_privileges, TRUE);
     }
     return -1;
   }
