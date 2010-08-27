@@ -14,6 +14,9 @@
 
 --echo *** Preparing ***
 --connection slave
+
+call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
+
 --source include/stop_slave.inc
 RESET SLAVE;
 SET @restore_slave_net_timeout=@@global.slave_net_timeout;
