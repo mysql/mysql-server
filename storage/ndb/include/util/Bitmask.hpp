@@ -642,14 +642,6 @@ public:
   static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
 
-  /**
-   * Parse string with numbers format
-   *   1,2,3-5
-   * @return -1 if unparsable chars found,
-   *         -2 str has number > bitmask size
-   *            else returns number of bits set
-   */
-  int parseMask(const char * src);
 };
 
 template <unsigned size>

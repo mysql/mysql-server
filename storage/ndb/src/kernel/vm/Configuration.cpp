@@ -266,6 +266,8 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
   return strdup(buf2);
 }
 
+#include "../../common/util/parse_mask.hpp"
+
 void
 Configuration::setupConfiguration(){
 
@@ -338,7 +340,7 @@ Configuration::setupConfiguration(){
   if(iter.get(CFG_DB_EXECUTE_LOCK_CPU, &mask) == 0)
   {
 
-    int res = _executeLockCPU.parseMask(mask);
+    int res = parse_mask(mask, _executeLockCPU);
     if (res < 0)
     {
       // Could not parse LockExecuteThreadToCPU mask
