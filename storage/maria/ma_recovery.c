@@ -545,7 +545,7 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
   if (log_desc->record_execute_in_redo_phase == NULL)
   {
     /* die on all not-yet-handled records :) */
-    DBUG_ASSERT("one more hook" == "to write");
+    DBUG_ASSERT("one more hook to write" == 0);
     return 1;
   }
   if ((error= (*log_desc->record_execute_in_redo_phase)(rec)))

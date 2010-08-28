@@ -1005,7 +1005,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       {
         DBUG_PRINT("error", ("page_length %u",page_length));
         DBUG_DUMP("KEY_OP_CHECK bad page", buff, max_page_length);
-        DBUG_ASSERT("crc" == "failure in REDO_INDEX");
+        DBUG_ASSERT("crc failure in REDO_INDEX" == 0);
       }
 #endif
       DBUG_PRINT("redo", ("key_op_check"));
