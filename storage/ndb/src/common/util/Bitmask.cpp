@@ -119,15 +119,7 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
  * to get coverage from automated testing
  */
 
-#include "parse_mask.hpp"
-
-template <unsigned size>
-int
-BitmaskPOD<size>::parseMask(const char* src)
-{
-  return parse_mask(src, *this);
-}
-
+template struct BitmaskPOD<1>;
 template struct BitmaskPOD<2>; // NdbNodeBitmask
 template struct BitmaskPOD<8>; // NodeBitmask
 template struct BitmaskPOD<16>;
@@ -135,6 +127,8 @@ template struct BitmaskPOD<16>;
 #ifdef TEST_BITMASK
 #include <util/NdbTap.hpp>
 #include <util/BaseString.hpp>
+
+#include "parse_mask.hpp"
 
 TAPTEST(Bitmask)
 {
@@ -207,10 +201,10 @@ TAPTEST(Bitmask)
            BaseString::getPrettyTextShort(d).c_str());
 
     /*
-      Bitmask::parseMask
+      parse_mask
     */
     Bitmask<8> mask;
-    OK(mask.parseMask("1,2,5-7") == 5);
+    OK(parse_mask("1,2,5-7", mask) == 5);
 
     // Check all specified bits set
     OK(mask.get(1));
@@ -227,24 +221,23 @@ TAPTEST(Bitmask)
     OK(!mask.get(22));
 
     // Parse at the limit
-    OK(mask.parseMask("254") == 1);
-    OK(mask.parseMask("255") == 1);
+    OK(parse_mask("254", mask) == 1);
+    OK(parse_mask("255", mask) == 1);
 
     // Parse invalid spec(s)
-    OK(mask.parseMask("xx") == -1);
-    OK(mask.parseMask("5-") == -1);
-    OK(mask.parseMask("-5") == -1);
-    OK(mask.parseMask("1,-5") == -1);
+    OK(parse_mask("xx", mask) == -1);
+    OK(parse_mask("5-", mask) == -1);
+    OK(parse_mask("-5", mask) == -1);
+    OK(parse_mask("1,-5", mask) == -1);
 
     // Parse too large spec
-    OK(mask.parseMask("256") == -2);
-    OK(mask.parseMask("1-255,256") == -2);
+    OK(parse_mask("256", mask) == -2);
+    OK(parse_mask("1-255,256", mask) == -2);
 
 
     return 1; // OK
 }
 
-template struct BitmaskPOD<1>;
 
 #endif
 

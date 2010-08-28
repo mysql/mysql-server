@@ -16,16 +16,11 @@
 */
 
 #include <util/SparseBitmask.hpp>
-#include "parse_mask.hpp"
-
-int
-SparseBitmask::parseMask(const char* src)
-{
-  return parse_mask(src, *this);
-}
 
 #ifdef TEST_SPARSEBITMASK
 #include <util/NdbTap.hpp>
+
+#include "parse_mask.hpp"
 
 TAPTEST(SparseBitmask)
 {
@@ -59,10 +54,10 @@ TAPTEST(SparseBitmask)
   OK(found == b.count());
 
   /*
-    Bitmask::parseMask
+    parse_mask
   */
   SparseBitmask mask(256);
-  OK(mask.parseMask("1,2,5-7") == 5);
+  OK(parse_mask("1,2,5-7", mask) == 5);
 
   // Check all specified bits set
   OK(mask.get(1));
@@ -79,17 +74,17 @@ TAPTEST(SparseBitmask)
   OK(!mask.get(22));
 
   // Parse some more...
-  OK(mask.parseMask("1-256"));
+  OK(parse_mask("1-256", mask));
 
   // Parse invalid spec(s)
-  OK(mask.parseMask("xx") == -1);
-  OK(mask.parseMask("5-") == -1);
-  OK(mask.parseMask("-5") == -1);
-  OK(mask.parseMask("1,-5") == -1);
+  OK(parse_mask("xx", mask) == -1);
+  OK(parse_mask("5-", mask) == -1);
+  OK(parse_mask("-5", mask) == -1);
+  OK(parse_mask("1,-5", mask) == -1);
 
   // Parse too large spec
-  OK(mask.parseMask("257") == -2);
-  OK(mask.parseMask("1-256,257") == -2);
+  OK(parse_mask("257", mask) == -2);
+  OK(parse_mask("1-256,257", mask) == -2);
 
 
   return 1; // OK

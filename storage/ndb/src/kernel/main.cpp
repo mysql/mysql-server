@@ -106,6 +106,8 @@ static void usage()
 
 extern int g_ndb_init_need_monotonic;
 
+#include "../common/util/parse_mask.hpp"
+
 /**
  * C++ Standard 3.6.1/3:
  *  The function main shall not be used (3.2) within a program.
@@ -159,7 +161,7 @@ real_main(int argc, char** argv)
 
   if (opt_nowait_nodes)
   {
-    int res = g_nowait_nodes.parseMask(opt_nowait_nodes);
+    int res = parse_mask(opt_nowait_nodes, g_nowait_nodes);
     if(res == -2 || (res > 0 && g_nowait_nodes.get(0)))
     {
       g_eventLogger->error("Invalid nodeid specified in nowait-nodes: %s",
