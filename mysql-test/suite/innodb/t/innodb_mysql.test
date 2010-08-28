@@ -8,6 +8,8 @@
 # Slow test, don't run during staging part
 -- source include/not_staging.inc
 -- source include/have_innodb.inc
+-- source include/have_query_cache.inc
+
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
 # InnoDB does support FOREIGN KEYFOREIGN KEYs
