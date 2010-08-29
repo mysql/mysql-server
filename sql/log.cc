@@ -5021,9 +5021,9 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 
       if (do_checksum)
       {
+        ulong len= uint4korr(&header[EVENT_LEN_OFFSET]);
         /* fix len */
-        int4store(&header[EVENT_LEN_OFFSET], uint4korr(&header[EVENT_LEN_OFFSET])
-                  + BINLOG_CHECKSUM_LEN);
+        int4store(&header[EVENT_LEN_OFFSET], len + BINLOG_CHECKSUM_LEN);
       }
 
       /* write the first half of the split header */
