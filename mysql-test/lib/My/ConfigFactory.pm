@@ -606,7 +606,7 @@ sub new_config {
 
   # add auto-options
   $config->insert('OPT', 'port'   => sub { fix_port($self, $config) });
-  $config->insert('OPT', 'vardir' => sub { shift->{ARGS}->{vardir} });
+  $config->insert('OPT', 'vardir' => sub { $self->{ARGS}->{vardir} });
 
   {
     # Run pre rules
