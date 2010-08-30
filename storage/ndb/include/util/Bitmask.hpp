@@ -995,6 +995,25 @@ public:
     }
     return * this;
   }
+
+  template<unsigned sz2> Bitmask& operator=(const BitmaskPOD<sz2>& src){
+    if (size >= sz2)
+    {
+      for (unsigned i = 0; i < sz2; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    else
+    {
+      assert(src.find(32*size+1) == BitmaskImpl::NotFound);
+      for (unsigned i = 0; i < size; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    return * this;
+  }
 };
 
 inline void

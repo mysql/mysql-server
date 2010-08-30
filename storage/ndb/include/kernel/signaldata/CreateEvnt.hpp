@@ -25,7 +25,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <AttributeList.hpp>
 
-typedef Bitmask<MAXNROFATTRIBUTESINWORDS_OLD> AttributeMask_OLD;
+typedef BitmaskPOD<MAXNROFATTRIBUTESINWORDS_OLD> AttributeMask_OLD;
 
 /**
  * DropEvntReq.
