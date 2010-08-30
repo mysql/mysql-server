@@ -725,7 +725,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
       --eval SET @check_temp='$available_n_temp'
       --eval SET @table_temp='$table_n'
       SET @check_temp= LTRIM(SUBSTRING(@check_temp, LENGTH(@table_temp) + 2));
-      --let $available_t_temp= `SELECT @check_temp`
+      --let $available_n_temp= `SELECT @check_temp`
 
       --enable_query_log
       --eval DROP TEMPORARY TABLE $table_t, $table_n
