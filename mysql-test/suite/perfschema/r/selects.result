@@ -13,7 +13,7 @@ OPERATION	TOTAL
 chsize	[NUM_BYTES]
 SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
 WHERE THREAD_ID IN
-(SELECT THREAD_ID FROM performance_schema.PROCESSLIST)
+(SELECT THREAD_ID FROM performance_schema.THREADS)
 AND EVENT_NAME IN
 (SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
 WHERE NAME LIKE "wait/synch/%")
@@ -86,7 +86,7 @@ DROP TRIGGER t_ps_trigger;
 DROP PROCEDURE IF EXISTS t_ps_proc;
 CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
 BEGIN
-SELECT id FROM performance_schema.PROCESSLIST
+SELECT id FROM performance_schema.THREADS
 WHERE THREAD_ID = tid INTO pid;
 END;
 |
@@ -94,7 +94,7 @@ CALL t_ps_proc(0, @p_id);
 DROP FUNCTION IF EXISTS t_ps_proc;
 CREATE FUNCTION t_ps_func(tid INT) RETURNS int
 BEGIN
-return (SELECT id FROM performance_schema.PROCESSLIST
+return (SELECT id FROM performance_schema.THREADS
 WHERE THREAD_ID = tid);
 END;
 |

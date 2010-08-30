@@ -31,6 +31,8 @@ enum frm_type_enum
 
 frm_type_enum dd_frm_type(THD *thd, char *path, enum legacy_db_type *dbt);
 
+bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
+                           handlerton **table_type);
 bool dd_check_storage_engine_flag(THD *thd,
                                   const char *db, const char *table_name,
                                   uint32 flag,

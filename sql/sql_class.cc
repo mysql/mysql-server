@@ -307,6 +307,11 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
 
+extern "C"
+void thd_storage_lock_wait(THD *thd, long long value)
+{
+  thd->utime_after_lock+= value;
+}
 
 /**
   Provide a handler data getter to simplify coding
@@ -3841,124 +3846,16 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     int error= 0;
     int unsafe_flags;
 
-    /*
-      Classify a statement as unsafe when there is a mixed statement and an
-      on-going transaction at any point of the execution if:
+    bool multi_stmt_trans= in_multi_stmt_transaction_mode();
+    bool trans_table= trans_has_updated_trans_table(this);
+    bool binlog_direct= variables.binlog_direct_non_trans_update;
 
-        1. The mixed statement is about to update a transactional table and
-        a non-transactional table.
-
-        2. The mixed statement is about to update a temporary transactional
-        table and a non-transactional table.
-      
-        3. The mixed statement is about to update a transactional table and
-        read from a non-transactional table.
-
-        4. The mixed statement is about to update a temporary transactional
-        table and read from a non-transactional table.
-
-        5. The mixed statement is about to update a non-transactional table
-        and read from a transactional table when the isolation level is
-        lower than repeatable read.
-
-      After updating a transactional table if:
-
-        6. The mixed statement is about to update a non-transactional table
-        and read from a temporary transactional table.
- 
-        7. The mixed statement is about to update a non-transactional table
-        and read from a temporary transactional table.
-
-        8. The mixed statement is about to update a non-transactionala table
-        and read from a temporary non-transactional table.
-     
-        9. The mixed statement is about to update a temporary non-transactional
-        table and update a non-transactional table.
-     
-        10. The mixed statement is about to update a temporary non-transactional
-        table and read from a non-transactional table.
-     
-        11. A statement is about to update a non-transactional table and the
-        option variables.binlog_direct_non_trans_update is OFF.
-
-      The reason for this is that locks acquired may not protected a concurrent
-      transaction of interfering in the current execution and by consequence in
-      the result. In particular, if there is an on-going transaction and a
-      transactional table was already updated, a temporary table must be written
-      to the binary log in the boundaries of the on-going transaction and as
-      such we artificially classify them as transactional.
-    */
-    if (in_multi_stmt_transaction_mode())
-    {
-      my_bool mixed_unsafe= FALSE;
-      my_bool non_trans_unsafe= FALSE;
-
-      /* Case 1. */
-      if (lex->stmt_accessed_table(LEX::STMT_WRITES_TRANS_TABLE) &&
-          lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
-        mixed_unsafe= TRUE;
-      /* Case 2. */
-      else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_TRANS_TABLE) &&
-               lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
-        mixed_unsafe= TRUE;
-      /* Case 3. */
-      else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TRANS_TABLE) &&
-               lex->stmt_accessed_table(LEX::STMT_READS_NON_TRANS_TABLE))
-        mixed_unsafe= TRUE;
-      /* Case 4. */
-      else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_TRANS_TABLE) &&
-               lex->stmt_accessed_table(LEX::STMT_READS_NON_TRANS_TABLE))
-        mixed_unsafe= TRUE;
-      /* Case 5. */
-      else if (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) &&
-               lex->stmt_accessed_table(LEX::STMT_READS_TRANS_TABLE) &&
-               tx_isolation < ISO_REPEATABLE_READ)
-        /*
-           By default, InnoDB operates in REPEATABLE READ and with the option
-           --innodb-locks-unsafe-for-binlog disabled. In this case, InnoDB uses
-           next-key locks for searches and index scans, which prevents phantom
-           rows.
- 
-           This is scenario is safe for Innodb. However, there are no means to
-           transparently get this information. Therefore, we need to improve this
-           and change the storage engines to report somehow when an execution is
-           safe under an isolation level & binary logging format.
-        */
-        mixed_unsafe= TRUE;
-
-      if (trans_has_updated_trans_table(this))
-      {
-        /* Case 6. */
-        if (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) &&
-            lex->stmt_accessed_table(LEX::STMT_READS_TRANS_TABLE))
-          mixed_unsafe= TRUE;
-        /* Case 7. */
-        else if (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) &&
-                 lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE))
-          mixed_unsafe= TRUE;
-        /* Case 8. */
-        else if (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) &&
-                 lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE))
-          mixed_unsafe= TRUE;
-        /* Case 9. */
-        else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
-                 lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
-          mixed_unsafe= TRUE;
-        /* Case 10. */
-        else if (lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
-                 lex->stmt_accessed_table(LEX::STMT_READS_NON_TRANS_TABLE))
-        mixed_unsafe= TRUE;
-        /* Case 11. */
-        else if (!variables.binlog_direct_non_trans_update &&
-                 lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
-          non_trans_unsafe= TRUE;
-      }
-
-      if (mixed_unsafe)
-        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MIXED_STATEMENT);
-      else if (non_trans_unsafe)
-        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
-    }
+    if (lex->is_mixed_stmt_unsafe(multi_stmt_trans, binlog_direct,
+                                  trans_table, tx_isolation))
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MIXED_STATEMENT);
+    else if (multi_stmt_trans && trans_table && !binlog_direct &&
+             lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
 
     /*
       If more than one engine is involved in the statement and at

@@ -23,7 +23,6 @@ drop schema foo;
 
 --disable_warnings
 DROP SCHEMA IF EXISTS schema1;
-DROP SCHEMA IF EXISTS schema2;
 --enable_warnings
 
 connect(con2, localhost, root);
@@ -32,7 +31,6 @@ connect(con2, localhost, root);
 connection default;
 
 CREATE SCHEMA schema1;
-CREATE SCHEMA schema2;
 CREATE TABLE schema1.t1 (a INT);
 
 SET autocommit= FALSE;
@@ -45,10 +43,13 @@ connection con2;
 --echo # Connection default
 connection default;
 let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
-                     WHERE state= 'Waiting for table' 
+                     WHERE state= 'Waiting for table metadata lock' 
                      AND info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
-ALTER SCHEMA schema2 DEFAULT CHARACTER SET utf8;
+# Error 1 is from ALTER DATABASE when the database does not exist.
+# Listing the error twice to prevent result diffences based on filename.
+--error 1,1
+ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
 SET autocommit= TRUE;
 
 --echo # Connection 2
@@ -57,7 +58,6 @@ connection con2;
 
 --echo # Connection default
 connection default;
-DROP SCHEMA schema2;
 disconnect con2;
 
 
@@ -84,7 +84,7 @@ connection con2;
 --echo # Connection default
 connection default;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
-  WHERE state='Waiting for table' and info='DROP SCHEMA schema1';
+  WHERE state='Waiting for schema metadata lock' and info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
 
 --echo # CREATE SCHEMA used to give a deadlock.
@@ -124,7 +124,7 @@ connection default;
 --echo # Connection con2
 connect (con2, localhost, root);
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for table' AND info='DROP DATABASE db1';
+  WHERE state='Waiting for table metadata lock' AND info='DROP DATABASE db1';
 --source include/wait_condition.inc
 
 --echo # Connection con1
@@ -172,7 +172,7 @@ connection con2;
 --echo # Connection 3
 connection con3;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
-  WHERE state='Waiting for table' and info='DROP DATABASE db1';
+  WHERE state='Waiting for table metadata lock' and info='DROP DATABASE db1';
 --source include/wait_condition.inc
 --echo # But it should still be possible to CREATE/ALTER/DROP other databases.
 CREATE DATABASE db2;

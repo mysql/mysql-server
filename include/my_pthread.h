@@ -601,6 +601,8 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #define rw_trywrlock(A) my_rw_trywrlock((A))
 #define rw_unlock(A) my_rw_unlock((A))
 #define rwlock_destroy(A) my_rw_destroy((A))
+#define rw_lock_assert_write_owner(A) my_rw_lock_assert_write_owner((A))
+#define rw_lock_assert_not_write_owner(A) my_rw_lock_assert_not_write_owner((A))
 #endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
 
 
@@ -624,6 +626,8 @@ extern int rw_pr_init(rw_pr_lock_t *);
 #define rw_pr_trywrlock(A) pthread_rwlock_trywrlock(A)
 #define rw_pr_unlock(A) pthread_rwlock_unlock(A)
 #define rw_pr_destroy(A) pthread_rwlock_destroy(A)
+#define rw_pr_lock_assert_write_owner(A)
+#define rw_pr_lock_assert_not_write_owner(A)
 #else
 /* Otherwise we have to use our own implementation of read/write locks. */
 #define NEED_MY_RW_LOCK 1
@@ -636,6 +640,8 @@ extern int rw_pr_init(struct st_my_rw_lock_t *);
 #define rw_pr_trywrlock(A) my_rw_trywrlock((A))
 #define rw_pr_unlock(A) my_rw_unlock((A))
 #define rw_pr_destroy(A) my_rw_destroy((A))
+#define rw_pr_lock_assert_write_owner(A) my_rw_lock_assert_write_owner((A))
+#define rw_pr_lock_assert_not_write_owner(A) my_rw_lock_assert_not_write_owner((A))
 #endif /* defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && defined(HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP) */
 
 
@@ -651,6 +657,9 @@ typedef struct st_my_rw_lock_t {
 	int		state;		/* -1:writer,0:free,>0:readers	*/
 	int             waiters;        /* number of waiting writers	*/
 	my_bool         prefer_readers;
+#ifdef SAFE_MUTEX
+        pthread_t       write_thread;
+#endif
 } my_rw_lock_t;
 
 extern int my_rw_init(my_rw_lock_t *, my_bool *);
@@ -660,6 +669,17 @@ extern int my_rw_wrlock(my_rw_lock_t *);
 extern int my_rw_unlock(my_rw_lock_t *);
 extern int my_rw_tryrdlock(my_rw_lock_t *);
 extern int my_rw_trywrlock(my_rw_lock_t *);
+#ifdef SAFE_MUTEX
+#define my_rw_lock_assert_write_owner(A) \
+  DBUG_ASSERT((A)->state == -1 && pthread_equal(pthread_self(), \
+                                                (A)->write_thread))
+#define my_rw_lock_assert_not_write_owner(A) \
+  DBUG_ASSERT((A)->state >= 0 || ! pthread_equal(pthread_self(), \
+                                                 (A)->write_thread))
+#else
+#define my_rw_lock_assert_write_owner(A)
+#define my_rw_lock_assert_not_write_owner(A)
+#endif
 #endif /* NEED_MY_RW_LOCK */
 
 
