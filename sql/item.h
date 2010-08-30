@@ -552,7 +552,7 @@ public:
      @see Query_arena::free_list
    */
   Item *next;
-  uint32 max_length;
+  uint32 max_length;                    /* Maximum length, in bytes */
   uint name_length;                     /* Length of name */
   int8 marker;
   uint8 decimals;
@@ -1254,6 +1254,18 @@ public:
   {
     max_length= char_to_byte_length_safe(max_char_length_arg,
                                          collation.collation->mbmaxlen);
+  }
+  void fix_char_length_ulonglong(ulonglong max_char_length_arg)
+  {
+    ulonglong max_result_length= max_char_length_arg *
+                                 collation.collation->mbmaxlen;
+    if (max_result_length >= MAX_BLOB_WIDTH)
+    {
+      max_length= MAX_BLOB_WIDTH;
+      maybe_null= 1;
+    }
+    else
+      max_length= max_result_length;
   }
   void fix_length_and_charset_datetime(uint32 max_char_length_arg)
   {
@@ -2890,6 +2902,7 @@ protected:
     cached_result_type= item->result_type();
     unsigned_flag= item->unsigned_flag;
     fixed= item->fixed;
+    collation.set(item->collation);
   }
 
 public:
@@ -3348,7 +3361,7 @@ public:
   { return test(example && example->basic_const_item());}
   bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
-  Item_result result_type()
+  Item_result result_type() const
   {
     if (!example)
       return INT_RESULT;
