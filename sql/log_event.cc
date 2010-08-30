@@ -670,15 +670,16 @@ const char* Log_event::get_type_str()
 
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
-  :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg), thd(thd_arg)
+  :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg),
+  cache_type(Log_event::EVENT_INVALID_CACHE), thd(thd_arg)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
-  cache_type= ((using_trans || stmt_has_updated_trans_table(thd) ||
-               (thd->stmt_accessed_temp_table() &&
-               trans_has_updated_trans_table(thd)))
-               ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-               Log_event::EVENT_STMT_CACHE);
+
+  if (using_trans)
+    cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
+  else
+    cache_type= Log_event::EVENT_STMT_CACHE;
 }
 
 /**
@@ -2508,21 +2509,18 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
   LEX *lex= thd->lex;
   /*
-    TRUE defines that either a trx-cache or stmt-cache must be used
-    and wrapped by a BEGIN...COMMIT. Otherwise, the statement will
-    be written directly to the binary log without being wrapped by
-    a BEGIN...COMMIT.
+    Defines that the statement will be written directly to the binary log
+    without being wrapped by a BEGIN...COMMIT. Otherwise, the statement
+    will be written to either the trx-cache or stmt-cache.
 
-    Note that a cache will not be used if the parameter direct is
-    TRUE.
+    Note that a cache will not be used if the parameter direct is TRUE.
   */
   bool use_cache= FALSE;
   /*
-    TRUE defines that the trx-cache must be used and by consequence
-    the use_cache is TRUE.
+    TRUE defines that the trx-cache must be used and by consequence the
+    use_cache is TRUE.
 
-    Note that a cache will not be used if the parameter direct is
-    TRUE.
+    Note that a cache will not be used if the parameter direct is TRUE.
   */
   bool trx_cache= FALSE;
   cache_type= Log_event::EVENT_INVALID_CACHE;
@@ -2530,16 +2528,14 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   switch (lex->sql_command)
   {
     case SQLCOM_DROP_TABLE:
-      use_cache= trx_cache= (lex->drop_temporary &&
-                            thd->in_multi_stmt_transaction_mode());
+      use_cache= (lex->drop_temporary && thd->in_multi_stmt_transaction_mode());
     break;
 
     case SQLCOM_CREATE_TABLE:
-      use_cache= trx_cache=
-                 ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-                   thd->in_multi_stmt_transaction_mode()) ||
-                 (lex->select_lex.item_list.elements &&
+      trx_cache= (lex->select_lex.item_list.elements &&
                   thd->is_current_stmt_binlog_format_row());
+      use_cache= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+                   thd->in_multi_stmt_transaction_mode()) || trx_cache;
       break;
     case SQLCOM_SET_OPTION:
       use_cache= trx_cache= (lex->autocommit ? FALSE : TRUE);
@@ -2558,14 +2554,14 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   {
     cache_type= Log_event::EVENT_NO_CACHE;
   }
+  else if (using_trans || trx_cache || stmt_has_updated_trans_table(thd) ||
+           thd->lex->is_mixed_stmt_unsafe(thd->in_multi_stmt_transaction_mode(),
+                                          thd->variables.binlog_direct_non_trans_update,
+                                          trans_has_updated_trans_table(thd),
+                                          thd->tx_isolation))
+    cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
   else
-  {
-    cache_type= ((using_trans || stmt_has_updated_trans_table(thd) || trx_cache ||
-                 (thd->stmt_accessed_temp_table() &&
-                 trans_has_updated_trans_table(thd)))
-                 ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-                 Log_event::EVENT_STMT_CACHE);
-  }
+    cache_type= Log_event::EVENT_STMT_CACHE;
   DBUG_ASSERT(cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
                      (ulong) flags2, sql_mode));
@@ -8803,7 +8799,15 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
       DBUG_PRINT("info",("Locating offending record using ha_rnd_pos()"));
+
+      if (table->file->inited && (error= table->file->ha_index_end()))
+        DBUG_RETURN(error);
+      if ((error= table->file->ha_rnd_init(FALSE)))
+        DBUG_RETURN(error);
+
       error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
+
+      table->file->ha_rnd_end();
       if (error)
       {
         DBUG_PRINT("info",("ha_rnd_pos() returns error %d",error));
@@ -9130,7 +9134,15 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
     */
     DBUG_PRINT("info",("locating record using primary key (position)"));
-    int error= table->file->rnd_pos_by_record(table->record[0]);
+    int error;
+    if (table->file->inited && (error= table->file->ha_index_end()))
+      DBUG_RETURN(error);
+    if ((error= table->file->ha_rnd_init(FALSE)))
+      DBUG_RETURN(error);
+
+    error= table->file->rnd_pos_by_record(table->record[0]);
+
+    table->file->ha_rnd_end();
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));

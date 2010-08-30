@@ -1308,8 +1308,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   :ptr(ptr_arg), null_ptr(null_ptr_arg),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
-   key_start(0), part_of_key(0), part_of_key_not_clustered(0),
-   part_of_sortkey(0), unireg_check(unireg_check_arg),
+   unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
    is_created_from_null_item(FALSE)
 {
@@ -1329,7 +1328,7 @@ void Field::hash(ulong *nr, ulong *nr2)
   else
   {
     uint len= pack_length();
-    CHARSET_INFO *cs= charset();
+    CHARSET_INFO *cs= sort_charset();
     cs->coll->hash_sort(cs, ptr, len, nr, nr2);
   }
 }
@@ -1734,8 +1733,8 @@ my_decimal *Field_str::val_decimal(my_decimal *decimal_value)
 uint Field::fill_cache_field(CACHE_FIELD *copy)
 {
   uint store_length;
-  copy->str=ptr;
-  copy->length=pack_length();
+  copy->str= ptr;
+  copy->length= pack_length();
   copy->field= this;
   if (flags & BLOB_FLAG)
   {
@@ -1747,8 +1746,14 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
            (type() == MYSQL_TYPE_STRING && copy->length >= 4 &&
             copy->length < 256))
   {
-    copy->type= CACHE_STRIPPED;
+    copy->type= CACHE_STRIPPED;			    /* Remove end space */
     store_length= 2;
+  }
+  else if (type() ==  MYSQL_TYPE_VARCHAR)
+  {
+    copy->type= pack_length()-row_pack_length() == 1 ? CACHE_VARSTR1:
+                                                      CACHE_VARSTR2;
+    store_length= 0;
   }
   else
   {
@@ -4203,6 +4208,7 @@ String *Field_float::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  DBUG_ASSERT(field_length <= MAX_FIELD_CHARLENGTH);
   float nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4213,8 +4219,13 @@ String *Field_float::val_str(String *val_buffer,
 #endif
     memcpy(&nr, ptr, sizeof(nr));
 
-  uint to_length=max(field_length,70);
-  val_buffer->alloc(to_length);
+  uint to_length= 70;
+  if (val_buffer->alloc(to_length))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    return val_buffer;
+  }
+
   char *to=(char*) val_buffer->ptr();
   size_t len;
 
@@ -4223,7 +4234,7 @@ String *Field_float::val_str(String *val_buffer,
   else
   {
     /*
-      We are safe here because the buffer length is >= 70, and
+      We are safe here because the buffer length is 70, and
       fabs(float) < 10^39, dec < NOT_FIXED_DEC. So the resulting string
       will be not longer than 69 chars + terminating '\0'.
     */
@@ -4520,6 +4531,7 @@ String *Field_double::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  DBUG_ASSERT(field_length <= MAX_FIELD_CHARLENGTH);
   double nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4529,9 +4541,13 @@ String *Field_double::val_str(String *val_buffer,
   else
 #endif
     doubleget(nr,ptr);
+  uint to_length= DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE;
+  if (val_buffer->alloc(to_length))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    return val_buffer;
+  }
 
-  uint to_length=max(field_length, DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE);
-  val_buffer->alloc(to_length);
   char *to=(char*) val_buffer->ptr();
   size_t len;
 

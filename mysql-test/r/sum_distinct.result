@@ -95,3 +95,26 @@ SELECT SUM(DISTINCT id % 11) FROM t1;
 SUM(DISTINCT id % 11)
 55
 DROP TABLE t1;
+
+BUG#37891: Column cannot be null error with aggregate in a subquery
+
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+int_key int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY int_key (int_key)
+);
+INSERT INTO t1 VALUES (1,10);
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+time_nokey time DEFAULT NULL,
+datetime_key time DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY datetime_key (datetime_key)
+);
+INSERT INTO t2 VALUES (1,'18:19:29',NOW());
+SELECT * FROM t1 WHERE int_key IN ( SELECT SUM(DISTINCT pk) FROM t2 WHERE time_nokey = datetime_key );
+pk	int_key
+SELECT * FROM t1 WHERE int_key IN ( SELECT AVG(DISTINCT pk) FROM t2 WHERE time_nokey = datetime_key );
+pk	int_key
+drop table t1,t2;

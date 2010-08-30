@@ -63,10 +63,11 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	sql_load.cc discover.cc sql_locale.cc \
-	sql_profile.cc sql_truncate.cc datadict.cc \
+	sql_profile.cc sql_admin.cc sql_truncate.cc datadict.cc \
+	sql_reload.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
-	sql_lex.cc sql_list.cc sql_manager.cc \
+        sql_join_cache.cc sql_lex.cc sql_list.cc sql_manager.cc\
 	scheduler.cc sql_connect.cc sql_parse.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc sys_vars.cc \
@@ -79,11 +80,10 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
 	rpl_filter.cc sql_partition.cc sql_builtin.cc sql_plugin.cc \
 	debug_sync.cc sql_tablespace.cc transaction.cc \
-	rpl_injector.cc my_user.c partition_info.cc \
+	rpl_injector.cc my_user.c partition_info.cc sql_alter.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
 	sql_bootstrap.cc \
 	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc \
-	sql_alter_table.cc \
 	sql_partition_admin.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)

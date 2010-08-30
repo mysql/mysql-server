@@ -91,10 +91,10 @@ SET @@session.query_alloc_block_size = 1024;
 SELECT @@session.query_alloc_block_size;
 SET @@session.query_alloc_block_size = 1025;
 SELECT @@session.query_alloc_block_size;
-SET @@session.query_alloc_block_size = 4294967295;
-SELECT @@session.query_alloc_block_size;
-SET @@session.query_alloc_block_size = 4294967294;
-SELECT @@session.query_alloc_block_size;
+#SET @@session.query_alloc_block_size = 4294967295;
+#SELECT @@session.query_alloc_block_size;
+#SET @@session.query_alloc_block_size = 4294967294;
+#SELECT @@session.query_alloc_block_size;
 SET @@session.query_alloc_block_size = 655536;
 SELECT @@session.query_alloc_block_size;
 

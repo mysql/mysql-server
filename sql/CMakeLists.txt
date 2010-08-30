@@ -10,9 +10,8 @@
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
-
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
@@ -42,7 +41,6 @@ SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc sha2.cc
-               ha_partition.cc
                handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
@@ -60,7 +58,7 @@ SET (SQL_SOURCE
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
                sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
-               debug_sync.cc debug_sync.h
+               sql_join_cache.cc debug_sync.cc debug_sync.h
                sql_select.cc sql_show.cc sql_state.c sql_string.cc 
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
@@ -75,9 +73,10 @@ SET (SQL_SOURCE
                sql_bootstrap.cc
                sql_signal.cc mdl.cc
                sql_alloc_error_handler.cc
-               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc datadict.cc
+               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
+               datadict.cc sql_reload.cc
                sql_partition_admin.cc
-               sql_alter_table.cc
+               sql_admin.cc sql_alter.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
@@ -85,6 +84,7 @@ MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
 RECOMPILE_FOR_EMBEDDED)
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
+ADD_DEPENDENCIES(sql GenServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
   mysys dbug strings vio regex   
@@ -207,6 +207,7 @@ ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
   COMMAND gen_lex_hash > lex_hash.h
+  DEPENDS gen_lex_hash
 )
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
@@ -284,18 +285,20 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
   ENDIF()
   MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
   ADD_CUSTOM_COMMAND(
-     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
+     OUTPUT initdb.dep
      COMMAND ${CMAKE_COMMAND}
      ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
+     COMMAND  ${CMAKE_COMMAND} -E touch initdb.dep
+     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
      DEPENDS mysqld
   )
   ADD_CUSTOM_TARGET(initial_database  
     ALL
-    DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
+    DEPENDS  initdb.dep
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . COMPONENT DataFiles
-    PATTERN "bootstrap.sql" EXCLUDE)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
+  COMPONENT DataFiles PATTERN "initdb.dep" EXCLUDE  PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
