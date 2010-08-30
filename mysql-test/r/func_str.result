@@ -2553,12 +2553,12 @@ insert into t1 values (-1),(null);
 explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 drop table t1;
 #
@@ -2734,3 +2734,28 @@ format(123, 1, 'Non-existent-locale')
 Warnings:
 Warning	1649	Unknown locale: 'Non-existent-locale'
 End of 5.4 tests
+#
+# Start of 5.5 tests
+#
+#
+# Bug#55912 FORMAT with locale set fails for numbers < 1000
+#
+SELECT FORMAT(123.33, 2, 'no_NO'), FORMAT(1123.33, 2, 'no_NO');
+FORMAT(123.33, 2, 'no_NO')	FORMAT(1123.33, 2, 'no_NO')
+123,33	1.123,33
+SELECT FORMAT(12333e-2, 2, 'no_NO'), FORMAT(112333e-2, 2, 'no_NO');
+FORMAT(12333e-2, 2, 'no_NO')	FORMAT(112333e-2, 2, 'no_NO')
+123,33	1.123,33
+CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `format(123,2,'no_NO')` varchar(37) NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+format(123,2,'no_NO')
+123,00
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#
