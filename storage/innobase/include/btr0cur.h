@@ -615,6 +615,11 @@ struct btr_path_struct{
 				order); value ULINT_UNDEFINED
 				denotes array end */
 	ulint	n_recs;		/*!< number of records on the page */
+	ulint	page_no;	/*!< no of the page containing the record */
+	ulint	page_level;	/*!< level of the page, if later we fetch
+				the page under page_no and it is no different
+				level then we know that the tree has been
+				reorganized */
 };
 
 #define BTR_PATH_ARRAY_N_SLOTS	250	/*!< size of path array (in slots) */

@@ -52,7 +52,6 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-icc-yassl \
 			compile-pentium-max \
 			compile-pentium-myodbc \
-			compile-pentium-mysqlfs-debug \
 			compile-pentium-pgcc \
 			compile-pentium-valgrind-max \
 			compile-pentium64 \
