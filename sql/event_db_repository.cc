@@ -996,24 +996,33 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
                                       LEX_STRING name, Event_basic *etn)
 {
   bool ret;
-  TABLE *table= NULL;
   ulong saved_mode= thd->variables.sql_mode;
+  Open_tables_backup open_tables_backup;
+  TABLE_LIST event_table;
 
   DBUG_ENTER("Event_db_repository::load_named_event");
   DBUG_PRINT("enter",("thd: 0x%lx  name: %*s", (long) thd,
                       (int) name.length, name.str));
 
+  event_table.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
+
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;
 
-  if (!(ret= open_event_table(thd, TL_READ, &table)))
+  /*
+    We don't use open_event_table() here to make sure that SHOW
+    CREATE EVENT works properly in transactional context, and
+    does not release transactional metadata locks when the
+    event table is closed.
+  */
+  if (!(ret= open_system_tables_for_read(thd, &event_table, &open_tables_backup)))
   {
-    if ((ret= find_named_event(dbname, name, table)))
+    if ((ret= find_named_event(dbname, name, event_table.table)))
       my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
-    else if ((ret= etn->load_from_row(thd, table)))
+    else if ((ret= etn->load_from_row(thd, event_table.table)))
       my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
 
-    close_mysql_tables(thd);
+    close_system_tables(thd, &open_tables_backup);
   }
 
   thd->variables.sql_mode= saved_mode;
