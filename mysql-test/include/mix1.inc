@@ -742,7 +742,6 @@ drop table if exists t2;
 CREATE TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
---error ER_DUP_ENTRY
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 ROLLBACK;
@@ -756,13 +755,11 @@ drop table t2;
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 COMMIT;
 BEGIN;
 INSERT INTO t2 values(101,101);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 ROLLBACK;
@@ -1583,7 +1580,7 @@ connect (con1, localhost, root,,);
 --echo # Connection default
 connection default;
 let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for table' AND info='TRUNCATE TABLE t1';
+  WHERE state='Waiting for table metadata lock' AND info='TRUNCATE TABLE t1';
 --source include/wait_condition.inc
 SELECT * FROM t1 ORDER BY a;
 ROLLBACK;

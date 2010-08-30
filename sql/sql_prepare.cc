@@ -1717,14 +1717,6 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
 
-   /*
-     The open and lock strategies will be set again once the
-     statement is executed. These values are only meaningful
-     for the prepare phase.
-   */
-  create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-  create_table->lock_strategy= TABLE_LIST::OTLS_NONE;
-
   if (select_lex->item_list.elements)
   {
     /* Base table and temporary table are not in the same name space. */
