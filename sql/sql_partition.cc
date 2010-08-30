@@ -1762,8 +1762,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
-        my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0),
-                 subpart_str);
+        part_info->report_part_expr_error(TRUE);
         goto end;
       }
     }
@@ -1790,10 +1789,9 @@ bool fix_partition_func(THD *thd, TABLE *table,
         goto end;
       if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
       {
-        my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0), part_str);
+        part_info->report_part_expr_error(FALSE);
         goto end;
       }
-      part_info->part_result_type= INT_RESULT;
     }
     part_info->fixed= TRUE;
   }
@@ -1839,18 +1837,22 @@ bool fix_partition_func(THD *thd, TABLE *table,
     if (unlikely(!part_info->column_list &&
                   part_info->part_expr->result_type() != INT_RESULT))
     {
-      my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), part_str);
+      part_info->report_part_expr_error(FALSE);
       goto end;
     }
   }
   if (((part_info->part_type != HASH_PARTITION ||
-      part_info->list_of_part_fields == FALSE) &&
-      (!part_info->column_list &&
-      check_part_func_fields(part_info->part_field_array, TRUE))) ||
+        part_info->list_of_part_fields == FALSE) &&
+       !part_info->column_list &&
+       check_part_func_fields(part_info->part_field_array, TRUE)) ||
       (part_info->list_of_subpart_fields == FALSE &&
        part_info->is_sub_partitioned() &&
        check_part_func_fields(part_info->subpart_field_array, TRUE)))
   {
+    /*
+      Range/List/HASH (but not KEY) and not COLUMNS or HASH subpartitioning
+      with columns in the partitioning expression using unallowed charset.
+    */
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     goto end;
   }
