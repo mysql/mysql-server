@@ -799,7 +799,7 @@ BitmaskPOD<size>::isclear() const
 }
 
 template <unsigned size>
-unsigned
+inline unsigned
 BitmaskPOD<size>::count(const Uint32 data[])
 {
   return BitmaskImpl::count(size, data);
@@ -813,7 +813,7 @@ BitmaskPOD<size>::count() const
 }
 
 template <unsigned size>
-unsigned
+inline unsigned
 BitmaskPOD<size>::find(const Uint32 data[], unsigned n)
 {
   return BitmaskImpl::find(size, data, n);
@@ -931,7 +931,7 @@ BitmaskPOD<size>::bitNOT()
 }
 
 template <unsigned size>
-char *
+inline char *
 BitmaskPOD<size>::getText(const Uint32 data[], char* buf)
 {
   return BitmaskImpl::getText(size, data, buf);
