@@ -116,19 +116,23 @@ dict_load_column_low(
 	const rec_t*	rec);		/*!< in: SYS_COLUMNS record */
 /********************************************************************//**
 Loads an index definition from a SYS_INDEXES record to dict_index_t.
-@return error message, or NULL on success */
+If allocate=TRUE, we will create a dict_index_t structure and fill it
+accordingly. If allocated=FALSE, the dict_index_t will be supplied by
+the caller and filled with information read from the record.  @return
+error message, or NULL on success */
 UNIV_INTERN
 const char*
 dict_load_index_low(
 /*================*/
-	byte*		table_id,	/*!< in/out: table id (8 bytes_,
-					an "in" value if cached=TRUE
-					and "out" when cached=FALSE */
+	byte*		table_id,	/*!< in/out: table id (8 bytes),
+					an "in" value if allocate=TRUE
+					and "out" when allocate=FALSE */
 	const char*	table_name,	/*!< in: table name */
 	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
-	ibool		cached,		/*!< in: TRUE = add to cache
-					FALSE = do not */
+	ibool		allocate,	/*!< in: TRUE=allocate *index,
+					FALSE=fill in a pre-allocated
+					*index */
 	dict_index_t**	index);		/*!< out,own: index, or NULL */
 /********************************************************************//**
 Loads an index field definition from a SYS_FIELDS record to
