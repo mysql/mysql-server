@@ -428,7 +428,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_cond=  cond;
   data->cond= cond;
 
-  old_proc_info= proc_info_hook(NULL, "Table lock",
+  old_proc_info= proc_info_hook(NULL, "Waiting for table level lock",
                                 __func__, __FILE__, __LINE__);
 
   set_timespec(wait_timeout, lock_wait_timeout);
