@@ -49,6 +49,9 @@ C_MODE_START
 int __cxa_pure_virtual()
 {
   assert(! "Aborted: pure virtual method called.");
+#ifndef DBUG_OFF
+  abort();
+#endif
   return 0;
 }
 
