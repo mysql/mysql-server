@@ -520,12 +520,12 @@ create table t1 (a bigint)
 partition by range (a)
 (partition p0 values less than (0xFFFFFFFFFFFFFFFF),
 partition p1 values less than (10));
-ERROR HY000: VALUES value must be of same type as partition function
+ERROR HY000: VALUES value for partition 'p0' must have type INT
 create table t1 (a bigint)
 partition by list (a)
 (partition p0 values in (0xFFFFFFFFFFFFFFFF),
 partition p1 values in (10));
-ERROR HY000: VALUES value must be of same type as partition function
+ERROR HY000: VALUES value for partition 'p0' must have type INT
 create table t1 (a bigint unsigned)
 partition by range (a)
 (partition p0 values less than (100),
