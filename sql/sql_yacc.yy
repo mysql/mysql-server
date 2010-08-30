@@ -1297,6 +1297,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <table>
         table_ident table_ident_nodb references xid
+        table_ident_opt_wild
 
 %type <simple_string>
         remember_name remember_end opt_ident opt_db text_or_password
@@ -9622,7 +9623,7 @@ table_alias_ref_list:
         ;
 
 table_alias_ref:
-          table_ident
+          table_ident_opt_wild
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
@@ -11400,6 +11401,21 @@ table_ident:
           {
             /* For Delphi */
             $$= new Table_ident($2);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        ;
+
+table_ident_opt_wild:
+          ident opt_wild
+          {
+            $$= new Table_ident($1);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | ident '.' ident opt_wild
+          {
+            $$= new Table_ident(YYTHD, $1,$3,0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
