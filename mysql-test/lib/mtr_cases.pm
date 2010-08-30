@@ -687,7 +687,7 @@ sub process_opts {
   }
 
   if (@plugins) {
-    my $sep = (IS_WIN32PERL) ? ';' : ':';
+    my $sep = (IS_WINDOWS) ? ';' : ':';
     push @{$tinfo->{$opt_name}}, "--plugin-load=" .  join($sep, @plugins);
   }
 }
