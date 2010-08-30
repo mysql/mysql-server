@@ -15,13 +15,18 @@
 
 #include "sql_parse.h"                      // check_access,
                                             // check_merge_table_access
+                                            // check_one_table_access
 #include "sql_table.h"                      // mysql_alter_table, etc.
-#include "sql_alter_table.h"                // Alter_table_statement
-#include "sql_partition_admin.h"            // Alter_table_exchange_*
+#include "sql_lex.h"                        // Sql_statement
+#include "sql_alter.h"                      // Alter_table_statement
 #include "sql_partition.h"                  // struct partition_info, etc.
 #include "sql_handler.h"                    // mysql_ha_rm_tables
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "debug_sync.h"                     // DEBUG_SYNC
+#include "sql_truncate.h"                   // mysql_truncate_table,
+                                            // Truncate_statement
+#include "sql_admin.h"                      // Analyze/Check/.._table_statement
+#include "sql_partition_admin.h"            // Alter_table_*_partition
 
 #ifndef WITH_PARTITION_STORAGE_ENGINE
 
@@ -626,6 +631,109 @@ err:
   query_cache_invalidate3(thd, table_list, FALSE);
 
   DBUG_RETURN(error);
+}
+
+
+bool Alter_table_analyze_partition_statement::execute(THD *thd)
+{
+  bool res;
+  DBUG_ENTER("Alter_table_analyze_partition_statement::execute");
+
+  /*
+    Flag that it is an ALTER command which administrates partitions, used
+    by ha_partition
+  */
+  m_lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+
+  res= Analyze_table_statement::execute(thd);
+    
+  DBUG_RETURN(res);
+}
+
+
+bool Alter_table_check_partition_statement::execute(THD *thd)
+{
+  bool res;
+  DBUG_ENTER("Alter_table_check_partition_statement::execute");
+
+  /*
+    Flag that it is an ALTER command which administrates partitions, used
+    by ha_partition
+  */
+  m_lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+
+  res= Check_table_statement::execute(thd);
+
+  DBUG_RETURN(res);
+}
+
+
+bool Alter_table_optimize_partition_statement::execute(THD *thd)
+{
+  bool res;
+  DBUG_ENTER("Alter_table_optimize_partition_statement::execute");
+
+  /*
+    Flag that it is an ALTER command which administrates partitions, used
+    by ha_partition
+  */
+  m_lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+
+  res= Optimize_table_statement::execute(thd);
+
+  DBUG_RETURN(res);
+}
+
+
+bool Alter_table_repair_partition_statement::execute(THD *thd)
+{
+  bool res;
+  DBUG_ENTER("Alter_table_repair_partition_statement::execute");
+
+  /*
+    Flag that it is an ALTER command which administrates partitions, used
+    by ha_partition
+  */
+  m_lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+
+  res= Repair_table_statement::execute(thd);
+
+  DBUG_RETURN(res);
+}
+
+
+bool Alter_table_truncate_partition_statement::execute(THD *thd)
+{
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  bool res;
+  enum_sql_command original_sql_command;
+  DBUG_ENTER("Alter_table_truncate_partition_statement::execute");
+
+  /*
+    Execute TRUNCATE PARTITION just like TRUNCATE TABLE.
+    Some storage engines (InnoDB, partition) checks thd_sql_command,
+    so we set it to SQLCOM_TRUNCATE during the execution.
+  */
+  original_sql_command= m_lex->sql_command;
+  m_lex->sql_command= SQLCOM_TRUNCATE;
+  
+  /*
+    Flag that it is an ALTER command which administrates partitions, used
+    by ha_partition.
+  */
+  m_lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+   
+  /*
+    Fix the lock types (not the same as ordinary ALTER TABLE).
+  */
+  first_table->lock_type= TL_WRITE;
+  first_table->mdl_request.set_type(MDL_SHARED_NO_READ_WRITE);
+
+  /* execute as a TRUNCATE TABLE */
+  res= Truncate_statement::execute(thd);
+
+  m_lex->sql_command= original_sql_command;
+  DBUG_RETURN(res);
 }
 
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
