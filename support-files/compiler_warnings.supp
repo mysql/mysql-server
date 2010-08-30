@@ -112,6 +112,8 @@ signal\.c : .*unused parameter.*
 .* : conversion from '.*size_t' to 'uInt'.*
 .* : conversion from '.*size_t' to 'uint16'.*
 .* : The following environment variables were not found.*
+.* : no public symbols found; archive member will be inaccessible
+.* : DESCRIPTION statement not supported
 
 # Ignore uninitialized local variables on windows
 .* : uninitialized local variable .* used

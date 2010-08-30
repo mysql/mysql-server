@@ -2,6 +2,8 @@
 # Some simple test of load data
 #
 
+-- source include/have_ucs2.inc
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
