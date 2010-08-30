@@ -4992,6 +4992,8 @@ bool subselect_rowid_merge_engine::partial_match()
 
   /* If there is a non-NULL key, it must be the first key in the keys array. */
   DBUG_ASSERT(!non_null_key || (non_null_key && merge_keys[0] == non_null_key));
+  /* The prioryty queue for keys must be empty. */
+  DBUG_ASSERT(!pq.elements);
 
   /* All data accesses during execution are via handler::ha_rnd_pos() */
   tmp_table->file->ha_rnd_init(0);
@@ -5056,7 +5058,7 @@ bool subselect_rowid_merge_engine::partial_match()
 
   DBUG_ASSERT(pq.elements);
 
-  min_key= (Ordered_key*) queue_remove(&pq, 0);
+  min_key= (Ordered_key*) queue_remove_top(&pq);
   min_row_num= min_key->current();
   bitmap_copy(&matching_keys, &null_only_columns);
   bitmap_set_bit(&matching_keys, min_key->get_keyid());
@@ -5076,7 +5078,7 @@ bool subselect_rowid_merge_engine::partial_match()
 
   while (TRUE)
   {
-    cur_key= (Ordered_key*) queue_remove(&pq, 0);
+    cur_key= (Ordered_key*) queue_remove_top(&pq);
     cur_row_num= cur_key->current();
 
     if (cur_row_num == min_row_num)
@@ -5115,6 +5117,7 @@ bool subselect_rowid_merge_engine::partial_match()
   DBUG_ASSERT(FALSE);
 
 end:
+  queue_remove_all(&pq);
   tmp_table->file->ha_rnd_end();
   return res;
 }

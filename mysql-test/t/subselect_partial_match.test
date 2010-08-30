@@ -1,0 +1,21 @@
+#
+# Tests for
+# MWL#68: Subquery optimization: Efficient NOT IN execution with NULLs
+#
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+#
+--echo #launchpad BUG#608744
+#
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=off";
+create table t1 (a1 char(1), a2 char(1));
+insert into t1 values (NULL, 'b');
+create table t2 (b1 char(1), b2 char(2));
+insert into t2 values ('a','b'), ('c', 'd');
+select * from t1 where (a1, a2) NOT IN (select b1, b2 from t2);
+drop table t1,t2;
+set @@optimizer_switch=@save_optimizer_switch;
