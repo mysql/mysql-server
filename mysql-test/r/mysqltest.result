@@ -262,6 +262,9 @@ a long \$where variable content
 
 banana = banana
 Not a banana: ba\$cat\$cat
+with\`some"escaped\'quotes
+with\`some"escaped\'quotes
+single'tick`backtick
 mysqltest: At line 1: Missing arguments to let
 mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Missing assignment operator in let
