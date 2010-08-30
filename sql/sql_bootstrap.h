@@ -20,15 +20,15 @@
 /**
   The maximum size of a bootstrap query.
   Increase this size if parsing a longer query during bootstrap is necessary.
-  The longest query in use currently is:
-    INSERT INTO time_zone_transition ..., 8059 characters
+  The longest query in use depends on the documentation content,
+  see the file fill_help_tables.sql
 */
-#define MAX_BOOTSTRAP_QUERY_SIZE 10000
+#define MAX_BOOTSTRAP_QUERY_SIZE 20000
 /**
   The maximum size of a bootstrap query, expressed in a single line.
-  Do not increase this size, use the multiline syntax with 'GO' instead.
+  Do not increase this size, use the multiline syntax instead.
 */
-#define MAX_BOOTSTRAP_LINE_SIZE 10000
+#define MAX_BOOTSTRAP_LINE_SIZE 20000
 
 #define READ_BOOTSTRAP_EOF 1
 #define READ_BOOTSTRAP_ERROR 2

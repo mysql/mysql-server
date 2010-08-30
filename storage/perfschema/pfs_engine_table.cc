@@ -23,11 +23,11 @@
 #include "table_events_waits.h"
 #include "table_setup_consumers.h"
 #include "table_setup_instruments.h"
-#include "table_setup_objects.h"
 #include "table_setup_timers.h"
 #include "table_performance_timers.h"
-#include "table_processlist.h"
+#include "table_threads.h"
 #include "table_events_waits_summary.h"
+#include "table_ews_global_by_event_name.h"
 #include "table_sync_instances.h"
 #include "table_file_instances.h"
 #include "table_file_summary.h"
@@ -52,13 +52,12 @@ static PFS_engine_table_share *all_shares[]=
   &table_events_waits_history_long::m_share,
   &table_setup_consumers::m_share,
   &table_setup_instruments::m_share,
-  &table_setup_objects::m_share,
   &table_setup_timers::m_share,
   &table_performance_timers::m_share,
-  &table_processlist::m_share,
+  &table_threads::m_share,
   &table_events_waits_summary_by_thread_by_event_name::m_share,
-  &table_events_waits_summary_by_event_name::m_share,
   &table_events_waits_summary_by_instance::m_share,
+  &table_ews_global_by_event_name::m_share,
   &table_file_summary_by_event_name::m_share,
   &table_file_summary_by_instance::m_share,
   &table_mutex_instances::m_share,
