@@ -1701,7 +1701,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
       else
       {
         /* We don't expect Ndb to have a native default for this column */
-        if (unlikely(ndbCol->getDefaultValue()))
+        if (unlikely(ndbCol->getDefaultValue() != NULL))
         {
           /* Didn't expect that */
           DBUG_PRINT("info", ("Column %u has native default, but shouldn't."
