@@ -1385,6 +1385,8 @@ public:
    *              configurable.                                               
    */
   struct LogFileRecord {
+    LogFileRecord() {}
+
     enum FileChangeState {
       NOT_ONGOING = 0,
       BOTH_WRITES_ONGOING = 1,
@@ -2976,6 +2978,7 @@ private:
    */
   struct RedoCacheLogPageRecord
   {
+    RedoCacheLogPageRecord() {}
     /**
      * NOTE: These numbers must match page-header definition
      */

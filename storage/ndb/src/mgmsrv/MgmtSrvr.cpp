@@ -2748,7 +2748,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 	CAST_CONSTPTR(BackupConf, signal->getDataPtr());
       event.Event = BackupEvent::BackupStarted;
       event.Started.BackupId = conf->backupId;
-      event.Nodes = conf->nodes;
+      event.Nodes.assign(conf->nodes);
 #ifdef VM_TRACE
       ndbout_c("Backup(%d) master is %d", conf->backupId,
 	       refToNode(signal->header.theSendersBlockRef));
@@ -2774,7 +2774,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
       event.Completed.NoOfLogRecords = rep->noOfLogRecords;
       event.Completed.stopGCP = rep->stopGCP;
       event.Completed.startGCP = rep->startGCP;
-      event.Nodes = rep->nodes;
+      event.Nodes.assign(rep->nodes);
 
       if (signal->header.theLength >= BackupCompleteRep::SignalLength)
       {

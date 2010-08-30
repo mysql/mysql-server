@@ -322,7 +322,7 @@ public:
   Uint32 m_requestInfo;
   Uint32 m_tableId;
   Uint32 m_tableVersion;        // table version
-  AttributeMask m_attrListBitmask;
+  AttributeMaskPOD m_attrListBitmask;
   Uint32 m_eventType;
   Uint32 m_eventId;
   Uint32 m_eventKey;
@@ -357,7 +357,7 @@ public:
   void setTableVersion(Uint32 val) {
     m_tableVersion = val;
   }
-  AttributeMask getAttrListBitmask() const {
+  AttributeMaskPOD getAttrListBitmask() const {
     return m_attrListBitmask;
   }
   void setAttrListBitmask(const AttributeMask & val) {

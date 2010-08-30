@@ -4356,7 +4356,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   evnt.m_table_version = evntConf->getTableVersion();
 
   if (getFlag) {
-    evnt.m_attrListBitmask = evntConf->getAttrListBitmask();
+    evnt.m_attrListBitmask.assign(evntConf->getAttrListBitmask());
     evnt.mi_type           = evntConf->getEventType();
     evnt.setTable(dataPtr);
   } else {

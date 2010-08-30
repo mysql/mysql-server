@@ -161,7 +161,7 @@ public:
 private:
   Uint32 senderData;
   Uint32 backupId;
-  NdbNodeBitmask nodes;
+  NdbNodeBitmaskPOD nodes;
 };
 
 /**
@@ -214,7 +214,7 @@ private:
   Uint32 noOfRecordsLow;
   Uint32 noOfLogBytes;
   Uint32 noOfLogRecords;
-  NdbNodeBitmask nodes;
+  NdbNodeBitmaskPOD nodes;
   Uint32 noOfBytesHigh;
   Uint32 noOfRecordsHigh;
 };
