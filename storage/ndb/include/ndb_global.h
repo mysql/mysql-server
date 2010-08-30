@@ -176,25 +176,20 @@ extern "C" {
 
 /*
   Fallback to use home grown solution
+  (i.e use mysys version)
 */
 
-#define STR_CONCAT_(x, y) x##y
-#define STR_CONCAT(x, y) STR_CONCAT_(x, y)
-
-#define NDB_STATIC_ASSERT(expr) \
-  enum {STR_CONCAT(static_assert_, __LINE__) = 1 / (!!(expr)) }
-
-#undef STR_CONCAT_
-#undef STR_CONCAT
+#define NDB_STATIC_ASSERT(expr) compile_time_assert(expr)
 
 #endif
 
 
-#if (_MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
-#define HAVE_COMPILER_TYPE_TRAITS
+#if (_MSC_VER > 1500)
+#define HAVE___HAS_TRIVIAL_CONSTRUCTOR
+#define HAVE___IS_POD
 #endif
 
-#ifdef HAVE_COMPILER_TYPE_TRAITS
+#ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define ASSERT_TYPE_HAS_CONSTRUCTOR(x)     \
   NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
 #else
@@ -204,13 +199,12 @@ extern "C" {
 /**
  * visual studio is stricter than gcc for __is_pod, settle for __has_trivial_constructor
  *  until we really really made all signal data classes POD
+ *
+ * UPDATE: also gcc fails to compile our code with gcc4.4.3
  */
-#if (_MSC_VER > 1500)
+#ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define NDB_ASSERT_POD(x) \
   NDB_STATIC_ASSERT(__has_trivial_constructor(x))
-#elif defined __GXX_EXPERIMENTAL_CXX0X__
-#define NDB_ASSERT_POD(x) \
-  NDB_STATIC_ASSERT(__is_pod(x))
 #else
 #define NDB_ASSERT_POD(x)
 #endif
