@@ -306,6 +306,11 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
 
+extern "C"
+void thd_storage_lock_wait(THD *thd, long long value)
+{
+  thd->utime_after_lock+= value;
+}
 
 /**
   Provide a handler data getter to simplify coding
@@ -492,7 +497,6 @@ THD::THD()
    rli_fake(0),
    user_time(0), in_sub_stmt(0),
    binlog_unsafe_warning_flags(0),
-   stmt_accessed_table_flag(0),
    binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),

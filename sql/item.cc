@@ -7510,14 +7510,19 @@ String *Item_cache_datetime::val_str(String *str)
         return NULL;
       if (cached_field_type == MYSQL_TYPE_TIME)
       {
-        ulonglong time= int_value;
-        DBUG_ASSERT(time < TIME_MAX_VALUE);
+        longlong time= int_value;
         set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
+        if (time < 0)
+        {
+          time= -time;
+          ltime.neg= TRUE;
+        }
+        DBUG_ASSERT(time <= TIME_MAX_VALUE);
         ltime.second= time % 100;
         time/= 100;
         ltime.minute= time % 100;
         time/= 100;
-        ltime.hour= time % 100;
+        ltime.hour= time;
       }
       else
       {
