@@ -621,6 +621,32 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 
 
 /**
+  Create a new query string for removing DELAYED keyword for
+  multi INSERT DEALAYED statement.
+
+  @param[in] thd                 Thread handler
+  @param[in] buf                 Query string
+
+  @return
+             0           ok
+             1           error
+*/
+static int
+create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
+{
+  /* Append the part of thd->query before "DELAYED" keyword */
+  if (buf->append(thd->query(),
+                  thd->lex->keyword_delayed_begin - thd->query()))
+    return 1;
+  /* Append the part of thd->query after "DELAYED" keyword */
+  if (buf->append(thd->lex->keyword_delayed_begin + 7))
+    return 1;
+
+  return 0;
+}
+
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -999,13 +1025,28 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	such case the flag is ignored for constructing binlog event.
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			      thd->query(), thd->query_length(),
-			      transactional_table, FALSE, FALSE,
-                              errcode))
+        if (was_insert_delayed && table_list->lock_type ==  TL_WRITE)
         {
+          /* Binlog multi INSERT DELAYED as INSERT without DELAYED. */
+          String log_query;
+          if (create_insert_stmt_from_insert_delayed(thd, &log_query))
+          {
+            sql_print_error("Event Error: An error occurred while creating query string"
+                            "for INSERT DELAYED stmt, before writing it into binary log.");
+
+            error= 1;
+          }
+          else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                                     log_query.c_ptr(), log_query.length(),
+                                     transactional_table, FALSE, FALSE,
+                                     errcode))
+            error= 1;
+        }
+        else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+			           thd->query(), thd->query_length(),
+			           transactional_table, FALSE, FALSE,
+                                   errcode))
 	  error= 1;
-	}
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
