@@ -129,5 +129,5 @@ DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
 Warnings:
-Note	1051	Unknown table 't6'
+Note	1051	Unknown table 'test.t6'
 DROP PROCEDURE p1;

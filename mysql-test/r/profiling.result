@@ -123,8 +123,8 @@ select query_id, count(*), sum(duration) from information_schema.profiling group
 select CPU_user, CPU_system, Context_voluntary, Context_involuntary, Block_ops_in, Block_ops_out, Messages_sent, Messages_received, Page_faults_major, Page_faults_minor, Swaps, Source_function, Source_file, Source_line from information_schema.profiling;
 drop table if exists t1, t2, t3;
 Warnings:
-Note	1051	Unknown table 't2'
-Note	1051	Unknown table 't3'
+Note	1051	Unknown table 'test.t2'
+Note	1051	Unknown table 'test.t3'
 create table t1 (id int );
 create table t2 (id int not null);
 create table t3 (id int not null primary key);
@@ -309,7 +309,7 @@ select @@profiling;
 set session profiling = OFF;
 drop table if exists profile_log;
 Warnings:
-Note	1051	Unknown table 'profile_log'
+Note	1051	Unknown table 'test.profile_log'
 create table profile_log (how_many int);
 drop procedure if exists p1;
 drop procedure if exists p2;
