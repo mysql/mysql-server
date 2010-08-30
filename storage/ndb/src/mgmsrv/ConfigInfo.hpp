@@ -43,6 +43,7 @@ public:
                      CI_INT64,
                      CI_STRING,
                      CI_ENUM, // String externaly, int internally
+                     CI_BITMASK, // String both externally and internally
                      CI_SECTION
   };
   enum Status      { CI_USED,            ///< Active
