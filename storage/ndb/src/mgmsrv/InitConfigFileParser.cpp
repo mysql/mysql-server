@@ -24,6 +24,8 @@
 #include "ConfigInfo.hpp"
 #include "EventLogger.hpp"
 #include <m_string.h>
+#include <util/SparseBitmask.hpp>
+#include "../common/util/parse_mask.hpp"
 
 extern EventLogger *g_eventLogger;
 
@@ -260,16 +262,30 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line)
       tmp_string_split[i].trim("\r\n \t"); 
   }
 
-  // *************************************
-  // First in split is fname
-  // *************************************
+  return storeNameValuePair(ctx,
+                            tmp_string_split[0].c_str(), // fname
+                            tmp_string_split[1].c_str()); // value
+}
 
-  const char *fname= tmp_string_split[0].c_str();
 
-  if (!ctx.m_currentInfo->contains(fname)) {
+bool
+InitConfigFileParser::storeNameValuePair(Context& ctx,
+					 const char* fname,
+					 const char* value)
+{
+
+  if (ctx.m_currentSection->contains(fname))
+  {
+    ctx.reportError("[%s] Parameter %s specified twice", ctx.fname, fname);
+    return false;
+  }
+
+  if (!ctx.m_currentInfo->contains(fname))
+  {
     ctx.reportError("[%s] Unknown parameter: %s", ctx.fname, fname);
     return false;
   }
+
   ConfigInfo::Status status = m_info->getStatus(ctx.m_currentInfo, fname);
   if (status == ConfigInfo::CI_NOTIMPLEMENTED) {
     ctx.reportWarning("[%s] %s not yet implemented", ctx.fname, fname);
@@ -277,40 +293,12 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line)
   if (status == ConfigInfo::CI_DEPRICATED) {
     const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
     if(desc && desc[0]){
-      ctx.reportWarning("[%s] %s is depricated, use %s instead", 
+      ctx.reportWarning("[%s] %s is depricated, use %s instead",
 			ctx.fname, fname, desc);
     } else if (desc == 0){
       ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
-    } 
+    }
   }
-
-  // ***********************
-  //  Store name-value pair
-  // ***********************
-
-  return storeNameValuePair(ctx, fname, tmp_string_split[1].c_str());
-}
-
-
-//****************************************************************************
-//  STORE NAME-VALUE pair in properties section 
-//****************************************************************************
-
-bool 
-InitConfigFileParser::storeNameValuePair(Context& ctx,
-					 const char* fname, 
-					 const char* value) {
-  
-  const char * pname = fname;
-
-  if (ctx.m_currentSection->contains(pname)) {
-    ctx.reportError("[%s] Parameter %s specified twice", ctx.fname, fname);
-    return false;
-  }
-  
-  // ***********************
-  //  Store name-value pair
-  // ***********************
 
   const ConfigInfo::Type type = m_info->getType(ctx.m_currentInfo, fname);
   switch(type){
@@ -320,7 +308,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       ctx.reportError("Illegal boolean value for parameter %s", fname);
       return false;
     }
-    require(ctx.m_currentSection->put(pname, value_bool));
+    require(ctx.m_currentSection->put(fname, value_bool));
     break;
   }
   case ConfigInfo::CI_INT:
@@ -338,14 +326,14 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       return false;
     }
     if(type == ConfigInfo::CI_INT){
-      require(ctx.m_currentSection->put(pname, (Uint32)value_int));
+      require(ctx.m_currentSection->put(fname, (Uint32)value_int));
     } else {
-      require(ctx.m_currentSection->put64(pname, value_int));
+      require(ctx.m_currentSection->put64(fname, value_int));
     }
     break;
   }
   case ConfigInfo::CI_STRING:
-    require(ctx.m_currentSection->put(pname, value));
+    require(ctx.m_currentSection->put(fname, value));
     break;
 
   case ConfigInfo::CI_ENUM:{
@@ -358,7 +346,41 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
                       values.c_str());
       return false;
     }
-    require(ctx.m_currentSection->put(pname, value_int));
+    require(ctx.m_currentSection->put(fname, value_int));
+    break;
+  }
+
+  case ConfigInfo::CI_BITMASK:{
+    if (strlen(value) <= 0)
+    {
+      ctx.reportError("Illegal value '%s' for parameter %s. "
+                      "Error: Zero length string",
+                      value, fname);
+      return false;
+    }
+    Uint64 max = m_info->getMax(ctx.m_currentInfo, fname);
+    SparseBitmask mask(max);
+    int res = parse_mask(value, mask);
+    if (res < 0)
+    {
+      BaseString desc("Unknown error.");
+      switch(res)
+      {
+      case -1:
+        desc.assign("Invalid syntax for bitmask");
+        break;
+      case -2:
+        desc.assfmt("Too large id used in bitmask, max is %llu", max);
+        break;
+      default:
+        break;
+      }
+
+      ctx.reportError("Illegal value '%s' for parameter %s. Error: %s",
+                      value, fname, desc.c_str());
+      return false;
+    }
+    require(ctx.m_currentSection->put(fname, value));
     break;
   }
 
@@ -644,59 +666,45 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 {
   for(unsigned i = 0; i<options.size(); i++)
   {
-    if(options[i].comment && 
-       options[i].app_type && 
-       strcmp(options[i].comment, name) == 0)
+    if (options[i].app_type == 0)
     {
-      Uint64 value_int;
+      // Option not found in in my.cnf
+      continue;
+    }
+
+    const char* section = options[i].comment;
+    if (!section)
+    {
+      // Option which is not to be saved, like "ndbd", "ndbapi", "mysqld" etc.
+      continue;
+    }
+
+    if (strcmp(section, name) == 0)
+    {
+      const char* value = NULL;
+      char buf[32];
       switch(options[i].var_type){
       case GET_INT:
       case GET_UINT:
-	value_int = *(Uint32*)options[i].value;
+        BaseString::snprintf(buf, sizeof(buf), "%u",
+                             *(Uint32*)options[i].value);
+        value = buf;
 	break;
       case GET_ULL:
-	value_int = *(Uint64*)options[i].value;
+        BaseString::snprintf(buf, sizeof(buf), "%llu",
+                             *(Uint64*)options[i].value);
+        value = buf;
 	break;
       case GET_STR:
-	ctx.m_currentSection->put(options[i].name, *(char**)options[i].value);
-	continue;
+        value = *(char**)options[i].value;
+        break;
       default:
 	abort();
       }
 
-      const char * fname = options[i].name;
-      if (!m_info->verify(ctx.m_currentInfo, fname, value_int)) {
-        ctx.reportError("Illegal value %llu for parameter %s.\n"
-                        "Legal values are between %llu and %llu",
-                        value_int, fname,
-                        m_info->getMin(ctx.m_currentInfo, fname),
-                        m_info->getMax(ctx.m_currentInfo, fname));
+      const char* fname = options[i].name;
+      if (!storeNameValuePair(ctx, fname, value))
         return false;
-      }
-
-      ConfigInfo::Status status = m_info->getStatus(ctx.m_currentInfo, fname);
-      if (status == ConfigInfo::CI_DEPRICATED) {
-	const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
-	if(desc && desc[0]){
-	  ctx.reportWarning("[%s] %s is depricated, use %s instead", 
-			    ctx.fname, fname, desc);
-	} else if (desc == 0){
-	  ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
-	} 
-      }
-
-      switch(options[i].var_type){
-      case GET_INT:
-      case GET_UINT:
-	ctx.m_currentSection->put(options[i].name, (Uint32)value_int);
-        break;
-      case GET_ULL:
-	ctx.m_currentSection->put64(options[i].name, value_int);
-        break;
-      default:
-        abort();
-        break;
-      }
     }
   }
   return true;
@@ -820,6 +828,7 @@ InitConfigFileParser::parse_mycnf()
 	break;
       case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 
+      case ConfigInfo::CI_BITMASK:
 	opt.value = (uchar**)malloc(sizeof(char *));
 	opt.var_type = GET_STR;
 	break;
@@ -937,6 +946,9 @@ InitConfigFileParser::parse_mycnf()
 	const char * defaults_groups[] = { 0,  0, 0 };
 	for(unsigned j = 0; j<list.size(); j++)
 	{
+          // Remove leading and trailing spaces from hostname
+          list[j].trim();
+
 	  BaseString group_idx;
 	  BaseString group_host;
 	  group_idx.assfmt("%s.%s.%d", groups[0], 
@@ -953,11 +965,42 @@ InitConfigFileParser::parse_mycnf()
 	  ctx.m_userDefaults = getSection(ctx.fname, ctx.m_defaults);
 	  require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
 	  require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname))!= 0);
-	  ctx.m_currentSection->put("HostName", list[j].c_str());
 	  if(!load_mycnf_groups(options, ctx, sections[i].name, 
 				defaults_groups))
 	    goto end;
-	  
+
+          // The [cluster_config] section in my.cnf specifies the hostname,
+          // but it can also be specified a second time in the nodes section
+          // make sure they match if specified in both places, else
+          // save the value from cluster_config section
+          //
+          // Example:
+          // [cluster_config]
+          // ndbd=hostname1
+          //      ^^^^^^^^^
+          // [cluster_config.ndbd.1]
+          // HostName=hostname1
+          //          ^^^^^^^^^
+          //
+          if (ctx.m_currentSection->contains("HostName"))
+          {
+            // HostName specified a second time, check that it matches
+            const char* host_name;
+            require(ctx.m_currentSection->get("HostName", &host_name));
+            if (strcmp(host_name, list[j].c_str()))
+            {
+              ctx.reportError("Illegal value 'HostName=%s' specified for "
+                              "%s, previously set to '%s'",
+                              host_name, group_idx.c_str(),
+                              list[j].c_str());
+              goto end;
+            }
+          }
+          else
+          {
+            require(ctx.m_currentSection->put("HostName", list[j].c_str()));
+          }
+
 	  if(!storeSection(ctx))
 	    goto end;
 	}
