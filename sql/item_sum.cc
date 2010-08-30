@@ -434,26 +434,6 @@ void Item_sum::mark_as_sum_func()
 }
 
 
-void Item_sum::make_field(Send_field *tmp_field)
-{
-  if (args[0]->type() == Item::FIELD_ITEM && keep_field_type())
-  {
-    ((Item_field*) args[0])->field->make_field(tmp_field);
-    /* For expressions only col_name should be non-empty string. */
-    char *empty_string= (char*)"";
-    tmp_field->db_name= empty_string;
-    tmp_field->org_table_name= empty_string;
-    tmp_field->table_name= empty_string;
-    tmp_field->org_col_name= empty_string;
-    tmp_field->col_name= name;
-    if (maybe_null)
-      tmp_field->flags&= ~NOT_NULL_FLAG;
-  }
-  else
-    init_make_field(tmp_field, field_type());
-}
-
-
 void Item_sum::print(String *str, enum_query_type query_type)
 {
   /* orig_args is not filled with valid values until fix_fields() */
