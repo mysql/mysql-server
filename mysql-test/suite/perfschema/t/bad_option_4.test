@@ -1,0 +1,49 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA
+# Check error handling for invalid server start options
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+let $outfile= $MYSQLTEST_VARDIR/tmp/bad_option_4.txt;
+--error 0,1
+--remove_file $outfile
+--error 1
+--exec $MYSQLD_BOOTSTRAP_CMD --loose-console -a -h bad_option_h_param > $outfile 2>&1
+
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/bad_option_4.txt";
+    open(FILE, "<", $fname) or die;
+    my @lines= <FILE>;
+    # those must be in the file for the test to pass
+    my @patterns=
+      ("Can't change dir to.*bad_option_h_param",
+       "Aborting");
+    foreach my $one_line (@lines)
+    {
+      foreach my $one_pattern (@patterns)
+      {
+        # print pattern, not line, to get a stable output
+        print "Found: $one_pattern\n" if ($one_line =~ /$one_pattern/);
+      }
+    }
+    close FILE;
+EOF
+--remove_file $outfile
+

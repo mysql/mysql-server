@@ -56,7 +56,7 @@ let $wait_condition=
 connection master;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "drop view v1";
+  where state = "Waiting for table metadata lock" and info = "drop view v1";
 --source include/wait_condition.inc
 
 select release_lock("lock_bg25144");
@@ -106,7 +106,7 @@ let $wait_condition=
 connection master;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
   info = "alter view v1 as select * from t2";
 --source include/wait_condition.inc
 

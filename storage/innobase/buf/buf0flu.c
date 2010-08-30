@@ -1250,8 +1250,12 @@ buf_flush_try_neighbors(
 /*====================*/
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page offset */
-	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
+	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
+	ulint		n_flushed,	/*!< in: number of pages
+					flushed so far in this batch */
+	ulint		n_to_flush)	/*!< in: maximum number of pages
+					we are allowed to flush */
 {
 	ulint		i;
 	ulint		low;
@@ -1291,6 +1295,21 @@ buf_flush_try_neighbors(
 	for (i = low; i < high; i++) {
 
 		buf_page_t*	bpage;
+
+		if ((count + n_flushed) >= n_to_flush) {
+
+			/* We have already flushed enough pages and
+			should call it a day. There is, however, one
+			exception. If the page whose neighbors we
+			are flushing has not been flushed yet then
+			we'll try to flush the victim that we
+			selected originally. */
+			if (i <= offset) {
+				i = offset;
+			} else {
+				break;
+			}
+		}
 
 		buf_pool = buf_pool_get(space, i);
 
@@ -1359,6 +1378,8 @@ buf_flush_page_and_try_neighbors(
 					buf_page_in_file(bpage) */
 	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
+	ulint		n_to_flush,	/*!< in: number of pages to
+					flush */
 	ulint*		count)		/*!< in/out: number of pages
 					flushed */
 {
@@ -1392,7 +1413,11 @@ buf_flush_page_and_try_neighbors(
 		mutex_exit(block_mutex);
 
 		/* Try to flush also all the neighbors */
-		*count += buf_flush_try_neighbors(space, offset, flush_type);
+		*count += buf_flush_try_neighbors(space,
+						  offset,
+						  flush_type,
+						  *count,
+						  n_to_flush);
 
 		buf_pool_mutex_enter(buf_pool);
 		flushed = TRUE;
@@ -1432,7 +1457,7 @@ buf_flush_LRU_list_batch(
 		a page that isn't ready for flushing. */
 		while (bpage != NULL
 		       && !buf_flush_page_and_try_neighbors(
-				bpage, BUF_FLUSH_LRU, &count)) {
+				bpage, BUF_FLUSH_LRU, max, &count)) {
 
 			bpage = UT_LIST_GET_PREV(LRU, bpage);
 		}
@@ -1513,7 +1538,7 @@ buf_flush_flush_list_batch(
 		while (bpage != NULL
 		       && len > 0
 		       && !buf_flush_page_and_try_neighbors(
-				bpage, BUF_FLUSH_LIST, &count)) {
+				bpage, BUF_FLUSH_LIST, min_n, &count)) {
 
 			buf_flush_list_mutex_enter(buf_pool);
 

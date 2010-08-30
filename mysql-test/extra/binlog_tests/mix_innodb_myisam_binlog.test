@@ -262,7 +262,6 @@ DROP TABLE IF EXISTS t2;
 
 CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
 INSERT INTO t1 VALUES (4,4);
---error ER_DUP_ENTRY
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 SELECT * from t2;
 TRUNCATE table t2;
@@ -277,11 +276,9 @@ CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
 INSERT INTO t1 values (7,7);
 ROLLBACK;
 INSERT INTO t1 values (8,8);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 COMMIT;
 INSERT INTO t1 values (9,9);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 ROLLBACK;
 SELECT * from t2;
@@ -291,11 +288,9 @@ INSERT INTO t1 values (10,10);
 INSERT INTO t2 select * from t1;
 SELECT * from t1;
 INSERT INTO t2 values (100,100);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 COMMIT;
 INSERT INTO t2 values (101,101);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 ROLLBACK;
 SELECT * from t2;
@@ -377,7 +372,8 @@ reset master;
 
 begin; 
 insert into ti values (1); 
-insert into ti values (2) ; 
+insert into ti values (2) ;
+# This is SAFE because --binlog-direct-non-transactional-updates=FALSE
 insert into tt select * from ti;
 rollback;
 
