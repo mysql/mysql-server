@@ -837,9 +837,9 @@ private:
     CI_REMOTE_RANGE_SCANS_SENT = 8,
     
     /**
-     * No of scan batches (on range or full table) which has completed.
+     * No of scan batches (on range or full table) returned to ndbapi
      */
-    CI_SCAN_BATCHES_COMPLETED = 9,
+    CI_SCAN_BATCHES_RETURNED = 9,
 
     /**
      * Total no of rows returned from scans.

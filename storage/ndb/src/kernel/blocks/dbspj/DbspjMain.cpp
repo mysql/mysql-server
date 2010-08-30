@@ -1150,6 +1150,9 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       conf->fragmentCompleted = is_complete ? 1 : 0;
       conf->total_len = requestPtr.p->m_active_nodes.rep.data[0];
 
+      c_Counters.incr_counter(CI_SCAN_BATCHES_RETURNED, 1);
+      c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, requestPtr.p->m_rows);
+
       /**
        * reset for next batch
        */
@@ -3804,9 +3807,6 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
   
   ndbrequire(done <= 2); // 0, 1, 2 (=ZSCAN_FRAG_CLOSED)
 
-  c_Counters.incr_counter(CI_SCAN_BATCHES_COMPLETED, 1);
-  c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, rows);
-
   ndbassert(treeNodePtr.p->m_scanfrag_data.m_rows_expecting == ~Uint32(0));
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = rows;
   if (treeNodePtr.p->isLeaf())
@@ -4839,8 +4839,6 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
   Uint32 done = conf->fragmentCompleted;
 
   requestPtr.p->m_rows += rows;
-  c_Counters.incr_counter(CI_SCAN_BATCHES_COMPLETED, 1);
-  c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, rows);
 
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
 
@@ -6371,8 +6369,8 @@ void Dbspj::execDBINFO_SCANREQ(Signal *signal)
         c_Counters.get_counter(CI_LOCAL_RANGE_SCANS_SENT) },
       { Ndbinfo::SPJ_REMOTE_RANGE_SCANS_SENT_COUNTER, 
         c_Counters.get_counter(CI_REMOTE_RANGE_SCANS_SENT) },
-      { Ndbinfo::SPJ_SCAN_BATCHES_COMPLETED_COUNTER, 
-        c_Counters.get_counter(CI_SCAN_BATCHES_COMPLETED) },
+      { Ndbinfo::SPJ_SCAN_BATCHES_RETURNED_COUNTER, 
+        c_Counters.get_counter(CI_SCAN_BATCHES_RETURNED) },
       { Ndbinfo::SPJ_SCAN_ROWS_RETURNED_COUNTER, 
         c_Counters.get_counter(CI_SCAN_ROWS_RETURNED) },
       { Ndbinfo::SPJ_PRUNED_RANGE_SCANS_RECEIVED_COUNTER, 
