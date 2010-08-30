@@ -359,7 +359,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       return false;
     }
     Uint64 max = m_info->getMax(ctx.m_currentInfo, fname);
-    SparseBitmask mask(max);
+    SparseBitmask mask((unsigned)max);
     int res = parse_mask(value, mask);
     if (res < 0)
     {
