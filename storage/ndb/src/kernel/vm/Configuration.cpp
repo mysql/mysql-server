@@ -353,6 +353,8 @@ Configuration::setupConfiguration(){
 
   _maintLockCPU = NO_LOCK_CPU;
   iter.get(CFG_DB_MAINT_LOCK_CPU, &_maintLockCPU);
+  if (_maintLockCPU == 65535)
+    _maintLockCPU = NO_LOCK_CPU; // Ignore old default(may come from old mgmd)
 
   if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, 
               &_timeBetweenWatchDogCheckInitial)){
