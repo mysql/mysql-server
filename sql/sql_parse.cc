@@ -642,45 +642,6 @@ end:
 }
 
 
-/**
-  @brief Check access privs for a MERGE table and fix children lock types.
-
-  @param[in]        thd         thread handle
-  @param[in]        db          database name
-  @param[in,out]    table_list  list of child tables (merge_list)
-                                lock_type and optionally db set per table
-
-  @return           status
-    @retval         0           OK
-    @retval         != 0        Error
-
-  @detail
-    This function is used for write access to MERGE tables only
-    (CREATE TABLE, ALTER TABLE ... UNION=(...)). Set TL_WRITE for
-    every child. Set 'db' for every child if not present.
-*/
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
-{
-  int error= 0;
-
-  if (table_list)
-  {
-    /* Check that all tables use the current database */
-    TABLE_LIST *tlist;
-
-    for (tlist= table_list; tlist; tlist= tlist->next_local)
-    {
-      if (!tlist->db || !tlist->db[0])
-        tlist->db= db; /* purecov: inspected */
-    }
-    error= check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                              table_list, FALSE, UINT_MAX, FALSE);
-  }
-  return error;
-}
-#endif
-
 /* This works because items are allocated with sql_alloc() */
 
 void free_items(Item *item)
@@ -6963,10 +6924,16 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
                    &create_table->grant.m_internal,
-                   0, 0) ||
-      check_merge_table_access(thd, create_table->db,
-                               lex->create_info.merge_list.first))
+                   0, 0))
     goto err;
+
+  /* If it is a merge table, check privileges for merge children. */
+  if (lex->create_info.merge_list.first &&
+      check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                         lex->create_info.merge_list.first,
+                         FALSE, UINT_MAX, FALSE))
+    goto err;
+
   if (want_priv != CREATE_TMP_ACL &&
       check_grant(thd, want_priv, create_table, FALSE, 1, FALSE))
     goto err;
