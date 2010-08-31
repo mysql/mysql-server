@@ -11347,7 +11347,8 @@ void Dbtc::sendScanFragReq(Signal* signal,
 {
   Uint32 version= getNodeInfo(refToNode(scanFragP->lqhBlockref)).m_version;
   bool longFragReq= ((version >= NDBD_LONG_SCANFRAGREQ) &&
-                     (! ERROR_INSERTED(8070)));
+                     (! ERROR_INSERTED(8070) &&
+		      ! ERROR_INSERTED(8088)));
   Uint32 reqKeyLen= 0;
   Uint32 reqAttrLen= 0;
   if (unlikely(! longFragReq))
@@ -11466,12 +11467,15 @@ void Dbtc::sendScanFragReq(Signal* signal,
     
     if(ERROR_INSERTED(8035))
       globalTransporterRegistry.performSend();
-    
-    ndbrequire(sendAttrInfoTrain(signal,
-                                 scanFragP->lqhBlockref,
-                                 scanFragptr.i,
-                                 0, // Offset 0
-                                 cachePtr.p->attrInfoSectionI));
+
+    if (!ERROR_INSERTED(8088))
+    {
+      ndbrequire(sendAttrInfoTrain(signal,
+                                   scanFragP->lqhBlockref,
+                                   scanFragptr.i,
+                                   0, // Offset 0
+                                   cachePtr.p->attrInfoSectionI));
+    }
 
     if(ERROR_INSERTED(8035))
       globalTransporterRegistry.performSend();
@@ -11484,6 +11488,12 @@ void Dbtc::sendScanFragReq(Signal* signal,
       cachePtr.p->attrInfoSectionI= RNIL;
       cachePtr.p->keyInfoSectionI= RNIL;
     }
+  }
+
+  if (ERROR_INSERTED(8088))
+  {
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
   }
 }//Dbtc::sendScanFragReq()
 
