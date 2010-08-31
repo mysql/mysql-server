@@ -319,6 +319,23 @@ extern int real_main(int, char**);
 static pid_t
 spawn_process(const char* progname, const BaseString& args)
 {
+#ifdef _WIN32
+  // Get full path name of this executeble
+  char path[MAX_PATH];
+  DWORD len = GetModuleFileName(NULL, path, sizeof(path));
+  if (len == 0 || len == sizeof(path))
+  {
+    g_eventLogger->warning("spawn_process: Could not extract full path, "
+                           "len: %u, error: %u\n",
+                           len, GetLastError());
+    // Fall through and try with progname as it was supplied
+  }
+  else
+  {
+    progname = path;
+  }
+#endif
+
   char** argv = BaseString::argify(progname, args.c_str());
   if (!argv)
   {
