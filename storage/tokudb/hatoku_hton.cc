@@ -654,7 +654,7 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     if (thd->in_sub_stmt) {
         assert(trx->stmt);
-        error = db_env->txn_begin(db_env, trx->sub_sp_level, &(save_info->txn), 0);
+        error = db_env->txn_begin(db_env, trx->sub_sp_level, &(save_info->txn), DB_INHERIT_ISOLATION);
         if (error) {
             goto cleanup;
         }
@@ -662,7 +662,7 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
         save_info->in_sub_stmt = true;
     }
     else {
-        error = db_env->txn_begin(db_env, trx->sp_level, &(save_info->txn), 0);
+        error = db_env->txn_begin(db_env, trx->sp_level, &(save_info->txn), DB_INHERIT_ISOLATION);
         if (error) {
             goto cleanup;
         }
