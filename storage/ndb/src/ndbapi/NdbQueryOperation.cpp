@@ -336,6 +336,11 @@ public:
   bool isSubScanComplete() const
   { return m_subScanComplete; }
 
+  /** Variant of isSubScanComplete() above which check that both this result stream,
+   * and all its descendant, has consumed all batches of rows instantiated from its
+   * parent operation(s). */
+  bool isAllSubScansComplete() const;
+
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbResultStream&);
 
@@ -511,6 +516,21 @@ NdbResultStream::reset()
 } //NdbResultStream::reset
 
 
+bool
+NdbResultStream::isAllSubScansComplete() const
+{ 
+  if (!m_subScanComplete)
+    return false;
+
+  for (Uint32 childNo = 0; childNo < m_operation.getNoOfChildOperations(); childNo++)
+  {
+    if (!m_operation.getChildOperation(childNo).getResultStream(getRootFragNo()).isAllSubScansComplete())
+      return false;
+  }
+  return true;
+} //NdbResultStream::isAllSubScansComplete
+
+
 void
 NdbResultStream::clearTupleSet()
 {
@@ -661,7 +681,7 @@ NdbResultStream::getNextLookupRow()
             != NdbQueryOptions::MatchAll)
         {
           /* We have an inner join with no matching tuple. Therefore, 
-           * there will be now result for this operation.
+           * there will be no result for this operation.
            */
           m_iterState = Iter_finished;
           return false;
@@ -767,7 +787,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
       {
         return ScanRowResult_endOfScan;
       }
-      else if (isSubScanComplete())
+      else if (isAllSubScansComplete())
       {
         /* Next batch will contain rows related the next batch of the
          * parent scan. So if this is a left outer join, we can generate
@@ -1678,6 +1698,8 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
          */
         const FetchResult fetchResult = fetchMoreResults(forceSend);
         switch (fetchResult) {
+        case FetchResult_ok:
+          break;
         case FetchResult_otherError:
           assert (m_error.code != 0);
           setErrorCode(m_error.code);
@@ -1692,8 +1714,6 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
         case FetchResult_timeOut:
           setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
           return NdbQuery::NextResult_error;
-        case FetchResult_ok:
-          break;
         case FetchResult_scanComplete:
           getRoot().nullifyResult();
           return NdbQuery::NextResult_scanComplete;
@@ -2573,7 +2593,7 @@ NdbQueryImpl::sendFetchMore(int nodeId)
   Uint32 idBuffSize = 0;
   receiverIdIter.getNextWords(idBuffSize);
 
-  /* Iterate over the fragments for which we will reqest a new batch.*/
+  /* Iterate over the fragments for which we will request a new batch.*/
   while (idBuffSize > 0)
   {
     sent += idBuffSize;
@@ -4328,7 +4348,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   /* Mark each scan node to indicate if the current batch is the last in the
    * current sub-scan or not.
    */
-  for(Uint32 opNo = 0; opNo <  queryDef.getNoOfOperations(); opNo++)
+  for (Uint32 opNo = 0; opNo <  queryDef.getNoOfOperations(); opNo++)
   {
     /* Find the node number seen by the SPJ block. Since a unique index
      * operation will have two distincts nodes in the tree used by the

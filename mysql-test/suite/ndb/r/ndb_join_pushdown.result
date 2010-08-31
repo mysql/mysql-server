@@ -3451,7 +3451,7 @@ left join t1 as x3 on x2.a=x3.b
 left join t1 as x4 on x3.u=x4.pk
 left join t1 as x5 on x4.a=x5.b;
 count(*)
-1887
+1885
 set ndb_join_pushdown=off;
 select count(*) from t1 as x1
 left join t1 as x2 on x1.u=x2.pk
