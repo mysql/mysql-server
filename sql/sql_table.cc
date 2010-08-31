@@ -2008,7 +2008,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       for (table= tables; table; table= table->next_local)
         if (table->open_type != OT_BASE_ONLY &&
-	    find_temporary_table(thd, table->db, table->table_name))
+	    find_temporary_table(thd, table))
         {
           /*
             A temporary table.

@@ -247,7 +247,8 @@ static void check_unused(void)
     Length of key
 */
 
-uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
+uint create_table_def_key(THD *thd, char *key,
+                          const TABLE_LIST *table_list,
                           bool tmp_table)
 {
   uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
@@ -1987,39 +1988,60 @@ void update_non_unique_table_error(TABLE_LIST *update,
 }
 
 
+/**
+  Find temporary table specified by database and table names in the
+  THD::temporary_tables list.
+
+  @return TABLE instance if a temporary table has been found; NULL otherwise.
+*/
+
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
-  TABLE_LIST table_list;
+  TABLE_LIST tl;
 
-  table_list.db= (char*) db;
-  table_list.table_name= (char*) table_name;
-  return find_temporary_table(thd, &table_list);
+  tl.db= (char*) db;
+  tl.table_name= (char*) table_name;
+
+  return find_temporary_table(thd, &tl);
 }
 
 
-TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
-{
-  char	key[MAX_DBKEY_LENGTH];
-  uint	key_length;
-  TABLE *table;
-  DBUG_ENTER("find_temporary_table");
-  DBUG_PRINT("enter", ("table: '%s'.'%s'",
-                       table_list->db, table_list->table_name));
+/**
+  Find a temporary table specified by TABLE_LIST instance in the
+  THD::temporary_tables list.
 
-  key_length= create_table_def_key(thd, key, table_list, 1);
-  for (table=thd->temporary_tables ; table ; table= table->next)
+  @return TABLE instance if a temporary table has been found; NULL otherwise.
+*/
+
+TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl)
+{
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length= create_table_def_key(thd, key, tl, 1);
+
+  return find_temporary_table(thd, key, key_length);
+}
+
+
+/**
+  Find a temporary table specified by a key in the THD::temporary_tables list.
+
+  @return TABLE instance if a temporary table has been found; NULL otherwise.
+*/
+
+TABLE *find_temporary_table(THD *thd,
+                            const char *table_key,
+                            uint table_key_length)
+{
+  for (TABLE *table= thd->temporary_tables; table; table= table->next)
   {
-    if (table->s->table_cache_key.length == key_length &&
-	!memcmp(table->s->table_cache_key.str, key, key_length))
+    if (table->s->table_cache_key.length == table_key_length &&
+        !memcmp(table->s->table_cache_key.str, table_key, table_key_length))
     {
-      DBUG_PRINT("info",
-                 ("Found table. server_id: %u  pseudo_thread_id: %lu",
-                  (uint) thd->server_id,
-                  (ulong) thd->variables.pseudo_thread_id));
-      DBUG_RETURN(table);
+      return table;
     }
   }
-  DBUG_RETURN(0);                               // Not a temporary table
+
+  return NULL;
 }
 
 

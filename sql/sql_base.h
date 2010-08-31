@@ -79,7 +79,8 @@ void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
 uint cached_table_definitions(void);
-uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
+uint create_table_def_key(THD *thd, char *key,
+                          const TABLE_LIST *table_list,
                           bool tmp_table);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
                              uint key_length, uint db_flags, int *error,
@@ -159,7 +160,9 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                const char *db_name,
                                const char *table_name);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
-TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
+TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
+TABLE *find_temporary_table(THD *thd, const char *table_key,
+                            uint table_key_length);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,

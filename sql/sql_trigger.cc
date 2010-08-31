@@ -458,7 +458,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   DBUG_ASSERT(tables->next_global == 0);
 
   /* We do not allow creation of triggers on temporary tables. */
-  if (create && find_temporary_table(thd, tables->db, tables->table_name))
+  if (create && find_temporary_table(thd, tables))
   {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
     goto end;
