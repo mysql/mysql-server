@@ -1980,6 +1980,41 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug54944(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  NdbRestarter res;
+
+  for (Uint32 i = 0; i<5; i++)
+  {
+    Uint32 rows = 5000 + i * 2000;
+    HugoOperations hugoOps(*pTab);
+    hugoOps.startTransaction(pNdb);
+
+    for (Uint32 r = 0; r < rows; r++)
+    {
+      for (Uint32 b = 0; b<100; b++, r++)
+      {
+        hugoOps.pkInsertRecord(pNdb, r);
+      }
+      hugoOps.execute_NoCommit(pNdb);
+    }
+
+    res.insertErrorInAllNodes(8087);
+
+    HugoTransactions hugoTrans(*pTab);
+    hugoTrans.loadTableStartFrom(pNdb, 50000, 100);
+
+    hugoOps.execute_Rollback(pNdb);
+    hugoTrans.clearTable(pNdb);
+
+    res.insertErrorInAllNodes(0);
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -2288,6 +2323,10 @@ TESTCASE("Bug34348",
 TESTCASE("Bug54986", "")
 {
   INITIALIZER(runBug54986);
+}
+TESTCASE("Bug54944", "")
+{
+  INITIALIZER(runBug54944);
 }
 NDBT_TESTSUITE_END(testBasic);
 
