@@ -1,8 +1,12 @@
+set @save_optimizer_switch_jcl6=@@optimizer_switch;
+set @@optimizer_switch='semijoin_with_cache=on';
+set @@optimizer_switch='outer_join_with_cache=on';
 set join_cache_level=6;
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
 drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
+set @save_optimizer_switch=@@optimizer_switch;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(a int, b int);
@@ -326,7 +330,8 @@ INSERT INTO WORKS VALUES  ('E3','P2',20);
 INSERT INTO WORKS VALUES  ('E4','P2',20);
 INSERT INTO WORKS VALUES  ('E4','P4',40);
 INSERT INTO WORKS VALUES  ('E4','P5',80);
-set optimizer_switch='default,materialization=off';
+set optimizer_switch=@save_optimizer_switch;
+set optimizer_switch='materialization=off';
 explain SELECT EMPNUM, EMPNAME
 FROM STAFF
 WHERE EMPNUM IN
@@ -348,7 +353,7 @@ E1	Alice
 E2	Betty
 E3	Carmen
 E4	Don
-set optimizer_switch='default';
+set optimizer_switch=@save_optimizer_switch;
 drop table STAFF,WORKS,PROJ;
 # End of bug#45191
 #
@@ -454,7 +459,7 @@ COUNT(*)
 drop table t1, t2;
 drop view v1;
 drop procedure p1;
-set SESSION optimizer_switch='default';
+set SESSION optimizer_switch=@save_optimizer_switch;
 # End of bug#46744
 
 Bug#46797 "Crash in fix_semijoin_strategies_for_picked_join_order 
@@ -605,7 +610,7 @@ v1field
 DROP TABLE t1,t2;
 DROP VIEW v1,v2;
 DROP PROCEDURE p1;
-set SESSION optimizer_switch='default';
+set SESSION optimizer_switch=@save_optimizer_switch;
 # End of BUG#48834
 
 Bug#49097 subquery with view generates wrong result with
@@ -1079,6 +1084,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 # End of Bug#48623
+set @@optimizer_switch=@save_optimizer_switch;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
 #
@@ -1114,3 +1120,4 @@ set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	1
+set @@optimizer_switch=@save_optimizer_switch_jcl6;

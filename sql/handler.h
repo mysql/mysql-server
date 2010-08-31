@@ -1211,6 +1211,8 @@ typedef struct st_range_seq_if
   bool (*skip_index_tuple) (range_seq_t seq, char *range_info);
 } RANGE_SEQ_IF;
 
+typedef bool (*SKIP_INDEX_TUPLE_FUNC) (range_seq_t seq, char *range_info);
+
 class COST_VECT
 { 
 public:
