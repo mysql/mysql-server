@@ -24,6 +24,7 @@
 #include <Vector.hpp>
 #include "ScanFunctions.hpp"
 #include <random.h>
+#include <signaldata/DumpStateOrd.hpp>
 
 const NdbDictionary::Table *
 getTable(Ndb* pNdb, int i){
@@ -1335,6 +1336,81 @@ finalizeBug42559(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
+int
+runBug54945(NDBT_Context* ctx, NDBT_Step* step)
+{
+
+  int loops = ctx->getNumLoops();
+  const NdbDictionary::Table*  pTab = ctx->getTab();
+
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  while (loops--)
+  {
+    int node = res.getNode(NdbRestarter::NS_RANDOM);
+    int err = 0;
+    printf("node: %u ", node);
+    switch(loops % 2){
+    case 0:
+      if (res.getNumDbNodes() >= 2)
+      {
+        err = 8088;
+        int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+        res.dumpStateOneNode(node, val, 2);
+        res.insertErrorInNode(node, 8088);
+        ndbout_c("error 8088");
+        break;
+      }
+      // fall through
+    case 1:
+      err = 5057;
+      res.insertErrorInNode(node, 5057);
+      ndbout_c("error 5057");
+      break;
+    }
+
+    for (int i = 0; i< 25; i++)
+    {
+      NdbTransaction* pCon = pNdb->startTransaction();
+      NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+      if (pOp == NULL) {
+        ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      if( pOp->readTuples(NdbOperation::LM_Read) != 0) 
+      {
+        ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      if( pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+      {
+        ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      pCon->execute(NoCommit);
+      pCon->close();
+    } 
+    if (err == 8088)
+    {
+      res.waitNodesNoStart(&node, 1);
+      res.startAll();
+      res.waitClusterStarted();
+    }
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -1860,6 +1936,10 @@ TESTCASE("Bug42559", "")
   FINALIZER(createOrderedPkIndex_Drop);
   FINALIZER(finalizeBug42559);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug54945", "")
+{
+  INITIALIZER(runBug54945);
 }
 NDBT_TESTSUITE_END(testScan);
 

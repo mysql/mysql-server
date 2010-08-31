@@ -9970,6 +9970,14 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
   sendScanFragReq(signal, scanptr.p, scanFragptr.p);
   if(ERROR_INSERTED(8035))
     globalTransporterRegistry.performSend();
+
+  if (ERROR_INSERTED(8088) && tnodeid != getOwnNodeId())
+  {
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
+    return;
+  }
+
   attrbufptr.i = cachePtr.p->firstAttrbuf;
   while (attrbufptr.i != RNIL) {
     jam();
