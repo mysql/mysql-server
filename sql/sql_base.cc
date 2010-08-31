@@ -5696,35 +5696,37 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 }
 
 
-/*
-  Open a single table without table caching and don't set it in open_list
+/**
+  Open a single table without table caching and don't add it to
+  THD::open_tables. Depending on the 'add_to_temporary_tables_list' value,
+  the opened TABLE instance will be addded to THD::temporary_tables list.
 
-  SYNPOSIS
-    open_temporary_table()
-    thd		  Thread object
-    path	  Path (without .frm)
-    db		  database
-    table_name	  Table name
-    link_in_list  1 if table should be linked into thd->temporary_tables
+  @param thd                          Thread context.
+  @param path                         Path (without .frm)
+  @param db                           Database name.
+  @param table_name                   Table name.
+  @param add_to_temporary_tables_list Specifies if the opened TABLE
+                                      instance should be linked into
+                                      THD::temporary_tables list.
 
- NOTES:
-    Used by alter_table to open a temporary table and when creating
-    a temporary table with CREATE TEMPORARY ...
+  @note This function is used:
+    - by alter_table() to open a temporary table;
+    - when creating a temporary table with CREATE TEMPORARY TABLE.
 
- RETURN
-   0  Error
-   #  TABLE object
+  @return TABLE instance for opened table.
+  @retval NULL on error.
 */
 
-TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list)
+TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
+                           const char *table_name,
+                           bool add_to_temporary_tables_list)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
   char cache_key[MAX_DBKEY_LENGTH], *saved_cache_key, *tmp_path;
   uint key_length;
   TABLE_LIST table_list;
-  DBUG_ENTER("open_temporary_table");
+  DBUG_ENTER("open_table_uncached");
   DBUG_PRINT("enter",
              ("table: '%s'.'%s'  path: '%s'  server_id: %u  "
               "pseudo_thread_id: %lu",
@@ -5767,7 +5769,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   share->tmp_table= (tmp_table->file->has_transactions() ? 
                      TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
-  if (link_in_list)
+  if (add_to_temporary_tables_list)
   {
     /* growing temp list at the head */
     tmp_table->next= thd->temporary_tables;
