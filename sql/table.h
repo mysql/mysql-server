@@ -83,18 +83,6 @@ enum enum_table_ref_type
 };
 
 
-/**
-  Opening modes for open_temporary_table and open_table_from_share
-*/
-
-enum open_table_mode
-{
-  OTM_OPEN= 0,
-  OTM_CREATE= 1,
-  OTM_ALTER= 2
-};
-
-
 /*************************************************************************/
 
 /**
