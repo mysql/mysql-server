@@ -1,5 +1,8 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='semijoin_with_cache=on';
+set @@optimizer_switch='outer_join_with_cache=on';
 set names utf8;
 CREATE DATABASE world;
 use world;
@@ -827,6 +830,626 @@ INDEX (Percentage)
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
+set join_cache_level=3;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	3
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+EXPLAIN
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
+Name
+Vientiane
+Riga
+Daugavpils
+Maseru
+Beirut
+Tripoli
+Monrovia
+Tripoli
+Bengasi
+Misrata
+Vilnius
+Kaunas
+Klaipeda
+?iauliai
+Panevezys
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+FROM Country LEFT JOIN CountryLanguage ON
+(CountryLanguage.Country=Country.Code AND Language='English')
+WHERE 
+Country.Population > 10000000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+FROM Country LEFT JOIN CountryLanguage ON
+(CountryLanguage.Country=Country.Code AND Language='English')
+WHERE 
+Country.Population > 10000000;
+Name	IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+Australia	81.2
+United Kingdom	97.3
+Canada	60.4
+United States	86.2
+Zimbabwe	2.2
+Japan	0.1
+South Africa	8.5
+Malaysia	1.6
+Afghanistan	NULL
+Netherlands	NULL
+Algeria	NULL
+Angola	NULL
+Argentina	NULL
+Bangladesh	NULL
+Belgium	NULL
+Brazil	NULL
+Burkina Faso	NULL
+Chile	NULL
+Ecuador	NULL
+Egypt	NULL
+Spain	NULL
+Ethiopia	NULL
+Philippines	NULL
+Ghana	NULL
+Guatemala	NULL
+Indonesia	NULL
+India	NULL
+Iraq	NULL
+Iran	NULL
+Italy	NULL
+Yemen	NULL
+Yugoslavia	NULL
+Cambodia	NULL
+Cameroon	NULL
+Kazakstan	NULL
+Kenya	NULL
+China	NULL
+Colombia	NULL
+Congo, The Democratic Republic of the	NULL
+North Korea	NULL
+South Korea	NULL
+Greece	NULL
+Cuba	NULL
+Madagascar	NULL
+Malawi	NULL
+Mali	NULL
+Morocco	NULL
+Mexico	NULL
+Mozambique	NULL
+Myanmar	NULL
+Nepal	NULL
+Niger	NULL
+Nigeria	NULL
+Côte d?Ivoire	NULL
+Pakistan	NULL
+Peru	NULL
+Poland	NULL
+France	NULL
+Romania	NULL
+Germany	NULL
+Saudi Arabia	NULL
+Somalia	NULL
+Sri Lanka	NULL
+Sudan	NULL
+Syria	NULL
+Taiwan	NULL
+Tanzania	NULL
+Thailand	NULL
+Czech Republic	NULL
+Turkey	NULL
+Uganda	NULL
+Ukraine	NULL
+Hungary	NULL
+Uzbekistan	NULL
+Belarus	NULL
+Venezuela	NULL
+Russian Federation	NULL
+Vietnam	NULL
+show variables like 'join_buffer_size';
+Variable_name	Value
+join_buffer_size	131072
+set join_cache_level=4;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	4
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+EXPLAIN
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
+Name
+Vientiane
+Riga
+Daugavpils
+Maseru
+Beirut
+Tripoli
+Monrovia
+Tripoli
+Bengasi
+Misrata
+Vilnius
+Kaunas
+Klaipeda
+?iauliai
+Panevezys
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+FROM Country LEFT JOIN CountryLanguage ON
+(CountryLanguage.Country=Country.Code AND Language='English')
+WHERE 
+Country.Population > 10000000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+FROM Country LEFT JOIN CountryLanguage ON
+(CountryLanguage.Country=Country.Code AND Language='English')
+WHERE 
+Country.Population > 10000000;
+Name	IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+Australia	81.2
+United Kingdom	97.3
+Canada	60.4
+United States	86.2
+Zimbabwe	2.2
+Japan	0.1
+South Africa	8.5
+Malaysia	1.6
+Afghanistan	NULL
+Netherlands	NULL
+Algeria	NULL
+Angola	NULL
+Argentina	NULL
+Bangladesh	NULL
+Belgium	NULL
+Brazil	NULL
+Burkina Faso	NULL
+Chile	NULL
+Ecuador	NULL
+Egypt	NULL
+Spain	NULL
+Ethiopia	NULL
+Philippines	NULL
+Ghana	NULL
+Guatemala	NULL
+Indonesia	NULL
+India	NULL
+Iraq	NULL
+Iran	NULL
+Italy	NULL
+Yemen	NULL
+Yugoslavia	NULL
+Cambodia	NULL
+Cameroon	NULL
+Kazakstan	NULL
+Kenya	NULL
+China	NULL
+Colombia	NULL
+Congo, The Democratic Republic of the	NULL
+North Korea	NULL
+South Korea	NULL
+Greece	NULL
+Cuba	NULL
+Madagascar	NULL
+Malawi	NULL
+Mali	NULL
+Morocco	NULL
+Mexico	NULL
+Mozambique	NULL
+Myanmar	NULL
+Nepal	NULL
+Niger	NULL
+Nigeria	NULL
+Côte d?Ivoire	NULL
+Pakistan	NULL
+Peru	NULL
+Poland	NULL
+France	NULL
+Romania	NULL
+Germany	NULL
+Saudi Arabia	NULL
+Somalia	NULL
+Sri Lanka	NULL
+Sudan	NULL
+Syria	NULL
+Taiwan	NULL
+Tanzania	NULL
+Thailand	NULL
+Czech Republic	NULL
+Turkey	NULL
+Uganda	NULL
+Ukraine	NULL
+Hungary	NULL
+Uzbekistan	NULL
+Belarus	NULL
+Venezuela	NULL
+Russian Federation	NULL
+Vietnam	NULL
+show variables like 'join_buffer_size';
+Variable_name	Value
+join_buffer_size	131072
 set join_cache_level=5;
 show variables like 'join_cache_level';
 Variable_name	Value
@@ -1015,14 +1638,6 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-# !!!NB igor: after backporting the SJ code the following should return
-# EXPLAIN
-# SELECT Name FROM City
-# WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
-# City.Population > 100000;
-# id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-# 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-# 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 EXPLAIN
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -1330,14 +1945,6 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-# !!!NB igor: after backporting the SJ code the following should return
-# EXPLAIN
-# SELECT Name FROM City
-# WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
-# City.Population > 100000;
-# id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-# 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-# 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 EXPLAIN
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -1645,14 +2252,6 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-# !!!NB igor: after backporting the SJ code the following should return
-# EXPLAIN
-# SELECT Name FROM City
-# WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
-# City.Population > 100000;
-# id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-# 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-# 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 EXPLAIN
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -1960,14 +2559,6 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-# !!!NB igor: after backporting the SJ code the following should return
-# EXPLAIN
-# SELECT Name FROM City
-# WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
-# City.Population > 100000;
-# id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-# 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-# 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 EXPLAIN
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -2091,6 +2682,434 @@ set join_buffer_size=256;
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	256
+set join_cache_level=3;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	3
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+EXPLAIN
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
+Name
+Vientiane
+Riga
+Daugavpils
+Maseru
+Beirut
+Tripoli
+Monrovia
+Tripoli
+Bengasi
+Misrata
+Vilnius
+Kaunas
+Klaipeda
+?iauliai
+Panevezys
+set join_cache_level=4;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	4
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+EXPLAIN
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
+Name
+Vientiane
+Riga
+Daugavpils
+Maseru
+Beirut
+Tripoli
+Monrovia
+Tripoli
+Bengasi
+Misrata
+Vilnius
+Kaunas
+Klaipeda
+?iauliai
+Panevezys
 set join_cache_level=5;
 show variables like 'join_cache_level';
 Variable_name	Value
@@ -2279,14 +3298,6 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-# !!!NB igor: after backporting the SJ code the following should return
-# EXPLAIN
-# SELECT Name FROM City
-# WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
-# City.Population > 100000;
-# id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-# 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-# 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 EXPLAIN
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -2501,14 +3512,6 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-# !!!NB igor: after backporting the SJ code the following should return
-# EXPLAIN
-# SELECT Name FROM City
-# WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
-# City.Population > 100000;
-# id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-# 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-# 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 EXPLAIN
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -2723,14 +3726,6 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-# !!!NB igor: after backporting the SJ code the following should return
-# EXPLAIN
-# SELECT Name FROM City
-# WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
-# City.Population > 100000;
-# id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-# 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-# 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 EXPLAIN
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -2945,14 +3940,6 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-# !!!NB igor: after backporting the SJ code the following should return
-# EXPLAIN
-# SELECT Name FROM City
-# WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
-# City.Population > 100000;
-# id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-# 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-# 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 EXPLAIN
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -3038,7 +4025,7 @@ Ho Chi Minh City	Vietnam
 New York	United States
 Los Angeles	United States
 set join_cache_level=8;
-set join_buffer_size=256;
+set join_buffer_size=384;
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
@@ -3059,36 +4046,36 @@ Cairo	Egypt
 Jakarta	Indonesia
 Delhi	India
 Calcutta [Kolkata]	India
-Mumbai (Bombay)	India
 Chennai (Madras)	India
+Mumbai (Bombay)	India
 Baghdad	Iraq
 Teheran	Iran
 Tokyo	Japan
 Jokohama [Yokohama]	Japan
 Peking	China
 Chongqing	China
-Shanghai	China
+Tianjin	China
 Wuhan	China
 Harbin	China
 Shenyang	China
-Kanton [Guangzhou]	China
-Tianjin	China
+Shanghai	China
 Chengdu	China
+Kanton [Guangzhou]	China
 Santafé de Bogotá	Colombia
 Kinshasa	Congo, The Democratic Republic of the
-Seoul	South Korea
 Pusan	South Korea
+Seoul	South Korea
 Ciudad de México	Mexico
 Rangoon (Yangon)	Myanmar
-Karachi	Pakistan
 Lahore	Pakistan
+Karachi	Pakistan
 Lima	Peru
 Berlin	Germany
 Riyadh	Saudi Arabia
 Singapore	Singapore
 Bangkok	Thailand
-Ankara	Turkey
 Istanbul	Turkey
+Ankara	Turkey
 St Petersburg	Russian Federation
 Moscow	Russian Federation
 Ho Chi Minh City	Vietnam
@@ -3593,7 +4580,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t1 left join t2 on (1=0) where a=40;
 a	b
 40	NULL
-set join_cache_level=1;
+set join_cache_level=0;
 explain select * from t1 left join t2 on (1=0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
@@ -3714,6 +4701,7 @@ INSERT INTO t3(a,b) VALUES
 (4,30), (4,40), (4,50), (4,60), (4,70), (4,80),
 (5,30), (5,40), (5,50), (5,60), (5,70), (5,80),
 (7,30), (7,40), (7,50), (7,60), (7,70), (7,80);
+set join_cache_level=0;
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
 FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
 WHERE t1.a=t2.a;
@@ -3755,7 +4743,7 @@ a	a	a	b	b	val
 2	2	2	70	70	0
 2	2	2	80	80	0
 DROP INDEX idx ON t3;
-set join_cache_level=4;
+set join_cache_level=2;
 EXPLAIN
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
 FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
@@ -3997,9 +4985,9 @@ WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND
 t5.enum2='Active' AND t3.id4=t2.id4 AND t2.id3=t1.id3 AND t3.text1<'D';
 id1	num3	text1	id4	id3	dummy
 228172702	14	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	2567095402	2667134182	0
+228172702	134	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	2567095402	2667134182	0
 228172702	15	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	2567095402	2667134182	0
 228172702	3	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	2567095402	2667134182	0
-228172702	134	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	2567095402	2667134182	0
 228808822	61	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	13	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	60	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
@@ -4007,23 +4995,23 @@ id1	num3	text1	id4	id3	dummy
 228808822	3	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	4	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	6	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
-228808822	17	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
-228808822	50	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	18	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	1	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	3	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	4	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
+228808822	17	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
+228808822	50	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	826928662	935693782	0
 228808822	89	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	19	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
+228808822	9	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	84	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	14	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
-228808822	9	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	1	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	10	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	26	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
-228808822	4	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	3	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	1	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
+228808822	4	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	3	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	28	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	62	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
@@ -4185,3 +5173,4 @@ a	b
 2	2
 set join_cache_level=default;
 drop table t1,t2,t3;
+set @@optimizer_switch=@save_optimizer_switch;

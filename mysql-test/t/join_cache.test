@@ -3,6 +3,10 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 --enable_warnings
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='semijoin_with_cache=on';
+set @@optimizer_switch='outer_join_with_cache=on';
+
 set names utf8;
 
 CREATE DATABASE world;
@@ -160,7 +164,7 @@ use world;
 --enable_query_log
 
 show variables like 'join_buffer_size';
-set join_cache_level=5;
+set join_cache_level=3;
 show variables like 'join_cache_level';
 
 EXPLAIN
@@ -187,14 +191,106 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+show variables like 'join_buffer_size';
+set join_cache_level=4;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+
+show variables like 'join_buffer_size';
+set join_cache_level=5;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
 
 EXPLAIN
 SELECT Name FROM City
@@ -245,15 +341,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
-
 EXPLAIN
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -303,15 +390,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
-
 EXPLAIN
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -360,15 +438,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
-
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 
 EXPLAIN
 SELECT Name FROM City
@@ -395,7 +464,7 @@ SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.P
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
 
-set join_cache_level=5;
+set join_cache_level=3;
 show variables like 'join_cache_level';
 
 EXPLAIN
@@ -422,14 +491,77 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+set join_cache_level=4;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+set join_cache_level=5;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
 
 EXPLAIN
 SELECT Name FROM City
@@ -467,15 +599,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
-
 EXPLAIN
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -512,15 +635,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
-
 EXPLAIN
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -556,15 +670,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
-
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 
 EXPLAIN
 SELECT Name FROM City
@@ -587,7 +692,7 @@ SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
 set join_cache_level=8;
-set join_buffer_size=256;
+set join_buffer_size=384;
 
 --replace_column 9 #
 EXPLAIN
@@ -997,7 +1102,7 @@ select * from t1 left join t2 on (1=0);
 explain select * from t1 left join t2 on (1=0) where a=40;
 select * from t1 left join t2 on (1=0) where a=40;
 
-set join_cache_level=1;
+set join_cache_level=0;
 explain select * from t1 left join t2 on (1=0);
 
 set join_cache_level=default;
@@ -1131,6 +1236,8 @@ INSERT INTO t3(a,b) VALUES
   (5,30), (5,40), (5,50), (5,60), (5,70), (5,80),
   (7,30), (7,40), (7,50), (7,60), (7,70), (7,80);
 
+set join_cache_level=0;
+
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
   FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
     WHERE t1.a=t2.a; 
@@ -1148,7 +1255,7 @@ SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val
     WHERE t1.a=t2.a;
 
 DROP INDEX idx ON t3;
-set join_cache_level=4;
+set join_cache_level=2;
 
 EXPLAIN
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
@@ -1847,3 +1954,5 @@ select t1.* from t1,t2,t3;
 set join_cache_level=default;
 
 drop table t1,t2,t3;
+
+set @@optimizer_switch=@save_optimizer_switch;
