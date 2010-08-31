@@ -539,6 +539,11 @@ size_t my_strnxfrm_unicode(CHARSET_INFO *,
                            uchar *dst, size_t dstlen,
                            const uchar *src, size_t srclen);
 
+size_t my_strnxfrm_unicode_full_bin(CHARSET_INFO *,
+                                    uchar *dst, size_t dstlen,
+                                    const uchar *src, size_t srclen);
+size_t  my_strnxfrmlen_unicode_full_bin(CHARSET_INFO *, size_t); 
+
 int my_wildcmp_unicode(CHARSET_INFO *cs,
                        const char *str, const char *str_end,
                        const char *wildstr, const char *wildend,
