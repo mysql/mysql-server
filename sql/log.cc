@@ -4976,6 +4976,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   uchar header[LOG_EVENT_HEADER_LEN];
   ha_checksum crc, crc_0;
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
+  uchar buf[BINLOG_CHECKSUM_LEN];
 
   // while there is just one alg the following must hold:
   DBUG_ASSERT(!do_checksum ||
@@ -5074,7 +5075,8 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
           return ER_ERROR_ON_WRITE;
         if (remains == 0)
         {
-          if (my_b_write(&log_file, &crc, BINLOG_CHECKSUM_LEN))
+          int4store(buf, crc);
+          if (my_b_write(&log_file, buf, BINLOG_CHECKSUM_LEN))
             return ER_ERROR_ON_WRITE;
           crc= crc_0;
         }
@@ -5097,10 +5099,11 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
             */
             DBUG_ASSERT(crc != crc_0);
             crc= my_checksum(crc, cache->read_pos, hdr_offs);
+            int4store(buf, crc);
             remains -= hdr_offs;
             DBUG_ASSERT(remains == 0);
             if (my_b_write(&log_file, cache->read_pos, hdr_offs) ||
-                my_b_write(&log_file, &crc, BINLOG_CHECKSUM_LEN))
+                my_b_write(&log_file, buf, BINLOG_CHECKSUM_LEN))
               return ER_ERROR_ON_WRITE;
             crc= crc_0;
           }
@@ -5136,7 +5139,8 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
               return ER_ERROR_ON_WRITE;
             if (remains == 0)
             {
-              if (my_b_write(&log_file, &crc, BINLOG_CHECKSUM_LEN))
+              int4store(buf, crc);
+              if (my_b_write(&log_file, buf, BINLOG_CHECKSUM_LEN))
                 return ER_ERROR_ON_WRITE;
               crc= crc_0; // crc is complete
             }
