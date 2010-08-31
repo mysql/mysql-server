@@ -2630,8 +2630,10 @@ public:
 
   virtual void print(String *str, enum_query_type query_type)
   {
-    /* TODO: maybe print something for EXPLAIN EXTENDED */
-    return orig_item->print(str, query_type);
+    str->append(func_name());
+    str->append('(');
+    orig_item->print(str, query_type);
+    str->append(')');
   }
   virtual const char *full_name() const { return orig_item->full_name(); }
   virtual void make_field(Send_field *field) { orig_item->make_field(field); }
