@@ -3224,9 +3224,11 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
 
 
 /**
-  Initialize TABLE instance and prepare it to be used further.
-  Set the 'alias' attribute from the specified TABLE_LIST element.
-  Remember the TABLE_LIST element in the 'pos_in_table_list' member.
+  Initialize TABLE instance (newly created, or coming either from table
+  cache or THD::temporary_tables list) and prepare it for further use
+  during statement execution. Set the 'alias' attribute from the specified
+  TABLE_LIST element. Remember the TABLE_LIST element in the
+  TABLE::pos_in_table_list member.
 
   @param thd  Thread context.
   @param tl   TABLE_LIST element.
