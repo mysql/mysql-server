@@ -2379,6 +2379,8 @@ Dbtc::seizeTcRecord(Signal* signal)
   regTcPtr->m_special_op_flags = 0;
   regTcPtr->indexOp = RNIL;
   regTcPtr->currentTriggerId = RNIL;
+  regTcPtr->tcConnectstate = OS_ABORTING;
+  regTcPtr->noOfNodes = 0;
 
   regApiPtr->lastTcConnect = TtcConnectptrIndex;
 
@@ -2941,6 +2943,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       {
         jam();
         CommitAckMarkerPtr tmp;
+        if (ERROR_INSERTED(8087))
+        {
+          CLEAR_ERROR_INSERT_VALUE;
+          TCKEY_abort(signal, 56);
+          return;
+        }
+
         if (!m_commitAckMarkerHash.seize(tmp))
         {
           TCKEY_abort(signal, 56);
@@ -12108,6 +12117,8 @@ void Dbtc::seizeTcConnect(Signal* signal)
   cfirstfreeTcConnect = tcConnectptr.p->nextTcConnect;
   c_counters.cconcurrentOp++;
   tcConnectptr.p->m_special_op_flags = 0;
+  tcConnectptr.p->tcConnectstate = OS_ABORTING;
+  tcConnectptr.p->noOfNodes = 0;
 }//Dbtc::seizeTcConnect()
 
 void Dbtc::seizeTcConnectFail(Signal* signal) 
