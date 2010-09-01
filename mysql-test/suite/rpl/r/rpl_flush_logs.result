@@ -4,12 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-# Make sure the 'master_log.err-old' file does not
-# exist before execute 'flush error logs' statement.
 # Test if support 'flush error logs' statement.
 flush error logs;
-# Check the 'master_log.err-old' file is created
-# after executed 'flush error logs' statement.
 # Make sure binary logs was not be flushed
 # after execute 'flush error logs' statement.
 # Make sure relay logs was not be flushed 
@@ -42,12 +38,8 @@ flush binary logs;
 # after executed 'flush binary logs' statement.
 # Make sure the 'slave-relay-bin.000007' file does not exist
 # exist before execute 'flush error logs, relay logs' statement.
-# Make sure the 'master_log.err-old' file does not exist
-# before execute 'flush error logs, relay logs' statement.
 # Test if support to combine all kinds of logs into one statement.
 flush error logs, relay logs;
-# Check the 'master_log.err-old' file is created
-# after executed 'flush error logs, relay logs' statement.
 # Make sure binary logs was not be flushed
 # after execute 'flush error logs, relay logs' statement.
 # Check the 'slave-relay-bin.000007' file is created after
@@ -55,12 +47,8 @@ flush error logs, relay logs;
 # Make sure the 'slave-relay-bin.000008' and 'slave-relay-bin.000009' 
 # files do not exist before execute 'flush error logs, relay logs' 
 # statement.
-# Make sure the 'master_log.err-old' file does not exist
-# before execute 'flush logs' statement.
 # Test if 'flush logs' statement works fine and flush all the logs.
 flush logs;
-# Check the 'master_log.err-old' file is created
-# after executed 'flush logs' statement.
 # Check 'master-bin.000003' is created
 # after execute 'flush logs' statement.
 # Check the 'slave-relay-bin.000008' and 'slave-relay-bin.000009' 
