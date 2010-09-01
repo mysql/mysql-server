@@ -3153,6 +3153,7 @@ btr_cur_add_path_info(
 {
 	btr_path_t*	slot;
 	rec_t*		rec;
+	page_t*		page;
 
 	ut_a(cursor->path_arr);
 
@@ -3175,8 +3176,155 @@ btr_cur_add_path_info(
 
 	slot = cursor->path_arr + (root_height - height);
 
+	page = page_align(rec);
+
 	slot->nth_rec = page_rec_get_n_recs_before(rec);
-	slot->n_recs = page_get_n_recs(page_align(rec));
+	slot->n_recs = page_get_n_recs(page);
+	slot->page_no = page_get_page_no(page);
+	slot->page_level = btr_page_get_level_low(page);
+}
+
+/*******************************************************************//**
+Estimate the number of rows between slot1 and slot2 for any level on a
+B-tree. This function starts from slot1->page and reads a few pages to
+the right, counting their records. If we reach slot2->page quickly then
+we know exactly how many records there are between slot1 and slot2 and
+we set is_n_rows_exact to TRUE. If we cannot reach slot2->page quickly
+then we calculate the average number of records in the pages scanned
+so far and assume that all pages that we did not scan up to slot2->page
+contain the same number of records, then we multiply that average to
+the number of pages between slot1->page and slot2->page (which is
+n_rows_on_prev_level). In this case we set is_n_rows_exact to FALSE.
+@return	number of rows (exact or estimated) */
+static
+ib_int64_t
+btr_estimate_n_rows_in_range_on_level(
+/*==================================*/
+	dict_index_t*	index,			/*!< in: index */
+	btr_path_t*	slot1,			/*!< in: left border */
+	btr_path_t*	slot2,			/*!< in: right border */
+	ib_int64_t	n_rows_on_prev_level,	/*!< in: number of rows
+						on the previous level for the
+						same descend paths; used to
+						determine the numbe of pages
+						on this level */
+	ibool*		is_n_rows_exact)	/*!< out: TRUE if the returned
+						value is exact i.e. not an
+						estimation */
+{
+	ulint		space;
+	ib_int64_t	n_rows;
+	ulint		n_pages_read;
+	ulint		page_no;
+	ulint		zip_size;
+	ulint		level;
+
+	space = dict_index_get_space(index);
+
+	n_rows = 0;
+	n_pages_read = 0;
+
+	/* Assume by default that we will scan all pages between
+	slot1->page_no and slot2->page_no */
+	*is_n_rows_exact = TRUE;
+
+	/* add records from slot1->page_no which are to the right of
+	the record which serves as a left border of the range, if any */
+	if (slot1->nth_rec < slot1->n_recs) {
+		n_rows += slot1->n_recs - slot1->nth_rec;
+	}
+
+	/* add records from slot2->page_no which are to the left of
+	the record which servers as a right border of the range, if any */
+	if (slot2->nth_rec > 1) {
+		n_rows += slot2->nth_rec - 1;
+	}
+
+	/* count the records in the pages between slot1->page_no and
+	slot2->page_no (non inclusive), if any */
+
+	zip_size = fil_space_get_zip_size(space);
+
+	/* Do not read more than this number of pages in order not to hurt
+	performance with this code which is just an estimation. If we read
+	this many pages before reaching slot2->page_no then we estimate the
+	average from the pages scanned so far */
+	#define N_PAGES_READ_LIMIT	10
+
+	page_no = slot1->page_no;
+	level = slot1->page_level;
+
+	do {
+		mtr_t		mtr;
+		page_t*		page;
+		buf_block_t*	block;
+
+		mtr_start(&mtr);
+
+		/* fetch the page */
+		block = buf_page_get(space, zip_size, page_no, RW_S_LATCH,
+				     &mtr);
+
+		page = buf_block_get_frame(block);
+
+		/* It is possible that the tree has been reorganized in the
+		meantime and this is a different page. If this happens the
+		calculated estimate will be bogus, which is not fatal as
+		this is only an estimate. We are sure that a page with
+		page_no exists because InnoDB never frees pages, only
+		reuses them. */
+		if (fil_page_get_type(page) != FIL_PAGE_INDEX
+		    || btr_page_get_index_id(page) != index->id
+		    || btr_page_get_level_low(page) != level) {
+
+			/* The page got reused for something else */
+			goto inexact;
+		}
+
+		n_pages_read++;
+
+		if (page_no != slot1->page_no) {
+			/* Do not count the records on slot1->page_no,
+			we already counted them before this loop. */
+			n_rows += page_get_n_recs(page);
+		}
+
+		page_no = btr_page_get_next(page, &mtr);
+
+		mtr_commit(&mtr);
+
+		if (n_pages_read == N_PAGES_READ_LIMIT
+		    || page_no == FIL_NULL) {
+			/* Either we read too many pages or
+			we reached the end of the level without passing
+			through slot2->page_no, the tree must have changed
+			in the meantime */
+			goto inexact;
+		}
+
+	} while (page_no != slot2->page_no);
+
+	return(n_rows);
+
+inexact:
+
+	*is_n_rows_exact = FALSE;
+
+	/* We did interrupt before reaching slot2->page */
+
+	if (n_pages_read > 0) {
+		/* The number of pages on this level is
+		n_rows_on_prev_level, multiply it by the
+		average number of recs per page so far */
+		n_rows = n_rows_on_prev_level
+			* n_rows / n_pages_read;
+	} else {
+		/* The tree changed before we could even
+		start with slot1->page_no */
+		n_rows = 10;
+	}
+
+	return(n_rows);
 }
 
 /*******************************************************************//**
@@ -3201,6 +3349,7 @@ btr_estimate_n_rows_in_range(
 	ibool		diverged_lot;
 	ulint		divergence_level;
 	ib_int64_t	n_rows;
+	ibool		is_n_rows_exact;
 	ulint		i;
 	mtr_t		mtr;
 
@@ -3243,6 +3392,7 @@ btr_estimate_n_rows_in_range(
 	/* We have the path information for the range in path1 and path2 */
 
 	n_rows = 1;
+	is_n_rows_exact = TRUE;
 	diverged = FALSE;	    /* This becomes true when the path is not
 				    the same any more */
 	diverged_lot = FALSE;	    /* This becomes true when the paths are
@@ -3258,7 +3408,7 @@ btr_estimate_n_rows_in_range(
 		if (slot1->nth_rec == ULINT_UNDEFINED
 		    || slot2->nth_rec == ULINT_UNDEFINED) {
 
-			if (i > divergence_level + 1) {
+			if (i > divergence_level + 1 && !is_n_rows_exact) {
 				/* In trees whose height is > 1 our algorithm
 				tends to underestimate: multiply the estimate
 				by 2: */
@@ -3270,7 +3420,9 @@ btr_estimate_n_rows_in_range(
 			to over 1 / 2 of the estimated rows in the whole
 			table */
 
-			if (n_rows > index->table->stat_n_rows / 2) {
+			if (n_rows > index->table->stat_n_rows / 2
+			    && !is_n_rows_exact) {
+
 				n_rows = index->table->stat_n_rows / 2;
 
 				/* If there are just 0 or 1 rows in the table,
@@ -3296,10 +3448,15 @@ btr_estimate_n_rows_in_range(
 					divergence_level = i;
 				}
 			} else {
-				/* Maybe the tree has changed between
-				searches */
-
-				return(10);
+				/* It is possible that
+				slot1->nth_rec >= slot2->nth_rec
+				if, for example, we have a single page
+				tree which contains (inf, 5, 6, supr)
+				and we select where x > 20 and x < 30;
+				in this case slot1->nth_rec will point
+				to the supr record and slot2->nth_rec
+				will point to 6 */
+				n_rows = 0;
 			}
 
 		} else if (diverged && !diverged_lot) {
@@ -3323,8 +3480,9 @@ btr_estimate_n_rows_in_range(
 			}
 		} else if (diverged_lot) {
 
-			n_rows = (n_rows * (slot1->n_recs + slot2->n_recs))
-				/ 2;
+			n_rows = btr_estimate_n_rows_in_range_on_level(
+				index, slot1, slot2, n_rows,
+				&is_n_rows_exact);
 		}
 	}
 }

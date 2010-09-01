@@ -655,7 +655,8 @@ connection master;
 connection master1;
 --echo # Waitng for 'insert into t1 ...' to get blocked on table lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='insert into t1 (a) values (f1())';
+where state='Waiting for table metadata lock' and
+      info='insert into t1 (a) values (f1())';
 --source include/wait_condition.inc
 --echo # Sending 'drop function f1'. It will wait till insert finishes.
 --send drop function f1;
@@ -663,7 +664,7 @@ where state='Waiting for table' and info='insert into t1 (a) values (f1())';
 connection default;
 --echo # Check that 'drop function f1' gets blocked.
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop function f1';
+where state='Waiting for stored function metadata lock' and info='drop function f1';
 --source include/wait_condition.inc
 --echo # Now let's let 'insert' go through...
 unlock tables;

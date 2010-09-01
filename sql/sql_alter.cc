@@ -17,9 +17,9 @@
                                              // check_merge_table_access
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
-#include "sql_alter_table.h"
+#include "sql_alter.h"
 
-bool Alter_table_statement::execute(THD *thd)
+bool Sql_cmd_alter_table::execute(THD *thd)
 {
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
@@ -39,7 +39,7 @@ bool Alter_table_statement::execute(THD *thd)
   ulong priv_needed= ALTER_ACL;
   bool result;
 
-  DBUG_ENTER("Alter_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_alter_table::execute");
 
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(TRUE);
@@ -53,6 +53,7 @@ bool Alter_table_statement::execute(THD *thd)
   /* Must be set in the parser */
   DBUG_ASSERT(select_lex->db);
   DBUG_ASSERT(!(alter_info.flags & ALTER_EXCHANGE_PARTITION));
+  DBUG_ASSERT(!(alter_info.flags & ALTER_ADMIN_PARTITION));
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
                    &first_table->grant.m_internal,
@@ -74,10 +75,10 @@ bool Alter_table_statement::execute(THD *thd)
     TABLE_LIST tmp_table;
     bzero((char*) &tmp_table,sizeof(tmp_table));
     tmp_table.table_name= lex->name.str;
-    tmp_table.db=select_lex->db;
-    tmp_table.grant.privilege=priv;
-    if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table,
-                    FALSE, UINT_MAX, FALSE))
+    tmp_table.db= select_lex->db;
+    tmp_table.grant.privilege= priv;
+    if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, FALSE,
+                    UINT_MAX, FALSE))
       DBUG_RETURN(TRUE);                  /* purecov: inspected */
   }
 
@@ -94,8 +95,10 @@ bool Alter_table_statement::execute(THD *thd)
 
   thd->enable_slow_log= opt_log_slow_admin_statements;
 
-  result= mysql_alter_table(thd, select_lex->db, lex->name.str, &create_info,
-                            first_table, &alter_info,
+  result= mysql_alter_table(thd, select_lex->db, lex->name.str,
+                            &create_info,
+                            first_table,
+                            &alter_info,
                             select_lex->order_list.elements,
                             select_lex->order_list.first,
                             lex->ignore);

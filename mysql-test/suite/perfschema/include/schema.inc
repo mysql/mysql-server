@@ -27,9 +27,9 @@ show create table COND_INSTANCES;
 show create table EVENTS_WAITS_CURRENT;
 show create table EVENTS_WAITS_HISTORY;
 show create table EVENTS_WAITS_HISTORY_LONG;
-show create table EVENTS_WAITS_SUMMARY_BY_EVENT_NAME;
 show create table EVENTS_WAITS_SUMMARY_BY_INSTANCE;
 show create table EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
+show create table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
 show create table FILE_INSTANCES;
 show create table FILE_SUMMARY_BY_EVENT_NAME;
 show create table FILE_SUMMARY_BY_INSTANCE;
@@ -39,7 +39,6 @@ show create table RWLOCK_INSTANCES;
 show create table SETUP_ACTORS;
 show create table SETUP_CONSUMERS;
 show create table SETUP_INSTRUMENTS;
-show create table SETUP_OBJECTS;
 show create table SETUP_TIMERS;
 show create table THREADS;
 

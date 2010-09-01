@@ -153,7 +153,7 @@ connection master;
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
   WHERE info = "RENAME TABLE t1 TO t3, t2 TO t1" and
-  state = "Waiting for table";
+  state = "Waiting for table metadata lock";
 --source include/wait_condition.inc
 
 COMMIT;

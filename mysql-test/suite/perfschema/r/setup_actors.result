@@ -60,7 +60,7 @@ thread/sql/one_connection	FOREGROUND	YES	user3	localhost
 # comes back. We will pull this later.
 insert into test.t1 set col1 = 1;
 # Switch to (con4, localhost, user4, , )
-# Poll till INFO is no more NULL and State = 'Waiting for table'.
+# Poll till INFO is no more NULL and State = 'Waiting for table metadata lock'.
 select count(*) = 1
 from performance_schema.THREADS T inner join information_schema.PROCESSLIST P
 on T.PROCESSLIST_ID = P.ID and T.PROCESSLIST_USER = P.USER and

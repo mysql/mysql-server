@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,19 +14,22 @@
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
+# Check server start for short server start options
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
+select 'Ok, the server started' as result;
 
---replace_result '\'setup_objects' '\'SETUP_OBJECTS'
--- error ER_DBACCESS_DENIED_ERROR
-alter table performance_schema.SETUP_OBJECTS add column foo integer;
+# See the associated -master.opt file.
 
-truncate table performance_schema.SETUP_OBJECTS;
+select @@SQL_MODE;
+show variables like 'sql_mode';
 
--- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.SETUP_OBJECTS ADD INDEX test_index(OBJECT_NAME);
+select @@character_set_server;
+show variables like 'character_set_system';
 
--- error ER_DBACCESS_DENIED_ERROR
-CREATE UNIQUE INDEX test_index ON performance_schema.SETUP_OBJECTS(OBJECT_NAME);
+show variables like 'log';
+show variables like 'general_log';
+
+show variables like 'new';
+
+show variables like 'log_warnings';
 

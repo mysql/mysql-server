@@ -30,9 +30,9 @@ select * from performance_schema.COND_INSTANCES;
 select * from performance_schema.EVENTS_WAITS_CURRENT;
 select * from performance_schema.EVENTS_WAITS_HISTORY;
 select * from performance_schema.EVENTS_WAITS_HISTORY_LONG;
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME;
 select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE;
 select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
+select * from performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
 select * from performance_schema.FILE_INSTANCES;
 select * from performance_schema.FILE_SUMMARY_BY_EVENT_NAME;
 select * from performance_schema.FILE_SUMMARY_BY_INSTANCE;
@@ -42,7 +42,6 @@ select * from performance_schema.RWLOCK_INSTANCES;
 select * from performance_schema.SETUP_ACTORS;
 select * from performance_schema.SETUP_CONSUMERS;
 select * from performance_schema.SETUP_INSTRUMENTS;
-select * from performance_schema.SETUP_OBJECTS;
 select * from performance_schema.SETUP_TIMERS;
 select * from performance_schema.THREADS;
 --enable_result_log
