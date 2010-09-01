@@ -1084,9 +1084,9 @@ static NDB_SHARE *ndbcluster_check_ndb_apply_status_share()
 {
   pthread_mutex_lock(&ndbcluster_mutex);
 
-  void *share= hash_search(&ndbcluster_open_tables, 
-                           (uchar*) NDB_APPLY_TABLE_FILE,
-                           sizeof(NDB_APPLY_TABLE_FILE) - 1);
+  void *share= my_hash_search(&ndbcluster_open_tables,
+                              (const uchar*) NDB_APPLY_TABLE_FILE,
+                              sizeof(NDB_APPLY_TABLE_FILE) - 1);
   DBUG_PRINT("info",("ndbcluster_check_ndb_apply_status_share %s 0x%lx",
                      NDB_APPLY_TABLE_FILE, (long) share));
   pthread_mutex_unlock(&ndbcluster_mutex);
@@ -1102,9 +1102,9 @@ static NDB_SHARE *ndbcluster_check_ndb_schema_share()
 {
   pthread_mutex_lock(&ndbcluster_mutex);
 
-  void *share= hash_search(&ndbcluster_open_tables, 
-                           (uchar*) NDB_SCHEMA_TABLE_FILE,
-                           sizeof(NDB_SCHEMA_TABLE_FILE) - 1);
+  void *share= my_hash_search(&ndbcluster_open_tables,
+                              (const uchar*) NDB_SCHEMA_TABLE_FILE,
+                              sizeof(NDB_SCHEMA_TABLE_FILE) - 1);
   DBUG_PRINT("info",("ndbcluster_check_ndb_schema_share %s 0x%lx",
                      NDB_SCHEMA_TABLE_FILE, (long) share));
   pthread_mutex_unlock(&ndbcluster_mutex);
@@ -2825,8 +2825,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
       {
         pthread_mutex_lock(&ndbcluster_mutex);
         NDB_SCHEMA_OBJECT *ndb_schema_object=
-          (NDB_SCHEMA_OBJECT*) hash_search(&ndb_schema_objects,
-                                           (uchar*) key, strlen(key));
+          (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects,
+                                              (const uchar*) key, strlen(key));
         if (ndb_schema_object)
         {
           pthread_mutex_lock(&ndb_schema_object->mutex);
@@ -4114,8 +4114,8 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   pthread_mutex_lock(&ndbcluster_mutex);
 
   /* Handle any trailing share */
-  NDB_SHARE *share= (NDB_SHARE*) hash_search(&ndbcluster_open_tables,
-                                             (uchar*) key, key_len);
+  NDB_SHARE *share= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
+                                                (const uchar*) key, key_len);
 
   if (share && share_may_exist)
   {
@@ -5469,9 +5469,9 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
   if (!have_lock)
     pthread_mutex_lock(&ndbcluster_mutex);
   while (!(ndb_schema_object=
-           (NDB_SCHEMA_OBJECT*) hash_search(&ndb_schema_objects,
-                                            (uchar*) key,
-                                            length)))
+           (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects,
+                                               (const uchar*) key,
+                                               length)))
   {
     if (!create_if_not_exists)
     {
@@ -5520,7 +5520,7 @@ static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
   if (!--(*ndb_schema_object)->use_count)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
-    hash_delete(&ndb_schema_objects, (uchar*) *ndb_schema_object);
+    my_hash_delete(&ndb_schema_objects, (uchar*) *ndb_schema_object);
     pthread_mutex_destroy(&(*ndb_schema_object)->mutex);
     my_free((uchar*) *ndb_schema_object, MYF(0));
     *ndb_schema_object= 0;
@@ -5682,8 +5682,8 @@ restart_cluster_failure:
   }
 
   /* init hash for schema object distribution */
-  (void) hash_init(&ndb_schema_objects, system_charset_info, 32, 0, 0,
-                   (hash_get_key)ndb_schema_objects_get_key, 0, 0);
+  (void) my_hash_init(&ndb_schema_objects, system_charset_info, 32, 0, 0,
+                      (my_hash_get_key)ndb_schema_objects_get_key, 0, 0);
 
   /*
     Expose global reference to our ndb object.
@@ -6452,7 +6452,7 @@ restart_cluster_failure:
     i_ndb= 0;
   }
 
-  hash_free(&ndb_schema_objects);
+  my_hash_free(&ndb_schema_objects);
 
   if (thd_ndb)
   {
