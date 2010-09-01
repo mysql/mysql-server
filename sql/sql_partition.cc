@@ -287,7 +287,7 @@ bool check_reorganise_list(partition_info *new_part_info,
   the partition ids of the old and the new record.
 
   SYNOPSIS
-    get_parts_for_update()
+    get_part_for_update()
     old_data                Buffer of old record
     new_data                Buffer of new record
     rec0                    Reference to table->record[0]
@@ -1488,14 +1488,13 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
                                            uint no_parts)
 {
   uint32 part_id= (uint32)(hash_value & mask);
-  DBUG_ENTER("get_part_id_from_linear_hash");
 
   if (part_id >= no_parts)
   {
     uint new_mask= ((mask + 1) >> 1) - 1;
     part_id= (uint32)(hash_value & new_mask);
   }
-  DBUG_RETURN(part_id);
+  return part_id;
 }
 
 
@@ -2313,6 +2312,7 @@ static inline int part_val_int(Item *item_expr, longlong *result)
   return FALSE;
 }
 
+
 /*
   The next set of functions are used to calculate the partition identity.
   A handler sets up a variable that corresponds to one of these functions
@@ -2325,14 +2325,48 @@ static inline int part_val_int(Item *item_expr, longlong *result)
 
   We have a set of support functions for these 14 variants. There are 4
   variants of hash functions and there is a function for each. The KEY
-  partitioning uses the function calculate_key_hash_value to calculate the
-  hash value based on an array of fields. The linear hash variants uses the
+  partitioning uses the function calculate_key_value to calculate the hash
+  value based on an array of fields. The linear hash variants uses the
   method get_part_id_from_linear_hash to get the partition id using the
   hash value and some parameters calculated from the number of partitions.
-
-  Handlers can implement their own calculate_key_hash_value function or use the
-  method defined in ha_partition.cc
 */
+
+#if 0
+/*
+  Obsoleted by handler::calculate_key_hash_value
+  Handlers can now implement their own calculate_key_hash_value function
+  or use the method defined in ha_partition.cc
+*/
+
+/*
+  Calculate hash value for KEY partitioning using an array of fields.
+
+  SYNOPSIS
+    calculate_key_value()
+    field_array             An array of the fields in KEY partitioning
+
+  RETURN VALUE
+    hash_value calculated
+
+  DESCRIPTION
+    Uses the hash function on the character set of the field. Integer and
+    floating point fields use the binary character set by default.
+*/
+
+static uint32 calculate_key_value(Field **field_array)
+{
+  ulong nr1= 1;
+  ulong nr2= 4;
+
+  do
+  {
+    Field *field= *field_array;
+    field->hash(&nr1, &nr2);
+  } while (*(++field_array));
+  return (uint32) nr1;
+}
+#endif
+
 
 /*
   A simple support function to calculate part_id given local part and
@@ -2595,14 +2629,13 @@ static int get_part_id_charset_func_subpart(partition_info *part_info,
                                             longlong *func_value)
 {
   int res;
-  DBUG_ENTER("get_part_id_charset_func_subpart");
   copy_to_part_field_buffers(part_info->subpart_charset_field_array,
                              part_info->subpart_field_buffers,
                              part_info->restore_subpart_field_ptrs);
   res= part_info->get_partition_id_charset(part_info, part_id, func_value);
   restore_part_field_pointers(part_info->subpart_charset_field_array,
                               part_info->restore_subpart_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 
@@ -2611,14 +2644,13 @@ static int get_part_id_charset_func_part(partition_info *part_info,
                                          longlong *func_value)
 {
   int res;
-  DBUG_ENTER("get_part_id_charset_func_part");
   copy_to_part_field_buffers(part_info->part_charset_field_array,
                              part_info->part_field_buffers,
                              part_info->restore_part_field_ptrs);
   res= part_info->get_partition_id_charset(part_info, part_id, func_value);
   restore_part_field_pointers(part_info->part_charset_field_array,
                               part_info->restore_part_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 
@@ -2627,14 +2659,13 @@ static int get_part_id_charset_func_all(partition_info *part_info,
                                         longlong *func_value)
 {
   int res;
-  DBUG_ENTER("get_part_id_charset_func_all");
   copy_to_part_field_buffers(part_info->full_part_field_array,
                              part_info->full_part_field_buffers,
                              part_info->restore_full_part_field_ptrs);
   res= part_info->get_partition_id_charset(part_info, part_id, func_value);
   restore_part_field_pointers(part_info->full_part_field_array,
                               part_info->restore_full_part_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 
@@ -2643,7 +2674,6 @@ static int get_part_part_id_charset_func(partition_info *part_info,
                                          longlong *func_value)
 {
   int res;
-  DBUG_ENTER("get_part_part_id_charset_func");
   copy_to_part_field_buffers(part_info->part_charset_field_array,
                              part_info->part_field_buffers,
                              part_info->restore_part_field_ptrs);
@@ -2651,7 +2681,7 @@ static int get_part_part_id_charset_func(partition_info *part_info,
                                                 part_id, func_value);
   restore_part_field_pointers(part_info->part_charset_field_array,
                               part_info->restore_part_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 
@@ -2659,14 +2689,13 @@ static int get_subpart_id_charset_func(partition_info *part_info,
                                        uint32 *part_id)
 {
   int res;
-  DBUG_ENTER("get_subpart_id_charset_func");
   copy_to_part_field_buffers(part_info->subpart_charset_field_array,
                              part_info->subpart_field_buffers,
                              part_info->restore_subpart_field_ptrs);
   res= part_info->get_subpartition_id_charset(part_info, part_id);
   restore_part_field_pointers(part_info->subpart_charset_field_array,
                               part_info->restore_subpart_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 
@@ -2766,7 +2795,6 @@ uint32 get_list_array_idx_for_endpoint_charset(partition_info *part_info,
                                                bool include_endpoint)
 {
   uint32 res;
-  DBUG_ENTER("get_list_array_idx_for_endpoint_charset");
   copy_to_part_field_buffers(part_info->part_field_array,
                              part_info->part_field_buffers,
                              part_info->restore_part_field_ptrs);
@@ -2774,7 +2802,7 @@ uint32 get_list_array_idx_for_endpoint_charset(partition_info *part_info,
                                        include_endpoint);
   restore_part_field_pointers(part_info->part_field_array,
                               part_info->restore_part_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
@@ -2931,7 +2959,6 @@ get_partition_id_range_for_endpoint_charset(partition_info *part_info,
                                             bool include_endpoint)
 {
   uint32 res;
-  DBUG_ENTER("get_partition_id_range_for_endpoint_charset");
   copy_to_part_field_buffers(part_info->part_field_array,
                              part_info->part_field_buffers,
                              part_info->restore_part_field_ptrs);
@@ -2939,7 +2966,7 @@ get_partition_id_range_for_endpoint_charset(partition_info *part_info,
                                            include_endpoint);
   restore_part_field_pointers(part_info->part_field_array,
                               part_info->restore_part_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
@@ -3033,8 +3060,8 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
 
 
 int get_partition_id_hash_nosub(partition_info *part_info,
-                                uint32 *part_id,
-                                longlong *func_value)
+                                 uint32 *part_id,
+                                 longlong *func_value)
 {
   return get_part_id_hash(part_info->no_parts, part_info->part_expr,
                           part_id, func_value);
@@ -3042,8 +3069,8 @@ int get_partition_id_hash_nosub(partition_info *part_info,
 
 
 int get_partition_id_linear_hash_nosub(partition_info *part_info,
-                                       uint32 *part_id,
-                                       longlong *func_value)
+                                        uint32 *part_id,
+                                        longlong *func_value)
 {
   return get_part_id_linear_hash(part_info, part_info->no_parts,
                                  part_info->part_expr, part_id, func_value);
@@ -6751,13 +6778,12 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter)
 {
+  DBUG_ASSERT(!is_subpart);
   Field *field= part_info->part_field_array[0];
   uint32             max_endpoint_val;
   get_endpoint_func  get_endpoint;
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
-  DBUG_ENTER("get_part_iter_for_interval_via_mapping");
-  DBUG_ASSERT(!is_subpart);
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
 
   if (part_info->part_type == RANGE_PARTITION)
@@ -6789,7 +6815,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
       part_iter->part_nums.start= part_iter->part_nums.end= 0;
       part_iter->part_nums.cur= 0;
       part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
-      DBUG_RETURN(-1);
+      return -1;
     }
   }
   else
@@ -6825,7 +6851,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     {
       /* The right bound is X <= NULL, i.e. it is a "X IS NULL" interval */
       part_iter->part_nums.end= 0;
-      DBUG_RETURN(1);
+      return 1;
     }
   }
   else
@@ -6849,13 +6875,11 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
         part_iter->part_nums.cur= part_iter->part_nums.start= 0;
         part_iter->part_nums.end= 0;
         part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
-        DBUG_RETURN(1);
+        return 1;
       }
       part_iter->part_nums.cur= part_iter->part_nums.start;
       if (part_iter->part_nums.start == max_endpoint_val)
-      {
-        DBUG_RETURN(0); /* No partitions */
-      }
+        return 0; /* No partitions */
     }
   }
 
@@ -6869,11 +6893,9 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
     if (part_iter->part_nums.start >= part_iter->part_nums.end &&
         !part_iter->ret_null_part)
-    {
-      DBUG_RETURN(0); /* No partitions */
-    }
+      return 0; /* No partitions */
   }
-  DBUG_RETURN(1); /* Ok, iterator initialized */
+  return 1; /* Ok, iterator initialized */
 }
 
 
@@ -6939,7 +6961,6 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   Field *field;
   uint total_parts;
   partition_iter_func get_next_func;
-  DBUG_ENTER("get_part_iter_for_interval_via_walking");
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   if (is_subpart)
   {
@@ -6970,7 +6991,7 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
       if (!part_info->get_subpartition_id(part_info, &part_id))
       {
         init_single_partition_iterator(part_id, part_iter);
-        DBUG_RETURN(1); /* Ok, iterator initialized */
+        return 1; /* Ok, iterator initialized */
       }
     }
     else
@@ -6983,10 +7004,10 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
       if (!res)
       {
         init_single_partition_iterator(part_id, part_iter);
-        DBUG_RETURN(1); /* Ok, iterator initialized */
+        return 1; /* Ok, iterator initialized */
       }
     }
-    DBUG_RETURN(0); /* No partitions match */
+    return 0; /* No partitions match */
   }
 
   if ((field->real_maybe_null() && 
@@ -6994,7 +7015,7 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
         (!(flags & NO_MAX_RANGE) && *max_value))) ||  // X <? NULL
       (flags & (NO_MIN_RANGE | NO_MAX_RANGE)))    // -inf at any bound
   {
-    DBUG_RETURN(-1); /* Can't handle this interval, have to use all partitions */
+    return -1; /* Can't handle this interval, have to use all partitions */
   }
   
   /* Get integers for left and right interval bound */
@@ -7013,22 +7034,20 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
     an empty interval by "wrapping around" a + 4G-1 + 1 = a. 
   */
   if ((ulonglong)b - (ulonglong)a == ~0ULL)
-  {
-    DBUG_RETURN(-1);
-  }
+    return -1;
+
   a += test(flags & NEAR_MIN);
   b += test(!(flags & NEAR_MAX));
   ulonglong n_values= b - a;
   
   if (n_values > total_parts || n_values > MAX_RANGE_TO_WALK)
-  {
-    DBUG_RETURN(-1);
-  }
+    return -1;
+
   part_iter->field_vals.start= part_iter->field_vals.cur= a;
   part_iter->field_vals.end=   b;
   part_iter->part_info= part_info;
   part_iter->get_next=  get_next_func;
-  DBUG_RETURN(1);
+  return 1;
 }
 
 
