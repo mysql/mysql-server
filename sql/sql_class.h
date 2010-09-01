@@ -1661,6 +1661,10 @@ public:
         xid_state.xid.null();
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
     }
+    my_bool is_active()
+    {
+      return (all.ha_list != NULL);
+    }
     st_transactions()
     {
       bzero((char*)this, sizeof(*this));
@@ -2691,7 +2695,7 @@ public:
   virtual void set_statement(Statement *stmt);
 
   /**
-    Assign a new value to thd->query and thd->query_id.
+    Assign a new value to thd->query and thd->query_id and mysys_var.
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
@@ -2704,6 +2708,7 @@ public:
     open_tables= open_tables_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+  void set_mysys_var(struct st_my_thread_var *new_mysys_var);
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
