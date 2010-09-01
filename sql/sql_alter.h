@@ -17,20 +17,20 @@
 #define SQL_ALTER_TABLE_H
 
 /**
-  Alter_table_common represents the common properties of the ALTER TABLE
+  Sql_cmd_common_alter_table represents the common properties of the ALTER TABLE
   statements.
   @todo move Alter_info and other ALTER generic structures from Lex here.
 */
-class Alter_table_common : public Sql_cmd
+class Sql_cmd_common_alter_table : public Sql_cmd
 {
 protected:
   /**
     Constructor.
   */
-  Alter_table_common()
+  Sql_cmd_common_alter_table()
   {}
 
-  virtual ~Alter_table_common()
+  virtual ~Sql_cmd_common_alter_table()
   {}
 
   virtual enum_sql_command sql_command_code() const
@@ -40,26 +40,21 @@ protected:
 };
 
 /**
-  Alter_table_statement represents the generic ALTER TABLE statement.
+  Sql_cmd_alter_table represents the generic ALTER TABLE statement.
   @todo move Alter_info and other ALTER specific structures from Lex here.
 */
-class Alter_table_statement : public Alter_table_common
+class Sql_cmd_alter_table : public Sql_cmd_common_alter_table
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE statement.
   */
-  Alter_table_statement()
+  Sql_cmd_alter_table()
   {}
 
-  ~Alter_table_statement()
+  ~Sql_cmd_alter_table()
   {}
 
-  /**
-    Execute a ALTER TABLE statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
 };
 

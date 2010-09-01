@@ -494,11 +494,11 @@ bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
 }
 
 
-bool Truncate_statement::execute(THD *thd)
+bool Sql_cmd_truncate_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
-  DBUG_ENTER("Truncate_statement::execute");
+  DBUG_ENTER("Sql_cmd_truncate_table::execute");
 
   if (check_one_table_access(thd, DROP_ACL, first_table))
     goto error;

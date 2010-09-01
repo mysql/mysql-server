@@ -21,25 +21,20 @@ struct TABLE_LIST;
 bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref);
 
 /**
-  Truncate_statement represents the TRUNCATE statement.
+  Sql_cmd_truncate_table represents the TRUNCATE statement.
 */
-class Truncate_statement : public Sql_cmd
+class Sql_cmd_truncate_table : public Sql_cmd
 {
 public:
   /**
-    Constructor, used to represent a ALTER TABLE statement.
+    Constructor, used to represent a TRUNCATE statement.
   */
-  Truncate_statement()
+  Sql_cmd_truncate_table()
   {}
 
-  ~Truncate_statement()
+  ~Sql_cmd_truncate_table()
   {}
 
-  /**
-    Execute a TRUNCATE statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
 
   virtual enum_sql_command sql_command_code() const

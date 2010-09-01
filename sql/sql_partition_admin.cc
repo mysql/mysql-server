@@ -18,21 +18,21 @@
                                             // check_one_table_access
 #include "sql_table.h"                      // mysql_alter_table, etc.
 #include "sql_cmd.h"                        // Sql_cmd
-#include "sql_alter.h"                      // Alter_table_statement
+#include "sql_alter.h"                      // Sql_cmd_alter_table
 #include "sql_partition.h"                  // struct partition_info, etc.
 #include "sql_handler.h"                    // mysql_ha_rm_tables
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "sql_truncate.h"                   // mysql_truncate_table,
-                                            // Truncate_statement
-#include "sql_admin.h"                      // Analyze/Check/.._table_statement
+                                            // Sql_cmd_truncate_table
+#include "sql_admin.h"                      // Sql_cmd_Analyze/Check/.._table
 #include "sql_partition_admin.h"            // Alter_table_*_partition
 
 #ifndef WITH_PARTITION_STORAGE_ENGINE
 
-bool Partition_statement_unsupported::execute(THD *)
+bool Sql_cmd_partition_unsupported::execute(THD *)
 {
-  DBUG_ENTER("Partition_statement_unsupported::execute");
+  DBUG_ENTER("Sql_cmd_partition_unsupported::execute");
   /* error, partitioning support not compiled in... */
   my_error(ER_FEATURE_DISABLED, MYF(0), "partitioning",
            "--with-plugin-partition");
@@ -41,7 +41,7 @@ bool Partition_statement_unsupported::execute(THD *)
 
 #else
 
-bool Alter_table_exchange_partition_statement::execute(THD *thd)
+bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
 {
   /* Moved from mysql_execute_command */
   LEX *lex= thd->lex;
@@ -60,7 +60,7 @@ bool Alter_table_exchange_partition_statement::execute(THD *thd)
   Alter_info alter_info(lex->alter_info, thd->mem_root);
   ulong priv_needed= ALTER_ACL | DROP_ACL | INSERT_ACL | CREATE_ACL;
 
-  DBUG_ENTER("Alter_table_exchange_partition_statement::execute");
+  DBUG_ENTER("Sql_cmd_alter_table_exchange_partition::execute");
 
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(TRUE);
@@ -455,7 +455,7 @@ err_no_action_written:
 
   @note This is a DDL operation so triggers will not be used.
 */
-bool Alter_table_exchange_partition_statement::
+bool Sql_cmd_alter_table_exchange_partition::
   exchange_partition(THD *thd, TABLE_LIST *table_list, Alter_info *alter_info)
 {
   TABLE *part_table, *swap_table;
@@ -634,10 +634,10 @@ err:
 }
 
 
-bool Alter_table_analyze_partition_statement::execute(THD *thd)
+bool Sql_cmd_alter_table_analyze_partition::execute(THD *thd)
 {
   bool res;
-  DBUG_ENTER("Alter_table_analyze_partition_statement::execute");
+  DBUG_ENTER("Sql_cmd_alter_table_analyze_partition::execute");
 
   /*
     Flag that it is an ALTER command which administrates partitions, used
@@ -645,16 +645,16 @@ bool Alter_table_analyze_partition_statement::execute(THD *thd)
   */
   thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
 
-  res= Analyze_table_statement::execute(thd);
+  res= Sql_cmd_analyze_table::execute(thd);
     
   DBUG_RETURN(res);
 }
 
 
-bool Alter_table_check_partition_statement::execute(THD *thd)
+bool Sql_cmd_alter_table_check_partition::execute(THD *thd)
 {
   bool res;
-  DBUG_ENTER("Alter_table_check_partition_statement::execute");
+  DBUG_ENTER("Sql_cmd_alter_table_check_partition::execute");
 
   /*
     Flag that it is an ALTER command which administrates partitions, used
@@ -662,13 +662,13 @@ bool Alter_table_check_partition_statement::execute(THD *thd)
   */
   thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
 
-  res= Check_table_statement::execute(thd);
+  res= Sql_cmd_check_table::execute(thd);
 
   DBUG_RETURN(res);
 }
 
 
-bool Alter_table_optimize_partition_statement::execute(THD *thd)
+bool Sql_cmd_alter_table_optimize_partition::execute(THD *thd)
 {
   bool res;
   DBUG_ENTER("Alter_table_optimize_partition_statement::execute");
@@ -679,16 +679,16 @@ bool Alter_table_optimize_partition_statement::execute(THD *thd)
   */
   thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
 
-  res= Optimize_table_statement::execute(thd);
+  res= Sql_cmd_optimize_table::execute(thd);
 
   DBUG_RETURN(res);
 }
 
 
-bool Alter_table_repair_partition_statement::execute(THD *thd)
+bool Sql_cmd_alter_table_repair_partition::execute(THD *thd)
 {
   bool res;
-  DBUG_ENTER("Alter_table_repair_partition_statement::execute");
+  DBUG_ENTER("Sql_cmd_alter_table_repair_partition::execute");
 
   /*
     Flag that it is an ALTER command which administrates partitions, used
@@ -696,18 +696,18 @@ bool Alter_table_repair_partition_statement::execute(THD *thd)
   */
   thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
 
-  res= Repair_table_statement::execute(thd);
+  res= Sql_cmd_repair_table::execute(thd);
 
   DBUG_RETURN(res);
 }
 
 
-bool Alter_table_truncate_partition_statement::execute(THD *thd)
+bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res;
   enum_sql_command original_sql_command;
-  DBUG_ENTER("Alter_table_truncate_partition_statement::execute");
+  DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 
   /*
     Execute TRUNCATE PARTITION just like TRUNCATE TABLE.
@@ -730,7 +730,7 @@ bool Alter_table_truncate_partition_statement::execute(THD *thd)
   first_table->mdl_request.set_type(MDL_SHARED_NO_READ_WRITE);
 
   /* execute as a TRUNCATE TABLE */
-  res= Truncate_statement::execute(thd);
+  res= Sql_cmd_truncate_table::execute(thd);
 
   thd->lex->sql_command= original_sql_command;
   DBUG_RETURN(res);

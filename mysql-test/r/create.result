@@ -1542,6 +1542,7 @@ show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
