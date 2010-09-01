@@ -1067,6 +1067,13 @@ CE85	CE85
 EFBE9D	EFBE9D
 F0908E84	F0908E84
 F4808080	F4808080
+# Additional test for bug#37244 Character sets: short utf8_bin weight_string value
+SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
+HEX(a)	HEX(WEIGHT_STRING(a))
+CE85	000385
+EFBE9D	00FF9D
+F0908E84	010384
+F4808080	100000
 DROP TABLE IF EXISTS t1;
 select @@collation_connection;
 @@collation_connection
