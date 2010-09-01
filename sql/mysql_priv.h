@@ -1166,9 +1166,6 @@ void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf);
 void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
                        const uchar *old_buf);
 
-void include_partition_fields_in_used_fields(Field **ptr,
-                                             MY_BITMAP *read_set);
-
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
