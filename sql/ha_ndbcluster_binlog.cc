@@ -1971,7 +1971,7 @@ int ndbcluster_log_schema_op(THD *thd,
         ndb_free_schema_object(&ndb_schema_object, FALSE);
       DBUG_RETURN(0);    
     }
-    (void) pthread_mutex_lock(&ndb_schema_share->mutex);
+    pthread_mutex_lock(&ndb_schema_share->mutex);
     for (i= 0; i < no_storage_nodes; i++)
     {
       MY_BITMAP *table_subscribers= &ndb_schema_share->subscriber_bitmap[i];
@@ -1982,7 +1982,7 @@ int ndbcluster_log_schema_op(THD *thd,
         updated= 1;
       }
     }
-    (void) pthread_mutex_unlock(&ndb_schema_share->mutex);
+    pthread_mutex_unlock(&ndb_schema_share->mutex);
     pthread_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
 
@@ -2006,10 +2006,10 @@ int ndbcluster_log_schema_op(THD *thd,
 
     if (ndb_schema_object)
     {
-      (void) pthread_mutex_lock(&ndb_schema_object->mutex);
+      pthread_mutex_lock(&ndb_schema_object->mutex);
       memcpy(ndb_schema_object->slock, schema_subscribers.bitmap,
              sizeof(ndb_schema_object->slock));
-      (void) pthread_mutex_unlock(&ndb_schema_object->mutex);
+      pthread_mutex_unlock(&ndb_schema_object->mutex);
     }
 
     DBUG_DUMP("schema_subscribers", (uchar*)schema_subscribers.bitmap,
@@ -2201,11 +2201,11 @@ end:
         ndbcluster_update_slock(thd, db, table_name);
     }
     int max_timeout= opt_ndb_sync_timeout;
-    (void) pthread_mutex_lock(&ndb_schema_object->mutex);
+    pthread_mutex_lock(&ndb_schema_object->mutex);
     if (have_lock_open)
     {
       safe_mutex_assert_owner(&LOCK_open);
-      (void) pthread_mutex_unlock(&LOCK_open);
+      pthread_mutex_unlock(&LOCK_open);
     }
     while (1)
     {
@@ -2226,7 +2226,7 @@ end:
         pthread_mutex_unlock(&ndb_schema_share_mutex);
         break;
       }
-      (void) pthread_mutex_lock(&ndb_schema_share->mutex);
+      pthread_mutex_lock(&ndb_schema_share->mutex);
       for (i= 0; i < no_storage_nodes; i++)
       {
         /* remove any unsubscribed from schema_subscribers */
@@ -2234,7 +2234,7 @@ end:
         if (!bitmap_is_clear_all(tmp))
           bitmap_intersect(&schema_subscribers, tmp);
       }
-      (void) pthread_mutex_unlock(&ndb_schema_share->mutex);
+      pthread_mutex_unlock(&ndb_schema_share->mutex);
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
@@ -2264,9 +2264,9 @@ end:
     }
     if (have_lock_open)
     {
-      (void) pthread_mutex_lock(&LOCK_open);
+      pthread_mutex_lock(&LOCK_open);
     }
-    (void) pthread_mutex_unlock(&ndb_schema_object->mutex);
+    pthread_mutex_unlock(&ndb_schema_object->mutex);
   }
 
   if (ndb_schema_object)
@@ -2311,7 +2311,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
       ndbtab_g.invalidate();
   }
 
-  (void) pthread_mutex_lock(&share->mutex);
+  pthread_mutex_lock(&share->mutex);
   DBUG_ASSERT(share->state == NSS_DROPPED || 
               share->op == pOp || share->new_op == pOp);
   if (share->new_op)
@@ -2325,7 +2325,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   // either just us or drop table handling as well
       
   /* Signal ha_ndbcluster::delete/rename_table that drop is done */
-  (void) pthread_mutex_unlock(&share->mutex);
+  pthread_mutex_unlock(&share->mutex);
   (void) pthread_cond_signal(&injector_cond);
 
   pthread_mutex_lock(&ndbcluster_mutex);
@@ -2725,7 +2725,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
     {
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       DBUG_ASSERT(node_id != 0xFF);
-      (void) pthread_mutex_lock(&tmp_share->mutex);
+      pthread_mutex_lock(&tmp_share->mutex);
       bitmap_clear_all(&tmp_share->subscriber_bitmap[node_id]);
       DBUG_PRINT("info",("NODE_FAILURE UNSUBSCRIBE[%d]", node_id));
       if (ndb_extra_logging)
@@ -2736,7 +2736,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
                               tmp_share->subscriber_bitmap[node_id].bitmap[1],
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
-      (void) pthread_mutex_unlock(&tmp_share->mutex);
+      pthread_mutex_unlock(&tmp_share->mutex);
       (void) pthread_cond_signal(&injector_cond);
       break;
     }
@@ -2745,7 +2745,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       uint8 req_id= pOp->getReqNodeId();
       DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
-      (void) pthread_mutex_lock(&tmp_share->mutex);
+      pthread_mutex_lock(&tmp_share->mutex);
       bitmap_set_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
       DBUG_PRINT("info",("SUBSCRIBE[%d] %d", node_id, req_id));
       if (ndb_extra_logging)
@@ -2757,7 +2757,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
                               tmp_share->subscriber_bitmap[node_id].bitmap[1],
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
-      (void) pthread_mutex_unlock(&tmp_share->mutex);
+      pthread_mutex_unlock(&tmp_share->mutex);
       (void) pthread_cond_signal(&injector_cond);
       break;
     }
@@ -2766,7 +2766,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       uint8 req_id= pOp->getReqNodeId();
       DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
-      (void) pthread_mutex_lock(&tmp_share->mutex);
+      pthread_mutex_lock(&tmp_share->mutex);
       bitmap_clear_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
       DBUG_PRINT("info",("UNSUBSCRIBE[%d] %d", node_id, req_id));
       if (ndb_extra_logging)
@@ -2778,7 +2778,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
                               tmp_share->subscriber_bitmap[node_id].bitmap[1],
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
-      (void) pthread_mutex_unlock(&tmp_share->mutex);
+      pthread_mutex_unlock(&tmp_share->mutex);
       (void) pthread_cond_signal(&injector_cond);
       break;
     }
@@ -3029,7 +3029,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           if (ndb_extra_logging > 9)
             sql_print_information("NDB Binlog: handeling online alter/rename");
 
-          (void) pthread_mutex_lock(&share->mutex);
+          pthread_mutex_lock(&share->mutex);
           ndbcluster_binlog_close_table(thd, share);
 
           if ((error= ndbcluster_binlog_open_table(thd, share)))
@@ -3037,7 +3037,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
                             schema->db, schema->name);
           pthread_mutex_unlock(&LOCK_open);
           if (error)
-            (void) pthread_mutex_unlock(&share->mutex);
+            pthread_mutex_unlock(&share->mutex);
         }
         if (!error && share)
         {
@@ -3070,7 +3070,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share->new_op= share->op;
           }
           share->op= tmp_op;
-          (void) pthread_mutex_unlock(&share->mutex);
+          pthread_mutex_unlock(&share->mutex);
 
           if (ndb_extra_logging > 9)
             sql_print_information("NDB Binlog: handeling online alter/rename done");
@@ -3083,7 +3083,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           sql_print_information("SOT_ONLINE_ALTER_TABLE_COMMIT %s.%s", schema->db, schema->name);
         if (share)
         {
-          (void) pthread_mutex_lock(&share->mutex);
+          pthread_mutex_lock(&share->mutex);
           if (share->op && share->new_op)
           {
             Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
@@ -3098,7 +3098,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share->new_op= 0;
             free_share(&share);
           }
-          (void) pthread_mutex_unlock(&share->mutex);
+          pthread_mutex_unlock(&share->mutex);
         }
         break;
       }
@@ -4751,7 +4751,7 @@ ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share, const char *type_str)
   DBUG_ENTER("ndbcluster_handle_alter_table");
   const char *save_proc_info= thd->proc_info;
   thd->proc_info= "Syncing ndb table schema operation and binlog";
-  (void) pthread_mutex_lock(&share->mutex);
+  pthread_mutex_lock(&share->mutex);
   int max_timeout= opt_ndb_sync_timeout;
   while (share->state == NSS_ALTERED)
   {
@@ -4777,7 +4777,7 @@ ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share, const char *type_str)
                            type_str, share->key);
     }
   }
-  (void) pthread_mutex_unlock(&share->mutex);
+  pthread_mutex_unlock(&share->mutex);
   thd->proc_info= save_proc_info;
   DBUG_RETURN(0);
 }
@@ -4822,9 +4822,9 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
 #define SYNC_DROP_
 #ifdef SYNC_DROP_
   thd->proc_info= "Syncing ndb table schema operation and binlog";
-  (void) pthread_mutex_lock(&share->mutex);
+  pthread_mutex_lock(&share->mutex);
   safe_mutex_assert_owner(&LOCK_open);
-  (void) pthread_mutex_unlock(&LOCK_open);
+  pthread_mutex_unlock(&LOCK_open);
   int max_timeout= opt_ndb_sync_timeout;
   while (share->op)
   {
@@ -4850,12 +4850,12 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                            type_str, share->key);
     }
   }
-  (void) pthread_mutex_lock(&LOCK_open);
-  (void) pthread_mutex_unlock(&share->mutex);
+  pthread_mutex_lock(&LOCK_open);
+  pthread_mutex_unlock(&share->mutex);
 #else
-  (void) pthread_mutex_lock(&share->mutex);
+  pthread_mutex_lock(&share->mutex);
   share->op= 0;
-  (void) pthread_mutex_unlock(&share->mutex);
+  pthread_mutex_unlock(&share->mutex);
 #endif
   thd->proc_info= save_proc_info;
 
@@ -5556,10 +5556,10 @@ remove_event_operations(Ndb* ndb)
     delete event_data;
     op->setCustomData(NULL);
 
-    (void) pthread_mutex_lock(&share->mutex);
+    pthread_mutex_lock(&share->mutex);
     share->op= 0;
     share->new_op= 0;
-    (void) pthread_mutex_unlock(&share->mutex);
+    pthread_mutex_unlock(&share->mutex);
 
     DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                              share->key, share->use_count));
