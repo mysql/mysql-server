@@ -1010,3 +1010,50 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug#56254 Assertion tab->ref.use_count fails in
+--echo # join_read_key_unlock_row() on 4-way JOIN
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_key INT,
+  col_int INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t1 VALUES (6, -448724992, NULL);
+
+CREATE TABLE t2 (
+  col_int INT,
+  col_varchar_10 VARCHAR(10)
+);
+
+INSERT INTO t2 VALUES (6,'afasdkiyum');
+
+CREATE TABLE t3 (
+  col_varchar_10 VARCHAR(10),
+  col_int INT
+);
+
+CREATE TABLE t4 (
+  pk INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t4 VALUES (1);
+INSERT INTO t4 VALUES (2);
+
+SELECT t1.col_int
+FROM t1
+  LEFT JOIN t2
+    LEFT JOIN t3
+      JOIN t4  
+      ON t3.col_int  = t4.pk
+    ON t2.col_varchar_10 = t3.col_varchar_10
+  ON t2.col_int = t1.pk
+WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
+
+DROP TABLE t1,t2,t3,t4;
