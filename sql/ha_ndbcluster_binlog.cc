@@ -2545,8 +2545,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           else
           {
             /* Tables exists as a local table, leave it */
-            DBUG_PRINT("info", ((const char *) errmsg));
-            sql_print_error((const char *) errmsg);
+            DBUG_PRINT("info", ("%s", errmsg));
+            sql_print_error("%s", errmsg);
             log_query= 1;
           }
           // Fall through
@@ -3772,7 +3772,7 @@ set_conflict_fn(THD *thd, NDB_SHARE *share,
         snprintf(msg, msg_len,
                  "column '%s' has wrong datatype",
                  table->s->field[args[0].fieldno]->field_name);
-        DBUG_PRINT("info", (msg));
+        DBUG_PRINT("info", ("%s", msg));
         DBUG_RETURN(-1);
       }
       if (ndb_extra_logging)
@@ -3790,7 +3790,7 @@ set_conflict_fn(THD *thd, NDB_SHARE *share,
   /* parse error */
   snprintf(msg, msg_len, "%s, %s at '%s'",
            conflict_fn, error_str, ptr);
-  DBUG_PRINT("info", (msg));
+  DBUG_PRINT("info", ("%s", msg));
   DBUG_RETURN(-1);
 }
 
@@ -4009,7 +4009,7 @@ err:
                  "Missing or wrong type for column '%s'", error_str);
         break;
       case -2:
-        snprintf(msg, sizeof(msg), error_str);
+        snprintf(msg, sizeof(msg), "%s", error_str);
         break;
       default:
         abort();
