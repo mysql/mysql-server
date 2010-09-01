@@ -372,7 +372,7 @@ WHERE ((ID < 600) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 300 AND 600) AND 
 (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	1062	Using where
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	1242	Using where
 SELECT * FROM City USE INDEX ()
 WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 100 AND 110) AND 
