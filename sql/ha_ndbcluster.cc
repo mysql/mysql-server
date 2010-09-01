@@ -4663,6 +4663,34 @@ print_value:
 }
 
 
+/*
+  Set fields in partition functions in read set for underlying handlers
+
+  SYNOPSIS
+    include_partition_fields_in_used_fields()
+
+  RETURN VALUE
+    NONE
+
+  DESCRIPTION
+    Some handlers only read fields as specified by the bitmap for the
+    read set. For partitioned handlers we always require that the
+    fields of the partition functions are read such that we can
+    calculate the partition id to place updated and deleted records.
+*/
+
+static void
+include_partition_fields_in_used_fields(Field **ptr, MY_BITMAP *read_set)
+{
+  DBUG_ENTER("include_partition_fields_in_used_fields");
+  do
+  {
+    bitmap_set_bit(read_set, (*ptr)->field_index);
+  } while (*(++ptr));
+  DBUG_VOID_RETURN;
+}
+
+
 int ha_ndbcluster::index_init(uint index, bool sorted)
 {
   DBUG_ENTER("ha_ndbcluster::index_init");
