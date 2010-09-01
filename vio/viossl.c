@@ -244,6 +244,9 @@ int vio_ssl_blocking(Vio *vio __attribute__((unused)),
   return (set_blocking_mode ? 0 : 1);
 }
 
-
+my_bool vio_ssl_has_data(Vio *vio)
+{
+  return SSL_pending(vio->ssl_arg) > 0 ? TRUE : FALSE;
+}
 
 #endif /* HAVE_OPENSSL */
