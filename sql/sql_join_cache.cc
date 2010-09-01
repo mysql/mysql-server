@@ -927,7 +927,7 @@ int JOIN_CACHE::realloc_buffer()
     It is quite natural to put almost all other constructor actions into
     this function.     
   
-  RETURN
+  RETURN VALUE
     0   initialization with buffer allocations has been succeeded
     1   otherwise
 */
@@ -2078,7 +2078,7 @@ finish:
     The function assumes that the match flag for any record in any cache
     is placed in the first byte occupied by the record fields. 
 
-  RETURN
+  RETURN VALUE
     TRUE   the match flag is set by this call for the first time
     FALSE  the match flag has been set before this call
 */ 
@@ -2130,7 +2130,7 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
     case the function calls the join_tab->next_select method to generate
     all full extension for this partial join match.
       
-  RETURN
+  RETURN VALUE
     return one of enum_nested_loop_state.
 */ 
 
@@ -2185,7 +2185,7 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     Setting the match flag on can trigger re-evaluation of pushdown conditions
     for the record when join_tab is the last inner table of an outer join.
       
-  RETURN
+  RETURN VALUE
     TRUE   there is a match
     FALSE  there is no match
 */ 
@@ -2256,7 +2256,7 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
     The same implementation of the virtual method join_null_complements
     is used for BNL/BNLH/BKA/BKA join algorthm.
       
-  RETURN
+  RETURN VALUE
     return one of enum_nested_loop_state.
 */ 
 
@@ -2345,7 +2345,7 @@ finish:
     The function is supposed to be called by the init methods of the classes 
     derived from JOIN_CACHE_HASHED.
   
-  RETURN
+  RETURN VALUE
     0   initialization with buffer allocations has been succeeded
     1   otherwise
 */
@@ -2516,7 +2516,7 @@ uint JOIN_CACHE_HASHED::get_max_key_addon_space_per_record()
     Additionally to what the default implementation does this function
     cleans up the hash table allocated within the buffer.  
     
-  RETURN
+  RETURN VALUE
     none
 */
  
@@ -2549,7 +2549,7 @@ void JOIN_CACHE_HASHED::reset(bool for_writing)
     element added for the key or, if the use_emb_key flag is set, remains in
     the record from the partial join.
     
-  RETURN
+  RETURN VALUE
     TRUE    if it has been decided that it should be the last record
             in the join buffer,
     FALSE   otherwise
@@ -2642,7 +2642,7 @@ bool JOIN_CACHE_HASHED::put_record()
     function get_record does this implementation skips the link element
     used to connect the records with the same key into a chain. 
 
-  RETURN
+  RETURN VALUE
     TRUE    there are no more records to read from the join buffer
     FALSE   otherwise
 */
@@ -2665,7 +2665,7 @@ bool JOIN_CACHE_HASHED::get_record()
     the same as the default implementation does, but it takes into account
     the link element used to connect the records with the same key into a chain. 
 
-  RETURN
+  RETURN VALUE
     TRUE    the match flag is on and the record has been skipped
     FALSE   the match flag is off 
 */
@@ -2800,7 +2800,7 @@ void JOIN_CACHE_HASHED:: cleanup_hash_table()
     point to the position in the join buffer storing the reference to the
     last element of this chain. 
             
-  RETURN
+  RETURN VALUE
     TRUE   if each retrieved record has its match flag set on
     FALSE  otherwise 
 */
@@ -3002,7 +3002,7 @@ bool JOIN_CACHE_BNL::prepare_look_for_matches(bool skip_last)
     and returns the current value of the cursor 'pos' as the position of 
     the record to be processed. 
     
-  RETURN    
+  RETURN VALUE    
     pointer to the position right after the prefix of the current record
     in the join buffer if the there is another record to iterate over,
     0 - otherwise.  
@@ -3031,7 +3031,7 @@ uchar *JOIN_CACHE_BNL::get_next_candidate_for_match()
     ref_ptr has its match flag set on and, if so, just skips this record
     setting the value of the cursor 'pos' to the position right after it.
 
-  RETURN    
+  RETURN VALUE    
     TRUE   the record referenced by rec_ptr has been skipped
     FALSE  otherwise  
 */
@@ -3217,7 +3217,7 @@ uchar *JOIN_CACHE_BNLH::get_next_candidate_for_match()
     method get_match_flag_by_pos to check whether the record referenced
     by ref_ptr has its match flag set on.
 
-  RETURN    
+  RETURN VALUE    
     TRUE   the record referenced by rec_ptr has its match flag set on
     FALSE  otherwise  
 */
@@ -4082,7 +4082,7 @@ int JOIN_CACHE_BKAH::init()
     This should be done by a special virtual method
     get_partial_record_by_pos().
 
-  RETURN
+  RETURN VALUE
     1    any record combination from the chain referred by range_info
          does not satisfy the index condition
     0    otherwise
