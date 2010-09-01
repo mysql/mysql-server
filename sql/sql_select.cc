@@ -16958,6 +16958,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
 
   join->return_tab= join_tab;
+  join_tab->not_null_compl= TRUE;
 
   if (join_tab->last_inner)
   {
@@ -16965,7 +16966,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
     /* Set initial state of guard variables for this table.*/
     join_tab->found=0;
-    join_tab->not_null_compl= 1;
 
     /* Set first_unmatched for the last inner table of this group */
     join_tab->last_inner->first_unmatched= join_tab;
@@ -17315,7 +17315,11 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     else
     {
       join->thd->warning_info->inc_current_row_for_warning();
-      join_tab->read_record.unlock_row(join_tab);
+      if (join_tab->not_null_compl)
+      {
+        /* a NULL-complemented row is not in a table so cannot be locked */
+        join_tab->read_record.unlock_row(join_tab);
+      }
     }
   }
   else
@@ -17326,7 +17330,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     */
     join->examined_rows++;
     join->thd->warning_info->inc_current_row_for_warning();
-    join_tab->read_record.unlock_row(join_tab);
+    if (join_tab->not_null_compl)
+      join_tab->read_record.unlock_row(join_tab);
   }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
@@ -22026,7 +22031,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       the UNION to provide precise EXPLAIN information will hardly be
       appreciated :)
     */
-    char table_name_buffer[NAME_LEN];
+    char table_name_buffer[NAME_CHAR_LEN];
     item_list.empty();
     /* id */
     item_list.push_back(new Item_null);
@@ -22036,25 +22041,35 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					cs));
     /* table */
     {
+      SELECT_LEX *last_select= join->unit->first_select()->last_select();
+      // # characters needed to print select_number of last select
+      int last_length= log10((double)last_select->select_number)+1;
+
       SELECT_LEX *sl= join->unit->first_select();
       uint len= 6, lastop= 0;
       memcpy(table_name_buffer, STRING_WITH_LEN("<union"));
-      for (; sl && len + lastop + 5 < NAME_LEN; sl= sl->next_select())
+      /*
+        - len + lastop: current position in table_name_buffer
+        - 6 + last_length: the number of characters needed to print
+          '...,'<last_select->select_number>'>\0'
+      */
+      for (; 
+           sl && len + lastop + 6 + last_length < NAME_CHAR_LEN; 
+           sl= sl->next_select())
       {
         len+= lastop;
-        lastop= my_snprintf(table_name_buffer + len, NAME_LEN - len,
+        lastop= my_snprintf(table_name_buffer + len, NAME_CHAR_LEN - len,
                             "%u,", sl->select_number);
       }
-      if (sl || len + lastop >= NAME_LEN)
+      if (sl || len + lastop >= NAME_CHAR_LEN)
       {
-        memcpy(table_name_buffer + len, STRING_WITH_LEN("...>") + 1);
+        memcpy(table_name_buffer + len, STRING_WITH_LEN("...,"));
         len+= 4;
+        lastop= my_snprintf(table_name_buffer + len, NAME_CHAR_LEN - len,
+                            "%u,", last_select->select_number);
       }
-      else
-      {
-        len+= lastop;
-        table_name_buffer[len - 1]= '>';  // change ',' to '>'
-      }
+      len+= lastop;
+      table_name_buffer[len - 1]= '>';  // change ',' to '>'
       item_list.push_back(new Item_string(table_name_buffer, len, cs));
     }
     /* partitions */

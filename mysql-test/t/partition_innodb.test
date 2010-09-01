@@ -9,6 +9,63 @@ drop table if exists t1, t2;
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 --echo #
+--echo # Bug#54747: Deadlock between REORGANIZE PARTITION and
+--echo #            SELECT is not detected
+--echo #
+
+SET @old_innodb_thread_concurrency:= @@innodb_thread_concurrency;
+SET GLOBAL innodb_thread_concurrency = 1;
+
+CREATE TABLE t1
+(user_num BIGINT,
+ hours SMALLINT,
+ KEY user_num (user_num))
+ENGINE = InnoDB   
+PARTITION BY RANGE COLUMNS (hours)
+(PARTITION hour_003 VALUES LESS THAN (3),
+ PARTITION hour_004 VALUES LESS THAN (4),
+ PARTITION hour_005 VALUES LESS THAN (5),
+ PARTITION hour_last VALUES LESS THAN (MAXVALUE));
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+BEGIN;
+SELECT COUNT(*) FROM t1;
+
+--echo # con1
+--connect (con1,localhost,root,,)
+--echo # SEND a ALTER PARTITION which waits on the ongoing transaction.
+--send
+ALTER TABLE t1
+REORGANIZE PARTITION hour_003, hour_004 INTO
+(PARTITION oldest VALUES LESS THAN (4));
+
+--echo # Connection default wait until the ALTER is in 'waiting for table...'
+--echo # state and then continue the transaction by trying a SELECT
+--connection default
+let $wait_condition =
+SELECT COUNT(*) = 1
+FROM information_schema.processlist
+WHERE INFO like 'ALTER TABLE t1%REORGANIZE PARTITION hour_003, hour_004%'
+AND STATE = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+SELECT COUNT(*) FROM t1;
+COMMIT;
+
+--echo # con1, reaping ALTER.
+--connection con1
+--reap
+
+--echo # Disconnecting con1 and switching to default. Cleaning up.
+--disconnect con1
+
+--connection default
+
+SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+DROP TABLE t1;
+
+
+--echo #
 --echo # Bug#50418: DROP PARTITION does not interact with transactions
 --echo #
 CREATE TABLE t1 (

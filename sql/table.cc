@@ -426,6 +426,12 @@ void TABLE_SHARE::destroy()
       info_it->flags= 0;
     }
   }
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server && m_psi))
+    PSI_server->release_table_share(m_psi);
+#endif
+
   /*
     Make a copy since the share is allocated in its own root,
     and free_root() updates its argument after freeing the memory.
@@ -477,12 +483,6 @@ void free_table_share(TABLE_SHARE *share)
       for this thread to do the work.
     */
   }
-
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(PSI_server && share->m_psi))
-    PSI_server->release_table_share(share->m_psi);
-#endif
-
   DBUG_VOID_RETURN;
 }
 
