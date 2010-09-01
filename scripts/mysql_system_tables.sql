@@ -264,24 +264,6 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE EVENTS_WAITS_SUMMARY_BY_EVENT_NAME
---
-
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME("
-  "EVENT_NAME VARCHAR(128) not null,"
-  "COUNT_STAR BIGINT unsigned not null,"
-  "SUM_TIMER_WAIT BIGINT unsigned not null,"
-  "MIN_TIMER_WAIT BIGINT unsigned not null,"
-  "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
-  ")ENGINE=PERFORMANCE_SCHEMA;";
-
-SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
---
 -- TABLE EVENTS_WAITS_SUMMARY_BY_INSTANCE
 --
 
@@ -306,6 +288,24 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME("
   "THREAD_ID INTEGER not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
@@ -440,24 +440,6 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.SETUP_CONSUMERS("
   "NAME VARCHAR(64) not null,"
   "ENABLED ENUM ('YES', 'NO') not null"
-  ")ENGINE=PERFORMANCE_SCHEMA;";
-
-SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
---
--- TABLE SETUP_OBJECTS
---
-
-SET @cmd="CREATE TABLE performance_schema.SETUP_OBJECTS("
-  "OBJECT_TYPE VARCHAR(64),"
-  "OBJECT_SCHEMA VARCHAR(64),"
-  "OBJECT_NAME VARCHAR(64),"
-  "ENABLED ENUM ('YES', 'NO') not null,"
-  "TIMED ENUM ('YES', 'NO') not null,"
-  "AGGREGATED ENUM ('YES', 'NO') not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

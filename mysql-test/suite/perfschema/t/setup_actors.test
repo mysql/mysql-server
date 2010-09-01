@@ -137,9 +137,7 @@ where PROCESSLIST_ID = connection_id();
 #   for revealing this. But such a join suffers from sporadic differences like
 #      column |  observation
 #      -------|-------------
-#      state  |  "Sending data" vs. "executing" or
-#             |  information_schema.processlist.state = 'Waiting for table'.
-#             |  vs. performance_schema.threads.state = 'Opening tables'
+#      state  |  "Sending data" vs. "executing"
 #      time   |  0 vs. 1 (high load on the testing box)
 #      info   |  <full statement> vs. NULL (use of "--ps-protocol")
 #   IMHO the differences are harmless.
@@ -151,9 +149,10 @@ send
 insert into test.t1 set col1 = 1;
 --echo # Switch to (con4, localhost, user4, , )
 connect (con4, localhost, user4, , );
---echo # Poll till INFO is no more NULL and State = 'Waiting for table'.
+--echo # Poll till INFO is no more NULL and State = 'Waiting for table metadata lock'.
 let $wait_condition= select count(*) from information_schema.processlist
-        where user = 'user3' and info is not null and state = 'Waiting for table';
+        where user = 'user3' and info is not null
+        and state = 'Waiting for table metadata lock';
 --source include/wait_condition.inc
 # Expect to get 1 now
 select count(*) = 1

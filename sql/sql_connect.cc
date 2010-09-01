@@ -35,6 +35,7 @@
 #include "hostname.h" // inc_host_errors, ip_to_hostname,
                       // reset_host_errors
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
+#include "sql_callback.h"
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /*
@@ -975,7 +976,7 @@ bool setup_connection_thread_globals(THD *thd)
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
-    thread_scheduler.end_thread(thd, 0);
+    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return 1;                                   // Error
   }
   return 0;
@@ -998,7 +999,7 @@ bool setup_connection_thread_globals(THD *thd)
 */
 
 
-static bool login_connection(THD *thd)
+bool login_connection(THD *thd)
 {
   NET *net= &thd->net;
   int error;
@@ -1036,7 +1037,7 @@ static bool login_connection(THD *thd)
     This mainly updates status variables
 */
 
-static void end_connection(THD *thd)
+void end_connection(THD *thd)
 {
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
@@ -1077,7 +1078,7 @@ static void end_connection(THD *thd)
   Initialize THD to handle queries
 */
 
-static void prepare_new_connection_state(THD* thd)
+void prepare_new_connection_state(THD* thd)
 {
   Security_context *sctx= thd->security_ctx;
 
@@ -1146,11 +1147,11 @@ void do_handle_one_connection(THD *thd_arg)
 
   thd->thr_create_utime= my_micro_time();
 
-  if (thread_scheduler.init_new_connection_thread())
+  if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
-    thread_scheduler.end_thread(thd,0);
+    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return;
   }
 
@@ -1204,7 +1205,7 @@ void do_handle_one_connection(THD *thd_arg)
    
 end_thread:
     close_connection(thd, 0, 1);
-    if (thread_scheduler.end_thread(thd,1))
+    if (MYSQL_CALLBACK_ELSE(thread_scheduler, end_thread, (thd, 1), 0))
       return;                                 // Probably no-threads
 
     /*

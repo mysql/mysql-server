@@ -157,8 +157,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              uint32 ndb_table_version,
                              enum SCHEMA_OP_TYPE type,
                              const char *new_db,
-                             const char *new_table_name,
-                             int have_lock_open);
+                             const char *new_table_name);
 int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                                  NDB_SHARE *share,
                                  const char *type_str);

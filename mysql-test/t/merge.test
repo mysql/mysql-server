@@ -579,7 +579,7 @@ DROP TABLE tm1, t1, t2;
 #
 CREATE TABLE t1(c1 INT);
 CREATE TABLE t2 (c1 INT) ENGINE=MERGE UNION=(t1) INSERT_METHOD=FIRST;
---error ER_UPDATE_TABLE_USED
+# After WL#5370, it just generates a warning that the table already exists
 CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
 DROP TABLE t1, t2;
 
