@@ -16958,6 +16958,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
 
   join->return_tab= join_tab;
+  join_tab->not_null_compl= TRUE;
 
   if (join_tab->last_inner)
   {
@@ -16965,7 +16966,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
     /* Set initial state of guard variables for this table.*/
     join_tab->found=0;
-    join_tab->not_null_compl= 1;
 
     /* Set first_unmatched for the last inner table of this group */
     join_tab->last_inner->first_unmatched= join_tab;
@@ -17315,7 +17315,11 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     else
     {
       join->thd->warning_info->inc_current_row_for_warning();
-      join_tab->read_record.unlock_row(join_tab);
+      if (join_tab->not_null_compl)
+      {
+        /* a NULL-complemented row is not in a table so cannot be locked */
+        join_tab->read_record.unlock_row(join_tab);
+      }
     }
   }
   else
@@ -17326,7 +17330,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     */
     join->examined_rows++;
     join->thd->warning_info->inc_current_row_for_warning();
-    join_tab->read_record.unlock_row(join_tab);
+    if (join_tab->not_null_compl)
+      join_tab->read_record.unlock_row(join_tab);
   }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
