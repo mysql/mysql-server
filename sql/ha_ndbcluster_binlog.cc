@@ -5294,21 +5294,21 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     DBUG_PRINT("info", ("INSERT INTO %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
+      int ret;
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= 0;
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[0],
-                                               blobs_buffer[0],
-                                               blobs_buffer_size[0],
-                                               ptrdiff);
-        DBUG_ASSERT(ret == 0);
+        ret = get_ndb_blobs_value(table, event_data->ndb_value[0],
+                                  blobs_buffer[0],
+                                  blobs_buffer_size[0],
+                                  ptrdiff);
+        assert(ret == 0);
       }
       ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
-      IF_DBUG(int ret=) trans.write_row(originating_server_id,
-                                        injector::transaction::table(table,
-                                                                     TRUE),
-                                        &b, n_fields, table->record[0]);
-      DBUG_ASSERT(ret == 0);
+      ret= trans.write_row(originating_server_id,
+                           injector::transaction::table(table, true),
+                           &b, n_fields, table->record[0]);
+      assert(ret == 0);
     }
     break;
   case NDBEVENT::TE_DELETE:
@@ -5334,22 +5334,22 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                 key
               */
 
+      int ret;
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= table->record[n] - table->record[0];
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[n],
-                                               blobs_buffer[n],
-                                               blobs_buffer_size[n],
-                                               ptrdiff);
-        DBUG_ASSERT(ret == 0);
+        ret = get_ndb_blobs_value(table, event_data->ndb_value[n],
+                                  blobs_buffer[n],
+                                  blobs_buffer_size[n],
+                                  ptrdiff);
+        assert(ret == 0);
       }
       ndb_unpack_record(table, event_data->ndb_value[n], &b, table->record[n]);
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
-      IF_DBUG(int ret =) trans.delete_row(originating_server_id,
-                                          injector::transaction::table(table,
-                                                                       TRUE),
-                                          &b, n_fields, table->record[n]);
-      DBUG_ASSERT(ret == 0);
+      ret = trans.delete_row(originating_server_id,
+                             injector::transaction::table(table, true),
+                             &b, n_fields, table->record[n]);
+      assert(ret == 0);
     }
     break;
   case NDBEVENT::TE_UPDATE:
@@ -5358,14 +5358,15 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     DBUG_PRINT("info", ("UPDATE %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
+      int ret;
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= 0;
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[0],
-                                               blobs_buffer[0],
-                                               blobs_buffer_size[0],
-                                               ptrdiff);
-        DBUG_ASSERT(ret == 0);
+        ret = get_ndb_blobs_value(table, event_data->ndb_value[0],
+                                  blobs_buffer[0],
+                                  blobs_buffer_size[0],
+                                  ptrdiff);
+        assert(ret == 0);
       }
       ndb_unpack_record(table, event_data->ndb_value[0],
                         &b, table->record[0]);
@@ -5377,10 +5378,10 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
           since table has a primary key, we can do a write
           using only after values
         */
-        IF_DBUG(int ret =) trans.write_row(originating_server_id,
-                                           injector::transaction::table(table, TRUE),
-                                           &b, n_fields, table->record[0]);// after values
-        DBUG_ASSERT(ret == 0);
+        ret = trans.write_row(originating_server_id,
+                              injector::transaction::table(table, true),
+                              &b, n_fields, table->record[0]);// after values
+        assert(ret == 0);
       }
       else
       {
@@ -5391,21 +5392,20 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         if (share->flags & NSF_BLOB_FLAG)
         {
           my_ptrdiff_t ptrdiff= table->record[1] - table->record[0];
-          IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[1],
-                                                 blobs_buffer[1],
-                                                 blobs_buffer_size[1],
-                                                 ptrdiff);
-          DBUG_ASSERT(ret == 0);
+          ret = get_ndb_blobs_value(table, event_data->ndb_value[1],
+                                    blobs_buffer[1],
+                                    blobs_buffer_size[1],
+                                    ptrdiff);
+          assert(ret == 0);
         }
         ndb_unpack_record(table, event_data->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
-        IF_DBUG(int ret =) trans.update_row(originating_server_id,
-                                            injector::transaction::table(table,
-                                                                         TRUE),
-                                            &b, n_fields,
-                                            table->record[1], // before values
-                                            table->record[0]);// after values
-        DBUG_ASSERT(ret == 0);
+        ret = trans.update_row(originating_server_id,
+                               injector::transaction::table(table, true),
+                               &b, n_fields,
+                               table->record[1], // before values
+                               table->record[0]);// after values
+        assert(ret == 0);
       }
     }
     break;
@@ -5756,9 +5756,9 @@ restart_cluster_failure:
         { C_STRING_WITH_LEN("mysqld startup")    },
         { C_STRING_WITH_LEN("cluster disconnect")}
       };
-    IF_DBUG(int error=)
-      inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg[incident_id]);
-    DBUG_ASSERT(!error);
+    int ret = inj->record_incident(thd, INCIDENT_LOST_EVENTS,
+                                   msg[incident_id]);
+    assert(ret == 0);
     break;
   }
   incident_id= 1;
@@ -6193,9 +6193,9 @@ restart_cluster_failure:
             DBUG_PRINT("info", ("use_table: %.*s, cols %u",
                                 (int) name.length, name.str,
                                 table->s->fields));
-            injector::transaction::table tbl(table, TRUE);
-            IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
-            DBUG_ASSERT(ret == 0);
+            injector::transaction::table tbl(table, true);
+            int ret = trans.use_table(::server_id, tbl);
+            assert(ret == 0);
           }
         }
         if (trans.good())
@@ -6207,9 +6207,9 @@ restart_cluster_failure:
             DBUG_PRINT("info", ("use_table: %.*s",
                                 (int) name.length, name.str));
 #endif
-            injector::transaction::table tbl(apply_status_table, TRUE);
-            IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
-            DBUG_ASSERT(ret == 0);
+            injector::transaction::table tbl(apply_status_table, true);
+            int ret = trans.use_table(::server_id, tbl);
+            assert(ret == 0);
 
             /* add the gci to the record */
             Field *field= apply_status_table->field[1];
@@ -6220,7 +6220,8 @@ restart_cluster_failure:
             field->move_field_offset(-row_offset);
 
             trans.write_row(::server_id,
-                            injector::transaction::table(apply_status_table, TRUE),
+                            injector::transaction::table(apply_status_table,
+                                                         true),
                             &apply_status_table->s->all_set,
                             apply_status_table->s->fields,
                             apply_status_buf);

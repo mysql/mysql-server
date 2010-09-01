@@ -4534,9 +4534,9 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
           /* Field_bit in DBUG requires the bit set in write_set for store(). */
           my_bitmap_map *old_map=
             dbug_tmp_use_all_columns(table, table->write_set);
-          IF_DBUG(int res=) field_bit->store(value, true);
+          int res = field_bit->store(value, true);
+          assert(res == 0);
           dbug_tmp_restore_column_map(table->write_set, old_map);
-          DBUG_ASSERT(res == 0);
           field->move_field_offset(-dst_offset);
         }
       }
@@ -7526,8 +7526,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                              share->key, share->use_count));
     ndbcluster_prepare_rename_share(share, to);
-    IF_DBUG(int r=) ndbcluster_rename_share(thd, share);
-    DBUG_ASSERT(r == 0);
+    int ret = ndbcluster_rename_share(thd, share);
+    assert(ret == 0);
   }
 
   NdbDictionary::Table new_tab= *orig_tab;
@@ -7537,8 +7537,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     NdbError ndb_error= dict->getNdbError();
     if (share)
     {
-      IF_DBUG(int ret=) ndbcluster_undo_rename_share(thd, share);
-      DBUG_ASSERT(ret == 0);
+      int ret = ndbcluster_undo_rename_share(thd, share);
+      assert(ret == 0);
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                share->key, share->use_count));
