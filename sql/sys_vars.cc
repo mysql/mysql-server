@@ -1673,19 +1673,13 @@ static Sys_var_ulong Sys_trans_prealloc_size(
 
 static const char *thread_handling_names[]=
 {
-  "one-thread-per-connection", "no-threads",
-#if HAVE_POOL_OF_THREADS == 1
-  "pool-of-threads",
-#endif
+  "one-thread-per-connection", "no-threads", "loaded-dynamically",
   0
 };
 static Sys_var_enum Sys_thread_handling(
        "thread_handling",
        "Define threads usage for handling queries, one of "
-       "one-thread-per-connection, no-threads"
-#if HAVE_POOL_OF_THREADS == 1
-       ", pool-of-threads"
-#endif
+       "one-thread-per-connection, no-threads, loaded-dynamically"
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
        thread_handling_names, DEFAULT(0));
 
