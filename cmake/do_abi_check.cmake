@@ -56,8 +56,9 @@ FOREACH(file ${ABI_HEADERS})
   SET(tmpfile ${file}.pp.tmp)
     EXECUTE_PROCESS(
      COMMAND ${COMPILER} 
-       -E -nostdinc -dI -I${SOURCE_DIR}/include -I${BINARY_DIR}/include 
-       -I${SOURCE_DIR}/include/mysql  -I${SOURCE_DIR}/sql  ${file} 
+       -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
+       -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
+       ${file} 
        ERROR_QUIET OUTPUT_FILE ${tmpfile})
     EXECUTE_PROCESS(
       COMMAND sed -e 
