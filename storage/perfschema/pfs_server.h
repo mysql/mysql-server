@@ -25,13 +25,13 @@
   #define PFS_MAX_MUTEX_CLASS 200
 #endif
 #ifndef PFS_MAX_MUTEX
-  #define PFS_MAX_MUTEX 1000
+  #define PFS_MAX_MUTEX 1000000
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
-  #define PFS_MAX_RWLOCK_CLASS 20
+  #define PFS_MAX_RWLOCK_CLASS 30
 #endif
 #ifndef PFS_MAX_RWLOCK
-  #define PFS_MAX_RWLOCK 1000
+  #define PFS_MAX_RWLOCK 1000000
 #endif
 #ifndef PFS_MAX_COND_CLASS
   #define PFS_MAX_COND_CLASS 80
