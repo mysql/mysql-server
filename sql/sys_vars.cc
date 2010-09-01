@@ -368,6 +368,12 @@ static Sys_var_mybool Sys_binlog_direct(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
 
+static Sys_var_mybool Sys_binlog_rows_query(
+       "binlog_rows_query_log_events",
+       "Allow writing of Rows_query_log events into binary log.",
+       SESSION_VAR(binlog_rows_query_log_events),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static Sys_var_ulong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
        "insert optimisation. Note that this is a limit per thread!",
