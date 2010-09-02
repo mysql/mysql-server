@@ -7195,7 +7195,7 @@ static int create_ndb_column(THD *thd,
   switch (field->field_storage_type()) {
   case(HA_SM_DEFAULT):
   default:
-    if (create_info->default_storage_media == HA_SM_DISK)
+    if (create_info->storage_media == HA_SM_DISK)
       type= NDBCOL::StorageTypeDisk;
     else
       type= NDBCOL::StorageTypeMemory;
@@ -7570,7 +7570,7 @@ int ha_ndbcluster::create(const char *name,
       tab.setTablespaceName("DEFAULT-TS");
   }
   else if (create_info->tablespace && 
-           create_info->default_storage_media == HA_SM_MEMORY)
+           create_info->storage_media == HA_SM_MEMORY)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_ILLEGAL_HA_CREATE_OPTION,
