@@ -22167,7 +22167,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     {
       SELECT_LEX *last_select= join->unit->first_select()->last_select();
       // # characters needed to print select_number of last select
-      int last_length= log10((double)last_select->select_number)+1;
+      int last_length= (int)log10((double)last_select->select_number)+1;
 
       SELECT_LEX *sl= join->unit->first_select();
       uint len= 6, lastop= 0;
