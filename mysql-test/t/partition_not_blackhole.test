@@ -16,6 +16,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --copy_file std_data/parts/t1_blackhole.frm $MYSQLD_DATADIR/test/t1.frm
 --copy_file std_data/parts/t1_blackhole.par $MYSQLD_DATADIR/test/t1.par
 SHOW TABLES;
+--replace_result $MYSQLD_DATADIR ./
 --error ER_NOT_FORM_FILE
 SHOW CREATE TABLE t1;
 --error ER_BAD_TABLE_ERROR
