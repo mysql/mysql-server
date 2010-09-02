@@ -64,7 +64,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_db.cc ../sql/sql_delete.cc ../sql/sql_derived.cc 
            ../sql/sql_do.cc ../sql/sql_error.cc ../sql/sql_handler.cc 
            ../sql/sql_help.cc ../sql/sql_insert.cc ../sql/datadict.cc
-           ../sql/sql_truncate.cc
+           ../sql/sql_admin.cc ../sql/sql_truncate.cc ../sql/sql_reload.cc
            ../sql/sql_lex.cc ../sql/keycaches.cc
            ../sql/sql_list.cc ../sql/sql_load.cc ../sql/sql_locale.cc 
            ../sql/sql_binlog.cc ../sql/sql_manager.cc
@@ -80,6 +80,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc ../sql/sql_audit.cc
+           ../sql/sql_alter.cc ../sql/sql_partition_admin.cc
            ../sql/event_parse_data.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
 	       ../sql/rpl_utility.cc

@@ -120,4 +120,57 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 
+--echo # WL#5370
+--echo # The behavior of statement 'CREATE TABLE SELECT IF NOT EXISTS' is changed.
+--echo # After the worklog, it will insert nothing and the statement will not be
+--echo # binlogged if the table already exists.
+--echo # After the worklog, some bugs will disappear automotically.
+source include/master-slave-reset.inc;
+
+--echo
+--echo # Case 1: BUG#47132
+connection master;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int);
+INSERT INTO t1 VALUES (1), (1);
+INSERT INTO t2 VALUES (2), (2);
+
+CREATE VIEW v1 AS SELECT id FROM t2;
+--let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
+--source include/show_binlog_events.inc
+
+SHOW CREATE TABLE v1;
+SELECT * FROM t2;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+# the warning only happens on SBR, so we disable it.
+--disable_warnings
+CREATE TEMPORARY TABLE tt1 AS SELECT id FROM t2;
+--enable_warnings
+
+--let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+CREATE TEMPORARY TABLE IF NOT EXISTS tt1(a int, b int) SELECT id, id FROM t1;
+--source include/show_binlog_events.inc
+SELECT * FROM t2;
+SELECT * FROM tt1;
+DROP TEMPORARY TABLE tt1;
+
+--echo
+--echo # Case 1: BUG#47132
+--echo # RBR breaks on CREATE TABLE IF EXISTS <existing VIEW> AS SELECT
+CREATE VIEW v1 AS SELECT 1 as a;
+--let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+CREATE TABLE IF NOT EXISTS v1 SELECT 2 as a;
+--source include/show_binlog_events.inc
+sync_slave_with_master;
+
+connection master;
+DROP VIEW v1;
+
+DROP TABLE t1, t2;
+
 source include/master-slave-end.inc;
