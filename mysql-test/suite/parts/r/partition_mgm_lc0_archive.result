@@ -927,6 +927,16 @@ PARTITION MAX);
 INSERT INTO t1 VALUES (NULL, "First"), (NULL, "Second"), (999, "Last in LT1000"), (NULL, "First in LT2000"), (NULL, "Second in LT2000"), (1999, "Last in LT2000"), (NULL, "First in MAX"), (NULL, "Second in MAX");
 ALTER TABLE t1 TRUNCATE PARTITION MAX;
 Got one of the listed errors
+SELECT * FROM t1;
+a	b
+1	First
+1000	First in LT2000
+1001	Second in LT2000
+1999	Last in LT2000
+2	Second
+2000	First in MAX
+2001	Second in MAX
+999	Last in LT1000
 # Cleaning up before exit
 USE test;
 DROP DATABASE MySQL_Test_DB;
