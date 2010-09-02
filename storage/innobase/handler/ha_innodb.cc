@@ -149,10 +149,10 @@ static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
-static char*	innobase_monitor_counter_on		= NULL;
-static char*	innobase_monitor_counter_off		= NULL;
-static char*	innobase_monitor_counter_reset		= NULL;
-static char*	innobase_monitor_counter_reset_all	= NULL;
+static char*	innobase_enable_monitor_counter		= NULL;
+static char*	innobase_disable_monitor_counter	= NULL;
+static char*	innobase_reset_monitor_counter		= NULL;
+static char*	innobase_reset_all_monitor_counter	= NULL;
 
 /* The highest file format being used in the database. The value can be
 set by user, however, it will be adjusted to the newer file format if
@@ -10833,8 +10833,7 @@ innodb_monitor_update(
 				    ER_NO_DEFAULT,
 				    "Default value is not defined for "
 				    "this set option. Please specify "
-				    "counter or module name to turn on/off "
-				    "or reset monitor counters.");
+				    "correct counter or module name.");
 		*(const char**) var_ptr = NULL;
 	} else {
 		monitor_info = srv_mon_get_info(monitor_id);
@@ -10904,20 +10903,20 @@ exit:
 	been turned on, we will set err_monitor. Print related
 	information */
 	if (err_monitor) {
-		sql_print_warning("Monitor %s already turned on.",
+		sql_print_warning("Monitor %s is already enabled.",
 				  srv_mon_get_name((monitor_id_t)err_monitor));
 	}
 
 	return;
 }
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_on and turn on
+Update the system variable innodb_enable_monitor_counter and enable 
 specified monitor counter.
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_on_update(
-/*=====================*/
+innodb_enable_monitor_update(
+/*=========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
 						system variable */
@@ -10929,12 +10928,12 @@ innodb_monitor_on_update(
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON);
 }
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_off and turn
+Update the system variable innodb_disable_monitor_counter and turn
 off specified monitor counter. */
 static
 void
-innodb_monitor_off_update(
-/*======================*/
+innodb_disable_monitor_update(
+/*==========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
 						system variable */
@@ -10951,7 +10950,7 @@ specified monitor counter(s).
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_reset_update(
+innodb_reset_monitor_update(
 /*========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -10969,7 +10968,7 @@ all value related monitor counter.
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_reset_all_update(
+innodb_reset_all_monitor_update(
 /*============================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -11352,29 +11351,29 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
-static MYSQL_SYSVAR_STR(monitor_counter_on, innobase_monitor_counter_on,
+static MYSQL_SYSVAR_STR(enable_monitor_counter, innobase_enable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn on a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_on_update, NULL);
+  innodb_enable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_off, innobase_monitor_counter_off,
+static MYSQL_SYSVAR_STR(disable_monitor_counter, innobase_disable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn off a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_off_update, NULL);
+  innodb_disable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_reset, innobase_monitor_counter_reset,
+static MYSQL_SYSVAR_STR(reset_monitor_counter, innobase_reset_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_reset_update, NULL);
+  innodb_reset_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_reset_all, innobase_monitor_counter_reset_all,
+static MYSQL_SYSVAR_STR(reset_all_monitor_counter, innobase_reset_all_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset all values for a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_reset_all_update, NULL);
+  innodb_reset_all_monitor_update, NULL);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -11435,10 +11434,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(monitor_counter_on),
-  MYSQL_SYSVAR(monitor_counter_off),
-  MYSQL_SYSVAR(monitor_counter_reset),
-  MYSQL_SYSVAR(monitor_counter_reset_all),
+  MYSQL_SYSVAR(enable_monitor_counter),
+  MYSQL_SYSVAR(disable_monitor_counter),
+  MYSQL_SYSVAR(reset_monitor_counter),
+  MYSQL_SYSVAR(reset_all_monitor_counter),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
   MYSQL_SYSVAR(page_hash_mutexes),

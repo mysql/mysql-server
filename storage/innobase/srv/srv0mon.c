@@ -45,13 +45,13 @@ static monitor_info_t	innodb_counter_info[] =
 	MONITOR_MODULE, MONITOR_DEFAULT_START},
 
 	/* ========== Counters for Server Metadata ========== */
-	{"module_server", "Server Metadata", "Server Metadata",
+	{"module_metadata", "Server Metadata", "Server Metadata",
 	 MONITOR_MODULE, MONITOR_MODULE_METADATA},
 
-	{"server_table_open", "Server Metadata",
+	{"metadata_table_opened", "Server Metadata",
 	 "Number of table handler opened", 0, MONITOR_TABLE_OPEN},
 
-	{"server_table_close", "Server Metadata",
+	{"metadata_table_closed", "Server Metadata",
 	 "Number of table handler closed", 0, MONITOR_TABLE_CLOSE},
 
 	/* ========== Counters for Lock Module ========== */
