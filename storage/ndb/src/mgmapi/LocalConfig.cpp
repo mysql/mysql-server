@@ -20,7 +20,7 @@
 #include <NdbEnv.h>
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
-#include <NdbMem.h>
+#include <util/NdbOut.hpp>
 
 #define _STR_VALUE(x) #x
 #define STR_VALUE(x) _STR_VALUE(x)
