@@ -802,7 +802,7 @@ int JOIN_CACHE::alloc_buffer()
   min_records= 1;
   max_records= partial_join_cardinality <= join_buff_space_limit ?
                  (ulonglong) partial_join_cardinality : join_buff_space_limit;
-  set_if_bigger(max_records, 1);
+  set_if_bigger(max_records, 10);
   min_buff_size= get_min_join_buffer_size();
   buff_size= get_max_join_buffer_size();
   for (tab= join->join_tab+join->const_tables; tab <= join_tab; tab++)
