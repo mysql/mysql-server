@@ -12,21 +12,20 @@ ERROR 1050 (42S01) at line 183: Table 'COND_INSTANCES' already exists
 ERROR 1050 (42S01) at line 213: Table 'EVENTS_WAITS_CURRENT' already exists
 ERROR 1050 (42S01) at line 227: Table 'EVENTS_WAITS_HISTORY' already exists
 ERROR 1050 (42S01) at line 241: Table 'EVENTS_WAITS_HISTORY_LONG' already exists
-ERROR 1050 (42S01) at line 261: Table 'EVENTS_WAITS_SUMMARY_BY_EVENT_NAME' already exists
-ERROR 1050 (42S01) at line 282: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
-ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 262: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
+ERROR 1050 (42S01) at line 283: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 320: Table 'FILE_INSTANCES' already exists
 ERROR 1050 (42S01) at line 339: Table 'FILE_SUMMARY_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 359: Table 'FILE_SUMMARY_BY_INSTANCE' already exists
 ERROR 1050 (42S01) at line 376: Table 'MUTEX_INSTANCES' already exists
 ERROR 1050 (42S01) at line 394: Table 'PERFORMANCE_TIMERS' already exists
-ERROR 1050 (42S01) at line 411: Table 'PROCESSLIST' already exists
-ERROR 1050 (42S01) at line 429: Table 'RWLOCK_INSTANCES' already exists
-ERROR 1050 (42S01) at line 445: Table 'SETUP_CONSUMERS' already exists
-ERROR 1050 (42S01) at line 462: Table 'SETUP_INSTRUMENTS' already exists
-ERROR 1050 (42S01) at line 482: Table 'SETUP_OBJECTS' already exists
-ERROR 1050 (42S01) at line 498: Table 'SETUP_TIMERS' already exists
-ERROR 1644 (HY000) at line 1138: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 412: Table 'RWLOCK_INSTANCES' already exists
+ERROR 1050 (42S01) at line 428: Table 'SETUP_CONSUMERS' already exists
+ERROR 1050 (42S01) at line 445: Table 'SETUP_INSTRUMENTS' already exists
+ERROR 1050 (42S01) at line 461: Table 'SETUP_TIMERS' already exists
+ERROR 1050 (42S01) at line 478: Table 'THREADS' already exists
+ERROR 1644 (HY000) at line 1118: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_table";
 Tables_in_performance_schema (user_table)
@@ -43,21 +42,20 @@ ERROR 1050 (42S01) at line 183: Table 'COND_INSTANCES' already exists
 ERROR 1050 (42S01) at line 213: Table 'EVENTS_WAITS_CURRENT' already exists
 ERROR 1050 (42S01) at line 227: Table 'EVENTS_WAITS_HISTORY' already exists
 ERROR 1050 (42S01) at line 241: Table 'EVENTS_WAITS_HISTORY_LONG' already exists
-ERROR 1050 (42S01) at line 261: Table 'EVENTS_WAITS_SUMMARY_BY_EVENT_NAME' already exists
-ERROR 1050 (42S01) at line 282: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
-ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 262: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
+ERROR 1050 (42S01) at line 283: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 320: Table 'FILE_INSTANCES' already exists
 ERROR 1050 (42S01) at line 339: Table 'FILE_SUMMARY_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 359: Table 'FILE_SUMMARY_BY_INSTANCE' already exists
 ERROR 1050 (42S01) at line 376: Table 'MUTEX_INSTANCES' already exists
 ERROR 1050 (42S01) at line 394: Table 'PERFORMANCE_TIMERS' already exists
-ERROR 1050 (42S01) at line 411: Table 'PROCESSLIST' already exists
-ERROR 1050 (42S01) at line 429: Table 'RWLOCK_INSTANCES' already exists
-ERROR 1050 (42S01) at line 445: Table 'SETUP_CONSUMERS' already exists
-ERROR 1050 (42S01) at line 462: Table 'SETUP_INSTRUMENTS' already exists
-ERROR 1050 (42S01) at line 482: Table 'SETUP_OBJECTS' already exists
-ERROR 1050 (42S01) at line 498: Table 'SETUP_TIMERS' already exists
-ERROR 1644 (HY000) at line 1138: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 412: Table 'RWLOCK_INSTANCES' already exists
+ERROR 1050 (42S01) at line 428: Table 'SETUP_CONSUMERS' already exists
+ERROR 1050 (42S01) at line 445: Table 'SETUP_INSTRUMENTS' already exists
+ERROR 1050 (42S01) at line 461: Table 'SETUP_TIMERS' already exists
+ERROR 1050 (42S01) at line 478: Table 'THREADS' already exists
+ERROR 1644 (HY000) at line 1118: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
@@ -72,21 +70,20 @@ ERROR 1050 (42S01) at line 183: Table 'COND_INSTANCES' already exists
 ERROR 1050 (42S01) at line 213: Table 'EVENTS_WAITS_CURRENT' already exists
 ERROR 1050 (42S01) at line 227: Table 'EVENTS_WAITS_HISTORY' already exists
 ERROR 1050 (42S01) at line 241: Table 'EVENTS_WAITS_HISTORY_LONG' already exists
-ERROR 1050 (42S01) at line 261: Table 'EVENTS_WAITS_SUMMARY_BY_EVENT_NAME' already exists
-ERROR 1050 (42S01) at line 282: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
-ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 262: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
+ERROR 1050 (42S01) at line 283: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 320: Table 'FILE_INSTANCES' already exists
 ERROR 1050 (42S01) at line 339: Table 'FILE_SUMMARY_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 359: Table 'FILE_SUMMARY_BY_INSTANCE' already exists
 ERROR 1050 (42S01) at line 376: Table 'MUTEX_INSTANCES' already exists
 ERROR 1050 (42S01) at line 394: Table 'PERFORMANCE_TIMERS' already exists
-ERROR 1050 (42S01) at line 411: Table 'PROCESSLIST' already exists
-ERROR 1050 (42S01) at line 429: Table 'RWLOCK_INSTANCES' already exists
-ERROR 1050 (42S01) at line 445: Table 'SETUP_CONSUMERS' already exists
-ERROR 1050 (42S01) at line 462: Table 'SETUP_INSTRUMENTS' already exists
-ERROR 1050 (42S01) at line 482: Table 'SETUP_OBJECTS' already exists
-ERROR 1050 (42S01) at line 498: Table 'SETUP_TIMERS' already exists
-ERROR 1644 (HY000) at line 1138: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 412: Table 'RWLOCK_INSTANCES' already exists
+ERROR 1050 (42S01) at line 428: Table 'SETUP_CONSUMERS' already exists
+ERROR 1050 (42S01) at line 445: Table 'SETUP_INSTRUMENTS' already exists
+ERROR 1050 (42S01) at line 461: Table 'SETUP_TIMERS' already exists
+ERROR 1050 (42S01) at line 478: Table 'THREADS' already exists
+ERROR 1644 (HY000) at line 1118: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -101,21 +98,20 @@ ERROR 1050 (42S01) at line 183: Table 'COND_INSTANCES' already exists
 ERROR 1050 (42S01) at line 213: Table 'EVENTS_WAITS_CURRENT' already exists
 ERROR 1050 (42S01) at line 227: Table 'EVENTS_WAITS_HISTORY' already exists
 ERROR 1050 (42S01) at line 241: Table 'EVENTS_WAITS_HISTORY_LONG' already exists
-ERROR 1050 (42S01) at line 261: Table 'EVENTS_WAITS_SUMMARY_BY_EVENT_NAME' already exists
-ERROR 1050 (42S01) at line 282: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
-ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 262: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
+ERROR 1050 (42S01) at line 283: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 320: Table 'FILE_INSTANCES' already exists
 ERROR 1050 (42S01) at line 339: Table 'FILE_SUMMARY_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 359: Table 'FILE_SUMMARY_BY_INSTANCE' already exists
 ERROR 1050 (42S01) at line 376: Table 'MUTEX_INSTANCES' already exists
 ERROR 1050 (42S01) at line 394: Table 'PERFORMANCE_TIMERS' already exists
-ERROR 1050 (42S01) at line 411: Table 'PROCESSLIST' already exists
-ERROR 1050 (42S01) at line 429: Table 'RWLOCK_INSTANCES' already exists
-ERROR 1050 (42S01) at line 445: Table 'SETUP_CONSUMERS' already exists
-ERROR 1050 (42S01) at line 462: Table 'SETUP_INSTRUMENTS' already exists
-ERROR 1050 (42S01) at line 482: Table 'SETUP_OBJECTS' already exists
-ERROR 1050 (42S01) at line 498: Table 'SETUP_TIMERS' already exists
-ERROR 1644 (HY000) at line 1138: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 412: Table 'RWLOCK_INSTANCES' already exists
+ERROR 1050 (42S01) at line 428: Table 'SETUP_CONSUMERS' already exists
+ERROR 1050 (42S01) at line 445: Table 'SETUP_INSTRUMENTS' already exists
+ERROR 1050 (42S01) at line 461: Table 'SETUP_TIMERS' already exists
+ERROR 1050 (42S01) at line 478: Table 'THREADS' already exists
+ERROR 1644 (HY000) at line 1118: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -130,21 +126,20 @@ ERROR 1050 (42S01) at line 183: Table 'COND_INSTANCES' already exists
 ERROR 1050 (42S01) at line 213: Table 'EVENTS_WAITS_CURRENT' already exists
 ERROR 1050 (42S01) at line 227: Table 'EVENTS_WAITS_HISTORY' already exists
 ERROR 1050 (42S01) at line 241: Table 'EVENTS_WAITS_HISTORY_LONG' already exists
-ERROR 1050 (42S01) at line 261: Table 'EVENTS_WAITS_SUMMARY_BY_EVENT_NAME' already exists
-ERROR 1050 (42S01) at line 282: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
-ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 262: Table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE' already exists
+ERROR 1050 (42S01) at line 283: Table 'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME' already exists
+ERROR 1050 (42S01) at line 303: Table 'EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 320: Table 'FILE_INSTANCES' already exists
 ERROR 1050 (42S01) at line 339: Table 'FILE_SUMMARY_BY_EVENT_NAME' already exists
 ERROR 1050 (42S01) at line 359: Table 'FILE_SUMMARY_BY_INSTANCE' already exists
 ERROR 1050 (42S01) at line 376: Table 'MUTEX_INSTANCES' already exists
 ERROR 1050 (42S01) at line 394: Table 'PERFORMANCE_TIMERS' already exists
-ERROR 1050 (42S01) at line 411: Table 'PROCESSLIST' already exists
-ERROR 1050 (42S01) at line 429: Table 'RWLOCK_INSTANCES' already exists
-ERROR 1050 (42S01) at line 445: Table 'SETUP_CONSUMERS' already exists
-ERROR 1050 (42S01) at line 462: Table 'SETUP_INSTRUMENTS' already exists
-ERROR 1050 (42S01) at line 482: Table 'SETUP_OBJECTS' already exists
-ERROR 1050 (42S01) at line 498: Table 'SETUP_TIMERS' already exists
-ERROR 1644 (HY000) at line 1138: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 412: Table 'RWLOCK_INSTANCES' already exists
+ERROR 1050 (42S01) at line 428: Table 'SETUP_CONSUMERS' already exists
+ERROR 1050 (42S01) at line 445: Table 'SETUP_INSTRUMENTS' already exists
+ERROR 1050 (42S01) at line 461: Table 'SETUP_TIMERS' already exists
+ERROR 1050 (42S01) at line 478: Table 'THREADS' already exists
+ERROR 1644 (HY000) at line 1118: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.event where db='performance_schema';
 name

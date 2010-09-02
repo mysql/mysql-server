@@ -1,0 +1,27 @@
+select * from performance_schema.THREADS
+where name like 'Thread/%' limit 1;
+THREAD_ID	ID	NAME
+#	#	#
+select * from performance_schema.THREADS
+where name='FOO';
+THREAD_ID	ID	NAME
+insert into performance_schema.THREADS
+set name='FOO', thread_id=1, id=2;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'THREADS'
+update performance_schema.THREADS
+set thread_id=12;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'THREADS'
+update performance_schema.THREADS
+set thread_id=12 where name like "FOO";
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'THREADS'
+delete from performance_schema.THREADS
+where id=1;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'THREADS'
+delete from performance_schema.THREADS;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'THREADS'
+LOCK TABLES performance_schema.THREADS READ;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'THREADS'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.THREADS WRITE;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'THREADS'
+UNLOCK TABLES;

@@ -145,7 +145,7 @@ static Sys_var_ulong Sys_pfs_max_mutex_instances(
        "performance_schema_max_mutex_instances",
        "Maximum number of instrumented MUTEX objects.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100*1024*1024),
        DEFAULT(PFS_MAX_MUTEX),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -161,7 +161,7 @@ static Sys_var_ulong Sys_pfs_max_rwlock_instances(
        "performance_schema_max_rwlock_instances",
        "Maximum number of instrumented RWLOCK objects.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100*1024*1024),
        DEFAULT(PFS_MAX_RWLOCK),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -1492,7 +1492,8 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE)))
+  if ((result= close_cached_tables(thd, NULL, TRUE,
+                                   thd->variables.lock_wait_timeout)))
     goto end_with_read_lock;
 
   if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))
@@ -1616,14 +1617,17 @@ static Sys_var_charptr Sys_socket(
        READ_ONLY GLOBAL_VAR(mysqld_unix_port), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
-#ifdef HAVE_THR_SETCONCURRENCY
+/* 
+  thread_concurrency is a no-op on all platforms since
+  MySQL 5.1.  It will be removed in the context of
+  WL#5265
+*/
 static Sys_var_ulong Sys_thread_concurrency(
        "thread_concurrency",
        "Permits the application to give the threads system a hint for "
        "the desired number of threads that should be run at the same time",
        READ_ONLY GLOBAL_VAR(concurrency), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1));
-#endif
 
 static Sys_var_ulong Sys_thread_stack(
        "thread_stack", "The stack size for each thread",
@@ -1669,19 +1673,13 @@ static Sys_var_ulong Sys_trans_prealloc_size(
 
 static const char *thread_handling_names[]=
 {
-  "one-thread-per-connection", "no-threads",
-#if HAVE_POOL_OF_THREADS == 1
-  "pool-of-threads",
-#endif
+  "one-thread-per-connection", "no-threads", "loaded-dynamically",
   0
 };
 static Sys_var_enum Sys_thread_handling(
        "thread_handling",
        "Define threads usage for handling queries, one of "
-       "one-thread-per-connection, no-threads"
-#if HAVE_POOL_OF_THREADS == 1
-       ", pool-of-threads"
-#endif
+       "one-thread-per-connection, no-threads, loaded-dynamically"
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
        thread_handling_names, DEFAULT(0));
 

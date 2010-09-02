@@ -13251,6 +13251,34 @@ ok:
 }
 
 
+/**
+  Find shortest key suitable for full table scan.
+
+  @param table                 Table to scan
+  @param usable_keys           Allowed keys
+
+  @note
+     As far as 
+     1) clustered primary key entry data set is a set of all record
+        fields (key fields and not key fields) and
+     2) secondary index entry data is a union of its key fields and
+        primary key fields (at least InnoDB and its derivatives don't
+        duplicate primary key fields there, even if the primary and
+        the secondary keys have a common subset of key fields),
+     then secondary index entry data is always a subset of primary key entry.
+     Unfortunately, key_info[nr].key_length doesn't show the length
+     of key/pointer pair but a sum of key field lengths only, thus
+     we can't estimate index IO volume comparing only this key_length
+     value of secondary keys and clustered PK.
+     So, try secondary keys first, and choose PK only if there are no
+     usable secondary covering keys or found best secondary key include
+     all table fields (i.e. same as PK):
+
+  @return
+    MAX_KEY     no suitable key found
+    key index   otherwise
+*/
+
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
   uint best= MAX_KEY;
@@ -13263,23 +13291,6 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
     uint min_length= (uint) ~0;
     for (uint nr=0; nr < table->s->keys ; nr++)
     {
-      /*
-       As far as 
-       1) clustered primary key entry data set is a set of all record
-          fields (key fields and not key fields) and
-       2) secondary index entry data is a union of its key fields and
-          primary key fields (at least InnoDB and its derivatives don't
-          duplicate primary key fields there, even if the primary and
-          the secondary keys have a common subset of key fields),
-       then secondary index entry data is always a subset of primary key
-       entry, and the PK is always longer.
-       Unfortunately, key_info[nr].key_length doesn't show the length
-       of key/pointer pair but a sum of key field lengths only, thus
-       we can't estimate index IO volume comparing only this key_length
-       value of seconday keys and clustered PK.
-       So, try secondary keys first, and choose PK only if there are no
-       usable secondary covering keys:
-      */
       if (nr == usable_clustered_pk)
         continue;
       if (usable_keys->is_set(nr))
@@ -13292,7 +13303,20 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
       }
     }
   }
-  return best != MAX_KEY ? best : usable_clustered_pk;
+  if (usable_clustered_pk != MAX_KEY)
+  {
+    /*
+     If the primary key is clustered and found shorter key covers all table
+     fields then primary key scan normally would be faster because amount of
+     data to scan is the same but PK is clustered.
+     It's safe to compare key parts with table fields since duplicate key
+     parts aren't allowed.
+     */
+    if (best == MAX_KEY ||
+        table->key_info[best].key_parts >= table->s->fields)
+      best= usable_clustered_pk;
+  }
+  return best;
 }
 
 /**
