@@ -2677,6 +2677,12 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
         DBUG_RETURN(ndb_err(trans));
     }
     
+    /* Should be no unexamined completed operations
+       nextResult() on Blobs generates Blob part read ops,
+       so we will free them here
+    */
+    release_completed_operations(m_thd_ndb, trans);
+    
     if ((local_check= cursor->nextResult(&_m_next_row,
                                          contact_ndb,
                                          m_thd_ndb->m_force_send)) == 0)
