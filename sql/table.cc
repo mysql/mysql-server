@@ -3504,8 +3504,9 @@ void TABLE_LIST::cleanup_items()
 void TABLE_LIST::cleanup()
 {
   /*
-    This is a derived table and it has auto-generated keys.
-    Clean them as the optimizer could use another index on the next execution.
+    This is a derived table and it has auto-generated keys, except for
+    CREATE VIEW statement. Clean them as the optimizer could use another
+    index on the next execution.
   */
   if (is_materialized_derived())
   {
@@ -3516,19 +3517,6 @@ void TABLE_LIST::cleanup()
       while ((entry= ki++))
         my_free(entry);
       derived_keymap_list.empty();
-    }
-    /*
-      Free index info.
-      For a derived table one key at most is generated,
-      thus it's enough to free first key only.
-    */
-    if (table && table->s->keys)
-    {
-      my_free(table->key_info[0].key_part);
-      my_free(table->key_info);
-      table->key_info= table->s->key_info= 0;
-      table->s->keys= 0;
-      table->s->key_parts= 0;
     }
   }
 }
@@ -4677,7 +4665,8 @@ void TABLE::mark_columns_needed_for_update()
 bool TABLE::alloc_keys()
 {
   DBUG_ASSERT(!s->keys);
-  key_info= s->key_info= (KEY*) my_malloc(sizeof(KEY)*max_keys, MYF(MY_ZEROFILL));
+  key_info= s->key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*max_keys);
+  bzero(key_info, sizeof(KEY)*max_keys);
   return !(key_info);
 }
 
@@ -4724,11 +4713,14 @@ int TABLE::add_tmp_key(ulonglong key_parts, char *key_name, bool covering)
   uint pass= covering ? 1 : 0;
   uint key_part_count= covering ? field_count : my_count_bits(key_parts);
 
-  key_buf= (uchar*) my_malloc(sizeof(KEY_PART_INFO) * key_part_count +
-                              sizeof(ulong) * key_part_count,
-                              MYF(MY_ZEROFILL));
+  /* Allocate keys in the tables' mem_root. */
+  ulonglong key_buf_size= sizeof(KEY_PART_INFO) * key_part_count +
+                          sizeof(ulong) * key_part_count;
+  key_buf= (uchar*) alloc_root(&mem_root, key_buf_size);
+
   if (!key_buf)
     return -1;
+  bzero(key_buf, key_buf_size);
   keyinfo= key_info + s->keys;
   keyinfo->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
   keyinfo->usable_key_parts= keyinfo->key_parts= key_part_count;
@@ -4816,7 +4808,7 @@ int TABLE::add_tmp_key(ulonglong key_parts, char *key_name, bool covering)
 
   @details
   Drop all indexes on this table except 'key_to_save'. The saved key becomes
-  key #0. Memory occupied by key parts of dropped keys are freed.
+  key #0. Memory occupied by key parts will be freed along with the table.
   If the 'key_to_save' is negative then all keys are freed.
 */
 
@@ -4833,14 +4825,8 @@ void TABLE::use_index(int key_to_save)
     /* Save the given key. No need to copy key#0. */
     memcpy(key_info, key_info + key_to_save, sizeof(KEY));
 
-  for (; i < (int)s->keys; i++)
-  {
-    if (i != key_to_save)
-      my_free(key_info[i].key_part);
-  }
   if (key_to_save < 0)
   {
-    my_free(key_info);
     key_info= s->key_info= 0;
     s->key_parts= 0;
     s->keys= 0;
@@ -5252,6 +5238,10 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   DERIVED_KEY_MAP *entry= 0;
   List_iterator<DERIVED_KEY_MAP> ki(derived_keymap_list);
   uint i;
+
+  /* Don't bother with keys for CREATE VIEW. */
+  if (field->table->in_use->lex->view_prepare_mode)
+    return TRUE;
 
   /* Allow all keys to be used. */
   if (!derived_keymap_list.elements)
