@@ -723,7 +723,6 @@ WHERE int_nokey IN (SELECT it2.int_key
 FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 int_key
 0
-8
 2
 0
 7
@@ -734,10 +733,11 @@ int_key
 0
 0
 0
-0
 3
 7
 7
+8
+0
 5
 EXPLAIN
 SELECT int_key FROM ot1

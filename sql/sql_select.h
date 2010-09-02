@@ -216,7 +216,9 @@ typedef struct st_join_table {
     E(#records) is in found_records.
   */
   ha_rows       read_time;
-  
+    
+  double        partial_join_cardinality;
+
   table_map	dependent,key_dependent;
   uint		use_quick,index;
   uint		status;				///< Save status for cache
@@ -386,6 +388,7 @@ typedef struct st_join_table {
       calc_used_field_length(TRUE);
     return max_used_fieldlength;
   }
+  double get_partial_join_cardinality() { return partial_join_cardinality; }
 } JOIN_TAB;
 
 

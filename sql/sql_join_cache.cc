@@ -747,7 +747,7 @@ ulong JOIN_CACHE::get_max_join_buffer_size()
     if (join_tab->join_buffer_size_limit)
       set_if_smaller(limit_sz, join_tab->join_buffer_size_limit);
     if (limit_sz / max_records > space_per_record)
-      max_sz*= space_per_record * max_records;
+      max_sz= space_per_record * max_records;
     else
       max_sz= limit_sz;
     max_sz+= pack_length_with_blob_ptrs;
@@ -790,15 +790,18 @@ int JOIN_CACHE::alloc_buffer()
 {
   JOIN_TAB *tab;
   JOIN_CACHE *cache;
+  uint i= join->const_tables;
   ulonglong curr_buff_space_sz= 0;
   ulonglong curr_min_buff_space_sz= 0;
   ulonglong join_buff_space_limit=
-    join->thd->variables.join_buff_space_limit; 
+    join->thd->variables.join_buff_space_limit;
+  double partial_join_cardinality=  (join_tab-1)->get_partial_join_cardinality();
   buff= NULL;
   min_buff_size= 0;
   max_buff_size= 0;
   min_records= 1;
-  max_records= join_tab->records;
+  max_records= partial_join_cardinality <= join_buff_space_limit ?
+                 (ulonglong) partial_join_cardinality : join_buff_space_limit;
   set_if_bigger(max_records, 1);
   min_buff_size= get_min_join_buffer_size();
   buff_size= get_max_join_buffer_size();

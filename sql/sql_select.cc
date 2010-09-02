@@ -7720,6 +7720,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
+  for (i= 0; i < join->const_tables; i++)
+    join->join_tab[i].partial_join_cardinality= 1; 
+
   for (i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
@@ -7731,6 +7734,16 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->next_select=sub_select;		/* normal select */
     tab->sorted= sorted;
     sorted= 0;                                  // only first must be sorted
+
+    /*
+      The approximation below for partial join cardinality is not good because
+        - it does not take into account some pushdown predicates
+        - it does not differentiate between inner joins, outer joins and semi-joins.
+      Later it should be improved.
+    */
+    tab->partial_join_cardinality= join->best_positions[i].records_read *
+                                   (i ? (tab-1)->partial_join_cardinality : 1);
+ 
     if (tab->loosescan_match_tab)
     {
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
