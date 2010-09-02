@@ -998,7 +998,7 @@ typedef struct st_ha_create_information
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
-  enum ha_storage_media default_storage_media;  /* DEFAULT, DISK or MEMORY */
+  enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
   enum enum_ha_unused unused2;
 } HA_CREATE_INFO;
 
