@@ -1,3 +1,8 @@
+2010-08-24	The InnoDB Team
+
+	* handler/ha_innodb.c, dict/dict0dict.c:
+	Fix Bug #55832 selects crash too easily when innodb_force_recovery>3
+
 2010-08-03	The InnoDB Team
 
 	* include/dict0dict.h, include/dict0dict.ic, row/row0mysql.c:
@@ -10,6 +15,19 @@
 	row/row0merge.c, row/row0mysql.c:
 	Fix Bug#54582 stack overflow when opening many tables linked
 	with foreign keys at once
+
+2010-08-03	The InnoDB Team
+
+	* include/ut0mem.h, ut/ut0mem.c:
+	Fix Bug #55627 segv in ut_free pars_lexer_close innobase_shutdown
+	innodb-use-sys-malloc=0
+
+2010-08-01	The InnoDB Team
+
+	* handler/ha_innodb.cc
+	Fix Bug #55382 Assignment with SELECT expressions takes unexpected
+	S locks in READ COMMITTED
+>>>>>>> MERGE-SOURCE
 
 2010-07-27	The InnoDB Team
 
