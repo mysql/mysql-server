@@ -128,9 +128,9 @@ public:
    */
   enum MatchType
   {
-    MatchAll,        // DEFAULT: Output all matches, including duplicats.
+    MatchAll,        // DEFAULT: Output all matches, including duplicates.
                      // Append a single NULL complemented row for non-matching childs.
-    MatchNonNull,    // Output all matches, including duplicats. 
+    MatchNonNull,    // Output all matches, including duplicates. 
                      // Parents without any matches are discarded.
     MatchNullOnly,   // Output only parent rows without any child matches.
                      // Append a single NULL complemented row for the non_matching child
@@ -160,7 +160,17 @@ public:
    */
   int setOrdering(ScanOrdering ordering);
 
+  /** Define how NULL values and duplicates should be handled when equal tuples are matched.
+   */
   int setMatchType(MatchType matchType);
+
+  /**
+   * Define an (additional) parent dependency on the specified parent operation.
+   * If linkedValues are also defined for the operation which setParent() applies to,
+   * all implicit parents specified as part of the 'linkedValues' should be
+   * grandparents of 'parent'.
+   */
+  int setParent(const class NdbQueryOperationDef* parent);
 
   const NdbQueryOptionsImpl& getImpl() const;
 
@@ -367,22 +377,24 @@ public:
 
   // NdbQueryOperationDef builders:
   //
-  // Common argument 'ident' may be used to identify each NdbQueryOperationDef with a name.
-  // This may later be used to find the corresponding NdbQueryOperation instance when
-  // the NdbQueryDef is executed. 
-  // Each NdbQueryOperationDef will also be assigned an numeric ident (starting from 0)
-  // as an alternative way of locating the NdbQueryOperation.
+  // Common (optional) arguments:
+  //
+  //    - 'ident' may be used to identify each NdbQueryOperationDef with a name.
+  //       This may later be used to find the corresponding NdbQueryOperation instance when
+  //       the NdbQueryDef is executed. 
+  //       Each NdbQueryOperationDef will also be assigned an numeric ident (starting from 0)
+  //       as an alternative way of locating the NdbQueryOperation.
   
   const NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Table*,          // Primary key lookup
-				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                                const NdbQueryOperand* const keys[],  // Terminated by NULL element
                                 const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
   const NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Index*,          // Unique key lookup w/ index
 			        const NdbDictionary::Table*,
-				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                                const NdbQueryOperand* const keys[],  // Terminated by NULL element
                                 const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 

@@ -445,6 +445,17 @@ NdbQueryOptions::setMatchType(MatchType matchType)
   return 0;
 }
 
+int
+NdbQueryOptions::setParent(const NdbQueryOperationDef* parent)
+{
+  if (m_pimpl==&defaultOptions)
+  {
+    m_pimpl = new NdbQueryOptionsImpl;
+  }
+  m_pimpl->m_parent = &parent->getImpl();
+  return 0;
+}
+
 /****************************************************************************
  * Glue layer between NdbQueryOperationDef interface and its Impl'ementation.
  ****************************************************************************/
@@ -1634,7 +1645,13 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
    m_children(), 
    m_params(),
    m_spjProjection() 
-{}
+{
+  if (m_options.m_parent!=NULL)
+  {
+     m_parent = m_options.m_parent;
+     m_parent->addChild(this);
+  }
+}
 
   
 void
@@ -1698,7 +1715,7 @@ NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
     /**
      * Multiple parental relationship not allowed.
      * It is likely that the conflict is due to one of the
-     * parent actually being a grand parent.
+     * parents actually being a grand parent.
      * This can be resolved if existing parent actually was a grandparent.
      * Then register new parentOp as the real parrent.
      */
@@ -1845,9 +1862,7 @@ Uint32
 NdbQueryOperationDefImpl::appendChildProjection(Uint32Buffer& serializedDef) const
 {
   Uint32 requestInfo = 0;
-  assert ((getNoOfChildOperations() > 0) == (m_spjProjection.size()>0));
-
-  if (m_spjProjection.size() > 0)
+  if (m_spjProjection.size() > 0 || getNoOfChildOperations() > 0)
   {
     requestInfo |= DABits::NI_LINKED_ATTR;
     Uint16Sequence spjProjSeq(serializedDef, m_spjProjection.size());
