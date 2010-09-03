@@ -1455,7 +1455,7 @@ buf_LRU_make_block_old(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns BUF_LRU_FREED, it will not temporarily
+NOTE: If this function returns BUF_LRU_FREED, it will temporarily
 release buf_pool_mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
@@ -1485,7 +1485,12 @@ buf_LRU_free_block(
 	ut_ad(buf_page_in_file(bpage));
 	//ut_ad(bpage->in_LRU_list);
 	ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
+#if UNIV_WORD_SIZE == 4
+	/* On 32-bit systems, there is no padding in buf_page_t.  On
+	other systems, Valgrind could complain about uninitialized pad
+	bytes. */
 	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
+#endif
 
 	if (!bpage->in_LRU_list || !block_mutex || !buf_page_can_relocate(bpage)) {
 
@@ -1618,8 +1623,13 @@ not_freed:
 
 				ut_ad(prev_b->in_LRU_list);
 				ut_ad(buf_page_in_file(prev_b));
+#if UNIV_WORD_SIZE == 4
+				/* On 32-bit systems, there is no
+				padding in buf_page_t.  On other
+				systems, Valgrind could complain about
+				uninitialized pad bytes. */
 				UNIV_MEM_ASSERT_RW(prev_b, sizeof *prev_b);
-
+#endif
 				UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
 						     prev_b, b);
 
@@ -1834,7 +1844,12 @@ buf_LRU_block_remove_hashed_page(
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
 
+#if UNIV_WORD_SIZE == 4
+	/* On 32-bit systems, there is no padding in
+	buf_page_t.  On other systems, Valgrind could complain
+	about uninitialized pad bytes. */
 	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
+#endif
 
 	buf_LRU_remove_block(bpage);
 

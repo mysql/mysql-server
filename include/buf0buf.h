@@ -36,6 +36,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0rbt.h"
 #ifndef UNIV_HOTBACKUP
 #include "os0proc.h"
+#include "srv0srv.h"
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
@@ -1301,10 +1302,22 @@ struct buf_block_struct{
 /**********************************************************************//**
 Compute the hash fold value for blocks in buf_pool->zip_hash. */
 /* @{ */
-#define BUF_POOL_ZIP_FOLD_PTR(ptr) ((ulint) (ptr) / UNIV_PAGE_SIZE)
+/* the fold should be relative when srv_buffer_pool_shm_key is enabled */
+#define BUF_POOL_ZIP_FOLD_PTR(ptr) (!srv_buffer_pool_shm_key\
+					?((ulint) (ptr) / UNIV_PAGE_SIZE)\
+					:((ulint) ((void*)ptr - (void*)(buf_pool->chunks->blocks->frame)) / UNIV_PAGE_SIZE))
 #define BUF_POOL_ZIP_FOLD(b) BUF_POOL_ZIP_FOLD_PTR((b)->frame)
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */
+
+/** A chunk of buffers.  The buffer pool is allocated in chunks. */
+struct buf_chunk_struct{
+	ulint		mem_size;	/*!< allocated size of the chunk */
+	ulint		size;		/*!< size of frames[] and blocks[] */
+	void*		mem;		/*!< pointer to the memory area which
+					was allocated for the frames */
+	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+};
 
 /** @brief The buffer pool statistics structure. */
 struct buf_pool_stat_struct{

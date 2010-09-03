@@ -46,10 +46,10 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	8
+#define INNODB_VERSION_BUGFIX	10
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 11.2
+#define PERCONA_INNODB_VERSION 12.0
 #endif
 
 
@@ -172,9 +172,9 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
-#ifdef HAVE_purify
+#if defined HAVE_VALGRIND
 # define UNIV_DEBUG_VALGRIND
-#endif /* HAVE_purify */
+#endif /* HAVE_VALGRIND */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
@@ -212,10 +212,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						adaptive hash index */
 #define UNIV_SRV_PRINT_LATCH_WAITS		/* enable diagnostic output
 						in sync0sync.c */
-#define UNIV_BTR_AVOID_COPY			/* when splitting B-tree nodes,
-						do not move any records when
-						all the records would
-						be moved */
 #define UNIV_BTR_PRINT				/* enable functions for
 						printing B-trees */
 #define UNIV_ZIP_DEBUG				/* extensive consistency checks
@@ -304,6 +300,12 @@ management to ensure correct alignment for doubles etc. */
 
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
+
+/* The maximum length of a table name. This is the MySQL limit and is
+defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
+number does not include a terminating '\0'. InnoDB probably can handle
+longer names internally */
+#define MAX_TABLE_NAME_LEN	192
 
 /*
 			UNIVERSAL TYPE DEFINITIONS

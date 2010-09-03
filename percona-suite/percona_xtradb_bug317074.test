@@ -21,15 +21,18 @@ CREATE PROCEDURE insert_many(p1 int)
 BEGIN
 SET @x = 0;
 SET @y = 0;
+start transaction;
 REPEAT
   insert into test1 set b=1;
   SET @x = @x + 1;
   SET @y = @y + 1;
-  IF @y >= 100 THEN
+  IF @y >= 1000 THEN
     commit;
+    start transaction;
     SET @y = 0;
   END IF;
 UNTIL @x >= p1 END REPEAT;
+commit;
 END|
 delimiter ;|
 call insert_many(100000);
