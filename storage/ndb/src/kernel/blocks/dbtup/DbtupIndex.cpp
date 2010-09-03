@@ -165,7 +165,7 @@ Dbtup::tuxReadAttrs(Uint8 * jambase,
 	jam();
 	if (!opPtr.p->m_copy_tuple_location.isNull()) {
 	  req_struct.m_tuple_ptr=
-	    get_copy_tuple(tablePtr.p, &opPtr.p->m_copy_tuple_location);
+            get_copy_tuple(&opPtr.p->m_copy_tuple_location);
         }
 	break;
       }
@@ -232,7 +232,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
       Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
       ndbassert(!opPtrP->m_copy_tuple_location.isNull());
       req_struct.m_tuple_ptr=
-	get_copy_tuple(tablePtr.p, &opPtrP->m_copy_tuple_location);
+	get_copy_tuple(&opPtrP->m_copy_tuple_location);
     }
     prepare_read(&req_struct, tablePtr.p, false);
     
