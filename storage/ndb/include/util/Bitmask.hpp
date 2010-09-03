@@ -50,9 +50,10 @@ public:
   static void set(unsigned size, Uint32 data[]);
 
   /**
-   * set bit from <em>start</em> to <em>last</em>
+   * set <em>len</em> bist from <em>start</em>
    */
-  static void set_range(unsigned size, Uint32 data[], unsigned start, unsigned last);
+  static void setRange(unsigned size, Uint32 data[], unsigned start,
+                       unsigned len);
 
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
@@ -216,9 +217,10 @@ BitmaskImpl::set(unsigned size, Uint32 data[])
 }
 
 inline void
-BitmaskImpl::set_range(unsigned size, Uint32 data[], 
-		       unsigned start, unsigned last)
+BitmaskImpl::setRange(unsigned size, Uint32 data[],
+                      unsigned start, unsigned len)
 {
+  Uint32 last = start + len - 1;
   Uint32 *ptr = data + (start >> 5);
   Uint32 *end =  data + (last >> 5);
   assert(start <= last);
@@ -545,6 +547,12 @@ public:
   void set();
 
   /**
+   * set - set a range of bits
+   */
+  static void setRange(Uint32 data[], Uint32 pos, Uint32 len);
+  void setRange(Uint32 pos, Uint32 len);
+
+  /**
    * clear - Clear bit n.
    */
   static void clear(Uint32 data[], unsigned n);
@@ -740,6 +748,21 @@ inline void
 BitmaskPOD<size>::set()
 {
   BitmaskPOD<size>::set(rep.data);
+}
+
+template <unsigned size>
+inline void
+BitmaskPOD<size>::setRange(Uint32 data[], Uint32 pos, Uint32 len)
+{
+  BitmaskImpl::setRange(size, data, pos, len);
+}
+
+
+template <unsigned size>
+inline void
+BitmaskPOD<size>::setRange(Uint32 pos, Uint32 len)
+{
+  BitmaskPOD<size>::setRange(rep.data, pos, len);
 }
 
 template <unsigned size>
