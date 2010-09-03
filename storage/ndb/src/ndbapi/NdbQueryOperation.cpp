@@ -180,7 +180,7 @@ public:
   }
 
   /**
-   * Get the result stream that handles results dervied from this root 
+   * Get the result stream that handles results derived from this root 
    * fragment for a particular operation.
    * @param operationNo The id of the operation.
    * @return The result stream for this root fragment.
@@ -1797,7 +1797,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         if(waitResult != FetchResult_ok){
           return waitResult;
         }
-      } // if (m_fullFrags.top()==NULL)
+      } // if (m_fullFrags.size()==0)
 
       NdbRootFragment* frag;
       while ((frag=m_fullFrags.pop()) != NULL) {
@@ -3829,10 +3829,13 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     }
   }
 
-  requestInfo |= DABits::PI_ATTR_LIST;
-  const int error = serializeProject(attrInfo);
-  if (unlikely(error)) {
-    return error;
+  if (m_ndbRecord!=NULL || m_firstRecAttr!=NULL)
+  {
+    requestInfo |= DABits::PI_ATTR_LIST;
+    const int error = serializeProject(attrInfo);
+    if (unlikely(error)) {
+      return error;
+    }
   }
 
   if (diskInUserProjection())
