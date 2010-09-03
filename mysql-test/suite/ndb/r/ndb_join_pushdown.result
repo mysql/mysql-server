@@ -3461,6 +3461,25 @@ left join t1 as x5 on x4.a=x5.b;
 count(*)
 1885
 set ndb_join_pushdown=on;
+explain select straight_join count(*) from t1 as x1 
+join t1 as x2 on x2.b = x1.a
+join t1 as x3 on x3.b = x1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x1	ALL	ix1	NULL	NULL	NULL	13	Parent of 3 pushed join@1
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	Child of pushed join@1; Using where
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	1	Child of pushed join@1; Using where
+set ndb_join_pushdown=off;
+select straight_join count(*) from t1 as x1 
+join t1 as x2 on x2.b = x1.a
+join t1 as x3 on x3.b = x1.b;
+count(*)
+2028
+set ndb_join_pushdown=on;
+select straight_join count(*) from t1 as x1 
+join t1 as x2 on x2.b = x1.a
+join t1 as x3 on x3.b = x1.b;
+count(*)
+2028
 drop table t1;
 create table t1(
 d int not null,
