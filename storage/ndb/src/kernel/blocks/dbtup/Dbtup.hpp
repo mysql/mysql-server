@@ -3156,25 +3156,37 @@ private:
   Uint32 get_len(Ptr<Page>* pagePtr, Var_part_ref ref);
 
   Tuple_header* alloc_copy_tuple(const Tablerec* tabPtrP, Local_key* ptr){
-    Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr, tabPtrP->total_rec_size);
+    Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr,
+                                                  tabPtrP->total_rec_size);
     if (unlikely(dst == 0))
       return 0;
 #ifdef HAVE_purify
     bzero(dst, tabPtrP->total_rec_size);
 #endif
-    dst += ((tabPtrP->m_no_of_attributes + 31) >> 5);
+    Uint32 count = tabPtrP->m_no_of_attributes;
+    * dst = count;
+    dst += 1 + ((count + 31) >> 5);
     return (Tuple_header*)dst;
   }
 
-  Tuple_header* get_copy_tuple(const Tablerec* tabPtrP, const Local_key* ptr){
-    Uint32 mask = (tabPtrP->m_no_of_attributes + 31) >> 5;
-    return (Tuple_header*)(c_undo_buffer.get_ptr(ptr) + mask);
+  Uint32 * get_copy_tuple_raw(const Local_key* ptr) {
+    return c_undo_buffer.get_ptr(ptr);
+  }
+
+  Tuple_header * get_copy_tuple(Uint32 * rawptr) {
+    Uint32 masksz = ((* rawptr) + 31) >> 5;
+    return (Tuple_header*)(rawptr + 1 + masksz);
+  }
+
+  Tuple_header* get_copy_tuple(const Local_key* ptr){
+    return get_copy_tuple(get_copy_tuple_raw(ptr));
   }
 
   Uint32* get_change_mask_ptr(const Tablerec* tabP, Tuple_header* copy_tuple){
     Uint32 * tmp = (Uint32*)copy_tuple;
-    tmp -= ((tabP->m_no_of_attributes + 31) >> 5);
-    return tmp;
+    tmp -= 1 + ((tabP->m_no_of_attributes + 31) >> 5);
+    assert(get_copy_tuple(tmp) == copy_tuple);
+    return tmp + 1;
   }
 
   /**
@@ -3519,8 +3531,21 @@ void
 Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
                              Uint32* dst, const Uint32* src)
 {
-  Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
-  memcpy(dst, src, 4*len);
+  Uint32 dst_cols = tablePtrP->m_no_of_attributes;
+  Uint32 src_cols = * src;
+  const Uint32 * src_ptr = src + 1;
+
+  if (dst_cols == src_cols)
+  {
+    memcpy(dst, src_ptr, 4 * ((dst_cols + 31) >> 5));
+  }
+  else
+  {
+    ndbassert(dst_cols > src_cols); // drop column not supported
+    memcpy(dst, src_ptr, 4 * ((src_cols + 31) >> 5));
+    BitmaskImpl::setRange((dst_cols + 31) >> 5, dst,
+                          src_cols,  (dst_cols - src_cols));
+  }
 }
 
 // Dbtup_client provides proxying similar to Page_cache_client

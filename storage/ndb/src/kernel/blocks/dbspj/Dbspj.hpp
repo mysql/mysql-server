@@ -287,6 +287,7 @@ public:
      * NOTE: This contains various padding to be binary aligned with Tup_page
      *       (for storing into DLFifoList<RowPage>
      */
+    RowPage() {}
     struct File_formats::Page_header m_page_header;
     Uint32 unused0;
     Uint32 unused1;

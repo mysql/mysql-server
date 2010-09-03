@@ -20,7 +20,7 @@
 #define LocalConfig_H
 
 #include <ndb_global.h>
-#include <NdbOut.hpp>
+#include <BaseString.hpp>
 
 //****************************************************************************
 // Description: The class LocalConfig corresponds to the information possible

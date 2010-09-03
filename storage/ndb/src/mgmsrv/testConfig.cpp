@@ -21,9 +21,7 @@
 #include "InitConfigFileParser.hpp"
 #include "ConfigInfo.hpp"
 #include "Config.hpp"
-
-my_bool opt_core= 1;
-
+#include <portlib/NdbDir.hpp>
 
 #define CHECK(x) \
   if (!(x)) {\
@@ -63,7 +61,8 @@ check_param(const ConfigInfo::ParamInfo & param)
   else
   {
     fprintf(config_file, "[%s]\n", section);
-    fprintf(config_file, "%s=%s\n", param._fname, param._default);
+    fprintf(config_file, "%s=%s\n", param._fname,
+            param._default ? param._default : "some value");
   }
 
   // Fill in lines needed for a minimal config
@@ -83,8 +82,6 @@ check_param(const ConfigInfo::ParamInfo & param)
   rewind(config_file);
 
   // Run the config file through InitConfigFileParser
-  // throw away the error messages for now.
-
   InitConfigFileParser parser;
   Config* conf = parser.parseConfig(config_file);
   fclose(config_file);
@@ -141,8 +138,58 @@ create_config(const char* first, ...)
 
   InitConfigFileParser parser;
   Config* conf = parser.parseConfig(config_file);
-  CHECK(conf);
   fclose(config_file);
+
+  return conf;
+}
+
+// Global variable for my_getopt
+extern "C" const char* my_defaults_file;
+
+Config*
+create_mycnf(const char* first, ...)
+{
+  va_list args;
+
+  NdbDir::Temp tempdir;
+  BaseString mycnf_file;
+  mycnf_file.assfmt("%s%s%s",
+                    tempdir.path(), DIR_SEPARATOR, "test_my.cnf");
+
+  FILE* config_file= fopen(mycnf_file.c_str(), "w+");
+  CHECK(config_file);
+
+  va_start(args, first);
+  const char* str= first;
+  do
+    fprintf(config_file, "%s\n", str);
+  while((str= va_arg(args, const char*)) != NULL);
+  va_end(args);
+
+#if 0
+  rewind(config_file);
+
+  char buf[100];
+  while(fgets(buf, sizeof(buf), config_file))
+    printf("%s", buf);
+#endif
+
+  rewind(config_file);
+
+  // Trick handle_options to read from the temp file
+  const char* save_defaults_file = my_defaults_file;
+  my_defaults_file = mycnf_file.c_str();
+
+  InitConfigFileParser parser;
+  Config* conf = parser.parse_mycnf();
+
+  // Restore the global variable
+  my_defaults_file = save_defaults_file;
+
+  fclose(config_file);
+
+  // Remove file
+  unlink(mycnf_file.c_str());
 
   return conf;
 }
@@ -157,10 +204,12 @@ diff_config(void)
     create_config("[ndbd]", "NoOfReplicas=1",
                   "[ndb_mgmd]", "HostName=localhost",
                   "[mysqld]", NULL);
+  CHECK(c1);
   Config* c2=
     create_config("[ndbd]", "NoOfReplicas=1",
                   "[ndb_mgmd]", "HostName=localhost",
                   "[mysqld]", "[mysqld]", NULL);
+  CHECK(c2);
 
   CHECK(c1->equal(c1));
 
@@ -187,6 +236,7 @@ diff_config(void)
                     "DataMemory=100M", "IndexMemory=100M",
                     "[ndb_mgmd]", "HostName=localhost",
                     "[mysqld]", NULL);
+    CHECK(c1_bug47306);
 
     ndbout_c("c1->print_diff(c1_bug47306)");
     c1->print_diff(c1_bug47306);
@@ -267,10 +317,12 @@ checksum_config(void)
     create_config("[ndbd]", "NoOfReplicas=1",
                   "[ndb_mgmd]", "HostName=localhost",
                   "[mysqld]", NULL);
+  CHECK(c1);
   Config* c2=
     create_config("[ndbd]", "NoOfReplicas=1",
                   "[ndb_mgmd]", "HostName=localhost",
                   "[mysqld]", "[mysqld]", NULL);
+  CHECK(c2);
 
   ndbout_c("== checksum tests ==");
   Uint32 c1_check = c1->checksum();
@@ -293,14 +345,126 @@ checksum_config(void)
   delete c2;
 }
 
+static void
+test_param_values(void)
+{
+  struct test {
+    const char* param;
+    bool result;
+  } tests [] = {
+    // CI_ENUM
+    { "Arbitration=Disabled", true },
+    { "Arbitration=Invalid", false },
+    { "Arbitration=", false },
+    // CI_BITMASK
+    { "LockExecuteThreadToCPU=0", true },
+    { "LockExecuteThreadToCPU=1", true },
+    { "LockExecuteThreadToCPU=65535", true },
+    { "LockExecuteThreadToCPU=0-65535", true },
+    { "LockExecuteThreadToCPU=0-1,65534-65535", true },
+    { "LockExecuteThreadToCPU=17-256", true },
+    { "LockExecuteThreadToCPU=1-2,36-37,17-256,11-12,1-2", true },
+    { "LockExecuteThreadToCPU=", false }, // Zero size value not allowed
+    { "LockExecuteThreadToCPU=1-", false },
+    { "LockExecuteThreadToCPU=1--", false },
+    { "LockExecuteThreadToCPU=1-2,34-", false },
+    { "LockExecuteThreadToCPU=x", false },
+    { "LockExecuteThreadToCPU=x-1", false },
+    { "LockExecuteThreadToCPU=x-x", false },
+    { 0, false }
+  };
+
+  for (struct test* t = tests; t->param; t++)
+  {
+    ndbout_c("testing %s", t->param);
+    {
+      const Config* c =
+        create_config("[ndbd]", "NoOfReplicas=1",
+                      t->param,
+                      "[ndb_mgmd]", "HostName=localhost",
+                      "[mysqld]", NULL);
+      if (t->result)
+      {
+        CHECK(c);
+        delete c;
+      }
+      else
+      {
+        CHECK(c == NULL);
+      }
+    }
+    {
+      const Config* c =
+        create_mycnf("[cluster_config]",
+                     "ndb_mgmd=localhost",
+                     "ndbd=localhost,localhost",
+                     "ndbapi=localhost",
+                     "NoOfReplicas=1",
+                     t->param,
+                     NULL);
+      if (t->result)
+      {
+        CHECK(c);
+        delete c;
+      }
+      else
+      {
+        CHECK(c == NULL);
+      }
+    }
+  }
+
+}
+
+static void
+test_hostname_mycnf(void)
+{
+  // Check the special rule for my.cnf that says
+  // the two hostname specs must match
+  {
+    // Valid config, ndbd=localhost, matches HostName=localhost
+    const Config* c =
+      create_mycnf("[cluster_config]",
+                   "ndb_mgmd=localhost",
+                   "ndbd=localhost,localhost",
+                   "ndbapi=localhost",
+                   "NoOfReplicas=1",
+                   "[cluster_config.ndbd.1]",
+                   "HostName=localhost",
+                   NULL);
+    CHECK(c);
+    delete c;
+  }
+
+  {
+    // Invalid config, ndbd=localhost, does not match HostName=host1
+    const Config* c =
+      create_mycnf("[cluster_config]",
+                   "ndb_mgmd=localhost",
+                   "ndbd=localhost,localhost",
+                   "ndbapi=localhost",
+                   "NoOfReplicas=1",
+                   "[cluster_config.ndbd.1]",
+                   "HostName=host1",
+                   NULL);
+    CHECK(c == NULL);
+  }
+}
+
 #include <NdbTap.hpp>
+
+#include <EventLogger.hpp>
+extern EventLogger* g_eventLogger;
 
 TAPTEST(MgmConfig)
 {
   ndb_init();
+  g_eventLogger->createConsoleHandler();
   diff_config();
   CHECK(check_params());
   checksum_config();
+  test_param_values();
+  test_hostname_mycnf();
 #if 0
   print_restart_info();
 #endif

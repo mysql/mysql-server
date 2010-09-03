@@ -50,9 +50,10 @@ public:
   static void set(unsigned size, Uint32 data[]);
 
   /**
-   * set bit from <em>start</em> to <em>last</em>
+   * set <em>len</em> bist from <em>start</em>
    */
-  static void set_range(unsigned size, Uint32 data[], unsigned start, unsigned last);
+  static void setRange(unsigned size, Uint32 data[], unsigned start,
+                       unsigned len);
 
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
@@ -179,15 +180,6 @@ public:
    */
   static char* getText(unsigned size, const Uint32 data[], char* buf);
 
-  /**
-   * Parse string with numbers format
-   *   1,2,3-5
-   * @return -1 if unparsable chars found, 
-   *         -2 str has number > bitmask size
-   *            else returns number of bits set 
-   */
-  static int parseMask(unsigned size, Uint32 data[], const char * str);
-
   /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
   static inline Uint32 count_bits(Uint32 x);
 
@@ -225,9 +217,10 @@ BitmaskImpl::set(unsigned size, Uint32 data[])
 }
 
 inline void
-BitmaskImpl::set_range(unsigned size, Uint32 data[], 
-		       unsigned start, unsigned last)
+BitmaskImpl::setRange(unsigned size, Uint32 data[],
+                      unsigned start, unsigned len)
 {
+  Uint32 last = start + len - 1;
   Uint32 *ptr = data + (start >> 5);
   Uint32 *end =  data + (last >> 5);
   assert(start <= last);
@@ -502,6 +495,8 @@ public:
 
   Uint32 getSizeInWords() const { return Size;}
 
+  unsigned max_size() const { return (size * 32) - 1; }
+
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
@@ -550,6 +545,12 @@ public:
    */
   static void set(Uint32 data[]);
   void set();
+
+  /**
+   * set - set a range of bits
+   */
+  static void setRange(Uint32 data[], Uint32 pos, Uint32 len);
+  void setRange(Uint32 pos, Uint32 len);
 
   /**
    * clear - Clear bit n.
@@ -649,8 +650,6 @@ public:
   static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
 
-  static int parseMask(Uint32 data[], const char * src);
-  int parseMask(const char * src);
 };
 
 template <unsigned size>
@@ -753,6 +752,21 @@ BitmaskPOD<size>::set()
 
 template <unsigned size>
 inline void
+BitmaskPOD<size>::setRange(Uint32 data[], Uint32 pos, Uint32 len)
+{
+  BitmaskImpl::setRange(size, data, pos, len);
+}
+
+
+template <unsigned size>
+inline void
+BitmaskPOD<size>::setRange(Uint32 pos, Uint32 len)
+{
+  BitmaskPOD<size>::setRange(rep.data, pos, len);
+}
+
+template <unsigned size>
+inline void
 BitmaskPOD<size>::clear(Uint32 data[], unsigned n)
 {
   BitmaskImpl::clear(size, data, n);
@@ -808,7 +822,7 @@ BitmaskPOD<size>::isclear() const
 }
 
 template <unsigned size>
-unsigned
+inline unsigned
 BitmaskPOD<size>::count(const Uint32 data[])
 {
   return BitmaskImpl::count(size, data);
@@ -822,7 +836,7 @@ BitmaskPOD<size>::count() const
 }
 
 template <unsigned size>
-unsigned
+inline unsigned
 BitmaskPOD<size>::find(const Uint32 data[], unsigned n)
 {
   return BitmaskImpl::find(size, data, n);
@@ -940,7 +954,7 @@ BitmaskPOD<size>::bitNOT()
 }
 
 template <unsigned size>
-char *
+inline char *
 BitmaskPOD<size>::getText(const Uint32 data[], char* buf)
 {
   return BitmaskImpl::getText(size, data, buf);
@@ -982,26 +996,30 @@ BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
 }
 
 template <unsigned size>
-int
-BitmaskPOD<size>::parseMask(Uint32 data[], const char* buf)
-{
-  return BitmaskImpl::parseMask(size, data, buf);
-}
-
-template <unsigned size>
-inline
-int
-BitmaskPOD<size>::parseMask(const char* buf)
-{
-  return BitmaskPOD<size>::parseMask(rep.data, buf);
-}
-
-template <unsigned size>
 class Bitmask : public BitmaskPOD<size> {
 public:
   Bitmask() { this->clear();}
 
   template<unsigned sz2> Bitmask& operator=(const Bitmask<sz2>& src){
+    if (size >= sz2)
+    {
+      for (unsigned i = 0; i < sz2; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    else
+    {
+      assert(src.find(32*size+1) == BitmaskImpl::NotFound);
+      for (unsigned i = 0; i < size; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    return * this;
+  }
+
+  template<unsigned sz2> Bitmask& operator=(const BitmaskPOD<sz2>& src){
     if (size >= sz2)
     {
       for (unsigned i = 0; i < sz2; i++) 

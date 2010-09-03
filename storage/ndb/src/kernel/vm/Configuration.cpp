@@ -72,7 +72,8 @@ Configuration::init(int _no_start, int _initial,
   return true;
 }
 
-Configuration::Configuration()
+Configuration::Configuration() :
+  _executeLockCPU(NO_LOCK_CPU-1)
 {
   _fsPath = 0;
   _backupPath = 0;
@@ -265,6 +266,8 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
   return strdup(buf2);
 }
 
+#include "../../common/util/parse_mask.hpp"
+
 void
 Configuration::setupConfiguration(){
 
@@ -334,25 +337,24 @@ Configuration::setupConfiguration(){
   iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler);
 
   const char * mask;
-  Uint32 mtthreads = 0;
-  iter.get(CFG_DB_MT_THREADS, &mtthreads);
-
   if(iter.get(CFG_DB_EXECUTE_LOCK_CPU, &mask) == 0)
   {
-    if (_executeLockCPU.parseMask(mask) < 0)
+
+    int res = parse_mask(mask, _executeLockCPU);
+    if (res < 0)
     {
+      // Could not parse LockExecuteThreadToCPU mask
+      g_eventLogger->warning("Failed to parse 'LockExecuteThreadToCPU=%s' "
+                             "(error: %d), ignoring it!",
+                             mask, res);
       _executeLockCPU.clear();
-    }
-    if (globalData.isNdbMt && mtthreads > _executeLockCPU.count())
-    {
-      g_eventLogger->warning("MaxNoOfExecutionThreads (%u) > LockExecuteThreadToCPU "
-                             "count (%u), this could cause contention",
-                             mtthreads, _executeLockCPU.count());
     }
   }
 
   _maintLockCPU = NO_LOCK_CPU;
   iter.get(CFG_DB_MAINT_LOCK_CPU, &_maintLockCPU);
+  if (_maintLockCPU == 65535)
+    _maintLockCPU = NO_LOCK_CPU; // Ignore old default(may come from old mgmd)
 
   if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, 
               &_timeBetweenWatchDogCheckInitial)){
@@ -455,7 +457,7 @@ Configuration::executeLockCPU() const
 void
 Configuration::executeLockCPU(Uint32 value)
 {
-  if (value >= NDB_CPU_MASK_SZ)
+  if (value >= _executeLockCPU.max_size())
   {
     value = NO_LOCK_CPU;
   }

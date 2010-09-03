@@ -2160,6 +2160,7 @@ valid_nodes(const NdbNodeBitmask& nodes, unsigned max_nodeid)
 
 
 #include <signaldata/DumpStateOrd.hpp>
+#include "../common/util/parse_mask.hpp"
 
 static const
 struct dump_request {
@@ -2211,7 +2212,7 @@ MgmApiSession::dump_events(Parser_t::Context &,
   args.get("nodes", &nodes_str);
   if (nodes_str)
   {
-    int res = nodes.parseMask(nodes_str);
+    int res = parse_mask(nodes_str, nodes);
     if (res < 0 || !valid_nodes(nodes, MAX_NDB_NODES-1))
     {
       m_output->println("result: invalid nodes: '%s'", nodes_str);
