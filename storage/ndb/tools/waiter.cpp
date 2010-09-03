@@ -84,6 +84,8 @@ void catch_signal(int signum)
 {
 }
 
+#include "../src/common/util/parse_mask.hpp"
+
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
@@ -127,7 +129,7 @@ int main(int argc, char** argv){
 
   if (_nowait_nodes)
   {
-    int res = nowait_nodes_bitmask.parseMask(_nowait_nodes);
+    int res = parse_mask(_nowait_nodes, nowait_nodes_bitmask);
     if(res == -2 || (res > 0 && nowait_nodes_bitmask.get(0)))
     {
       ndbout_c("Invalid nodeid specified in nowait-nodes: %s", 
@@ -150,7 +152,7 @@ int main(int argc, char** argv){
       exit(-1);
     }
 
-    int res = nowait_nodes_bitmask.parseMask(_wait_nodes);
+    int res = parse_mask(_wait_nodes, nowait_nodes_bitmask);
     if (res == -2 || (res > 0 && nowait_nodes_bitmask.get(0)))
     {
       ndbout_c("Invalid nodeid specified in wait-nodes: %s",

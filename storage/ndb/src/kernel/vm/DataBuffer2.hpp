@@ -99,6 +99,7 @@ public:
 
   /* ----------------------------------------------------------------------- */
 
+  struct ConstDataBufferIterator;
   struct DataBufferIterator {
     Ptr<Segment>       curr;  // Ptr to current segment
     Uint32*            data;  // Pointer to current data (word)
@@ -110,6 +111,7 @@ public:
 	      curr.i, (void*) data, ind, pos);
     };
 
+    inline void assign(const ConstDataBufferIterator& src);
     inline bool isNull() const { return curr.isNull();}
     inline void setNull() { curr.setNull(); data = 0; ind = pos = RNIL;}
   };
@@ -121,6 +123,7 @@ public:
     Uint32             ind;
     Uint32             pos;
 
+    inline void assign(const DataBufferIterator& src);
     inline bool isNull() const { return curr.isNull();}
     inline void setNull() { curr.setNull(); data = 0; ind = pos = RNIL;}
   };
@@ -434,21 +437,33 @@ template<Uint32 sz, typename Pool>
 inline
 bool
 DataBuffer2<sz, Pool>::first(DataBufferIterator & it){
-  return first((ConstDataBufferIterator&)it);
+  ConstDataBufferIterator tmp;
+  tmp.assign(it);
+  bool ret = first(tmp);
+  it.assign(tmp);
+  return ret;
 }
 
 template<Uint32 sz, typename Pool>
 inline
 bool
 DataBuffer2<sz, Pool>::next(DataBufferIterator & it){
-  return next((ConstDataBufferIterator&)it);
+  ConstDataBufferIterator tmp;
+  tmp.assign(it);
+  bool ret = next(tmp);
+  it.assign(tmp);
+  return ret;
 }
 
 template<Uint32 sz, typename Pool>
 inline
 bool
 DataBuffer2<sz, Pool>::next(DataBufferIterator & it, Uint32 hops){
-  return next((ConstDataBufferIterator&)it, hops);
+  ConstDataBufferIterator tmp;
+  tmp.assign(it);
+  bool ret = next(tmp, hops);
+  it.assign(tmp);
+  return ret;
 }
 
 template<Uint32 sz, typename Pool>
@@ -568,6 +583,30 @@ DataBuffer2<sz, Pool>::createRecordInfo(Record_info & ri, Uint32 type_id)
   ri.m_offset_next_pool = Uint32(off_next - off_base);
   ri.m_offset_magic = Uint32(off_magic - off_base);
   ri.m_type_id = type_id;
+}
+
+template<Uint32 sz, typename Pool>
+inline
+void
+DataBuffer2<sz, Pool>::DataBufferIterator::assign(const ConstDataBufferIterator & src)
+{
+  this->curr.i = src.curr.i;
+  this->curr.p = const_cast<Segment*>(src.curr.p);
+  this->data = const_cast<Uint32*>(src.data);
+  this->ind = src.ind;
+  this->pos = src.pos;
+}
+
+template<Uint32 sz, typename Pool>
+inline
+void
+DataBuffer2<sz, Pool>::ConstDataBufferIterator::assign(const DataBufferIterator & src)
+{
+  this->curr.i = src.curr.i;
+  this->curr.p = src.curr.p;
+  this->data = src.data;
+  this->ind = src.ind;
+  this->pos = src.pos;
 }
 
 #endif

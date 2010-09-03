@@ -17,18 +17,10 @@
 */
 
 #include <ndb_global.h>
-//#define NDB_OPTS_SKIP_USAGE
 #include <ndb_opts.h>
-#include <my_pthread.h>
-#include <ndb_rand.h>
 
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
-
-#include <PortDefs.h>
-
-#include <time.h>
-
 
 NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   : m_cluster_connection(con)

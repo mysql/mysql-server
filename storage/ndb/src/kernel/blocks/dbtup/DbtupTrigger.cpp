@@ -619,8 +619,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
   switch (save_type) {
   case ZUPDATE:
   case ZINSERT:
-    req_struct->m_tuple_ptr =
-      get_copy_tuple(regTablePtr, &regOperPtr->m_copy_tuple_location);
+    req_struct->m_tuple_ptr =get_copy_tuple(&regOperPtr->m_copy_tuple_location);
     break;
   }
 
@@ -1259,8 +1258,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   {
     jam();
     req_struct->m_tuple_ptr=
-      get_copy_tuple(regTabPtr,
-                     &req_struct->prevOpPtr.p->m_copy_tuple_location);
+      get_copy_tuple(&req_struct->prevOpPtr.p->m_copy_tuple_location);
   }
 
   if (regTabPtr->need_expand(disk)) 
@@ -1354,8 +1352,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     else
     {
       req_struct->m_tuple_ptr =
-        get_copy_tuple(regTabPtr,
-                       &req_struct->prevOpPtr.p->m_copy_tuple_location);
+        get_copy_tuple(&req_struct->prevOpPtr.p->m_copy_tuple_location);
     }
 
     if (regTabPtr->need_expand(disk)) 

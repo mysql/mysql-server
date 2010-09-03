@@ -7956,6 +7956,8 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
   locTcConnectptr.p->nextTcConnectrec = cfirstfreeTcConrec;
   cfirstfreeTcConrec = locTcConnectptr.i;
 
+  ndbassert(locTcConnectptr.p->tcScanRec == RNIL);
+
   TablerecPtr tabPtr;
   tabPtr.i = locTcConnectptr.p->tableref;
   if(tabPtr.i == RNIL)
@@ -8978,6 +8980,9 @@ void Dblqh::lqhTransNextLab(Signal* signal)
 	    break;
 	  }
 	  default:
+            ndbout_c("scanptr.p->scanType: %u", scanptr.p->scanType);
+            ndbout_c("tcConnectptr.p->transactionState: %u",
+                     tcConnectptr.p->transactionState);
 	    ndbrequire(false);
 	  }
         }
@@ -9580,23 +9585,7 @@ void Dblqh::closeScanRequestLab(Signal* signal)
      *  WE ARE STILL WAITING FOR THE ATTRIBUTE INFORMATION THAT 
      *  OBVIOUSLY WILL NOT ARRIVE. WE CAN QUIT IMMEDIATELY HERE.
      * --------------------------------------------------------------------- */
-    //XXX jonas this have to be wrong...
-    releaseOprec(signal);
-    if (tcConnectptr.p->abortState == TcConnectionrec::NEW_FROM_TC) {
-      jam();
-      tcNodeFailptr.i = tcConnectptr.p->tcNodeFailrec;
-      ptrCheckGuard(tcNodeFailptr, ctcNodeFailrecFileSize, tcNodeFailRecord);
-      tcNodeFailptr.p->tcRecNow = tcConnectptr.i + 1;
-      signal->theData[0] = ZLQH_TRANS_NEXT;
-      signal->theData[1] = tcNodeFailptr.i;
-      sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
-      return;
-    }//if
-    tcConnectptr.p->abortState = TcConnectionrec::ABORT_ACTIVE;
-    scanptr.p->m_curr_batch_size_rows = 0;
-    scanptr.p->m_curr_batch_size_bytes= 0;
-    sendScanFragConf(signal, ZTRUE);
-    abort_scan(signal, scanptr.i, 0);
+    tupScanCloseConfLab(signal);
     return;
     break;
   case TcConnectionrec::SCAN_TUPKEY:
@@ -9989,6 +9978,7 @@ error_handler:
   sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
 	     ScanFragRef::SignalLength, JBB);
   releaseSections(handle);
+  tcConnectptr.p->tcScanRec = RNIL;
   releaseOprec(signal);
   releaseTcrec(signal, tcConnectptr);
   return;
@@ -10083,28 +10073,9 @@ void Dblqh::abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode){
   scanptr.i = scan_ptr_i;
   c_scanRecordPool.getPtr(scanptr);
 
-  fragptr.i = tcConnectptr.p->fragmentptr;
-  c_fragment_pool.getPtr(fragptr);
-  finishScanrec(signal);
-  releaseScanrec(signal);
-  tcConnectptr.p->transactionState = TcConnectionrec::IDLE;
-  tcConnectptr.p->abortState = TcConnectionrec::ABORT_ACTIVE;
-
-  if(errcode)
-  {
-    jam();
-    ScanFragRef * ref = (ScanFragRef*)&signal->theData[0];
-    ref->senderData = tcConnectptr.p->clientConnectrec;
-    ref->transId1 = tcConnectptr.p->transid[0];
-    ref->transId2 = tcConnectptr.p->transid[1];
-    ref->errorCode = errcode;
-    ref->fragId = tcConnectptr.p->fragmentid;
-    sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
-	       ScanFragRef::SignalLength, JBB);
-  }
-  deleteTransidHash(signal);
-  releaseOprec(signal);
-  releaseTcrec(signal, tcConnectptr);
+  tcConnectptr.p->errorCode = errcode;
+  tupScanCloseConfLab(signal);
+  return;
 }
 
 /*---------------------------------------------------------------------*/
@@ -11136,9 +11107,14 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
     return ScanFragRef::ZWRONG_BATCH_SIZE;
   }
 
-  scanptr.p->scan_acc_segments = 0;
-  if (!seize_acc_ptr_list(scanptr.p, 0, max_rows))
+  if (ERROR_INSERTED(5057))
   {
+    CLEAR_ERROR_INSERT_VALUE;
+    return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
+  }
+
+  scanptr.p->scan_acc_segments = 0;
+  if (!seize_acc_ptr_list(scanptr.p, 0, max_rows)){
     jam();
     return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
   }

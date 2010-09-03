@@ -1104,8 +1104,6 @@ main(int argc, char** argv)
 
   info << endl;
 
-  info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
-
   /**
    * check wheater we can restore the backup (right version).
    */
@@ -1130,6 +1128,8 @@ main(int argc, char** argv)
 
   debug << "Load content" << endl;
   int res  = metaData.loadContent();
+
+  info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
   
   if (res == 0)
   {
