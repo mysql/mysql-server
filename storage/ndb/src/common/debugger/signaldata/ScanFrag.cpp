@@ -84,7 +84,6 @@ printSCAN_FRAGCONF(FILE * output, const Uint32 * theData,
   fprintf(output, " transId1: 0x%x\n", sig->transId1);
   fprintf(output, " transId2: 0x%x\n", sig->transId2);
   fprintf(output, " total_len: %u\n", sig->total_len);
-  fprintf(output, " fragId: %u\n", sig->fragId);
 
   return true;
 }
