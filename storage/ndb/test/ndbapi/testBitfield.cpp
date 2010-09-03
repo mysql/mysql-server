@@ -587,7 +587,7 @@ testRanges(Uint32 bitmask_size)
 	BitmaskImpl::set(sz32, check.getBase(), j);
     }
 
-    BitmaskImpl::set_range(sz32, map.getBase(), start, stop);
+    BitmaskImpl::setRange(sz32, map.getBase(), start, stop - start + 1);
     if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
     {
       ndbout_c(" FAIL 1 sz: %d [ %d %d ]", sz, start, stop);

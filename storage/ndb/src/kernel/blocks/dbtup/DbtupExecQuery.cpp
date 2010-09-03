@@ -300,7 +300,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     else
     {
       req_struct->m_tuple_ptr=
-        get_copy_tuple(regTabPtr, &currOpPtr.p->m_copy_tuple_location);
+        get_copy_tuple(&currOpPtr.p->m_copy_tuple_location);
     }
 
     if (regTabPtr->need_expand(disk))
@@ -1004,10 +1004,11 @@ int Dbtup::handleUpdateReq(Signal* signal,
   {
     Operationrec* prevOp= req_struct->prevOpPtr.p;
     tup_version= prevOp->tupVersion;
-    org= get_copy_tuple(regTabPtr, &prevOp->m_copy_tuple_location);
+    Uint32 * rawptr = get_copy_tuple_raw(&prevOp->m_copy_tuple_location);
+    org= get_copy_tuple(rawptr);
     copy_change_mask_info(regTabPtr,
                           change_mask_ptr,
-                          get_change_mask_ptr(regTabPtr, org));
+                          rawptr);
   }
 
   /**
@@ -1412,7 +1413,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     tup_version= prevOp->tupVersion + 1;
     
     if(!prevOp->is_first_operation())
-      org= get_copy_tuple(regTabPtr, &prevOp->m_copy_tuple_location);
+      org= get_copy_tuple(&prevOp->m_copy_tuple_location);
     if (regTabPtr->need_expand())
     {
       expand_tuple(req_struct, sizes, org, regTabPtr, !disk_insert);
@@ -1766,8 +1767,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
     Operationrec* prevOp= req_struct->prevOpPtr.p;
     regOperPtr->tupVersion= prevOp->tupVersion;
     // make copy since previous op is committed before this one
-    const Tuple_header* org = get_copy_tuple(regTabPtr,
-                                             &prevOp->m_copy_tuple_location);
+    const Tuple_header* org = get_copy_tuple(&prevOp->m_copy_tuple_location);
     Tuple_header* dst = alloc_copy_tuple(regTabPtr,
                                          &regOperPtr->m_copy_tuple_location);
     if (dst == 0) {
@@ -3747,7 +3747,7 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
       Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
       ndbassert(!opPtrP->m_copy_tuple_location.isNull());
       req_struct.m_tuple_ptr=
-        get_copy_tuple(tablePtr.p, &opPtrP->m_copy_tuple_location);
+        get_copy_tuple(&opPtrP->m_copy_tuple_location);
       copy = true;
     }
     req_struct.check_offset[MM]= tablePtr.p->get_check_offset(MM);
