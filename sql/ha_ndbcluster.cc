@@ -475,7 +475,10 @@ public:
   { return m_const_scope; }
 
   const NdbQueryOperationDef* get_query_operation(const AQP::Table_access* table) const
-  { return m_tables[table->get_access_no()].op; }
+  {
+    DBUG_ASSERT(m_join_scope.contain_table(table));
+    return m_tables[table->get_access_no()].op;
+  }
 
   const AQP::Table_access* get_referred_table_access(
                   const ndb_table_access_map& used_tables) const;
@@ -516,8 +519,12 @@ private:
 
   struct pushed_tables
   {
-    pushed_tables() : m_ancestors(), op(NULL) {}
+    pushed_tables() : m_parent(MAX_TABLES), m_last_scan_descendant(MAX_TABLES), m_ancestors(), op(NULL) {}
+
+    uint m_parent;
     ndb_table_access_map m_ancestors;
+    uint m_last_scan_descendant;
+
     const NdbQueryOperationDef* op;
   } m_tables[MAX_TABLES];
 
@@ -545,8 +552,8 @@ public:
   {
     DBUG_ASSERT(query_def != NULL);
     DBUG_ASSERT(field_refs <= MAX_REFERRED_FIELDS);
-    ndb_table_access_map done;
-    for (uint i= 0; !(done==pushed_operations); i++)
+    ndb_table_access_map searched;
+    for (uint i= 0; !(searched==pushed_operations); i++)
     {
       const AQP::Table_access* const join_tab= plan.get_table_access(i);
       ndb_table_access_map table_map(join_tab);
@@ -554,7 +561,7 @@ public:
       {
         DBUG_ASSERT(m_operation_count < MAX_PUSHED_OPERATIONS);
         m_tables[m_operation_count++] = join_tab->get_table();
-        done.add(table_map);
+        searched.add(table_map);
       }
     }
     for (uint i= 0; i < field_refs; i++)
@@ -671,11 +678,25 @@ ndb_pushed_builder_ctx::add_pushed(
   m_tables[table_no].op= query_op;
   if (likely(parent))
   {
+    uint parent_no= parent->get_access_no();
+
     // Aggregated set of parent and grand...grand...parents to this table
     ndb_table_access_map parent_map(parent);
     DBUG_ASSERT(m_join_scope.contain(parent_map));
-    m_tables[table_no].m_ancestors= m_tables[parent->get_access_no()].m_ancestors;
+    m_tables[table_no].m_parent= parent_no;
+    m_tables[table_no].m_ancestors= m_tables[parent_no].m_ancestors;
     m_tables[table_no].m_ancestors.add(parent_map);
+
+    // Maintain which scan operation is the last in a possible
+    // linear list of scan operations. 
+    if (!is_lookup_operation(table->get_access_type()))
+    {
+      while (parent_no != MAX_TABLES)
+      {
+        m_tables[parent_no].m_last_scan_descendant= table_no;
+        parent_no = m_tables[parent_no].m_parent;
+      }
+    }
   }
   else
   {
@@ -691,15 +712,15 @@ ndb_pushed_builder_ctx::add_pushed(
 const AQP::Table_access*
 ndb_pushed_builder_ctx::get_referred_table_access(const ndb_table_access_map& find_table) const
 {
-  ndb_table_access_map done;
-  for (uint i= join_root()->get_access_no(); !(done==m_join_scope); i++)
+  ndb_table_access_map searched;
+  for (uint i= join_root()->get_access_no(); !(searched==m_join_scope); i++)
   {
     const AQP::Table_access* const table= m_plan.get_table_access(i);
     ndb_table_access_map table_map(table);
     if (m_join_scope.contain(table_map))
     { if (find_table==table_map)
         return table;
-      done.add(table_map);
+      searched.add(table_map);
     }
   }
   return NULL;
@@ -973,11 +994,28 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
          parent_no >= join_root()->get_access_no() && !parents.contain_table(m_plan.get_table_access(parent_no));
          parent_no--)
     {}
-  }
 
+    /**
+     * If parent already has a scan descendant:
+     *   appending 'table' will make this a 'bushy scan' which we don't yet nativily support as a pushed operation.
+     *   We can solve this by appending this table after the last existing scan operation in the query.
+     *   This cause an artificial grandparent dependency to be created to the actuall parent.
+     *
+     *  NOTE: This will also force the cross product between rows from these artificial parent to be
+     *        created in the SPJ block - Which adds extra (huge) communication overhead.
+     *        As a longer term solution bushy scans should be nativily supported by SPJ.
+     */
+     if (m_tables[parent_no].m_last_scan_descendant < MAX_TABLES)
+     {
+       parent_no= m_tables[parent_no].m_last_scan_descendant;
+       parent= m_plan.get_table_access(parent_no);
+       DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s", parent->get_table()->alias));
+     }
+  }
+     // get_referred_table_access ??
   parent= m_plan.get_table_access(parent_no);
   ndb_table_access_map parent_map(parent);
-  DBUG_ASSERT(parents.contain(parent_map));
+//DBUG_ASSERT(parents.contain(parent_map));
 
   /**
    * If there are any key_fields with 'current_parents' different from
@@ -1207,7 +1245,6 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
       continue;
     }
-    ndb_table_access_map parent_map(join_parent);
 
     /**
      * If this is the first child in pushed join we need to define the 
@@ -1280,7 +1317,6 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
         DBUG_ASSERT(false);
       }
 
-//    DBUG_ASSERT(query_op);
       if (unlikely(!query_op))
         ERR_RETURN(builder.getNdbError());
 
@@ -1299,8 +1335,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     uint key_fields= join_tab->get_no_of_key_fields();
     DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
 
-    if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY ||
-        join_tab->get_access_type() == AQP::AT_UNIQUE_KEY)
+    if (is_lookup_operation(join_tab->get_access_type()))
     {
       build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
     }
@@ -1312,6 +1347,8 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       }
     }
 
+    bool need_explicit_parent= true;
+    ndb_table_access_map parent_map(join_parent);
     KEY_PART_INFO *key_part= key->key_part;
     for (uint i= 0; i < key_fields; i++, key_part++)
     {
@@ -1347,10 +1384,16 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
 
         if (context.join_scope().contain(used_table))
         {
-          const AQP::Table_access* const referred_table=
-            parent_map == used_table
-              ? join_parent
-              : context.get_referred_table_access(used_table);
+          const AQP::Table_access* referred_table;
+          if (likely(parent_map == used_table))
+          {
+            referred_table= join_parent;
+            need_explicit_parent= false;
+          }
+          else
+          {
+            referred_table= context.get_referred_table_access(used_table);
+          }
 
           // Locate the parent operation for this 'join_items[]'.
           // May refer any of the preceeding parent tables
@@ -1383,7 +1426,15 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
  
     NdbQueryOptions options;
     if (join_tab->get_join_type() == AQP::JT_INNER_JOIN)
+    {
       options.setMatchType(NdbQueryOptions::MatchNonNull);
+    }
+    if (need_explicit_parent && join_parent!=NULL)
+    {
+      const NdbQueryOperationDef* parent_op= context.get_query_operation(join_parent);
+      DBUG_ASSERT(parent_op != NULL);
+      options.setParent(parent_op);
+    }
 
     if (join_tab->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)
     {
