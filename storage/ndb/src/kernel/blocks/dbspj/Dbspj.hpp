@@ -490,7 +490,7 @@ public:
   struct ScanIndexData
   {
     Uint16 m_frags_not_complete;
-    Uint32 m_frags_outstanding;
+    Uint16 m_frags_outstanding;
     Uint32 m_rows_received;  // #execTRANSID_AI
     Uint32 m_rows_expecting; // Sum(ScanFragConf)
     Uint32 m_scanCookie;
