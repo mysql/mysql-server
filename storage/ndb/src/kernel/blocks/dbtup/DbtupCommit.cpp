@@ -241,8 +241,7 @@ Dbtup::commit_operation(Signal* signal,
   Uint32 bits= tuple_ptr->m_header_bits;
 
   Tuple_header *disk_ptr= 0;
-  Tuple_header *copy=
-    get_copy_tuple(regTabPtr, &regOperPtr->m_copy_tuple_location);
+  Tuple_header *copy= get_copy_tuple(&regOperPtr->m_copy_tuple_location);
   
   Uint32 copy_bits= copy->m_header_bits;
 
@@ -606,8 +605,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     if(!regOperPtr.p->m_copy_tuple_location.isNull())
     {
       jam();
-      Tuple_header* tmp=
-        get_copy_tuple(regTabPtr.p, &regOperPtr.p->m_copy_tuple_location);
+      Tuple_header* tmp= get_copy_tuple(&regOperPtr.p->m_copy_tuple_location);
       
       memcpy(&req.m_page, 
 	     tmp->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
@@ -795,9 +793,18 @@ Dbtup::set_commit_change_mask_info(const Tablerec* regTabPtr,
   else
   {
     Uint32 * dst = req_struct->changeMask.rep.data;
-    Tuple_header* ptr = get_copy_tuple(regTabPtr,
-                                       &regOperPtr->m_copy_tuple_location);
-    const Uint32 * maskptr = get_change_mask_ptr(regTabPtr, ptr);
-    memcpy(dst, maskptr, 4*masklen);
+    Uint32 * maskptr = get_copy_tuple_raw(&regOperPtr->m_copy_tuple_location);
+    Uint32 cols = * maskptr;
+    if (cols == regTabPtr->m_no_of_attributes)
+    {
+      memcpy(dst, maskptr + 1, 4*masklen);
+    }
+    else
+    {
+      ndbassert(regTabPtr->m_no_of_attributes > cols); // no drop column
+      memcpy(dst, maskptr + 1, 4*((cols + 31) >> 5));
+      req_struct->changeMask.setRange(cols,
+                                      regTabPtr->m_no_of_attributes - cols);
+    }
   }
 }
