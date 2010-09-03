@@ -85,7 +85,6 @@ struct brtnode_nonleaf_childinfo {
 typedef struct brtnode *BRTNODE;
 /* Internal nodes. */
 struct brtnode {
-    enum typ_tag tag;
     unsigned int nodesize;
     int ever_been_written;
     unsigned int flags;

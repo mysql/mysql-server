@@ -16,16 +16,6 @@ extern "C" {
 
 /* Generally: errno is set to 0 or a value to indicate problems. */
 
-enum typ_tag { TYP_BRTNODE = 0xdead0001,
-	       TYP_CACHETABLE, TYP_PAIR, /* for cachetables */
-	       TYP_PMA,
-	       TYP_GPMA,
-               TYP_TOKULOGGER,
-	       TYP_TOKUTXN,
-	       TYP_LEAFENTRY,
-               TYP_ROLLBACK_LOG_NODE
-};
-
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */
 void *toku_calloc(size_t nmemb, size_t size)  __attribute__((__visibility__("default")));
 void *toku_xcalloc(size_t nmemb, size_t size)  __attribute__((__visibility__("default")));
@@ -35,11 +25,6 @@ void *toku_malloc(size_t size)  __attribute__((__visibility__("default")));
 void *toku_xmalloc(size_t size);
 void *toku_xrealloc(void*, size_t size) __attribute__((__visibility__("default")));
 
-/* toku_tagmalloc() performs a malloc(size), but fills in the first 4 bytes with typ.
- * This "tag" is useful if you are debugging and run across a void* that is
- * really a (struct foo *), and you want to figure out what it is.
- */
-void *toku_tagmalloc(size_t size, enum typ_tag typ);
 void toku_free(void*) __attribute__((__visibility__("default")));
 /* toku_free_n() should be used if the caller knows the size of the malloc'd object. */
 void toku_free_n(void*, size_t size);
@@ -78,17 +63,6 @@ void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default"
 
 #define XCALLOC(v) XCALLOC_N(1,(v))
 #define XREALLOC_N(n,v) v = cast_to_typeof(v) toku_xrealloc(v, (n)*sizeof(*v))
-
-/* If you have a type such as 
- *    struct pma *PMA;
- * and you define a corresponding int constant, such as
- *    enum typ_tag { TYP_PMA };  
- * then if you do
- *     TAGMALLOC(PMA,v);
- * you declare a variable v of type PMA and malloc a struct pma, and fill
- * in that "tag" with toku_tagmalloc().
- */
-#define TAGMALLOC(t,v) t v = toku_tagmalloc(sizeof(*v), TYP_ ## t);
 
 /* Copy memory.  Analogous to strdup() */
 void *toku_memdup (const void *v, size_t len);

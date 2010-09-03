@@ -76,7 +76,6 @@ enum ctpair_state {
  */
 typedef struct ctpair *PAIR;
 struct ctpair {
-    enum typ_tag tag;
     CACHEFILE cachefile;
     CACHEKEY key;
     void    *value;
@@ -135,7 +134,6 @@ static inline void ctpair_destroy(PAIR p) {
 //      cachetable_mutex
 //      cachefiles_mutex
 struct cachetable {
-    enum typ_tag tag;
     u_int32_t n_in_table;         // number of pairs in the hash table
     u_int32_t table_size;         // number of buckets in the hash table
     PAIR *table;                  // hash table
@@ -270,7 +268,7 @@ u_int32_t toku_get_checkpoint_period (CACHETABLE ct) {
 #define unreservable_memory(size) ((size)/4)
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
-    TAGMALLOC(CACHETABLE, ct);
+    CACHETABLE MALLOC(ct);
     if (ct == 0) return ENOMEM;
     memset(ct, 0, sizeof(*ct));
     ct->table_size = 4;
@@ -1271,7 +1269,7 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
                                  CACHETABLE_FETCH_CALLBACK fetch_callback,
                                  void *extraargs, 
                                  enum cachetable_dirty dirty) {
-    TAGMALLOC(PAIR, p);
+    PAIR MALLOC(p);
     assert(p);
     memset(p, 0, sizeof *p);
     ctpair_add_ref(p);

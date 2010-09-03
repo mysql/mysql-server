@@ -37,14 +37,6 @@ void* toku_malloc(size_t n) {
     if (does_malloc_fail()) return 0;
     return malloc(n);
 }
-void *toku_tagmalloc(size_t size, enum typ_tag typtag) {
-    //printf("%s:%d tagmalloc\n", __FILE__, __LINE__);
-    void *r = toku_malloc(size);
-    if (!r) return 0;
-    assert(size>sizeof(int));
-    ((int*)r)[0] = typtag;
-    return r;
-}
 
 void *toku_memdup (const void *v, size_t len) {
     void *r=toku_malloc(len);

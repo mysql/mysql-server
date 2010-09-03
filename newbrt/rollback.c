@@ -375,7 +375,7 @@ static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM l
 }
 
 static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t older_hash, ROLLBACK_LOG_NODE *result) {
-    TAGMALLOC(ROLLBACK_LOG_NODE, log);
+    ROLLBACK_LOG_NODE MALLOC(log);
     assert(log);
 
     int r;

@@ -809,7 +809,7 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
 
 static int
 deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb) {
-    TAGMALLOC(BRTNODE, result);
+    BRTNODE MALLOC(result);
     int r;
     if (result==0) {
 	r=errno;
@@ -1756,7 +1756,7 @@ toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log
 static int
 deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *log_p,
                                     struct brt_header *h, struct rbuf *rb) {
-    TAGMALLOC(ROLLBACK_LOG_NODE, result);
+    ROLLBACK_LOG_NODE MALLOC(result);
     int r;
     if (result==NULL) {
 	r=errno;
