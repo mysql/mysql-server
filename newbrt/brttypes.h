@@ -21,6 +21,7 @@ extern "C" {
 typedef struct brt *BRT;
 struct brt_header;
 struct wbuf;
+struct dbuf;
 
 typedef unsigned int ITEMLEN;
 typedef const void *bytevec;
@@ -95,6 +96,7 @@ enum brt_msg_type {
     BRT_COMMIT_BROADCAST_TXN = 9, // Broadcast to all leafentries, (commit specific transaction).
     BRT_ABORT_BROADCAST_TXN  = 10, // Broadcast to all leafentries, (commit specific transaction).
     BRT_INSERT_NO_OVERWRITE = 11,
+    BRT_OPTIMIZE = 12,
 };
 
 typedef struct xids_t *XIDS;
@@ -124,6 +126,13 @@ typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val,
 
 typedef struct memarena *MEMARENA;
 typedef struct rollback_log_node *ROLLBACK_LOG_NODE;
+
+typedef enum __TXN_SNAPSHOT_TYPE { 
+    TXN_SNAPSHOT_NONE=0,
+    TXN_SNAPSHOT_ROOT=1,
+    TXN_SNAPSHOT_CHILD=2
+} TXN_SNAPSHOT_TYPE;
+
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

@@ -130,9 +130,7 @@ static void scanscan_setup (void) {
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);                           assert(r==0);
 #ifdef TOKUDB
     if (prelock) {
-	r = db->pre_acquire_read_lock(db,
-				      tid,
-				      db->dbt_neg_infty(), db->dbt_pos_infty());
+	r = db->pre_acquire_table_lock(db, tid);
 	assert(r==0);
     }
 #endif

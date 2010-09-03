@@ -216,9 +216,11 @@ typedef enum {
 #define DB_TXN_WRITE_NOSYNC 2048
 #define DB_TXN_NOWAIT 16384
 #define DB_TXN_SYNC 32768
+#define DB_TXN_SNAPSHOT 268435456
 #define DB_READ_UNCOMMITTED 134217728
 #define DB_READ_COMMITTED 67108864
 #define DB_INHERIT_ISOLATION 1
+#define DB_SERIALIZABLE 2
 #endif
 /* TOKUDB specific error codes */
 #define TOKUDB_OUT_OF_LOCKS -100000
@@ -230,6 +232,8 @@ typedef enum {
 #define TOKUDB_DICTIONARY_NO_HEADER -100006
 #define TOKUDB_CANCELED -100007
 #define TOKUDB_NO_DATA -100008
+#define TOKUDB_ACCEPT -100009
+#define TOKUDB_MVCC_DICTIONARY_TOO_NEW -100010
 /* LOADER flags */
 #define LOADER_USE_PUTS 1
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
@@ -365,10 +369,9 @@ struct __toku_db {
 #define db_struct_i(x) ((x)->i)
   int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact);
   int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *);
-  int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*);
+  int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   void *app_private; /* 32-bit offset=16 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=20 size=4, 64=bit offset=40 size=8 */
-  int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
@@ -376,6 +379,7 @@ struct __toku_db {
   int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */;
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
+  int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */;
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
   void* __toku_dummy0[28];
   char __toku_dummy1[96];
@@ -472,7 +476,8 @@ struct __toku_dbc {
   int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  void* __toku_dummy0[15];
+  int (*c_pre_acquire_read_lock)(DBC*, const DBT*, const DBT*);
+  void* __toku_dummy0[14];
   char __toku_dummy1[104];
   int (*c_close) (DBC *); /* 32-bit offset=204 size=4, 64=bit offset=304 size=8 */
   int (*c_count) (DBC *, db_recno_t *, u_int32_t); /* 32-bit offset=208 size=4, 64=bit offset=312 size=8 */

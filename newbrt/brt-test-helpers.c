@@ -87,7 +87,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     //Generate a leafentry (committed insert key,val)
     r = apply_msg_to_leafentry(&cmd, NULL, //No old leafentry
                                &lesize, &disksize, &leafentry, 
-                               node->u.l.buffer, &node->u.l.buffer_mempool, 0);
+                               node->u.l.buffer, &node->u.l.buffer_mempool, 0, NULL, NULL);
     assert(r==0);
 
 

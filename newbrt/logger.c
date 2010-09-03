@@ -66,6 +66,9 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->lg_max = 100<<20; // 100MB default
     // lsn is uninitialized
     r = toku_omt_create(&result->live_txns); if (r!=0) goto panic;
+    r = toku_omt_create(&result->live_root_txns); if (r!=0) goto panic;
+    r = toku_omt_create(&result->snapshot_txnids); if (r!=0) goto panic;
+    r = toku_omt_create(&result->live_list_reverse); if (r!=0) goto panic;
     result->inbuf  = (struct logbuf) {0, LOGGER_MIN_BUF_SIZE, toku_xmalloc(LOGGER_MIN_BUF_SIZE), ZERO_LSN};
     result->outbuf = (struct logbuf) {0, LOGGER_MIN_BUF_SIZE, toku_xmalloc(LOGGER_MIN_BUF_SIZE), ZERO_LSN};
     // written_lsn is uninitialized
@@ -172,7 +175,13 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
     //Must have no data blocks (rollback logs or otherwise).
     toku_block_verify_no_data_blocks_except_root_unlocked(t->h->blocktable, t->h->root);
     toku_brtheader_unlock(t->h);
-    assert(toku_brt_is_empty(t));
+    BOOL try_again = TRUE;;
+    BOOL is_empty;
+    while (try_again) {
+	try_again = FALSE;
+	is_empty = toku_brt_is_empty(t, &try_again);
+    }
+    assert(is_empty);
     return r;
 }
 
@@ -202,8 +211,20 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
             assert(!toku_list_empty(&h->live_brts));  // there is always one brt associated with the header
 	    brt_to_close = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
             assert(brt_to_close);
+	    assert(!brt_to_close->h->dirty);
             toku_brtheader_unlock(h);
-            assert(toku_brt_is_empty(brt_to_close));
+	    {
+		// This almost doesn't work.  If there were anything in there, then the header might get dirtied by
+		// toku_brt_is_empty().  But it turns out absolutely nothing is in there, so it's OK to assert that it's empty.
+		BOOL try_again = TRUE;
+		BOOL is_empty;
+		while (try_again) {
+		    try_again = FALSE;
+		    is_empty = toku_brt_is_empty(brt_to_close, &try_again);
+		}
+		assert(is_empty);
+	    }
+	    assert(!h->dirty); // it should not have been dirtied by the toku_brt_is_empty test.
         }
 
         char *error_string_ignore = NULL;
@@ -247,6 +268,9 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     logger->is_panicked=TRUE; // Just in case this might help.
     if (logger->directory) toku_free(logger->directory);
     toku_omt_destroy(&logger->live_txns);
+    toku_omt_destroy(&logger->live_root_txns);
+    toku_omt_destroy(&logger->snapshot_txnids);
+    toku_omt_destroy(&logger->live_list_reverse);
     toku_logfilemgr_destroy(&logger->logfilemgr);
     toku_free(logger);
     *loggerp=0;

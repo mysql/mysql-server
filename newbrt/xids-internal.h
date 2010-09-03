@@ -22,8 +22,8 @@ extern "C" {
 #endif
 
 typedef struct __attribute__((__packed__)) xids_t {
-    u_int8_t  num_stored_xids;    // maximum value of MAX_TRANSACTION_RECORDS - 1 ...
-				  // ... because transaction 0 is implicit
+    u_int8_t  num_xids;    // maximum value of MAX_TRANSACTION_RECORDS - 1 ...
+                           // ... because transaction 0 is implicit
     TXNID     ids[];
 } XIDS_S;
 

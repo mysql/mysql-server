@@ -23,12 +23,12 @@ int toku_brt_loader_open (BRTLOADER *bl,
 			  generate_row_for_put_func g,
 			  DB *src_db,
 			  int N,
-			  DB *dbs[/*N*/],
-			  const DESCRIPTOR descriptors[/*N*/],
+			  BRT brts[/*N*/],
 			  const char * new_fnames_in_env[/*N*/],
 			  brt_compare_func bt_compare_functions[/*N*/],
 			  const char *temp_file_template,
-                          LSN load_lsn);
+                          LSN load_lsn,
+                          TOKUTXN txn);
 
 int toku_brt_loader_put (BRTLOADER bl, DBT *key, DBT *val);
 

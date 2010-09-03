@@ -87,6 +87,7 @@ BDB_DONTRUN_TESTS = \
         checkpoint_callback \
         checkpoint_stress \
         checkpoint_truncate_1 \
+	cursor-isolation \
         diskfull \
         env-put-multiple \
         env_startup \
@@ -110,6 +111,7 @@ BDB_DONTRUN_TESTS = \
         loader-tpch-load \
         manyfiles \
 	multiprocess \
+	mvcc-create-table \
         powerfail \
 	preload-3.1-db \
         progress \
@@ -137,6 +139,7 @@ BDB_DONTRUN_TESTS = \
         root_fifo_32 \
         root_fifo_41 \
         stat64 stat64_flatten \
+	stress-gc \
         test1324 \
         test1426 \
         test1572 \
@@ -469,6 +472,8 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 
 # Don't run valgrind on the diskfull test (since it aborts)
 diskfull.tdbrun: VGRIND=
+stress-gc.tdbrun: VGRIND=
+
 
 libs:
 	cd ..;$(MAKE)

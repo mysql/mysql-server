@@ -126,6 +126,7 @@ struct brtloader_s {
     int N;
     DB **dbs; // N of these
     DESCRIPTOR *descriptors; // N of these.
+    TXNID      *root_xids_that_created; // N of these.
     const char **new_fnames_in_env; // N of these.  The file names that the final data will be written to (relative to env).
 
     uint64_t *extracted_datasizes; // N of these.
@@ -158,6 +159,7 @@ struct brtloader_s {
     int progress_callback_result; // initially zero, if any call to the poll function callback returns nonzero, we save the result here (and don't call the poll callback function again).
 
     LSN load_lsn; //LSN of the fsynced 'load' log entry.  Write this LSN (as checkpoint_lsn) in brt headers made by this loader.
+    TXNID load_root_xid; //(Root) transaction that performed the load.
 
     QUEUE *fractal_queues; // an array of work queues, one for each secondary index.
     toku_pthread_t *fractal_threads;
@@ -184,6 +186,7 @@ struct fractal_thread_args {
     QUEUE                    q;
     uint64_t                 total_disksize_estimate;
     int                      errno_result; // the final result.
+    int                      which_db;
 };
 
 void toku_brt_loader_set_n_rows(BRTLOADER bl, u_int64_t n_rows);
@@ -214,7 +217,8 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 				       int                      fd, // write to here
 				       int                      progress_allocation,
 				       QUEUE                    q,
-				       uint64_t                  total_disksize_estimate);
+				       uint64_t                 total_disksize_estimate,
+                                       int                      which_db);
 
 int brt_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func, BRTLOADER, struct rowset *);
 
@@ -231,12 +235,12 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 				   CACHETABLE cachetable,
 				   generate_row_for_put_func g,
 				   DB *src_db,
-				   int N, DB*dbs[/*N*/],
-				   const DESCRIPTOR descriptors[/*N*/],
+				   int N, BRT brts[/*N*/],
 				   const char *new_fnames_in_env[/*N*/],
 				   brt_compare_func bt_compare_functions[/*N*/],
 				   const char *temp_file_template,
-				   LSN load_lsn);
+				   LSN load_lsn,
+                                   TOKUTXN txn);
 
 void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error);
 

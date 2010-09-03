@@ -64,25 +64,50 @@ extern "C" {
 #pragma pack(push, 1)
 #endif
 struct __attribute__ ((__packed__)) leafentry {
-    u_int8_t  num_xrs;
-    u_int32_t keylen;
-    u_int32_t innermost_inserted_vallen;
+    uint8_t  attributes;
+    uint32_t keylen;
     union {
-        struct __attribute__ ((__packed__)) leafentry_committed {
-            u_int8_t key_val[0];     //Actual key, then actual val
-        } comm;
-        struct __attribute__ ((__packed__)) leafentry_provisional {
-            u_int8_t innermost_type;
-            TXNID    xid_outermost_uncommitted;
-            u_int8_t key_val_xrs[];  //Actual key,
-                                     //then actual innermost inserted val,
-                                     //then transaction records.
-        } prov;
+        struct __attribute__ ((__packed__)) leafentry_clean {
+            uint32_t vallen;
+            uint8_t  key_val[0];     //Actual key, then actual val
+        } clean;
+        struct __attribute__ ((__packed__)) leafentry_mvcc {
+            uint32_t num_cxrs;
+            uint8_t  num_pxrs;
+            u_int8_t key_xrs[0]; //Actual key,
+                                 //then interesting TXNIDs
+                                 //then interesting lengths (type bit is MSB of length)
+                                 //then interesting data
+                                 //then other transaction records
+        } mvcc;
     } u;
 };
 #if TOKU_WINDOWS
 #pragma pack(pop)
 #endif
+
+enum { LE_CLEAN = 0, LE_MVCC = 1 };
+#define LE_CLEAN_MEMSIZE(keylen, vallen)                         \
+    (sizeof(((LEAFENTRY)NULL)->attributes)      /* num_uxrs */   \
+    +sizeof(((LEAFENTRY)NULL)->keylen)          /* keylen */     \
+    +sizeof(((LEAFENTRY)NULL)->u.clean.vallen)  /* vallen */     \
+    +keylen                                     /* actual key */ \
+    +vallen)                                    /* actual val */
+
+#define LE_MVCC_COMMITTED_HEADER_MEMSIZE                          \
+    (sizeof(((LEAFENTRY)NULL)->attributes)      /* num_uxrs */    \
+    +sizeof(((LEAFENTRY)NULL)->keylen)          /* keylen */      \
+    +sizeof(((LEAFENTRY)NULL)->u.mvcc.num_cxrs) /* committed */   \
+    +sizeof(((LEAFENTRY)NULL)->u.mvcc.num_pxrs) /* provisional */ \
+    +sizeof(TXNID)                              /* transaction */ \
+    +sizeof(uint32_t)                           /* length+bit */  \
+    +sizeof(uint32_t))                          /* length+bit */ 
+
+#define LE_MVCC_COMMITTED_MEMSIZE(keylen, vallen)    \
+    (LE_MVCC_COMMITTED_HEADER_MEMSIZE                \
+    +keylen                        /* actual key */  \
+    +vallen)                       /* actual val */
+
 
 typedef struct leafentry *LEAFENTRY;
 
@@ -95,16 +120,13 @@ void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
 void wbuf_nocrc_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
 int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human-readable form.
 
-int le_outermost_is_del(LEAFENTRY le);
-int le_is_provdel(LEAFENTRY le); // Return true if it is a provisional delete.
+int le_latest_is_del(LEAFENTRY le); // Return true if it is a provisional delete.
+uint32_t le_num_xids(LEAFENTRY le); //Return how many xids exist (0 does not count)
 int le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
 void*     le_latest_key (LEAFENTRY le); // Return the latest key (return NULL for provisional deletes)
 u_int32_t le_latest_keylen (LEAFENTRY le); // Return the latest keylen.
-void* le_outermost_key_and_len (LEAFENTRY le, u_int32_t *len);
-void* le_latest_key_and_len (LEAFENTRY le, u_int32_t *len);
 void*     le_latest_val (LEAFENTRY le); // Return the latest val (return NULL for provisional deletes)
 u_int32_t le_latest_vallen (LEAFENTRY le); // Return the latest vallen.  Returns 0 for provisional deletes.
-void* le_outermost_val_and_len (LEAFENTRY le, u_int32_t *len);
 void* le_latest_val_and_len (LEAFENTRY le, u_int32_t *len);
 
  // Return any key or value (even if it's only provisional).
@@ -114,12 +136,7 @@ void* le_key_and_len (LEAFENTRY le, u_int32_t *len);
 
 u_int64_t le_outermost_uncommitted_xid (LEAFENTRY le);
 
- // Return any key or value (even if it's only provisional)  If more than one exist, choose innermost (newest)
-void* le_innermost_inserted_val (LEAFENTRY le);
-u_int32_t le_innermost_inserted_vallen (LEAFENTRY le);
-void* le_innermost_inserted_val_and_len (LEAFENTRY le, u_int32_t *len);
-
-void le_full_promotion(LEAFENTRY le, size_t *new_leafentry_memorysize, size_t *new_leafentry_disksize);
+void le_clean_xids(LEAFENTRY le, size_t *new_leafentry_memorysize, size_t *new_leafentry_disksize);
 //Effect: Fully promotes le.  Returns new memory/disk size.
 //        Reuses the memory of le.
 //        Memory size is guaranteed to reduce.
@@ -127,24 +144,34 @@ void le_full_promotion(LEAFENTRY le, size_t *new_leafentry_memorysize, size_t *n
 //        Pointer to le is reused.
 //           No need to update omt if it just points to the leafentry.
 //        Does not change results of:
-//           le_is_provdel()
+//           le_latest_is_del()
 //           le_latest_keylen()
 //           le_latest_vallen()
 //           le_keylen()
-//           le_innermost_inserted_vallen()
 //        le_outermost_uncommitted_xid will return 0 after this.
 //        Changes results of following pointer functions, but memcmp of old/new answers would say they're the same.
 //          Note: You would have to memdup the old answers before calling le_full_promotion, if you want to run the comparison
 //           le_latest_key()
 //           le_latest_val()
 //           le_key()
-//           le_innermost_inserted_val()
 //        le_outermost_uncommitted_xid will return 0 after this
 //        key/val pointers will change, but data pointed to by them will be the same
 //           as before
 //Requires: le is not a provdel
 //Requires: le is not marked committed
 //Requires: The outermost uncommitted xid in le has actually committed (le was not yet updated to reflect that)
+
+void
+le_committed_mvcc(uint8_t *key, uint32_t keylen,
+                  uint8_t *val, uint32_t vallen,
+                  TXNID xid,
+                  void (*bytes)(struct dbuf *dbuf, const void *bytes, int nbytes),
+                  struct dbuf *d);
+void
+le_clean(uint8_t *key, uint32_t keylen,
+         uint8_t *val, uint32_t vallen,
+         void (*bytes)(struct dbuf *dbuf, const void *bytes, int nbytes),
+         struct dbuf *d);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

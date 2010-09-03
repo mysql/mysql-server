@@ -38,6 +38,8 @@ int toku_txn_note_close_brt (BRT brt);
 int toku_logger_txn_rollback_raw_count(TOKUTXN txn, u_int64_t *raw_count);
 
 int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr);
+int toku_find_pair_by_xid (OMTVALUE v, void *txnv);
+int toku_find_xid_by_xid (OMTVALUE v, void *xidv);
 
 // these routines in roll.c
 int toku_rollback_fileentries (int fd, TOKUTXN txn, YIELDF yield, void *yieldv, LSN lsn);

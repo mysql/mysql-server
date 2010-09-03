@@ -25,6 +25,8 @@
 #include "trace_mem.h"
 #include "dbufio.h"
 #include "c_dialects.h"
+#include "leafentry.h"
+#include "log-internal.h"
 
 // to turn on tracing, 
 //   cd .../newbrt
@@ -335,6 +337,7 @@ void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
     // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
     toku_free(bl->dbs);
     toku_free(bl->descriptors);
+    toku_free(bl->root_xids_that_created);
     for (int i = 0; i < bl->N; i++) {
 	if (bl->new_fnames_in_env) 
             toku_free((char*)bl->new_fnames_in_env[i]);
@@ -477,12 +480,12 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 				   CACHETABLE cachetable,
 				   generate_row_for_put_func g,
 				   DB *src_db,
-				   int N, DB*dbs[/*N*/],
-				   const DESCRIPTOR descriptors[/*N*/],
+				   int N, BRT brts[/*N*/],
 				   const char *new_fnames_in_env[/*N*/],
 				   brt_compare_func bt_compare_functions[/*N*/],
 				   const char *temp_file_template,
-				   LSN load_lsn)
+				   LSN load_lsn,
+                                   TOKUTXN txn)
 // Effect: Allocate and initialize a BRTLOADER, but do not create the extractor thread.
 {
     BRTLOADER CALLOC(bl); // initialized to all zeros (hence CALLOC)
@@ -505,14 +508,23 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     bl->src_db = src_db;
     bl->N = N;
     bl->load_lsn = load_lsn;
+    if (txn) {
+        bl->load_root_xid = txn->ancestor_txnid64;
+    }
+    else {
+        bl->load_root_xid = TXNID_NONE;
+    }
+
 
 #define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = errno; toku_brtloader_internal_destroy(bl, TRUE); return r; }
 #define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; toku_brtloader_internal_destroy(bl, TRUE); return r; } lval = v; } while (0)
 
+    MY_CALLOC_N(N, bl->root_xids_that_created);
+    for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->h->root_xid_that_created;
     MY_CALLOC_N(N, bl->dbs);
-    for (int i=0; i<N; i++) bl->dbs[i]=dbs[i];
+    for (int i=0; i<N; i++) if (brts[i]) bl->dbs[i]=brts[i]->db;
     MY_CALLOC_N(N, bl->descriptors);
-    for (int i=0; i<N; i++) bl->descriptors[i]=descriptors[i];
+    for (int i=0; i<N; i++) if (brts[i]) bl->descriptors[i]=&brts[i]->h->descriptor;
     MY_CALLOC_N(N, bl->new_fnames_in_env);
     for (int i=0; i<N; i++) SET_TO_MY_STRDUP(bl->new_fnames_in_env[i], new_fnames_in_env[i]);
     MY_CALLOC_N(N, bl->extracted_datasizes); // the calloc_n zeroed everything, which is what we want
@@ -576,12 +588,12 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
                           CACHETABLE cachetable,
 			  generate_row_for_put_func g,
 			  DB *src_db,
-			  int N, DB*dbs[/*N*/],
-			  const DESCRIPTOR descriptors[/*N*/],
+			  int N, BRT brts[/*N*/],
 			  const char *new_fnames_in_env[/*N*/],
 			  brt_compare_func bt_compare_functions[/*N*/],
 			  const char *temp_file_template,
-                          LSN load_lsn)
+                          LSN load_lsn,
+                          TOKUTXN txn)
 /* Effect: called by DB_ENV->create_loader to create a brt loader.
  * Arguments:
  *   blp                  Return the brt loader here.
@@ -597,12 +609,12 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     int result = 0;
     {
 	int r = toku_brt_loader_internal_init(blp, cachetable, g, src_db,
-					      N, dbs,
-					      descriptors,
+					      N, brts,
 					      new_fnames_in_env,
 					      bt_compare_functions,
 					      temp_file_template,
-					      load_lsn);
+					      load_lsn,
+                                              txn);
 	if (r!=0) result = r;
     }
     if (result==0) {
@@ -2008,6 +2020,7 @@ struct leaf_buf {
     int local_fingerprint_p;
     int nkeys, ndata, dsize, n_in_buf;
     int nkeys_p, ndata_p, dsize_p, partitions_p, n_in_buf_p;
+    TXNID xid;
 };
 
 
@@ -2118,7 +2131,7 @@ static int allocate_block (struct dbout *out, int64_t *ret_block_number)
 }
 
 static void putbuf_bytes (struct dbuf *dbuf, const void *bytes, int nbytes) {
-    if (dbuf->off + nbytes > dbuf->buflen) {
+    if (!dbuf->error && dbuf->off + nbytes > dbuf->buflen) {
         unsigned char *oldbuf = dbuf->buf;
         int oldbuflen = dbuf->buflen;
 	dbuf->buflen += dbuf->off + nbytes;
@@ -2134,10 +2147,6 @@ static void putbuf_bytes (struct dbuf *dbuf, const void *bytes, int nbytes) {
         memcpy(dbuf->buf + dbuf->off, bytes, nbytes);
         dbuf->off += nbytes;
     }
-}
-
-static void putbuf_int8  (struct dbuf *dbuf, unsigned char v) {
-    putbuf_bytes(dbuf, &v, 1);
 }
 
 static void putbuf_int32 (struct dbuf *dbuf, int v) {
@@ -2192,7 +2201,7 @@ static inline long int loader_random(void) {
     return r;
 }
 
-static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc), int64_t lblocknum) {
+static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc), int64_t lblocknum, TXNID xid) {
     invariant(lblocknum < out->n_translations_limit);
     struct leaf_buf *XMALLOC(lbuf);
     lbuf->blocknum = lblocknum;
@@ -2221,6 +2230,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     lbuf->partitions_p        = lbuf->dbuf.off;    lbuf->dbuf.off+=4; lbuf->dbuf.off += stored_sub_block_map_size; // RFP partition map
     lbuf->n_in_buf_p          = lbuf->dbuf.off;    lbuf->dbuf.off+=4;
 
+    lbuf->xid = xid;
     return lbuf;
 }
 
@@ -2230,7 +2240,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
 CILK_END
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
-static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn);
+static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn, TXNID root_xid);
 
 static void drain_writer_q(QUEUE q) {
     void *item;
@@ -2251,7 +2261,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 					 int fd, // write to here
 					 int progress_allocation,
 					 QUEUE q,
-					 uint64_t total_disksize_estimate)
+					 uint64_t total_disksize_estimate,
+                                         int which_db)
 // Effect: Consume a sequence of rowsets work from a queue, creating a fractal tree.  Closes fd.
 {
     // set the number of fractal tree writer threads so that we can partition memory in the merger
@@ -2312,7 +2323,11 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     int64_t lblock;
     result = allocate_block(&out, &lblock);
     invariant(result == 0); // can not fail since translations reserved above
-    struct leaf_buf *lbuf = start_leaf(&out, descriptor, lblock);
+    TXNID le_xid = TXNID_NONE;
+    if (bl->root_xids_that_created && bl->load_root_xid != bl->root_xids_that_created[which_db]) {
+        le_xid = bl->load_root_xid;
+    }
+    struct leaf_buf *lbuf = start_leaf(&out, descriptor, lblock, le_xid);
     u_int64_t n_rows_remaining = bl->n_rows;
     u_int64_t old_n_rows_remaining = bl->n_rows;
 
@@ -2376,7 +2391,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
                     if (result == 0) result = r;
                     break;
                 }
-		lbuf = start_leaf(&out, descriptor, lblock);
+		lbuf = start_leaf(&out, descriptor, lblock, le_xid);
 	    }
 	
 	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size);
@@ -2461,7 +2476,11 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
             result = r; goto error;
         }
 
-	r = write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn); 
+        TXNID root_xid_that_created = TXNID_NONE;
+        if (bl->root_xids_that_created) {
+            root_xid_that_created = bl->root_xids_that_created[which_db];
+        }
+	r = write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn, root_xid_that_created); 
         if (r) {
             result = r; goto error;
         }
@@ -2501,13 +2520,14 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 				       int                      fd, // write to here
 				       int                      progress_allocation,
 				       QUEUE                    q,
-				       uint64_t                 total_disksize_estimate)
+				       uint64_t                 total_disksize_estimate,
+                                       int                      which_db)
 // This is probably only for testing.
 {
 #if defined(__cilkplusplus)
-    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q, total_disksize_estimate);
+    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db);
 #else
-    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate);
+    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db);
 #endif
 }
 
@@ -2516,9 +2536,9 @@ static void* fractal_thread (void *ftav) {
     BL_TRACE(blt_start_fractal_thread);
     struct fractal_thread_args *fta = (struct fractal_thread_args *)ftav;
 #if defined(__cilkplusplus)
-    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate);
+    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db);
 #else
-    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate);
+    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db);
 #endif
     fta->errno_result = r;
     return NULL;
@@ -2562,7 +2582,8 @@ static int loader_do_i (BRTLOADER bl,
                                            progress_allocation,
                                            bl->fractal_queues[which_db],
 					   bl->extracted_datasizes[which_db],
-                                           0 };
+                                           0,
+                                           which_db };
 
 	r = toku_pthread_create(bl->fractal_threads+which_db, NULL, fractal_thread, (void*)&fta);
 	if (r) {
@@ -2734,12 +2755,15 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     lbuf->dsize+= keylen + vallen;
     
     int le_off = lbuf->dbuf.off;
-    putbuf_int8(&lbuf->dbuf, 1);
-    putbuf_int32(&lbuf->dbuf, keylen);
-    putbuf_int32(&lbuf->dbuf, vallen);
-    putbuf_bytes(&lbuf->dbuf, key, keylen);
-    putbuf_bytes(&lbuf->dbuf, val, vallen);
-    int le_len = 1+4+4+keylen+vallen;
+    int le_len;
+    if (lbuf->xid == TXNID_NONE) {
+        le_clean(key, keylen, val, vallen, putbuf_bytes, &lbuf->dbuf);
+        le_len = LE_CLEAN_MEMSIZE(keylen, vallen);
+    }
+    else {
+        le_committed_mvcc(key, keylen, val, vallen, lbuf->xid, putbuf_bytes, &lbuf->dbuf);
+        le_len = LE_MVCC_COMMITTED_MEMSIZE(keylen, vallen);
+    }
     if (!lbuf->dbuf.error) {
         invariant(le_off + le_len == lbuf->dbuf.off);
         u_int32_t this_x = x1764_memory(lbuf->dbuf.buf + le_off, le_len);
@@ -2905,7 +2929,7 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 }
 
 
-static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn) {
+static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn, TXNID root_xid_that_created) {
     int result = 0;
 
     struct brt_header h; memset(&h, 0, sizeof h);
@@ -2916,6 +2940,7 @@ static int write_header (struct dbout *out, long long translation_location_on_di
     h.root             = root_blocknum_on_disk;
     h.flags            = 0;
     h.layout_version_original = BRT_LAYOUT_VERSION;
+    h.root_xid_that_created = root_xid_that_created;
 
     unsigned int size = toku_serialize_brt_header_size (&h);
     struct wbuf wbuf;

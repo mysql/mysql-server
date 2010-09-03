@@ -39,6 +39,7 @@ extern "C" {
 #define __attribute__(x)      /* Nothing */
 #endif
 
+#include <malloc.h>
 #include "toku_stdint.h"
 
 #ifndef TOKU_OFF_T_DEFINED
@@ -63,6 +64,7 @@ typedef int64_t toku_off_t;
 #if defined(__ICC)
 // Intel linux
 
+#include <alloca.h>
 #include <toku_stdint.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -86,6 +88,7 @@ typedef int64_t toku_off_t;
 #if __FreeBSD__
 #include <stdarg.h>
 #endif
+#include <alloca.h>
 
 #define cast_to_typeof(v) (__typeof__(v))
 #else

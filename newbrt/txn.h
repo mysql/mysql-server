@@ -9,8 +9,20 @@
 extern "C" {
 #endif
 
-int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger);
-int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger, TXNID xid);
+int toku_txn_begin_txn (
+    TOKUTXN parent_tokutxn, 
+    TOKUTXN *tokutxn, 
+    TOKULOGGER logger,
+    TXN_SNAPSHOT_TYPE snapshot_type
+    );
+
+int toku_txn_begin_with_xid (
+    TOKUTXN parent_tokutxn, 
+    TOKUTXN *tokutxn, 
+    TOKULOGGER logger, 
+    TXNID xid, 
+    TXN_SNAPSHOT_TYPE snapshot_type
+    );
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
@@ -47,6 +59,15 @@ typedef struct txn_status {
 } TXN_STATUS_S, *TXN_STATUS;
 
 void toku_txn_get_status(TXN_STATUS s);
+
+BOOL toku_is_txn_in_live_root_txn_list(TOKUTXN txn, TXNID xid);
+
+TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn);
+
+typedef struct {
+    TXNID xid1;
+    TXNID xid2;
+} XID_PAIR_S, *XID_PAIR;
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

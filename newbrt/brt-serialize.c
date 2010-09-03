@@ -1144,6 +1144,8 @@ static u_int32_t
 serialize_brt_header_min_size (u_int32_t version) {
     u_int32_t size = 0;
     switch(version) {
+        case BRT_LAYOUT_VERSION_13:
+            size += 8;  //TXNID that created
         case BRT_LAYOUT_VERSION_12:
             size += 8;  // Number of blocks in old version.
 	    // fall through to add up bytes in previous version
@@ -1196,6 +1198,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_int(wbuf, h->flags);
     wbuf_int(wbuf, h->layout_version_original);
     wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade);
+    wbuf_TXNID(wbuf, h->root_xid_that_created);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     assert(wbuf->ndone == wbuf->size);
@@ -1440,6 +1443,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     deserialize_descriptor_from(fd, h, &h->descriptor);
     h->layout_version_original = rbuf_int(&rc);    
     h->num_blocks_to_upgrade   = rbuf_ulonglong(&rc);
+    rbuf_TXNID(&rc, &h->root_xid_that_created);
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);
