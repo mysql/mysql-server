@@ -80,8 +80,7 @@ Dbtup::do_tup_abort_operation(Signal* signal,
   Uint32 bits= tuple_ptr->m_header_bits;  
   if (opPtrP->op_struct.op_type != ZDELETE)
   {
-    Tuple_header *copy=
-      get_copy_tuple(tablePtrP, &opPtrP->m_copy_tuple_location);
+    Tuple_header *copy= get_copy_tuple(&opPtrP->m_copy_tuple_location);
     
     if (opPtrP->op_struct.m_disk_preallocated)
     {
