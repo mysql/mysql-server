@@ -211,6 +211,9 @@ UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
+/* key value for shm */
+UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
+
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
@@ -380,6 +383,7 @@ UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ulong	srv_stats_method = 0;
 UNIV_INTERN ulong	srv_stats_auto_update = 1;
 UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
+UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -1758,11 +1762,15 @@ srv_suspend_mysql_thread(
 	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
 	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
 
-	if (trx_is_interrupted(trx)
-	    || (lock_wait_timeout < 100000000
-		&& wait_time > (double) lock_wait_timeout)) {
+	if (lock_wait_timeout < 100000000
+	    && wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+	}
+
+	if (trx_is_interrupted(trx)) {
+
+		trx->error_state = DB_INTERRUPTED;
 	}
 }
 

@@ -214,7 +214,7 @@ static os_aio_array_t*	os_aio_sync_array	= NULL;	/*!< Synchronous I/O */
 /* Per thread buffer used for merged IO requests. Used by
 os_aio_simulated_handle so that a buffer doesn't have to be allocated
 for each request. */
-static char* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
+static byte* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
 static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
 
 /** Number of asynchronous I/O segments.  Set by os_aio_init(). */
@@ -1379,7 +1379,11 @@ try_again:
 
 		/* When srv_file_per_table is on, file creation failure may not
 		be critical to the whole instance. Do not crash the server in
-		case of unknown errors. */
+		case of unknown errors.
+		Please note "srv_file_per_table" is a global variable with
+		no explicit synchronization protection. It could be
+		changed during this execution path. It might not have the
+		same value as the one when building the table definition */
 		if (srv_file_per_table) {
 			retry = os_file_handle_error_no_exit(name,
 						create_mode == OS_FILE_CREATE ?
@@ -1466,7 +1470,11 @@ try_again:
 
 		/* When srv_file_per_table is on, file creation failure may not
 		be critical to the whole instance. Do not crash the server in
-		case of unknown errors. */
+		case of unknown errors.
+		Please note "srv_file_per_table" is a global variable with
+		no explicit synchronization protection. It could be
+		changed during this execution path. It might not have the
+		same value as the one when building the table definition */
 		if (srv_file_per_table) {
 			retry = os_file_handle_error_no_exit(name,
 						create_mode == OS_FILE_CREATE ?
@@ -1491,6 +1499,11 @@ try_again:
 	if (type != OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 		
+		os_file_set_nocache(file, name, mode_str);
+	}
+
+	/* ALL_O_DIRECT: O_DIRECT also for transaction log file */
+	if (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
 		os_file_set_nocache(file, name, mode_str);
 	}
 

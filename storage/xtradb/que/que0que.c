@@ -622,10 +622,20 @@ que_graph_free_recursive(
 
 		que_graph_free_recursive(cre_ind->ind_def);
 		que_graph_free_recursive(cre_ind->field_def);
+		if (srv_use_sys_stats_table)
+			que_graph_free_recursive(cre_ind->stats_def);
 		que_graph_free_recursive(cre_ind->commit_node);
 
 		mem_heap_free(cre_ind->heap);
 
+		break;
+	case QUE_NODE_INSERT_STATS:
+		cre_ind = node;
+
+		que_graph_free_recursive(cre_ind->stats_def);
+		que_graph_free_recursive(cre_ind->commit_node);
+
+		mem_heap_free(cre_ind->heap);
 		break;
 	case QUE_NODE_PROC:
 		que_graph_free_stat_list(((proc_node_t*)node)->stat_list);
@@ -1139,6 +1149,8 @@ que_node_print_info(
 		str = "CREATE TABLE";
 	} else if (type == QUE_NODE_CREATE_INDEX) {
 		str = "CREATE INDEX";
+	} else if (type == QUE_NODE_INSERT_STATS) {
+		str = "INSERT TO SYS_STATS";
 	} else if (type == QUE_NODE_FOR) {
 		str = "FOR LOOP";
 	} else if (type == QUE_NODE_RETURN) {
@@ -1256,6 +1268,8 @@ que_thr_step(
 		thr = dict_create_table_step(thr);
 	} else if (type == QUE_NODE_CREATE_INDEX) {
 		thr = dict_create_index_step(thr);
+	} else if (type == QUE_NODE_INSERT_STATS) {
+		thr = dict_insert_stats_step(thr);
 	} else if (type == QUE_NODE_ROW_PRINTF) {
 		thr = row_printf_step(thr);
 	} else {

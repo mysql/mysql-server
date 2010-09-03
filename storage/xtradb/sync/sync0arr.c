@@ -498,7 +498,9 @@ sync_array_cell_print(
 		   || type == RW_LOCK_WAIT_EX
 		   || type == RW_LOCK_SHARED) {
 
-		fputs(type == RW_LOCK_EX ? "X-lock on" : "S-lock on", file);
+		fputs(type == RW_LOCK_EX ? "X-lock on"
+		      : type == RW_LOCK_WAIT_EX ? "X-lock (wait_ex) on"
+		      : "S-lock on", file);
 
 		rwlock = cell->old_wait_rw_lock;
 
