@@ -3728,7 +3728,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   int         found_match_degree= 0;
   Item_ident *cur_field;
   int         cur_match_degree= 0;
-  char        name_buff[NAME_LEN+1];
+  char        name_buff[SAFE_NAME_LEN+1];
 
   if (find_item->type() == Item::FIELD_ITEM ||
       find_item->type() == Item::REF_ITEM)

@@ -2288,6 +2288,7 @@ const char *get_canonical_filename(handler *file, const char *path,
 
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
 #define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
+#define SAFE_NAME_LEN (NAME_LEN + MYSQL50_TABLE_NAME_PREFIX_LENGTH)
 
 uint build_table_shadow_filename(char *buff, size_t bufflen, 
                                  ALTER_PARTITION_PARAM_TYPE *lpt);

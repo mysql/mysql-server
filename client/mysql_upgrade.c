@@ -672,6 +672,7 @@ static int run_mysqlcheck_upgrade(void)
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
+                  opt_verbose ? "--verbose": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
@@ -687,6 +688,7 @@ static int run_mysqlcheck_fixnames(void)
                   "--all-databases",
                   "--fix-db-names",
                   "--fix-table-names",
+                  opt_verbose ? "--verbose": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }

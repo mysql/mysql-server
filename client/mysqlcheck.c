@@ -1,4 +1,5 @@
 /* Copyright (C) 2000 MySQL AB
+   Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.5.0"
+#define CHECK_VERSION "2.6.0"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -416,6 +417,8 @@ static int process_all_databases()
 		    MYF(0), mysql_error(sock));
     return 1;
   }
+  if (verbose)
+    printf("Processing databases\n");
   while ((row = mysql_fetch_row(tableres)))
   {
     if (process_one_db(row[0]))
@@ -429,6 +432,8 @@ static int process_all_databases()
 static int process_databases(char **db_names)
 {
   int result = 0;
+  if (verbose)
+    printf("Processing databases\n");
   for ( ; *db_names ; db_names++)
   {
     if (process_one_db(*db_names))
@@ -624,6 +629,8 @@ static int fix_database_storage_name(const char *name)
 
 static int process_one_db(char *database)
 {
+  if (verbose)
+    puts(database);
   if (what_to_do == DO_UPGRADE)
   {
     int rc= 0;
@@ -731,7 +738,7 @@ static void print_result()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  char prev[NAME_LEN*2+2];
+  char prev[(NAME_LEN+9)*2+2];
   uint i;
   my_bool found_error=0;
 
@@ -761,7 +768,15 @@ static void print_result()
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
     {
-      printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      /*
+        If the error message includes REPAIR TABLE, we assume it means
+        we have to run upgrade on it. In this case we write a nicer message
+        than "Please do "REPAIR TABLE""...
+      */
+      if (!strcmp(row[2],"error") && strinstr(row[3],"REPAIR TABLE") != 0)
+        printf("%-50s %s", row[0], "Needs upgrade");
+      else
+        printf("%s\n%-9s: %s", row[0], row[2], row[3]);
       if (strcmp(row[2],"note"))
 	found_error=1;
     }
@@ -780,7 +795,7 @@ static void print_result()
 static int dbConnect(char *host, char *user, char *passwd)
 {
   DBUG_ENTER("dbConnect");
-  if (verbose)
+  if (verbose > 1)
   {
     fprintf(stderr, "# Connecting to %s...\n", host ? host : "localhost");
   }
@@ -813,7 +828,7 @@ static int dbConnect(char *host, char *user, char *passwd)
 
 static void dbDisconnect(char *host)
 {
-  if (verbose)
+  if (verbose > 1)
     fprintf(stderr, "# Disconnecting from %s...\n", host ? host : "localhost");
   mysql_close(sock);
 } /* dbDisconnect */

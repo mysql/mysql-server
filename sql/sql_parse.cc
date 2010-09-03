@@ -1125,7 +1125,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       Cast *passwd to an unsigned char, so that it doesn't extend the sign
       for *passwd > 127 and become 2**32-127 after casting to uint.
     */
-    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
+    char db_buff[SAFE_NAME_LEN*2+1];           // buffer to store db in utf8
     char *db= passwd;
     char *save_db;
     /*
@@ -1329,7 +1329,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *fields, *packet_end= packet + packet_length, *wildcard;
     /* Locked closure of all tables */
     TABLE_LIST table_list;
-    char db_buff[NAME_LEN+1];
+    char db_buff[SAFE_NAME_LEN+1];
     uint32 db_length;
     uint dummy_errors, query_length;
 
@@ -1348,7 +1348,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     db_length= wildcard - packet;
     wildcard++;
     query_length= (uint) (packet_end - wildcard); // Don't count end \0
-    if (db_length > NAME_LEN || query_length > NAME_LEN)
+    if (db_length > SAFE_NAME_LEN || query_length > NAME_LEN)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;

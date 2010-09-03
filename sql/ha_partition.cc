@@ -996,7 +996,7 @@ static bool print_admin_msg(THD* thd, const char* msg_type,
   Protocol *protocol= thd->protocol;
   uint length, msg_length;
   char msgbuf[HA_MAX_MSG_BUF];
-  char name[NAME_LEN*2+2];
+  char name[SAFE_NAME_LEN*2+2];
 
   va_start(args, fmt);
   msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);

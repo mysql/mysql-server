@@ -54,6 +54,7 @@ static bool
 mysql_prepare_alter_table(THD *thd, TABLE *table,
                           HA_CREATE_INFO *create_info,
                           Alter_info *alter_info);
+static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list);
 
 #ifndef DBUG_OFF
 
@@ -4172,7 +4173,7 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char from[FN_REFLEN + 1], to[FN_REFLEN + 1],
     lc_from[FN_REFLEN + 1], lc_to[FN_REFLEN + 1];
   char *from_base= from, *to_base= to;
-  char tmp_name[NAME_LEN+1];
+  char tmp_name[SAFE_NAME_LEN+1];
   handler *file;
   int error=0;
   DBUG_ENTER("mysql_rename_table");
@@ -4567,6 +4568,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   Protocol *protocol= thd->protocol;
   LEX *lex= thd->lex;
   int result_code;
+  bool need_repair_or_alter= 0;
   DBUG_ENTER("mysql_admin_table");
 
   if (end_active_trans(thd))
@@ -4587,7 +4589,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
   for (table= tables; table; table= table->next_local)
   {
-    char table_name[NAME_LEN*2+2];
+    char table_name[SAFE_NAME_LEN*2+2];
     char* db = table->db;
     bool fatal_error=0;
 
@@ -4795,25 +4797,20 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (operator_func == &handler::ha_repair &&
         !(check_opt->sql_flags & TT_USEFRM))
     {
-      if ((table->table->file->check_old_types() == HA_ADMIN_NEEDS_ALTER) ||
-          (table->table->file->ha_check_for_upgrade(check_opt) ==
-           HA_ADMIN_NEEDS_ALTER))
+      handler *file= table->table->file;
+      int check_old_types=   file->check_old_types();
+      int check_for_upgrade= file->ha_check_for_upgrade(check_opt);
+
+      if (check_old_types == HA_ADMIN_NEEDS_ALTER ||
+          check_for_upgrade == HA_ADMIN_NEEDS_ALTER)
       {
-        DBUG_PRINT("admin", ("recreating table"));
-        ha_autocommit_or_rollback(thd, 1);
-        close_thread_tables(thd);
-        tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table);
-        reenable_binlog(thd);
-        /*
-          mysql_recreate_table() can push OK or ERROR.
-          Clear 'OK' status. If there is an error, keep it:
-          we will store the error message in a result set row 
-          and then clear.
-        */
-        if (thd->main_da.is_ok())
-          thd->main_da.reset_diagnostics_area();
+        result_code= admin_recreate_table(thd, table);
         goto send_result;
+      }
+      if (check_old_types || check_for_upgrade)
+      {
+        /* If repair is not implemented for the engine, run ALTER TABLE */
+        need_repair_or_alter= 1;
       }
     }
 
@@ -4821,6 +4818,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     result_code = (table->table->file->*operator_func)(thd, check_opt);
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
 
+    if (result_code == HA_ADMIN_NOT_IMPLEMENTED && need_repair_or_alter)
+    {
+      /*
+        repair was not implemented and we need to upgrade the table
+        to a new version so we recreate the table with ALTER TABLE
+      */
+      result_code= admin_recreate_table(thd, table);
+    }
 send_result:
 
     lex->cleanup_after_one_table_open();
@@ -4920,23 +4925,13 @@ send_result_message:
                       system_charset_info);
       if (protocol->write())
         goto err;
-      ha_autocommit_or_rollback(thd, 0);
-      close_thread_tables(thd);
       DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
-      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      result_code= mysql_recreate_table(thd, table);
-      reenable_binlog(thd);
-      /*
-        mysql_recreate_table() can push OK or ERROR.
-        Clear 'OK' status. If there is an error, keep it:
-        we will store the error message in a result set row 
-        and then clear.
-      */
-      if (thd->main_da.is_ok())
-        thd->main_da.reset_diagnostics_area();
+
+      result_code= admin_recreate_table(thd, table);
+
       ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
@@ -7954,6 +7949,30 @@ err:
 }
 
 
+/* Prepare, run and cleanup for mysql_recreate_table() */
+
+static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list)
+{
+  bool result_code;
+  DBUG_ENTER("admin_recreate_table");
+
+  ha_autocommit_or_rollback(thd, 1);
+  close_thread_tables(thd);
+  tmp_disable_binlog(thd); // binlogging is done by caller if wanted
+  result_code= mysql_recreate_table(thd, table_list);
+  reenable_binlog(thd);
+  /*
+    mysql_recreate_table() can push OK or ERROR.
+    Clear 'OK' status. If there is an error, keep it:
+    we will store the error message in a result set row 
+    and then clear.
+  */
+  if (thd->main_da.is_ok())
+    thd->main_da.reset_diagnostics_area();
+  DBUG_RETURN(result_code);
+}
+
+
 /*
   Recreates tables by calling mysql_alter_table().
 
@@ -8010,7 +8029,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   /* Open one table after the other to keep lock time as short as possible. */
   for (table= tables; table; table= table->next_local)
   {
-    char table_name[NAME_LEN*2+2];
+    char table_name[SAFE_NAME_LEN*2+2];
     TABLE *t;
 
     strxmov(table_name, table->db ,".", table->table_name, NullS);

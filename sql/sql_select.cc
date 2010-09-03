@@ -16707,7 +16707,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       the UNION to provide precise EXPLAIN information will hardly be
       appreciated :)
     */
-    char table_name_buffer[NAME_LEN];
+    char table_name_buffer[SAFE_NAME_LEN];
     item_list.empty();
     /* id */
     item_list.push_back(new Item_null);
@@ -16780,7 +16780,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       char buff1[512], buff2[512], buff3[512];
       char keylen_str_buf[64];
       String extra(buff, sizeof(buff),cs);
-      char table_name_buffer[NAME_LEN];
+      char table_name_buffer[SAFE_NAME_LEN];
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       String tmp3(buff3,sizeof(buff3),cs);
