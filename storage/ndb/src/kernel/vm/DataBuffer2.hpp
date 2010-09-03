@@ -588,7 +588,7 @@ DataBuffer2<sz, Pool>::createRecordInfo(Record_info & ri, Uint32 type_id)
 template<Uint32 sz, typename Pool>
 inline
 void
-DataBuffer2<sz, Pool>::DataBufferIterator::assign(const DataBuffer2<sz, Pool>::ConstDataBufferIterator & src)
+DataBuffer2<sz, Pool>::DataBufferIterator::assign(const ConstDataBufferIterator & src)
 {
   this->curr.i = src.curr.i;
   this->curr.p = const_cast<Segment*>(src.curr.p);
@@ -600,7 +600,7 @@ DataBuffer2<sz, Pool>::DataBufferIterator::assign(const DataBuffer2<sz, Pool>::C
 template<Uint32 sz, typename Pool>
 inline
 void
-DataBuffer2<sz, Pool>::ConstDataBufferIterator::assign(const DataBuffer2<sz, Pool>::DataBufferIterator & src)
+DataBuffer2<sz, Pool>::ConstDataBufferIterator::assign(const DataBufferIterator & src)
 {
   this->curr.i = src.curr.i;
   this->curr.p = src.curr.p;
