@@ -423,8 +423,7 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
       share->key_del_current= mi_sizekorr(buff+share->keypage_header);
 #ifndef DBUG_OFF
       key_del_current= share->key_del_current;
-      DBUG_ASSERT(key_del_current != share->state.key_del &&
-                  (key_del_current != 0) &&
+      DBUG_ASSERT((key_del_current != 0) &&
                   ((key_del_current == HA_OFFSET_ERROR) ||
                    (key_del_current <=
                     (share->state.state.key_file_length - block_size))));
