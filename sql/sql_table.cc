@@ -4804,7 +4804,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (check_old_types == HA_ADMIN_NEEDS_ALTER ||
           check_for_upgrade == HA_ADMIN_NEEDS_ALTER)
       {
+        /* We use extra_open_options to be able to open crashed tables */
+        thd->open_options|= extra_open_options;
         result_code= admin_recreate_table(thd, table);
+        thd->open_options= ~extra_open_options;
         goto send_result;
       }
       if (check_old_types || check_for_upgrade)
