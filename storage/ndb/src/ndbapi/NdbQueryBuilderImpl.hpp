@@ -255,12 +255,14 @@ class NdbQueryOptionsImpl
 public:
   explicit NdbQueryOptionsImpl()
   : m_matchType(NdbQueryOptions::MatchAll),
-    m_scanOrder(NdbQueryOptions::ScanOrdering_void)
+    m_scanOrder(NdbQueryOptions::ScanOrdering_void),
+    m_parent(NULL)
   {};
 
 private:
   NdbQueryOptions::MatchType     m_matchType;
   NdbQueryOptions::ScanOrdering  m_scanOrder;
+  NdbQueryOperationDefImpl*      m_parent;
 };
 
 
