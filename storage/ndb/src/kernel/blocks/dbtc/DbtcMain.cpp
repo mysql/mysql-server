@@ -2379,6 +2379,8 @@ Dbtc::seizeTcRecord(Signal* signal)
   regTcPtr->m_special_op_flags = 0;
   regTcPtr->indexOp = RNIL;
   regTcPtr->currentTriggerId = RNIL;
+  regTcPtr->tcConnectstate = OS_ABORTING;
+  regTcPtr->noOfNodes = 0;
 
   regApiPtr->lastTcConnect = TtcConnectptrIndex;
 
@@ -2943,6 +2945,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       {
         jam();
         CommitAckMarkerPtr tmp;
+        if (ERROR_INSERTED(8087))
+        {
+          CLEAR_ERROR_INSERT_VALUE;
+          TCKEY_abort(signal, 56);
+          return;
+        }
+
         if (!m_commitAckMarkerHash.seize(tmp))
         {
           TCKEY_abort(signal, 56);
@@ -11380,7 +11389,8 @@ void Dbtc::sendScanFragReq(Signal* signal,
 {
   Uint32 version= getNodeInfo(refToNode(scanFragP->lqhBlockref)).m_version;
   bool longFragReq= ((version >= NDBD_LONG_SCANFRAGREQ) &&
-                     (! ERROR_INSERTED(8070)));
+                     (! ERROR_INSERTED(8070) &&
+		      ! ERROR_INSERTED(8088)));
   Uint32 reqKeyLen= 0;
   Uint32 reqAttrLen= 0;
   if (unlikely(! longFragReq))
@@ -11499,12 +11509,15 @@ void Dbtc::sendScanFragReq(Signal* signal,
     
     if(ERROR_INSERTED(8035))
       globalTransporterRegistry.performSend();
-    
-    ndbrequire(sendAttrInfoTrain(signal,
-                                 scanFragP->lqhBlockref,
-                                 scanFragptr.i,
-                                 0, // Offset 0
-                                 cachePtr.p->attrInfoSectionI));
+
+    if (!ERROR_INSERTED(8088))
+    {
+      ndbrequire(sendAttrInfoTrain(signal,
+                                   scanFragP->lqhBlockref,
+                                   scanFragptr.i,
+                                   0, // Offset 0
+                                   cachePtr.p->attrInfoSectionI));
+    }
 
     if(ERROR_INSERTED(8035))
       globalTransporterRegistry.performSend();
@@ -11517,6 +11530,12 @@ void Dbtc::sendScanFragReq(Signal* signal,
       cachePtr.p->attrInfoSectionI= RNIL;
       cachePtr.p->keyInfoSectionI= RNIL;
     }
+  }
+
+  if (ERROR_INSERTED(8088))
+  {
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
   }
 }//Dbtc::sendScanFragReq()
 
@@ -12150,6 +12169,8 @@ void Dbtc::seizeTcConnect(Signal* signal)
   cfirstfreeTcConnect = tcConnectptr.p->nextTcConnect;
   c_counters.cconcurrentOp++;
   tcConnectptr.p->m_special_op_flags = 0;
+  tcConnectptr.p->tcConnectstate = OS_ABORTING;
+  tcConnectptr.p->noOfNodes = 0;
 }//Dbtc::seizeTcConnect()
 
 void Dbtc::seizeTcConnectFail(Signal* signal) 

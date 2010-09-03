@@ -4788,17 +4788,17 @@ create_table_option:
           {Lex->create_info.tablespace= $2.str;}
         | STORAGE_SYM DEFAULT
           {
-            Lex->create_info.default_storage_media= HA_SM_DEFAULT;
+            Lex->create_info.storage_media= HA_SM_DEFAULT;
             Lex->alter_info.flags|= ALTER_STORAGE;
           }
         | STORAGE_SYM DISK_SYM
           {
-            Lex->create_info.default_storage_media= HA_SM_DISK;
+            Lex->create_info.storage_media= HA_SM_DISK;
             Lex->alter_info.flags|= ALTER_STORAGE;
           }
         | STORAGE_SYM MEMORY_SYM
           {
-            Lex->create_info.default_storage_media= HA_SM_MEMORY;
+            Lex->create_info.storage_media= HA_SM_MEMORY;
             Lex->alter_info.flags|= ALTER_STORAGE;
           }
         | CONNECTION_SYM opt_equal TEXT_STRING_sys
@@ -5770,7 +5770,7 @@ alter:
             lex->create_info.row_type= ROW_TYPE_NOT_USED;
             lex->alter_info.reset();
             lex->no_write_to_binlog= 0;
-            lex->create_info.default_storage_media= HA_SM_DEFAULT;
+            lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->alter_info.build_method= $2;	
           }
           alter_commands
@@ -10456,7 +10456,7 @@ show_param:
             if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL,0))
               MYSQL_YYABORT;
             lex->only_view= 0;
-            lex->create_info.default_storage_media= HA_SM_DEFAULT;
+            lex->create_info.storage_media= HA_SM_DEFAULT;
           }
         | CREATE VIEW_SYM table_ident
           {

@@ -44,7 +44,7 @@ public:
     Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
     Uint32 extraNodeGroups;    // For GetDefaultFragments
   };
-  NdbNodeBitmask mask;             /* set of NDB nodes, input for ArbitCheck,
+  NdbNodeBitmaskPOD mask;         /* set of NDB nodes, input for ArbitCheck,
         			   * output for GetNodeGroupMembers
 				   */
   Uint32 senderData;            // Sender data, kept in return signal

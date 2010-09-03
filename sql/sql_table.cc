@@ -6876,11 +6876,11 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     */
     if (!create_info->tablespace &&
         table->s->tablespace &&
-        create_info->default_storage_media == HA_SM_DEFAULT)
+        create_info->storage_media == HA_SM_DEFAULT)
       create_info->tablespace= table->s->tablespace;
 
-    if (create_info->default_storage_media == HA_SM_DEFAULT)
-      create_info->default_storage_media= table->s->default_storage_media;
+    if (create_info->storage_media == HA_SM_DEFAULT)
+      create_info->storage_media= table->s->default_storage_media;
   }
 
   rc= FALSE;

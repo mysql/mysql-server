@@ -1554,7 +1554,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     total_rec_size+= Tuple_header::HeaderSize;
 
   /* Room for changemask */
-  total_rec_size += (regTabPtr->m_no_of_attributes + 31) >> 5;
+  total_rec_size += 1 + ((regTabPtr->m_no_of_attributes + 31) >> 5);
 
   regTabPtr->total_rec_size= total_rec_size;
 

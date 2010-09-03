@@ -27,7 +27,7 @@ libgeneral_la_SOURCES = \
             uucode.c random.c version.cpp ndb_opts.c \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
-            Bitmask.cpp \
+            Bitmask.cpp SparseBitmask.cpp parse_mask.hpp \
 	    ndb_rand.c require.c
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
@@ -35,7 +35,7 @@ INCLUDES_LOC = @ZLIB_INCLUDES@
 libndbazio_la_SOURCES = azio.c
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
-noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t ndb_version-t
+noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t SparseBitmask-t ndb_version-t
 
 BaseString_t_SOURCES = BaseString.cpp
 BaseString_t_CXXFLAGS = -DTEST_BASE_STRING
@@ -54,6 +54,12 @@ HashMap_t_LDADD = \
 Bitmask_t_SOURCES = Bitmask.cpp
 Bitmask_t_CXXFLAGS = -DTEST_BITMASK
 Bitmask_t_LDADD = \
+	libgeneral.la \
+	$(top_builddir)/mysys/libmysyslt.la
+
+SparseBitmask_t_SOURCES = SparseBitmask.cpp
+SparseBitmask_t_CXXFLAGS = -DTEST_SPARSEBITMASK
+SparseBitmask_t_LDADD = \
 	libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
 

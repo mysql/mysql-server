@@ -2,7 +2,7 @@
 # Should be updated when creating a new NDB version
 NDB_VERSION_MAJOR=7
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=18
+NDB_VERSION_BUILD=19
 NDB_VERSION_STATUS=""
 
 dnl for build ndb docs
@@ -152,6 +152,27 @@ if test "$JAVAC" &&
 then
         ndb_jtie_supported=yes
 fi
+])
+
+AC_DEFUN([NDB_COMPILER_FEATURES],
+[
+  AC_LANG_PUSH([C++])
+  AC_MSG_CHECKING([checking __is_pod(typename)])
+  AC_TRY_COMPILE([struct A{};],[ int a = __is_pod(A)],
+    [ AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE___IS_POD], [1],
+              [Compiler supports __is_pod(typename)])],
+    AC_MSG_RESULT([no])
+  )
+
+  AC_MSG_CHECKING([checking __has_trivial_constructor(typename)])
+  AC_TRY_COMPILE([struct A{};], [ int a = __has_trivial_constructor(A)],
+    [ AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE___HAS_TRIVIAL_CONSTRUCTOR], [1],
+              [Compiler supports __has_trivial_constructor(typename)])],
+    AC_MSG_RESULT([no])
+  )
+  AC_LANG_POP([C++])
 ])
 
 AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
@@ -438,6 +459,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     AC_MSG_RESULT(no))
 
   NDBCLUSTER_WORKAROUNDS
+  NDB_COMPILER_FEATURES
 
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 

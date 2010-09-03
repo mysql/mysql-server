@@ -568,7 +568,7 @@ load_configuration()
   if (g_config_file)
   {
     if (g_verbose)
-      fprintf(stderr, "Using config.ini : %s", g_config_file);
+      fprintf(stderr, "Using config.ini : %s\n", g_config_file);
     
     Config* conf = parser.parseConfig(g_config_file);
     if (conf)
@@ -577,7 +577,7 @@ load_configuration()
   }
   
   if (g_verbose)
-    fprintf(stderr, "Using my.cnf");
+    fprintf(stderr, "Using my.cnf\n");
   
   Config* conf = parser.parse_mycnf();
   if (conf)
