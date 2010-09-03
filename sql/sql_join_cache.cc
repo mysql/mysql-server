@@ -874,7 +874,7 @@ bool JOIN_CACHE::shrink_join_buffer_in_ratio(ulonglong n, ulonglong d)
   if (n < d)
     return FALSE;
   next_buff_size= (ulonglong) ((double) buff_size / n * d);
-  set_if_smaller(next_buff_size, min_buff_size);
+  set_if_bigger(next_buff_size, min_buff_size);
   buff_size= next_buff_size;
   return realloc_buffer();
 }  
