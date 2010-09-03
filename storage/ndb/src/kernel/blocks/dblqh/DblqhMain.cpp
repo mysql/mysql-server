@@ -4165,7 +4165,6 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
     const Uint32 senderData= truncatedScanFragReq->senderData;
     const Uint32 transid1= truncatedScanFragReq->transId1;
     const Uint32 transid2= truncatedScanFragReq->transId2;
-    const Uint32 fragId = truncatedScanFragReq->fragmentNoKeyLen;
 
     /* Send SCAN_FRAGREF back to the client */
     ScanFragRef* ref= (ScanFragRef*)&signal->theData[0];
@@ -4173,7 +4172,6 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
     ref->transId1= transid1;
     ref->transId2= transid2;
     ref->errorCode= ZGET_ATTRINBUF_ERROR;
-    ref->fragId = fragId;
 
     sendSignal(signal->senderBlockRef(), GSN_SCAN_FRAGREF, signal,
                ScanFragRef::SignalLength, JBB);
@@ -9974,7 +9972,6 @@ error_handler:
   ref->transId1 = transid1;
   ref->transId2 = transid2;
   ref->errorCode = errorCode;
-  ref->fragId = fragId;
   sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
 	     ScanFragRef::SignalLength, JBB);
   releaseSections(handle);
@@ -9993,7 +9990,6 @@ error_handler:
   ref->transId1 = transid1;
   ref->transId2 = transid2;
   ref->errorCode = errorCode;
-  ref->fragId = fragId;
   sendSignal(signal->senderBlockRef(), GSN_SCAN_FRAGREF, signal,
 	     ScanFragRef::SignalLength, JBB);
 }//Dblqh::execSCAN_FRAGREQ()
@@ -11029,7 +11025,6 @@ void Dblqh::tupScanCloseConfLab(Signal* signal)
     ref->transId1 = tcConnectptr.p->transid[0];
     ref->transId2 = tcConnectptr.p->transid[1];
     ref->errorCode = tcConnectptr.p->errorCode; 
-    ref->fragId = tcConnectptr.p->fragmentid;
     sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
 	 ScanFragRef::SignalLength, JBB);
   } else {
@@ -11526,7 +11521,6 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
 #ifdef NOT_USED
   NodeId tc_node_id= refToNode(tcConnectptr.p->clientBlockref);
 #endif
-  Uint32 fragId = tcConnectptr.p->fragmentid;
   Uint32 trans_id1= tcConnectptr.p->transid[0];
   Uint32 trans_id2= tcConnectptr.p->transid[1];
 
@@ -11536,7 +11530,6 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
   conf->transId1 = trans_id1;
   conf->transId2 = trans_id2;
   conf->total_len= total_len;
-  conf->fragId = fragId;
   sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGCONF, 
              signal, ScanFragConf::SignalLength, JBB);
   

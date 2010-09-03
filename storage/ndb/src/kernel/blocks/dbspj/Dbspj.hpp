@@ -83,6 +83,7 @@ protected:
 public:
   struct Request;
   struct TreeNode;
+  struct ScanFragHandle;
   typedef DataBuffer2<14, LocalArenaPoolImpl> Dependency_map;
   typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_dependency_map;
   typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
@@ -378,12 +379,12 @@ public:
     /**
      * This function is used when getting a SCAN_FRAGREF
      */
-    void (Dbspj::*m_execSCAN_FRAGREF)(Signal*, Ptr<Request>, Ptr<TreeNode>);
+    void (Dbspj::*m_execSCAN_FRAGREF)(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
 
     /**
      * This function is used when getting a SCAN_FRAGCONF
      */
-    void (Dbspj::*m_execSCAN_FRAGCONF)(Signal*, Ptr<Request>, Ptr<TreeNode>);
+    void (Dbspj::*m_execSCAN_FRAGCONF)(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
 
     /**
      * This function is called on the *child* by the *parent* when passing rows
@@ -449,9 +450,10 @@ public:
     Uint32 m_rows_received;  // #execTRANSID_AI
     Uint32 m_rows_expecting; // ScanFragConf
     Uint32 m_scanFragReq[ScanFragReq::SignalLength + 2];
+    Uint32 m_scanFragHandlePtrI;
   };
 
-  struct ScanIndexFrag
+  struct ScanFragHandle
   {
     void init(Uint32 fid) { 
       m_ref = 0; 
@@ -460,6 +462,7 @@ public:
       reset_ranges();
     }
     Uint32 m_magic;
+    Uint32 m_treeNodePtrI;
     Uint16 m_fragId;
     Uint16 m_state;
     Uint32 m_ref;
@@ -480,9 +483,9 @@ public:
     };
   };
 
-  typedef RecordPool<ScanIndexFrag, ArenaPool> ScanIndexFrag_pool;
-  typedef SLFifoListImpl<ScanIndexFrag_pool, ScanIndexFrag> ScanIndexFrag_list;
-  typedef LocalSLFifoListImpl<ScanIndexFrag_pool, ScanIndexFrag> Local_ScanIndexFrag_list;
+  typedef RecordPool<ScanFragHandle, ArenaPool> ScanFragHandle_pool;
+  typedef SLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> ScanFragHandle_list;
+  typedef LocalSLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> Local_ScanFragHandle_list;
 
   struct ScanIndexData
   {
@@ -492,7 +495,7 @@ public:
     Uint32 m_rows_expecting; // Sum(ScanFragConf)
     Uint32 m_scanCookie;
     Uint32 m_fragCount;
-    ScanIndexFrag_list::HeadPOD m_fragments; // ScanFrag states
+    ScanFragHandle_list::HeadPOD m_fragments; // ScanFrag states
     union 
     {
       PatternStore::HeadPOD m_prunePattern;
@@ -903,7 +906,7 @@ private:
   Request_hash m_lookup_request_hash;
   ArenaPool m_dependency_map_pool;
   TreeNode_pool m_treenode_pool;
-  ScanIndexFrag_pool m_scanindexfrag_pool;
+  ScanFragHandle_pool m_scanfraghandle_pool;
 
   NdbNodeBitmask c_alive_nodes;
 
@@ -1071,8 +1074,8 @@ private:
   void scanFrag_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
 			       const RowPtr &);
-  void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
+  void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanFrag_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr &);
   void scanFrag_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
@@ -1091,13 +1094,13 @@ private:
   void scanIndex_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
                                 const RowPtr &);
-  void scanIndex_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanIndex_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
+  void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
-  void scanIndex_fixupBound(Ptr<ScanIndexFrag> fragPtr, Uint32 ptrI, Uint32);
+  void scanIndex_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
   void scanIndex_send(Signal*,Ptr<Request>,Ptr<TreeNode>);
   void scanIndex_batchComplete(Signal* signal);
-  Uint32 scanIndex_findFrag(Local_ScanIndexFrag_list &, Ptr<ScanIndexFrag>&,
+  Uint32 scanIndex_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
                             Uint32 fragId);
   void scanIndex_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
