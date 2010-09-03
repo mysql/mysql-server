@@ -163,7 +163,6 @@ int handle_options(int *argc, char ***argv,
   int error, i;
   my_bool is_cmdline_arg= 1;
 
-  LINT_INIT(opt_found);
   /* handle_options() assumes arg0 (program name) always exists */
   DBUG_ASSERT(argc && *argc >= 1);
   DBUG_ASSERT(argv && *argv);
@@ -188,6 +187,7 @@ int handle_options(int *argc, char ***argv,
   {
     char **first= pos;
     char *cur_arg= *pos;
+    opt_found= 0;
     if (!is_cmdline_arg && (cur_arg == args_separator))
     {
       is_cmdline_arg= 1;
