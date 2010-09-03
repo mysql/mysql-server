@@ -27,6 +27,7 @@
  */
 
 typedef Bitmask<MAXNROFATTRIBUTESINWORDS> AttributeMask;
+typedef BitmaskPOD<MAXNROFATTRIBUTESINWORDS> AttributeMaskPOD;
 
 template <Uint32 SZ>
 struct Id_array

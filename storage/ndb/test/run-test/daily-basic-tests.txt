@@ -263,6 +263,10 @@ max-time: 500
 cmd: testBasic
 args: -n Bug20535
 
+max-time: 500
+cmd: testBasic
+args: -n Bug54944 T1
+
 #
 # INDEX
 #
@@ -536,6 +540,10 @@ args: -n ScanVariants
 max-time: 500
 cmd: testScan
 args: -n Bug36124 T1
+
+max-time: 500
+cmd: testScan
+args: -n Bug54945 T1
 
 max-time: 1800
 cmd: testNodeRestart

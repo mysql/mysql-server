@@ -34,7 +34,6 @@
 #include <mgmapi_config_parameters.h>
 #endif /* NDB_MGMAPI */
 
-#define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
 #define MAX_PORT_NO 65535
@@ -321,7 +320,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_DEPRICATED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0,
     0 },
   
@@ -460,7 +459,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -495,7 +494,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "1",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -616,7 +615,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
   
   {
@@ -638,10 +637,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "CPU list indicating which CPU will run the execution thread(s)",
     ConfigInfo::CI_USED,
     0,
-    ConfigInfo::CI_STRING,
-    UNDEFINED,
-    "0",
-    "65535" },
+    ConfigInfo::CI_BITMASK,
+    0,
+    0,
+    "65535"
+  },
 
   {
     CFG_DB_MAINT_LOCK_CPU,
@@ -651,7 +651,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     "65535" },
 
@@ -771,7 +771,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "32",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -783,7 +783,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "32",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1083,7 +1083,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1106,7 +1106,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "20",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1260,7 +1260,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_ENUM,
-    UNDEFINED,
+    0,
     (const char*)arbit_method_typelib,
     0
   },
@@ -1284,7 +1284,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1418,7 +1418,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
   
   { 
@@ -1647,7 +1647,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     STR_VALUE(NDB_NO_NODEGROUP)
   },
@@ -1673,7 +1673,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "1",
     "4"
   },
@@ -1686,7 +1686,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "1",
     "4"
   },
@@ -1699,7 +1699,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
-    UNDEFINED,
+    0,
     "false",
     "true"
   },
@@ -1712,7 +1712,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1723,7 +1723,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1734,7 +1734,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1745,7 +1745,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_SYSTEM | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1756,7 +1756,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_SYSTEM | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1806,7 +1806,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     "100" },
 
@@ -1885,7 +1885,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1920,7 +1920,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -1991,7 +1991,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0,
     0
   },
@@ -2090,7 +2090,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2171,7 +2171,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -2246,7 +2246,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2257,7 +2257,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2373,7 +2373,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2384,7 +2384,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2395,7 +2395,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2484,7 +2484,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2495,7 +2495,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2518,7 +2518,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0", 
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -2599,7 +2599,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    0,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -2623,7 +2623,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2634,7 +2634,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2675,8 +2675,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_STRING,
     MANDATORY,
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -2687,8 +2686,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_STRING,
     MANDATORY,
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
+    0, 0 },
 
   {
     CFG_CONNECTION_GROUP,
@@ -2720,7 +2718,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2731,7 +2729,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2850,7 +2848,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2861,7 +2859,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    0,
     0, 0 },
 
   {
@@ -2963,7 +2961,7 @@ ConfigInfo::ConfigInfo()
 
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
-        else if(param._default != UNDEFINED)
+        else if(param._default)
         {
           require(InitConfigFileParser::convertStringToBool(param._default,
                                                             tmp_bool));
@@ -2983,7 +2981,7 @@ ConfigInfo::ConfigInfo()
 
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
-        else if(param._default != UNDEFINED)
+        else if(param._default)
         {
           require(InitConfigFileParser::convertStringToUint64(param._default,
                                                               tmp_uint64));
@@ -2996,6 +2994,9 @@ ConfigInfo::ConfigInfo()
 	break;
       case CI_ENUM:
       {
+       assert(param._min); // Enums typelib pointer is stored in _min
+       assert(param._max == 0); // Enums can't have max
+
         Properties values(true); // case insensitive
         // Put the list of allowed enum values in pinfo
         for (const Typelib* entry = ConfigInfo::getTypelibPtr(param);
@@ -3005,11 +3006,29 @@ ConfigInfo::ConfigInfo()
         // fallthrough
       }
       case CI_STRING:
+        assert(param._type == CI_ENUM || // Allow fallthrough from enum
+               param._min == 0); // String can't have min value
+        assert(param._max == 0); // String can't have max value
+
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
-        else if(param._default != UNDEFINED)
+        else if(param._default)
           pinfo.put("Default", param._default);
 	break;
+
+      case CI_BITMASK:
+        assert(param._min == 0); // Bitmask can't have min value
+
+	Uint64 tmp_uint64;
+	require(InitConfigFileParser::convertStringToUint64(param._max,
+                                                            tmp_uint64));
+	pinfo.put64("Max", tmp_uint64);
+
+        if(param._default == MANDATORY)
+          pinfo.put("Mandatory", (Uint32)1);
+        else if(param._default)
+          pinfo.put("Default", param._default);
+        break;
     }
 
     // Check that pinfo is really new
@@ -3032,7 +3051,7 @@ ConfigInfo::ConfigInfo()
       if(!m_systemDefaults.getCopy(param._section, &p)){
 	p = new Properties(true);
       }
-      if(param._default != UNDEFINED &&
+      if(param._default &&
 	 param._default != MANDATORY){
 	switch (param._type)
         {
@@ -3040,6 +3059,7 @@ ConfigInfo::ConfigInfo()
 	    break;
 	  case CI_ENUM:
 	  case CI_STRING:
+          case CI_BITMASK:
 	    require(p->put(param._fname, param._default));
 	    break;
 	  case CI_BOOL:
@@ -3426,6 +3446,7 @@ public:
       fprintf(m_out, "\n");
       break;
 
+    case ConfigInfo::CI_BITMASK:
     case ConfigInfo::CI_ENUM:
     case ConfigInfo::CI_STRING:
       fprintf(m_out, "%s (String)\n", param_name);
@@ -3549,6 +3570,7 @@ public:
       pairs.put("max", buf.c_str());
     break;
 
+    case ConfigInfo::CI_BITMASK:
     case ConfigInfo::CI_ENUM:
     case ConfigInfo::CI_STRING:
       pairs.put("type", "string");
@@ -3956,6 +3978,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
           DBUG_PRINT("info",("%s=%lld #default",name,val));
 	  break;
 	}
+        case ConfigInfo::CI_BITMASK:
 	case ConfigInfo::CI_STRING:{
 	  const char * val;
 	  require(defaults->get(name, &val));
@@ -3984,6 +4007,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
           DBUG_PRINT("info",("%s=%lld",name,val));
           break;
         }
+        case ConfigInfo::CI_BITMASK:
         case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_STRING:{
           const char * val;
@@ -4058,20 +4082,22 @@ static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
     return false;
   }
 
-  char tmpLine[MAX_LINE_LENGTH];
-  strncpy(tmpLine, nodeId, MAX_LINE_LENGTH);
-  char* token1 = strtok(tmpLine, ".");
-  char* token2 = strtok(NULL, ".");
+  BaseString str(nodeId);
+  Vector<BaseString> token_list;
+  int tokens = str.split(token_list, ".", 2);
+
   Uint32 id;
-  
-  if(!token1)
+
+  if (tokens == 0)
   {
     ctx.reportError("Value for mandatory parameter %s missing from section "
                     "[%s] starting at line: %d",
                     buf, ctx.fname, ctx.m_sectionLineno);
     return false;
   }
-  if (token2 == NULL) {                // Only a number given
+
+  const char* token1 = token_list[0].c_str();
+  if (tokens == 1) {                // Only a number given
     errno = 0;
     char* p;
     id = strtol(token1, &p, 10);
@@ -4084,6 +4110,9 @@ static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
     }
     require(ctx.m_currentSection->put(buf, id, true));
   } else {                             // A pair given (e.g. "uppsala.32")
+    assert(tokens == 2 && token_list.size() == 2);
+    const char* token2 = token_list[1].c_str();
+
     errno = 0;
     char* p;
     id = strtol(token2, &p, 10);
@@ -5376,7 +5405,7 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
       require(tmp->get("Type", &type) != 0);
       require((ctx.m_currentInfo = ctx.m_info->getInfo(type)) != 0);
       ctx.m_currentSection = const_cast<Properties*>(tmp);
-      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), type);
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", type);
       saveInConfigValues(ctx, 0);
     }
   }

@@ -64,7 +64,7 @@
 #endif
 
 const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr = { 0, RNIL };
-const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, 0 };
+const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, { 0 } };
 
 /** A noop for now.*/
 void Dbspj::execREAD_CONFIG_REQ(Signal* signal) 
@@ -1886,7 +1886,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
    * build easy-access-array for row
    */
   Uint32 tmp[2+MAX_ATTRIBUTES_IN_TABLE];
-  RowPtr::Header* const header = reinterpret_cast<RowPtr::Header*>(tmp);
+  RowPtr::Header* header = CAST_PTR(RowPtr::Header, &tmp[0]);
 
   Uint32 cnt = buildRowHeader(header, dataPtr);
   ndbassert(header->m_len < NDB_ARRAY_SIZE(tmp));
@@ -5734,8 +5734,8 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
   Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
   struct RowPtr::Linear row;
   row.m_data = param.ptr;
-  row.m_header = (RowPtr::Header*)tmp;
-  buildRowHeader((RowPtr::Header*)tmp, param.ptr, paramCnt);
+  row.m_header = CAST_PTR(RowPtr::Header, &tmp[0]);
+  buildRowHeader(CAST_PTR(RowPtr::Header, &tmp[0]), param.ptr, paramCnt);
 
   Uint32 dst = ptrI;
   const Uint32 * ptr = pattern.ptr;
@@ -5817,9 +5817,9 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
   Uint32 err;
   Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
   struct RowPtr::Linear row;
-  row.m_header = (RowPtr::Header*)tmp;
+  row.m_header = CAST_PTR(RowPtr::Header, &tmp[0]);
   row.m_data = param.ptr;
-  buildRowHeader((RowPtr::Header*)tmp, param.ptr, paramCnt);
+  buildRowHeader(CAST_PTR(RowPtr::Header, &tmp[0]), param.ptr, paramCnt);
 
   const Uint32 * end = pattern.ptr + len;
   for (; pattern.ptr < end; )
@@ -6338,9 +6338,9 @@ Dbspj::parseDA(Build_context& ctx,
  */
 void Dbspj::execDBINFO_SCANREQ(Signal *signal)
 {
-  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  DbinfoScanReq req= * CAST_PTR(DbinfoScanReq, &signal->theData[0]);
   const Ndbinfo::ScanCursor* cursor =
-    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
   Ndbinfo::Ratelimit rl;
 
   jamEntry();

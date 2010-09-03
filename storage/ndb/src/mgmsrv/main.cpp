@@ -179,6 +179,7 @@ static void mgmd_exit(int result)
   ndb_daemon_exit(result);
 }
 
+#include "../common/util/parse_mask.hpp"
 
 static int mgmd_main(int argc, char** argv)
 {
@@ -215,7 +216,7 @@ static int mgmd_main(int argc, char** argv)
 
   if (opt_nowait_nodes)
   {
-    int res = opts.nowait_nodes.parseMask(opt_nowait_nodes);
+    int res = parse_mask(opt_nowait_nodes, opts.nowait_nodes);
     if(res == -2 || (res > 0 && opts.nowait_nodes.get(0)))
     {
       fprintf(stderr, "ERROR: Invalid nodeid specified in nowait-nodes: '%s'\n",
