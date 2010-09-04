@@ -1597,6 +1597,9 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       if (!s.is_valid())
         goto err;
       s.dont_set_created= null_created_arg;
+      /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
+      if (is_relay_log)
+        s.set_relay_log_event();
       if (s.write(&log_file))
         goto err;
       bytes_written+= s.data_written;
