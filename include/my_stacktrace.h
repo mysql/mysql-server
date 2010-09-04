@@ -32,9 +32,7 @@
 #define HAVE_STACKTRACE 1
 #endif
 
-#if !defined(__NETWARE__)
 #define HAVE_WRITE_CORE
-#endif
 
 #if HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS && \
     HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE && \

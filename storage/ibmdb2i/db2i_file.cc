@@ -280,12 +280,9 @@ void db2i_table::renameAssocFiles(const char* from, const char* to)
 
 db2i_table::~db2i_table()
 {
-  if (blobFieldActualSizes)
-    my_free(blobFieldActualSizes, MYF(0));
+  my_free(blobFieldActualSizes);
+  my_free(conversionDefinitions[toMySQL]);
 
-  if (conversionDefinitions[toMySQL])
-    my_free(conversionDefinitions[toMySQL], MYF(0));
-      
   if (logicalFiles)
   {      
     for (int k = 0; k < logicalFileCount; ++k)
@@ -296,8 +293,8 @@ db2i_table::~db2i_table()
     delete[] logicalFiles;
   }
   delete physicalFile;
-  
-  my_free(db2LibNameEbcdic, 0);  
+
+  my_free(db2LibNameEbcdic);
 }
 
 void db2i_table::getDB2QualifiedName(char* to)
@@ -334,14 +331,14 @@ size_t db2i_table::smartFilenameToTableName(const char *in, char* out, size_t ou
     if ((*cur <= 0x20) || (*cur >= 0x80))
     {
       strncpy(out, in, outlen);
-      my_free(test, MYF(0));
+      my_free(test);
       return min(outlen, strlen(out));
     }
     ++cur;
   }
 
   strncpy(out, test, outlen);
-  my_free(test, MYF(0));
+  my_free(test);
   return min(outlen, strlen(out));
 }
 

@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
 
@@ -25,17 +25,17 @@ update performance_schema.SETUP_CONSUMERS set enabled='YES';
 
 connect (con1, localhost, root, , );
 
-let $con1_THREAD_ID=`select thread_id from performance_schema.PROCESSLIST
+let $con1_THREAD_ID=`select thread_id from performance_schema.THREADS
   where ID in (select connection_id())`;
 
 connect (con2, localhost, root, , );
 
-let $con2_THREAD_ID=`select thread_id from performance_schema.PROCESSLIST
+let $con2_THREAD_ID=`select thread_id from performance_schema.THREADS
   where ID in (select connection_id())`;
 
 connect (con3, localhost, root, , );
 
-let $con3_THREAD_ID=`select thread_id from performance_schema.PROCESSLIST
+let $con3_THREAD_ID=`select thread_id from performance_schema.THREADS
   where ID in (select connection_id())`;
 
 connection default;
@@ -49,6 +49,6 @@ prepare stmt_dump_events from
   where thread_id=? order by event_id;";
 
 prepare stmt_dump_thread from
-  "select name from performance_schema.PROCESSLIST where thread_id=? ;";
+  "select name from performance_schema.THREADS where thread_id=? ;";
 --enable_query_log
 

@@ -20,13 +20,11 @@
 EXTRA_DIST =		FINISH.sh \
 			SETUP.sh \
 			autorun.sh \
-			choose_configure.sh \
+			cmake_configure.sh \
 			build_mccge.sh \
 			check-cpu \
 			cleanup \
 			compile-alpha \
-			compile-alpha-ccc \
-			compile-alpha-cxx \
 			compile-alpha-debug \
 			compile-amd64-debug-max \
 			compile-amd64-debug-max-no-ndb \
@@ -54,7 +52,6 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-icc-yassl \
 			compile-pentium-max \
 			compile-pentium-myodbc \
-			compile-pentium-mysqlfs-debug \
 			compile-pentium-pgcc \
 			compile-pentium-valgrind-max \
 			compile-pentium64 \
@@ -78,6 +75,3 @@ EXTRA_DIST =		FINISH.sh \
 			compile-solaris-sparc-debug \
 			compile-solaris-sparc-forte \
 			compile-solaris-sparc-purify
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -431,26 +431,6 @@ void Item_sum::mark_as_sum_func()
   cur_select->n_sum_items++;
   cur_select->with_sum_func= 1;
   with_sum_func= 1;
-}
-
-
-void Item_sum::make_field(Send_field *tmp_field)
-{
-  if (args[0]->type() == Item::FIELD_ITEM && keep_field_type())
-  {
-    ((Item_field*) args[0])->field->make_field(tmp_field);
-    /* For expressions only col_name should be non-empty string. */
-    char *empty_string= (char*)"";
-    tmp_field->db_name= empty_string;
-    tmp_field->org_table_name= empty_string;
-    tmp_field->table_name= empty_string;
-    tmp_field->org_col_name= empty_string;
-    tmp_field->col_name= name;
-    if (maybe_null)
-      tmp_field->flags&= ~NOT_NULL_FLAG;
-  }
-  else
-    init_make_field(tmp_field, field_type());
 }
 
 
@@ -987,7 +967,8 @@ bool Aggregator_distinct::add()
   {
     int error;
     copy_fields(tmp_table_param);
-    copy_funcs(tmp_table_param->items_to_copy);
+    if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
+      return TRUE;
 
     for (Field **field=table->field ; *field ; field++)
       if ((*field)->is_real_null(0))
@@ -1217,8 +1198,7 @@ void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
-  if (value_arg)
-    value->store(value_arg);
+  value->store(value_arg);
   cmp= new Arg_comparator();
   cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
   collation.set(item->collation);
@@ -1906,7 +1886,7 @@ void Item_sum_variance::update_field()
 
 void Item_sum_hybrid::clear()
 {
-  value->null_value= 1;
+  value->clear();
   null_value= 1;
 }
 
@@ -2830,6 +2810,7 @@ String *Item_sum_udf_str::val_str(String *str)
   @retval  1 : key1 > key2 
 */
 
+extern "C"
 int group_concat_key_cmp_with_distinct(void* arg, const void* key1, 
                                        const void* key2)
 {
@@ -2864,6 +2845,7 @@ int group_concat_key_cmp_with_distinct(void* arg, const void* key1,
   function of sort for syntax: GROUP_CONCAT(expr,... ORDER BY col,... )
 */
 
+extern "C"
 int group_concat_key_cmp_with_order(void* arg, const void* key1, 
                                     const void* key2)
 {
@@ -2908,13 +2890,16 @@ int group_concat_key_cmp_with_order(void* arg, const void* key1,
   Append data from current leaf to item->result.
 */
 
-int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
-                  Item_func_group_concat *item)
+extern "C"
+int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
+                  void* item_arg)
 {
+  Item_func_group_concat *item= (Item_func_group_concat *) item_arg;
   TABLE *table= item->table;
   String tmp((char *)table->record[1], table->s->reclength,
              default_charset_info);
   String tmp2;
+  uchar *key= (uchar *) key_arg;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
   uint old_length= result->length();
@@ -2993,7 +2978,7 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_LIST *order_list, String *separator_arg)
+                       SQL_I_List<ORDER> *order_list, String *separator_arg)
   :tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
    order(0), context(context_arg),
@@ -3037,7 +3022,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= (ORDER*) order_list->first;
+    for (ORDER *order_item= order_list->first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3057,7 +3042,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree(item->tree),
   unique_filter(item->unique_filter),
   table(item->table),
-  order(item->order),
   context(item->context),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
@@ -3070,6 +3054,24 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
 {
   quick_group= item->quick_group;
   result.set_charset(collation.collation);
+
+  /*
+    Since the ORDER structures pointed to by the elements of the 'order' array
+    may be modified in find_order_in_list() called from
+    Item_func_group_concat::setup(), create a copy of those structures so that
+    such modifications done in this object would not have any effect on the
+    object being copied.
+  */
+  ORDER *tmp;
+  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+                                     sizeof(ORDER) * arg_count_order)))
+    return;
+  tmp= (ORDER *)(order + arg_count_order);
+  for (uint i= 0; i < arg_count_order; i++, tmp++)
+  {
+    memcpy(tmp, item->order[i], sizeof(ORDER));
+    order[i]= tmp;
+  }
 }
 
 
@@ -3135,7 +3137,8 @@ bool Item_func_group_concat::add()
   if (always_null)
     return 0;
   copy_fields(tmp_table_param);
-  copy_funcs(tmp_table_param->items_to_copy);
+  if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
+    return TRUE;
 
   for (uint i= 0; i < arg_count_field; i++)
   {
@@ -3388,8 +3391,7 @@ String* Item_func_group_concat::val_str(String* str)
     return 0;
   if (no_appended && tree)
     /* Tree is used for sorting as in ORDER BY */
-    tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
-              left_root_right);
+    tree_walk(tree, &dump_leaf_key, this, left_root_right);
   return &result;
 }
 
@@ -3414,7 +3416,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     {
       if (i)
         str->append(',');
-      (*order[i]->item)->print(str, query_type);
+      pargs[i + arg_count_field]->print(str, query_type);
       if (order[i]->asc)
         str->append(STRING_WITH_LEN(" ASC"));
       else

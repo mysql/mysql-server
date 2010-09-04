@@ -75,9 +75,6 @@ ndb_select_count_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_restore_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_config_LDFLAGS = @ndb_bin_am_ldflags@
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: \
   ndb_waiter.dsp \
   ndb_drop_table.dsp \

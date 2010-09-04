@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -160,7 +160,7 @@ static void prepare_record_for_error_message(int error, TABLE *table)
   /* Tell the engine about the new set. */
   table->file->column_bitmaps_signal();
   /* Read record that is identified by table->file->ref. */
-  (void) table->file->rnd_pos(table->record[1], table->file->ref);
+  (void) table->file->ha_rnd_pos(table->record[1], table->file->ref);
   /* Copy the newly read columns into the new record. */
   for (field_p= table->field; (field= *field_p); field_p++)
     if (bitmap_is_set(&unique_map, field->field_index))
@@ -195,7 +195,7 @@ int mysql_update(THD *thd,
                  TABLE_LIST *table_list,
                  List<Item> &fields,
 		 List<Item> &values,
-                 COND *conds,
+                 Item *conds,
                  uint order_num, ORDER *order,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates, bool ignore,
@@ -203,12 +203,13 @@ int mysql_update(THD *thd,
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
-  bool		used_key_is_modified, transactional_table, will_batch;
+  bool          used_key_is_modified= FALSE, transactional_table, will_batch;
   bool		can_compare_record;
   int           res;
   int		error, loc_error;
-  uint		used_index= MAX_KEY, dup_key_found;
+  uint          used_index, dup_key_found;
   bool          need_sort= TRUE;
+  bool          reverse= FALSE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -359,11 +360,7 @@ int mysql_update(THD *thd,
     my_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
-  if (!select && limit != HA_POS_ERROR)
-  {
-    if ((used_index= get_index_for_order(table, order, limit)) != MAX_KEY)
-      need_sort= FALSE;
-  }
+
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
@@ -377,23 +374,19 @@ int mysql_update(THD *thd,
   }
   init_ftfuncs(thd, select_lex, 1);
 
-  /* Check if we are modifying a key that we are used to search with */
-  
-  if (select && select->quick)
-  {
-    used_index= select->quick->index;
-    used_key_is_modified= (!select->quick->unique_key_range() &&
-                          select->quick->is_keys_used(table->write_set));
+  table->update_const_key_parts(conds);
+  order= simple_remove_const(order, conds);
+        
+  used_index= get_index_for_order(order, table, select, limit,
+                                  &need_sort, &reverse);
+  if (need_sort)
+  { // Assign table scan index to check below for modified key fields:
+    used_index= table->file->key_used_on_scan;
   }
-  else
-  {
-    used_key_is_modified= 0;
-    if (used_index == MAX_KEY)                  // no index for sort order
-      used_index= table->file->key_used_on_scan;
-    if (used_index != MAX_KEY)
-      used_key_is_modified= is_key_used(table, used_index, table->write_set);
+  if (used_index != MAX_KEY)
+  { // Check if we are modifying a key that we are used to search with:
+    used_key_is_modified= is_key_used(table, used_index, table->write_set);
   }
-
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (used_key_is_modified || order ||
@@ -407,13 +400,13 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-      table->mark_columns_used_by_index(used_index);
+      table->add_read_columns_used_by_index(used_index);
     else
     {
       table->use_all_columns();
     }
 
-    /* note: We avoid sorting avoid if we sort on the used index */
+    /* note: We avoid sorting if we sort on the used index */
     if (order && (need_sort || used_key_is_modified))
     {
       /*
@@ -435,6 +428,7 @@ int mysql_update(THD *thd,
       {
 	goto err;
       }
+      thd->examined_row_count+= examined_rows;
       /*
 	Filesort has already found and selected the rows we want to update,
 	so we don't need the where clause
@@ -474,14 +468,22 @@ int mysql_update(THD *thd,
       if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
-        init_read_record_idx(&info, thd, table, 1, used_index);
+        init_read_record_idx(&info, thd, table, 1, used_index, reverse);
 
       thd_proc_info(thd, "Searching rows for update");
       ha_rows tmp_limit= limit;
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
-	if (!(select && select->skip_record()))
+        thd->examined_row_count++;
+        bool skip_record= FALSE;
+        if (select && select->skip_record(thd, &skip_record))
+        {
+          error= 1;
+          table->file->unlock_row();
+          break;
+        }
+        if (!skip_record)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -587,7 +589,9 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
-    if (!(select && select->skip_record()))
+    thd->examined_row_count++;
+    bool skip_record;
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */
@@ -842,9 +846,8 @@ int mysql_update(THD *thd,
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->warning_info->statement_warn_count());
-    thd->row_count_func=
-      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-    my_ok(thd, (ulong) thd->row_count_func, id, buff);
+    my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+          id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -1053,7 +1056,7 @@ int mysql_multi_update_prepare(THD *thd)
         be write-locked (for example, trigger to be invoked might try
         to update this table).
       */
-      tl->lock_type= read_lock_type_for_table(thd, table);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
@@ -1141,57 +1144,6 @@ int mysql_multi_update_prepare(THD *thd)
 }
 
 
-/**
-   Implementation of the safe update options during UPDATE IGNORE. This syntax
-   causes an UPDATE statement to ignore all errors. In safe update mode,
-   however, we must never ignore the ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE. There
-   is a special hook in my_message_sql that will otherwise delete all errors
-   when the IGNORE option is specified. 
-
-   In the future, all IGNORE handling should be used with this class and all
-   traces of the hack outlined below should be removed.
-
-   - The parser detects IGNORE option and sets thd->lex->ignore= 1
-   
-   - In JOIN::optimize, if this is set, then 
-     thd->lex->current_select->no_error gets set.
-
-   - In my_message_sql(), if the flag above is set then any error is
-     unconditionally converted to a warning.
-
-   We are moving in the direction of using Internal_error_handler subclasses
-   to do all such error tweaking, please continue this effort if new bugs
-   appear.
- */
-class Safe_dml_handler : public Internal_error_handler {
-
-private:
-  bool m_handled_error;
-
-public:
-  explicit Safe_dml_handler() : m_handled_error(FALSE) {}
-
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
-                        const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
-  {
-    if (level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
-        sql_errno == ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE)
-    {
-      thd->stmt_da->set_error_status(thd, sql_errno, msg, sqlstate);
-      m_handled_error= TRUE;
-      return TRUE;
-    }
-    return FALSE;
-  }
-
-  bool handled_error() { return m_handled_error; }
-
-};
-
 /*
   Setup multi-update handling and call SELECT to do the join
 */
@@ -1200,7 +1152,7 @@ bool mysql_multi_update(THD *thd,
                         TABLE_LIST *table_list,
                         List<Item> *fields,
                         List<Item> *values,
-                        COND *conds,
+                        Item *conds,
                         ulonglong options,
                         enum enum_duplicates handle_duplicates,
                         bool ignore,
@@ -1225,11 +1177,6 @@ bool mysql_multi_update(THD *thd,
 
   List<Item> total_list;
 
-  Safe_dml_handler handler;
-  bool using_handler= thd->variables.option_bits & OPTION_SAFE_UPDATES;
-  if (using_handler)
-    thd->push_internal_handler(&handler);
-
   res= mysql_select(thd, &select_lex->ref_pointer_array,
                     table_list, select_lex->with_wild,
                     total_list,
@@ -1239,25 +1186,13 @@ bool mysql_multi_update(THD *thd,
                     OPTION_SETUP_TABLES_DONE,
                     *result, unit, select_lex);
 
-  if (using_handler)
-  {
-    Internal_error_handler *top_handler;
-    top_handler= thd->pop_internal_handler();
-    DBUG_ASSERT(&handler == top_handler);
-  }
-
   DBUG_PRINT("info",("res: %d  report_error: %d", res, (int) thd->is_error()));
   res|= thd->is_error();
-  /*
-    Todo: remove below code and make Safe_dml_handler do error processing
-    instead. That way we can return the actual error instead of
-    ER_UNKNOWN_ERROR.
-  */
-  if (unlikely(res) && (!using_handler || !handler.handled_error()))
+  if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */
     (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
-    (*result)->abort();
+    (*result)->abort_result_set();
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(res);
@@ -1285,7 +1220,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
-  SQL_LIST update;
+  SQL_I_List<TABLE_LIST> update;
   table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
@@ -1336,6 +1271,16 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      /*
+        If a timestamp field settable on UPDATE is present then to avoid wrong
+        update force the table handler to retrieve write-only fields to be able
+        to compare records and detect data change.
+        */
+      if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+          table->timestamp_field &&
+          (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+           table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+        bitmap_union(table->read_set, table->write_set);
     }
   }
   
@@ -1356,11 +1301,11 @@ int multi_update::prepare(List<Item> &not_used_values,
     leaf_table_count++;
     if (tables_to_update & table->map)
     {
-      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup((char*) table_ref,
+      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
-      update.link_in_list((uchar*) tl, (uchar**) &tl->next_local);
+      update.link_in_list(tl, &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
@@ -1381,7 +1326,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
 
   table_count=  update.elements;
-  update_tables= (TABLE_LIST*) update.first;
+  update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
   tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *
@@ -1827,11 +1772,13 @@ bool multi_update::send_data(List<Item> &not_used_values)
       {
         if (error &&
             create_myisam_from_heap(thd, tmp_table,
-                                    tmp_table_param + offset, error, 1))
+                                         tmp_table_param[offset].start_recinfo,
+                                         &tmp_table_param[offset].recinfo,
+                                         error, TRUE, NULL))
         {
           do_update= 0;
-          DBUG_RETURN(1);			// Not a table_is_full error
-        }
+	  DBUG_RETURN(1);			// Not a table_is_full error
+	}
         found++;
       }
     }
@@ -1847,7 +1794,7 @@ void multi_update::send_error(uint errcode,const char *err)
 }
 
 
-void multi_update::abort()
+void multi_update::abort_result_set()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
@@ -1960,7 +1907,7 @@ int multi_update::do_updates()
     {
       if (thd->killed && trans_safe)
 	goto err;
-      if ((local_error=tmp_table->file->rnd_next(tmp_table->record[0])))
+      if ((local_error=tmp_table->file->ha_rnd_next(tmp_table->record[0])))
       {
 	if (local_error == HA_ERR_END_OF_FILE)
 	  break;
@@ -1969,15 +1916,15 @@ int multi_update::do_updates()
 	goto err;
       }
 
-      /* call rnd_pos() using rowids from temporary table */
+      /* call ha_rnd_pos() using rowids from temporary table */
       check_opt_it.rewind();
       TABLE *tbl= table;
       uint field_num= 0;
       do
       {
         if((local_error=
-              tbl->file->rnd_pos(tbl->record[0],
-                                (uchar *) tmp_table->field[field_num]->ptr)))
+              tbl->file->ha_rnd_pos(tbl->record[0],
+                                    (uchar *) tmp_table->field[field_num]->ptr)))
           goto err;
         field_num++;
       } while((tbl= check_opt_it++));
@@ -2149,8 +2096,7 @@ bool multi_update::send_eof()
     thd->first_successful_insert_id_in_prev_stmt : 0;
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
               (ulong) found, (ulong) updated, (ulong) thd->cuted_fields);
-  thd->row_count_func=
-    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-  ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
+  ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+          id, buff);
   DBUG_RETURN(FALSE);
 }

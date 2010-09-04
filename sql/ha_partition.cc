@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   This handler was developed by Mikael Ronstrom for version 5.1 of MySQL.
@@ -53,18 +53,18 @@
 
 #include "sql_priv.h"
 #include "sql_parse.h"                          // append_file_to_dir
+#include "binlog.h"                             // mysql_bin_log
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #include "sql_table.h"                        // tablename_to_filename
 #include "key.h"
 #include "sql_plugin.h"
+#include "table.h"                           /* HA_DATA_PARTITION */
+
+#include "debug_sync.h"
 
 static const char *ha_par_ext= ".par";
-#ifdef NOT_USED
-static int free_share(PARTITION_SHARE * share);
-static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
-#endif
 
 /****************************************************************************
                 MODULE create/delete handler object
@@ -88,7 +88,9 @@ static int partition_initialize(void *p)
   partition_hton->create= partition_create_handler;
   partition_hton->partition_flags= partition_flags;
   partition_hton->alter_table_flags= alter_table_flags;
-  partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  partition_hton->flags= HTON_NOT_USER_SELECTABLE |
+                         HTON_HIDDEN |
+                         HTON_TEMPORARY_NOT_SUPPORTED;
 
   return 0;
 }
@@ -147,7 +149,7 @@ static uint alter_table_flags(uint flags __attribute__((unused)))
           HA_FAST_CHANGE_PARTITION);
 }
 
-const uint ha_partition::NO_CURRENT_PART_ID= 0xFFFFFFFF;
+const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
 
 /*
   Constructor method
@@ -282,7 +284,7 @@ ha_partition::~ha_partition()
     for (i= 0; i < m_tot_parts; i++)
       delete m_file[i];
   }
-  my_free((char*) m_ordered_rec_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_ordered_rec_buffer);
 
   clear_handler_file();
   DBUG_VOID_RETURN;
@@ -357,7 +359,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
   }
   else if (get_from_handler_file(table_share->normalized_path.str, mem_root))
   {
-    mem_alloc_error(2);
+    my_error(ER_FAILED_READ_FROM_PAR_FILE, MYF(0));
     DBUG_RETURN(1);
   }
   /*
@@ -692,6 +694,7 @@ int ha_partition::rename_partitions(const char *path)
   DBUG_ASSERT(!strcmp(path, get_canonical_filename(m_file[0], path,
                                                    norm_name_buff)));
 
+  DEBUG_SYNC(ha_thd(), "before_rename_partitions");
   if (temp_partitions)
   {
     /*
@@ -1123,13 +1126,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
           part= i * num_subparts + j;
           DBUG_PRINT("info", ("Optimize subpartition %u (%s)",
                      part, sub_elem->partition_name));
-#ifdef NOT_USED
-          if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
-                          opt_op_name[flag],
-                          "Start to operate on subpartition %s", 
-                          sub_elem->partition_name))
-            DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-#endif
           if ((error= handle_opt_part(thd, check_opt, m_file[part], flag)))
           {
             /* print a line which partition the error belongs to */
@@ -1156,13 +1152,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
       {
         DBUG_PRINT("info", ("Optimize partition %u (%s)", i,
                             part_elem->partition_name));
-#ifdef NOT_USED
-        if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
-                        opt_op_name[flag],
-                        "Start to operate on partition %s", 
-                        part_elem->partition_name))
-          DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-#endif
         if ((error= handle_opt_part(thd, check_opt, m_file[i], flag)))
         {
           /* print a line which partition the error belongs to */
@@ -1302,13 +1291,13 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
     assumes that external_lock() is last call that may fail here.
     Otherwise see description for cleanup_new_partition().
   */
-  if ((error= file->ha_external_lock(ha_thd(), m_lock_type)))
+  if ((error= file->ha_external_lock(ha_thd(), F_WRLCK)))
     goto error_external_lock;
   DBUG_PRINT("info", ("partition %s external locked", part_name));
 
   DBUG_RETURN(0);
 error_external_lock:
-  (void) file->close();
+  (void) file->ha_close();
 error_open:
   (void) file->ha_delete_table(part_name);
 error_create:
@@ -1354,7 +1343,7 @@ void ha_partition::cleanup_new_partition(uint part_count)
     while ((part_count > 0) && (*file))
     {
       (*file)->ha_external_lock(thd, F_UNLCK);
-      (*file)->close();
+      (*file)->ha_close();
 
       /* Leave the (*file)->ha_delete_table(part_name) to the ddl-log */
 
@@ -1723,7 +1712,7 @@ int ha_partition::copy_partitions(ulonglong * const copied,
       goto error;
     while (TRUE)
     {
-      if ((result= file->rnd_next(m_rec0)))
+      if ((result= file->ha_rnd_next(m_rec0)))
       {
         if (result == HA_ERR_RECORD_DELETED)
           continue;                              //Probably MyISAM
@@ -1892,6 +1881,13 @@ uint ha_partition::del_ren_cre_table(const char *from,
   uint i;
   handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
+
+  /* Not allowed to create temporary partitioned tables */
+  if (create_info && create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   if (get_from_handler_file(from, ha_thd()->mem_root))
     DBUG_RETURN(TRUE);
@@ -2254,7 +2250,7 @@ bool ha_partition::create_handler_file(const char *name)
   }
   else
     result= TRUE;
-  my_free((char*) file_buffer, MYF(0));
+  my_free(file_buffer);
   DBUG_RETURN(result);
 }
 
@@ -2272,8 +2268,8 @@ void ha_partition::clear_handler_file()
 {
   if (m_engine_array)
     plugin_unlock_list(NULL, m_engine_array, m_tot_parts);
-  my_free((char*) m_file_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) m_engine_array, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_file_buffer);
+  my_free(m_engine_array);
   m_file_buffer= NULL;
   m_engine_array= NULL;
 }
@@ -2451,9 +2447,14 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   tot_partition_words= (m_tot_parts + 3) / 4;
   engine_array= (handlerton **) my_alloca(m_tot_parts * sizeof(handlerton*));
   for (i= 0; i < m_tot_parts; i++)
+  {
     engine_array[i]= ha_resolve_by_legacy_type(ha_thd(),
                                                (enum legacy_db_type)
-                                               *(uchar *) ((file_buffer) + 12 + i));
+                                               *(uchar *) ((file_buffer) +
+                                                           12 + i));
+    if (!engine_array[i])
+      goto err3;
+  }
   address_tot_name_len= file_buffer + 12 + 4 * tot_partition_words;
   tot_name_words= (uint4korr(address_tot_name_len) + 3) / 4;
   if (len_words != (tot_partition_words + tot_name_words + 4))
@@ -2482,7 +2483,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
 err3:
   my_afree((gptr) engine_array);
 err2:
-  my_free(file_buffer, MYF(0));
+  my_free(file_buffer);
 err1:
   (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(TRUE);
@@ -2498,12 +2499,11 @@ err1:
   A destructor for partition-specific TABLE_SHARE data.
 */
 
-void ha_data_partition_destroy(void *ha_data)
+void ha_data_partition_destroy(HA_DATA_PARTITION* ha_part_data)
 {
-  if (ha_data)
+  if (ha_part_data)
   {
-    HA_DATA_PARTITION *ha_data_partition= (HA_DATA_PARTITION*) ha_data;
-    pthread_mutex_destroy(&ha_data_partition->mutex);
+    mysql_mutex_destroy(&ha_part_data->LOCK_auto_inc);
   }
 }
 
@@ -2643,28 +2643,30 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     goto err_handler;
 
   /*
-    Use table_share->ha_data to share auto_increment_value among all handlers
-    for the same table.
+    Use table_share->ha_part_data to share auto_increment_value among
+    all handlers for the same table.
   */
   if (is_not_tmp_table)
     mysql_mutex_lock(&table_share->LOCK_ha_data);
-  if (!table_share->ha_data)
+  if (!table_share->ha_part_data)
   {
-    HA_DATA_PARTITION *ha_data;
     /* currently only needed for auto_increment */
-    table_share->ha_data= ha_data= (HA_DATA_PARTITION*)
+    table_share->ha_part_data= (HA_DATA_PARTITION*)
                                    alloc_root(&table_share->mem_root,
                                               sizeof(HA_DATA_PARTITION));
-    if (!ha_data)
+    if (!table_share->ha_part_data)
     {
       if (is_not_tmp_table)
         mysql_mutex_unlock(&table_share->LOCK_ha_data);
       goto err_handler;
     }
-    DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
-    bzero(ha_data, sizeof(HA_DATA_PARTITION));
-    table_share->ha_data_destroy= ha_data_partition_destroy;
-    pthread_mutex_init(&ha_data->mutex, MY_MUTEX_INIT_FAST);
+    DBUG_PRINT("info", ("table_share->ha_part_data 0x%p",
+                        table_share->ha_part_data));
+    bzero(table_share->ha_part_data, sizeof(HA_DATA_PARTITION));
+    table_share->ha_part_data_destroy= ha_data_partition_destroy;
+    mysql_mutex_init(key_PARTITION_LOCK_auto_inc,
+                     &table_share->ha_part_data->LOCK_auto_inc,
+                     MY_MUTEX_INIT_FAST);
   }
   if (is_not_tmp_table)
     mysql_mutex_unlock(&table_share->LOCK_ha_data);
@@ -2684,8 +2686,9 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 
 err_handler:
+  DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
-    (*file)->close();
+    (*file)->ha_close();
   bitmap_free(&m_bulk_insert_started);
   if (!is_clone)
     bitmap_free(&(m_part_info->used_partitions));
@@ -2742,7 +2745,7 @@ int ha_partition::close(void)
 repeat:
   do
   {
-    (*file)->close();
+    (*file)->ha_close();
   } while (*(++file));
 
   if (first && m_added_file && m_added_file[0])
@@ -3088,7 +3091,6 @@ int ha_partition::write_row(uchar * buf)
   longlong func_value;
   bool have_auto_increment= table->next_number_field && buf == table->record[0];
   my_bitmap_map *old_map;
-  HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
   THD *thd= ha_thd();
   timestamp_auto_set_type orig_timestamp_type= table->timestamp_field_type;
 #ifdef NOT_NEEDED
@@ -3108,8 +3110,8 @@ int ha_partition::write_row(uchar * buf)
   */
   if (have_auto_increment)
   {
-    if (!ha_data->auto_inc_initialized &&
-        !table->s->next_number_keypart)
+    if (!table_share->ha_part_data->auto_inc_initialized &&
+        !table_share->next_number_keypart)
     {
       /*
         If auto_increment in table_share is not initialized, start by
@@ -3249,7 +3251,7 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
 exit:
   /*
     if updating an auto_increment column, update
-    table_share->ha_data->next_auto_inc_val if needed.
+    table_share->ha_part_data->next_auto_inc_val if needed.
     (not to be used if auto_increment on secondary field in a multi-column
     index)
     mysql_update does not set table->next_number_field, so we use
@@ -3258,8 +3260,7 @@ exit:
   if (table->found_next_number_field && new_data == table->record[0] &&
       !table->s->next_number_keypart)
   {
-    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
-    if (!ha_data->auto_inc_initialized)
+    if (!table_share->ha_part_data->auto_inc_initialized)
       info(HA_STATUS_AUTO);
     set_auto_increment_if_higher(table->found_next_number_field);
   }
@@ -3351,11 +3352,10 @@ int ha_partition::delete_all_rows()
   if (thd->lex->sql_command == SQLCOM_TRUNCATE)
   {
     Alter_info *alter_info= &thd->lex->alter_info;
-    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     /* TRUNCATE also means resetting auto_increment */
     lock_auto_increment();
-    ha_data->next_auto_inc_val= 0;
-    ha_data->auto_inc_initialized= FALSE;
+    table_share->ha_part_data->next_auto_inc_val= 0;
+    table_share->ha_part_data->auto_inc_initialized= FALSE;
     unlock_auto_increment();
     if (alter_info->flags & ALTER_ADMIN_PARTITION)
     {
@@ -3800,7 +3800,7 @@ int ha_partition::rnd_next(uchar *buf)
   
   while (TRUE)
   {
-    result= file->rnd_next(buf);
+    result= file->ha_rnd_next(buf);
     if (!result)
     {
       m_last_part= part_id;
@@ -3810,7 +3810,7 @@ int ha_partition::rnd_next(uchar *buf)
     }
 
     /*
-      if we get here, then the current partition rnd_next returned failure
+      if we get here, then the current partition ha_rnd_next returned failure
     */
     if (result == HA_ERR_RECORD_DELETED)
       continue;                               // Probably MyISAM
@@ -3933,7 +3933,7 @@ int ha_partition::rnd_pos(uchar * buf, uchar *pos)
   DBUG_ASSERT(part_id < m_tot_parts);
   file= m_file[part_id];
   m_last_part= part_id;
-  DBUG_RETURN(file->rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
+  DBUG_RETURN(file->ha_rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
 }
 
 
@@ -4182,10 +4182,9 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
 int ha_partition::common_index_read(uchar *buf, bool have_start_key)
 {
   int error;
-  uint key_len;
+  uint UNINIT_VAR(key_len); /* used if have_start_key==TRUE */
   bool reverse_order= FALSE;
   DBUG_ENTER("ha_partition::common_index_read");
-  LINT_INIT(key_len); /* used if have_start_key==TRUE */
 
   DBUG_PRINT("info", ("m_ordered %u m_ordered_scan_ong %u have_start_key %u",
                       m_ordered, m_ordered_scan_ongoing, have_start_key));
@@ -4356,6 +4355,58 @@ int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
   m_start_key.keypart_map= keypart_map;
   m_start_key.flag= HA_READ_PREFIX_LAST;
   DBUG_RETURN(common_index_read(buf, TRUE));
+}
+
+
+/*
+  Optimization of the default implementation to take advantage of dynamic
+  partition pruning.
+*/
+int ha_partition::index_read_idx_map(uchar *buf, uint index,
+                                     const uchar *key,
+                                     key_part_map keypart_map,
+                                     enum ha_rkey_function find_flag)
+{
+  int error= HA_ERR_KEY_NOT_FOUND;
+  DBUG_ENTER("ha_partition::index_read_idx_map");
+
+  if (find_flag == HA_READ_KEY_EXACT)
+  {
+    uint part;
+    m_start_key.key= key;
+    m_start_key.keypart_map= keypart_map;
+    m_start_key.flag= find_flag;
+    m_start_key.length= calculate_key_len(table, index, m_start_key.key,
+                                          m_start_key.keypart_map);
+
+    get_partition_set(table, buf, index, &m_start_key, &m_part_spec);
+
+    /* How can it be more than one partition with the current use? */
+    DBUG_ASSERT(m_part_spec.start_part == m_part_spec.end_part);
+
+    for (part= m_part_spec.start_part; part <= m_part_spec.end_part; part++)
+    {
+      if (bitmap_is_set(&(m_part_info->used_partitions), part))
+      {
+        error= m_file[part]->ha_index_read_idx_map(buf, index, key,
+                                                   keypart_map, find_flag);
+        if (error != HA_ERR_KEY_NOT_FOUND &&
+            error != HA_ERR_END_OF_FILE)
+          break;
+      }
+    }
+  }
+  else
+  {
+    /*
+      If not only used with READ_EXACT, we should investigate if possible
+      to optimize for other find_flag's as well.
+    */
+    DBUG_ASSERT(0);
+    /* fall back on the default implementation */
+    error= handler::index_read_idx_map(buf, index, key, keypart_map, find_flag);
+  }
+  DBUG_RETURN(error);
 }
 
 
@@ -4650,8 +4701,8 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   }
   else if (is_next_same)
   {
-    if (!(error= file->index_next_same(buf, m_start_key.key,
-                                       m_start_key.length)))
+    if (!(error= file->ha_index_next_same(buf, m_start_key.key,
+                                          m_start_key.length)))
     {
       m_last_part= m_part_spec.start_part;
       DBUG_RETURN(0);
@@ -4659,7 +4710,7 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   }
   else 
   {
-    if (!(error= file->index_next(buf)))
+    if (!(error= file->ha_index_next(buf)))
     {
       m_last_part= m_part_spec.start_part;
       DBUG_RETURN(0);                           // Row was in range
@@ -4714,13 +4765,13 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
       break;
     case partition_index_read:
       DBUG_PRINT("info", ("index_read on partition %d", i));
-      error= file->index_read_map(buf, m_start_key.key,
-                                  m_start_key.keypart_map,
-                                  m_start_key.flag);
+      error= file->ha_index_read_map(buf, m_start_key.key,
+                                     m_start_key.keypart_map,
+                                     m_start_key.flag);
       break;
     case partition_index_first:
       DBUG_PRINT("info", ("index_first on partition %d", i));
-      error= file->index_first(buf);
+      error= file->ha_index_first(buf);
       break;
     case partition_index_first_unordered:
       /*
@@ -4801,17 +4852,17 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
 
     switch (m_index_scan_type) {
     case partition_index_read:
-      error= file->index_read_map(rec_buf_ptr,
-                                  m_start_key.key,
-                                  m_start_key.keypart_map,
-                                  m_start_key.flag);
+      error= file->ha_index_read_map(rec_buf_ptr,
+                                     m_start_key.key,
+                                     m_start_key.keypart_map,
+                                     m_start_key.flag);
       break;
     case partition_index_first:
-      error= file->index_first(rec_buf_ptr);
+      error= file->ha_index_first(rec_buf_ptr);
       reverse_order= FALSE;
       break;
     case partition_index_last:
-      error= file->index_last(rec_buf_ptr);
+      error= file->ha_index_last(rec_buf_ptr);
       reverse_order= TRUE;
       break;
     case partition_index_read_last:
@@ -4919,10 +4970,10 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     memcpy(rec_buf(part_id), table->record[0], m_rec_length);
   }
   else if (!is_next_same)
-    error= file->index_next(rec_buf(part_id));
+    error= file->ha_index_next(rec_buf(part_id));
   else
-    error= file->index_next_same(rec_buf(part_id), m_start_key.key,
-				 m_start_key.length);
+    error= file->ha_index_next_same(rec_buf(part_id), m_start_key.key,
+                                    m_start_key.length);
   if (error)
   {
     if (error == HA_ERR_END_OF_FILE)
@@ -4967,7 +5018,7 @@ int ha_partition::handle_ordered_prev(uchar *buf)
   handler *file= m_file[part_id];
   DBUG_ENTER("ha_partition::handle_ordered_prev");
 
-  if ((error= file->index_prev(rec_buf(part_id))))
+  if ((error= file->ha_index_prev(rec_buf(part_id))))
   {
     if (error == HA_ERR_END_OF_FILE)
     {
@@ -5071,22 +5122,22 @@ int ha_partition::info(uint flag)
   if (flag & HA_STATUS_AUTO)
   {
     bool auto_inc_is_first_in_idx= (table_share->next_number_keypart == 0);
-    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     if (!table->found_next_number_field)
       stats.auto_increment_value= 0;
-    else if (ha_data->auto_inc_initialized)
+    else if (table_share->ha_part_data->auto_inc_initialized)
     {
       lock_auto_increment();
-      stats.auto_increment_value= ha_data->next_auto_inc_val;
+      stats.auto_increment_value= table_share->ha_part_data->next_auto_inc_val;
       unlock_auto_increment();
     }
     else
     {
       lock_auto_increment();
       /* to avoid two concurrent initializations, check again when locked */
-      if (ha_data->auto_inc_initialized)
-        stats.auto_increment_value= ha_data->next_auto_inc_val;
+      if (table_share->ha_part_data->auto_inc_initialized)
+        stats.auto_increment_value=
+                                 table_share->ha_part_data->next_auto_inc_val;
       else
       {
         handler *file, **file_array;
@@ -5106,10 +5157,11 @@ int ha_partition::info(uint flag)
         stats.auto_increment_value= auto_increment_value;
         if (auto_inc_is_first_in_idx)
         {
-          set_if_bigger(ha_data->next_auto_inc_val, auto_increment_value);
-          ha_data->auto_inc_initialized= TRUE;
+          set_if_bigger(table_share->ha_part_data->next_auto_inc_val,
+                        auto_increment_value);
+          table_share->ha_part_data->auto_inc_initialized= TRUE;
           DBUG_PRINT("info", ("initializing next_auto_inc_val to %lu",
-                              (ulong) ha_data->next_auto_inc_val));
+                       (ulong) table_share->ha_part_data->next_auto_inc_val));
         }
       }
       unlock_auto_increment();
@@ -5284,7 +5336,7 @@ int ha_partition::info(uint flag)
 }
 
 
-void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
+void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                               uint part_id)
 {
   handler *file= m_file[part_id];
@@ -6499,11 +6551,10 @@ int ha_partition::reset_auto_increment(ulonglong value)
 {
   handler **file= m_file;
   int res;
-  HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
   DBUG_ENTER("ha_partition::reset_auto_increment");
   lock_auto_increment();
-  ha_data->auto_inc_initialized= FALSE;
-  ha_data->next_auto_inc_val= 0;
+  table_share->ha_part_data->auto_inc_initialized= FALSE;
+  table_share->ha_part_data->next_auto_inc_val= 0;
   do
   {
     if ((res= (*file)->ha_reset_auto_increment(value)) != 0)
@@ -6517,7 +6568,7 @@ int ha_partition::reset_auto_increment(ulonglong value)
 /**
   This method is called by update_auto_increment which in turn is called
   by the individual handlers as part of write_row. We use the
-  table_share->ha_data->next_auto_inc_val, or search all
+  table_share->ha_part_data->next_auto_inc_val, or search all
   partitions for the highest auto_increment_value if not initialized or
   if auto_increment field is a secondary part of a key, we must search
   every partition when holding a mutex to be sure of correctness.
@@ -6570,13 +6621,12 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
   else
   {
     THD *thd= ha_thd();
-    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     /*
       This is initialized in the beginning of the first write_row call.
     */
-    DBUG_ASSERT(ha_data->auto_inc_initialized);
+    DBUG_ASSERT(table_share->ha_part_data->auto_inc_initialized);
     /*
-      Get a lock for handling the auto_increment in table_share->ha_data
+      Get a lock for handling the auto_increment in table_share->ha_part_data
       for avoiding two concurrent statements getting the same number.
     */ 
 
@@ -6603,8 +6653,9 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
     }
 
     /* this gets corrected (for offset/increment) in update_auto_increment */
-    *first_value= ha_data->next_auto_inc_val;
-    ha_data->next_auto_inc_val+= nb_desired_values * increment;
+    *first_value= table_share->ha_part_data->next_auto_inc_val;
+    table_share->ha_part_data->next_auto_inc_val+=
+                                              nb_desired_values * increment;
 
     unlock_auto_increment();
     DBUG_PRINT("info", ("*first_value: %lu", (ulong) *first_value));
@@ -6624,10 +6675,9 @@ void ha_partition::release_auto_increment()
   }
   else if (next_insert_id)
   {
-    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     ulonglong next_auto_inc_val;
     lock_auto_increment();
-    next_auto_inc_val= ha_data->next_auto_inc_val;
+    next_auto_inc_val= table_share->ha_part_data->next_auto_inc_val;
     /*
       If the current auto_increment values is lower than the reserved
       value, and the reserved value was reserved by this thread,
@@ -6642,10 +6692,10 @@ void ha_partition::release_auto_increment()
         with SET INSERT_ID, i.e. forced/non generated values.
       */
       if (thd->auto_inc_intervals_forced.maximum() < next_insert_id)
-        ha_data->next_auto_inc_val= next_insert_id;
+        table_share->ha_part_data->next_auto_inc_val= next_insert_id;
     }
-    DBUG_PRINT("info", ("ha_data->next_auto_inc_val: %lu",
-                        (ulong) ha_data->next_auto_inc_val));
+    DBUG_PRINT("info", ("table_share->ha_part_data->next_auto_inc_val: %lu",
+                        (ulong) table_share->ha_part_data->next_auto_inc_val));
 
     /* Unlock the multi row statement lock taken in get_auto_increment */
     if (auto_increment_safe_stmt_log_lock)
@@ -6744,127 +6794,6 @@ int ha_partition::indexes_are_disabled(void)
   return error;
 }
 
-
-/****************************************************************************
-                MODULE Partition Share
-****************************************************************************/
-/*
-  Service routines for ... methods.
--------------------------------------------------------------------------
-  Variables for partition share methods. A hash used to track open tables.
-  A mutex for the hash table and an init variable to check if hash table
-  is initialized.
-  There is also a constant ending of the partition handler file name.
-*/
-
-#ifdef NOT_USED
-static HASH partition_open_tables;
-static mysql_mutex_t partition_mutex;
-static int partition_init= 0;
-
-
-/*
-  Function we use in the creation of our hash to get key.
-*/
-
-static uchar *partition_get_key(PARTITION_SHARE *share, size_t *length,
-			       my_bool not_used __attribute__ ((unused)))
-{
-  *length= share->table_name_length;
-  return (uchar *) share->table_name;
-}
-
-/*
-  Example of simple lock controls. The "share" it creates is structure we
-  will pass to each partition handler. Do you have to have one of these?
-  Well, you have pieces that are used for locking, and they are needed to
-  function.
-*/
-
-static PARTITION_SHARE *get_share(const char *table_name, TABLE *table)
-{
-  PARTITION_SHARE *share;
-  uint length;
-  char *tmp_name;
-
-  /*
-    So why does this exist? There is no way currently to init a storage
-    engine.
-    Innodb and BDB both have modifications to the server to allow them to
-    do this. Since you will not want to do this, this is probably the next
-    best method.
-  */
-  if (!partition_init)
-  {
-    /* Hijack a mutex for init'ing the storage engine */
-    mysql_mutex_lock(&LOCK_mysql_create_db);
-    if (!partition_init)
-    {
-      partition_init++;
-      mysql_mutex_init(INSTRUMENT_ME, &partition_mutex, MY_MUTEX_INIT_FAST);
-      (void) hash_init(&partition_open_tables, system_charset_info, 32, 0, 0,
-		       (hash_get_key) partition_get_key, 0, 0);
-    }
-    mysql_mutex_unlock(&LOCK_mysql_create_db);
-  }
-  mysql_mutex_lock(&partition_mutex);
-  length= (uint) strlen(table_name);
-
-  if (!(share= (PARTITION_SHARE *) hash_search(&partition_open_tables,
-					       (uchar *) table_name, length)))
-  {
-    if (!(share= (PARTITION_SHARE *)
-	  my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-			  &share, (uint) sizeof(*share),
-			  &tmp_name, (uint) length + 1, NullS)))
-    {
-      mysql_mutex_unlock(&partition_mutex);
-      return NULL;
-    }
-
-    share->use_count= 0;
-    share->table_name_length= length;
-    share->table_name= tmp_name;
-    strmov(share->table_name, table_name);
-    if (my_hash_insert(&partition_open_tables, (uchar *) share))
-      goto error;
-    thr_lock_init(&share->lock);
-    mysql_mutex_init(INSTRUMENT_ME, &share->mutex, MY_MUTEX_INIT_FAST);
-  }
-  share->use_count++;
-  mysql_mutex_unlock(&partition_mutex);
-
-  return share;
-
-error:
-  mysql_mutex_unlock(&partition_mutex);
-  my_free((uchar*) share, MYF(0));
-
-  return NULL;
-}
-
-
-/*
-  Free lock controls. We call this whenever we close a table. If the table
-  had the last reference to the share then we free memory associated with
-  it.
-*/
-
-static int free_share(PARTITION_SHARE *share)
-{
-  mysql_mutex_lock(&partition_mutex);
-  if (!--share->use_count)
-  {
-    hash_delete(&partition_open_tables, (uchar *) share);
-    thr_lock_delete(&share->lock);
-    mysql_mutex_destroy(&share->mutex);
-    my_free((uchar*) share, MYF(0));
-  }
-  mysql_mutex_unlock(&partition_mutex);
-
-  return 0;
-}
-#endif /* NOT_USED */
 
 struct st_mysql_storage_engine partition_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };

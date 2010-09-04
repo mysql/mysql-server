@@ -1,0 +1,484 @@
+#
+# Single table specific update/delete tests (mysql_update and mysql_delete)
+#
+
+--echo #
+--echo # Bug #30584: delete with order by and limit clauses does not use
+--echo #             limit efficiently
+--echo #
+
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
+                      (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
+                      (30),(31),(32),(33),(34),(35);
+
+CREATE TABLE t2(a INT, i INT PRIMARY KEY);
+INSERT INTO t2 (i) SELECT i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
+
+DROP TABLE t2;
+
+--echo #
+--echo # index on field prefix:
+--echo #
+
+CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1)));
+INSERT INTO t2 (i) SELECT i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
+
+DROP TABLE t2;
+
+--echo #
+--echo # constant inside ORDER BY list, should use filesort
+--echo # on a small table
+--echo #
+
+CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
+INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;
+
+FLUSH STATUS;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+--echo ## should be 5 (previous LIMIT)
+eval SELECT $cnt - COUNT(*) FROM t2 WHERE b = 10;
+
+DROP TABLE t2;
+
+--echo #
+--echo # same test as above (constant inside ORDER BY list), but with
+--echo # a larger table - should not use filesort
+--echo #
+
+CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
+INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
+
+INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;
+
+FLUSH STATUS;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+--echo ## should be 5 (previous LIMIT)
+eval SELECT $cnt - COUNT(*) FROM t2 WHERE b = 10;
+
+DROP TABLE t2;
+
+--echo #
+--echo # as above + partial index, should use filesort
+--echo #
+
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
+INSERT INTO t2 SELECT i, i, i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c;
+
+DROP TABLE t2;
+
+--echo #
+--echo # as above but index is without HA_READ_ORDER flag, should use filesort
+--echo #
+
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b,c)) ENGINE=HEAP;
+INSERT INTO t2 SELECT i, i, i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c;
+
+DROP TABLE t2;
+
+--echo #
+--echo # quick select is Index Merge, should use filesort
+--echo #
+
+CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2))
+ENGINE= MyISAM;
+INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
+FLUSH STATUS;
+SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+--replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+
+FLUSH STATUS;
+DELETE FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+--replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+DROP TABLE t2;
+
+--echo #
+--echo # reverse quick select, should not use filesort
+--echo #
+
+CREATE TABLE t2(a INT, i INT PRIMARY KEY);
+INSERT INTO t2 (i) SELECT i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
+
+DROP TABLE t2;
+
+--echo #
+--echo # mixed sorting direction, should use filesort
+--echo #
+
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+INSERT INTO t2 SELECT i, i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 ORDER BY a, b DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+DELETE FROM t2 ORDER BY a, b DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 ORDER BY a, b DESC;
+
+DROP TABLE t2;
+
+--echo #
+--echo # LIMIT with no WHERE and DESC direction, should not use filesort
+--echo #
+
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+INSERT INTO t2 (a, b) SELECT i, i FROM t1;
+INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
+
+FLUSH STATUS;
+SELECT * FROM t2 ORDER BY a, b LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+DELETE FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE c = 10 ORDER BY a DESC, b DESC;
+
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug #36569: UPDATE ... WHERE ... ORDER BY... always does a filesort
+--echo #             even if not required
+--echo #
+
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
+                      (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
+                      (30),(31),(32),(33),(34),(35);
+
+CREATE TABLE t2(a INT, i INT PRIMARY KEY);
+INSERT INTO t2 (i) SELECT i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
+
+DROP TABLE t2;
+
+--echo #
+--echo # index on field prefix:
+--echo #
+
+CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1)));
+INSERT INTO t2 (i) SELECT i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
+
+DROP TABLE t2;
+
+--echo #
+--echo # constant inside ORDER BY list, should use filesort
+--echo # on a small table
+--echo #
+
+CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
+INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;
+
+FLUSH STATUS;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+--echo ## should be 5 (previous LIMIT)
+SELECT COUNT(*) FROM t2 WHERE b = 10 AND d = 10 ORDER BY a, c;
+
+DROP TABLE t2;
+
+--echo #
+--echo # same test as above (constant inside ORDER BY list), but with
+--echo # a larger table - should not use filesort
+--echo #
+
+CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
+INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
+
+INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;
+
+FLUSH STATUS;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+--echo ## should be 5 (previous LIMIT)
+SELECT COUNT(*) FROM t2 WHERE b = 10 AND d = 10 ORDER BY a, c;
+
+DROP TABLE t2;
+
+--echo #
+--echo # as above + partial index, should use filesort
+--echo #
+
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
+INSERT INTO t2 SELECT i, i, i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c;
+
+DROP TABLE t2;
+
+--echo #
+--echo # as above but index is without HA_READ_ORDER flag, should use filesort
+--echo #
+
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b,c)) ENGINE=HEAP;
+INSERT INTO t2 SELECT i, i, i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c;
+
+DROP TABLE t2;
+
+--echo #
+--echo # quick select is Index Merge, should use filesort
+--echo #
+
+CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2))
+ENGINE= MyISAM;
+INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+--replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+
+FLUSH STATUS;
+UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+--replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+
+DROP TABLE t2;
+
+--echo #
+--echo # reverse quick select, should not use filesort
+--echo #
+
+CREATE TABLE t2(a INT, i INT PRIMARY KEY);
+INSERT INTO t2 (i) SELECT i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
+
+DROP TABLE t2;
+
+--echo #
+--echo # mixed sorting direction, should use filesort
+--echo #
+
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+INSERT INTO t2 SELECT i, i, i FROM t1;
+
+FLUSH STATUS;
+SELECT * FROM t2 ORDER BY a, b DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE c = 10 ORDER BY a, b DESC;
+
+DROP TABLE t2;
+
+--echo #
+--echo # LIMIT with no WHERE and DESC direction, should not use filesort
+--echo #
+
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+INSERT INTO t2 (a, b) SELECT i, i FROM t1;
+INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
+
+FLUSH STATUS;
+SELECT * FROM t2 ORDER BY a, b LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+
+FLUSH STATUS;
+UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
+SHOW SESSION STATUS LIKE 'Sort%';
+SHOW STATUS LIKE 'Handler_read_%';
+SELECT * FROM t2 WHERE c = 10 ORDER BY a DESC, b DESC;
+
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug #53742: UPDATEs have no effect after applying patch for bug 36569
+--echo #
+
+--disable_warnings
+CREATE TABLE t1 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  c1_idx CHAR(1) DEFAULT 'y',
+  c2 INT,
+  PRIMARY KEY (pk),
+  INDEX c1_idx (c1_idx)
+) ENGINE=InnoDB;
+--enable_warnings
+
+INSERT INTO t1 VALUES (), (), (), ();
+
+SELECT * FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
+UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
+SELECT * FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
+SELECT * FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC;
+
+DELETE FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
+SELECT * FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC;
+
+DROP TABLE t1;
+

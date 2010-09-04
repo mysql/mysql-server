@@ -19,16 +19,13 @@ ndb_cpcd_SOURCES = main.cpp CPCD.cpp Process.cpp APIService.cpp Monitor.cpp comm
 
 LDADD_LOC = \
             $(top_builddir)/storage/ndb/src/libndbclient.la      \
-            $(top_builddir)/dbug/libdbug.a \
-            $(top_builddir)/mysys/libmysys.a \
-            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
+            $(top_builddir)/dbug/libdbuglt.la \
+            $(top_builddir)/mysys/libmysyslt.la \
+            $(top_builddir)/strings/libmystringslt.la @NDB_SCI_LIBS@
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
 
 ndb_cpcd_LDFLAGS = -static @ndb_bin_am_ldflags@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
 
 windoze-dsp:

@@ -8,10 +8,10 @@ RESET SLAVE;
 CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_PORT,master_user='root';
 START SLAVE IO_THREAD;
 SHOW SLAVE HOSTS;
-Server_id	Host	Port	Master_id
-3	slave2	DEFAULT_PORT	1
-2		SLAVE_PORT	1
+Server_id	Host	Port	Master_id	Slave_UUID
+3	slave2	DEFAULT_PORT	1	SLAVE_UUID
+2		SLAVE_PORT	1	SLAVE_UUID
 STOP SLAVE IO_THREAD;
 SHOW SLAVE HOSTS;
-Server_id	Host	Port	Master_id
-2		SLAVE_PORT	1
+Server_id	Host	Port	Master_id	Slave_UUID
+2		SLAVE_PORT	1	SLAVE_UUID

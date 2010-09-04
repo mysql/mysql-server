@@ -126,7 +126,7 @@ connection master;
 
 # Parameters for include/wait_for_slave_sql_error_and_skip.inc:
 # Ask it to show SQL error message.
-let $show_sql_error= 1;
+let $show_slave_sql_error= 1;
 # The expected error will always be 1146 (ER_NO_SUCH_TABLE).
 let $slave_sql_errno= 1146;
 

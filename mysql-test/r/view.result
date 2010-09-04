@@ -1416,8 +1416,8 @@ a	a	b
 explain extended select * from t3 left join v3 on (t3.a = v3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 create view v1 (a) as select a from t1;
@@ -1431,8 +1431,8 @@ a	a	b
 explain extended select * from t3 left join v4 on (t3.a = v4.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
@@ -1955,15 +1955,15 @@ CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
 test.v1	check	Error	FUNCTION test.f1 does not exist
 test.v1	check	Error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-test.v1	check	status	Operation failed
+test.v1	check	error	Corrupt
 test.v2	check	status	OK
 test.v3	check	Error	FUNCTION test.f1 does not exist
 test.v3	check	Error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-test.v3	check	status	Operation failed
+test.v3	check	error	Corrupt
 test.v4	check	status	OK
 test.v5	check	Error	FUNCTION test.f1 does not exist
 test.v5	check	Error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-test.v5	check	status	Operation failed
+test.v5	check	error	Corrupt
 test.v6	check	status	OK
 create function f1 () returns int return (select max(col1) from t1);
 DROP TABLE t1;
@@ -2343,15 +2343,15 @@ CREATE VIEW v2 AS SELECT t3.* FROM t1,t3 WHERE t1.a=t3.a;
 EXPLAIN SELECT t1.* FROM t1 JOIN t2 WHERE t1.a=t2.a AND t1.b=t2.b AND t1.a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
-1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using where; Using index
+1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
-1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using where; Using index
+1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using index
 EXPLAIN SELECT * FROM v2 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t1	ref	a	a	5	const	1	Using index
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, regular buffers)
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 create table t1 (f1 int);
@@ -3946,6 +3946,8 @@ create view a as select 1;
 end|
 call p();
 call p();
+Warnings:
+Error	1050	Table 'a' already exists
 drop view a;
 drop procedure p;
 #
@@ -3954,6 +3956,7 @@ drop procedure p;
 CREATE TABLE t1 (a INT);
 CREATE VIEW v1 AS SELECT a FROM t1;
 ALTER TABLE v1;
+ERROR HY000: 'test.v1' is not BASE TABLE
 DROP VIEW v1;
 DROP TABLE t1;
 #
@@ -3984,6 +3987,14 @@ CREATE TABLE t1(f1 INT);
 INSERT INTO t1 VALUES ();
 CREATE VIEW v1 AS SELECT 1 FROM t1 WHERE
 ROW(1,1) >= ROW(1, (SELECT 1 FROM t1 WHERE  f1 >= ANY ( SELECT '1' )));
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#52120 create view cause Assertion failed: 0, file .\item_subselect.cc, line 817
+#
+CREATE TABLE t1 (a CHAR(1) CHARSET latin1, b CHAR(1) CHARSET utf8);
+CREATE VIEW v1 AS SELECT 1 from t1
+WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
 # -----------------------------------------------------------------

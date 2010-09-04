@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @addtogroup Replication
@@ -270,7 +270,8 @@ struct sql_ex_info
                                    1 + 2          /* type, lc_time_names_number */ + \
                                    1 + 2          /* type, charset_database_number */ + \
                                    1 + 8          /* type, table_map_for_update */ + \
-                                   1 + 4          /* type, master_data_written */)
+                                   1 + 4          /* type, master_data_written */ + \
+                                   1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
   QUERY_HEADER_LEN     + /* write_data */   \
@@ -338,6 +339,8 @@ struct sql_ex_info
 #define Q_TABLE_MAP_FOR_UPDATE_CODE 9
 
 #define Q_MASTER_DATA_WRITTEN_CODE 10
+
+#define Q_INVOKER 11
 
 /* Intvar event post-header */
 
@@ -469,10 +472,10 @@ struct sql_ex_info
 #define LOG_EVENT_SUPPRESS_USE_F    0x8
 
 /*
-  The table map version internal to the log should be increased after
-  the event has been written to the binary log.
+  Note: this is a place holder for the flag
+  LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F (0x10), which is not used any
+  more, please do not reused this value for other flags.
  */
-#define LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F 0x10
 
 /**
    @def LOG_EVENT_ARTIFICIAL_F
@@ -1031,7 +1034,7 @@ public:
 
   static void operator delete(void *ptr, size_t size)
   {
-    my_free((uchar*) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+    my_free(ptr);
   }
 
   /* Placement version of the above operators */
@@ -1088,7 +1091,7 @@ public:
   {
     if (temp_buf)
     {
-      my_free(temp_buf, MYF(0));
+      my_free(temp_buf);
       temp_buf = 0;
     }
   }
@@ -1610,6 +1613,8 @@ protected:
 */
 class Query_log_event: public Log_event
 {
+  LEX_STRING user;
+  LEX_STRING host;
 protected:
   Log_event::Byte* data_buf;
 public:
@@ -1720,7 +1725,7 @@ public:
   ~Query_log_event()
   {
     if (data_buf)
-      my_free((uchar*) data_buf, MYF(0));
+      my_free(data_buf);
   }
   Log_event_type get_type_code() { return QUERY_EVENT; }
 #ifdef MYSQL_SERVER
@@ -1746,6 +1751,28 @@ public:        /* !!! Public in this patch to allow old usage */
                        const char *query_arg,
                        uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
+  /*
+    If true, the event always be applied by slave SQL thread or be printed by
+    mysqlbinlog
+   */
+  bool is_trans_keyword()
+  {
+    /*
+      Before the patch for bug#50407, The 'SAVEPOINT and ROLLBACK TO'
+      queries input by user was written into log events directly.
+      So the keywords can be written in both upper case and lower case
+      together, strncasecmp is used to check both cases. they also could be
+      binlogged with comments in the front of these keywords. for examples:
+        / * bla bla * / SAVEPOINT a;
+        / * bla bla * / ROLLBACK TO a;
+      but we don't handle these cases and after the patch, both quiries are
+      binlogged in upper case with no comments.
+     */
+    return !strncmp(query, "BEGIN", q_len) ||
+      !strncmp(query, "COMMIT", q_len) ||
+      !strncasecmp(query, "SAVEPOINT", 9) ||
+      !strncasecmp(query, "ROLLBACK", 8);
+  }
 };
 
 
@@ -1755,8 +1782,7 @@ public:        /* !!! Public in this patch to allow old usage */
   @class Slave_log_event
 
   Note that this class is currently not used at all; no code writes a
-  @c Slave_log_event (though some code in @c repl_failsafe.cc reads @c
-  Slave_log_event).  So it's not a problem if this code is not
+  @c Slave_log_event.  So it's not a problem if this code is not
   maintained.
 
   @section Slave_log_event_binary_format Binary Format
@@ -2069,6 +2095,17 @@ public:
   uint32 skip_lines;
   sql_ex_info sql_ex;
   bool local_fname;
+  /**
+    Indicates that this event corresponds to LOAD DATA CONCURRENT,
+
+    @note Since Load_log_event event coming from the binary log
+          lacks information whether LOAD DATA on master was concurrent
+          or not, this flag is only set to TRUE for an auxiliary
+          Load_log_event object which is used in mysql_load() to
+          re-construct LOAD DATA statement from function parameters,
+          for logging.
+  */
+  bool is_concurrent;
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   void set_fname_outside_temp_buf(const char *afname, uint alen)
@@ -2089,7 +2126,9 @@ public:
 
   Load_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 		 const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup, bool ignore,
+		 List<Item>& fields_arg,
+                 bool is_concurrent_arg,
+                 enum enum_duplicates handle_dup, bool ignore,
 		 bool using_trans);
   void set_fields(const char* db, List<Item> &fields_arg,
                   Name_resolution_context *context);
@@ -2264,7 +2303,7 @@ public:
                                *description_event);
   ~Format_description_log_event()
   {
-    my_free((uchar*)post_header_len, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(post_header_len);
   }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifdef MYSQL_SERVER
@@ -2663,7 +2702,7 @@ public:
   ~Rotate_log_event()
   {
     if (flags & DUP_NAME)
-      my_free((uchar*) new_log_ident, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((void*) new_log_ident);
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
@@ -2708,6 +2747,7 @@ public:
   Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 			const char* table_name_arg,
 			List<Item>& fields_arg,
+                        bool is_concurrent_arg,
 			enum enum_duplicates handle_dup, bool ignore,
 			uchar* block_arg, uint block_len_arg,
 			bool using_trans);
@@ -2724,7 +2764,7 @@ public:
                         const Format_description_log_event* description_event);
   ~Create_file_log_event()
   {
-    my_free((char*) event_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((void*) event_buf);
   }
 
   Log_event_type get_type_code()
@@ -4086,6 +4126,7 @@ private:
 
 int append_query_string(CHARSET_INFO *csinfo,
                         String const *from, String *to);
+bool sqlcom_can_generate_row_events(const THD *thd);
 
 /**
   @} (end of group Replication)

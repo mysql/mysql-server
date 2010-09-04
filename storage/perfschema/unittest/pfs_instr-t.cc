@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <my_global.h>
 #include <my_pthread.h>
@@ -142,10 +142,10 @@ void test_no_instances()
   ok(file == NULL, "no file");
   ok(file_lost == 5, "lost 5");
 
-  table= create_table(& dummy_table_share, NULL);
+  table= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table == NULL, "no table");
   ok(table_lost == 1, "lost 1");
-  table= create_table(& dummy_table_share, NULL);
+  table= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table == NULL, "no table");
   ok(table_lost == 2, "lost 2");
 
@@ -292,17 +292,17 @@ void test_with_instances()
   ok(file_2 == NULL, "no file");
   ok(file_lost == 2, "lost");
 
-  table_1= create_table(& dummy_table_share, NULL);
+  table_1= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_1 != NULL, "table");
   ok(table_lost == 0, "not lost");
-  table_2= create_table(& dummy_table_share, NULL);
+  table_2= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_2 != NULL, "table");
   ok(table_lost == 0, "not lost");
-  table_2= create_table(& dummy_table_share, NULL);
+  table_2= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_2 == NULL, "no table");
   ok(table_lost == 1, "lost 1");
   destroy_table(table_1);
-  table_2= create_table(& dummy_table_share, NULL);
+  table_2= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_2 != NULL, "table");
   ok(table_lost == 1, "no new loss");
 

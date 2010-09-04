@@ -164,7 +164,19 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
 } /* print_key */
 
 
-#ifdef EXTRA_DEBUG 
+#ifdef EXTRA_DEBUG
+/**
+  Check if the named table is in the open list.
+
+  @param[in]    name    table path as in MYISAM_SHARE::unique_file_name
+  @param[in]    where   verbal description of caller
+
+  @retval       TRUE    table is in open list
+  @retval       FALSE   table is not in open list
+
+  @note This function takes THR_LOCK_myisam. Do not call it when
+  this mutex is locked by this thread already.
+*/
 
 my_bool check_table_is_closed(const char *name, const char *where)
 {
@@ -173,6 +185,7 @@ my_bool check_table_is_closed(const char *name, const char *where)
   DBUG_ENTER("check_table_is_closed");
 
   (void) fn_format(filename,name,"",MI_NAME_IEXT,4+16+32);
+  mysql_mutex_lock(&THR_LOCK_myisam);
   for (pos=myisam_open_list ; pos ; pos=pos->next)
   {
     MI_INFO *info=(MI_INFO*) pos->data;
@@ -181,12 +194,14 @@ my_bool check_table_is_closed(const char *name, const char *where)
     {
       if (share->last_version)
       {
+        mysql_mutex_unlock(&THR_LOCK_myisam);
 	fprintf(stderr,"Warning:  Table: %s is open on %s\n", name,where);
 	DBUG_PRINT("warning",("Table: %s is open on %s", name,where));
 	DBUG_RETURN(1);
       }
     }
   }
+  mysql_mutex_unlock(&THR_LOCK_myisam);
   DBUG_RETURN(0);
 }
 #endif /* EXTRA_DEBUG */

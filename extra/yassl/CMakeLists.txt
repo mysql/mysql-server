@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
  ${CMAKE_SOURCE_DIR}/include
@@ -29,6 +29,11 @@ ENDIF()
 SET(YASSL_SOURCES  src/buffer.cpp src/cert_wrapper.cpp src/crypto_wrapper.cpp src/handshake.cpp src/lock.cpp 
 				src/log.cpp src/socket_wrapper.cpp src/ssl.cpp src/timer.cpp src/yassl_error.cpp 
 				src/yassl_imp.cpp src/yassl_int.cpp)
+
+IF(HAVE_EXPLICIT_TEMPLATE_INSTANTIATION)
+  SET(YASSL_SOURCES ${YASSL_SOURCES} src/template_instnt.cpp)
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(yassl ${YASSL_SOURCES})
 RESTRICT_SYMBOL_EXPORTS(yassl)
 

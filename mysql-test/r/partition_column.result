@@ -1,4 +1,44 @@
 drop table if exists t1;
+#
+# Bug#52815: LIST COLUMNS doesn't insert rows in correct partition
+#            if muliple columns used
+CREATE TABLE t1 (
+id INT NOT NULL,
+name VARCHAR(255),
+department VARCHAR(10),
+country VARCHAR(255)
+) PARTITION BY LIST COLUMNS (department, country) (
+PARTITION first_office VALUES IN (('dep1', 'Russia'), ('dep1', 'Croatia')),
+PARTITION second_office VALUES IN (('dep2', 'Russia'))
+);
+INSERT INTO t1 VALUES(1, 'Ann', 'dep1', 'Russia');
+INSERT INTO t1 VALUES(2, 'Bob', 'dep1', 'Croatia');
+INSERT INTO t1 VALUES(3, 'Cecil', 'dep2', 'Russia');
+INSERT INTO t1 VALUES(3, 'Dan', 'dep2', 'Croatia');
+ERROR HY000: Table has no partition for value from column_list
+SELECT PARTITION_NAME,TABLE_ROWS
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 't1';
+PARTITION_NAME	TABLE_ROWS
+first_office	2
+second_office	1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `department` varchar(10) DEFAULT NULL,
+  `country` varchar(255) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY LIST  COLUMNS(department,country)
+(PARTITION first_office VALUES IN (('dep1','Russia'),('dep1','Croatia')) ENGINE = MyISAM,
+ PARTITION second_office VALUES IN (('dep2','Russia')) ENGINE = MyISAM) */
+SELECT * FROM t1 WHERE department = 'dep2' and country = 'Croatia';
+id	name	department	country
+SELECT * FROM t1 WHERE department = 'dep1' and country = 'Croatia';
+id	name	department	country
+2	Bob	dep1	Croatia
+DROP TABLE t1;
 CREATE TABLE t1 (a DECIMAL)
 PARTITION BY RANGE COLUMNS (a)
 (PARTITION p0 VALUES LESS THAN (0));
@@ -168,22 +208,22 @@ partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-RANGE COLUMNS	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
-RANGE COLUMNS	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
-RANGE COLUMNS	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
-RANGE COLUMNS	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
-RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMNS	a,b,c,d	1,'b',MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,'b',MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,'b',MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,'b',MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'0',MAXVALUE,'1900-01-01'
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'0',MAXVALUE,'1900-01-01'
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'0',MAXVALUE,'1900-01-01'
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'0',MAXVALUE,'1900-01-01'
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'a',MAXVALUE,'1999-01-01'
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'a',MAXVALUE,'1999-01-01'
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'a',MAXVALUE,'1999-01-01'
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'a',MAXVALUE,'1999-01-01'
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'b',MAXVALUE,MAXVALUE
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'b',MAXVALUE,MAXVALUE
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'b',MAXVALUE,MAXVALUE
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,'b',MAXVALUE,MAXVALUE
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,MAXVALUE,MAXVALUE,MAXVALUE
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,MAXVALUE,MAXVALUE,MAXVALUE
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,MAXVALUE,MAXVALUE,MAXVALUE
+RANGE COLUMNS	`a`,`b`,`c`,`d`	1,MAXVALUE,MAXVALUE,MAXVALUE
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -266,9 +306,9 @@ partition p2 values in ((3, NULL), (NULL, 1)));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-LIST COLUMNS	a,b	(1,NULL),(2,NULL),(NULL,NULL)
-LIST COLUMNS	a,b	(1,1),(2,2)
-LIST COLUMNS	a,b	(3,NULL),(NULL,1)
+LIST COLUMNS	`a`,`b`	(1,NULL),(2,NULL),(NULL,NULL)
+LIST COLUMNS	`a`,`b`	(1,1),(2,2)
+LIST COLUMNS	`a`,`b`	(3,NULL),(NULL,1)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -298,11 +338,11 @@ select * from t1 where a > 8;
 a	b
 select * from t1 where a not between 8 and 8;
 a	b
+1	NULL
 2	NULL
+1	1
 2	2
 3	NULL
-1	NULL
-1	1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -356,8 +396,8 @@ partition p1 values in (4, NULL, 3));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-LIST COLUMNS	a	2,1
-LIST COLUMNS	a	4,NULL,3
+LIST COLUMNS	`a`	2,1
+LIST COLUMNS	`a`	4,NULL,3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -393,18 +433,18 @@ partition p3 values less than (4,'abc','abc'));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-RANGE COLUMNS	a,b,c	1,'abc','abc'
-RANGE COLUMNS	a,b,c	1,'abc','abc'
-RANGE COLUMNS	a,b,c	1,'abc','abc'
-RANGE COLUMNS	a,b,c	2,'abc','abc'
-RANGE COLUMNS	a,b,c	2,'abc','abc'
-RANGE COLUMNS	a,b,c	2,'abc','abc'
-RANGE COLUMNS	a,b,c	3,'abc','abc'
-RANGE COLUMNS	a,b,c	3,'abc','abc'
-RANGE COLUMNS	a,b,c	3,'abc','abc'
-RANGE COLUMNS	a,b,c	4,'abc','abc'
-RANGE COLUMNS	a,b,c	4,'abc','abc'
-RANGE COLUMNS	a,b,c	4,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	1,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	1,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	1,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	2,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	2,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	2,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	3,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	3,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	3,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	4,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	4,'abc','abc'
+RANGE COLUMNS	`a`,`b`,`c`	4,'abc','abc'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -437,8 +477,8 @@ partition p1 values less than (1, 'B', 1));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-RANGE COLUMNS	a,b,c	1,'A',1
-RANGE COLUMNS	a,b,c	1,'B',1
+RANGE COLUMNS	`a`,`b`,`c`	1,'A',1
+RANGE COLUMNS	`a`,`b`,`c`	1,'B',1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

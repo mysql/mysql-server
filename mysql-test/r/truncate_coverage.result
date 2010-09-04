@@ -18,13 +18,15 @@ TRUNCATE TABLE t1;
 SET DEBUG_SYNC='now WAIT_FOR waiting';
 KILL QUERY @id;
 #
+# connection default
+ERROR 70100: Query execution was interrupted
+UNLOCK TABLES;
+#
 # connection con1
 # Release shared metadata lock by closing HANDLER.
 HANDLER t1 CLOSE;
 #
 # connection default
-ERROR 70100: Query execution was interrupted
-UNLOCK TABLES;
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';
 CREATE TABLE t1 (c1 INT);
@@ -64,10 +66,15 @@ TRUNCATE TABLE t1;
 # connection con1
 SET DEBUG_SYNC='now WAIT_FOR waiting';
 KILL QUERY @id;
-COMMIT;
 #
 # connection default
 ERROR 70100: Query execution was interrupted
+#
+# connection con1
+# Release SW lock by committing transaction.
+COMMIT;
+#
+# connection default
 UNLOCK TABLES;
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';

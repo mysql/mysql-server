@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
 
@@ -29,18 +29,17 @@ show create table COND_INSTANCES;
 show create table EVENTS_WAITS_CURRENT;
 show create table EVENTS_WAITS_HISTORY;
 show create table EVENTS_WAITS_HISTORY_LONG;
-show create table EVENTS_WAITS_SUMMARY_BY_EVENT_NAME;
 show create table EVENTS_WAITS_SUMMARY_BY_INSTANCE;
 show create table EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
+show create table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
 show create table FILE_INSTANCES;
 show create table FILE_SUMMARY_BY_EVENT_NAME;
 show create table FILE_SUMMARY_BY_INSTANCE;
 show create table MUTEX_INSTANCES;
 show create table PERFORMANCE_TIMERS;
-show create table PROCESSLIST;
 show create table RWLOCK_INSTANCES;
 show create table SETUP_CONSUMERS;
 show create table SETUP_INSTRUMENTS;
-show create table SETUP_OBJECTS;
 show create table SETUP_TIMERS;
+show create table THREADS;
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef _sql_cursor_h_
 #define _sql_cursor_h_
@@ -32,11 +32,11 @@ class JOIN;
 */
 
 /**
-  Server_side_cursor -- an interface for materialized and
-  sensitive (non-materialized) implementation of cursors. All
-  cursors are self-contained (created in their own memory root).
-  For that reason they must be deleted only using a pointer to
-  Server_side_cursor, not to its base class.
+  Server_side_cursor -- an interface for materialized
+  implementation of cursors. All cursors are self-contained
+  (created in their own memory root).  For that reason they must
+  be deleted only using a pointer to Server_side_cursor, not to
+  its base class.
 */
 
 class Server_side_cursor: protected Query_arena, public Sql_alloc
@@ -60,11 +60,7 @@ public:
 };
 
 
-int mysql_open_cursor(THD *thd, uint flags,
-                      select_result *result,
+int mysql_open_cursor(THD *thd, select_result *result,
                       Server_side_cursor **res);
-
-/** Possible values for flags */
-enum { ANY_CURSOR= 1, ALWAYS_MATERIALIZED_CURSOR= 2 };
 
 #endif /* _sql_cusor_h_ */

@@ -1,5 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB,
-   Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
@@ -153,8 +152,8 @@ private:
   Representation of a SQL condition.
   A SQL condition can be a completion condition (note, warning),
   or an exception condition (error, not found).
-  @note This class is named MYSQL_ERROR instead of SQL_condition for historical reasons,
-  to facilitate merging code with previous releases.
+  @note This class is named MYSQL_ERROR instead of SQL_condition for
+  historical reasons, to facilitate merging code with previous releases.
 */
 class MYSQL_ERROR : public Sql_alloc
 {
@@ -215,9 +214,9 @@ private:
   */
   friend class THD;
   friend class Warning_info;
-  friend class Signal_common;
-  friend class Signal_statement;
-  friend class Resignal_statement;
+  friend class Sql_cmd_common_signal;
+  friend class Sql_cmd_signal;
+  friend class Sql_cmd_resignal;
   friend class sp_rcontext;
 
   /**
@@ -471,18 +470,6 @@ public:
 
   ulong statement_warn_count() const { return m_statement_warn_count; }
 
-  /**
-    Reserve some space in the condition area.
-    This is a privileged operation, reserved for the RESIGNAL implementation,
-    as only the RESIGNAL statement is allowed to remove conditions from
-    the condition area.
-    For other statements, new conditions are not added to the condition
-    area once the condition area is full.
-    @param thd The current thread
-    @param count The number of slots to reserve
-  */
-  void reserve_space(THD *thd, uint count);
-
   /** Add a new condition to the current list. */
   MYSQL_ERROR *push_warning(THD *thd,
                             uint sql_errno, const char* sqlstate,
@@ -514,7 +501,7 @@ private:
   /** Read only status. */
   bool m_read_only;
 
-  friend class Resignal_statement;
+  friend class Sql_cmd_resignal;
 };
 
 extern char *err_conv(char *buff, uint to_length, const char *from,

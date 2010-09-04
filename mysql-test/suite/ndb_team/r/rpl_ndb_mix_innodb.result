@@ -26,21 +26,21 @@ from mysql.ndb_apply_status;
 # since insert is done with transactional engine, expect a BEGIN
 # at <start_pos>
 
-show binlog events from <start_pos> limit 1;
+show binlog events from <binlog_start> limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	<start_pos>	Query	1	#	BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 
 # Now the insert, one step after
 
-show binlog events from <start_pos> limit 1,1;
+show binlog events from <binlog_start> limit 1,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (1,2)
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1,2)
 
 # and the COMMIT should be at <end_pos>
 
-show binlog events from <start_pos> limit 2,1;
+show binlog events from <binlog_start> limit 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Xid	1	<end_pos>	COMMIT /* XID */
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 begin;
 insert into t1 values (2,3);
@@ -51,18 +51,18 @@ select @log_name:=log_name, @start_pos:=start_pos, @end_pos:=end_pos
 from mysql.ndb_apply_status;
 @log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
 <log_name>	<start_pos>	<end_pos>
-show binlog events from <start_pos> limit 1;
+show binlog events from <binlog_start> limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	<start_pos>	Query	1	#	BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 
-show binlog events from <start_pos> limit 1,2;
+show binlog events from <binlog_start> limit 1,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (2,3)
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (3,4)
 
-show binlog events from <start_pos> limit 3,1;
+show binlog events from <binlog_start> limit 3,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Xid	1	<end_pos>	COMMIT /* XID */
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 DROP TABLE test.t1, test.t2;
 SHOW TABLES;

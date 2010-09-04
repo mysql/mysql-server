@@ -8,10 +8,7 @@ libtaocrypt_la_SOURCES  = aes.cpp aestables.cpp algebra.cpp arc4.cpp \
         random.cpp ripemd.cpp rsa.cpp sha.cpp template_instnt.cpp \
         tftables.cpp twofish.cpp
 
-libtaocrypt_la_CXXFLAGS = @yassl_taocrypt_extra_cxxflags@ -DYASSL_PURE_C
+libtaocrypt_la_CXXFLAGS = @yassl_taocrypt_extra_cxxflags@ -DYASSL_PURE_C \
+			  @yassl_thread_cxxflags@
 
 EXTRA_DIST = $(wildcard ../include/*.hpp)
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-

@@ -1,0 +1,29 @@
+-- source include/have_innodb.inc
+
+#
+# Test multi update with different join methods
+#
+
+CREATE TABLE bug38999_1 (a int not null primary key, b int not null, key (b)) engine=innodb;
+CREATE TABLE bug38999_2 (a int not null primary key, b int not null, key (b)) engine=innodb;
+INSERT INTO bug38999_1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(10,10),(11,11),(12,12);
+INSERT INTO bug38999_2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+
+# Full join, without key
+update bug38999_1,bug38999_2 set bug38999_1.a=bug38999_1.a+100;
+select * from bug38999_1;
+
+# unique key
+update bug38999_1,bug38999_2 set bug38999_1.a=bug38999_1.a+100 where bug38999_1.a=101;
+select * from bug38999_1;
+
+# ref key
+update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+10 where bug38999_1.b=2;
+select * from bug38999_1;
+
+# Range key (in bug38999_1)
+update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+2,bug38999_2.b=bug38999_1.b+10 where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
+select * from bug38999_1;
+select * from bug38999_2;
+
+drop table bug38999_1,bug38999_2;

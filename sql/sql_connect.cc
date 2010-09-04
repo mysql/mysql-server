@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -35,6 +35,7 @@
 #include "hostname.h" // inc_host_errors, ip_to_hostname,
                       // reset_host_errors
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
+#include "sql_callback.h"
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /*
@@ -98,7 +99,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     if (my_hash_insert(&hash_user_connections, (uchar*) uc))
     {
       /* The only possible error is out of memory, MY_WME sets an error. */
-      my_free((char*) uc,0);
+      my_free(uc);
       return_val= 1;
       goto end;
     }
@@ -496,6 +497,15 @@ check_user(THD *thd, enum enum_server_command command,
       }
       my_ok(thd);
       thd->password= test(passwd_len);          // remember for error messages 
+#ifndef EMBEDDED_LIBRARY
+      /*
+        Allow the network layer to skip big packets. Although a malicious
+        authenticated session might use this to trick the server to read
+        big packets indefinitely, this is a previously established behavior
+        that needs to be preserved as to not break backwards compatibility.
+      */
+      thd->net.skip_big_packet= TRUE;
+#endif
       /* Ready to handle queries */
       DBUG_RETURN(0);
     }
@@ -546,7 +556,7 @@ extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
 
 extern "C" void free_user(struct user_conn *uc)
 {
-  my_free((char*) uc,MYF(0));
+  my_free(uc);
 }
 
 
@@ -931,8 +941,7 @@ static int check_connection(THD *thd)
     user_len-= 2;
   }
 
-  if (thd->main_security_ctx.user)
-    x_free(thd->main_security_ctx.user);
+  my_free(thd->main_security_ctx.user);
   if (!(thd->main_security_ctx.user= my_strdup(user, MYF(MY_WME))))
     return 1; /* The error is set by my_strdup(). */
   return check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE);
@@ -958,7 +967,7 @@ bool setup_connection_thread_globals(THD *thd)
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
-    thread_scheduler.end_thread(thd, 0);
+    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return 1;                                   // Error
   }
   return 0;
@@ -981,7 +990,7 @@ bool setup_connection_thread_globals(THD *thd)
 */
 
 
-static bool login_connection(THD *thd)
+bool login_connection(THD *thd)
 {
   NET *net= &thd->net;
   int error;
@@ -1019,7 +1028,7 @@ static bool login_connection(THD *thd)
     This mainly updates status variables
 */
 
-static void end_connection(THD *thd)
+void end_connection(THD *thd)
 {
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
@@ -1060,13 +1069,9 @@ static void end_connection(THD *thd)
   Initialize THD to handle queries
 */
 
-static void prepare_new_connection_state(THD* thd)
+void prepare_new_connection_state(THD* thd)
 {
   Security_context *sctx= thd->security_ctx;
-
-#ifdef __NETWARE__
-  netware_reg_user(sctx->ip, sctx->user, "MySQL");
-#endif
 
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
@@ -1076,7 +1081,6 @@ static void prepare_new_connection_state(THD* thd)
     embedded server library.
     TODO: refactor this to avoid code duplication there
   */
-  thd->version= refresh_version;
   thd->proc_info= 0;
   thd->command= COM_SLEEP;
   thd->set_time();
@@ -1134,11 +1138,11 @@ void do_handle_one_connection(THD *thd_arg)
 
   thd->thr_create_utime= my_micro_time();
 
-  if (thread_scheduler.init_new_connection_thread())
+  if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
-    thread_scheduler.end_thread(thd,0);
+    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return;
   }
 
@@ -1192,7 +1196,7 @@ void do_handle_one_connection(THD *thd_arg)
    
 end_thread:
     close_connection(thd, 0, 1);
-    if (thread_scheduler.end_thread(thd,1))
+    if (MYSQL_CALLBACK_ELSE(thread_scheduler, end_thread, (thd, 1), 0))
       return;                                 // Probably no-threads
 
     /*

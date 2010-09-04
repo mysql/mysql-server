@@ -1,7 +1,7 @@
 #ifndef HA_NDBCLUSTER_BINLOG_INCLUDED
 #define HA_NDBCLUSTER_BINLOG_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,9 +13,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_class.h"                      /* THD */
 
@@ -158,8 +157,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              uint32 ndb_table_version,
                              enum SCHEMA_OP_TYPE type,
                              const char *new_db,
-                             const char *new_table_name,
-                             int have_lock_open);
+                             const char *new_table_name);
 int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                                  NDB_SHARE *share,
                                  const char *type_str);

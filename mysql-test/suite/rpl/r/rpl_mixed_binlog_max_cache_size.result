@@ -19,7 +19,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 START SLAVE SQL_THREAD;
 *** Single statement on both transactional and non-transactional tables. ***
 Got one of the listed errors
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 2;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 START SLAVE SQL_THREAD;
 source include/diff_master_slave.inc;
 ########################################################################################

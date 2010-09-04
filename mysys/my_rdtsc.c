@@ -86,10 +86,6 @@
 #include <sys/times.h>       /* for times */
 #endif
 
-#if defined(__NETWARE__)
-#include <nks/time.h>        /* for NXGetTime */
-#endif
-
 #if defined(__INTEL_COMPILER) && defined(__ia64__) && defined(HAVE_IA64INTRIN_H)
 #include <ia64intrin.h>    /* for __GetReg */
 #endif
@@ -265,12 +261,6 @@ ulonglong my_timer_nanoseconds(void)
     clock_gettime(CLOCK_REALTIME, &tp);
     return (ulonglong) tp.tv_sec * 1000000000 + (ulonglong) tp.tv_nsec;
   }
-#elif defined(__NETWARE__)
-  {
-    NXTime_t tm;
-    NXGetTime(NX_SINCE_1970, NX_NSECONDS, &tm);
-    return (ulonglong) tm;
-  }
 #elif defined(__APPLE__) && defined(__MACH__)
   {
     ulonglong tm;
@@ -322,12 +312,6 @@ ulonglong my_timer_microseconds(void)
     QueryPerformanceCounter(&t_cnt);
     return (ulonglong) t_cnt.QuadPart;
   }
-#elif defined(__NETWARE__)
-  {
-    NXTime_t tm;
-    NXGetTime(NX_SINCE_1970, NX_USECONDS, &tm);
-    return (ulonglong) tm;
-  }
 #else
   return 0;
 #endif
@@ -354,12 +338,6 @@ ulonglong my_timer_milliseconds(void)
    GetSystemTimeAsFileTime( &ft );
    return ((ulonglong)ft.dwLowDateTime +
                   (((ulonglong)ft.dwHighDateTime) << 32))/10000;
-#elif defined(__NETWARE__)
-  {
-    NXTime_t tm;
-    NXGetTime(NX_SINCE_1970, NX_MSECONDS, &tm);
-    return (ulonglong)tm;
-  }
 #else
   return 0;
 #endif
@@ -377,12 +355,6 @@ ulonglong my_timer_ticks(void)
   {
     struct tms times_buf;
     return (ulonglong) times(&times_buf);
-  }
-#elif defined(__NETWARE__)
-  {
-    NXTime_t tm;
-    NXGetTime(NX_SINCE_BOOT, NX_TICKS, &tm);
-    return (ulonglong) tm;
   }
 #elif defined(_WIN32)
   return (ulonglong) GetTickCount();
@@ -583,8 +555,6 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->nanoseconds.routine= MY_TIMER_ROUTINE_GETHRTIME;
 #elif defined(HAVE_CLOCK_GETTIME)
   mti->nanoseconds.routine= MY_TIMER_ROUTINE_CLOCK_GETTIME;
-#elif defined(__NETWARE__)
-  mti->nanoseconds.routine= MY_TIMER_ROUTINE_NXGETTIME;
 #elif defined(__APPLE__) && defined(__MACH__)
   mti->nanoseconds.routine= MY_TIMER_ROUTINE_MACH_ABSOLUTE_TIME;
 #else
@@ -614,8 +584,6 @@ void my_timer_init(MY_TIMER_INFO *mti)
       mti->microseconds.routine= MY_TIMER_ROUTINE_QUERYPERFORMANCECOUNTER;
     }
   }
-#elif defined(__NETWARE__)
-  mti->microseconds.routine= MY_TIMER_ROUTINE_NXGETTIME;
 #else
   mti->microseconds.routine= 0;
 #endif
@@ -633,8 +601,6 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->milliseconds.routine= MY_TIMER_ROUTINE_FTIME;
 #elif defined(_WIN32)
   mti->milliseconds.routine= MY_TIMER_ROUTINE_GETSYSTEMTIMEASFILETIME;
-#elif defined(__NETWARE__)
-  mti->milliseconds.routine= MY_TIMER_ROUTINE_NXGETTIME;
 #elif defined(HAVE_TIME)
   mti->milliseconds.routine= MY_TIMER_ROUTINE_TIME;
 #else
@@ -652,8 +618,6 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->ticks.frequency= 100; /* permanent assumption */
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_TIMES)
   mti->ticks.routine= MY_TIMER_ROUTINE_TIMES;
-#elif defined(__NETWARE__)
-  mti->ticks.routine= MY_TIMER_ROUTINE_NXGETTIME;
 #elif defined(_WIN32)
   mti->ticks.routine= MY_TIMER_ROUTINE_GETTICKCOUNT;
 #else
@@ -998,7 +962,7 @@ void my_timer_init(MY_TIMER_INFO *mti)
 
    We tested with AIX, Solaris (x86 + Sparc), Linux (x86 +
    Itanium), Windows, 64-bit Windows, QNX, FreeBSD, HPUX,
-   Irix, Mac. We didn't test with NetWare or SCO.
+   Irix, Mac. We didn't test with SCO.
 
 */
 

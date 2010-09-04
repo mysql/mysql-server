@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,6 +46,16 @@ Created 2/25/1997 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***************************************************************//**
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
@@ -68,7 +78,7 @@ row_undo_ins_remove_clust_rec(
 					    &mtr);
 	ut_a(success);
 
-	if (ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
+	if (node->table->id == DICT_INDEXES_ID) {
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		/* Drop the index tree associated with the row in
@@ -145,37 +155,38 @@ row_undo_ins_remove_sec_low(
 	dict_index_t*	index,	/*!< in: index */
 	dtuple_t*	entry)	/*!< in: index entry to remove */
 {
-	btr_pcur_t	pcur;
-	btr_cur_t*	btr_cur;
-	ibool		found;
-	ibool		success;
-	ulint		err;
-	mtr_t		mtr;
+	btr_pcur_t		pcur;
+	btr_cur_t*		btr_cur;
+	ulint			err;
+	mtr_t			mtr;
+	enum row_search_result	search_result;
 
-	log_free_check();
 	mtr_start(&mtr);
-
-	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-	if (!found) {
-		/* Not found */
+	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
 
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
+	search_result = row_search_index_entry(index, entry, mode,
+					       &pcur, &mtr);
 
-		return(DB_SUCCESS);
+	switch (search_result) {
+	case ROW_NOT_FOUND:
+		err = DB_SUCCESS;
+		goto func_exit;
+	case ROW_FOUND:
+		break;
+	case ROW_BUFFERED:
+	case ROW_NOT_DELETED_REF:
+		/* These are invalid outcomes, because the mode passed
+		to row_search_index_entry() did not include any of the
+		flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
+		ut_error;
 	}
 
 	if (mode == BTR_MODIFY_LEAF) {
-		success = btr_cur_optimistic_delete(btr_cur, &mtr);
-
-		if (success) {
-			err = DB_SUCCESS;
-		} else {
-			err = DB_FAIL;
-		}
+		err = btr_cur_optimistic_delete(btr_cur, &mtr)
+			? DB_SUCCESS : DB_FAIL;
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
@@ -188,7 +199,7 @@ row_undo_ins_remove_sec_low(
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
 					   RB_NORMAL, &mtr);
 	}
-
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
@@ -249,7 +260,7 @@ row_undo_ins_parse_undo_rec(
 	dict_index_t*	clust_index;
 	byte*		ptr;
 	undo_no_t	undo_no;
-	dulint		table_id;
+	table_id_t	table_id;
 	ulint		type;
 	ulint		dummy;
 	ibool		dummy_extern;
@@ -335,6 +346,7 @@ row_undo_ins(
 			transactions. */
 			ut_a(trx_is_recv(node->trx));
 		} else {
+			log_free_check();
 			err = row_undo_ins_remove_sec(node->index, entry);
 
 			if (err != DB_SUCCESS) {
@@ -346,5 +358,6 @@ row_undo_ins(
 		node->index = dict_table_get_next_index(node->index);
 	}
 
+	log_free_check();
 	return(row_undo_ins_remove_clust_rec(node));
 }

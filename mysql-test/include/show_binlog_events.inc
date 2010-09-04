@@ -1,35 +1,21 @@
-# $binlog_start can be set by caller or take a default value
-# $binary_log_file the name of the log file show
-# $binary_log_limit_row - sets the number of binlog rows to be returned
-# $binary_log_limit_offset - sets the offset where to start returning events
+##############################################################################
+# Show binary log events 
+#
+# Useage: 
+# let $binlog_file= master-bin.000002; 
+# let $binlog_start= 106; 
+# let $binlog_limit= 1, 3; 
+# source include/show_binlog_events.inc;
+#
+# It shows the first binary log file if $binlog_file is not given. 
+#
+# It shows events from the end position of the description event if
+# $binlog_start is not given.
+#
+# It shows all of the events if $binlog_limit is not given. 
+# $binlog_format has the same semantic with 'LIMIT' option.
+#
+##############################################################################
 
-let $show_binlog_events= show binlog events;
-
-if (!$binlog_start)
-{
-  # defaults to chop the first event in the binary log
-  let $binlog_start=107;
-}
-
-if (!`SELECT '$binary_log_file' = ''`)
-{
-    let $show_binlog_events= $show_binlog_events in '$binary_log_file';
-}
-let $show_binlog_events= $show_binlog_events from $binlog_start;
-
-if ($binary_log_limit_row)
-{
-  let $limit= limit;
-  if ($binary_log_limit_offset)
-  {
-    let $limit= $limit $binary_log_limit_offset, ;
-  }
-
-  let $limit= $limit $binary_log_limit_row;
-  let $show_binlog_events= $show_binlog_events $limit;
-}
-
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $binlog_start <binlog_start>
---replace_column 2 # 4 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/
---eval $show_binlog_events
+--let $is_relay_log= 0
+--source include/show_events.inc

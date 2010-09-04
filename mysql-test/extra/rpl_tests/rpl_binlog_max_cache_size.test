@@ -77,11 +77,11 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 
-if (`SELECT @@binlog_format = 'STATEMENT'`)
+if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
   SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 }
-if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
+if (`SELECT @@binlog_format = 'ROW'`)
 {
   SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 2;
 }

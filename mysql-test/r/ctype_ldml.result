@@ -80,6 +80,51 @@ select * from t1 where c1='b';
 c1
 a
 drop table t1;
+SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_ci));
+hex(weight_string(_utf8mb4'a' collate utf8mb4_test_ci))
+120F
+SELECT hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_ci))
+314A
+SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
+hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci)	hex(lower(@a))
+F0909080	F09090A8
+SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_ci), hex(upper(@a));
+hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_ci)	hex(upper(@a))
+F09090A8	F0909080
+SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
+hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_ci)	hex(lower(@a))
+E2B080	E2B0B0
+SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_ci), hex(upper(@a));
+hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_ci)	hex(upper(@a))
+E2B0B0	E2B080
+SELECT hex(weight_string(convert(_utf32 0x61 using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_utf32 0x61 using utf8mb4) collate utf8mb4_test_ci))
+120F
+SELECT hex(weight_string(convert(_utf32 0x62 using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_utf32 0x62 using utf8mb4) collate utf8mb4_test_ci))
+120F
+SELECT hex(weight_string(convert(_utf32 0x10062 using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_utf32 0x10062 using utf8mb4) collate utf8mb4_test_ci))
+120F
+SELECT hex(weight_string(convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci))
+30D2
+SELECT hex(weight_string(convert(_utf32 0x100400 using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_utf32 0x100400 using utf8mb4) collate utf8mb4_test_ci))
+30D2
+SELECT hex(weight_string(_utf8mb4 0x64 collate utf8mb4_test_ci));
+hex(weight_string(_utf8mb4 0x64 collate utf8mb4_test_ci))
+1250
+SELECT hex(weight_string(convert(_ucs2 0x0064017e using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_ucs2 0x0064017e using utf8mb4) collate utf8mb4_test_ci))
+1251
+SELECT hex(weight_string(convert(_ucs2 0x0044017e using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_ucs2 0x0044017e using utf8mb4) collate utf8mb4_test_ci))
+1251
+SELECT hex(weight_string(convert(_ucs2 0x0044017d using utf8mb4) collate utf8mb4_test_ci));
+hex(weight_string(convert(_ucs2 0x0044017d using utf8mb4) collate utf8mb4_test_ci))
+1251
 CREATE TABLE t1 (
 col1 varchar(100) character set utf8 collate utf8_test_ci
 );
@@ -411,6 +456,7 @@ select * from information_schema.collations where id>256 order by id;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
 utf8mb4_test_ci	utf8mb4	326			8
 utf16_test_ci	utf16	327			8
+utf8mb4_test_400_ci	utf8mb4	328			8
 utf8_phone_ci	utf8	352			8
 utf8_test_ci	utf8	353			8
 ucs2_test_ci	ucs2	358			8
@@ -423,6 +469,7 @@ latin1_test	latin1	99		Yes	1
 utf8_test_ci	utf8	353			8
 ucs2_test_ci	ucs2	358			8
 utf8mb4_test_ci	utf8mb4	326			8
+utf8mb4_test_400_ci	utf8mb4	328			8
 utf16_test_ci	utf16	327			8
 utf32_test_ci	utf32	391			8
 show collation like 'ucs2_vn_ci';
@@ -449,3 +496,21 @@ SHOW COLLATION LIKE 'utf8_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen
 utf8_phone_ci	utf8	352			8
 SET NAMES utf8;
+SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci));
+hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci))
+0E33
+SELECT hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_400_ci));
+hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_400_ci))
+FFFD
+SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
+hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_400_ci)	hex(lower(@a))
+F0909080	F0909080
+SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
+hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_400_ci)	hex(upper(@a))
+F09090A8	F09090A8
+SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
+hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_400_ci)	hex(lower(@a))
+E2B080	E2B080
+SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
+hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_400_ci)	hex(upper(@a))
+E2B0B0	E2B0B0

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
@@ -41,7 +41,6 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
   LEX_STRING constant for null-string to be used in parser and other places.
 */
 const LEX_STRING null_lex_str= {NULL, 0};
-const LEX_STRING empty_lex_str= { (char*) "", 0 };
 /**
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
@@ -58,7 +57,7 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
-  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT
 };
 
 
@@ -142,42 +141,77 @@ st_parsing_options::reset()
   allows_derived= TRUE;
 }
 
-Lex_input_stream::Lex_input_stream(THD *thd,
-                                   const char* buffer,
-                                   unsigned int length)
-: m_thd(thd),
-  yylineno(1),
-  yytoklen(0),
-  yylval(NULL),
-  lookahead_token(-1),
-  lookahead_yylval(NULL),
-  m_ptr(buffer),
-  m_tok_start(NULL),
-  m_tok_end(NULL),
-  m_end_of_query(buffer + length),
-  m_tok_start_prev(NULL),
-  m_buf(buffer),
-  m_buf_length(length),
-  m_echo(TRUE),
-  m_cpp_tok_start(NULL),
-  m_cpp_tok_start_prev(NULL),
-  m_cpp_tok_end(NULL),
-  m_body_utf8(NULL),
-  m_cpp_utf8_processed_ptr(NULL),
-  next_state(MY_LEX_START),
-  found_semicolon(NULL),
-  ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE)),
-  stmt_prepare_mode(FALSE),
-  multi_statements(TRUE),
-  in_comment(NO_COMMENT),
-  m_underscore_cs(NULL)
+
+/**
+  Perform initialization of Lex_input_stream instance.
+
+  Basically, a buffer for pre-processed query. This buffer should be large
+  enough to keep multi-statement query. The allocation is done once in
+  Lex_input_stream::init() in order to prevent memory pollution when
+  the server is processing large multi-statement queries.
+*/
+
+bool Lex_input_stream::init(THD *thd,
+			    char* buff,
+			    unsigned int length)
 {
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
   m_cpp_buf= (char*) thd->alloc(length + 1);
+
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("-d,bug42064_simulate_oom");); 
+
+  if (m_cpp_buf == NULL)
+    return TRUE;
+
+  m_thd= thd;
+  reset(buff, length);
+
+  return FALSE;
+}
+
+
+/**
+  Prepare Lex_input_stream instance state for use for handling next SQL statement.
+
+  It should be called between two statements in a multi-statement query.
+  The operation resets the input stream to the beginning-of-parse state,
+  but does not reallocate m_cpp_buf.
+*/
+
+void
+Lex_input_stream::reset(char *buffer, unsigned int length)
+{
+  yylineno= 1;
+  yytoklen= 0;
+  yylval= NULL;
+  lookahead_token= -1;
+  lookahead_yylval= NULL;
+  m_ptr= buffer;
+  m_tok_start= NULL;
+  m_tok_end= NULL;
+  m_end_of_query= buffer + length;
+  m_tok_start_prev= NULL;
+  m_buf= buffer;
+  m_buf_length= length;
+  m_echo= TRUE;
+  m_cpp_tok_start= NULL;
+  m_cpp_tok_start_prev= NULL;
+  m_cpp_tok_end= NULL;
+  m_body_utf8= NULL;
+  m_cpp_utf8_processed_ptr= NULL;
+  next_state= MY_LEX_START;
+  found_semicolon= NULL;
+  ignore_space= test(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
+  stmt_prepare_mode= FALSE;
+  multi_statements= TRUE;
+  in_comment=NO_COMMENT;
+  m_underscore_cs= NULL;
   m_cpp_ptr= m_cpp_buf;
 }
 
-Lex_input_stream::~Lex_input_stream()
-{}
 
 /**
   The operation is called from the parser in order to
@@ -333,8 +367,7 @@ void lex_start(THD *thd)
   lex->view_list.empty();
   lex->prepared_stmt_params.empty();
   lex->auxiliary_table_list.empty();
-  lex->unit.next= lex->unit.master=
-    lex->unit.link_next= lex->unit.return_to= 0;
+  lex->unit.next= lex->unit.master= lex->unit.link_next= 0;
   lex->unit.prev= lex->unit.link_prev= 0;
   lex->unit.slave= lex->unit.global_parameters= lex->current_select=
     lex->all_selects_list= &lex->select_lex;
@@ -350,7 +383,6 @@ void lex_start(THD *thd)
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
   lex->derived_tables= 0;
-  lex->lock_option= TL_READ;
   lex->safe_to_cache_query= 1;
   lex->leaf_tables_insert= 0;
   lex->parsing_options.reset();
@@ -363,12 +395,12 @@ void lex_start(THD *thd)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
-  lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
   lex->sphead= NULL;
   lex->spcont= NULL;
+  lex->m_sql_cmd= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
   lex->query_tables= 0;
@@ -410,9 +442,15 @@ void lex_end(LEX *lex)
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
 
   /* release used plugins */
-  plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
-                     lex->plugins.elements);
+  if (lex->plugins.elements) /* No function call and no mutex if no plugins. */
+  {
+    plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
+                       lex->plugins.elements);
+  }
   reset_dynamic(&lex->plugins);
+
+  delete lex->sphead;
+  lex->sphead= NULL;
 
   DBUG_VOID_RETURN;
 }
@@ -421,8 +459,8 @@ Yacc_state::~Yacc_state()
 {
   if (yacc_yyss)
   {
-    my_free(yacc_yyss, MYF(0));
-    my_free(yacc_yyvs, MYF(0));
+    my_free(yacc_yyss);
+    my_free(yacc_yyvs);
   }
 }
 
@@ -1389,11 +1427,10 @@ int lex_one_token(void *arg, void *yythd)
           ulong version;
           version=strtol(version_str, NULL, 10);
 
-          /* Accept 'M' 'm' 'm' 'd' 'd' */
-          lip->yySkipn(5);
-
           if (version <= MYSQL_VERSION_ID)
           {
+            /* Accept 'M' 'm' 'm' 'd' 'd' */
+            lip->yySkipn(5);
             /* Expand the content of the special comment as real code */
             lip->set_echo(TRUE);
             state=MY_LEX_START;
@@ -1401,7 +1438,16 @@ int lex_one_token(void *arg, void *yythd)
           }
           else
           {
+            /*
+              Patch and skip the conditional comment to avoid it
+              being propagated infinitely (eg. to a slave).
+            */
+            char *pcom= lip->yyUnput(' ');
             comment_closed= ! consume_comment(lip, 1);
+            if (! comment_closed)
+            {
+              *pcom= '!';
+            }
             /* version allowed to have one level of comment inside. */
           }
         }
@@ -1708,12 +1754,12 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
-  lock_option= TL_READ_DEFAULT;
 }
 
 void st_select_lex::init_select()
 {
   st_select_lex_node::init_select();
+  sj_nests.empty();
   group_list.empty();
   type= db= 0;
   having= 0;
@@ -1729,12 +1775,11 @@ void st_select_lex::init_select()
   linkage= UNSPECIFIED_TYPE;
   order_list.elements= 0;
   order_list.first= 0;
-  order_list.next= (uchar**) &order_list.first;
+  order_list.next= &order_list.first;
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
-  is_correlated= 0;
   cur_pos_in_select_list= UNDEF_POS;
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
@@ -1926,6 +1971,7 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
   for (SELECT_LEX *s= this;
        s && s != last;
        s= s->outer_select())
+  {
     if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
       // Select is dependent of outer select
@@ -1941,8 +1987,10 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
     }
-  is_correlated= TRUE;
-  this->master_unit()->item->is_correlated= TRUE;
+    Item_subselect *subquery_predicate= s->master_unit()->item;
+    if (subquery_predicate)
+      subquery_predicate->is_correlated= TRUE;
+  }
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }
@@ -1954,6 +2002,7 @@ TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
+                                                  enum_mdl_type mdl_type,
 						  List<Index_hint> *hints,
                                                   LEX_STRING *option)
 {
@@ -2051,7 +2100,7 @@ uint st_select_lex::get_in_sum_expr()
 
 TABLE_LIST* st_select_lex::get_table_list()
 {
-  return (TABLE_LIST*) table_list.first;
+  return table_list.first;
 }
 
 List<Item>* st_select_lex::get_item_list()
@@ -2108,9 +2157,8 @@ void st_select_lex_unit::print(String *str, enum_query_type query_type)
     if (fake_select_lex->order_list.elements)
     {
       str->append(STRING_WITH_LEN(" order by "));
-      fake_select_lex->print_order(
-        str,
-        (ORDER *) fake_select_lex->order_list.first,
+      fake_select_lex->print_order(str,
+        fake_select_lex->order_list.first,
         query_type);
     }
     fake_select_lex->print_limit(thd, str, query_type);
@@ -2146,16 +2194,28 @@ void st_select_lex::print_limit(THD *thd,
 {
   SELECT_LEX_UNIT *unit= master_unit();
   Item_subselect *item= unit->item;
-  if (item && unit->global_parameters == this &&
-      (item->substype() == Item_subselect::EXISTS_SUBS ||
-       item->substype() == Item_subselect::IN_SUBS ||
-       item->substype() == Item_subselect::ALL_SUBS))
-  {
-    DBUG_ASSERT(!item->fixed ||
-                (select_limit->val_int() == LL(1) && offset_limit == 0));
-    return;
-  }
 
+  if (item && unit->global_parameters == this)
+  {
+    Item_subselect::subs_type subs_type= item->substype();
+    if (subs_type == Item_subselect::EXISTS_SUBS ||
+        subs_type == Item_subselect::IN_SUBS ||
+        subs_type == Item_subselect::ALL_SUBS)
+    {
+      DBUG_ASSERT(!item->fixed ||
+                  /*
+                    If not using materialization both:
+                    select_limit == 1, and there should be no offset_limit.
+                  */
+                  (((subs_type == Item_subselect::IN_SUBS) &&
+                    ((Item_in_subselect*)item)->exec_method ==
+                    Item_in_subselect::EXEC_MATERIALIZATION) ?
+                   TRUE :
+                   (select_limit->val_int() == LL(1)) &&
+                   offset_limit == 0));
+      return;
+    }
+  }
   if (explicit_limit)
   {
     str->append(STRING_WITH_LEN(" limit "));
@@ -2194,6 +2254,7 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
   */
   if (thd->lex->sphead)
   {
+    thd->lex->sphead->restore_thd_mem_root(thd);
     delete thd->lex->sphead;
     thd->lex->sphead= NULL;
   }
@@ -2219,6 +2280,7 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
 
 void Query_tables_list::reset_query_tables_list(bool init)
 {
+  sql_command= SQLCOM_END;
   if (!init && query_tables)
   {
     TABLE_LIST *table= query_tables;
@@ -2250,6 +2312,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list_own_last= sroutines_list.next;
   sroutines_list_own_elements= 0;
   binlog_stmt_flags= 0;
+  stmt_accessed_table_flag= 0;
 }
 
 
@@ -2281,8 +2344,7 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0),
-   sql_command(SQLCOM_END), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
@@ -2754,7 +2816,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
     {
       select_lex.context.table_list= 
         select_lex.context.first_name_resolution_table= first->next_local;
-      select_lex.table_list.first= (uchar*) (first->next_local);
+      select_lex.table_list.first= first->next_local;
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -2786,7 +2848,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
 
 void LEX::first_lists_tables_same()
 {
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
+  TABLE_LIST *first_table= select_lex.table_list.first;
   if (query_tables != first_table && first_table != 0)
   {
     TABLE_LIST *next;
@@ -2833,9 +2895,9 @@ void LEX::link_first_table_back(TABLE_LIST *first,
 
     if (link_to_local)
     {
-      first->next_local= (TABLE_LIST*) select_lex.table_list.first;
+      first->next_local= select_lex.table_list.first;
       select_lex.context.table_list= first;
-      select_lex.table_list.first= (uchar*) first;
+      select_lex.table_list.first= first;
       select_lex.table_list.elements++;	//safety
     }
   }
@@ -3001,7 +3063,7 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
       prep_having= *having_conds;
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
-    fix_prepare_info_in_table_list(thd, (TABLE_LIST *)table_list.first);
+    fix_prepare_info_in_table_list(thd, table_list.first);
   }
 }
 
@@ -3095,3 +3157,158 @@ bool LEX::is_partition_management() const
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
 
+
+/**
+  Set all fields to their "unspecified" value.
+*/
+void st_lex_master_info::set_unspecified()
+{
+  bzero((char*) this, sizeof(*this));
+  sql_delay= -1;
+}
+
+#ifdef MYSQL_SERVER
+uint binlog_unsafe_map[256];
+
+#define UNSAFE(a, b, c) \
+  { \
+  DBUG_PRINT("unsafe_mixed_statement", ("SETTING BASE VALUES: %s, %s, %02X\n", \
+    LEX::stmt_accessed_table_string(a), \
+    LEX::stmt_accessed_table_string(b), \
+    c)); \
+  unsafe_mixed_statement(a, b, c); \
+  }
+
+/*
+  Sets the combination given by "a" and "b" and automatically combinations
+  given by other types of access, i.e. 2^(8 - 2), as unsafe.
+
+  It may happen a colision when automatically defining a combination as unsafe.
+  For that reason, a combination has its unsafe condition redefined only when
+  the new_condition is greater then the old. For instance,
+  
+     . (BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY) is never overwritten by 
+     . (BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF).
+*/
+void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
+                            LEX::enum_stmt_accessed_table b, uint condition)
+{
+  int type= 0;
+  int index= (1U << a) | (1U << b);
+  
+  
+  for (type= 0; type < 256; type++)
+  {
+    if ((type & index) == index)
+    {
+      binlog_unsafe_map[type] |= condition;
+    }
+  }
+}
+/*
+  The BINLOG_* AND TRX_CACHE_* values can be combined by using '&' or '|',
+  which means that both conditions need to be satisfied or any of them is
+  enough. For example, 
+    
+    . BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY means that the statment is
+    unsafe when the option is on and trx-cache is not empty;
+
+    . BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF means the statement is unsafe
+    in all cases.
+
+    . TRX_CACHE_EMPTY | TRX_CACHE_NOT_EMPTY means the statement is unsafe
+    in all cases. Similar as above.
+*/
+void binlog_unsafe_map_init()
+{
+  memset((void*) binlog_unsafe_map, 0, sizeof(uint) * 256);
+
+  /*
+    Classify a statement as unsafe when there is a mixed statement and an
+    on-going transaction at any point of the execution if:
+
+      1. The mixed statement is about to update a transactional table and
+      a non-transactional table.
+
+      2. The mixed statement is about to update a transactional table and
+      read from a non-transactional table.
+
+      3. The mixed statement is about to update a non-transactional table
+      and temporary transactional table.
+
+      4. The mixed statement is about to update a temporary transactional
+      table and read from a non-transactional table.
+
+      5. The mixed statement is about to update a transactional table and
+      a temporary non-transactional table.
+      
+      6. The mixed statement is about to update a transactional table and
+      read from a temporary non-transactional table.
+
+      7. The mixed statement is about to update a temporary transactional
+      table and temporary non-transactional table.
+
+      8. The mixed statement is about to update a temporary transactional
+      table and read from a temporary non-transactional table.
+    After updating a transactional table if:
+
+      9. The mixed statement is about to update a non-transactional table
+      and read from a transactional table.
+
+      10. The mixed statement is about to update a non-transactional table
+      and read from a temporary transactional table.
+
+      11. The mixed statement is about to update a temporary non-transactional
+      table and read from a transactional table.
+      
+      12. The mixed statement is about to update a temporary non-transactional
+      table and read from a temporary transactional table.
+
+      13. The mixed statement is about to update a temporary non-transactional
+      table and read from a non-transactional table.
+
+    The reason for this is that locks acquired may not protected a concurrent
+    transaction of interfering in the current execution and by consequence in
+    the result.
+  */
+  /* Case 1. */
+  UNSAFE(LEX::STMT_WRITES_TRANS_TABLE, LEX::STMT_WRITES_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF);
+  /* Case 2. */
+  UNSAFE(LEX::STMT_WRITES_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF);
+  /* Case 3. */
+  UNSAFE(LEX::STMT_WRITES_NON_TRANS_TABLE, LEX::STMT_WRITES_TEMP_TRANS_TABLE,
+    BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF);
+  /* Case 4. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF);
+  /* Case 5. */
+  UNSAFE(LEX::STMT_WRITES_TRANS_TABLE, LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON);
+  /* Case 6. */
+  UNSAFE(LEX::STMT_WRITES_TRANS_TABLE, LEX::STMT_READS_TEMP_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON);
+  /* Case 7. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_TRANS_TABLE, LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON);
+  /* Case 8. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_TRANS_TABLE, LEX::STMT_READS_TEMP_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON);
+  /* Case 9. */
+  UNSAFE(LEX::STMT_WRITES_NON_TRANS_TABLE, LEX::STMT_READS_TRANS_TABLE,
+    (BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF) & TRX_CACHE_NOT_EMPTY);
+  /* Case 10 */
+  UNSAFE(LEX::STMT_WRITES_NON_TRANS_TABLE, LEX::STMT_READS_TEMP_TRANS_TABLE,
+    (BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF) & TRX_CACHE_NOT_EMPTY);
+  /* Case 11. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_TRANS_TABLE,
+    BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY);
+  /* Case 12. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_TEMP_TRANS_TABLE,
+    BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY);
+  /* Case 13. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
+     BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
+}
+#endif

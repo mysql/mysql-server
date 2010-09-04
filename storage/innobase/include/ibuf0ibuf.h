@@ -35,12 +35,27 @@ Created 7/19/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "ibuf0types.h"
 
+/* Possible operations buffered in the insert/whatever buffer. See
+ibuf_insert(). DO NOT CHANGE THE VALUES OF THESE, THEY ARE STORED ON DISK. */
+typedef enum {
+	IBUF_OP_INSERT = 0,
+	IBUF_OP_DELETE_MARK = 1,
+	IBUF_OP_DELETE = 2,
+
+	/* Number of different operation types. */
+	IBUF_OP_COUNT = 3,
+} ibuf_op_t;
+
 /** Combinations of operations that can be buffered.  Because the enum
 values are used for indexing innobase_change_buffering_values[], they
 should start at 0 and there should not be any gaps. */
 typedef enum {
 	IBUF_USE_NONE = 0,
 	IBUF_USE_INSERT,	/* insert */
+	IBUF_USE_DELETE_MARK,	/* delete */
+	IBUF_USE_INSERT_DELETE_MARK,	/* insert+delete */
+	IBUF_USE_DELETE,	/* delete+purge */
+	IBUF_USE_ALL,		/* insert+delete+purge */
 
 	IBUF_USE_COUNT		/* number of entries in ibuf_use_t */
 } ibuf_use_t;
@@ -72,8 +87,7 @@ separately committed mini-transaction, because in crash recovery, the
 free bits could momentarily be set too high. */
 
 /******************************************************************//**
-Creates the insert buffer data structure at a database startup and
-initializes the data structures for the insert buffer of each tablespace. */
+Creates the insert buffer data structure at a database startup. */
 UNIV_INTERN
 void
 ibuf_init_at_db_start(void);
@@ -243,14 +257,15 @@ void
 ibuf_free_excess_pages(void);
 /*========================*/
 /*********************************************************************//**
-Makes an index insert to the insert buffer, instead of directly to the disk
-page, if this is possible. Does not do insert if the index is clustered
-or unique.
+Buffer an operation in the insert/delete buffer, instead of doing it
+directly to the disk page, if this is possible. Does not do it if the index
+is clustered or unique.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
 ibuf_insert(
 /*========*/
+	ibuf_op_t	op,	/*!< in: operation type */
 	const dtuple_t*	entry,	/*!< in: index entry to insert */
 	dict_index_t*	index,	/*!< in: index where to insert */
 	ulint		space,	/*!< in: space id where to insert */
@@ -259,11 +274,11 @@ ibuf_insert(
 	que_thr_t*	thr);	/*!< in: query thread */
 /*********************************************************************//**
 When an index page is read from a disk to the buffer pool, this function
-inserts to the page the possible index entries buffered in the insert buffer.
-The entries are deleted from the insert buffer. If the page is not read, but
-created in the buffer pool, this function deletes its buffered entries from
-the insert buffer; there can exist entries for such a page if the page
-belonged to an index which subsequently was dropped. */
+applies any buffered operations to the page and deletes the entries from the
+insert buffer. If the page is not read, but created in the buffer pool, this
+function deletes its buffered entries from the insert buffer; there can
+exist entries for such a page if the page belonged to an index which
+subsequently was dropped. */
 UNIV_INTERN
 void
 ibuf_merge_or_delete_for_page(
@@ -356,6 +371,15 @@ void
 ibuf_print(
 /*=======*/
 	FILE*	file);	/*!< in: file where to print */
+/********************************************************************
+Read the first two bytes from a record's fourth field (counter field in new
+records; something else in older records).
+@return	"counter" field, or ULINT_UNDEFINED if for some reason it can't be read */
+UNIV_INTERN
+ulint
+ibuf_rec_get_counter(
+/*=================*/
+	const rec_t*	rec);	/*!< in: ibuf record */
 /******************************************************************//**
 Closes insert buffer and frees the data structures. */
 UNIV_INTERN

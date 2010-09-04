@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs_instr.cc
@@ -134,6 +134,10 @@ static PFS_events_waits *thread_history_array= NULL;
 static LF_HASH filename_hash;
 /** True if filename_hash is initialized. */
 static bool filename_hash_inited= false;
+C_MODE_START
+/** Get hash table key for instrumented files. */
+static uchar *filename_hash_get_key(const uchar *, size_t *, my_bool);
+C_MODE_END
 
 /**
   Initialize all the instruments instance buffers.
@@ -995,10 +999,12 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
 /**
   Create instrumentation for a table instance.
   @param share                        the table share
+  @param opening_thread               the opening thread
   @param identity                     the table address
   @return a table instance, or NULL
 */
-PFS_table* create_table(PFS_table_share *share, const void *identity)
+PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
+                        const void *identity)
 {
   PFS_scan scan;
   uint random= randomized_index(identity, table_max);
@@ -1017,10 +1023,12 @@ PFS_table* create_table(PFS_table_share *share, const void *identity)
         {
           pfs->m_identity= identity;
           pfs->m_share= share;
+          share->m_refcount++;
           pfs->m_wait_stat.m_control_flag=
             &flag_events_waits_summary_by_instance;
           pfs->m_wait_stat.m_parent= &share->m_wait_stat;
           reset_single_stat_link(&pfs->m_wait_stat);
+          pfs->m_opening_thread= opening_thread;
           pfs->m_lock.dirty_to_allocated();
           return pfs;
         }

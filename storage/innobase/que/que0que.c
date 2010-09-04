@@ -29,7 +29,6 @@ Created 5/27/1996 Heikki Tuuri
 #include "que0que.ic"
 #endif
 
-#include "srv0que.h"
 #include "usr0sess.h"
 #include "trx0trx.h"
 #include "trx0roll.h"

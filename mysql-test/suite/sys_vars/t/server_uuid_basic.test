@@ -1,0 +1,95 @@
+
+
+################## mysql-test\t\server_uuid_basic.test ########################
+#                                                                             #
+# Variable Name: server_uuid                                                  #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2010-06-22                                                   #
+# Author : Libing Song                                                        #
+#                                                                             #
+#                                                                             #
+#
+# Description:Test Cases of Static  System Variable server_uuid               #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/6.0/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_004_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.server_uuid);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_004_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.server_uuid=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.server_uuid);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_004_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.server_uuid = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='server_uuid';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.server_uuid);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='server_uuid';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_004_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@server_uuid = @@GLOBAL.datadir;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_004_05----------------------#'
+################################################################################
+#   Check if server_uuid can be accessed with and without @@ sign              #
+################################################################################
+
+SELECT COUNT(@@server_uuid);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.server_uuid);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.server_uuid);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.server_uuid);
+--echo 1 Expected

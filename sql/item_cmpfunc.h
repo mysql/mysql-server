@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* compare and test functions */
@@ -25,6 +25,7 @@
 
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "item_func.h"             /* Item_int_func, Item_bool_func */
+#include "my_regex.h"
 
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 class Item_bool_func2;
@@ -60,9 +61,9 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): thd(0), a_cache(0), b_cache(0), set_null(TRUE),
+  Arg_comparator(): comparators(0), thd(0), a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), thd(0),
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0), thd(0),
     a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
 
@@ -118,7 +119,22 @@ public:
     return (owner->type() == Item::FUNC_ITEM &&
            ((Item_func*)owner)->functype() == Item_func::EQUAL_FUNC);
   }
-
+  void cleanup()
+  {
+    delete [] comparators;
+    comparators= 0;
+  }
+  /*
+    Set correct cmp_context if items would be compared as INTs.
+  */
+  inline void set_cmp_context_for_datetime()
+  {
+    DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
+    if ((*a)->result_as_longlong())
+      (*a)->cmp_context= INT_RESULT;
+    if ((*b)->result_as_longlong())
+      (*b)->cmp_context= INT_RESULT;
+  }
   friend class Item_func;
 };
 
@@ -253,9 +269,9 @@ protected:
   my_bool result_for_null_param;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0),
+    Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
-  {}
+  { with_subselect= TRUE; }
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
   bool is_null();
@@ -264,6 +280,7 @@ public:
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
+  Item *transform(Item_transformer transformer, uchar *arg);
 };
 
 class Comp_creator
@@ -371,6 +388,11 @@ public:
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
+  void cleanup()
+  {
+    Item_int_func::cleanup();
+    cmp.cleanup();
+  }
 
   friend class  Arg_comparator;
 };
@@ -439,6 +461,8 @@ public:
   const char *func_name() const { return "trigcond"; };
   bool const_item() const { return FALSE; }
   bool *get_trig_var() { return trig_var; }
+  /* The following is needed for ICP: */
+  table_map used_tables() const { return args[0]->used_tables(); }
 };
 
 class Item_func_not_all :public Item_func_not
@@ -482,13 +506,23 @@ public:
 class Item_func_eq :public Item_bool_rowready_func2
 {
 public:
-  Item_func_eq(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {}
+  Item_func_eq(Item *a,Item *b) :
+    Item_bool_rowready_func2(a,b), in_equality_no(UINT_MAX)
+  {}
   longlong val_int();
   enum Functype functype() const { return EQ_FUNC; }
   enum Functype rev_functype() const { return EQ_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "="; }
   Item *negated_item();
+  /* 
+    - If this equality is created from the subquery's IN-equality:
+      number of the item it was created from, e.g. for
+       (a,b) IN (SELECT c,d ...)  a=c will have in_equality_no=0, 
+       and b=d will have in_equality_no=1.
+    - Otherwise, UINT_MAX
+  */
+  uint in_equality_no;
 };
 
 class Item_func_equal :public Item_bool_rowready_func2
@@ -1314,8 +1348,8 @@ public:
     else
     {
       args[0]->update_used_tables();
-      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables())) &&
-          !with_subselect)
+      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
+          !with_subselect))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();
@@ -1414,9 +1448,6 @@ public:
   void cleanup();
 };
 
-#ifdef USE_REGEX
-
-#include "my_regex.h"
 
 class Item_func_regex :public Item_bool_func
 {
@@ -1445,25 +1476,6 @@ public:
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
-#else
-
-class Item_func_regex :public Item_bool_func
-{
-public:
-  Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b) {}
-  longlong val_int() { return 0;}
-  const char *func_name() const { return "regex"; }
-
-  virtual inline void print(String *str, enum_query_type query_type)
-  {
-    print_op(str, query_type);
-  }
-};
-
-#endif /* USE_REGEX */
-
-
-typedef class Item COND;
 
 class Item_cond :public Item_bool_func
 {
@@ -1501,6 +1513,7 @@ public:
     list.prepand(nlist);
   }
   bool fix_fields(THD *, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
@@ -1509,7 +1522,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-                         COND **conds);
+                         Item **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
@@ -1597,6 +1610,7 @@ public:
   for them. We have to take care of restricting the predicate such an
   object represents f1=f2= ...=fn to the projection of known fields fi1=...=fik.
 */
+struct st_join_table;
 
 class Item_equal: public Item_bool_func
 {
@@ -1637,6 +1651,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
+  friend Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
+                           Item_equal *item_equal);
+  friend bool setup_sj_materialization(struct st_join_table *tab);
 }; 
 
 class COND_EQUAL: public Sql_alloc
@@ -1743,14 +1760,34 @@ inline bool is_cond_or(Item *item)
 class Item_cond_xor :public Item_cond
 {
 public:
-  Item_cond_xor() :Item_cond() {}
-  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) 
+  {
+    /* 
+      Items must be stored in args[] as well because this Item_cond is
+      treated as a FUNC_ITEM (see type()). I.e., users of it will get
+      it's children by calling arguments(), not argument_list(). This
+      is a temporary solution until XOR is optimized and treated like
+      a full Item_cond citizen.
+     */
+    arg_count= 2;
+    args= tmp_arg;
+    args[0]= i1; 
+    args[1]= i2;
+  }
   enum Functype functype() const { return COND_XOR_FUNC; }
   /* TODO: remove the next line when implementing XOR optimization */
   enum Type type() const { return FUNC_ITEM; }
   longlong val_int();
   const char *func_name() const { return "xor"; }
   void top_level_item() {}
+  /* Since child Items are stored in args[], Items cannot be added.
+     However, since Item_cond_xor is treated as a FUNC_ITEM (see
+     type()), the methods below should never be called. 
+  */
+  bool add(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
+  bool add_at_head(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
+  bool add_at_head(List<Item> *nlist) { DBUG_ASSERT(FALSE); return FALSE; }
+  void copy_andor_arguments(THD *thd, Item_cond *item) { DBUG_ASSERT(FALSE); }
 };
 
 

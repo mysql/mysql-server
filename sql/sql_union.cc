@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -36,8 +36,7 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
   if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
                            setup_tables_done_option)))
     res= unit->exec();
-  if (res || !thd->cursor || !thd->cursor->is_open())
-    res|= unit->cleanup();
+  res|= unit->cleanup();
   DBUG_RETURN(res);
 }
 
@@ -69,7 +68,8 @@ bool select_union::send_data(List<Item> &values)
   {
     /* create_myisam_from_heap will generate error if needed */
     if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_myisam_from_heap(thd, table, &tmp_table_param, error, 1))
+        create_myisam_from_heap(thd, table, tmp_table_param.start_recinfo, 
+                                &tmp_table_param.recinfo, error, TRUE, NULL))
       return 1;
   }
   return 0;
@@ -104,6 +104,8 @@ bool select_union::flush()
       is_union_distinct  if set, the temporary table will eliminate
                          duplicates on insert
       options            create options
+      table_alias        name of the temporary table
+      bit_fields_as_long convert bit fields to ulonglong
 
   DESCRIPTION
     Create a temporary table that is used to store the result of a UNION,
@@ -117,19 +119,37 @@ bool select_union::flush()
 bool
 select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                   bool is_union_distinct, ulonglong options,
-                                  const char *alias)
+                                  const char *table_alias,
+                                  bool bit_fields_as_long)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.init();
   tmp_table_param.field_count= column_types->elements;
+  tmp_table_param.bit_fields_as_long= bit_fields_as_long;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
-                                 options, HA_POS_ERROR, alias)))
+                                 options, HA_POS_ERROR, (char*) table_alias)))
     return TRUE;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   return FALSE;
+}
+
+
+/**
+  Reset and empty the temporary table that stores the materialized query result.
+
+  @note The cleanup performed here is exactly the same as for the two temp
+  tables of JOIN - exec_tmp_table_[1 | 2].
+*/
+
+void select_union::cleanup()
+{
+  table->file->extra(HA_EXTRA_RESET_STATE);
+  table->file->ha_delete_all_rows();
+  free_io_cache(table);
+  filesort_free_buffers(table,0);
 }
 
 
@@ -148,20 +168,19 @@ void
 st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg) 
 {
   thd_arg->lex->current_select= fake_select_lex;
-  fake_select_lex->table_list.link_in_list((uchar *)&result_table_list,
-					   (uchar **)
-					   &result_table_list.next_local);
+  fake_select_lex->table_list.link_in_list(&result_table_list,
+                                           &result_table_list.next_local);
   fake_select_lex->context.table_list= 
     fake_select_lex->context.first_name_resolution_table= 
     fake_select_lex->get_table_list();
   if (!fake_select_lex->first_execution)
   {
-    for (ORDER *order= (ORDER *) global_parameters->order_list.first;
+    for (ORDER *order= global_parameters->order_list.first;
          order;
          order= order->next)
       order->item= &order->item_ptr;
   }
-  for (ORDER *order= (ORDER *)global_parameters->order_list.first;
+  for (ORDER *order= global_parameters->order_list.first;
        order;
        order=order->next)
   {
@@ -253,18 +272,18 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     can_skip_order_by= is_union_select && !(sl->braces && sl->explicit_limit);
 
     saved_error= join->prepare(&sl->ref_pointer_array,
-                               (TABLE_LIST*) sl->table_list.first,
+                               sl->table_list.first,
                                sl->with_wild,
                                sl->where,
                                (can_skip_order_by ? 0 :
                                 sl->order_list.elements) +
                                sl->group_list.elements,
                                can_skip_order_by ?
-                               (ORDER*) 0 : (ORDER *)sl->order_list.first,
-                               (ORDER*) sl->group_list.first,
+                               NULL : sl->order_list.first,
+                               sl->group_list.first,
                                sl->having,
-                               (is_union_select ? (ORDER*) 0 :
-                                (ORDER*) thd_arg->lex->proc_list.first),
+                               (is_union_select ? NULL :
+                                thd_arg->lex->proc_list.first),
                                sl, this);
     /* There are no * in the statement anymore (for PS) */
     sl->with_wild= 0;
@@ -358,7 +377,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     {
       ORDER *ord;
       Item_func::Functype ft=  Item_func::FT_FUNC;
-      for (ord= (ORDER*)global_parameters->order_list.first; ord; ord= ord->next)
+      for (ord= global_parameters->order_list.first; ord; ord= ord->next)
         if ((*ord->item)->walk (&Item::find_function_processor, FALSE, 
                                 (uchar *) &ft))
         {
@@ -380,7 +399,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(thd, &types, test(union_distinct),
-                                          create_options, ""))
+                                          create_options, "", FALSE))
       goto err;
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
@@ -420,12 +439,11 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 	thd_arg->lex->current_select= fake_select_lex;
 	saved_error= fake_select_lex->join->
 	  prepare(&fake_select_lex->ref_pointer_array,
-		  (TABLE_LIST*) fake_select_lex->table_list.first,
+		  fake_select_lex->table_list.first,
 		  0, 0,
 		  fake_select_lex->order_list.elements,
-		  (ORDER*) fake_select_lex->order_list.first,
-		  (ORDER*) NULL, NULL,
-                  (ORDER*) NULL,
+		  fake_select_lex->order_list.first,
+		  NULL, NULL, NULL,
 		  fake_select_lex, this);
 	fake_select_lex->table_list.empty();
       }
@@ -509,6 +527,7 @@ bool st_select_lex_unit::exec()
         sl->join->select_options= 
           (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
           sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
+
 	saved_error= sl->join->optimize();
       }
       if (!saved_error)
@@ -601,8 +620,8 @@ bool st_select_lex_unit::exec()
                               &result_table_list,
                               0, item_list, NULL,
                               global_parameters->order_list.elements,
-                              (ORDER*)global_parameters->order_list.first,
-                              (ORDER*) NULL, NULL, (ORDER*) NULL,
+                              global_parameters->order_list.first,
+                              NULL, NULL, NULL,
                               fake_select_lex->options | SELECT_NO_UNLOCK,
                               result, this, fake_select_lex);
       }
@@ -624,8 +643,8 @@ bool st_select_lex_unit::exec()
                                 &result_table_list,
                                 0, item_list, NULL,
                                 global_parameters->order_list.elements,
-                                (ORDER*)global_parameters->order_list.first,
-                                (ORDER*) NULL, NULL, (ORDER*) NULL,
+                                global_parameters->order_list.first,
+                                NULL, NULL, NULL,
                                 fake_select_lex->options | SELECT_NO_UNLOCK,
                                 result, this, fake_select_lex);
         }
@@ -701,7 +720,7 @@ bool st_select_lex_unit::cleanup()
     if (global_parameters->order_list.elements)
     {
       ORDER *ord;
-      for (ord= (ORDER*)global_parameters->order_list.first; ord; ord= ord->next)
+      for (ord= global_parameters->order_list.first; ord; ord= ord->next)
         (*ord->item)->walk (&Item::cleanup_processor, 0, 0);
     }
   }
@@ -745,8 +764,8 @@ void st_select_lex_unit::reinit_exec_mechanism()
     TRUE  - error
 */
 
-bool st_select_lex_unit::change_result(select_subselect *new_result,
-                                       select_subselect *old_result)
+bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
+                                       select_result_interceptor *old_result)
 {
   bool res= FALSE;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())

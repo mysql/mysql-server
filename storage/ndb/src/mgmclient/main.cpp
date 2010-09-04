@@ -20,7 +20,7 @@
 extern "C" {
 #if defined( __WIN__)
 #include <conio.h>
-#elif !defined(__NETWARE__)
+#else
 #include <readline/readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
 extern "C" int read_history(const char *command);
@@ -73,11 +73,11 @@ static struct my_option my_long_options[] =
   NDB_STD_OPTS("ndb_mgm"),
   { "execute", 'e',
     "execute command and exit", 
-    (uchar**) &opt_execute_str, (uchar**) &opt_execute_str, 0,
+    &opt_execute_str, &opt_execute_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "try-reconnect", 't',
     "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
-    (uchar**) &_try_reconnect, (uchar**) &_try_reconnect, 0,
+    &_try_reconnect, &_try_reconnect, 0,
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

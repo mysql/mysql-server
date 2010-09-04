@@ -329,10 +329,9 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
 {
   int npins, alloca_size;
   void *list, **addr;
-  void *first, *last= NULL;
+  void *first= NULL, *last= NULL;
   LF_PINBOX *pinbox= pins->pinbox;
 
-  LINT_INIT(first);
   npins= pinbox->pins_in_array+1;
 
 #ifdef HAVE_ALLOCA
@@ -473,7 +472,7 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
     uchar *tmp= anext_node(node);
     if (allocator->destructor)
       allocator->destructor(node);
-    my_free((void *)node, MYF(0));
+    my_free(node);
     node= tmp;
   }
   lf_pinbox_destroy(&allocator->pinbox);

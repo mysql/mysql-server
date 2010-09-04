@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
 
@@ -19,7 +19,8 @@ show databases;
 
 select count(*) from performance_schema.PERFORMANCE_TIMERS;
 select count(*) from performance_schema.SETUP_CONSUMERS;
-select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS;
+# wait/io/table/sql/handler is a native instrument
+select count(*) > 1 from performance_schema.SETUP_INSTRUMENTS;
 select count(*) from performance_schema.SETUP_TIMERS;
 
 # Make sure we don't crash, no matter what the starting parameters are
@@ -29,20 +30,19 @@ select * from performance_schema.COND_INSTANCES;
 select * from performance_schema.EVENTS_WAITS_CURRENT;
 select * from performance_schema.EVENTS_WAITS_HISTORY;
 select * from performance_schema.EVENTS_WAITS_HISTORY_LONG;
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME;
 select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE;
 select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
+select * from performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
 select * from performance_schema.FILE_INSTANCES;
 select * from performance_schema.FILE_SUMMARY_BY_EVENT_NAME;
 select * from performance_schema.FILE_SUMMARY_BY_INSTANCE;
 select * from performance_schema.MUTEX_INSTANCES;
 select * from performance_schema.PERFORMANCE_TIMERS;
-select * from performance_schema.PROCESSLIST;
 select * from performance_schema.RWLOCK_INSTANCES;
 select * from performance_schema.SETUP_CONSUMERS;
 select * from performance_schema.SETUP_INSTRUMENTS;
-select * from performance_schema.SETUP_OBJECTS;
 select * from performance_schema.SETUP_TIMERS;
+select * from performance_schema.THREADS;
 --enable_result_log
 
 # This has a stable output, printing the result:

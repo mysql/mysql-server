@@ -98,6 +98,10 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 #undef VIO_UNBUFFERED_READ_MIN_SIZE
 }
 
+my_bool vio_buff_has_data(Vio *vio)
+{
+  return (vio->read_pos != vio->read_end);
+}
 
 size_t vio_write(Vio * vio, const uchar* buf, size_t size)
 {
@@ -1057,9 +1061,11 @@ ssize_t vio_pending(Vio *vio)
 
 /**
   This is a wrapper for the system getnameinfo(), because different OS
-  differ in the getnameinfo() implementation. For instance, Solaris 10
-  requires that the 2nd argument (salen) must match the actual size of the
-  struct sockaddr_storage passed to it.
+  differ in the getnameinfo() implementation:
+    - Solaris 10 requires that the 2nd argument (salen) must match the
+      actual size of the struct sockaddr_storage passed to it;
+    - Mac OS X has sockaddr_in::sin_len and sockaddr_in6::sin6_len and
+      requires them to be filled.
 */
 
 int vio_getnameinfo(const struct sockaddr *sa,
@@ -1072,11 +1078,17 @@ int vio_getnameinfo(const struct sockaddr *sa,
   switch (sa->sa_family) {
   case AF_INET:
     sa_length= sizeof (struct sockaddr_in);
+#ifdef HAVE_SOCKADDR_IN_SIN_LEN
+    ((struct sockaddr_in *) sa)->sin_len= sa_length;
+#endif /* HAVE_SOCKADDR_IN_SIN_LEN */
     break;
 
 #ifdef HAVE_IPV6
   case AF_INET6:
     sa_length= sizeof (struct sockaddr_in6);
+# ifdef HAVE_SOCKADDR_IN6_SIN6_LEN
+    ((struct sockaddr_in6 *) sa)->sin6_len= sa_length;
+# endif /* HAVE_SOCKADDR_IN6_SIN6_LEN */
     break;
 #endif /* HAVE_IPV6 */
   }

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -177,8 +177,7 @@ PROF_MEASUREMENT::PROF_MEASUREMENT(QUERY_PROFILE *profile_arg,
 
 PROF_MEASUREMENT::~PROF_MEASUREMENT()
 {
-  if (allocated_status_memory != NULL)
-    my_free(allocated_status_memory, MYF(0));
+  my_free(allocated_status_memory);
   status= function= file= NULL;
 }
 
@@ -268,8 +267,7 @@ QUERY_PROFILE::~QUERY_PROFILE()
   while (! entries.is_empty())
     delete entries.pop();
 
-  if (query_source != NULL)
-    my_free(query_source, MYF(0));
+  my_free(query_source);
 }
 
 /**

@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
 
@@ -45,10 +45,10 @@ show variables like "performance_schema_max_thread%";
 
 # Verification : in this main thread
 
-select count(*) from performance_schema.PROCESSLIST
+select count(*) from performance_schema.THREADS
   where name like "thread/sql/main";
 
-select count(*) from performance_schema.PROCESSLIST
+select count(*) from performance_schema.THREADS
   where name like "thread/sql/OneConnection";
 
 select event_name, operation,
@@ -64,6 +64,8 @@ select event_name, operation,
   from performance_schema.EVENTS_WAITS_HISTORY_LONG;
 
 # Cleanup
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
 
 drop table test.t1;
 

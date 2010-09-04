@@ -28,6 +28,3 @@ libcommon_la_LIBADD = \
               util/libgeneral.la 
 
 windoze-dsp:
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

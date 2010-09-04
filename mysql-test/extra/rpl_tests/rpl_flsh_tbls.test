@@ -27,8 +27,8 @@ select * from t3;
 # This FLUSH should go into the binlog to not confuse the slave.
 flush tables;
 # Check that it's in the binlog.
-let $binlog_start= $rename_event_pos;
-source include/show_binlog_events.inc;
+let $wait_binlog_event= flush tables;
+source include/wait_for_binlog_event.inc;
 
 sync_slave_with_master;
 # Check that the slave is not confused.

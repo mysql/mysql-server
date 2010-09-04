@@ -11,7 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 # Avoid warnings in higher versions
@@ -34,8 +34,20 @@ ENDIF()
 SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
-OPTION(WITH_DEBUG_FULL "Use dbug and safemalloc/safemutex. Slow" OFF)
 
+# Distinguish between community and non-community builds, with the
+# default being a community build. This does not impact the feature
+# set that will be compiled in; it's merely provided as a hint to
+# custom packaging steps.
+OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON) 
+
+# Use a default manufacturer if no manufacturer was identified.
+SET(MANUFACTURER_DOCSTRING
+  "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
+IF(NOT DEFINED MANUFACTURER) 
+  SET(MANUFACTURER "Built from Source" CACHE  STRING ${MANUFACTURER_DOCSTRING})
+  MARK_AS_ADVANCED(MANUFACTURER)
+ENDIF()
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 
@@ -47,7 +59,7 @@ SET(BUILDTYPE_DOCSTRING
  "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
  CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
  
-IF(WITH_DEBUG OR WITH_DEBUG_FULL)
+IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
   SET(OLD_WITH_DEBUG 1 CACHE INTERNAL "" FORCE)
 ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
@@ -92,6 +104,27 @@ IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
 ENDIF()
 
+#
+# Control aspects of the development environment which are
+# specific to MySQL maintainers and developers.
+#
+OPTION(MYSQL_MAINTAINER_MODE "MySQL maintainer-specific development environment" OFF)
+# Whether the maintainer mode should be enabled.
+IF(MYSQL_MAINTAINER_MODE)
+  IF(CMAKE_COMPILER_IS_GNUCC)
+    SET(MY_MAINTAINER_C_WARNINGS "-Wall -Wextra -Wunused -Wwrite-strings -Werror"
+        CACHE STRING "C warning options used in maintainer builds.")
+  ENDIF()
+  IF(CMAKE_COMPILER_IS_GNUCXX)
+    SET(MY_MAINTAINER_CXX_WARNINGS "${MY_MAINTAINER_C_WARNINGS} -Wno-unused-parameter"
+        CACHE STRING "C++ warning options used in maintainer builds.")
+  ENDIF()
+  # Do not make warnings in checks into errors.
+  IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
+    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wno-error")
+  ENDIF()
+ENDIF()
+
 # Add macros
 INCLUDE(character_sets)
 INCLUDE(zlib)
@@ -115,6 +148,9 @@ OPTION(ENABLED_PROFILING "Enable profiling" ON)
 OPTION(CYBOZU "" OFF)
 OPTION(BACKUP_TEST "" OFF)
 OPTION(WITHOUT_SERVER OFF)
+IF(UNIX)
+  OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
+ENDIF()
 OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
@@ -125,16 +161,9 @@ IF(ENABLE_DEBUG_SYNC)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
 ENDIF() 
  
-OPTION(WITH_ERROR_INJECT 
-  "Enable error injection in MySQL Server (debug builds only)" OFF) 
-IF(WITH_ERROR_INJECT) 
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DERROR_INJECT_SUPPORT") 
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DERROR_INJECT_SUPPORT") 
-ENDIF() 
-
-OPTION(ENABLE_LOCAL_INFILE
+OPTION(ENABLED_LOCAL_INFILE
  "If we should should enable LOAD DATA LOCAL by default" ${IF_WIN})
-MARK_AS_ADVANCED(ENABLE_LOCAL_INFILE)
+MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
 OPTION(WITH_FAST_MUTEXES "Compile with fast mutexes" OFF)
 MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
@@ -163,18 +192,12 @@ IF(NOT CMAKE_BUILD_TYPE
     ENDIF()
 ENDIF()
 
-# Add safemalloc and safemutex for debug condifurations, except on Windows 
-# (C runtime library provides safemalloc functionality and safemutex has never 
-# worked there)
-IF(WITH_DEBUG OR WITH_DEBUG_FULL AND NOT WIN32)
+# Add safemutex for debug configurations, except on Windows
+# (safemutex has never worked on Windows)
+IF(WITH_DEBUG AND NOT WIN32)
   FOREACH(LANG C CXX)
-    IF(WITH_DEBUG_FULL)
-      SET(CMAKE_${LANG}_FLAGS_DEBUG 
-        "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-    ELSE()
-      SET(CMAKE_${LANG}_FLAGS_DEBUG 
-        "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
-    ENDIF()
+      SET(CMAKE_${LANG}_FLAGS_DEBUG
+          "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
   ENDFOREACH()
 ENDIF()
 
@@ -189,8 +212,11 @@ ELSE()
 ENDIF()
 
 SET(DEFAULT_BASEDIR "${DEFAULT_MYSQL_HOME}")
-SET(MYSQL_DATADIR "${DEFAULT_MYSQL_HOME}/${INSTALL_MYSQLDATADIR}" CACHE PATH 
-  "default MySQL data directory")
+IF(INSTALL_MYSQLDATADIR MATCHES "^/.*")
+  SET(MYSQL_DATADIR ${INSTALL_MYSQLDATADIR} CACHE PATH "default MySQL data directory")
+ELSE()
+  SET(MYSQL_DATADIR "${DEFAULT_MYSQL_HOME}/${INSTALL_MYSQLDATADIR}" CACHE PATH "default MySQL data directory")
+ENDIF()
 SET(DEFAULT_CHARSET_HOME "${DEFAULT_MYSQL_HOME}")
 SET(PLUGINDIR "${DEFAULT_MYSQL_HOME}/${INSTALL_PLUGINDIR}")
 IF(SYSCONFDIR)
@@ -212,6 +238,23 @@ MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
 
+#
+# Setup maintainer mode options by the end. Platform checks are
+# not run with the warning options as to not perturb fragile checks
+# (i.e. do not make warnings into errors).
+#
+IF(MYSQL_MAINTAINER_MODE)
+  # Set compiler flags required under maintainer mode.
+  MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_MAINTAINER_C_WARNINGS}")
+  MESSAGE(STATUS "C++ warning options: ${MY_MAINTAINER_CXX_WARNINGS}")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
+ENDIF()
+
+IF(WITH_UNIT_TESTS)
+ ENABLE_TESTING()
+ENDIF()
+
 IF(NOT WITHOUT_SERVER)
 SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
  # Add storage engines and plugins.
@@ -226,14 +269,13 @@ ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
 
-
 IF(WITH_UNIT_TESTS)
- ENABLE_TESTING()
-ENDIF()
-IF(WITH_UNIT_TESTS)
+  ADD_SUBDIRECTORY(unittest)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
+  ADD_SUBDIRECTORY(unittest/mytap/t)
   ADD_SUBDIRECTORY(unittest/mysys)
+  ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)
@@ -260,6 +302,7 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
+INCLUDE(cmake/tags.cmake)
 
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/config.h)
@@ -274,21 +317,30 @@ IF(WIN32)
 ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
+ADD_SUBDIRECTORY(packaging/WiX)
 INCLUDE(CPack)
-INSTALL(FILES COPYING EXCEPTIONS-CLIENT LICENSE.mysql DESTINATION ${INSTALL_DOCREADMEDIR} OPTIONAL)
-INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR})
 IF(UNIX)
-  INSTALL(FILES Docs/INSTALL-BINARY DESTINATION 
-  ${INSTALL_DOCREADMEDIR})
+  INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL)
 ENDIF()
-# MYSQL_DOCS_LOCATON is used in "make dist", points to the documentation directory
-SET(MYSQL_DOCS_LOCATION "" CACHE PATH "Location from where documentation is copied")
-MARK_AS_ADVANCED(MYSQL_DOCS_LOCATION)
-INSTALL(DIRECTORY Docs/ DESTINATION ${INSTALL_DOCDIR}
-  PATTERN "INSTALL-BINARY" EXCLUDE
-  PATTERN "Makefile.*" EXCLUDE
-  PATTERN "myisam.txt" EXCLUDE
-  PATTERN "glibc*" EXCLUDE
-  PATTERN "sp-imp-spec.txt" EXCLUDE
-  PATTERN "linuxthreads.txt" EXCLUDE
-)
+#
+# RPM installs documentation directly from the source tree
+#
+IF(NOT INSTALL_LAYOUT MATCHES "RPM")
+  INSTALL(FILES COPYING EXCEPTIONS-CLIENT LICENSE.mysql DESTINATION ${INSTALL_DOCREADMEDIR} OPTIONAL)
+  INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR})
+  IF(UNIX)
+    INSTALL(FILES Docs/INSTALL-BINARY DESTINATION ${INSTALL_DOCREADMEDIR})
+  ENDIF()
+  # MYSQL_DOCS_LOCATON is used in "make dist", points to the documentation directory
+  SET(MYSQL_DOCS_LOCATION "" CACHE PATH "Location from where documentation is copied")
+  MARK_AS_ADVANCED(MYSQL_DOCS_LOCATION)
+  INSTALL(DIRECTORY Docs/ DESTINATION ${INSTALL_DOCDIR}
+    PATTERN "INSTALL-BINARY" EXCLUDE
+    PATTERN "Makefile.*" EXCLUDE
+    PATTERN "glibc*" EXCLUDE
+    PATTERN "linuxthreads.txt" EXCLUDE
+    PATTERN "myisam.txt" EXCLUDE
+    PATTERN "mysql.info" EXCLUDE
+    PATTERN "sp-imp-spec.txt" EXCLUDE
+  )
+ENDIF()

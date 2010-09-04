@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef PFS_INSTR_H
 #define PFS_INSTR_H
@@ -123,6 +123,8 @@ struct PFS_file : public PFS_instr
 /** Instrumented table implementation. @see PSI_table. */
 struct PFS_table : public PFS_instr
 {
+  /** Owner. */
+  PFS_thread *m_opening_thread;
   /** Table share. */
   PFS_table_share *m_share;
   /** Table identity, typically a handler. */
@@ -265,7 +267,8 @@ PFS_file* find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 
 void release_file(PFS_file *pfs);
 void destroy_file(PFS_thread *thread, PFS_file *pfs);
-PFS_table* create_table(PFS_table_share *share, const void *identity);
+PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
+                        const void *identity);
 void destroy_table(PFS_table *pfs);
 
 /* For iterators and show status. */

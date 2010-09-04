@@ -1,5 +1,0 @@
--- source include/have_innodb.inc
--- source include/have_ucs2.inc
-
--- let charset = ucs2
--- source include/innodb-index.inc

@@ -251,6 +251,40 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 SET NAMES default;
 
 DROP TABLE t1, t2;
+###########################################################################
+
+--echo #
+--echo # Bug #53088: mysqldump with -T & --default-character-set set
+--echo #             truncates text/blob to 766 chars
+--echo #
+--echo # Also see mysqldump.test
+--echo #
+
+CREATE TABLE t1 (a BLOB) CHARSET latin1;
+CREATE TABLE t2 LIKE t1;
+
+let $file= '$MYSQLTEST_VARDIR/tmp/bug53088.txt';
+let $length= 800;
+
+--eval INSERT INTO t1 VALUES (REPEAT('.', $length))
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE $file CHARACTER SET latin1 FROM t1
+
+--echo # should be greater than $length
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT LENGTH(LOAD_FILE($file))
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE $file INTO TABLE t2
+
+--remove_file $MYSQLTEST_VARDIR/tmp/bug53088.txt
+
+--echo # should be $length
+SELECT LENGTH(a) FROM t2;
+
+DROP TABLE t1, t2;
+
 
 ###########################################################################
 --echo # End of 5.1 tests.

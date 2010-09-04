@@ -742,7 +742,6 @@ drop table if exists t2;
 CREATE TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
---error ER_DUP_ENTRY
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 ROLLBACK;
@@ -756,13 +755,11 @@ drop table t2;
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 COMMIT;
 BEGIN;
 INSERT INTO t2 values(101,101);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 ROLLBACK;
@@ -1351,6 +1348,13 @@ connection con1;
 SELECT * FROM t1;
 ROLLBACK;
 
+--echo # Switch to connection con2
+connection con2;
+ROLLBACK;
+
+--echo # Switch to connection con1
+connection con1;
+
 --echo # 2. test for serialized update:
 
 CREATE TABLE t2 (a INT);
@@ -1435,6 +1439,7 @@ connection con2;
 --reap
 SELECT * FROM t1;
 
+--enable_abort_on_error
 connection default;
 disconnect con1;
 disconnect con2;
@@ -1556,3 +1561,59 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#43600: Incorrect type conversion caused wrong result.
+--echo #
+CREATE TABLE t1 (
+  a int NOT NULL
+) engine= innodb;
+
+CREATE TABLE t2 (
+  a int NOT NULL,
+  b int NOT NULL,
+  filler char(100) DEFAULT NULL,
+  KEY a (a,b)
+) engine= innodb;
+
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
+
+explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+
+drop table t1,t2;
+--echo # End of test case for the bug#43600
+
+--echo #
+--echo # Bug#42643: InnoDB does not support replication of TRUNCATE TABLE
+--echo #
+--echo # Check that a TRUNCATE TABLE statement, needing an exclusive meta
+--echo # data lock, waits for a shared metadata lock owned by a concurrent
+--echo # transaction.
+--echo #
+
+eval CREATE TABLE t1 (a INT) ENGINE=$engine_type;
+INSERT INTO t1 VALUES (1),(2),(3);
+BEGIN;
+SELECT * FROM t1 ORDER BY a;
+--echo # Connection con1
+connect (con1, localhost, root,,);
+--send TRUNCATE TABLE t1;
+--echo # Connection default
+connection default;
+let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table metadata lock' AND info='TRUNCATE TABLE t1';
+--source include/wait_condition.inc
+SELECT * FROM t1 ORDER BY a;
+ROLLBACK;
+--echo # Connection con1
+connection con1;
+--echo # Reaping TRUNCATE TABLE
+--reap
+SELECT * FROM t1;
+--echo # Disconnect con1
+disconnect con1;
+--echo # Connection default
+connection default;
+DROP TABLE t1;

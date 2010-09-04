@@ -174,6 +174,24 @@
 }
 
 {
+   libz longest_match called from btr_store_big_rec_extern_fields
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:btr_store_big_rec_extern_fields
+}
+
+{
+   libz longest_match called from page_zip_compress
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:page_zip_compress
+}
+
+{
    libz longest_match2
    Memcheck:Cond
    fun:longest_match
@@ -722,3 +740,8 @@
    fun:pthread_create*
 }
 
+{
+   buf_buddy_relocate peeking (space,page) in potentially free blocks
+   Memcheck:Addr1
+   fun:buf_buddy_relocate
+}

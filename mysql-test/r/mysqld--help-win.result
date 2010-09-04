@@ -182,8 +182,6 @@ The following options may be given as the first argument:
  Disable initialization of builtin InnoDB plugin
  --init-connect=name Command(s) that are executed for each new connection
  --init-file=name    Read SQL commands from this file at startup
- --init-rpl-role=name 
- Set the replication role.
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
  --interactive-timeout=# 
@@ -394,6 +392,10 @@ The following options may be given as the first argument:
  value is 0 then mysqld will reserve max_connections*5 or
  max_connections + table_cache*2 (whichever is larger)
  number of file descriptors
+ --optimizer-join-cache-level=# 
+ Controls what join operations can be executed with join
+ buffers. Odd numbers are used for plain join buffers
+ while even numbers are used for linked buffers
  --optimizer-prune-level=# 
  Controls the heuristic(s) applied during query
  optimization to prune less-promising partial plans from
@@ -407,10 +409,7 @@ The following options may be given as the first argument:
  a query. Values smaller than the number of tables in a
  relation result in faster optimization, but may produce
  very bad query plans. If set to 0, the system will
- automatically pick a reasonable value; if set to 63, the
- optimizer will switch to the original find_best search.
- NOTE: The value 63 and its associated behaviour is
- deprecated
+ automatically pick a reasonable value
  --optimizer-switch=name 
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
@@ -589,8 +588,6 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
- --rpl-recovery-rank=# 
- Unused, will be removed
  --safe-mode         Skip some optimize stages (for testing).
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
@@ -703,7 +700,7 @@ The following options may be given as the first argument:
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
  Define threads usage for handling queries, one of
- one-thread-per-connection, no-threads
+ one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
@@ -762,7 +759,7 @@ connect-timeout 10
 console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
-default-storage-engine MyISAM
+default-storage-engine InnoDB
 default-time-zone (No default value)
 default-week-format 0
 delay-key-write ON
@@ -789,7 +786,6 @@ help TRUE
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
-init-rpl-role MASTER
 init-slave 
 interactive-timeout 28800
 join-buffer-size 131072
@@ -864,6 +860,7 @@ old FALSE
 old-alter-table FALSE
 old-passwords FALSE
 old-style-user-limits FALSE
+optimizer-join-cache-level 1
 optimizer-prune-level 1
 optimizer-search-depth 62
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
@@ -876,11 +873,11 @@ performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances 10000
 performance-schema-max-mutex-classes 200
-performance-schema-max-mutex-instances 1000
-performance-schema-max-rwlock-classes 20
-performance-schema-max-rwlock-instances 1000
-performance-schema-max-table-handles 100000
-performance-schema-max-table-instances 50000
+performance-schema-max-mutex-instances 1000000
+performance-schema-max-rwlock-classes 30
+performance-schema-max-rwlock-instances 1000000
+performance-schema-max-table-handles 10000
+performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances 1000
 plugin-load (No default value)
@@ -910,7 +907,6 @@ report-host (No default value)
 report-password (No default value)
 report-port 3306
 report-user (No default value)
-rpl-recovery-rank 0
 safe-user-create FALSE
 secure-auth FALSE
 secure-file-priv (No default value)
@@ -919,6 +915,7 @@ shared-memory FALSE
 shared-memory-base-name MYSQL
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
+skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE

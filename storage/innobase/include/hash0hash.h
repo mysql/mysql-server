@@ -403,6 +403,14 @@ void
 hash_mutex_exit_all(
 /*================*/
 	hash_table_t*	table);	/*!< in: hash table */
+/************************************************************//**
+Releases all but the passed in mutex of a hash table. */
+UNIV_INTERN
+void
+hash_mutex_exit_all_but(
+/*====================*/
+	hash_table_t*	table,		/*!< in: hash table */
+	mutex_t*	keep_mutex);	/*!< in: mutex to keep */
 #else /* !UNIV_HOTBACKUP */
 # define hash_get_heap(table, fold)	((table)->heap)
 # define hash_mutex_enter(table, fold)	((void) 0)
@@ -434,10 +442,11 @@ struct hash_table_struct {
 				these heaps */
 #endif /* !UNIV_HOTBACKUP */
 	mem_heap_t*	heap;
+#ifdef UNIV_DEBUG
 	ulint		magic_n;
+# define HASH_TABLE_MAGIC_N	76561114
+#endif /* UNIV_DEBUG */
 };
-
-#define HASH_TABLE_MAGIC_N	76561114
 
 #ifndef UNIV_NONINL
 #include "hash0hash.ic"

@@ -8,8 +8,7 @@ drop table if exists t1;
 
 # Add the datadir to the bootstrap command
 let $MYSQLD_DATADIR= `select @@datadir`;
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR;
-
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR --default-storage-engine=MyISAM --skip-innodb;
 #
 # Check that --bootstrap reads from stdin
 #
@@ -20,7 +19,6 @@ EOF
 --exec $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
 drop table t1;
 remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql;
-
 #
 # Check that --bootstrap of file with SQL error returns error
 #

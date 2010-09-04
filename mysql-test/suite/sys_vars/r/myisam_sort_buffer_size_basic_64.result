@@ -8,11 +8,15 @@ SELECT @start_session_value;
 8388608
 '#--------------------FN_DYNVARS_005_01-------------------------#'
 SET @@global.myisam_sort_buffer_size   = 100;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '100'
 SET @@global.myisam_sort_buffer_size   = DEFAULT;
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
 8388608
 SET @@session.myisam_sort_buffer_size   = 200;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '200'
 SET @@session.myisam_sort_buffer_size   = DEFAULT;
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
@@ -28,9 +32,11 @@ SELECT @@session.myisam_sort_buffer_size   = 8388608;
 1
 '#--------------------FN_DYNVARS_005_03-------------------------#'
 SET @@global.myisam_sort_buffer_size   = 4;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '4'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-4
+4096
 SET @@global.myisam_sort_buffer_size   = 4294967295;
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
@@ -41,9 +47,11 @@ SELECT @@global.myisam_sort_buffer_size  ;
 655354
 '#--------------------FN_DYNVARS_005_04-------------------------#'
 SET @@session.myisam_sort_buffer_size   = 4;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '4'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
-4
+4096
 SET @@session.myisam_sort_buffer_size   = 4294967295;
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
@@ -58,13 +66,13 @@ Warnings:
 Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '0'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-4
+4096
 SET @@global.myisam_sort_buffer_size   = -1024;
 Warnings:
 Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '-1024'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-4
+4096
 SET @@global.myisam_sort_buffer_size   = 429496729533;
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
@@ -99,28 +107,28 @@ Warnings:
 Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '0'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
-4
+4096
 SET @@session.myisam_sort_buffer_size   = -2;
 Warnings:
 Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '-2'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
-4
+4096
 SET @@session.myisam_sort_buffer_size   = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
-4
+4096
 SET @@session.myisam_sort_buffer_size   = test;
 ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
-4
+4096
 SET @@session.myisam_sort_buffer_size   = "test";
 ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
-4
+4096
 '#------------------FN_DYNVARS_005_06-----------------------#'
 SELECT @@global.myisam_sort_buffer_size   = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -139,20 +147,24 @@ Warnings:
 Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '1'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-4
+4096
 SET @@global.myisam_sort_buffer_size   = FALSE;
 Warnings:
 Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '0'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-4
+4096
 '#---------------------FN_DYNVARS_001_09----------------------#'
 SET @@global.myisam_sort_buffer_size   = 10;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '10'
 SELECT @@myisam_sort_buffer_size   = @@global.myisam_sort_buffer_size  ;
 @@myisam_sort_buffer_size   = @@global.myisam_sort_buffer_size
-0
+1
 '#---------------------FN_DYNVARS_001_10----------------------#'
 SET @@myisam_sort_buffer_size   = 100;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '100'
 SELECT @@myisam_sort_buffer_size   = @@local.myisam_sort_buffer_size  ;
 @@myisam_sort_buffer_size   = @@local.myisam_sort_buffer_size
 1
@@ -165,7 +177,7 @@ Warnings:
 Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '1'
 SELECT @@myisam_sort_buffer_size  ;
 @@myisam_sort_buffer_size
-4
+4096
 SELECT local.myisam_sort_buffer_size  ;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT session.myisam_sort_buffer_size  ;
