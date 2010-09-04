@@ -54,6 +54,11 @@ extern int hrt_sw_capacity(const hrt_stopwatch* sw);
 extern int hrt_sw_pushmark(hrt_stopwatch* sw);
 
 /**
+ * Removes the top timemark from a stopwatch.
+ */
+extern void hrt_sw_popmark(hrt_stopwatch* sw);
+
+/**
  * Returns the real time amount between two timemarks in microseonds
  * (i.e., y - x).
  */
