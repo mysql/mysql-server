@@ -3681,7 +3681,7 @@ Dbspj::scanFrag_send(Signal* signal,
   jam();
 
   requestPtr.p->m_outstanding++;
-  requestPtr.p->m_cnt_active ++;
+  requestPtr.p->m_cnt_active++;
   mark_active(requestPtr, treeNodePtr, true);
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
 
@@ -3807,9 +3807,9 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
 
   ndbrequire(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
   ndbrequire(requestPtr.p->m_cnt_active);
-  requestPtr.p->m_cnt_active --;
+  requestPtr.p->m_cnt_active--;
   ndbrequire(requestPtr.p->m_outstanding);
-  requestPtr.p->m_outstanding --;
+  requestPtr.p->m_outstanding--;
   treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
 
   abort(signal, requestPtr, errCode);
@@ -3846,7 +3846,7 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     jam();
 
     ndbrequire(requestPtr.p->m_cnt_active);
-    requestPtr.p->m_cnt_active --;
+    requestPtr.p->m_cnt_active--;
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
     mark_active(requestPtr, treeNodePtr, false);
   }
@@ -4800,7 +4800,7 @@ Dbspj::scanIndex_send(Signal* signal,
     return;
   }
 
-  requestPtr.p->m_cnt_active ++;
+  requestPtr.p->m_cnt_active++;
   requestPtr.p->m_outstanding++;
   mark_active(requestPtr, treeNodePtr, true);
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
@@ -4864,6 +4864,16 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
   Uint32 rows = conf->completedOps;
   Uint32 done = conf->fragmentCompleted;
 
+  Uint32 state = fragPtr.p->m_state;
+  if (state == ScanFragHandle::SFH_WAIT_CLOSE && done == 0)
+  {
+    jam();
+    /**
+     * We sent an explicit close request...ignore this...a close will come later
+     */
+    return;
+  }
+
   requestPtr.p->m_rows += rows;
 
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
@@ -4874,7 +4884,8 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
     data.m_rows_expecting += rows;
   }
   ndbrequire(data.m_frags_outstanding);
-  ndbrequire(fragPtr.p->m_state == ScanFragHandle::SFH_SCANNING);
+  ndbrequire(state == ScanFragHandle::SFH_SCANNING ||
+             state == ScanFragHandle::SFH_WAIT_CLOSE);
 
   data.m_frags_outstanding--;
   fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_NEXTREQ;
@@ -4890,7 +4901,7 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
     {
       jam();
       ndbrequire(requestPtr.p->m_cnt_active);
-      requestPtr.p->m_cnt_active --;
+      requestPtr.p->m_cnt_active--;
       treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
       mark_active(requestPtr, treeNodePtr, false);
     }
@@ -4922,7 +4933,37 @@ Dbspj::scanIndex_execSCAN_FRAGREF(Signal* signal,
 {
   jam();
 
-  ndbrequire(false);
+  const ScanFragRef * rep = CAST_CONSTPTR(ScanFragRef, signal->getDataPtr());
+  const Uint32 errCode = rep->errorCode;
+
+  Uint32 state = fragPtr.p->m_state;
+  ndbrequire(state == ScanFragHandle::SFH_SCANNING ||
+             state == ScanFragHandle::SFH_WAIT_CLOSE);
+
+  fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
+
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  ndbrequire(data.m_frags_not_complete > 0);
+  data.m_frags_not_complete--;
+  ndbrequire(data.m_frags_outstanding > 0);
+  data.m_frags_outstanding--;
+
+  if (data.m_frags_not_complete == 0)
+  {
+    jam();
+    ndbrequire(requestPtr.p->m_cnt_active);
+    requestPtr.p->m_cnt_active--;
+    treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+  }
+
+  if (data.m_frags_outstanding == 0)
+  {
+    jam();
+    ndbrequire(requestPtr.p->m_outstanding);
+    requestPtr.p->m_outstanding--;
+  }
+
+  abort(signal, requestPtr, errCode);
 }  
 
 void
@@ -5021,7 +5062,57 @@ Dbspj::scanIndex_abort(Signal* signal,
                        Ptr<TreeNode> treeNodePtr)
 {
   jam();
-  ndbrequire(false);
+
+  if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
+  {
+    jam();
+
+    ScanFragNextReq* req = CAST_PTR(ScanFragNextReq, signal->getDataPtrSend());
+    req->closeFlag = 1;
+    req->transId1 = requestPtr.p->m_transId[0];
+    req->transId2 = requestPtr.p->m_transId[1];
+    req->batch_size_rows = 0;
+    req->batch_size_bytes = 0;
+
+    ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    Ptr<ScanFragHandle> fragPtr;
+
+    Uint32 cnt_waiting = 0;
+    Uint32 cnt_scanning = 0;
+    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+    {
+      switch(fragPtr.p->m_state){
+      case ScanFragHandle::SFH_NOT_STARTED:
+      case ScanFragHandle::SFH_COMPLETE:
+      case ScanFragHandle::SFH_WAIT_CLOSE:
+        break;
+      case ScanFragHandle::SFH_WAIT_NEXTREQ:
+        cnt_waiting++; // was idle...
+        goto do_abort;
+      case ScanFragHandle::SFH_SCANNING:
+        cnt_scanning++;
+        goto do_abort;
+      do_abort:
+        req->senderData = fragPtr.i;
+        sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
+                   ScanFragNextReq::SignalLength, JBB);
+
+        fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+        break;
+      }
+    }
+
+    ndbrequire(cnt_waiting + cnt_scanning > 0);
+    if (cnt_scanning == 0)
+    {
+      /**
+       * If all were waiting...this should increase m_outstanding
+       */
+      jam();
+      requestPtr.p->m_outstanding++;
+    }
+  }
 }
 
 Uint32
