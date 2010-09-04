@@ -43,6 +43,11 @@ extern int hrt_gsw_capacity(void);
 extern int hrt_gsw_pushmark(void);
 
 /**
+ * Removes the top timemark from the global stopwatch.
+ */
+extern void hrt_gsw_popmark(void);
+
+/**
  * Returns the real time amount between two timemarks in microseonds
  * (i.e., y - x).
  */

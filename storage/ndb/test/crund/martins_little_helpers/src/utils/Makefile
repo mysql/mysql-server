@@ -39,10 +39,12 @@ include	../../../env.properties
 # _POSIX_C_SOURCE
 # _UNIX_STD
 
+#  DELIVERABLES	= libutils.a libutils.$(DLL_SUFFIX) utils.jar
   DELIVERABLES	= libutils.a libutils.$(DLL_SUFFIX) $(TESTS) $(TESTS1)
 
   TESTS		= hrt_utils_test hrt_stopwatch_test Properties_test \
 		$(API_PKG_PATH)/HrtStopwatch.class \
+		$(API_PKG_PATH)/HrtProfiler.class \
 		$(API_PKG_PATH)/HrtStopwatchTest.class
 
   TESTS1	= $(API_PKG_PATH)/JniInstrumentationTest.class \
@@ -79,8 +81,10 @@ dep depend:	$(GENERATED_H)
 
 #------------------------------------------------------------------------------
 
-$(API_PKG_PATH)/HrtStopwatch.class:	$(API_PKG_PATH)/HrtStopwatch.java
-	$(COMPILE.java) $<
+# not correct, only adds first file
+#utils.jar:	$(API_PKG_PATH)/HrtStopwatch.class \
+#		$(API_PKG_PATH)/HrtProfiler.class
+#	$(JAR) cvf $@ $<
 
 utils_HrtStopwatch.h:	$(API_PKG_PATH)/HrtStopwatch.class
 	$(COMPILE.javah) utils.HrtStopwatch
@@ -106,6 +110,8 @@ libutils.dylib:	libutils.a
 	libutils.a
 
 # hrt_gstopwatch.o hrt_stopwatch.o hrt_utils.o
+
+#------------------------------------------------------------------------------
 
 hrt_utils_test:		libutils.a
 

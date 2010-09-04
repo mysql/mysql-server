@@ -166,7 +166,7 @@ public class JpaLoad extends Driver {
 
     protected void setCommonFields(A o, int i) {
         assert o != null;
-        o.setCint((int)i);
+        o.setCint(i);
         o.setClong((long)i);
         o.setCfloat((float)i);
         o.setCdouble((double)i);
@@ -174,7 +174,7 @@ public class JpaLoad extends Driver {
     
     protected void setCommonFields(B0 o, int i) {
         assert o != null;
-        o.setCint((int)i);
+        o.setCint(i);
         o.setClong((long)i);
         o.setCfloat((float)i);
         o.setCdouble((double)i);

@@ -31,8 +31,10 @@ main(int argc, const char* argv[])
 
     printf("init stopwatches...\n");
     hrt_gsw_init(10);
+    assert(hrt_gsw_top() == -1);
     hrt_stopwatch sw;
     hrt_sw_init(&sw, 10);
+    assert(hrt_sw_top(&sw) == -1);
     
     printf("marking global time...\n");
     int g0 = hrt_gsw_pushmark();
@@ -53,6 +55,9 @@ main(int argc, const char* argv[])
     printf("marking global time...\n");
     int g2 = hrt_gsw_pushmark();
 
+    assert(hrt_gsw_top() == 1);
+    assert(hrt_sw_top(&sw) == 2);
+
     printf("\namount of times:\n");
     double rt0 = hrt_sw_rtmicros(&sw, t1, t0);
     double rt1 = hrt_sw_rtmicros(&sw, t2, t1);
@@ -70,7 +75,19 @@ main(int argc, const char* argv[])
     printf("[t1..t2] cpu    = %.3f us\n", ct1);
     printf("[t0..t2] cpu    = %.3f us\n", ct2);
     printf("[g0..g2] cpu    = %.3f us\n", gct2);
-    
+
+    printf("\npopping timemarks...\n");
+    hrt_gsw_popmark();
+    assert(hrt_gsw_top() == 0);
+    hrt_gsw_popmark();
+    assert(hrt_gsw_top() == -1);
+    hrt_sw_popmark(&sw);
+    assert(hrt_sw_top(&sw) == 1);
+    hrt_sw_popmark(&sw);
+    assert(hrt_sw_top(&sw) == 0);
+    hrt_sw_popmark(&sw);
+    assert(hrt_sw_top(&sw) == -1);
+
     printf("closing stopwatches...\n");
     hrt_sw_close(&sw);
     hrt_gsw_close();
