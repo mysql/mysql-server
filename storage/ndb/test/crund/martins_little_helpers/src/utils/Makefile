@@ -39,9 +39,8 @@ include	../../../env.properties
 # _POSIX_C_SOURCE
 # _UNIX_STD
 
-#  DELIVERABLES	= libutils.a libutils.$(DLL_SUFFIX) utils.jar \
-  DELIVERABLES	= libutils.a libutils.$(DLL_SUFFIX) \
-		$(TESTS) $(TESTS1)
+#  DELIVERABLES	= libutils.a libutils.$(DLL_SUFFIX) utils.jar
+  DELIVERABLES	= libutils.a libutils.$(DLL_SUFFIX) $(TESTS) $(TESTS1)
 
   TESTS		= hrt_utils_test hrt_stopwatch_test Properties_test \
 		$(API_PKG_PATH)/HrtStopwatch.class \
