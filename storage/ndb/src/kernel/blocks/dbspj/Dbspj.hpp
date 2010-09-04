@@ -455,12 +455,22 @@ public:
 
   struct ScanFragHandle
   {
+    enum SFH_State
+    {
+      SFH_NOT_STARTED  = 0,
+      SFH_SCANNING     = 1, // in LQH
+      SFH_WAIT_NEXTREQ = 2,
+      SFH_COMPLETE     = 3,
+      SFH_WAIT_CLOSE   = 4
+    };
+
     void init(Uint32 fid) { 
       m_ref = 0; 
       m_fragId = fid; 
-      m_state = Uint16(~0);
+      m_state = SFH_NOT_STARTED;
       reset_ranges();
     }
+
     Uint32 m_magic;
     Uint32 m_treeNodePtrI;
     Uint16 m_fragId;
