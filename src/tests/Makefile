@@ -112,6 +112,7 @@ BDB_DONTRUN_TESTS = \
         manyfiles \
 	multiprocess \
 	mvcc-create-table \
+        mvcc-many-committed \
         powerfail \
 	preload-3.1-db \
         progress \
