@@ -24,13 +24,14 @@ extern void
 hrt_sw_close(hrt_stopwatch* sw)
 {
     free(sw->tstamps);
-    sw->top = sw->cap = 0;
+    sw->cap = 0;
+    sw->top = 0;
 }
 
 extern int
 hrt_sw_top(const hrt_stopwatch* sw)
 {
-    return sw->top;
+    return sw->top - 1;
 }
 
 extern int
@@ -42,11 +43,18 @@ hrt_sw_capacity(const hrt_stopwatch* sw)
 extern int
 hrt_sw_pushmark(hrt_stopwatch* sw)
 {
-    assert (sw->top+1 < sw->cap);
+    assert (sw->top < sw->cap);
     int r = hrt_tnow(sw->tstamps + sw->top);
     assert (r == 0);
     (void)r;
     return sw->top++;
+}
+
+extern void
+hrt_sw_popmark(hrt_stopwatch* sw)
+{
+    assert (sw->top > 0);
+    sw->top--;
 }
 
 extern double

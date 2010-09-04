@@ -124,7 +124,7 @@ public class JdbcLoad extends Driver {
 
     static protected void setCommonAttributes(PreparedStatement stmt, int i)
         throws SQLException {
-        stmt.setInt(2, (int)i);
+        stmt.setInt(2, i);
         stmt.setLong(3, (long)i);
         stmt.setFloat(4, (float)i);
         stmt.setDouble(5, (double)i);

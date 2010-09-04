@@ -35,6 +35,12 @@ Java_utils_HrtStopwatch_pushmark(JNIEnv *env, jclass cls)
     return hrt_gsw_pushmark();
 }
 
+JNIEXPORT void JNICALL
+Java_utils_HrtStopwatch_popmark(JNIEnv * env, jclass cls)
+{
+    hrt_gsw_popmark();
+}
+
 JNIEXPORT jdouble JNICALL
 Java_utils_HrtStopwatch_rtmicros(JNIEnv *env, jclass cls,
                                             jint y, jint x)

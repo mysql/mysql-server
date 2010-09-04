@@ -578,10 +578,10 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set values; key attribute needs to be set first
-            if (op.equal(meta.attr_id, (int)i) != 0)
+            if (op.equal(meta.attr_id, i) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
             if (setAttrs) {
-                if (op.setValue(meta.attr_cint, (int)-i) != 0)
+                if (op.setValue(meta.attr_cint, -i) != 0)
                     throw new RuntimeException(toStr(tx.getNdbError()));
                 if (op.setValue(meta.attr_clong, (long)-i) != 0)
                     throw new RuntimeException(toStr(tx.getNdbError()));
@@ -611,7 +611,7 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set key attribute
-            if (op.equal(meta.attr_id, (int)i) != 0)
+            if (op.equal(meta.attr_id, i) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // execute the operation now if in non-batching mode
@@ -699,11 +699,11 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set key attribute
-            if (op.equal(meta.attr_id, (int)i) != 0)
+            if (op.equal(meta.attr_id, i) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set values
-            if (op.setValue(meta.attr_cint, (int)i) != 0)
+            if (op.setValue(meta.attr_cint, i) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
             if (op.setValue(meta.attr_clong, (long)i) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
@@ -780,7 +780,7 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set key attribute
-            if (op.equal(meta.attr_id, (int)j) != 0)
+            if (op.equal(meta.attr_id, j) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // get attributes (not readable until after commit)
@@ -819,7 +819,7 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set key attribute
-            if (op.equal(meta.attr_id, (int)j) != 0)
+            if (op.equal(meta.attr_id, j) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // get attributes (not readable until after commit)
@@ -877,7 +877,7 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set key attribute
-            if (op.equal(meta.attr_id, (int)i) != 0)
+            if (op.equal(meta.attr_id, i) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set values
@@ -939,7 +939,7 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // set key attribute
-            if (op.equal(meta.attr_id, (int)j) != 0)
+            if (op.equal(meta.attr_id, j) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // get attributes (not readable until after commit)

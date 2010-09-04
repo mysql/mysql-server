@@ -5,7 +5,7 @@
 package utils;
 
 /**
- * A Java High-Resolution Time Stopwatch Utility
+ * A Java High-Resolution Time Stopwatch Utility.
  */
 public class HrtStopwatch {
 
@@ -18,6 +18,8 @@ public class HrtStopwatch {
     static public native int capacity();
 
     static public native int pushmark();
+
+    static public native void popmark();
 
     static public native double rtmicros(int y, int x);
 
