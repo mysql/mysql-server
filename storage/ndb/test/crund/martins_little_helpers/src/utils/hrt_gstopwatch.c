@@ -10,7 +10,6 @@
  */
 
 static hrt_stopwatch gsw;
-//hrt_stopwatch gsw;
 
 extern void
 hrt_gsw_init(int cap)
@@ -40,6 +39,12 @@ extern int
 hrt_gsw_pushmark(void)
 {
     return hrt_sw_pushmark(&gsw);
+}
+
+extern void
+hrt_gsw_popmark(void)
+{
+    hrt_sw_popmark(&gsw);
 }
 
 extern double

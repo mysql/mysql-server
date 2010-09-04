@@ -185,8 +185,8 @@ public class ClusterjLoad extends Driver {
                         final IA o = session.find(IA.class, i);
                         //final IA o = session.newInstance(IA.class);
                         assert o != null;
-                        o.setId((int)i);
-                        o.setCint((int)i);
+                        o.setId(i);
+                        o.setCint(i);
                         o.setClong((long)i);
                         o.setCfloat((float)i);
                         o.setCdouble((double)i);
@@ -203,8 +203,8 @@ public class ClusterjLoad extends Driver {
                         final IB0 o = session.find(IB0.class, i);
                         //final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
-                        o.setId((int)i);
-                        o.setCint((int)i);
+                        o.setId(i);
+                        o.setCint(i);
                         o.setClong((long)i);
                         o.setCfloat((float)i);
                         o.setCdouble((double)i);
@@ -421,9 +421,10 @@ public class ClusterjLoad extends Driver {
             new ClusterjOp("delB0ByPK") {
                 public void run(int countA, int countB) {
                     for (int i = 0; i < countB; i++) {
-                        // XXX can do a blind delete ?
-                        final IB0 o = session.find(IB0.class, i);
+                        // blind delete
+                        final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
+                        o.setId(i);
                         session.remove(o);
                     }
                 }
@@ -433,9 +434,10 @@ public class ClusterjLoad extends Driver {
             new ClusterjOp("delAByPK") {
                 public void run(int countA, int countB) {
                     for (int i = 0; i < countA; i++) {
-                        // XXX can do a blind delete ?
-                        final IA o = session.find(IA.class, i);
+                        // blind delete
+                        final IA o = session.newInstance(IA.class);
                         assert o != null;
+                        o.setId(i);
                         session.remove(o);
                     }
                 }
@@ -448,7 +450,7 @@ public class ClusterjLoad extends Driver {
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
                         o.setId(i);
-                        o.setCint((int)-i);
+                        o.setCint(-i);
                         o.setClong((long)-i);
                         o.setCfloat((float)-i);
                         o.setCdouble((double)-i);
@@ -464,7 +466,7 @@ public class ClusterjLoad extends Driver {
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
                         o.setId(i);
-                        o.setCint((int)-i);
+                        o.setCint(-i);
                         o.setClong((long)-i);
                         o.setCfloat((float)-i);
                         o.setCdouble((double)-i);
