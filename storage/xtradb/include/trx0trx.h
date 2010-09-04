@@ -497,6 +497,7 @@ struct trx_struct{
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
+	ulint		flush_log_at_trx_commit_session;
 	ulint		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we
@@ -560,9 +561,6 @@ struct trx_struct{
 	/*------------------------------*/
 	void*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */
-	char**		mysql_query_str;/* pointer to the field in mysqld_thd
-					which contains the pointer to the
-					current SQL query string */
 	const char*	mysql_log_file_name;
 					/* if MySQL binlog is used, this field
 					contains a pointer to the latest file

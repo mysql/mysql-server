@@ -53,6 +53,14 @@ ind_create_graph_create(
 	dict_index_t*	index,	/*!< in: index to create, built as a memory data
 				structure */
 	mem_heap_t*	heap);	/*!< in: heap where created */
+/*********************************************************************//**
+*/
+UNIV_INTERN
+ind_node_t*
+ind_insert_stats_graph_create(
+/*==========================*/
+	dict_index_t*	index,
+	mem_heap_t*	heap);
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
 @return	query thread to run next or NULL */
@@ -61,6 +69,13 @@ que_thr_t*
 dict_create_table_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
+/***********************************************************//**
+*/
+UNIV_INTERN
+que_thr_t*
+dict_insert_stats_step(
+/*===================*/
+	que_thr_t*	thr);
 /***********************************************************//**
 Creates an index. This is a high-level function used in SQL execution
 graphs.
@@ -170,6 +185,7 @@ struct ind_node_struct{
 	ins_node_t*	field_def; /* child node which does the inserts of
 				the field definitions; the row to be inserted
 				is built by the parent node  */
+	ins_node_t*	stats_def;
 	commit_node_t*	commit_node;
 				/* child node which performs a commit after
 				a successful index creation */
@@ -180,6 +196,7 @@ struct ind_node_struct{
 	dict_table_t*	table;	/*!< table which owns the index */
 	dtuple_t*	ind_row;/* index definition row built */
 	ulint		field_no;/* next field definition to insert */
+	ulint		stats_no;
 	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage */
 };
 
@@ -189,6 +206,7 @@ struct ind_node_struct{
 #define	INDEX_CREATE_INDEX_TREE	3
 #define	INDEX_COMMIT_WORK	4
 #define	INDEX_ADD_TO_CACHE	5
+#define	INDEX_BUILD_STATS_COLS	6
 
 #ifndef UNIV_NONINL
 #include "dict0crea.ic"
