@@ -4726,7 +4726,7 @@ Dbspj::scanIndex_send(Signal* signal,
       if (keyInfoPtrI == RNIL)
       {
         jam();
-        fragPtr.p->m_state = 1; // complete
+        fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
         continue;
       }
 
@@ -4781,7 +4781,7 @@ Dbspj::scanIndex_send(Signal* signal,
     handle.clear();
 
     i++;
-    fragPtr.p->m_state = 0; // running
+    fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING; // running
     data.m_frags_outstanding++;
     data.m_frags_not_complete++;
   }
@@ -4874,13 +4874,15 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
     data.m_rows_expecting += rows;
   }
   ndbrequire(data.m_frags_outstanding);
+  ndbrequire(fragPtr.p->m_state == ScanFragHandle::SFH_SCANNING);
+
   data.m_frags_outstanding--;
+  fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_NEXTREQ;
 
   if (done)
   {
     jam();
-    ndbrequire(fragPtr.p->m_state == 0);
-    fragPtr.p->m_state = done;
+    fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
     ndbrequire(data.m_frags_not_complete>0)
     data.m_frags_not_complete--;
 
@@ -4959,12 +4961,13 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
   {
     jam();
-    if (fragPtr.p->m_state == 0)
+    if (fragPtr.p->m_state == ScanFragHandle::SFH_WAIT_NEXTREQ)
     {
       jam();
 
       i++;
       data.m_frags_outstanding++;
+      fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING;
 
       DEBUG("scanIndex_execSCAN_NEXTREQ to: " << hex 
             << treeNodePtr.p->m_send.m_ref
@@ -4979,15 +4982,6 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
       sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal, 
                  ScanFragNextReq::SignalLength, 
                  JBB);
-    }
-    else if (fragPtr.p->m_state == Uint16(~0))
-    {
-      jam();
-      /**
-       * not sent...this should only be possible with ! T_SCAN_PARALLEL
-       *   which is not yet implemented
-       */
-      ndbrequire(false);
     }
   }
   
