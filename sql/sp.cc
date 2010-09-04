@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -450,10 +450,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
   if (!proc_table_intact.check(table, &proc_table_def))
     DBUG_RETURN(table);
 
-  close_thread_tables(thd);
-
   DBUG_RETURN(NULL);
-
 }
 
 
@@ -495,8 +492,8 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
     DBUG_RETURN(SP_KEY_NOT_FOUND);
 
   DBUG_RETURN(SP_OK);
@@ -720,11 +717,18 @@ static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
   Silence_deprecated_warning warning_handler;
+  Parser_state parser_state;
 
   thd->variables.sql_mode= sql_mode;
   thd->variables.select_limit= HA_POS_ERROR;
 
-  Parser_state parser_state(thd, defstr->c_ptr(), defstr->length());
+  if (parser_state.init(thd, defstr->c_ptr(), defstr->length()))
+  {
+    thd->variables.sql_mode= old_sql_mode;
+    thd->variables.select_limit= old_select_limit;
+    return NULL;
+  }
+
   lex_start(thd);
   thd->push_internal_handler(&warning_handler);
   thd->spcont= 0;
@@ -849,6 +853,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   }
 
 end:
+  thd->lex->sphead= NULL;
   lex_end(thd->lex);
   thd->lex= old_lex;
   return ret;
@@ -1152,8 +1157,6 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 done:
   thd->count_cuted_fields= saved_count_cuted_fields;
   thd->variables.sql_mode= saved_mode;
-
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1232,8 +1235,6 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
         sp_cache_flush_obsolete(spc, &sp);
     }
   }
-
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1341,7 +1342,6 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     sp_cache_invalidate();
   }
 err:
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1363,6 +1363,7 @@ sp_drop_db_routines(THD *thd, char *db)
   TABLE *table;
   int ret;
   uint key_len;
+  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("sp_drop_db_routines");
   DBUG_PRINT("enter", ("db: %s", db));
 
@@ -1375,9 +1376,9 @@ sp_drop_db_routines(THD *thd, char *db)
 
   ret= SP_OK;
   table->file->ha_index_init(0, 1);
-  if (! table->file->index_read_map(table->record[0],
-                                    (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
-                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  if (! table->file->ha_index_read_map(table->record[0],
+                                       (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       (key_part_map)1, HA_READ_KEY_EXACT))
   {
     int nxtres;
     bool deleted= FALSE;
@@ -1392,7 +1393,7 @@ sp_drop_db_routines(THD *thd, char *db)
 	nxtres= 0;
 	break;
       }
-    } while (! (nxtres= table->file->index_next_same(table->record[0],
+    } while (! (nxtres= table->file->ha_index_next_same(table->record[0],
                                 (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
 						     key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
@@ -1403,6 +1404,11 @@ sp_drop_db_routines(THD *thd, char *db)
   table->file->ha_index_end();
 
   close_thread_tables(thd);
+  /*
+    Make sure to only release the MDL lock on mysql.proc, not other
+    metadata locks DROP DATABASE might have acquired.
+  */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
 err:
   DBUG_RETURN(ret);
@@ -1716,7 +1722,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
     rn->mdl_request.init(key, MDL_SHARED);
     if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
       return FALSE;
-    prelocking_ctx->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
+    prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
     rn->belong_to_view= belong_to_view;
     rn->m_sp_cache_version= 0;
     return TRUE;
@@ -1766,8 +1772,7 @@ void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
 {
   Sroutine_hash_entry *not_own_rt, *next_rt;
-  for (not_own_rt= 
-         *(Sroutine_hash_entry **)prelocking_ctx->sroutines_list_own_last;
+  for (not_own_rt= *prelocking_ctx->sroutines_list_own_last;
        not_own_rt; not_own_rt= next_rt)
   {
     /*
@@ -1778,7 +1783,7 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
     my_hash_delete(&prelocking_ctx->sroutines, (uchar *)not_own_rt);
   }
 
-  *(Sroutine_hash_entry **)prelocking_ctx->sroutines_list_own_last= NULL;
+  *prelocking_ctx->sroutines_list_own_last= NULL;
   prelocking_ctx->sroutines_list.next= prelocking_ctx->sroutines_list_own_last;
   prelocking_ctx->sroutines_list.elements= 
                     prelocking_ctx->sroutines_list_own_elements;
@@ -1863,10 +1868,10 @@ sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 */
 
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                                  SQL_LIST *src, TABLE_LIST *belong_to_view)
+                                  SQL_I_List<Sroutine_hash_entry> *src,
+                                  TABLE_LIST *belong_to_view)
 {
-  for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
-       rt; rt= rt->next)
+  for (Sroutine_hash_entry *rt= src->first; rt; rt= rt->next)
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
                               &rt->mdl_request.key, belong_to_view);
 }
@@ -1892,8 +1897,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
     in sroutines_list has an MDL lock unless it's a top-level call, or a
     trigger, but triggers can't occur here (see the preceding assert).
   */
-  DBUG_ASSERT(rt->mdl_request.ticket ||
-              rt == (Sroutine_hash_entry*) thd->lex->sroutines_list.first);
+  DBUG_ASSERT(rt->mdl_request.ticket || rt == thd->lex->sroutines_list.first);
 
   return sp_cache_routine(thd, type, &name, lookup_only, sp);
 }
@@ -2137,6 +2141,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   newlex.current_select= NULL; 
   sp= sp_compile(thd, &defstr, sql_mode, creation_ctx);
   *free_sp_head= 1;
+  thd->lex->sphead= NULL;
   lex_end(thd->lex);
   thd->lex= old_lex;
   return sp;

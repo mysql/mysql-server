@@ -10,90 +10,8 @@ n
 stop slave sql_thread;
 insert into t1 values(1);
 insert into t1 values(2);
-stop slave;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_PORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	No
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+include/stop_slave.inc
 change master to master_user='root';
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_PORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	No
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
 start slave;
 select * from t1;
 n
@@ -117,3 +35,42 @@ start slave sql_thread;
 start slave io_thread;
 set global relay_log_purge=1;
 drop table t1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+Master_Retry_Count: 
+include/stop_slave.inc
+CHANGE MASTER TO master_retry_count=20;
+include/start_slave.inc
+include/stop_slave.inc
+CHANGE MASTER TO master_retry_count=0;
+include/start_slave.inc
+include/stop_slave.inc
+CHANGE MASTER TO master_retry_count=1;
+include/start_slave.inc
+include/stop_slave.inc
+CHANGE MASTER TO master_retry_count=10;
+include/start_slave.inc
+include/stop_slave.inc
+CHANGE MASTER TO master_retry_count=RETRY_COUNT_SET;
+SELECT RETRY_COUNT_EXPECTED AS current_retry_count;
+current_retry_count
+RETRY_COUNT_EXPECTED
+CHANGE MASTER TO master_connect_retry= 2;
+CHANGE MASTER TO master_connect_retry= 1;
+### stop slave server
+### start slave server
+include/start_slave.inc
+CHANGE MASTER TO master_retry_count='a';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''a'' at line 1
+CHANGE MASTER TO master_retry_count=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;

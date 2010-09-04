@@ -1,1 +1,1 @@
---plugin_dir=../storage/blackhole/.libs
+--plugin_dir=$BLACKHOLE_PLUGIN_DIR

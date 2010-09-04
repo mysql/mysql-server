@@ -1,5 +1,5 @@
 #
-# Test of different EXPLAIN's
+# Test of different EXPLAINs
 
 --disable_warnings
 drop table if exists t1;
@@ -172,6 +172,14 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#37870: Usage of uninitialized value caused failed assertion.
 --echo #
+set @opt_sw_save=  @@optimizer_switch;
+
+--disable_query_log
+if (`select locate('semijoin', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='semijoin=off';
+}
+--enable_query_log
 create table t1 (dt datetime not null, t time not null);
 create table t2 (dt datetime not null);
 insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
@@ -186,6 +194,7 @@ EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2
 flush tables;
 SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
 drop tables t1, t2;
+set optimizer_switch= @opt_sw_save;
 
 --echo #
 --echo # Bug#47669: Query showed by EXPLAIN EXTENDED gives different result from original query
@@ -210,4 +219,64 @@ explain extended select * from t1 where f1=1;
 explain extended select * from t1 join t2 on f1=f2 where f1=1;
 drop table t1,t2;
 
+--echo #
+--echo # Bug #48419: another explain crash..
+--echo #
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b BLOB, KEY b(b(100)));
+INSERT INTO t2 VALUES ('1'), ('2'), ('3');
+
+FLUSH TABLES;
+
+EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT 1 FROM t1 t JOIN t2 WHERE b <= 1 AND t.a);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #48573: difference of index selection between rpm binary and
+--echo #             .tar.gz, windows vs linux..
+--echo #
+
+CREATE TABLE t1(c1 INT, c2 INT, c4 INT, c5 INT, KEY(c2, c5), KEY(c2, c4, c5));
+INSERT INTO t1 VALUES(4, 1, 1, 1);
+INSERT INTO t1 VALUES(3, 1, 1, 1);
+INSERT INTO t1 VALUES(2, 1, 1, 1);
+INSERT INTO t1 VALUES(1, 1, 1, 1);
+
+EXPLAIN SELECT c1 FROM t1 WHERE c2 = 1 AND c4 = 1 AND c5 = 1;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests.
+
+--echo #
+--echo # Bug#46860: 
+--echo # Crash/segfault using EXPLAIN EXTENDED on query using UNION in subquery.
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table `t1` (`a` int);
+--error ER_NON_UNIQ_ERROR
+explain extended select 1 from `t1`, `t1` as `t2`
+where `t1`.`a`  > all ( (select `a` from `t1` ) union (select `a`) );
+drop table t1;
+
+--echo # 
+--echo # BUG#30597: Change EXPLAIN output to include extrema of 
+--echo #            UNION components
+--echo # 
+
+EXPLAIN
+ SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ ;
+
+--echo # End BUG#30597
+
+--echo End of 6.0 tests.

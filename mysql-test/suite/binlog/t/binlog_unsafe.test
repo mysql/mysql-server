@@ -468,6 +468,7 @@ BEGIN
 END|
 DELIMITER ;|
 --echo "One unsafe warning should be issued in the following statement"
+--error ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
 SELECT fun_check_log_bin();
 --echo "SQL_LOG_BIN should be ON still"
 SHOW VARIABLES LIKE "SQL_LOG_BIN";
@@ -607,9 +608,9 @@ INSERT INTO t2 SET a = func_modify_t1();
 
 SET SESSION binlog_format = MIXED;
 --echo # Check if the statement is logged in row format.
-let $pos0_master= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 INSERT INTO t2 SET a = func_modify_t1();
-eval SHOW BINLOG EVENTS FROM $pos0_master;
+--source include/show_binlog_events.inc
 
 # clean up
 DROP TABLE t1,t2;
@@ -638,9 +639,9 @@ INSERT INTO t1 SET a = 1;
 
 SET SESSION binlog_format = MIXED;
 --echo # Check if the statement is logged in row format.
-let $pos1_master= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 INSERT INTO t1 SET a = 2;
-eval SHOW BINLOG EVENTS FROM $pos1_master;
+--source include/show_binlog_events.inc
 
 # clean up
 DROP TABLE t1,t2,t3;

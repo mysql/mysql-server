@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
@@ -24,13 +24,6 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <mysql_com.h>
-/*
-  The following extern declarations are ok as these are interface functions
-  required by the string function
-*/
-
-extern uchar* sql_alloc(unsigned size);
-extern void sql_element_free(void *ptr);
 
 #include "sql_string.h"
 
@@ -38,9 +31,12 @@ extern void sql_element_free(void *ptr);
 ** String functions
 *****************************************************************************/
 
-bool String::real_alloc(uint32 arg_length)
+bool String::real_alloc(uint32 length)
 {
-  arg_length=ALIGN_SIZE(arg_length+1);
+  uint32 arg_length= ALIGN_SIZE(length + 1);
+  DBUG_ASSERT(arg_length > length);
+  if (arg_length <= length)
+    return TRUE;                                 /* Overflow */
   str_length=0;
   if (Alloced_length < arg_length)
   {
@@ -63,6 +59,9 @@ bool String::real_alloc(uint32 arg_length)
 bool String::realloc(uint32 alloc_length)
 {
   uint32 len=ALIGN_SIZE(alloc_length+1);
+  DBUG_ASSERT(len > alloc_length);
+  if (len <= alloc_length)
+    return TRUE;                                 /* Overflow */
   if (Alloced_length < len)
   {
     char *new_ptr;

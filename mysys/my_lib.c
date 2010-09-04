@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* TODO: check for overun of memory for names. */
-/*	 Convert MSDOS-TIME to standar time_t (still needed?) */
 
 #include	"mysys_priv.h"
 #include	<m_string.h>
@@ -40,11 +39,6 @@
 # include <dir.h>
 # endif
 # endif
-#endif
-#ifdef VMS
-#include <rms.h>
-#include <iodef.h>
-#include <descrip.h>
 #endif
 
 #if defined(THREAD) && defined(HAVE_READDIR_R)
@@ -77,7 +71,7 @@ void my_dirend(MY_DIR *buffer)
                                     ALIGN_SIZE(sizeof(MY_DIR))));
     free_root((MEM_ROOT*)((char*)buffer + ALIGN_SIZE(sizeof(MY_DIR)) + 
                           ALIGN_SIZE(sizeof(DYNAMIC_ARRAY))), MYF(0));
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
   }
   DBUG_VOID_RETURN;
 } /* my_dirend */
@@ -131,7 +125,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
     goto error;
   }
   init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
@@ -199,9 +193,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
 /*
  * Convert from directory name to filename.
- * On VMS:
- *	 xyzzy:[mukesh.emacs] => xyzzy:[mukesh]emacs.dir.1
- *	 xyzzy:[mukesh] => xyzzy:[000000]mukesh.dir.1
  * On UNIX, it's simple: just make sure there is a terminating /
 
  * Returns pointer to dst;
@@ -209,11 +200,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
 char * directory_file_name (char * dst, const char *src)
 {
-#ifndef VMS
-
   /* Process as Unix format: just remove test the final slash. */
-
-  char * end;
+  char *end;
 
   if (src[0] == 0)
     src= (char*) ".";				/* Use empty as current */
@@ -224,125 +212,7 @@ char * directory_file_name (char * dst, const char *src)
     end[1]='\0';
   }
   return dst;
-
-#else	/* VMS */
-
-  long slen;
-  long rlen;
-  char * ptr, rptr;
-  char bracket;
-  struct FAB fab = cc$rms_fab;
-  struct NAM nam = cc$rms_nam;
-  char esa[NAM$C_MAXRSS];
-
-  if (! src[0])
-    src="[.]";					/* Empty is == current dir */
-
-  slen = strlen (src) - 1;
-  if (src[slen] == FN_C_AFTER_DIR || src[slen] == FN_C_AFTER_DIR_2 ||
-      src[slen] == FN_DEVCHAR)
-  {
-	/* VMS style - convert [x.y.z] to [x.y]z, [x] to [000000]x */
-    fab.fab$l_fna = src;
-    fab.fab$b_fns = slen + 1;
-    fab.fab$l_nam = &nam;
-    fab.fab$l_fop = FAB$M_NAM;
-
-    nam.nam$l_esa = esa;
-    nam.nam$b_ess = sizeof esa;
-    nam.nam$b_nop |= NAM$M_SYNCHK;
-
-    /* We call SYS$PARSE to handle such things as [--] for us. */
-    if (SYS$PARSE(&fab, 0, 0) == RMS$_NORMAL)
-    {
-      slen = nam.nam$b_esl - 1;
-      if (esa[slen] == ';' && esa[slen - 1] == '.')
-	slen -= 2;
-      esa[slen + 1] = '\0';
-      src = esa;
-    }
-    if (src[slen] != FN_C_AFTER_DIR && src[slen] != FN_C_AFTER_DIR_2)
-    {
-	/* what about when we have logical_name:???? */
-      if (src[slen] == FN_DEVCHAR)
-      {				/* Xlate logical name and see what we get */
-	(void) strmov(dst,src);
-	dst[slen] = 0;				/* remove colon */
-	if (!(src = getenv (dst)))
-	  return dst;				/* Can't translate */
-
-	/* should we jump to the beginning of this procedure?
-	   Good points: allows us to use logical names that xlate
-	   to Unix names,
-	   Bad points: can be a problem if we just translated to a device
-	   name...
-	   For now, I'll punt and always expect VMS names, and hope for
-	   the best! */
-
-	slen = strlen (src) - 1;
-	if (src[slen] != FN_C_AFTER_DIR && src[slen] != FN_C_AFTER_DIR_2)
-	{					/* no recursion here! */
-	  (void) strmov(dst, src);
-	  return(dst);
-	}
-      }
-      else
-      {						/* not a directory spec */
-	(void) strmov(dst, src);
-	return(dst);
-      }
-    }
-
-    bracket = src[slen];			/* End char */
-    if (!(ptr = strchr (src, bracket - 2)))
-    {						/* no opening bracket */
-      (void) strmov (dst, src);
-      return dst;
-    }
-    if (!(rptr = strrchr (src, '.')))
-      rptr = ptr;
-    slen = rptr - src;
-    (void) strmake (dst, src, slen);
-
-    if (*rptr == '.')
-    {						/* Put bracket and add */
-      dst[slen++] = bracket;			/* (rptr+1) after this */
-    }
-    else
-    {
-      /* If we have the top-level of a rooted directory (i.e. xx:[000000]),
-	 then translate the device and recurse. */
-
-      if (dst[slen - 1] == ':'
-	  && dst[slen - 2] != ':' 	/* skip decnet nodes */
-	  && strcmp(src + slen, "[000000]") == 0)
-      {
-	dst[slen - 1] = '\0';
-	if ((ptr = getenv (dst))
-	    && (rlen = strlen (ptr) - 1) > 0
-	    && (ptr[rlen] == FN_C_AFTER_DIR || ptr[rlen] == FN_C_AFTER_DIR_2)
-	    && ptr[rlen - 1] == '.')
-	{
-	  (void) strmov(esa,ptr);
-	  esa[rlen - 1] = FN_C_AFTER_DIR;
-	  esa[rlen] = '\0';
-	  return (directory_file_name (dst, esa));
-	}
-	else
-	  dst[slen - 1] = ':';
-      }
-      (void) strmov(dst+slen,"[000000]");
-      slen += 8;
-    }
-    (void) strmov(strmov(dst+slen,rptr+1)-1,".DIR.1");
-    return dst;
-  }
-  (void) strmov(dst, src);
-  if (dst[slen] == '/' && slen > 1)
-    dst[slen] = 0;
-  return dst;
-#endif	/* VMS */
-} /* directory_file_name */
+}
 
 #else
 
@@ -400,7 +270,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
     goto error;
   }
   init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
@@ -547,7 +417,7 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
   DBUG_PRINT("error",("Got errno: %d from stat", errno));
   my_errno= errno;
   if (m_used)					/* Free if new area */
-    my_free((uchar*) stat_area,MYF(0));
+    my_free(stat_area);
 
 error:
   if (my_flags & (MY_FAE+MY_WME))

@@ -46,9 +46,16 @@ let $dbug_sync_point= 'debug_lock.before_get_SERVER_ID';
 let $debug_sync_action= 'now SIGNAL signal.get_server_id';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
+#Test case 3: Try to get the value of the MASTER_UUID from master under network disconnection
+connection slave;
+
+let $dbug_sync_point= 'dbug.before_get_MASTER_UUID';
+let $debug_sync_action= 'now SIGNAL signal.get_master_uuid';
+source extra/rpl_tests/rpl_get_master_version_and_clock.test;
+
 eval set global debug= '$debug_saved';
 
-#Test case 3: This test checks that the slave I/O thread refuses to start
+#Test case 4: This test checks that the slave I/O thread refuses to start
 #if slave and master have the same server id.
 connection slave;
 reset master;
@@ -58,14 +65,10 @@ source include/stop_slave.inc;
 eval change master to master_port=$SLAVE_MYPORT;
 start slave;
 
-let $slave_param= Last_IO_Errno;
-let $slave_param_value= 1593;
-source include/wait_for_slave_param.inc;
 --echo *** must be having the replicate-same-server-id IO thread error ***
-let $last_io_errno= query_get_value("show slave status", Last_IO_Errno, 1);
-let $last_io_error= query_get_value("show slave status", Last_IO_Error, 1);
-echo Slave_IO_Errno= $last_io_errno;
-echo Slave_IO_Error= $last_io_error;
+let $slave_io_errno= 1593;
+let $show_slave_io_error= 1;
+source include/wait_for_slave_io_error.inc;
 
 # cleanup
 

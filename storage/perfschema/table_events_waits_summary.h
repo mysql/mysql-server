@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef TABLE_EVENTS_WAITS_SUMMARY_H
 #define TABLE_EVENTS_WAITS_SUMMARY_H
@@ -26,6 +26,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "table_all_instr.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -64,13 +65,13 @@ struct pos_events_waits_summary_by_thread_by_event_name
 : public PFS_triple_index, public PFS_instrument_view_constants
 {
   pos_events_waits_summary_by_thread_by_event_name()
-    : PFS_triple_index(0, VIEW_MUTEX, 1)
+    : PFS_triple_index(0, FIRST_VIEW, 1)
   {}
 
   inline void reset(void)
   {
     m_index_1= 0;
-    m_index_2= VIEW_MUTEX;
+    m_index_2= FIRST_VIEW;
     m_index_3= 1;
   }
 
@@ -78,12 +79,12 @@ struct pos_events_waits_summary_by_thread_by_event_name
   { return (m_index_1 < thread_max); }
 
   inline bool has_more_view(void)
-  { return (m_index_2 <= VIEW_FILE); }
+  { return (m_index_2 <= LAST_VIEW); }
 
   inline void next_thread(void)
   {
     m_index_1++;
-    m_index_2= VIEW_MUTEX;
+    m_index_2= FIRST_VIEW;
     m_index_3= 1;
   }
 
@@ -142,58 +143,6 @@ private:
   pos_events_waits_summary_by_thread_by_event_name m_pos;
   /** Next position. */
   pos_events_waits_summary_by_thread_by_event_name m_next_pos;
-};
-
-/** A row of PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME. */
-struct row_events_waits_summary_by_event_name
-{
-  /** Column EVENT_NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /** Column COUNT_STAR. */
-  ulonglong m_count;
-  /** Column SUM_TIMER_WAIT. */
-  ulonglong m_sum;
-  /** Column MIN_TIMER_WAIT. */
-  ulonglong m_min;
-  /** Column AVG_TIMER_WAIT. */
-  ulonglong m_avg;
-  /** Column MAX_TIMER_WAIT. */
-  ulonglong m_max;
-};
-
-/** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME. */
-class table_events_waits_summary_by_event_name : public table_all_instr_class
-{
-public:
-  /** Table share */
-  static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
-  static int delete_all_rows();
-
-protected:
-  virtual void make_instr_row(PFS_instr_class *klass);
-
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
-                              bool read_all);
-
-  table_events_waits_summary_by_event_name();
-
-public:
-  ~table_events_waits_summary_by_event_name()
-  {}
-
-private:
-  /** Table share lock. */
-  static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
-
-  /** Current row. */
-  row_events_waits_summary_by_event_name m_row;
 };
 
 /** A row of PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_INSTANCE. */

@@ -10,9 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-*/
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs_engine_table.cc
@@ -24,11 +23,11 @@
 #include "table_events_waits.h"
 #include "table_setup_consumers.h"
 #include "table_setup_instruments.h"
-#include "table_setup_objects.h"
 #include "table_setup_timers.h"
 #include "table_performance_timers.h"
-#include "table_processlist.h"
+#include "table_threads.h"
 #include "table_events_waits_summary.h"
+#include "table_ews_global_by_event_name.h"
 #include "table_sync_instances.h"
 #include "table_file_instances.h"
 #include "table_file_summary.h"
@@ -36,6 +35,7 @@
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
+#include "pfs_global.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
@@ -52,13 +52,12 @@ static PFS_engine_table_share *all_shares[]=
   &table_events_waits_history_long::m_share,
   &table_setup_consumers::m_share,
   &table_setup_instruments::m_share,
-  &table_setup_objects::m_share,
   &table_setup_timers::m_share,
   &table_performance_timers::m_share,
-  &table_processlist::m_share,
+  &table_threads::m_share,
   &table_events_waits_summary_by_thread_by_event_name::m_share,
-  &table_events_waits_summary_by_event_name::m_share,
   &table_events_waits_summary_by_instance::m_share,
+  &table_ews_global_by_event_name::m_share,
   &table_file_summary_by_event_name::m_share,
   &table_file_summary_by_instance::m_share,
   &table_mutex_instances::m_share,
@@ -144,6 +143,9 @@ void PFS_engine_table_share::check_one_table(THD *thd)
       m_checked= true;
     close_thread_tables(thd);
   }
+  else
+    sql_print_error(ER(ER_WRONG_NATIVE_TABLE_STRUCTURE),
+                    PERFORMANCE_SCHEMA_str.str, m_name.str);
 
   lex_end(&dummy_lex);
   thd->lex= old_lex;
@@ -698,6 +700,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
     case 40:
       name= "(PFS_FILE_HANDLE).MEMORY";
       size= file_handle_max * sizeof(PFS_file*);
+      total_memory+= size;
       break;
     case 41:
       name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.ROW_SIZE";
@@ -712,13 +715,41 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= thread_max * instr_class_per_thread * sizeof(PFS_single_stat_chain);
       total_memory+= size;
       break;
+    case 44:
+      name= "(PFS_TABLE_SHARE).ROW_SIZE";
+      size= sizeof(PFS_table_share);
+      break;
+    case 45:
+      name= "(PFS_TABLE_SHARE).ROW_COUNT";
+      size= table_share_max;
+      break;
+    case 46:
+      name= "(PFS_TABLE_SHARE).MEMORY";
+      size= table_share_max * sizeof(PFS_table_share);
+      total_memory+= size;
+      break;
+    case 47:
+      name= "(PFS_TABLE).ROW_SIZE";
+      size= sizeof(PFS_table);
+      break;
+    case 48:
+      name= "(PFS_TABLE).ROW_COUNT";
+      size= table_max;
+      break;
+    case 49:
+      name= "(PFS_TABLE).MEMORY";
+      size= table_max * sizeof(PFS_table);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 44:
+    case 50:
       name= "PERFORMANCE_SCHEMA.MEMORY";
       size= total_memory;
+      /* This will fail if something is not advertised here */
+      DBUG_ASSERT(size == pfs_allocated_memory);
       break;
     default:
       goto end;

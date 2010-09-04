@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/ha_perfschema.cc
@@ -147,7 +147,7 @@ mysql_declare_plugin(perfschema)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &pfs_storage_engine,
   pfs_engine_name,
-  "Marc Alff, Sun Microsystems",
+  "Marc Alff, Oracle", /* Formerly Sun Microsystems, formerly MySQL */
   "Performance Schema",
   PLUGIN_LICENSE_GPL,
   pfs_init_func,                                /* Plugin Init */
@@ -187,8 +187,6 @@ int ha_perfschema::open(const char *name, int mode, uint test_if_locked)
   thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, NULL);
   ref_length= m_table_share->m_ref_length;
 
-  psi_open();
-
   DBUG_RETURN(0);
 }
 
@@ -198,8 +196,6 @@ int ha_perfschema::close(void)
   m_table_share= NULL;
   delete m_table;
   m_table= NULL;
-
-  psi_close();
 
   DBUG_RETURN(0);
 }

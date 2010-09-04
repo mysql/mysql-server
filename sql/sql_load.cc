@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Copy data from a textfile to table */
@@ -34,7 +34,7 @@
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <m_ctype.h>
 #include "rpl_mi.h"
-#include "sql_repl.h"
+#include "rpl_slave.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
 
@@ -132,6 +132,7 @@ static int read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* db_arg, /* table's database */
                                                const char* table_name_arg,
+                                               bool is_concurrent,
                                                enum enum_duplicates duplicates,
                                                bool ignore,
                                                bool transactional_table,
@@ -174,6 +175,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
+  THD::killed_state killed_status= THD::NOT_KILLED;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -184,8 +186,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
   bool transactional_table;
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  bool is_concurrent;
   DBUG_ENTER("mysql_load");
+
+  /*
+    Bug #34283
+    mysqlbinlog leaves tmpfile after termination if binlog contains
+    load data infile, so in mixed mode we go to row-based for
+    avoiding the problem.
+  */
+  thd->set_current_stmt_binlog_format_row_if_mixed();
 
 #ifdef EMBEDDED_LIBRARY
   read_file_from_client  = 0; //server is always in the same process 
@@ -245,6 +255,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   table= table_list->table;
   transactional_table= table->file->has_transactions();
+  is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
 
   if (!fields_vars.elements)
   {
@@ -352,7 +363,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
                        MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
                        MY_RETURN_REAL_PATH);
-#if !defined(__WIN__) && ! defined(__NETWARE__)
+#if !defined(__WIN__)
       MY_STAT stat_info;
       if (!mysql_file_stat(key_file_load, name, &stat_info, MYF(MY_WME)))
 	DBUG_RETURN(TRUE);
@@ -394,16 +405,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         DBUG_ASSERT(FALSE); 
 #endif
       }
-      else if (opt_secure_file_priv)
+      else if (!is_secure_file_path(name))
       {
-        char secure_file_real_path[FN_REFLEN];
-        (void) my_realpath(secure_file_real_path, opt_secure_file_priv, 0);
-        if (strncmp(secure_file_real_path, name, strlen(secure_file_real_path)))
-        {
-          /* Read only allowed from within dir specified by secure_file_priv */
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-          DBUG_RETURN(TRUE);
-        }
+        /* Read only allowed from within dir specified by secure_file_priv */
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+        DBUG_RETURN(TRUE);
       }
 
     }
@@ -512,7 +518,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                     error=1;
                     thd->killed= THD::KILL_QUERY;
                   };);
-  killed_status= (error == 0)? THD::NOT_KILLED : thd->killed;
+
+#ifndef EMBEDDED_LIBRARY
+  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+#endif
+
   /*
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
@@ -555,20 +565,20 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	if (lf_info.wrote_create_file)
 	{
           int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-          
+
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
 	  if (thd->transaction.stmt.modified_non_trans_table)
             (void) write_execute_load_query_log_event(thd, ex,
                                                       table_list->db, 
                                                       table_list->table_name,
+                                                      is_concurrent,
                                                       handle_duplicates, ignore,
                                                       transactional_table,
                                                       errcode);
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
-            d.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
 	    (void) mysql_bin_log.write(&d);
 	  }
 	}
@@ -610,6 +620,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
         error= write_execute_load_query_log_event(thd, ex,
                                                   table_list->db, table_list->table_name,
+                                                  is_concurrent,
                                                   handle_duplicates, ignore,
                                                   transactional_table,
                                                   errcode);
@@ -638,6 +649,7 @@ err:
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* db_arg,  /* table's database */
                                                const char* table_name_arg,
+                                               bool is_concurrent,
                                                enum enum_duplicates duplicates,
                                                bool ignore,
                                                bool transactional_table,
@@ -673,8 +685,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     tbl= string_buf.c_ptr_safe();
   }
 
-  Load_log_event       lle(thd, ex, tdb, tbl, fv, duplicates,
-                           ignore, transactional_table);
+  Load_log_event       lle(thd, ex, tdb, tbl, fv, is_concurrent,
+                           duplicates, ignore, transactional_table);
 
   /*
     force in a LOCAL if there was one in the original.
@@ -742,16 +754,13 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   strcpy(end, p);
   end += pl;
 
-  thd->set_query_inner(load_data_query, end - load_data_query);
-
   Execute_load_query_log_event
-    e(thd, thd->query(), thd->query_length(),
-      (uint) ((char*) fname_start - (char*) thd->query() - 1),
-      (uint) ((char*) fname_end - (char*) thd->query()),
+    e(thd, load_data_query, end-load_data_query,
+      (uint) ((char*) fname_start - load_data_query - 1),
+      (uint) ((char*) fname_end - load_data_query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
-  e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }
 
@@ -770,12 +779,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item_field *sql_field;
   TABLE *table= table_list->table;
-  ulonglong id;
   bool err;
   DBUG_ENTER("read_fixed_length");
 
-  id= 0;
- 
   while (!read_info.read_fixed_length())
   {
     if (thd->killed)
@@ -904,12 +910,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item *item;
   TABLE *table= table_list->table;
   uint enclosed_length;
-  ulonglong id;
   bool err;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
-  id= 0;
 
   for (;;it.rewind())
   {
@@ -998,6 +1002,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         DBUG_RETURN(1);
       }
     }
+
+    if (thd->is_error())
+      read_info.error= 1;
+
     if (read_info.error)
       break;
     if (skip_lines)
@@ -1336,7 +1344,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      (is_fifo ? READ_FIFO : READ_CACHE),0L,1,
 		      MYF(MY_WME)))
     {
-      my_free((uchar*) buffer,MYF(0)); /* purecov: inspected */
+      my_free(buffer); /* purecov: inspected */
       error=1;
     }
     else
@@ -1367,7 +1375,7 @@ READ_INFO::~READ_INFO()
   {
     if (need_end_io_cache)
       ::end_io_cache(&cache);
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
     error=1;
   }
   List_iterator<XML_TAG> xmlit(taglist);
@@ -1440,29 +1448,6 @@ int READ_INFO::read_field()
     while ( to < end_of_buff)
     {
       chr = GET;
-#ifdef USE_MB
-      if ((my_mbcharlen(read_charset, chr) > 1) &&
-          to+my_mbcharlen(read_charset, chr) <= end_of_buff)
-      {
-	  uchar* p = (uchar*)to;
-	  *to++ = chr;
-	  int ml = my_mbcharlen(read_charset, chr);
-	  int i;
-	  for (i=1; i<ml; i++) {
-	      chr = GET;
-	      if (chr == my_b_EOF)
-		  goto found_eof;
-	      *to++ = chr;
-	  }
-	  if (my_ismbchar(read_charset,
-                          (const char *)p,
-                          (const char *)to))
-	    continue;
-	  for (i=0; i<ml; i++)
-	    PUSH((uchar) *--to);
-	  chr = GET;
-      }
-#endif
       if (chr == my_b_EOF)
 	goto found_eof;
       if (chr == escape_char)
@@ -1546,6 +1531,39 @@ int READ_INFO::read_field()
 	  return 0;
 	}
       }
+#ifdef USE_MB
+      if (my_mbcharlen(read_charset, chr) > 1 &&
+          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+      {
+        uchar* p= (uchar*) to;
+        int ml, i;
+        *to++ = chr;
+
+        ml= my_mbcharlen(read_charset, chr);
+
+        for (i= 1; i < ml; i++) 
+        {
+          chr= GET;
+          if (chr == my_b_EOF)
+          {
+            /*
+             Need to back up the bytes already ready from illformed
+             multi-byte char 
+            */
+            to-= i;
+            goto found_eof;
+          }
+          *to++ = chr;
+        }
+        if (my_ismbchar(read_charset,
+                        (const char *)p,
+                        (const char *)to))
+          continue;
+        for (i= 0; i < ml; i++)
+          PUSH((uchar) *--to);
+        chr= GET;
+      }
+#endif
       *to++ = (uchar) chr;
     }
     /*
@@ -1711,7 +1729,7 @@ bool READ_INFO::find_start_of_fields()
 /*
   Clear taglist from tags with a specified level
 */
-int READ_INFO::clear_level(int level)
+int READ_INFO::clear_level(int level_arg)
 {
   DBUG_ENTER("READ_INFO::read_xml clear_level");
   List_iterator<XML_TAG> xmlit(taglist);
@@ -1720,7 +1738,7 @@ int READ_INFO::clear_level(int level)
   
   while ((tag= xmlit++))
   {
-     if(tag->level >= level)
+     if(tag->level >= level_arg)
      {
        xmlit.remove();
        delete tag;

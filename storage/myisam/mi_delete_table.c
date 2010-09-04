@@ -22,49 +22,41 @@
 int mi_delete_table(const char *name)
 {
   char from[FN_REFLEN];
-#ifdef USE_RAID
-  uint raid_type=0,raid_chunks=0;
-#endif
   DBUG_ENTER("mi_delete_table");
 
 #ifdef EXTRA_DEBUG
   check_table_is_closed(name,"delete");
 #endif
-#ifdef USE_RAID
-  {
-    MI_INFO *info;
-    /*
-      When built with RAID support, we need to determine if this table
-      makes use of the raid feature. If yes, we need to remove all raid
-      chunks. This is done with my_raid_delete(). Unfortunately it is
-      necessary to open the table just to check this. We use
-      'open_for_repair' to be able to open even a crashed table. If even
-      this open fails, we assume no raid configuration for this table
-      and try to remove the normal data file only. This may however
-      leave the raid chunks behind.
-    */
-    if (!(info= mi_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR)))
-      raid_type= 0;
-    else
-    {
-      raid_type=   info->s->base.raid_type;
-      raid_chunks= info->s->base.raid_chunks;
-      mi_close(info);
-    }
-  }
-#ifdef EXTRA_DEBUG
-  check_table_is_closed(name,"delete");
-#endif
-#endif /* USE_RAID */
 
   fn_format(from,name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (mysql_file_delete_with_symlink(mi_key_file_kfile, from, MYF(MY_WME)))
-    DBUG_RETURN(my_errno);
+  if (my_is_symlink(from) && (*myisam_test_invalid_symlink)(from))
+  {
+    /*
+      Symlink is pointing to file in data directory.
+      Remove symlink, keep file.
+    */
+    if (mysql_file_delete(mi_key_file_kfile, from, MYF(MY_WME)))
+      DBUG_RETURN(my_errno);
+  }
+  else
+  {
+    if (mysql_file_delete_with_symlink(mi_key_file_kfile, from, MYF(MY_WME)))
+      DBUG_RETURN(my_errno);
+  }
   fn_format(from,name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-#ifdef USE_RAID
-  if (raid_type)
-    DBUG_RETURN(my_raid_delete(from, raid_chunks, MYF(MY_WME)) ? my_errno : 0);
-#endif
-  DBUG_RETURN(mysql_file_delete_with_symlink(mi_key_file_dfile,
-                                             from, MYF(MY_WME)) ? my_errno : 0);
+  if (my_is_symlink(from) && (*myisam_test_invalid_symlink)(from))
+  {
+    /*
+      Symlink is pointing to file in data directory.
+      Remove symlink, keep file.
+    */
+    if (mysql_file_delete(mi_key_file_dfile, from, MYF(MY_WME)))
+      DBUG_RETURN(my_errno);
+  }
+  else
+  {
+    if (mysql_file_delete_with_symlink(mi_key_file_dfile, from, MYF(MY_WME)))
+      DBUG_RETURN(my_errno);
+  }
+  DBUG_RETURN(0);
 }

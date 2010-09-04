@@ -1,6 +1,8 @@
 --source include/not_windows.inc
 --source include/have_federated_plugin.inc
 
+--skip federated plugin is disabled
+
 CREATE TABLE t1(a int) ENGINE=FEDERATED;
 DROP TABLE t1;
 

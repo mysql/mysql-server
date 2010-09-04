@@ -298,7 +298,7 @@ RENAME TABLE v1 TO v2;
 # RENAME VIEW is not available even when we try it via rename table.
 --error ER_PARSE_ERROR
 RENAME VIEW  v2 TO v1;
-#--error ER_WRONG_OBJECT
+--error ER_WRONG_OBJECT
 ALTER TABLE v2 RENAME AS v1;
 --error ER_PARSE_ERROR
 ALTER VIEW  v1 RENAME AS v2;

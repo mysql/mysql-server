@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2003 MySQL AB
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -171,8 +171,9 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
       SELECT is last SELECT of UNION).
     */
     if ((res= derived_result->create_result_table(thd, &unit->types, FALSE,
-                                                 create_options,
-                                                 orig_table_list->alias)))
+                                                  create_options,
+                                                  orig_table_list->alias,
+                                                  FALSE)))
       goto exit;
 
     table= derived_result->table;
@@ -285,13 +286,13 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 
       lex->current_select= first_select;
       res= mysql_select(thd, &first_select->ref_pointer_array,
-			(TABLE_LIST*) first_select->table_list.first,
+			first_select->table_list.first,
 			first_select->with_wild,
 			first_select->item_list, first_select->where,
 			(first_select->order_list.elements+
 			 first_select->group_list.elements),
-			(ORDER *) first_select->order_list.first,
-			(ORDER *) first_select->group_list.first,
+			first_select->order_list.first,
+			first_select->group_list.first,
 			first_select->having, (ORDER*) NULL,
 			(first_select->options | thd->variables.option_bits |
 			 SELECT_NO_UNLOCK),

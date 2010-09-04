@@ -42,7 +42,7 @@
 
 my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
                             void *init_buffer, uint init_alloc, 
-                            uint alloc_increment CALLER_INFO_PROTO)
+                            uint alloc_increment)
 {
   DBUG_ENTER("init_dynamic_array");
   if (!alloc_increment)
@@ -67,14 +67,13 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
     Since the dynamic array is usable even if allocation fails here malloc
     should not throw an error
   */
-  if (!(array->buffer= (uchar*) my_malloc_ci(element_size*init_alloc, MYF(0))))
+  if (!(array->buffer= (uchar*) my_malloc(element_size*init_alloc, MYF(0))))
     array->max_element=0;
   DBUG_RETURN(FALSE);
 } 
 
 my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-                           uint init_alloc, 
-                           uint alloc_increment CALLER_INFO_PROTO)
+                           uint init_alloc, uint alloc_increment)
 {
   /* placeholder to preserve ABI */
   return my_init_dynamic_array_ci(array, element_size, init_alloc, 
@@ -306,7 +305,7 @@ void delete_dynamic(DYNAMIC_ARRAY *array)
   else
   if (array->buffer)
   {
-    my_free(array->buffer,MYF(MY_WME));
+    my_free(array->buffer);
     array->buffer=0;
     array->elements=array->max_element=0;
   }

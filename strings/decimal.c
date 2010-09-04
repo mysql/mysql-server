@@ -952,12 +952,12 @@ int decimal2double(decimal_t *from, double *to)
 
   rc = decimal2string(from, strbuf, &len, 0, 0, 0);
   end= strbuf + len;
-  
+
   DBUG_PRINT("info", ("interm.: %s", strbuf));
 
   *to= my_strtod(strbuf, &end, &error);
-             
-  DBUG_PRINT("info", ("result: %f (%lx)", *to, *(ulong *)to));
+
+  DBUG_PRINT("info", ("result: %f", *to));
 
   return (rc != E_DEC_OK) ? rc : (error ? E_DEC_OVERFLOW : E_DEC_OK);
 }
@@ -1917,8 +1917,7 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
 int decimal_intg(decimal_t *from)
 {
   int res;
-  dec1 *tmp_res;
-  tmp_res= remove_leading_zeroes(from, &res);
+  remove_leading_zeroes(from, &res);
   return res;
 }
 

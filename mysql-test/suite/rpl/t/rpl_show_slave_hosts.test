@@ -25,8 +25,7 @@ let $field= Server_id;
 # 3 is server_id of slave2.
 let $connection= ='3';
 source include/wait_show_condition.inc;
---replace_result $SLAVE_MYPORT SLAVE_PORT $DEFAULT_MASTER_PORT DEFAULT_PORT
-SHOW SLAVE HOSTS;
+source include/show_slave_hosts.inc;
 
 connection slave2;
 STOP SLAVE IO_THREAD;
@@ -41,7 +40,6 @@ let $condition= <> '3';
 # knew the leave of slave2 and has unregistered it.
 let $wait_for_all= 1;
 source include/wait_show_condition.inc;
---replace_result $SLAVE_MYPORT SLAVE_PORT
-SHOW SLAVE HOSTS;
+source include/show_slave_hosts.inc;
 
 source include/master-slave-end.inc;

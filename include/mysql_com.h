@@ -197,7 +197,14 @@ enum enum_server_command
                                                & ~CLIENT_COMPRESS) \
                                                & ~CLIENT_SSL_VERIFY_SERVER_CERT)
 
-#define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
+/**
+  Is raised when a multi-statement transaction
+  has been started, either explicitly, by means
+  of BEGIN or COMMIT AND CHAIN, or
+  implicitly, by the first transactional
+  statement, when autocommit=off.
+*/
+#define SERVER_STATUS_IN_TRANS     1
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
 #define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
 #define SERVER_QUERY_NO_GOOD_INDEX_USED 16
@@ -300,6 +307,16 @@ typedef struct st_net {
   /** Client library sqlstate buffer. Set along with the error message. */
   char sqlstate[SQLSTATE_LENGTH+1];
   void *extension;
+#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+  /*
+    Controls whether a big packet should be skipped.
+
+    Initially set to FALSE by default. Unauthenticated sessions must have
+    this set to FALSE so that the server can't be tricked to read packets
+    indefinitely.
+  */
+  my_bool skip_big_packet;
+#endif
 } NET;
 
 

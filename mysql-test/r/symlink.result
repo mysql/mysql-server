@@ -168,4 +168,16 @@ Warning	1618	<DATA DIRECTORY> option ignored
 Warning	1618	<INDEX DIRECTORY> option ignored
 DROP TABLE t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
+#
+# BUG#40980 - Drop table can remove another MyISAM table's
+#             data and index files
+#
+CREATE TABLE user(a INT) DATA DIRECTORY='MYSQL_TMP_DIR/mysql'
+                             INDEX DIRECTORY='MYSQL_TMP_DIR/mysql';
+FLUSH TABLE user;
+# Symlinking mysql database to tmpdir
+FLUSH TABLE mysql.user;
+DROP TABLE user;
+FLUSH TABLE mysql.user;
+SELECT * FROM mysql.user;
 End of 5.1 tests

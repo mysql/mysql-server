@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,10 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ut0byte.h"
 
-/** prepare trx_t::id for being printed via printf(3) */
-#define TRX_ID_PREP_PRINTF(id)	(ullint) ut_conv_dulint_to_longlong(id)
-
-/** printf(3) format used for printing TRX_ID_PRINTF_PREP() */
+/** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT		"%llX"
 
 /** maximum length that a formatted trx_t::id could take, not including
@@ -70,16 +67,25 @@ typedef struct trx_named_savept_struct trx_named_savept_t;
 enum trx_rb_ctx {
 	RB_NONE = 0,	/*!< no rollback */
 	RB_NORMAL,	/*!< normal rollback */
+	RB_RECOVERY_PURGE_REC,
+			/*!< rolling back an incomplete transaction,
+			in crash recovery, rolling back an
+			INSERT that was performed by updating a
+			delete-marked record; if the delete-marked record
+			no longer exists in an active read view, it will
+			be purged */
 	RB_RECOVERY	/*!< rolling back an incomplete transaction,
 			in crash recovery */
 };
 
+/** Row identifier (DB_ROW_ID, DATA_ROW_ID) */
+typedef ib_id_t	row_id_t;
 /** Transaction identifier (DB_TRX_ID, DATA_TRX_ID) */
-typedef dulint	trx_id_t;
+typedef ib_id_t	trx_id_t;
 /** Rollback pointer (DB_ROLL_PTR, DATA_ROLL_PTR) */
-typedef dulint	roll_ptr_t;
+typedef ib_id_t	roll_ptr_t;
 /** Undo number */
-typedef dulint	undo_no_t;
+typedef ib_id_t	undo_no_t;
 
 /** Transaction savepoint */
 typedef struct trx_savept_struct trx_savept_t;

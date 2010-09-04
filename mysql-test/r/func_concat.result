@@ -118,7 +118,7 @@ EXPLAIN SELECT CONCAT('gui_', t2.a), t1.d FROM t2
 LEFT JOIN t1 ON t1.a = CONCAT('gui_', t2.a) AND t1.b = 'a' AND t1.c = 'b';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	PRIMARY	102	NULL	3	Using index
-1	SIMPLE	t1	eq_ref	PRIMARY,a	PRIMARY	318	func,const,const	1	
+1	SIMPLE	t1	eq_ref	PRIMARY,a	PRIMARY	318	func,const,const	1	Using where
 DROP TABLE t1, t2;
 #
 # Bug #50096: CONCAT_WS inside procedure returning wrong data
@@ -129,5 +129,23 @@ CALL p1("abcde", "0", "1234");
 SELECT @query;
 @query
 abcde,0,1234
+DROP PROCEDURE p1;
+#
+# Bug #40625: Concat fails on DOUBLE values in a Stored Procedure,
+#             while DECIMAL works
+#
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v1 DOUBLE(10,3);
+SET v1= 100;
+SET @s = CONCAT('########################################', 40 , v1);
+SELECT @s;
+END;//
+CALL p1();
+@s
+########################################40100.000
+CALL p1();
+@s
+########################################40100.000
 DROP PROCEDURE p1;
 # End of 5.1 tests

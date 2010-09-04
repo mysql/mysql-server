@@ -29,9 +29,6 @@ include $(top_srcdir)/storage/ndb/config/type_util.mk.am
 
 #ndbtest_PROGRAMS = ndb_test_mgmapi
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: libmgmapi.dsp
 
 libmgmapi.dsp: Makefile \

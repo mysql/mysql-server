@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,7 @@ Created 5/27/1996 Heikki Tuuri
 #include "data0data.h"
 #include "dict0types.h"
 #include "trx0trx.h"
+#include "trx0roll.h"
 #include "srv0srv.h"
 #include "usr0types.h"
 #include "que0types.h"
@@ -215,6 +216,16 @@ trx_t*
 thr_get_trx(
 /*========*/
 	que_thr_t*	thr);	/*!< in: query thread */
+/*******************************************************************//**
+Determines if this thread is rolling back an incomplete transaction
+in crash recovery.
+@return TRUE if thr is rolling back an incomplete transaction in crash
+recovery */
+UNIV_INLINE
+ibool
+thr_is_recv(
+/*========*/
+	const que_thr_t*	thr);	/*!< in: query thread */
 /***********************************************************************//**
 Gets the type of a graph node. */
 UNIV_INLINE
@@ -410,9 +421,6 @@ struct que_fork_struct{
 	ibool		cur_on_row;	/*!< TRUE if cursor is on a row, i.e.,
 					it is not before the first row or
 					after the last row */
-	dulint		n_inserts;	/*!< number of rows inserted */
-	dulint		n_updates;	/*!< number of rows updated */
-	dulint		n_deletes;	/*!< number of rows deleted */
 	sel_node_t*	last_sel_node;	/*!< last executed select node, or NULL
 					if none */
 	UT_LIST_NODE_T(que_fork_t)

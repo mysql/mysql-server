@@ -27,12 +27,6 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-SET_STACK_SIZE(9000)			/* Minimum stack size for program */
-
-#ifndef USE_RAID
-#define my_raid_create(A,B,C,D,E,F,G) my_create(A,B,C,G)
-#define my_raid_delete(A,B,C) my_delete(A,B)
-#endif
 
 static uint decode_bits;
 static char **default_argv;
@@ -148,7 +142,7 @@ enum options_mc {
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
-  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD
+  OPT_MAX_RECORD_LENGTH, OPT_STATS_METHOD
 };
 
 static struct my_option my_long_options[] =
@@ -156,10 +150,6 @@ static struct my_option my_long_options[] =
   {"analyze", 'a',
    "Analyze distribution of keys. Will make some joins in MySQL faster. You can check the calculated distribution.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"block-search", 'b',
    "No help available.",
    0, 0, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -168,7 +158,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
-   (uchar**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "Check table for errors.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -188,8 +178,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"data-file-length", 'D',
    "Max length of data file (when recreating data-file when it's full).",
-   (uchar**) &check_param.max_data_file_length,
-   (uchar**) &check_param.max_data_file_length,
+   &check_param.max_data_file_length,
+   &check_param.max_data_file_length,
    0, GET_LL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extend-check", 'e',
    "If used when checking a table, ensure that the table is 100 percent consistent, which will take a long time. If used when repairing a table, try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option with repair if you are not totally desperate.",
@@ -211,13 +201,13 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"keys-used", 'k',
    "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts.",
-   (uchar**) &check_param.keys_in_use,
-   (uchar**) &check_param.keys_in_use,
+   &check_param.keys_in_use,
+   &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"max-record-length", OPT_MAX_RECORD_LENGTH,
    "Skip rows bigger than this if myisamchk can't allocate memory to hold it",
-   (uchar**) &check_param.max_record_length,
-   (uchar**) &check_param.max_record_length,
+   &check_param.max_record_length,
+   &check_param.max_record_length,
    0, GET_ULL, REQUIRED_ARG, LONGLONG_MAX, 0, LONGLONG_MAX, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extend-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
@@ -246,12 +236,12 @@ static struct my_option my_long_options[] =
 #endif
   {"set-auto-increment", 'A',
    "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.",
-   (uchar**) &check_param.auto_increment_value,
-   (uchar**) &check_param.auto_increment_value,
+   &check_param.auto_increment_value,
+   &check_param.auto_increment_value,
    0, GET_ULL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"set-collation", OPT_SET_COLLATION,
    "Change the collation used by the index",
-   (uchar**) &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's',
    "Only print errors. One can use two -s to make myisamchk very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -260,12 +250,12 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sort-records", 'R',
    "Sort records according to an index. This makes your data much more localized and may speed up things. (It may be VERY slow to do a sort the first time!)",
-   (uchar**) &check_param.opt_sort_key,
-   (uchar**) &check_param.opt_sort_key,
+   &check_param.opt_sort_key,
+   &check_param.opt_sort_key,
    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files.",
-   (uchar**) &opt_tmpdir,
+   &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
    "Mark tables as crashed if any errors were found.",
@@ -283,66 +273,63 @@ static struct my_option my_long_options[] =
    "Wait if table is locked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "key_buffer_size", OPT_KEY_BUFFER_SIZE, "",
-    (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
+    &check_param.use_buffers, &check_param.use_buffers, 0,
     GET_ULL, REQUIRED_ARG, USE_BUFFER_INIT, MALLOC_OVERHEAD,
     SIZE_T_MAX, MALLOC_OVERHEAD,  IO_SIZE, 0},
   { "key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,  "",
-    (uchar**) &opt_key_cache_block_size,
-    (uchar**) &opt_key_cache_block_size, 0,
+    &opt_key_cache_block_size,
+    &opt_key_cache_block_size, 0,
     GET_LONG, REQUIRED_ARG, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH,
     MI_MAX_KEY_BLOCK_LENGTH, 0, MI_MIN_KEY_BLOCK_LENGTH, 0},
   { "myisam_block_size", OPT_MYISAM_BLOCK_SIZE,  "",
-    (uchar**) &opt_myisam_block_size, (uchar**) &opt_myisam_block_size, 0,
+    &opt_myisam_block_size, &opt_myisam_block_size, 0,
     GET_LONG, REQUIRED_ARG, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH,
     MI_MAX_KEY_BLOCK_LENGTH, 0, MI_MIN_KEY_BLOCK_LENGTH, 0},
   { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
-    (uchar**) &check_param.read_buffer_length,
-    (uchar**) &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.read_buffer_length,
+    &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     INT_MAX32, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "write_buffer_size", OPT_WRITE_BUFFER_SIZE, "",
-    (uchar**) &check_param.write_buffer_length,
-    (uchar**) &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.write_buffer_length,
+    &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     INT_MAX32, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
-    (uchar**) &check_param.sort_buffer_length,
-    (uchar**) &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.sort_buffer_length,
+    &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
     ULONG_MAX, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
-    (uchar**) &check_param.sort_key_blocks,
-    (uchar**) &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.sort_key_blocks,
+    &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
     BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
-  { "decode_bits", OPT_DECODE_BITS, "", (uchar**) &decode_bits,
-    (uchar**) &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
-  { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", (uchar**) &ft_min_word_len,
-    (uchar**) &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN,
+  { "decode_bits", OPT_DECODE_BITS, "", &decode_bits,
+    &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
+  { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", &ft_min_word_len,
+    &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN,
     0, 1, 0},
-  { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (uchar**) &ft_max_word_len,
-    (uchar**) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXCHARLEN, 10,
+  { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", &ft_max_word_len,
+    &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXCHARLEN, 10,
     HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_stopword_file", OPT_FT_STOPWORD_FILE,
     "Use stopwords from this file instead of built-in list.",
-    (uchar**) &ft_stopword_file, (uchar**) &ft_stopword_file, 0, GET_STR,
+    &ft_stopword_file, &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"stats_method", OPT_STATS_METHOD,
    "Specifies how index statistics collection code should treat NULLs. "
    "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
    "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
-   (uchar**) &myisam_stats_method_str, (uchar**) &myisam_stats_method_str, 0,
+   &myisam_stats_method_str, &myisam_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
-#include <help_start.h>
-
 static void print_version(void)
 {
   printf("%s  Ver 2.7 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -364,7 +351,7 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined( __WIN__)
    printf("semicolon (;)");
 #else
    printf("colon (:)");
@@ -460,7 +447,6 @@ static void usage(void)
   my_print_variables(my_long_options);
 }
 
-#include <help_end.h>
 
 const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
                                            "nulls_ignored", NullS};
@@ -476,11 +462,6 @@ get_one_option(int optid,
 	       char *argument)
 {
   switch (optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'a':
     if (argument == disabled_my_option)
       check_param.testflag&= ~T_STATISTICS;
@@ -795,7 +776,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 {
   int error,lock_type,recreate;
   int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
-  uint raid_chunks;
   MI_INFO *info;
   File datafile;
   char llbuff[22],llbuff2[22];
@@ -857,7 +837,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
   share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
   share->tot_locks-= share->r_locks;
   share->r_locks=0;
-  raid_chunks=share->base.raid_chunks;
 
   /*
     Skip the checking of the file if:
@@ -1026,9 +1005,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  (void) my_close(info->dfile,MYF(MY_WME)); /* Close new file */
-	  error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
-				   raid_chunks,
-				   MYF(0));
+	  error|=change_to_newfile(filename, MI_NAME_DEXT, DATA_TMP_EXT, MYF(0));
 	  if (mi_open_datafile(info,info->s, NULL, -1))
 	    error=1;
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
@@ -1159,12 +1136,10 @@ end2:
   {
     if (param->out_flag & O_NEW_DATA)
       error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
-			       raid_chunks,
 			       ((param->testflag & T_BACKUP_DATA) ?
 				MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
     if (param->out_flag & O_NEW_INDEX)
-      error|=change_to_newfile(filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
-			       MYF(0));
+      error|=change_to_newfile(filename, MI_NAME_IEXT, INDEX_TMP_EXT, MYF(0));
   }
   (void) fflush(stdout); (void) fflush(stderr);
   if (param->error_printed)
@@ -1260,16 +1235,9 @@ static void descript(MI_CHECK *param, register MI_INFO *info, char * name)
 	     share->base.auto_key,
 	     llstr(share->state.auto_increment,llbuff));
     }
-    if (share->base.raid_type)
-    {
-      printf("RAID:                Type:  %u   Chunks: %u  Chunksize: %lu\n",
-	     share->base.raid_type,
-	     share->base.raid_chunks,
-	     share->base.raid_chunksize);
-    }
     if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
       printf("Checksum:  %23s\n",llstr(info->state->checksum,llbuff));
-;
+
     if (share->options & HA_OPTION_DELAY_KEY_WRITE)
       printf("Keys are only flushed at close\n");
 
@@ -1540,14 +1508,11 @@ static int mi_sort_records(MI_CHECK *param,
     goto err;
   }
   fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
-  new_file=my_raid_create(fn_format(param->temp_filename,
-				    param->temp_filename,"",
-				    DATA_TMP_EXT,2+4),
-			  0,param->tmpfile_createflag,
-			  share->base.raid_type,
-			  share->base.raid_chunks,
-			  share->base.raid_chunksize,
-			  MYF(0));
+  new_file= my_create(fn_format(param->temp_filename,
+                                param->temp_filename, "",
+                                DATA_TMP_EXT, 2+4),
+                      0, param->tmpfile_createflag,
+                      MYF(0));
   if (new_file < 0)
   {
     mi_check_print_error(param,"Can't create new tempfile: '%s'",
@@ -1622,18 +1587,16 @@ err:
   {
     (void) end_io_cache(&info->rec_cache);
     (void) my_close(new_file,MYF(MY_WME));
-    (void) my_raid_delete(param->temp_filename, share->base.raid_chunks,
-			  MYF(MY_WME));
+    (void) my_delete(param->temp_filename, MYF(MY_WME));
   }
   if (temp_buff)
   {
     my_afree((uchar*) temp_buff);
   }
-  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
-          MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   (void) end_io_cache(&info->rec_cache);
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_info.buff);
   sort_info.buff=0;
   share->state.sortkey=sort_key;
   DBUG_RETURN(flush_blocks(param, share->key_cache, share->kfile) |
@@ -1673,7 +1636,6 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
   endpos=buff+used_length;
   for ( ;; )
   {
-    _sanity(__FILE__,__LINE__);
     if (nod_flag)
     {
       next_page=_mi_kpos(nod_flag,keypos);
@@ -1689,7 +1651,6 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
 			    new_file, update_index))
 	goto err;
     }
-    _sanity(__FILE__,__LINE__);
     if (keypos >= endpos ||
 	(key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,lastkey))
 	== 0)

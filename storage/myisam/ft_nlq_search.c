@@ -123,7 +123,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
       goto do_skip;
     }
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-    tmp_weight=*(float*)&subkeys;
+    ft_floatXget(tmp_weight, info->lastkey+info->lastkey_length-extra);
 #else
 #error
 #endif
@@ -197,7 +197,8 @@ static int walk_and_push(FT_SUPERDOC *from,
 static int FT_DOC_cmp(void *unused __attribute__((unused)),
                       FT_DOC *a, FT_DOC *b)
 {
-  return sgn(b->weight - a->weight);
+  double c= b->weight - a->weight;
+  return ((c < 0) ? -1 : (c > 0) ? 1 : 0);
 }
 
 
@@ -357,7 +358,7 @@ float ft_nlq_find_relevance(FT_INFO *handler,
 
 void ft_nlq_close_search(FT_INFO *handler)
 {
-  my_free((uchar*)handler,MYF(0));
+  my_free(handler);
 }
 
 

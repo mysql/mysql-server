@@ -59,34 +59,19 @@ disable_query_log;
 --error 0,1
 --remove_file $MYSQLTEST_VARDIR/tmp/diff_table_2
 
-# sets connections to current and later we change if needed
--- let $conn1= $CURRENT_CONNECTION
--- let $conn2= $CURRENT_CONNECTION
--- let $tbl1= $diff_table_1
--- let $tbl2= $diff_table_2
 
-# if a connection prefix was provided for table 1, we parse it
-# and update the connection and table variables
-if (`SELECT '$diff_table_1' LIKE '_%:_%'`)
-{
-  -- let $conn1= `SELECT SUBSTRING_INDEX('$diff_table_1', ':', 1)`
-  -- let $tbl1= `SELECT SUBSTRING_INDEX('$diff_table_1', ':', -1)`
-}
-
-# if a connection prefix was provided for table 2, we parse it
-# and update the connection and table variables
-if (`SELECT '$diff_table_2' LIKE '_%:_%'`)
-{
-  -- let $conn2= `SELECT SUBSTRING_INDEX('$diff_table_2', ':', 1)`
-  -- let $tbl2= `SELECT SUBSTRING_INDEX('$diff_table_1', ':', -1)`
-}
-
-let $_diff_table=$tbl2;
+let $_diff_table=$diff_table_2;
 let $_diff_i=2;
-let $_connection_name=$conn2;
 while ($_diff_i) {
 
-  -- connection $_connection_name
+  # Parse out any leading "master:" or "slave:" from the table specification
+# and connect the appropriate server.
+  let $_pos= `SELECT LOCATE(':', '$_diff_table')`;
+  let $_diff_conn=`SELECT SUBSTR('$_diff_table', 1, $_pos-1)`;
+  if (`SELECT 'XX$_diff_conn' <> 'XX'`) {
+    let $_diff_table=`SELECT SUBSTR('$_diff_table', $_pos+1)`;
+    connection $_diff_conn;
+  }
 
   # Sanity-check the input.
   let $_diff_error= `SELECT '$_diff_table' NOT LIKE '_%._%'`;
@@ -119,8 +104,7 @@ while ($_diff_i) {
 
   # Do the same for $diff_table_1.
   dec $_diff_i;
-  let $_diff_table=$tbl1;
-  let $_connection_name= $conn1;
+  let $_diff_table=$diff_table_1;
 }
 
 

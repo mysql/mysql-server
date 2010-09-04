@@ -252,7 +252,7 @@ static void test_key_cache(KEY_CACHE *keycache,
 
 #if defined(KEYCACHE_DEBUG_LOG)
 static FILE *keycache_debug_log=NULL;
-static void keycache_debug_print _VARARGS((const char *fmt,...));
+static void keycache_debug_print(const char *fmt,...);
 #define KEYCACHE_DEBUG_OPEN                                                   \
           if (!keycache_debug_log)                                            \
           {                                                                   \
@@ -446,7 +446,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
         if ((keycache->block_root= (BLOCK_LINK*) my_malloc(length,
                                                            MYF(0))))
           break;
-        my_large_free(keycache->block_mem, MYF(0));
+        my_large_free(keycache->block_mem);
         keycache->block_mem= 0;
       }
       if (blocks < 8)
@@ -521,12 +521,12 @@ err:
   keycache->blocks=  0;
   if (keycache->block_mem)
   {
-    my_large_free((uchar*) keycache->block_mem, MYF(0));
+    my_large_free((uchar*) keycache->block_mem);
     keycache->block_mem= NULL;
   }
   if (keycache->block_root)
   {
-    my_free((uchar*) keycache->block_root, MYF(0));
+    my_free(keycache->block_root);
     keycache->block_root= NULL;
   }
   my_errno= error;
@@ -747,9 +747,9 @@ void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
   {
     if (keycache->block_mem)
     {
-      my_large_free((uchar*) keycache->block_mem, MYF(0));
+      my_large_free((uchar*) keycache->block_mem);
       keycache->block_mem= NULL;
-      my_free((uchar*) keycache->block_root, MYF(0));
+      my_free(keycache->block_root);
       keycache->block_root= NULL;
     }
     keycache->disk_blocks= -1;
@@ -2683,10 +2683,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
 #endif
 
           /* Copy data from the cache buffer */
-          if (!(read_length & 511))
-            bmove512(buff, block->buffer+offset, read_length);
-          else
-            memcpy(buff, block->buffer+offset, (size_t) read_length);
+          memcpy(buff, block->buffer+offset, (size_t) read_length);
 
 #if !defined(SERIALIZED_READ_FROM_CACHE)
           keycache_pthread_mutex_lock(&keycache->cache_lock);
@@ -2920,10 +2917,7 @@ int key_cache_insert(KEY_CACHE *keycache,
 #endif
 
           /* Copy data from buff */
-          if (!(read_length & 511))
-            bmove512(block->buffer+offset, buff, read_length);
-          else
-            memcpy(block->buffer+offset, buff, (size_t) read_length);
+          memcpy(block->buffer+offset, buff, (size_t) read_length);
 
 #if !defined(SERIALIZED_READ_FROM_CACHE)
           keycache_pthread_mutex_lock(&keycache->cache_lock);
@@ -3246,10 +3240,7 @@ int key_cache_write(KEY_CACHE *keycache,
 #if !defined(SERIALIZED_READ_FROM_CACHE)
         keycache_pthread_mutex_unlock(&keycache->cache_lock);
 #endif
-        if (!(read_length & 511))
-	  bmove512(block->buffer+offset, buff, read_length);
-        else
-          memcpy(block->buffer+offset, buff, (size_t) read_length);
+        memcpy(block->buffer+offset, buff, (size_t) read_length);
 
 #if !defined(SERIALIZED_READ_FROM_CACHE)
         keycache_pthread_mutex_lock(&keycache->cache_lock);
@@ -4080,7 +4071,7 @@ restart:
 #endif
 err:
   if (cache != cache_buff)
-    my_free((uchar*) cache, MYF(0));
+    my_free(cache);
   if (last_errno)
     errno=last_errno;                /* Return first error */
   DBUG_RETURN(last_errno != 0);

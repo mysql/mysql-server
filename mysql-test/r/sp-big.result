@@ -46,6 +46,8 @@ end while;
 close cur1;
 end|
 call p1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select count(*) from t1;
 count(*)
 256

@@ -113,12 +113,13 @@ ut_test_malloc(
 	ulint	n);	/*!< in: try to allocate this many bytes */
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
-Frees a memory block allocated with ut_malloc. */
+Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
+a nop. */
 UNIV_INTERN
 void
 ut_free(
 /*====*/
-	void* ptr);  /*!< in, own: memory block */
+	void* ptr);  /*!< in, own: memory block, can be NULL */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not

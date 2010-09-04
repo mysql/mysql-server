@@ -33,7 +33,7 @@ EXTRA_DIST =		mysql.spec.sh \
 			magic mysql.m4 \
 			MySQL-shared-compat.spec.sh \
 			ndb-config-2-node.ini.sh \
-			compiler_warnings.supp \ 
+			compiler_warnings.supp \
 			dtrace \
 			CMakeLists.txt
 
@@ -129,6 +129,3 @@ SUFFIXES = .sh
 	  -e 's!@''PERL_DATA_DUMPER''@!@PERL_DATA_DUMPER@!' \
 	$< > $@-t
 	@MV@ $@-t $@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

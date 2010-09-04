@@ -25,10 +25,6 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 
-#ifdef __NETWARE__
-#include <nks/time.h>
-#endif
-
 ulonglong my_getsystime()
 {
 #ifdef HAVE_CLOCK_GETTIME
@@ -45,10 +41,6 @@ ulonglong my_getsystime()
              query_performance_frequency) + query_performance_offset);
   }
   return 0;
-#elif defined(__NETWARE__)
-  NXTime_t tm;
-  NXGetTime(NX_SINCE_1970, NX_NSECONDS, &tm);
-  return (ulonglong)tm/100;
 #else
   /* TODO: check for other possibilities for hi-res timestamping */
   struct timeval tv;

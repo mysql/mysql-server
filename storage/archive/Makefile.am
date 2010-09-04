@@ -37,31 +37,31 @@ noinst_PROGRAMS	=	archive_test archive_reader
 EXTRA_LTLIBRARIES =	ha_archive.la
 pkgplugin_LTLIBRARIES =	@plugin_archive_shared_target@
 ha_archive_la_LDFLAGS =	-module -rpath $(pkgplugindir)
-ha_archive_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_archive_la_CXXFLAGS=	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_archive_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_archive_la_SOURCES =	ha_archive.cc azio.c
 
 
 EXTRA_LIBRARIES =	libarchive.a
 noinst_LIBRARIES =	@plugin_archive_static_target@
-libarchive_a_CXXFLAGS =	$(AM_CFLAGS)
+libarchive_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libarchive_a_CFLAGS =	$(AM_CFLAGS)
 libarchive_a_SOURCES =	ha_archive.cc azio.c
 
 
 archive_test_SOURCES =	archive_test.c azio.c
 archive_test_CFLAGS =	$(AM_CFLAGS)
-archive_test_LDADD =	$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a \
+archive_test_LDADD =	$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la \
 			@ZLIB_LIBS@
 archive_test_LDFLAGS = @NOINST_LDFLAGS@
 
 archive_reader_SOURCES = archive_reader.c azio.c
 archive_reader_CFLAGS =	$(AM_CFLAGS)
-archive_reader_LDADD =	$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a \
+archive_reader_LDADD =	$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la \
 			@ZLIB_LIBS@
 archive_reader_LDFLAGS = @NOINST_LDFLAGS@
 
@@ -102,6 +102,3 @@ probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
 
 endif
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

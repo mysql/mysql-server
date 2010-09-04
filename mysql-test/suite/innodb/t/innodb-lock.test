@@ -1,0 +1,129 @@
+-- source include/have_innodb.inc
+
+#
+# Check and select innodb lock type
+#
+
+set global innodb_table_locks=1;
+
+select @@innodb_table_locks;
+
+#
+# Testing of explicit table locks with enforced table locks
+#
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Testing of explicit table locks with enforced table locks
+#
+
+set @@innodb_table_locks=1;
+
+connection con1;
+create table t1 (id integer, x integer) engine=INNODB;
+insert into t1 values(0, 0);
+set autocommit=0;
+SELECT * from t1 where id = 0 FOR UPDATE;
+
+connection con2;
+set autocommit=0;
+
+# The following statement should hang because con1 is locking the page
+--send
+lock table t1 write;
+--sleep 2
+
+connection con1;
+update t1 set x=1 where id = 0;
+select * from t1;
+commit;
+
+connection con2;
+reap;
+update t1 set x=2 where id = 0;
+commit;
+unlock tables;
+
+connection con1;
+select * from t1;
+commit;
+
+drop table t1;
+
+--echo #
+--echo # Old lock method (where LOCK TABLE was ignored by InnoDB) no longer
+--echo # works when LOCK TABLE ... WRITE is used due to fix for bugs #46272
+--echo # "MySQL 5.4.4, new MDL: unnecessary and bug #37346 "innodb does not
+--echo # detect deadlock between update and alter table". But it still works
+--echo # for LOCK TABLE ... READ.
+--echo #
+
+set @@innodb_table_locks=0;
+
+create table t1 (id integer primary key, x integer) engine=INNODB;
+insert into t1 values(0, 0),(1,1),(2,2);
+commit;
+SELECT * from t1 where id = 0 FOR UPDATE;
+
+--echo # Connection 'con2'.
+connection con2;
+set autocommit=0;
+set @@innodb_table_locks=0;
+
+--echo # The following statement should block because SQL-level lock
+--echo # is taken on t1 which will wait until concurrent transaction
+--echo # is commited.
+--echo # Sending:
+--send lock table t1 write;
+
+--echo # Connection 'con1'.
+connection con1;
+--echo # Wait until LOCK TABLE is blocked on SQL-level lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "lock table t1 write";
+--source include/wait_condition.inc
+--echo # We should be able to do UPDATEs and SELECTs within transaction.
+update t1 set x=1 where id = 0;
+select * from t1;
+--echo # Unblock LOCK TABLE.
+commit;
+
+--echo # Connection 'con2'.
+connection con2;
+--echo # Reap LOCK TABLE.
+--reap
+unlock tables;
+
+--echo # Connection 'con1'.
+connection con1;
+
+select * from t1 where id = 0 for update;
+
+--echo # Connection 'con2'.
+connection con2;
+--echo # The below statement should not be blocked as LOCK TABLES ... READ
+--echo # does not take strong SQL-level lock on t1. SELECTs which do not
+--echo # conflict with transaction in the first connections should not be
+--echo # blocked.
+lock table t1 read;
+select * from t1;
+select * from t1 where id = 1 lock in share mode;
+unlock tables;
+select * from t1;
+commit;
+
+--echo # Connection 'con1'.
+connection con1;
+commit;
+
+drop table t1;
+
+# End of 4.1 tests

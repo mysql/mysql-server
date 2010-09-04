@@ -56,6 +56,11 @@ typedef os_thread_t		os_thread_id_t;	/*!< In Unix we use the thread
 /* Define a function pointer type to use in a typecast */
 typedef void* (*os_posix_f_t) (void*);
 
+#ifdef HAVE_PSI_INTERFACE
+/* Define for performance schema registration key */
+typedef unsigned int    mysql_pfs_key_t;
+#endif
+
 /***************************************************************//**
 Compares two thread ids for equality.
 @return	TRUE if equal */
@@ -86,7 +91,7 @@ os_thread_t
 os_thread_create(
 /*=============*/
 #ifndef __WIN__
-		 os_posix_f_t		 start_f,
+	os_posix_f_t		start_f,
 #else
 	ulint (*start_f)(void*),		/*!< in: pointer to function
 						from which to start */

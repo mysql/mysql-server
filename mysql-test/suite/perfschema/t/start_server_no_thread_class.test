@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
 
@@ -31,7 +31,7 @@ select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_THREAD_CLASSES_LOST';
 
 # Expect no instances
-select count(*) from performance_schema.PROCESSLIST;
+select count(*) from performance_schema.THREADS;
 
 # Expect no instances lost
 show status like "performance_schema_thread_instances_lost";

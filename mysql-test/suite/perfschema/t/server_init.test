@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
 
@@ -69,19 +69,10 @@ select count(name) from COND_INSTANCES
 # Verify that these global mutexes have been properly initilized in sql
 
 select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_mysql_create_db";
-
-select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_open";
 
 select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_lock_db";
-
-select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_thread_count";
-
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_mapped_file";
 
 select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_status";
@@ -135,9 +126,6 @@ select count(name) from MUTEX_INSTANCES
 
 select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_server_started";
-
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_rpl_status";
 
 select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOG_INFO::lock";
@@ -232,9 +220,6 @@ select count(name) from COND_INSTANCES
 
 select count(name) from COND_INSTANCES
  where name like "wait/synch/cond/sql/COND_flush_thread_cache";
-
-select count(name) from COND_INSTANCES
- where name like "wait/synch/cond/sql/COND_rpl_status";
 
 select count(name) from COND_INSTANCES
  where name like "wait/synch/cond/sql/Query_cache::COND_cache_status_changed";

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -579,18 +579,12 @@ mem_heap_get_size(
 /*==============*/
 	mem_heap_t*	heap)	/*!< in: heap */
 {
-	mem_block_t*	block;
 	ulint		size	= 0;
 
 	ut_ad(mem_heap_check(heap));
 
-	block = heap;
+	size = heap->total_size;
 
-	while (block != NULL) {
-
-		size += mem_block_get_len(block);
-		block = UT_LIST_GET_NEXT(list, block);
-	}
 #ifndef UNIV_HOTBACKUP
 	if (heap->free_block) {
 		size += UNIV_PAGE_SIZE;

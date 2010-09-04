@@ -35,7 +35,9 @@ ib_wqueue_create(void)
 {
 	ib_wqueue_t*	wq = mem_alloc(sizeof(ib_wqueue_t));
 
-	mutex_create(&wq->mutex, SYNC_WORK_QUEUE);
+	/* Function ib_wqueue_create() has not been used anywhere,
+	not necessary to instrument this mutex */
+	mutex_create(PFS_NOT_INSTRUMENTED, &wq->mutex, SYNC_WORK_QUEUE);
 
 	wq->items = ib_list_create();
 	wq->event = os_event_create(NULL);

@@ -24,3 +24,78 @@ EOF
 --exec $MYSQL --comment --force --table test <$MYSQLTEST_VARDIR/tmp/bug39559.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug39559.sql
 
+--echo # Bug#46527 "COMMIT AND CHAIN RELEASE does not make sense"
+--echo #
+--error ER_PARSE_ERROR
+COMMIT AND CHAIN RELEASE;
+
+COMMIT AND NO CHAIN RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+COMMIT RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+--error ER_PARSE_ERROR
+COMMIT CHAIN RELEASE;
+
+--error ER_PARSE_ERROR
+COMMIT NO CHAIN RELEASE;
+
+--error ER_PARSE_ERROR
+COMMIT AND NO RELEASE;
+--error ER_PARSE_ERROR
+COMMIT AND RELEASE;
+
+COMMIT NO RELEASE;
+--error ER_PARSE_ERROR
+COMMIT CHAIN NO RELEASE;
+--error ER_PARSE_ERROR
+COMMIT NO CHAIN NO RELEASE;
+
+--error ER_PARSE_ERROR
+COMMIT AND RELEASE CHAIN;
+
+COMMIT AND NO CHAIN NO RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK AND CHAIN RELEASE;
+
+ROLLBACK AND NO CHAIN RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+ROLLBACK RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+--error ER_PARSE_ERROR
+ROLLBACK CHAIN RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK NO CHAIN RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+--error ER_PARSE_ERROR
+ROLLBACK AND NO RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK AND RELEASE;
+
+ROLLBACK NO RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK CHAIN NO RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK NO CHAIN NO RELEASE;
+--error ER_PARSE_ERROR
+ROLLBACK AND RELEASE CHAIN;
+
+ROLLBACK AND NO CHAIN NO RELEASE;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

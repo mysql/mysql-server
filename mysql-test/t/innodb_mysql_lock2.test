@@ -1,0 +1,873 @@
+# This test covers behavior for InnoDB tables.
+--source include/have_innodb.inc
+# This test requires statement/mixed mode binary logging.
+# Row-based mode puts weaker serializability requirements
+# so weaker locks are acquired for it.
+# Also in ROW mode LOCK_S row locks won't be acquired for DML
+# and test for bug#51263 won't trigger execution path on which
+# this bug was encountered.
+--source include/have_binlog_format_mixed_or_statement.inc
+# Original test case for bug#51263 needs partitioning.
+--source include/have_partition.inc
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
+--echo #
+--echo # Test how do we handle locking in various cases when
+--echo # we read data from InnoDB tables.
+--echo #
+--echo # In fact by performing this test we check two things:
+--echo # 1) That SQL-layer correctly determine type of thr_lock.c
+--echo #    lock to be acquired/passed to InnoDB engine.
+--echo # 2) That InnoDB engine correctly interprets this lock
+--echo #    type and takes necessary row locks or does not
+--echo #    take them if they are not necessary.
+--echo #
+
+--echo # This test makes sense only in REPEATABLE-READ mode as
+--echo # in SERIALIZABLE mode all statements that read data take
+--echo # shared lock on them to enforce its semantics.
+select @@session.tx_isolation;
+
+--echo # Prepare playground by creating tables, views,
+--echo # routines and triggers used in tests.
+connect (con1, localhost, root,,);
+connection default;
+--disable_warnings
+drop table if exists t0, t1, t2, t3, t4, t5;
+drop view if exists v1, v2;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
+drop function if exists f2;
+drop function if exists f3;
+drop function if exists f4;
+drop function if exists f5;
+drop function if exists f6;
+drop function if exists f7;
+drop function if exists f8;
+drop function if exists f9;
+drop function if exists f10;
+drop function if exists f11;
+drop function if exists f12;
+drop function if exists f13;
+drop function if exists f14;
+drop function if exists f15;
+--enable_warnings
+create table t1 (i int primary key) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+create table t2 (j int primary key) engine=innodb;
+insert into t2 values (1), (2), (3), (4), (5);
+create table t3 (k int primary key) engine=innodb;
+insert into t3 values (1), (2), (3);
+create table t4 (l int primary key) engine=innodb;
+insert into t4 values (1);
+create table t5 (l int primary key) engine=innodb;
+insert into t5 values (1);
+create view v1 as select i from t1;
+create view v2 as select j from t2 where j in (select i from t1);
+create procedure p1(k int) insert into t2 values (k);
+delimiter |;
+create function f1() returns int
+begin
+  declare j int;
+  select i from t1 where i = 1 into j;
+  return j;
+end|
+create function f2() returns int
+begin
+  declare k int;
+  select i from t1 where i = 1 into k;
+  insert into t2 values (k + 5);
+  return 0;
+end|
+create function f3() returns int
+begin
+  return (select i from t1 where i = 3);
+end|
+create function f4() returns int
+begin
+  if (select i from t1 where i = 3) then
+    return 1;
+  else
+    return 0;
+  end if;
+end|
+create function f5() returns int
+begin
+  insert into t2 values ((select i from t1 where i = 1) + 5);
+  return 0;
+end|
+create function f6() returns int
+begin
+  declare k int;
+  select i from v1 where i = 1 into k;
+  return k;
+end|
+create function f7() returns int
+begin
+  declare k int;
+  select j from v2 where j = 1 into k;
+  return k;
+end|
+create function f8() returns int
+begin
+  declare k int;
+  select i from v1 where i = 1 into k;
+  insert into t2 values (k+5);
+  return k;
+end|
+create function f9() returns int
+begin
+  update v2 set j=j+10 where j=1;
+  return 1;
+end|
+create function f10() returns int
+begin
+  return f1();
+end|
+create function f11() returns int
+begin
+  declare k int;
+  set k= f1();
+  insert into t2 values (k+5);
+  return k;
+end|
+create function f12(p int) returns int
+begin
+  insert into t2 values (p);
+  return p;
+end|
+create function f13(p int) returns int
+begin
+  return p;
+end|
+create procedure p2(inout p int)
+begin
+  select i from t1 where i = 1 into p;
+end|
+create function f14() returns int
+begin
+  declare k int;
+  call p2(k);
+  insert into t2 values (k+5);
+  return k;
+end|
+create function f15() returns int
+begin
+  declare k int;
+  call p2(k);
+  return k;
+end|
+create trigger t4_bi before insert on t4 for each row
+begin
+  declare k int;
+  select i from t1 where i=1 into k;
+  set new.l= k+1;
+end|
+create trigger t4_bu before update on t4 for each row
+begin
+  if (select i from t1 where i=1) then
+    set new.l= 2;
+  end if;
+end|
+create trigger t4_bd before delete on t4 for each row
+begin
+  if !(select i from v1 where i=1) then
+    signal sqlstate '45000';
+  end if;
+end|
+create trigger t5_bi before insert on t5 for each row
+begin
+  set new.l= f1()+1;
+end|
+create trigger t5_bu before update on t5 for each row
+begin
+  declare j int;
+  call p2(j);
+  set new.l= j + 1;
+end|
+delimiter ;|
+
+--echo #
+--echo # Set common variables to be used by scripts called below.
+--echo #
+let $con_aux= con1; 
+let $table= t1;
+
+
+--echo #
+--echo # 1. Statements that read tables and do not use subqueries.
+--echo #
+
+--echo #
+--echo # 1.1 Simple SELECT statement.
+--echo #
+--echo # No locks are necessary as this statement won't be written
+--echo # to the binary log and InnoDB supports snapshots.
+let $statement= select * from t1;
+--source include/check_no_row_lock.inc
+
+--echo #
+--echo # 1.2 Multi-UPDATE statement.
+--echo #
+--echo # Has to take shared locks on rows in the table being read as this
+--echo # statement will be written to the binary log and therefore should
+--echo # be serialized with concurrent statements.
+let $statement= update t2, t1 set j= j - 1 where i = j;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 1.3 Multi-DELETE statement.
+--echo #
+--echo # The above is true for this statement as well.
+let $statement= delete t2 from t1, t2 where i = j;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 1.4 DESCRIBE statement.
+--echo #
+--echo # This statement does not really read data from the
+--echo # target table and thus does not take any lock on it.
+--echo # We check this for completeness of coverage.
+let $statement= describe t1;
+--source include/check_no_row_lock.inc
+
+--echo #
+--echo # 1.5 SHOW statements.
+--echo # 
+--echo # The above is true for SHOW statements as well.
+let $statement= show create table t1;
+--source include/check_no_row_lock.inc
+let $statement= show keys from t1;
+--source include/check_no_row_lock.inc
+
+
+--echo #
+--echo # 2. Statements which read tables through subqueries.
+--echo #
+
+--echo #
+--echo # 2.1 CALL with a subquery.
+--echo # 
+--echo # A strong lock is not necessary as this statement is not
+--echo # written to the binary log as a whole (it is written
+--echo # statement-by-statement) and thanks to MVCC we can always get
+--echo # versions of rows prior to the update that has locked them.
+--echo # But in practice InnoDB does locking reads for all statements
+--echo # other than SELECT (unless it is a READ-COMITTED mode or
+--echo # innodb_locks_unsafe_for_binlog is ON).
+let $statement= call p1((select i + 5 from t1 where i = 1));
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.2 CREATE TABLE with a subquery.
+--echo #
+--echo # Has to take shared locks on rows in the table being read as
+--echo # this statement is written to the binary log and therefore
+--echo # should be serialized with concurrent statements.
+let $statement= create table t0 engine=innodb select * from t1;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+drop table t0;
+let $statement= create table t0 engine=innodb select j from t2 where j in (select i from t1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+drop table t0;
+
+--echo #
+--echo # 2.3 DELETE with a subquery.
+--echo #
+--echo # The above is true for this statement as well.
+let $statement= delete from t2 where j in (select i from t1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.4 MULTI-DELETE with a subquery.
+--echo #
+--echo # Same is true for this statement as well.
+let $statement= delete t2 from t3, t2 where k = j and j in (select i from t1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.5 DO with a subquery.
+--echo #
+--echo # In theory should not take row locks as it is not logged.
+--echo # In practice InnoDB takes shared row locks.
+let $statement= do (select i from t1 where i = 1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.6 INSERT with a subquery.
+--echo #
+--echo # Has to take shared locks on rows in the table being read as
+--echo # this statement is written to the binary log and therefore
+--echo # should be serialized with concurrent statements.
+let $statement= insert into t2 select i+5 from t1;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= insert into t2 values ((select i+5 from t1 where i = 4));
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.7 LOAD DATA with a subquery.
+--echo # 
+--echo # The above is true for this statement as well.
+let $statement= load data infile '../../std_data/rpl_loaddata.dat' into table t2 (@a, @b) set j= @b + (select i from t1 where i = 1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.8 REPLACE with a subquery.
+--echo # 
+--echo # Same is true for this statement as well.
+let $statement= replace into t2 select i+5 from t1;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= replace into t2 values ((select i+5 from t1 where i = 4));
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.9 SELECT with a subquery.
+--echo #
+--echo # Locks are not necessary as this statement is not written
+--echo # to the binary log and thanks to MVCC we can always get
+--echo # versions of rows prior to the update that has locked them.
+--echo #
+--echo # Also serves as a test case for bug #46947 "Embedded SELECT
+--echo # without FOR UPDATE is causing a lock".
+let $statement= select * from t2 where j in (select i from t1);
+--source include/check_no_row_lock.inc
+
+--echo #
+--echo # 2.10 SET with a subquery.
+--echo #
+--echo # In theory should not require locking as it is not written
+--echo # to the binary log. In practice InnoDB acquires shared row
+--echo # locks.
+let $statement= set @a:= (select i from t1 where i = 1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.11 SHOW with a subquery.
+--echo # 
+--echo # Similarly to the previous case, in theory should not require locking
+--echo # as it is not written to the binary log. In practice InnoDB
+--echo # acquires shared row locks.
+let $statement= show tables from test where Tables_in_test = 't2' and (select i from t1 where i = 1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= show columns from t2 where (select i from t1 where i = 1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.12 UPDATE with a subquery.
+--echo #
+--echo # Has to take shared locks on rows in the table being read as
+--echo # this statement is written to the binary log and therefore
+--echo # should be serialized with concurrent statements.
+let $statement= update t2 set j= j-10 where j in (select i from t1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 2.13 MULTI-UPDATE with a subquery.
+--echo #
+--echo # Same is true for this statement as well.
+let $statement= update t2, t3 set j= j -10 where j=k and j in (select i from t1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+
+--echo #
+--echo # 3. Statements which read tables through a view.
+--echo #
+
+--echo #
+--echo # 3.1 SELECT statement which uses some table through a view.
+--echo #
+--echo # Since this statement is not written to the binary log
+--echo # and old version of rows are accessible thanks to MVCC,
+--echo # no locking is necessary.
+let $statement= select * from v1;
+--source include/check_no_row_lock.inc
+let $statement= select * from v2;
+--source include/check_no_row_lock.inc
+let $statement= select * from t2 where j in (select i from v1);
+--source include/check_no_row_lock.inc
+let $statement= select * from t3 where k in (select j from v2);
+--source include/check_no_row_lock.inc
+
+--echo #
+--echo # 3.2 Statements which modify a table and use views.
+--echo #
+--echo # Since such statements are going to be written to the binary
+--echo # log they need to be serialized against concurrent statements
+--echo # and therefore should take shared row locks on data read.
+let $statement= update t2 set j= j-10 where j in (select i from v1);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= update t3 set k= k-10 where k in (select j from v2);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= update t2, v1 set j= j-10 where j = i;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= update v2 set j= j-10 where j = 3;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+
+--echo #
+--echo # 4. Statements which read tables through stored functions.
+--echo #
+
+--echo #
+--echo # 4.1 SELECT/SET with a stored function which does not 
+--echo #     modify data and uses SELECT in its turn.
+--echo #
+--echo # In theory there is no need to take row locks on the table
+--echo # being selected from in SF as the call to such function
+--echo # won't get into the binary log. In practice, however, we
+--echo # discover that fact too late in the process to be able to
+--echo # affect the decision what locks should be taken.
+--echo # Hence, strong locks are taken in this case.
+let $statement= select f1();
+let $wait_statement= select i from t1 where i = 1 into j;
+--source include/check_shared_row_lock.inc
+let $statement= set @a:= f1();
+let $wait_statement= select i from t1 where i = 1 into j;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.2 INSERT (or other statement which modifies data) with
+--echo #     a stored function which does not modify data and uses
+--echo #     SELECT.
+--echo #
+--echo # Since such statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting the data
+--echo # it uses. Therefore it should take row locks on the data
+--echo # it reads.
+let $statement= insert into t2 values (f1() + 5);
+let $wait_statement= select i from t1 where i = 1 into j;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.3 SELECT/SET with a stored function which
+--echo #     reads and modifies data.
+--echo #
+--echo # Since a call to such function is written to the binary log,
+--echo # it should be serialized with concurrent statements affecting
+--echo # the data it uses. Hence, row locks on the data read
+--echo # should be taken.
+let $statement= select f2();
+let $wait_statement= select i from t1 where i = 1 into k;
+--source include/check_shared_row_lock.inc
+let $statement= set @a:= f2();
+let $wait_statement= select i from t1 where i = 1 into k;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.4. SELECT/SET with a stored function which does not
+--echo #      modify data and reads a table through subselect
+--echo #      in a control construct.
+--echo #
+--echo # Again, in theory a call to this function won't get to the
+--echo # binary log and thus no locking is needed. But in practice
+--echo # we don't detect this fact early enough (get_lock_type_for_table())
+--echo # to avoid taking row locks.
+let $statement= select f3();
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= set @a:= f3();
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= select f4();
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= set @a:= f4();
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.5. INSERT (or other statement which modifies data) with
+--echo #      a stored function which does not modify data and reads
+--echo #      the table through a subselect in one of its control
+--echo #      constructs.
+--echo #
+--echo # Since such statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting data it
+--echo # uses. Therefore it should take row locks on the data
+--echo # it reads.
+let $statement= insert into t2 values (f3() + 5);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+let $statement= insert into t2 values (f4() + 6);
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.6 SELECT/SET which uses a stored function with
+--echo #      DML which reads a table via a subquery.
+--echo #
+--echo # Since call to such function is written to the binary log
+--echo # it should be serialized with concurrent statements.
+--echo # Hence reads should take row locks.
+let $statement= select f5();
+let $wait_statement= insert into t2 values ((select i from t1 where i = 1) + 5);
+--source include/check_shared_row_lock.inc
+let $statement= set @a:= f5();
+let $wait_statement= insert into t2 values ((select i from t1 where i = 1) + 5);
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.7 SELECT/SET which uses a stored function which
+--echo #     doesn't modify data and reads tables through
+--echo #     a view.
+--echo #
+--echo # Once again, in theory, calls to such functions won't
+--echo # get into the binary log and thus don't need row
+--echo # locks. But in practice this fact is discovered
+--echo # too late to have any effect.
+let $statement= select f6();
+let $wait_statement= select i from v1 where i = 1 into k;
+--source include/check_shared_row_lock.inc
+let $statement= set @a:= f6();
+let $wait_statement= select i from v1 where i = 1 into k;
+--source include/check_shared_row_lock.inc
+let $statement= select f7();
+let $wait_statement= select j from v2 where j = 1 into k;
+--source include/check_shared_row_lock.inc
+let $statement= set @a:= f7();
+let $wait_statement= select j from v2 where j = 1 into k;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.8 INSERT which uses stored function which
+--echo #     doesn't modify data and reads a table
+--echo #     through a view.
+--echo #
+--echo # Since such statement is written to the binary log and
+--echo # should be serialized with concurrent statements affecting
+--echo # the data it uses. Therefore it should take row locks on
+--echo # the rows it reads.
+let $statement= insert into t3 values (f6() + 5);
+let $wait_statement= select i from v1 where i = 1 into k;
+--source include/check_shared_row_lock.inc
+let $statement= insert into t3 values (f7() + 5);
+let $wait_statement= select j from v2 where j = 1 into k;
+--source include/check_shared_row_lock.inc
+
+
+--echo #
+--echo # 4.9 SELECT which uses a stored function which
+--echo #     modifies data and reads tables through a view.
+--echo #
+--echo # Since a call to such function is written to the binary log
+--echo # it should be serialized with concurrent statements.
+--echo # Hence, reads should take row locks.
+let $statement= select f8();
+let $wait_statement= select i from v1 where i = 1 into k;
+--source include/check_shared_row_lock.inc
+let $statement= select f9();
+let $wait_statement= update v2 set j=j+10 where j=1;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.10 SELECT which uses stored function which doesn't modify
+--echo #      data and reads a table indirectly, by calling another
+--echo #      function.
+--echo #
+--echo # In theory, calls to such functions won't get into the binary
+--echo # log and thus don't need to acquire row locks. But in practice
+--echo # this fact is discovered too late to have any effect.
+let $statement= select f10();
+let $wait_statement= select i from t1 where i = 1 into j;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.11 INSERT which uses a stored function which doesn't modify
+--echo #      data and reads a table indirectly, by calling another
+--echo #      function. 
+--echo #
+--echo # Since such statement is written to the binary log, it should
+--echo # be serialized with concurrent statements affecting the data it
+--echo # uses. Therefore it should take row locks on data it reads.
+let $statement= insert into t2 values (f10() + 5);
+let $wait_statement= select i from t1 where i = 1 into j;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.12 SELECT which uses a stored function which modifies
+--echo #      data and reads a table indirectly, by calling another
+--echo #      function. 
+--echo #
+--echo # Since a call to such function is written to the binary log
+--echo # it should be serialized from concurrent statements.
+--echo # Hence, reads should take row locks.
+let $statement= select f11();
+let $wait_statement= select i from t1 where i = 1 into j;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 4.13 SELECT that reads a table through a subquery passed
+--echo #      as a parameter to a stored function which modifies
+--echo #      data.
+--echo #
+--echo # Even though a call to this function is written to the
+--echo # binary log, values of its parameters are written as literals.
+--echo # So there is no need to acquire row locks on rows used in 
+--echo # the subquery.
+let $statement= select f12((select i+10 from t1 where i=1));
+--source include/check_no_row_lock.inc
+
+--echo #
+--echo # 4.14 INSERT that reads a table via a subquery passed
+--echo #      as a parameter to a stored function which doesn't
+--echo #      modify data.
+--echo #
+--echo # Since this statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting the data it
+--echo # uses. Therefore it should take row locks on the data it reads.
+let $statement= insert into t2 values (f13((select i+10 from t1 where i=1)));
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+
+--echo #
+--echo # 5. Statements that read tables through stored procedures.
+--echo #
+
+--echo #
+--echo # 5.1 CALL statement which reads a table via SELECT.
+--echo #
+--echo # Since neither this statement nor its components are
+--echo # written to the binary log, there is no need to take
+--echo # row locks on the data it reads.
+let $statement= call p2(@a);
+--source include/check_no_row_lock.inc
+
+--echo #
+--echo # 5.2 Function that modifies data and uses CALL, 
+--echo #     which reads a table through SELECT.
+--echo #
+--echo # Since a call to such function is written to the binary
+--echo # log, it should be serialized with concurrent statements.
+--echo # Hence, in this case reads should take row locks on data.
+let $statement= select f14();
+let $wait_statement= select i from t1 where i = 1 into p;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 5.3 SELECT that calls a function that doesn't modify data and
+--echo #     uses a CALL statement that reads a table via SELECT.
+--echo #
+--echo # In theory, calls to such functions won't get into the binary
+--echo # log and thus don't need to acquire row locks. But in practice
+--echo # this fact is discovered too late to have any effect.
+let $statement= select f15();
+let $wait_statement= select i from t1 where i = 1 into p;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 5.4 INSERT which calls function which doesn't modify data and
+--echo #     uses CALL statement which reads table through SELECT.
+--echo #
+--echo # Since such statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting data it
+--echo # uses. Therefore it should take row locks on data it reads.
+let $statement= insert into t2 values (f15()+5);
+let $wait_statement= select i from t1 where i = 1 into p;
+--source include/check_shared_row_lock.inc
+
+
+--echo #
+--echo # 6. Statements that use triggers.
+--echo #
+
+--echo #
+--echo # 6.1 Statement invoking a trigger that reads table via SELECT.
+--echo #
+--echo # Since this statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting the data
+--echo # it uses. Therefore, it should take row locks on the data
+--echo # it reads.
+let $statement= insert into t4 values (2);
+let $wait_statement= select i from t1 where i=1 into k;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 6.2 Statement invoking a trigger that reads table through
+--echo #     a subquery in a control construct.
+--echo #
+--echo # The above is true for this statement as well.
+let $statement= update t4 set l= 2 where l = 1;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 6.3 Statement invoking a trigger that reads a table through
+--echo #     a view.
+--echo #
+--echo # And for this statement.
+let $statement= delete from t4 where l = 1;
+let $wait_statement= $statement;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 6.4 Statement invoking a trigger that reads a table through
+--echo #     a stored function.
+--echo #
+--echo # And for this statement.
+let $statement= insert into t5 values (2);
+let $wait_statement= select i from t1 where i = 1 into j;
+--source include/check_shared_row_lock.inc
+
+--echo #
+--echo # 6.5 Statement invoking a trigger that reads a table through
+--echo #     stored procedure.
+--echo #
+--echo # And for this statement.
+let $statement= update t5 set l= 2 where l = 1;
+let $wait_statement= select i from t1 where i = 1 into p;
+--source include/check_shared_row_lock.inc
+
+--echo # Clean-up.
+drop function f1;
+drop function f2;
+drop function f3;
+drop function f4;
+drop function f5;
+drop function f6;
+drop function f7;
+drop function f8;
+drop function f9;
+drop function f10;
+drop function f11;
+drop function f12;
+drop function f13;
+drop function f14;
+drop function f15;
+drop view v1, v2;
+drop procedure p1;
+drop procedure p2;
+drop table t1, t2, t3, t4, t5;
+disconnect con1;
+
+
+--echo #
+--echo # Test for bug#51263 "Deadlock between transactional SELECT
+--echo # and ALTER TABLE ... REBUILD PARTITION".
+--echo #
+connect (con1,localhost,root,,test,,);
+connection default;
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (i int auto_increment not null primary key) engine=innodb;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+
+begin;
+--echo # Acquire SR metadata lock on t1 and LOCK_S row-locks on its rows.
+insert into t2 select count(*) from t1;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Sending:
+--send alter table t1 add column j int
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER is blocked because it tries to upgrade SNW
+--echo # metadata lock to X lock.
+--echo # It should not be blocked during copying data to new version of
+--echo # table as it acquires LOCK_S locks on rows of old version, which
+--echo # are compatible with locks acquired by connection 'con1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column j int";
+--source include/wait_condition.inc
+
+--echo # The below statement will deadlock because it will try to acquire
+--echo # SW lock on t1, which will conflict with ALTER's SNW lock. And
+--echo # ALTER will be waiting for this connection to release its SR lock.
+--echo # This deadlock should be detected by an MDL subsystem and this
+--echo # statement should be aborted with an appropriate error.
+--error ER_LOCK_DEADLOCK
+insert into t1 values (6);
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+
+--echo #
+--echo # Now test for scenario in which bug was reported originally.
+--echo #
+drop tables t1, t2;
+create table t1 (i int auto_increment not null primary key) engine=innodb
+  partition by hash (i) partitions 4;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+
+begin;
+--echo # Acquire SR metadata lock on t1.
+select * from t1;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Sending:
+--send alter table t1 rebuild partition p0
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER is blocked because of active SR lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 rebuild partition p0";
+--source include/wait_condition.inc
+
+--echo # The below statement should succeed as transaction
+--echo # has SR metadata lock on t1 and only going to read
+--echo # rows from it.
+insert into t2 select count(*) from t1;
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con1;
+--echo # Clean-up.
+drop tables t1, t2;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

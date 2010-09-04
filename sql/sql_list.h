@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
 #include "my_sys.h"
@@ -67,45 +67,61 @@ public:
 
 
 /**
-   Struct to handle simple linked lists.
+  Simple intrusive linked list.
 
-   @todo What is the relation between this class and list_node, below?
-   /Matz
-
-   @see list_node, base_list, List
-
+  @remark Similar in nature to base_list, but intrusive. It keeps a
+          a pointer to the first element in the list and a indirect
+          reference to the last element.
 */
-typedef struct st_sql_list {
+template <typename T>
+class SQL_I_List :public Sql_alloc
+{
+public:
   uint elements;
-  uchar *first;
-  uchar **next;
+  /** The first element in the list. */
+  T *first;
+  /** A reference to the next element in the list. */
+  T **next;
 
-  st_sql_list() {}                              /* Remove gcc warning */
+  SQL_I_List() { empty(); }
+
+  SQL_I_List(const SQL_I_List &tmp) : Sql_alloc()
+  {
+    elements= tmp.elements;
+    first= tmp.first;
+    next= elements ? tmp.next : &first;
+  }
+
   inline void empty()
   {
-    elements=0;
-    first=0;
+    elements= 0;
+    first= NULL;
     next= &first;
   }
-  inline void link_in_list(uchar *element,uchar **next_ptr)
+
+  inline void link_in_list(T *element, T **next_ptr)
   {
     elements++;
-    (*next)=element;
+    (*next)= element;
     next= next_ptr;
-    *next=0;
+    *next= NULL;
   }
-  inline void save_and_clear(struct st_sql_list *save)
+
+  inline void save_and_clear(SQL_I_List<T> *save)
   {
     *save= *this;
     empty();
   }
-  inline void push_front(struct st_sql_list *save)
+
+  inline void push_front(SQL_I_List<T> *save)
   {
-    *save->next= first;				/* link current list last */
+    /* link current list last */
+    *save->next= first;
     first= save->first;
     elements+= save->elements;
   }
-  inline void push_back(struct st_sql_list *save)
+
+  inline void push_back(SQL_I_List<T> *save)
   {
     if (save->first)
     {
@@ -114,7 +130,7 @@ typedef struct st_sql_list {
       elements+= save->elements;
     }
   }
-} SQL_LIST;
+};
 
 
 /*
@@ -518,7 +534,7 @@ struct ilink
   }
   static void operator delete(void* ptr_arg, size_t size)
   {
-     my_free((uchar*)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+     my_free(ptr_arg);
   }
 
   inline ilink()

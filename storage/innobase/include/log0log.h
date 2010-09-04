@@ -1,23 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
-/*****************************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -780,6 +763,15 @@ struct log_struct{
 #ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/*!< mutex protecting the log */
 #endif /* !UNIV_HOTBACKUP */
+
+	mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
+					the flush list when we are putting
+					dirty blocks in the list. The idea
+					behind this mutex is to be able
+					to release log_sys->mutex during
+					mtr_commit and still ensure that
+					insertions in the flush_list happen
+					in the LSN order. */
 	byte*		buf_ptr;	/* unaligned log buffer */
 	byte*		buf;		/*!< log buffer */
 	ulint		buf_size;	/*!< log buffer size in bytes */
@@ -825,7 +817,17 @@ struct log_struct{
 					written to some log group; for this to
 					be advanced, it is enough that the
 					write i/o has been completed for all
-					log groups */
+					log groups.
+					Note that since InnoDB currently
+					has only one log group therefore
+					this value is redundant. Also it
+					is possible that this value
+					falls behind the
+					flushed_to_disk_lsn transiently.
+					It is appropriate to use either
+					flushed_to_disk_lsn or
+					write_lsn which are always
+					up-to-date and accurate. */
 	ib_uint64_t	write_lsn;	/*!< end lsn for the current running
 					write */
 	ulint		write_end_offset;/*!< the data in buffer has
@@ -958,6 +960,19 @@ struct log_struct{
 	/* @} */
 #endif /* UNIV_LOG_ARCHIVE */
 };
+
+/** Test if flush order mutex is owned. */
+#define log_flush_order_mutex_own()	\
+	mutex_own(&log_sys->log_flush_order_mutex)
+
+/** Acquire the flush order mutex. */
+#define log_flush_order_mutex_enter() do {		\
+	mutex_enter(&log_sys->log_flush_order_mutex);	\
+} while (0)
+/** Release the flush order mutex. */
+# define log_flush_order_mutex_exit() do {		\
+	mutex_exit(&log_sys->log_flush_order_mutex);	\
+} while (0)
 
 #ifdef UNIV_LOG_ARCHIVE
 /** Archiving state @{ */

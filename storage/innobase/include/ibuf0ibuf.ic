@@ -46,19 +46,25 @@ struct ibuf_struct{
 	ulint		seg_size;	/*!< allocated pages of the file
 					segment containing ibuf header and
 					tree */
-	ibool		empty;		/*!< after an insert to the ibuf tree
-					is performed, this is set to FALSE,
-					and if a contract operation finds
-					the tree empty, this is set to
-					TRUE */
+	ibool		empty;		/*!< Protected by the page
+					latch of the root page of the
+					insert buffer tree
+					(FSP_IBUF_TREE_ROOT_PAGE_NO). TRUE
+					if and only if the insert
+					buffer tree is empty. */
 	ulint		free_list_len;	/*!< length of the free list */
 	ulint		height;		/*!< tree height */
 	dict_index_t*	index;		/*!< insert buffer index */
 
-	ulint		n_inserts;	/*!< number of inserts made to
-					the insert buffer */
 	ulint		n_merges;	/*!< number of pages merged */
-	ulint		n_merged_recs;	/*!< number of records merged */
+	ulint		n_merged_ops[IBUF_OP_COUNT];
+					/*!< number of operations of each type
+					merged to index pages */
+	ulint		n_discarded_ops[IBUF_OP_COUNT];
+					/*!< number of operations of each type
+					discarded without merging due to the
+					tablespace being deleted or the
+					index being dropped */
 };
 
 /************************************************************************//**
@@ -105,7 +111,7 @@ ibuf_should_try(
 
 		if (ibuf_flush_count % 4 == 0) {
 
-			buf_LRU_try_free_flushed_blocks();
+			buf_LRU_try_free_flushed_blocks(NULL);
 		}
 
 		return(TRUE);

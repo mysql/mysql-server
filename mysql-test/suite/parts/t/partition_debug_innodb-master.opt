@@ -1,0 +1,1 @@
+--innodb-file-format-check --innodb-file-per-table=1 --skip-stack-trace --skip-core-file

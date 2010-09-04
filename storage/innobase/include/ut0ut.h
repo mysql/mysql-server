@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2009, Sun Microsystems, Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -34,6 +34,8 @@ Created 1/20/1994 Heikki Tuuri
 #define ut0ut_h
 
 #include "univ.i"
+
+#include "db0err.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
@@ -394,6 +396,16 @@ A wrapper for snprintf(3), formatted output conversion into
 a limited buffer. */
 # define ut_snprintf	snprintf
 #endif /* __WIN__ */
+
+/*************************************************************//**
+Convert an error number to a human readable text message. The
+returned string is static and should not be freed or modified.
+@return	string, describing the error */
+UNIV_INTERN
+const char*
+ut_strerr(
+/*======*/
+	enum db_err	num);	/*!< in: error number */
 
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"

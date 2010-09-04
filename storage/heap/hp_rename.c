@@ -33,7 +33,7 @@ int heap_rename(const char *old_name, const char *new_name)
       mysql_mutex_unlock(&THR_LOCK_heap);
       DBUG_RETURN(my_errno);
     }
-    my_free(info->name,MYF(0));
+    my_free(info->name);
     info->name=name_buff;
   }
   mysql_mutex_unlock(&THR_LOCK_heap);

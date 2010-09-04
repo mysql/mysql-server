@@ -171,7 +171,7 @@ CREATE TABLE t1_selects
    disable_result ENUM('Yes','No') NOT NULL default 'No',
    PRIMARY KEY(id),
    UNIQUE (my_select)
-);
+) ENGINE=MyISAM;
 
 # MODES to be checked
 CREATE TABLE t1_modes
@@ -180,7 +180,7 @@ CREATE TABLE t1_modes
    my_mode VARCHAR(200) NOT NULL,
    PRIMARY KEY(id),
    UNIQUE (my_mode)
-);
+) ENGINE=MyISAM;
 --enable_query_log
 
 # The table to be used in the FROM parts of the SELECTs

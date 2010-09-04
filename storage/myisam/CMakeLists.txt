@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,9 +11,9 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c ft_stem.c
+SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
                                 ha_myisam.cc
 				ft_stopwords.c ft_update.c mi_cache.c mi_changed.c mi_check.c
 				mi_checksum.c mi_close.c mi_create.c mi_dbug.c mi_delete.c 
@@ -23,7 +23,7 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c 
 				mi_rfirst.c mi_rlast.c mi_rnext.c mi_rnext_same.c mi_rprev.c mi_rrnd.c
 				mi_rsame.c mi_rsamepos.c mi_scan.c mi_search.c mi_static.c mi_statrec.c
 				mi_unique.c mi_update.c mi_write.c rt_index.c rt_key.c rt_mbr.c
-				rt_split.c sort.c sp_key.c ft_eval.h mi_extrafunc.h myisamdef.h
+				rt_split.c sort.c sp_key.c mi_extrafunc.h myisamdef.h
 				rt_index.h mi_rkey.c)
 
 MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 

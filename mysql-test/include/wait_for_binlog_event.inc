@@ -18,7 +18,7 @@ while (`SELECT INSTR("$_last_event","$wait_binlog_event") = 0`)
   dec $_loop_count;
   if (!$_loop_count)
   {
-    SHOW BINLOG EVENTS;
+    --source include/show_rpl_debug_info.inc
     --die ERROR: failed while waiting for $wait_binlog_event in binlog 
   }
   real_sleep 0.1;

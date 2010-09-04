@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
@@ -291,22 +291,6 @@ struct PFS_triple_index
     m_index_2= other->m_index_2;
     m_index_3= other->m_index_3 + 1;
   }
-};
-
-struct PFS_instrument_view_constants
-{
-  static const uint VIEW_MUTEX= 1;
-  static const uint VIEW_RWLOCK= 2;
-  static const uint VIEW_COND= 3;
-  static const uint VIEW_FILE= 4;
-};
-
-struct PFS_object_view_constants
-{
-  static const uint VIEW_TABLE= 1;
-  static const uint VIEW_EVENT= 2;
-  static const uint VIEW_PROCEDURE= 3;
-  static const uint VIEW_FUNCTION= 4;
 };
 
 bool pfs_show_status(handlerton *hton, THD *thd,

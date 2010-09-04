@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef PFS_SERVER_H
 #define PFS_SERVER_H
@@ -25,13 +25,13 @@
   #define PFS_MAX_MUTEX_CLASS 200
 #endif
 #ifndef PFS_MAX_MUTEX
-  #define PFS_MAX_MUTEX 1000
+  #define PFS_MAX_MUTEX 1000000
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
-  #define PFS_MAX_RWLOCK_CLASS 20
+  #define PFS_MAX_RWLOCK_CLASS 30
 #endif
 #ifndef PFS_MAX_RWLOCK
-  #define PFS_MAX_RWLOCK 1000
+  #define PFS_MAX_RWLOCK 1000000
 #endif
 #ifndef PFS_MAX_COND_CLASS
   #define PFS_MAX_COND_CLASS 80
@@ -55,10 +55,10 @@
   #define PFS_MAX_FILE_HANDLE 32768
 #endif
 #ifndef PFS_MAX_TABLE_SHARE
-  #define PFS_MAX_TABLE_SHARE 50000
+  #define PFS_MAX_TABLE_SHARE 1000
 #endif
 #ifndef PFS_MAX_TABLE
-  #define PFS_MAX_TABLE 100000
+  #define PFS_MAX_TABLE 10000
 #endif
 #ifndef PFS_WAITS_HISTORY_SIZE
   #define PFS_WAITS_HISTORY_SIZE 10
@@ -67,6 +67,7 @@
   #define PFS_WAITS_HISTORY_LONG_SIZE 10000
 #endif
 
+/** Performance schema global sizing parameters. */
 struct PFS_global_param
 {
   bool m_enabled;
@@ -74,12 +75,20 @@ struct PFS_global_param
   ulong m_rwlock_class_sizing;
   ulong m_cond_class_sizing;
   ulong m_thread_class_sizing;
+  /**
+    Maximum number of instrumented table share.
+    @sa table_share_lost.
+  */
   ulong m_table_share_sizing;
   ulong m_file_class_sizing;
   ulong m_mutex_sizing;
   ulong m_rwlock_sizing;
   ulong m_cond_sizing;
   ulong m_thread_sizing;
+  /**
+    Maximum number of instrumented table handles.
+    @sa table_lost.
+  */
   ulong m_table_sizing;
   ulong m_file_sizing;
   ulong m_file_handle_sizing;

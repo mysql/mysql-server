@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <my_global.h>
 #include <my_pthread.h>
@@ -32,7 +32,7 @@ void test_no_registration()
   PFS_cond_class *cond;
   PFS_thread_class *thread;
   PFS_file_class *file;
-  PFS_table_share *table;
+  /* PFS_table_share *table; */
 
   rc= init_sync_class(0, 0, 0);
   ok(rc == 0, "zero init (sync)");
@@ -81,12 +81,14 @@ void test_no_registration()
   PFS_thread fake_thread;
   fake_thread.m_table_share_hash_pins= NULL;
 
+#ifdef LATER
   table= find_or_create_table_share(& fake_thread, "foo_db", 6, "foo_table", 9);
   ok(table == NULL, "not created");
   table= find_or_create_table_share(& fake_thread, "bar_db", 6, "bar_table", 9);
   ok(table == NULL, "not created");
   table= find_or_create_table_share(& fake_thread, "foo_db", 6, "foo_table", 9);
   ok(table == NULL, "not created");
+#endif
 
   mutex= find_mutex_class(0);
   ok(mutex == NULL, "no mutex key 0");
@@ -346,6 +348,7 @@ void test_file_registration()
 
 void test_table_registration()
 {
+#ifdef LATER
   PFS_table_share *table_share;
   PFS_table_share *table_share_2;
 
@@ -401,6 +404,7 @@ void test_table_registration()
 
   cleanup_table_share_hash();
   cleanup_table_share();
+#endif
 }
 
 void set_wait_stat(PFS_single_stat_chain *stat)
@@ -564,7 +568,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(196);
+  plan(170);
   MY_INIT("pfs_instr_info-t");
   do_all_tests();
   return 0;

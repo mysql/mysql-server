@@ -13,7 +13,7 @@ perl;
   @skipvars=qw/basedir open-files-limit general-log-file log plugin-dir
                log-slow-queries pid-file slow-query-log-file
 			   datadir slave-load-tmpdir tmpdir/;
-  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster safemalloc debug temp-pool ssl des-key-file
+  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit/;
   @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR /;
   $re1=join('|', @skipvars, @plugins);
@@ -23,7 +23,7 @@ perl;
   while (<F>) {
     next if 1../The following groups are read/;
     # formatting, skip line consisting entirely of dashes and blanks
-    next if /^[\- ]+$/;
+    next if /^[\- ]+\s?$/;
     next if /Value \(after reading options\)/; # skip table header
     next if /^($re1) /;
     next if /^($re2)-/;

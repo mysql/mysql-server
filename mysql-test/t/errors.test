@@ -140,3 +140,18 @@ SET sql_quote_show_create= _utf8 x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create=_latin1 x'5452DC45';
 
+--echo #
+--echo # Bug#52430 Incorrect key in the error message for duplicate key error involving BINARY type
+--echo #
+CREATE TABLE t1(c1 BINARY(10), c2 BINARY(10), c3 BINARY(10),
+PRIMARY KEY(c1,c2,c3));
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+--error ER_DUP_ENTRY
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 VARBINARY(19) PRIMARY KEY);
+INSERT INTO t1 VALUES ('abc\0\0');
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES ('abc\0\0');
+DROP TABLE t1;

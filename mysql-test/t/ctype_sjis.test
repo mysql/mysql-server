@@ -182,3 +182,29 @@ DROP TABLE t1;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set names sjis;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_8140.inc
+
+
+set collation_connection=sjis_bin;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_8140.inc
+
+--echo #
+--echo # End of 5.6 tests
+--echo #
+
+

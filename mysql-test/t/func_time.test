@@ -821,4 +821,36 @@ select date_sub("0069-01-01 00:00:01",INTERVAL 2 SECOND);
 select date_sub("0169-01-01 00:00:01",INTERVAL 2 SECOND);
 
 
+#
+# Bug #55565: debug assertion when ordering by expressions with user
+# variable assignments
+#
+
+CREATE TABLE t1(a DOUBLE NOT NULL);
+INSERT INTO t1 VALUES (0),(9.216e-096);
+--echo # should not crash
+SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
+DROP TABLE t1;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#43578 "MyISAM&Maria gives wrong rows with range access
+--echo # ORDER BY DESC on date index"
+--echo #
+
+CREATE TABLE t1(c1 DATE NOT NULL PRIMARY KEY, c2 DATE NULL, c3 INT,
+INDEX idx2(c2));
+SET TIMESTAMP=1235553613; #'2009-02-25'
+INSERT INTO t1 VALUES(NOW(),NOW(),3),
+(ADDTIME(NOW(),'1 01:01:01'),ADDTIME(NOW(),'1 01:01:01'),4),
+(ADDTIME(NOW(),'2 01:01:01'),ADDTIME(NOW(),'2 01:01:01'),5),
+(ADDTIME(NOW(),'3 01:01:01'),ADDTIME(NOW(),'3 01:01:01'),6);
+SELECT * FROM t1;
+
+# bug was that 3 rows were returned
+SELECT * FROM t1 WHERE c1 > ADDTIME(NOW(),'1 01:01:01') ORDER BY c1 DESC;
+
+drop table t1;
+
+--echo End of 5.5 tests

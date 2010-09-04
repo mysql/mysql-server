@@ -67,8 +67,6 @@ static my_hash_value_type calc_hash(const HASH *hash,
   @param[in]     get_key      get the key for the hash
   @param[in]     free_element pointer to the function that
                               does cleanup
-  @param[in]     CALLER_INFO_PROTO flag that define the behaviour 
-                                   of the hash
   @return        inidicates success or failure of initialization
     @retval 0 success
     @retval 1 failure
@@ -77,7 +75,7 @@ my_bool
 _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
               ulong size, size_t key_offset, size_t key_length,
               my_hash_get_key get_key,
-              void (*free_element)(void*), uint flags CALLER_INFO_PROTO)
+              void (*free_element)(void*), uint flags)
 {
   DBUG_ENTER("my_hash_init");
   DBUG_PRINT("enter",("hash: 0x%lx  size: %u", (long) hash, (uint) size));

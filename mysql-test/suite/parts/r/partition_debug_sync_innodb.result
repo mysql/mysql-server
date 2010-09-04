@@ -1,0 +1,95 @@
+#
+# Bug#49907: ALTER TABLE ... TRUNCATE PARTITION
+#            does not wait for locks on the table
+#
+CREATE TABLE t1 (a INT)
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (15),
+PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1), (11), (21), (33);
+BEGIN;
+DELETE FROM t1 WHERE a = 11;
+SELECT * FROM t1;
+a
+1
+21
+33
+# con1 (send)
+ALTER TABLE t1 TRUNCATE PARTITION pMax;
+# con default
+SELECT * FROM t1;
+a
+1
+21
+33
+# Commit will allow the TRUNCATE to finish
+COMMIT;
+# con1 (reap)
+# con1 (disconnect)
+# default connection
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;
+#
+# Bug#50561: ALTER PARTITIONS does not have adequate lock, breaks with
+#            concurrent I_S query
+create table t1 (a int)
+engine = innodb
+partition by range (a)
+(partition p0 values less than MAXVALUE);
+insert into t1 values (1), (11), (21), (33);
+SELECT * FROM t1;
+a
+1
+11
+21
+33
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1.frm
+t1.par
+SET DEBUG_SYNC='before_open_in_get_all_tables SIGNAL parked WAIT_FOR open';
+SET DEBUG_SYNC='partition_open_error SIGNAL alter WAIT_FOR finish';
+SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
+SET DEBUG_SYNC = 'now WAIT_FOR parked';
+# When waiting for the name lock in get_all_tables in sql_show.cc
+# this will not be concurrent any more, thus the TIMEOUT
+SET DEBUG_SYNC = 'before_rename_partitions SIGNAL open WAIT_FOR alter TIMEOUT 1';
+# Needs to be executed twice, since first is this 'SET DEBUG_SYNC ...'
+SET DEBUG_SYNC = 'before_close_thread_tables SIGNAL finish EXECUTE 2';
+ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(PARTITION p0 VALUES LESS THAN (10),
+PARTITION p10 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1639	debug sync point wait timed out
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
+def	test	t1	p0	NULL	1	NULL	RANGE	NULL	a	NULL	10	1	16384	16384	NULL	0	0	NULL	NULL	NULL	NULL		default	NULL
+def	test	t1	p10	NULL	2	NULL	RANGE	NULL	a	NULL	MAXVALUE	3	5461	16384	NULL	0	0	NULL	NULL	NULL	NULL		default	NULL
+t1#P#p0.ibd
+t1#P#p10.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p10 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a
+1
+11
+21
+33
+drop table t1;
+SET DEBUG_SYNC = 'RESET';
