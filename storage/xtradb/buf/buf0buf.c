@@ -1055,8 +1055,8 @@ buf_chunk_init(
 			"InnoDB: Logical offset (blocks)         : %ld (%#lx)\n",
 				(void*)((void*)chunk->mem + shm_info->frame_offset),
 				(void*)chunk->blocks[0].frame, (void*)frame,
-				phys_offset, phys_offset, logi_offset, logi_offset,
-				blocks_offset, blocks_offset);
+				(ulong) phys_offset, (ulong) phys_offset, (ulong) logi_offset, (ulong) logi_offset,
+				(ulong) blocks_offset, (ulong) blocks_offset);
 		} else {
 			fprintf(stderr,
 			"InnoDB: Buffer pool in the shared memory segment can be used as it is.\n");

@@ -10,3 +10,4 @@
 #
 ##############################################################################
 
+innodb_bug52745: Disabled as this has valgrind failures (also in MySQL 5.1.50)
