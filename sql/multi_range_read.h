@@ -61,20 +61,51 @@ class SimpleBuffer
     -1 <=> everthing is done from end to start instead.
   */
   int direction;
+  
+  /* Pointers to read data from */
+  uchar **write_ptr1;
+  size_t write_size1;
+  /* Same as above, but may be NULL */
+  uchar **write_ptr2;
+  size_t write_size2;
+
+  /* Pointers to write data to */
+  uchar **read_ptr1;
+  size_t read_size1;
+  /* Same as above, but may be NULL */
+  uchar **read_ptr2;
+  size_t read_size2;
+
 public:
+  /* Set up writing*/
+  void setup_writing(uchar **data1, size_t len1, 
+                     uchar **data2, size_t len2);
+
+  void sort(qsort2_cmp cmp_func, void *cmp_func_arg);
+
   /* Write-mode functions */
   void reset_for_writing();
-  void write(const uchar *data, size_t bytes);
+  void write();
   bool have_space_for(size_t bytes);
 
+private:
+  void write(const uchar *data, size_t bytes);
   uchar *used_area() { return (direction == 1)? read_pos : write_pos; }
   size_t used_size();
+public:
+
   bool is_empty() { return used_size() == 0; }
 
   /* Read-mode functions */
   void reset_for_reading();
-
+  
+  // todo: join with setup-writing?
+  void setup_reading(uchar **data1, size_t len1, 
+                     uchar **data2, size_t len2);
+  bool read();
+private:
   uchar *read(size_t bytes);
+public:
   bool have_data(size_t bytes);
   uchar *end_of_space();
 
@@ -135,7 +166,6 @@ public:
       DBUG_ASSERT(0); /* Attempt to grow buffer in wrong direction */
   }
   
-  //friend class PeekIterator;
   class PeekIterator
   {
     // if direction==1 : pointer to what to return next
@@ -148,6 +178,26 @@ public:
       sb= sb_arg;
       pos= sb->read_pos;
     }
+    
+    /*
+      If the buffer stores tuples, this call will return pointer to the first
+      component.
+    */
+    bool read_next()
+    {
+      // Always read the first component first? (because we do inverted-writes
+      // if needed, so no measures need to be taken here).
+      uchar *res;
+      if ((res= get_next(sb->read_size1)))
+      {
+        *(sb->read_ptr1)= res;
+        if (sb->read_ptr2)
+          *sb->read_ptr2= get_next(sb->read_size2);
+        return FALSE;
+      }
+      return TRUE; /* EOF */
+    }
+  private:
     /* Return pointer to next chunk of nbytes bytes and avance over it */
     uchar *get_next(size_t nbytes)
     {
@@ -169,6 +219,7 @@ public:
     }
   };
 };
+
 
 /*
   DS-MRR implementation for one table. Create/use one object of this class for
@@ -205,8 +256,6 @@ public:
     4. Repeat the above steps until we've exhausted the list of ranges we're
        scanning.
 */
-
-
 
 class DsMrr_impl
 {
@@ -252,7 +301,16 @@ private:
   /* Buffer to store rowids, or (rowid, range_id) pairs */
   SimpleBuffer rowid_buffer;
   
-  uchar *identical_rowid_ptr;
+  /*  Reads from rowid buffer go to here: */
+  uchar *rowid;
+  uchar *rowids_range_id;
+  
+  /*
+    not-NULL: we're traversing a group of (rowid, range_id) pairs with
+              identical rowid values, and this is the pointer to the last one.
+    NULL: we're not in the group of indentical rowids.
+  */
+  uchar *last_identical_rowid;
   
   /* Identical keys */
   bool in_identical_keys_range;

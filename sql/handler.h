@@ -1807,6 +1807,10 @@ public:
   inline int ha_index_first(uchar * buf);
   inline int ha_index_last(uchar * buf);
   inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  /*
+    TODO: should we make for those functions non-virtual ha_func_name wrappers,
+    too?
+  */
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
