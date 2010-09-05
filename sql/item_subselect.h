@@ -108,6 +108,9 @@ public:
   /* subquery is transformed */
   bool changed;
 
+  /* TIMOUR: this is temporary, remove it. */
+  bool is_min_max_optimized;
+
   /* TRUE <=> The underlying SELECT is correlated w.r.t some ancestor select */
   bool is_correlated; 
 
@@ -180,6 +183,8 @@ public:
   enum_parsing_place place() { return parsing_place; }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   bool mark_as_eliminated_processor(uchar *arg);
+  bool eliminate_subselect_processor(uchar *arg);
+  bool set_fake_select_as_master_processor(uchar *arg);
   bool enumerate_field_refs_processor(uchar *arg);
   bool check_vcol_func_processor(uchar *int_arg) 
   {
@@ -326,8 +331,6 @@ public:
 
 class Item_in_subselect :public Item_exists_subselect
 {
-public:
-  Item *left_expr;
 protected:
   /*
     Cache of the left operand of the subquery predicate. Allocated in the
@@ -350,10 +353,30 @@ protected:
   Item_in_optimizer *optimizer;
   bool was_null;
   bool abort_on_null;
-public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
-  
+  Comp_creator *func;
+
+protected:
+  bool init_cond_guards();
+  trans_res select_in_like_transformer(JOIN *join);
+  trans_res single_value_transformer(JOIN *join);
+  trans_res row_value_transformer(JOIN * join);
+  trans_res create_single_in_to_exists_cond(JOIN * join,
+                                            Item **where_item,
+                                            Item **having_item);
+  trans_res inject_single_in_to_exists_cond(JOIN * join,
+                                            Item *where_item,
+                                            Item *having_item);
+
+  trans_res create_row_in_to_exists_cond(JOIN * join,
+                                         Item **where_item,
+                                         Item **having_item);
+  trans_res inject_row_in_to_exists_cond(JOIN * join,
+                                         Item *where_item,
+                                         Item *having_item);
+public:
+  Item *left_expr;
   /* Priority of this predicate in the convert-to-semi-join-nest process. */
   int sj_convert_priority;
   /*
@@ -410,8 +433,9 @@ public:
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
     is_constant(FALSE), optimizer(0), abort_on_null(0),
-    pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
-  {}
+    pushed_cond_guards(NULL), func(NULL), exec_method(NOT_TRANSFORMED),
+    upper_item(0)
+    {}
   void cleanup();
   subs_type substype() { return IN_SUBS; }
   void reset() 
@@ -422,28 +446,8 @@ public:
     was_null= 0;
   }
   trans_res select_transformer(JOIN *join);
-  trans_res select_in_like_transformer(JOIN *join, Comp_creator *func);
-  trans_res single_value_transformer(JOIN *join, Comp_creator *func);
-  trans_res row_value_transformer(JOIN * join);
-
-  trans_res single_value_in_to_exists_transformer(JOIN * join,
-                                                  Comp_creator *func);
-  trans_res create_single_value_in_to_exists_cond(JOIN * join,
-                                                  Comp_creator *func,
-                                                  Item **where_term,
-                                                  Item **having_term);
-  trans_res inject_single_value_in_to_exists_cond(JOIN * join,
-                                                  Comp_creator *func,
-                                                  Item *where_term,
-                                                  Item *having_term);
-
-  trans_res row_value_in_to_exists_transformer(JOIN * join);
-  trans_res create_row_value_in_to_exists_cond(JOIN * join,
-                                               Item **where_term,
-                                               Item **having_term);
-  trans_res inject_row_value_in_to_exists_cond(JOIN * join,
-                                               Item *where_term,
-                                               Item *having_term);
+  bool create_in_to_exists_cond(JOIN * join_arg);
+  bool inject_in_to_exists_cond(JOIN * join_arg);
 
   virtual bool exec();
   longlong val_int();
@@ -459,11 +463,12 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void update_used_tables();
-  bool setup_engine();
+  bool setup_mat_engine();
   bool init_left_expr_cache();
   /* Inform 'this' that it was computed, and contains a valid result. */
   void set_first_execution() { if (first_execution) first_execution= FALSE; }
   bool is_expensive_processor(uchar *arg);
+  bool is_expensive() { return TRUE; }
   bool expr_cache_is_needed(THD *thd);
   
   /* 
@@ -485,7 +490,6 @@ class Item_allany_subselect :public Item_in_subselect
 {
 public:
   chooser_compare_func_creator func_creator;
-  Comp_creator *func;
   bool all;
 
   Item_allany_subselect(Item * left_expr, chooser_compare_func_creator fc,
@@ -494,6 +498,7 @@ public:
   // only ALL subquery has upper not
   subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
+  void create_comp_func(bool invert) { func= func_creator(invert); }
   virtual void print(String *str, enum_query_type query_type);
 };
 

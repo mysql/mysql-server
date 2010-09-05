@@ -265,6 +265,8 @@ public:
   void keep_top_level_cache();
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual Item *expr_cache_insert_transformer(uchar *thd_arg);
+  bool is_expensive_processor(uchar *arg);
+  bool is_expensive();
 };
 
 class Comp_creator

@@ -1734,17 +1734,29 @@ void st_select_lex_node::fast_exclude()
   
 }
 
+
 /*
-  excluding select_lex structure (except first (first select can't be
+  Exclude a node from the tree lex structure, but leave it in the global
+  list of nodes.
+*/
+
+void st_select_lex_node::exclude_from_tree()
+{
+  if ((*prev= next))
+    next->prev= prev;
+}
+
+
+/*
+  Exclude select_lex structure (except first (first select can't be
   deleted, because it is most upper select))
 */
 void st_select_lex_node::exclude()
 {
-  //exclude from global list
+  /* exclude from global list */
   fast_exclude();
-  //exclude from other structures
-  if ((*prev= next))
-    next->prev= prev;
+  /* exclude from other structures */
+  exclude_from_tree();
   /* 
      We do not need following statements, because prev pointer of first 
      list element point to master->slave
@@ -3076,6 +3088,46 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
                                             str, length));
 }
 
+
+bool st_select_lex::optimize_unflattened_subqueries()
+{
+  for (SELECT_LEX_UNIT *un= first_inner_unit(); un; un= un->next_unit())
+  {
+    Item_subselect *subquery_predicate= un->item;
+    if (subquery_predicate)
+    {
+      Item_in_subselect *item_in= NULL;
+      if (subquery_predicate->substype() == Item_subselect::IN_SUBS ||
+          subquery_predicate->substype() == Item_subselect::ALL_SUBS ||
+          subquery_predicate->substype() == Item_subselect::ANY_SUBS)
+        item_in= (Item_in_subselect*) subquery_predicate;
+      for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
+      {
+        JOIN *inner_join= sl->join;
+        SELECT_LEX *save_select= un->thd->lex->current_select;
+        int res;
+
+        /*
+          Make sure that we do not create IN->EXISTS conditions for
+          subquery predicates that were substituted by Item_maxmin_subselect
+          or by Item_singlerow_subselect.
+        */
+        DBUG_ASSERT(!item_in || (item_in && !item_in->is_min_max_optimized));
+        if (item_in && item_in->create_in_to_exists_cond(inner_join))
+            return TRUE;
+        un->set_limit(un->global_parameters);
+        un->thd->lex->current_select= sl;
+        res= inner_join->optimize();
+        un->thd->lex->current_select= save_select;
+        if (res)
+          return TRUE;
+      }
+    }
+  }
+  return FALSE;
+} 
+
+
 /**
   A routine used by the parser to decide whether we are specifying a full
   partitioning or if only partitions to add or to split.
@@ -3093,4 +3145,3 @@ bool st_lex::is_partition_management() const
           (alter_info.flags == ALTER_ADD_PARTITION ||
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
-

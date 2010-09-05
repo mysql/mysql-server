@@ -67,12 +67,15 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
 {
   THD *thd=join->thd;
   st_select_lex *select_lex= join->select_lex;
+  st_select_lex_unit* parent_unit= select_lex->master_unit();
   DBUG_ENTER("check_and_do_in_subquery_rewrites");
   /*
     If 
       1) this join is inside a subquery (of any type except FROM-clause 
          subquery) and
       2) we aren't just normalizing a VIEW
+      3) The join and its select_lex object do not represent the 'fake'
+         select used to compute the result of a UNION.
 
     Then perform early unconditional subquery transformations:
      - Convert subquery predicate into semi-join, or
@@ -84,8 +87,9 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
     TODO: for PS, make the whole block execute only on the first execution
   */
   Item_subselect *subselect;
-  if (!thd->lex->view_prepare_mode &&                  // (1)
-    (subselect= select_lex->master_unit()->item))      // (2)
+  if (!thd->lex->view_prepare_mode &&              // (1)
+      (subselect= parent_unit->item))// &&            // (2)
+//      select_lex == parent_unit->fake_select_lex)  // (3)
   {
     Item_in_subselect *in_subs= NULL;
     if (subselect->substype() == Item_subselect::IN_SUBS)
@@ -129,6 +133,9 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       if (failure)
         DBUG_RETURN(-1); /* purecov: deadcode */
     }
+    if (select_lex == parent_unit->fake_select_lex)
+      DBUG_RETURN(0);
+
     DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
     /*
       Check if we're in subquery that is a candidate for flattening into a
@@ -154,7 +161,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         !join->having && !select_lex->with_sum_func &&                // 4
         thd->thd_marker.emb_on_expr_nest &&                           // 5
         select_lex->outer_select()->join &&                           // 6
-        select_lex->master_unit()->first_select()->leaf_tables &&     // 7
+        parent_unit->first_select()->leaf_tables &&                   // 7
         in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED && // 8
         select_lex->outer_select()->leaf_tables &&                    // 9
         !((join->select_options |                                     // 10
@@ -212,7 +219,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION)  && 
           in_subs  &&                                                   // 1
           !select_lex->is_part_of_union() &&                            // 2
-          select_lex->master_unit()->first_select()->leaf_tables &&     // 3
+          parent_unit->first_select()->leaf_tables &&                   // 3
           thd->lex->sql_command == SQLCOM_SELECT &&                     // *
           select_lex->outer_select()->leaf_tables &&                    // 3A
           subquery_types_allow_materialization(in_subs) &&
@@ -223,15 +230,27 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           !in_subs->is_correlated &&                                  // 5
           in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED) // 6
       {
-          in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
+        /*
+          Materialization is possible, later the optimize phase of each
+          subquery will choose either materialization or in-to-exists based
+          on cost.
+        */
+        in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
+      }
+      else if (in_subs)
+      {
+        /* Materialization is not possible at all. */
+        in_subs->exec_method= Item_in_subselect::IN_TO_EXISTS;
       }
 
+      /*
+        Transform each subquery predicate according to its overloaded
+        transformer.
+      */
       Item_subselect::trans_res trans_res;
       if ((trans_res= subselect->select_transformer(join)) !=
           Item_subselect::RES_OK)
-      {
         DBUG_RETURN((trans_res == Item_subselect::RES_ERROR));
-      }
     }
   }
   DBUG_RETURN(0);
@@ -3505,3 +3524,56 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 }
 
 
+bool JOIN::choose_subquery_plan()
+{
+  double mat_strategy_cost;    /* The cost to compute IN via materialization. */
+  double in_exists_strategy_cost; /* The cost of the IN->EXISTS strategy. */
+  bool res;
+
+  DBUG_ASSERT(in_to_exists_where || in_to_exists_having);
+  DBUG_ASSERT(select_lex->master_unit()->item &&
+              (select_lex->master_unit()->item->substype() ==
+               Item_subselect::IN_SUBS ||
+               select_lex->master_unit()->item->substype() ==
+               Item_subselect::ALL_SUBS ||
+               select_lex->master_unit()->item->substype() ==
+               Item_subselect::ANY_SUBS));
+
+  Item_in_subselect *in_subs= (Item_in_subselect*)
+                              select_lex->master_unit()->item;
+
+  /* Always revert to IN->EXISTS. */
+  mat_strategy_cost= 1;
+  in_exists_strategy_cost= 0;
+
+  if (mat_strategy_cost < in_exists_strategy_cost)
+  {
+    in_subs->exec_method = Item_in_subselect::MATERIALIZATION;
+    if (in_subs->setup_mat_engine())
+    {
+      /*
+        In some cases it is not possible to create usable indexes for the
+        materialization strategy, so fall back to IN->EXISTS.
+      */
+      in_subs->exec_method= Item_in_subselect::IN_TO_EXISTS;
+    }
+  }
+  else
+    in_subs->exec_method= Item_in_subselect::IN_TO_EXISTS;
+
+  if (in_subs->exec_method ==  Item_in_subselect::MATERIALIZATION)
+  {
+
+    // TODO: should we unset the UNCACHEABLE_DEPENDENT flag fro
+    // select_lex->uncacheable; ?
+    // This affects how we execute JOIN::join_free - full or not.
+    // inner_join->restore_plan (keyuse, best_positions, best_read)
+    ;
+  }
+  else if (in_subs->exec_method == Item_in_subselect::IN_TO_EXISTS)
+    res= in_subs->inject_in_to_exists_cond(this);
+  else
+    DBUG_ASSERT(FALSE);
+
+  return res;
+}

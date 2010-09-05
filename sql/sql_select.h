@@ -1573,8 +1573,15 @@ public:
   
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
+  bool initialized; ///< flag to avoid double init_execution calls
 
   Array<Item_in_subselect> sj_subselects;
+  /*
+    Additional WHERE and HAVING predicates to be considered for IN=>EXISTS
+    subquery transformation of a JOIN object.
+  */
+  Item *in_to_exists_where;
+  Item *in_to_exists_having;
 
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
@@ -1649,6 +1656,7 @@ public:
     ref_pointer_array_size= 0;
     zero_result_cause= 0;
     optimized= 0;
+    initialized= 0;
     cond_equal= 0;
     group_optimized_away= 0;
 
@@ -1662,6 +1670,8 @@ public:
 
     no_const_tables= FALSE;
     first_select= sub_select;
+    in_to_exists_where= NULL;
+    in_to_exists_having= NULL;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
@@ -1670,12 +1680,13 @@ public:
 	      SELECT_LEX_UNIT *unit);
   int optimize();
   int reinit();
+  int init_execution();
   void exec();
   int destroy();
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
-  bool setup_subquery_materialization();
+  bool optimize_unflattened_subqueries();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
 			  bool before_group_by, bool recompute= FALSE);
 
@@ -1735,6 +1746,7 @@ public:
               NULL : join_tab+const_tables;
   }
   bool setup_subquery_caches();
+  bool choose_subquery_plan();
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP

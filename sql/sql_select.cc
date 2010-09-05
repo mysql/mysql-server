@@ -926,9 +926,27 @@ JOIN::optimize()
   {
     DBUG_PRINT("info",("No tables"));
     error= 0;
-    /* Create all structures needed for materialized subquery execution. */
-    if (setup_subquery_materialization())
+    if (optimize_unflattened_subqueries())
       DBUG_RETURN(1);
+    if (in_to_exists_where || in_to_exists_having)
+    {
+      /*
+        TIMOUR: TODO: refactor this block and JOIN::choose_subquery_plan
+      */
+      Item_in_subselect *in_subs= (Item_in_subselect*)
+        select_lex->master_unit()->item;
+
+      if (in_subs->exec_method ==  Item_in_subselect::MATERIALIZATION)
+        ; // setup materialized execution structures
+      else if (in_subs->exec_method == Item_in_subselect::IN_TO_EXISTS)
+      {
+        if (in_subs->inject_in_to_exists_cond(this))
+          DBUG_RETURN(1);
+        tmp_having= having;
+      }
+      else
+        DBUG_ASSERT(FALSE);
+    }
     DBUG_RETURN(0);
   }
   error= -1;					// Error is sent to client
@@ -1286,7 +1304,7 @@ JOIN::optimize()
     init_ftfuncs(thd, select_lex, test(order));
 
   /* Create all structures needed for materialized subquery execution. */
-  if (setup_subquery_materialization())
+  if (optimize_unflattened_subqueries())
     DBUG_RETURN(1);
   
   int res;
@@ -1381,6 +1399,34 @@ JOIN::optimize()
   if (join_tab->is_using_loose_index_scan())
     tmp_table_param.precomputed_group_by= TRUE;
 
+  error= 0;
+  DBUG_RETURN(0);
+
+setup_subq_exit:
+  /*
+    Even with zero matching rows, subqueries in the HAVING clause may
+    need to be evaluated if there are aggregate functions in the query.
+    If we planned to materialize the subquery, we need to set it up
+    properly before prematurely leaving optimize().
+  */
+  if (optimize_unflattened_subqueries())
+    DBUG_RETURN(1);
+  error= 0;
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Create and initialize objects neeed for the execution of a query plan.
+*/
+
+int JOIN::init_execution()
+{
+  DBUG_ENTER("JOIN::init_execution");
+
+  DBUG_ASSERT(optimized);
+  initialized= true;
+
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -1413,7 +1459,7 @@ JOIN::optimize()
 			   select_options,
                            tmp_rows_limit,
 			   (char *) "")))
-		{
+    {
       DBUG_RETURN(1);
     }
 
@@ -1499,19 +1545,6 @@ JOIN::optimize()
       DBUG_RETURN(-1);                         /* purecov: inspected */
   }
 
-  error= 0;
-  DBUG_RETURN(0);
-
-setup_subq_exit:
-  /*
-    Even with zero matching rows, subqueries in the HAVING clause may
-    need to be evaluated if there are aggregate functions in the
-    query. If we have planned to materialize the subquery, we need to
-    set it up properly before prematurely leaving optimize().
-  */
-  if (setup_subquery_materialization())
-    DBUG_RETURN(1);
-  error= 0;
   DBUG_RETURN(0);
 }
 
@@ -1774,6 +1807,9 @@ JOIN::exec()
   List<Item> *columns_list= &fields_list;
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
+
+  if (!initialized && init_execution())
+    DBUG_VOID_RETURN;
 
   thd_proc_info(thd, "executing");
   error= 0;
@@ -2604,25 +2640,9 @@ err:
   @retval TRUE      error occurred.
 */
 
-bool JOIN::setup_subquery_materialization()
+bool JOIN::optimize_unflattened_subqueries()
 {
-  for (SELECT_LEX_UNIT *un= select_lex->first_inner_unit(); un;
-       un= un->next_unit())
-  {
-    for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
-    {
-      Item_subselect *subquery_predicate= sl->master_unit()->item;
-      if (subquery_predicate &&
-          subquery_predicate->substype() == Item_subselect::IN_SUBS)
-      {
-        Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
-        if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION &&
-            in_subs->setup_engine())
-          return TRUE;
-      }
-    }
-  }
-  return FALSE;
+  return select_lex->optimize_unflattened_subqueries();
 }
 
 
@@ -3143,6 +3163,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	   sizeof(POSITION)*join->const_tables);
     join->best_read=1.0;
   }
+  if ((join->in_to_exists_where || join->in_to_exists_having)
+      && join->choose_subquery_plan())
+    goto error;
+
   /* Generate an execution plan from the found optimal join order. */
   DBUG_RETURN(join->thd->killed || get_best_combination(join));
 

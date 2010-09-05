@@ -947,6 +947,8 @@ public:
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
   virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
+  virtual bool eliminate_subselect_processor(uchar *arg) { return 0; }
+  virtual bool set_fake_select_as_master_processor(uchar *arg) { return 0; }
   /*
     The next function differs from the previous one that a bitmap to be updated
     is passed as uchar *arg.

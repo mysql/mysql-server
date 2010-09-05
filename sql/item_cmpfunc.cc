@@ -1964,6 +1964,18 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
 }
 
 
+bool Item_in_optimizer::is_expensive_processor(uchar *arg)
+{
+  return args[1]->is_expensive_processor(arg);
+}
+
+
+bool Item_in_optimizer::is_expensive()
+{
+  return args[1]->is_expensive();
+}
+
+
 longlong Item_func_eq::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -5342,7 +5354,7 @@ Item *Item_func_nop_all::neg_transformer(THD *thd)
   /* "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...) */
   Item_func_not_all *new_item= new Item_func_not_all(args[0]);
   Item_allany_subselect *allany= (Item_allany_subselect*)args[0];
-  allany->func= allany->func_creator(FALSE);
+  allany->create_comp_func(FALSE);
   allany->all= !allany->all;
   allany->upper_item= new_item;
   return new_item;
@@ -5354,7 +5366,7 @@ Item *Item_func_not_all::neg_transformer(THD *thd)
   Item_func_nop_all *new_item= new Item_func_nop_all(args[0]);
   Item_allany_subselect *allany= (Item_allany_subselect*)args[0];
   allany->all= !allany->all;
-  allany->func= allany->func_creator(TRUE);
+  allany->create_comp_func(TRUE);
   allany->upper_item= new_item;
   return new_item;
 }
