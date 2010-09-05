@@ -690,7 +690,6 @@ register cset *cs;
 	case '-':
 		SETERROR(REG_ERANGE);
 		return;			/* NOTE RETURN */
-		break;
 	default:
 		c = '\0';
 		break;
@@ -1564,13 +1563,13 @@ struct parse *p;
 register struct re_guts *g;
 {
 	register sop *scan;
-	sop *start;
-	register sop *newstart;
+	sop *UNINIT_VAR(start);
+	register sop *UNINIT_VAR(newstart);
 	register sopno newlen;
 	register sop s;
 	register char *cp;
 	register sopno i;
-	LINT_INIT(start); LINT_INIT(newstart);
+
 	/* avoid making error situations worse */
 	if (p->error != 0)
 		return;

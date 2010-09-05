@@ -1128,6 +1128,30 @@ JOIN::optimize()
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
+
+  /*
+    It's necessary to check const part of HAVING cond as there is a
+    chance that some cond parts may become const items after
+    make_join_statistics() (for example when Item is a reference to
+    cost table field from outer join).
+
+    This check is performed only for those conditions which do not use
+    aggregate functions. In such case temporary table may not be used
+    and const condition elements may be lost during further having
+    condition transformation in JOIN::exec.
+  */
+  if (having && const_table_map && !having->with_sum_func)
+  {
+    having->update_used_tables();
+    having= remove_eq_conds(thd, having, &having_value);
+    if (having_value == Item::COND_FALSE)
+    {
+      having= new Item_int((longlong) 0,1);
+      zero_result_cause= "Impossible HAVING noticed after reading const tables";
+      DBUG_RETURN(0);
+    }
+  }
+
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -11880,6 +11904,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   int error;
   READ_RECORD *info;
+  SQL_SELECT *select;
 
   join_tab->table->null_row= 0;
   if (!join_tab->cache.records)
@@ -11894,7 +11919,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
       join_tab->select->quick=0;
     }
   }
- /* read through all records */
+  /* read through all records */
   if ((error=join_init_read_record(join_tab)))
   {
     reset_cache_write(&join_tab->cache);
@@ -11908,22 +11933,26 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   }
 
   info= &join_tab->read_record;
+  select= join_tab->select;
+
   do
   {
+    int err= 0;
     if (join->thd->killed)
     {
       join->thd->send_kill_message();
       return NESTED_LOOP_KILLED; // Aborted by user /* purecov: inspected */
     }
-    int err= 0;
-    SQL_SELECT *select=join_tab->select;
     if (rc == NESTED_LOOP_OK &&
         (!join_tab->cache.select ||
          (err= join_tab->cache.select->skip_record(join->thd)) != 0 ))
     {
       if (err < 0)
+      {
+        reset_cache_write(&join_tab->cache);
         return NESTED_LOOP_ERROR;
-      rc= NESTED_LOOP_OK;
+      }
+
       reset_cache_read(&join_tab->cache);
       for (uint i= (join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
       {
@@ -11932,7 +11961,10 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
 	if (!select || (err= select->skip_record(join->thd)) != 0)
         {
           if (err < 0)
+          {
+            reset_cache_write(&join_tab->cache);
             return NESTED_LOOP_ERROR;
+          }
           rc= (join_tab->next_select)(join,join_tab+1,0);
 	  if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
           {

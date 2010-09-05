@@ -750,8 +750,11 @@ static int maria_create_trn_for_mysql(MARIA_HA *info)
                                    thd->query_length());
   }
   else
+  {
     DBUG_PRINT("info", ("lock_type: %d  trnman_flags: %u",
-                        info->lock_type, trnman_get_flags(trn))); /* QQ */
+                        info->lock_type, trnman_get_flags(trn)));
+  }
+  
 #endif
   DBUG_RETURN(0);
 }
@@ -2347,6 +2350,12 @@ int ha_maria::extra(enum ha_extra_function operation)
 
 int ha_maria::reset(void)
 {
+  if (file->trn)
+  {
+    TRN *trn= file->trn;
+    /* Next statement is a new statement. Ensure it's logged */
+    trnman_set_flags(trn, trnman_get_flags(trn) & ~TRN_STATE_INFO_LOGGED);
+  }
   return maria_reset(file);
 }
 

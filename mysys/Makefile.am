@@ -147,7 +147,3 @@ test_base64$(EXEEXT): base64.c $(LIBRARIES)
 
 test_thr_mutex$(EXEEXT): test_thr_mutex.c $(LIBRARIES)
 	$(LINK) $(FLAGS) $(srcdir)/test_thr_mutex.c $(LDADD) $(LIBS)
-
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -100,18 +100,6 @@ mem_pool_get_reserved(
 /*==================*/
 	mem_pool_t*	pool);	/*!< in: memory pool */
 /********************************************************************//**
-Reserves the mem pool mutex. */
-UNIV_INTERN
-void
-mem_pool_mutex_enter(void);
-/*======================*/
-/********************************************************************//**
-Releases the mem pool mutex. */
-UNIV_INTERN
-void
-mem_pool_mutex_exit(void);
-/*=====================*/
-/********************************************************************//**
 Validates a memory pool.
 @return	TRUE if ok */
 UNIV_INTERN

@@ -2996,7 +2996,7 @@ String *Item_func_maketime::val_str(String *str)
                                  buf, len, MYSQL_TIMESTAMP_TIME,
                                  NullS);
   }
-  
+
   if (make_time_with_warn((DATE_TIME_FORMAT *) 0, &ltime, str))
   {
     null_value= 1;

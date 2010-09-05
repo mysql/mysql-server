@@ -363,6 +363,7 @@ TRN *trnman_new_trn(WT_THD *wt)
   trn->used_tables= 0;
 
   trn->locked_tables= 0;
+  trn->flags= 0;
 
   /*
     only after the following function TRN is considered initialized,

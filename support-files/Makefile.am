@@ -129,6 +129,3 @@ SUFFIXES = .sh
 	  -e 's!@''PERL_DATA_DUMPER''@!@PERL_DATA_DUMPER@!' \
 	$< > $@-t
 	@MV@ $@-t $@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
