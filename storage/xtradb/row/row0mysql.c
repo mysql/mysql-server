@@ -30,6 +30,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0mysql.ic"
 #endif
 
+#include "ha_prototypes.h"
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0sel.h"
