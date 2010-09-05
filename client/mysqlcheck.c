@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB & Jani Tolonen
    Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -223,24 +223,26 @@ static void usage(void)
 {
   print_version();
   puts("By Jani Tolonen, 2001-04-20, MySQL Development Team.\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license.\n");
+  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
+  printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
+	 my_progname);
+  printf("OR     %s [OPTIONS] --all-databases\n\n", my_progname);
   puts("This program can be used to CHECK (-c, -m, -C), REPAIR (-r), ANALYZE (-a),");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
-  puts("Please consult the MySQL manual for latest information about the");
-  puts("above. The options -c, -r, -a, and -o are exclusive to each other, which");
+  puts("The options -c, -r, -a, and -o are exclusive to each other, which");
   puts("means that the last option will be used, if several was specified.\n");
-  puts("The option -c will be used by default, if none was specified. You");
-  puts("can change the default behavior by making a symbolic link, or");
+  puts("The option -c (--check) will be used by default, if none was specified.");
+  puts("You can change the default behavior by making a symbolic link, or");
   puts("copying this file somewhere with another name, the alternatives are:");
   puts("mysqlrepair:   The default option will be -r");
   puts("mysqlanalyze:  The default option will be -a");
   puts("mysqloptimize: The default option will be -o\n");
-  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
-  printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
-	 my_progname);
-  printf("OR     %s [OPTIONS] --all-databases\n", my_progname);
+  puts("Please consult the MariaDB/MySQL knowledgebase at");
+  puts("http://kb.askmonty.org/v/mysqlcheck for latest information about");
+  puts("this program.");
   print_defaults("my", load_default_groups);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
@@ -526,7 +528,7 @@ static int process_all_tables_in_db(char *database)
   MYSQL_RES *res;
   MYSQL_ROW row;
   uint num_columns;
-  my_bool system_database;
+  my_bool system_database= 0;
 
   LINT_INIT(res);
   if (use_db(database))
