@@ -526,6 +526,7 @@ static int process_all_tables_in_db(char *database)
   MYSQL_RES *res;
   MYSQL_ROW row;
   uint num_columns;
+  my_bool system_database;
 
   LINT_INIT(res);
   if (use_db(database))
@@ -538,6 +539,9 @@ static int process_all_tables_in_db(char *database)
 		    MYF(0), database, mysql_error(sock));
     return 1;
   }
+
+  if (!strcmp(database, "mysql") || !strcmp(database, "MYSQL"))
+    system_database= 1;
 
   num_columns= mysql_num_fields(res);
 
@@ -581,6 +585,10 @@ static int process_all_tables_in_db(char *database)
       /* Skip views if we don't perform renaming. */
       if ((what_to_do != DO_UPGRADE) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
         continue;
+      if (system_database &&
+          (!strcmp(row[0], "general_log") ||
+           !strcmp(row[0], "slow_log")))
+        continue;                               /* Skip logging tables */
 
       handle_request_for_tables(row[0], fixed_name_length(row[0]));
     }

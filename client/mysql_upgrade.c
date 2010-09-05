@@ -34,8 +34,9 @@
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
-static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag;
-static uint my_end_arg= 0;
+static my_bool opt_force, debug_info_flag, debug_check_flag, opt_silent;
+static my_bool opt_not_used;                    /* For compatiblity */
+static uint my_end_arg= 0, opt_verbose;
 static char *opt_user= (char*)"root";
 
 static DYNAMIC_STRING ds_args;
@@ -116,6 +117,8 @@ static struct my_option my_long_options[]=
    "Base name of shared memory.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"silent", 's', "Print less information", &opt_silent,
+   &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
@@ -124,8 +127,7 @@ static struct my_option my_long_options[]=
   {"user", 'u', "User for login if not current user.", &opt_user,
    &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Display more output about the process.",
-   &opt_verbose, &opt_verbose, 0,
-   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   &opt_not_used, &opt_not_used, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
    "All commands including mysqlcheck are binlogged. Enabled by default;"
    "use --skip-write-binlog when commands should not be sent to replication slaves.",
@@ -173,7 +175,7 @@ static void verbose(const char *fmt, ...)
 {
   va_list args;
 
-  if (!opt_verbose)
+  if (opt_silent)
     return;
 
   /* Print the verbose message */
@@ -266,6 +268,18 @@ get_one_option(int optid, const struct my_option *opt,
     /* FALLTHROUGH */
 
   case 'v': /* --verbose   */
+    opt_verbose++;
+    if (argument == disabled_my_option)
+    {
+      opt_verbose= 0;
+      opt_silent= 1;
+    }
+    add_option= 0;
+    break;
+  case 's':
+    opt_verbose= 0;
+    add_option= 0;
+    break;
   case 'f': /* --force     */
     add_option= FALSE;
     break;
@@ -496,7 +510,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
                 force ? "--force": "--skip-force",
-                ds_res ? "--silent": "",
+                ds_res || opt_silent ? "--silent": "",
                 "<",
                 query_file_path,
                 "2>&1",
@@ -649,6 +663,8 @@ static void create_mysql_upgrade_info_file(void)
 
 static void print_conn_args(const char *tool_name)
 {
+  if (opt_verbose < 2)
+    return;
   if (conn_args.str[0])
     verbose("Running '%s' with connection arguments: %s", tool_name,
           conn_args.str);
@@ -664,6 +680,7 @@ static void print_conn_args(const char *tool_name)
 
 static int run_mysqlcheck_upgrade(void)
 {
+  verbose("Phase 2/3: Checking and upgrading tables");
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -672,7 +689,8 @@ static int run_mysqlcheck_upgrade(void)
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
-                  opt_verbose ? "--verbose": "",
+                  !opt_silent || opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
@@ -680,6 +698,7 @@ static int run_mysqlcheck_upgrade(void)
 
 static int run_mysqlcheck_fixnames(void)
 {
+  verbose("Phase 1/3: Fixing table and database names");
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -689,6 +708,7 @@ static int run_mysqlcheck_fixnames(void)
                   "--fix-db-names",
                   "--fix-table-names",
                   opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
@@ -758,7 +778,7 @@ static int run_sql_fix_privilege_tables(void)
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
-  verbose("Running 'mysql_fix_privilege_tables'...");
+  verbose("Phase 3/3: Running 'mysql_fix_privilege_tables'...");
   run_query(mysql_fix_privilege_tables,
             &ds_result, /* Collect result */
             TRUE);
