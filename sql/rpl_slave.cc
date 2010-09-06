@@ -2721,16 +2721,17 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   {
     int exec_res;
 
-    /* 
+    /*
       Even if we don't execute this event, we keep the master timestamp,
       so that seconds behind master shows correct delta (there are events
       that are not replayed, so we keep falling behind).
 
       If it is an artificial event, or a relay log event (IO thread generated
-      event) or ev->when is set to 0, we don't update the 
+      event) or ev->when is set to 0, or a FD from master, we don't update the
       last_master_timestamp.
-     */
-    if (!(ev->is_artificial_event() || ev->is_relay_log_event() || (ev->when == 0)))
+    */
+    if (!(ev->is_artificial_event() || ev->is_relay_log_event() ||
+          (ev->when == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
     {
       rli->last_master_timestamp= ev->when + (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
@@ -2785,8 +2786,15 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     */
     if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
     {
+      if (thd->variables.binlog_rows_query_log_events)
+        handle_rows_query_log_event(ev, rli);
+
       DBUG_PRINT("info", ("Deleting the event after it has been executed"));
-      delete ev;
+      if (ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+      {
+        delete ev;
+        ev= NULL;
+      }
     }
 
     /*
