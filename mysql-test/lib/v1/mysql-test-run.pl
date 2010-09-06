@@ -3153,7 +3153,7 @@ sub install_db ($$) {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   # Use the mysql database for system tables
-  mtr_tofile($bootstrap_sql_file, "use mysql");
+  mtr_tofile($bootstrap_sql_file, "use mysql;\n");
 
   # Add the offical mysql system tables
   # for a production system

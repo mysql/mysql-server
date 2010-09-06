@@ -776,12 +776,12 @@ struct row_prebuilt_struct {
 	/*----------------------*/
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
-        index_cond_func_t idx_cond_func;/* Index Condition Pushdown function,
-                                        or NULL if there is none set */
-        void*           idx_cond_func_arg;/* ICP function  argument */
-        ulint            n_index_fields; /* Number of fields at the start of
-                                        mysql_template. Valid only when using
-                                        ICP. */
+	index_cond_func_t idx_cond_func;/* Index Condition Pushdown function,
+					or NULL if there is none set */
+	void*		idx_cond_func_arg; /* ICP function  argument */
+	ulint		n_index_fields;	/* Number of fields at the start of
+					mysql_template. Valid only when using
+					ICP. */
 };
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687

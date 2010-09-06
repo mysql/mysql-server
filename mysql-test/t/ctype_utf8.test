@@ -1525,6 +1525,11 @@ CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
 
+
+SET NAMES utf8;
+--source include/ctype_numconv.inc
+
+
 --echo #
 --echo # End of 5.5 tests
 --echo #
