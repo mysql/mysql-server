@@ -146,7 +146,7 @@ static u_int32_t tokudb_env_flags = 0;
 static ulonglong tokudb_cache_size = 0;
 static ulonglong tokudb_max_lock_memory = 0;
 static char *tokudb_home;
-static char *tokudb_tmpdir;
+static char *tokudb_tmp_dir;
 static char *tokudb_log_dir;
 // static long tokudb_lock_scan_time = 0;
 // static ulong tokudb_region_size = 0;
@@ -256,19 +256,19 @@ static int tokudb_init_func(void *p) {
 #endif
 
     {
-    char *tmpdir = tokudb_tmpdir;
+    char *tmp_dir = tokudb_tmp_dir;
     char *data_dir = tokudb_data_dir;
     if (data_dir == 0) {
         data_dir = mysql_data_home;
     }
-    if (tmpdir == 0) {
-        tmpdir = data_dir;
+    if (tmp_dir == 0) {
+        tmp_dir = data_dir;
     }
     DBUG_PRINT("info", ("tokudb_data_dir: %s\n", data_dir));
     db_env->set_data_dir(db_env, data_dir);
 
-    DBUG_PRINT("info", ("tokudb_tmpdir: %s\n", tmpdir));
-    db_env->set_tmp_dir(db_env, tmpdir);
+    DBUG_PRINT("info", ("tokudb_tmp_dir: %s\n", tmp_dir));
+    db_env->set_tmp_dir(db_env, tmp_dir);
     }
 
     if (tokudb_log_dir) {
@@ -1303,7 +1303,7 @@ static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "
 static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0L, 0);
 static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0L, 0);
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
-static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
+static MYSQL_SYSVAR_STR(tmp_dir, tokudb_tmp_dir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 
 #if 0
 
@@ -1352,7 +1352,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(write_status_frequency),
     MYSQL_SYSVAR(read_status_frequency),
     MYSQL_SYSVAR(fs_reserve_percent),
-    MYSQL_SYSVAR(tmpdir),
+    MYSQL_SYSVAR(tmp_dir),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
