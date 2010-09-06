@@ -54,8 +54,8 @@ text1 like 'teststring_%' ORDER BY text1;
 text1
 teststring	
 teststring
-select concat('|', text1, '|') from t1 where text1='teststring' or text1 like 'teststring_%';
-concat('|', text1, '|')
+select concat('|', text1, '|') as c from t1 where text1='teststring' or text1 like 'teststring_%' order by c;
+c
 |teststring	|
 |teststring|
 select concat('|', text1, '|') from t1 where text1='teststring' or text1 > 'teststring\t';
@@ -105,11 +105,11 @@ select concat('|', text1, '|') from t1 where text1 like 'teststring_%';
 concat('|', text1, '|')
 |teststring	|
 |teststring |
-select concat('|', text1, '|') from t1 where text1='teststring' or text1 like 'teststring_%';
-concat('|', text1, '|')
+select concat('|', text1, '|') as c from t1 where text1='teststring' or text1 like 'teststring_%' order by c;
+c
 |teststring	|
-|teststring|
 |teststring |
+|teststring|
 select concat('|', text1, '|') from t1 where text1='teststring' or text1 > 'teststring\t';
 concat('|', text1, '|')
 |teststring|
@@ -123,8 +123,8 @@ concat('|', text1, '|')
 drop table t1;
 create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) pack_keys=0;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
-select concat('|', text1, '|') from t1 where text1='teststring' or text1 like 'teststring_%';
-concat('|', text1, '|')
+select concat('|', text1, '|') as c from t1 where text1='teststring' or text1 like 'teststring_%' order by c;
+c
 |teststring	|
 |teststring|
 select concat('|', text1, '|') from t1 where text1='teststring' or text1 >= 'teststring\t';
@@ -203,13 +203,13 @@ teststring
 teststring 
 select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%';
 text1	length(text1)
-teststring		11
 teststring	10
+teststring		11
 teststring 	11
 select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t';
 text1	length(text1)
-teststring		11
 teststring	10
+teststring		11
 teststring 	11
 select concat('|', text1, '|') from t1 order by text1;
 concat('|', text1, '|')
