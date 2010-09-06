@@ -29,6 +29,7 @@ extern void mysql_audit_finalize();
 
 extern void mysql_audit_init_thd(THD *thd);
 extern void mysql_audit_free_thd(THD *thd);
+extern void mysql_audit_acquire_plugins(THD *thd, uint event_class);
 
 
 extern void mysql_audit_notify(THD *thd, uint event_class,
