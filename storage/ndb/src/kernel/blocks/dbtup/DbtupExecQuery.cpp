@@ -114,6 +114,8 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
     copy(inBuffer, attrInfoIVal);
   }
 
+  regOperPtr->m_any_value= 0;
+
   return;
 }
 
@@ -193,6 +195,8 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
       prevOpPtr.p->op_struct.m_load_diskpage_on_commit;
     regOperPtr.p->m_undo_buffer_space= prevOpPtr.p->m_undo_buffer_space;
     // start with prev mask (matters only for UPD o UPD)
+
+    regOperPtr.p->m_any_value = prevOpPtr.p->m_any_value;
 
     prevOpPtr.p->op_struct.m_wait_log_buffer= 0;
     prevOpPtr.p->op_struct.m_load_diskpage_on_commit= 0;
