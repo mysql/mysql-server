@@ -102,7 +102,11 @@ ArenaPool::init(ArenaAllocator * alloc,
                 const Record_info& ri, const Pool_context&)
 {
   m_record_info = ri;
+#if SIZEOF_CHARP == 4
   m_record_info.m_size = ((ri.m_size + 3) >> 2); // Align to word boundary
+#else
+  m_record_info.m_size = ((ri.m_size + 7) >> 3) << 1; // align 8-byte
+#endif
   m_record_info.m_offset_magic = ((ri.m_offset_magic + 3) >> 2);
   m_record_info.m_offset_next_pool = ((ri.m_offset_next_pool + 3) >> 2);
   m_allocator = alloc;
