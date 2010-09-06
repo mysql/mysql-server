@@ -10255,25 +10255,10 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     Uint32 firstWord;
     ndbrequire( keyInfoReader.getWord(&firstWord) );
     const Uint32 rangeLen= (firstWord >> 16) ? (firstWord >> 16) : totalLen;
-    tcPtrP->m_scan_curr_range_no= (firstWord & 0xFFF0) >> 4;
-    tcPtrP->m_corrFactorLo = ((firstWord & 0xFFF0) >> 4) << 16;
-    /**
-     * When running linked operations (i.e via the SPJ block) the API reqiures 
-     * the combination of tuple id and root fragment id to be unique for each 
-     * tuple in order to associate result tuples from parent and child 
-     * operations. If there is a non-root scan, then each SPJ block will
-     * scan each fragment. The node id is therefore included in the tuple
-     * id, to make sure that tuple ids from scans initiated by the same SPJ
-     * block on different fragments are distinct. (Note that all fragment
-     * scans initiated by the same SPJ block will have the same root fragment 
-     * id.)
-     * FIXME: The code below will break if there are more than 255 tuples in a 
-     * batch or more than 255 fragments.
-     *
-     * NOTE: this can be fixed "only" in Dbspj...
-     */
-    ndbassert(tcPtrP->fragmentid < 0x100);
-    tcPtrP->m_corrFactorLo |= (tcPtrP->fragmentid << 8);
+    Uint32 range_no = (firstWord & 0xFFF0) >> 4;
+    tcPtrP->m_scan_curr_range_no= range_no;
+    tcPtrP->m_corrFactorLo &= 0x0000FFFF;
+    tcPtrP->m_corrFactorLo |= (range_no << 16);
     firstWord &= 0xF; // Remove length+range num from first word
     
     /* Write range info to dst */

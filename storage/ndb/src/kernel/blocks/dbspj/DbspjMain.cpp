@@ -4751,7 +4751,7 @@ Dbspj::scanIndex_send(Signal* signal,
 
   ScanFragReq* req = reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
   memcpy(req, org, sizeof(data.m_scanFragReq));
-  req->variableData[0] = treeNodePtr.p->m_send.m_correlation;
+  // req->variableData[0] // set below
   req->variableData[1] = requestPtr.p->m_rootResultData;
   req->batch_size_bytes = bs_bytes;
   req->batch_size_rows = bs_rows;
@@ -4773,6 +4773,7 @@ Dbspj::scanIndex_send(Signal* signal,
   }
 
   data.m_frags_not_complete = 0;
+  Uint32 batchRange = 0;
   list.first(fragPtr);
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
   {
@@ -4810,6 +4811,7 @@ Dbspj::scanIndex_send(Signal* signal,
     }
     fragPtr.p->reset_ranges();
     
+    req->variableData[0] = batchRange;
     getSection(handle.m_ptr[0], attrInfoPtrI);
     getSection(handle.m_ptr[1], keyInfoPtrI);
     handle.m_cnt = 2;
@@ -4854,6 +4856,7 @@ Dbspj::scanIndex_send(Signal* signal,
     fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING; // running
     data.m_frags_outstanding++;
     data.m_frags_not_complete++;
+    batchRange += bs_rows;
   }
 
   if (release == false)
