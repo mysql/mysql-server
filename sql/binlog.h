@@ -260,5 +260,6 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
+void check_binlog_cache_size(THD *thd);
 
 #endif /* BINLOG_H_INCLUDED */
