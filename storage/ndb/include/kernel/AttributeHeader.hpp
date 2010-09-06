@@ -62,8 +62,9 @@ public:
   // Free but allocated DD extent space
   STATIC_CONST( FRAGMENT_FREE_EXTENT_SPACE = 0xFFEB );
 
-  STATIC_CONST( FLUSH_AI     = 0xFFEA );
-  STATIC_CONST( READ_ANY_VALUE = 0xFFE9 );
+  STATIC_CONST( FLUSH_AI = 0xFFEA );
+  STATIC_CONST( CORR_FACTOR32 = 0xFFE9 ); // excluding root-frag
+  STATIC_CONST( CORR_FACTOR64 = 0xFFE8 ); // including root-frag
 
   /**
    * Optimize pseudo column and optimization options

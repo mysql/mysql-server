@@ -147,11 +147,11 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     nextPos++;
   }
 
-  if (LqhKeyReq::getAnyValueFlag(reqInfo))
+  if (LqhKeyReq::getCorrFactorFlag(reqInfo))
   {
-    fprintf(output, " RootFragId: 0x%x", sig->variableData[nextPos + 0]);
+    fprintf(output, " corrFactorLo: 0x%x", sig->variableData[nextPos + 0]);
     nextPos++;
-    fprintf(output, " AnyValue: 0x%x", sig->variableData[nextPos + 0]);
+    fprintf(output, " corrFactorHi: 0x%x", sig->variableData[nextPos + 0]);
     nextPos++;
   }
   

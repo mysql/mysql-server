@@ -96,8 +96,8 @@ public:
   static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getReorgFlag(const Uint32 & requestInfo);
 
-  static void setAnyValueFlag(Uint32 & requestInfo, Uint32 val);
-  static Uint32 getAnyValueFlag(const Uint32 & requestInfo);
+  static void setCorrFactorFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getCorrFactorFlag(const Uint32 & requestInfo);
 };
 
 /*
@@ -260,7 +260,7 @@ public:
  * t = tup scan              - 1  Bit 11 (implies x=z=0)
  * p = Scan prio             - 4  Bits (12-15) -> max 15
  * r = Reorg flag            - 2  Bits (1-2)
- * A = any value flag        - 1  Bit  (16)
+ * C = corr value flag       - 1  Bit  (16)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
@@ -288,7 +288,7 @@ public:
 #define SF_REORG_SHIFT      (1)
 #define SF_REORG_MASK       (3)
 
-#define SF_ANY_VALUE_SHIFT  (16)
+#define SF_CORR_FACTOR_SHIFT  (16)
 
 inline 
 Uint32
@@ -468,15 +468,15 @@ ScanFragReq::setReorgFlag(UintR & requestInfo, UintR val){
 
 inline
 Uint32
-ScanFragReq::getAnyValueFlag(const Uint32 & requestInfo){
-  return (requestInfo >> SF_ANY_VALUE_SHIFT) & 1;
+ScanFragReq::getCorrFactorFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_CORR_FACTOR_SHIFT) & 1;
 }
 
 inline
 void
-ScanFragReq::setAnyValueFlag(UintR & requestInfo, UintR val){
-  ASSERT_BOOL(val, "ScanFragReq::setAnyValueFlag");
-  requestInfo |= (val << SF_ANY_VALUE_SHIFT);
+ScanFragReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setCorrFactorFlag");
+  requestInfo |= (val << SF_CORR_FACTOR_SHIFT);
 }
 
 #endif

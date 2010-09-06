@@ -160,10 +160,10 @@ private:
   static void setNormalProtocolFlag(UintR & requestInfo, UintR val);
 
   /**
-   * Include any-value
+   * Include corr factor
    */
-  static UintR getAnyValueFlag(const UintR & requestInfo);
-  static void setAnyValueFlag(UintR & requestInfo, UintR val);
+  static UintR getCorrFactorFlag(const UintR & requestInfo);
+  static void setCorrFactorFlag(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -191,7 +191,7 @@ private:
  * g = gci flag               - 1  Bit (12)
  * n = NR copy                - 1  Bit (13)
  * P = Do normal protocol even if dirty-read - 1 Bit (14)
- * A = AnyValue flag          - 1  Bit (24)
+ * A = CorrFactor flag        - 1  Bit (24)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -230,7 +230,7 @@ private:
 #define RI_GCI_SHIFT         (12)
 #define RI_NR_COPY_SHIFT     (13)
 #define RI_NORMAL_DIRTY      (14)
-#define RI_ANY_VALUE         (24)
+#define RI_CORR_FACTOR_VALUE (24)
 
 /**
  * Scan Info
@@ -609,15 +609,15 @@ LqhKeyReq::getNormalProtocolFlag(const UintR & requestInfo){
 
 inline
 void
-LqhKeyReq::setAnyValueFlag(UintR & requestInfo, UintR val){
-  ASSERT_BOOL(val, "LqhKeyReq::setNrCopyFlag");
-  requestInfo |= (val << RI_ANY_VALUE);
+LqhKeyReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setCorrFactorFlag");
+  requestInfo |= (val << RI_CORR_FACTOR_VALUE);
 }
 
 inline
 UintR
-LqhKeyReq::getAnyValueFlag(const UintR & requestInfo){
-  return (requestInfo >> RI_ANY_VALUE) & 1;
+LqhKeyReq::getCorrFactorFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_CORR_FACTOR_VALUE) & 1;
 }
 
 class LqhKeyConf {

@@ -2013,8 +2013,8 @@ public:
       Uint32 m_scan_curr_range_no;
       UintR noFiredTriggers;
     };
-    Uint32 m_rootStreamId; // For result correlation for linked operations.
-    Uint32 m_anyValue;
+    Uint32 m_corrFactorLo; // For result correlation for linked operations.
+    Uint32 m_corrFactorHi;
     Uint64 lqhKeyReqId;
     Uint16 errorCode;
     Uint16 logStartPageIndex;

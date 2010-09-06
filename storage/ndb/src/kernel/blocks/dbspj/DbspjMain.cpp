@@ -1963,11 +1963,9 @@ Dbspj::execTRANSID_AI(Signal* signal)
   row.m_src_node_ptrI = treeNodePtr.i;
   row.m_row_data.m_section.m_header = header;
   row.m_row_data.m_section.m_dataPtr.assign(dataPtr);
-  Uint32 rootStreamId = 0;
 
   getCorrelationData(row.m_row_data.m_section, 
                      cnt - 1, 
-                     rootStreamId, 
                      row.m_src_correlation);
 
   if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
@@ -1977,7 +1975,6 @@ Dbspj::execTRANSID_AI(Signal* signal)
     ndbrequire(err == 0);
   }
   
-  ndbrequire(requestPtr.p->m_rootResultData == rootStreamId);
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execTRANSID_AI);
   
   (this->*(treeNodePtr.p->m_info->m_execTRANSID_AI))(signal,
@@ -2584,7 +2581,7 @@ Dbspj::lookup_build(Build_context& ctx,
       LqhKeyReq::setDirtyFlag(requestInfo, 1);
       LqhKeyReq::setSimpleFlag(requestInfo, 1);
       LqhKeyReq::setNormalProtocolFlag(requestInfo, 0);  // Assume T_LEAF 
-      LqhKeyReq::setAnyValueFlag(requestInfo, 1);
+      LqhKeyReq::setCorrFactorFlag(requestInfo, 1);
       LqhKeyReq::setNoDiskFlag(requestInfo, 
                                (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
@@ -2757,8 +2754,8 @@ Dbspj::lookup_send(Signal* signal,
 
   memcpy(req, treeNodePtr.p->m_lookup_data.m_lqhKeyReq,
 	 sizeof(treeNodePtr.p->m_lookup_data.m_lqhKeyReq));
-  req->variableData[2] = requestPtr.p->m_rootResultData;
-  req->variableData[3] = treeNodePtr.p->m_send.m_correlation;
+  req->variableData[2] = treeNodePtr.p->m_send.m_correlation;
+  req->variableData[3] = requestPtr.p->m_rootResultData;
 
   if (!(requestPtr.p->isLookup() && treeNodePtr.p->isLeaf()))
   {
@@ -3580,7 +3577,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
     Uint32 requestInfo = 0;
     ScanFragReq::setReadCommittedFlag(requestInfo, 1);
     ScanFragReq::setScanPrio(requestInfo, ctx.m_scanPrio);
-    ScanFragReq::setAnyValueFlag(requestInfo, 1);
+    ScanFragReq::setCorrFactorFlag(requestInfo, 1);
     ScanFragReq::setNoDiskFlag(requestInfo, 
                                (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
@@ -3747,8 +3744,8 @@ Dbspj::scanFrag_send(Signal* signal,
 
   memcpy(req, treeNodePtr.p->m_scanfrag_data.m_scanFragReq,
 	 sizeof(treeNodePtr.p->m_scanfrag_data.m_scanFragReq));
-  req->variableData[0] = requestPtr.p->m_rootResultData;
-  req->variableData[1] = treeNodePtr.p->m_send.m_correlation;
+  req->variableData[0] = treeNodePtr.p->m_send.m_correlation;
+  req->variableData[1] = requestPtr.p->m_rootResultData;
 
   SectionHandle handle(this);
 
@@ -4140,10 +4137,10 @@ Dbspj::scanIndex_build(Build_context& ctx,
     ScanFragReq::setRangeScanFlag(requestInfo, 1);
     ScanFragReq::setReadCommittedFlag(requestInfo, 1);
     ScanFragReq::setScanPrio(requestInfo, ctx.m_scanPrio);
-    ScanFragReq::setAnyValueFlag(requestInfo, 1);
     ScanFragReq::setNoDiskFlag(requestInfo, 
                                (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
+    ScanFragReq::setCorrFactorFlag(requestInfo, 1);
     dst->requestInfo = requestInfo;
 
     err = DbspjErr::InvalidTreeNodeSpecification;
@@ -4754,8 +4751,8 @@ Dbspj::scanIndex_send(Signal* signal,
 
   ScanFragReq* req = reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
   memcpy(req, org, sizeof(data.m_scanFragReq));
-  req->variableData[0] = requestPtr.p->m_rootResultData;
-  req->variableData[1] = treeNodePtr.p->m_send.m_correlation;
+  req->variableData[0] = treeNodePtr.p->m_send.m_correlation;
+  req->variableData[1] = requestPtr.p->m_rootResultData;
   req->batch_size_bytes = bs_bytes;
   req->batch_size_rows = bs_rows;
 
@@ -5531,7 +5528,6 @@ err:
 void
 Dbspj::getCorrelationData(const RowPtr::Section & row, 
                           Uint32 col,
-                          Uint32& rootStreamId,
                           Uint32& correlationNumber)
 {
   /**
@@ -5544,15 +5540,13 @@ Dbspj::getCorrelationData(const RowPtr::Section & row,
   Uint32 tmp;
   ndbrequire(reader.getWord(&tmp));
   Uint32 len = AttributeHeader::getDataSize(tmp);
-  ndbrequire(len == 2);
-  ndbrequire(reader.getWord(&rootStreamId));
+  ndbrequire(len == 1);
   ndbrequire(reader.getWord(&correlationNumber));
 }
 
 void
 Dbspj::getCorrelationData(const RowPtr::Linear & row, 
                           Uint32 col,
-                          Uint32& rootStreamId,
                           Uint32& correlationNumber)
 {
   /**
@@ -5561,9 +5555,8 @@ Dbspj::getCorrelationData(const RowPtr::Linear & row,
   Uint32 offset = row.m_header->m_offset[col];
   Uint32 tmp = row.m_data[offset];
   Uint32 len = AttributeHeader::getDataSize(tmp);
-  ndbrequire(len == 2);
-  rootStreamId = row.m_data[offset+1];
-  correlationNumber = row.m_data[offset+2];
+  ndbrequire(len == 1);
+  correlationNumber = row.m_data[offset+1];
 }
 
 Uint32
@@ -5750,10 +5743,8 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
     if (levels)
     {
       jam();
-      Uint32 dummy;
       getCorrelationData(targetRow.m_row_data.m_linear,
                          targetRow.m_row_data.m_linear.m_header->m_len - 1,
-                         dummy,
                          corrVal);
     }
   }
@@ -6561,7 +6552,7 @@ Dbspj::parseDA(Build_context& ctx,
         /**
          * Read correlation factor
          */
-        dst[cnt++] = AttributeHeader::READ_ANY_VALUE << 16;
+        dst[cnt++] = AttributeHeader::CORR_FACTOR32 << 16;
 
         err = DbspjErr::OutOfSectionMemory;
         if (!appendToSection(attrInfoPtrI, dst, cnt))

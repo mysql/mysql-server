@@ -194,9 +194,6 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
     regOperPtr.p->m_undo_buffer_space= prevOpPtr.p->m_undo_buffer_space;
     // start with prev mask (matters only for UPD o UPD)
 
-    regOperPtr.p->m_root_frag_id = prevOpPtr.p->m_root_frag_id;
-    regOperPtr.p->m_any_value = prevOpPtr.p->m_any_value;
-
     prevOpPtr.p->op_struct.m_wait_log_buffer= 0;
     prevOpPtr.p->op_struct.m_load_diskpage_on_commit= 0;
 
@@ -551,15 +548,11 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
  /* -----------    INITIATE THE OPERATION RECORD       -------------- */
  /* ----------------------------------------------------------------- */
    Uint32 Rstoredid= tupKeyReq->storedProcedure;
-   Uint32 rootStreamId = tupKeyReq->rootStreamId;
-   Uint32 anyValue = tupKeyReq->anyValue;
 
    regOperPtr->fragmentPtr= Rfragptr;
    regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0xf;
    regOperPtr->op_struct.delete_insert_flag = false;
    regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
-   regOperPtr->m_root_frag_id = rootStreamId;
-   regOperPtr->m_any_value = anyValue;
 
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;

@@ -772,7 +772,6 @@ struct Operationrec {
 
   Uint32 m_undo_buffer_space; // In words
 
-  Uint32 m_root_frag_id; // For result correlation for linked operations.
   Uint32 m_any_value;
   Uint32 nextPool;
   

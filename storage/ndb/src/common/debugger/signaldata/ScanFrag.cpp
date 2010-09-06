@@ -51,8 +51,8 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
           ScanFragReq::getAttrLen(sig->requestInfo));
   fprintf(output, " reorg: %u",
           ScanFragReq::getReorgFlag(sig->requestInfo));
-  fprintf(output, " prio: %u\n",
-          ScanFragReq::getScanPrio(sig->requestInfo));
+  fprintf(output, " corr: %u\n",
+          ScanFragReq::getCorrFactorFlag(sig->requestInfo));
 
   fprintf(output, " tableId: %u\n", sig->tableId);
   fprintf(output, " fragmentNo: %u\n", sig->fragmentNoKeyLen & 0xFFFF);
@@ -63,10 +63,11 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
   fprintf(output, " clientOpPtr: 0x%x\n", sig->clientOpPtr);
   fprintf(output, " batch_size_rows: %u\n", sig->batch_size_rows);
   fprintf(output, " batch_size_bytes: %u\n", sig->batch_size_bytes);
-  if (len > ScanFragReq::SignalLength)
+
+  if (ScanFragReq::getCorrFactorFlag(sig->requestInfo))
   {
-    fprintf(output, " RootFragId: 0x%x\n", sig->variableData[0]);
-    fprintf(output, " AnyValue: 0x%x\n", sig->variableData[1]);
+    fprintf(output, " corrFactorLo: 0x%x\n", sig->variableData[0]);
+    fprintf(output, " corrFactorHi: 0x%x\n", sig->variableData[1]);
   }
 
   return true;
