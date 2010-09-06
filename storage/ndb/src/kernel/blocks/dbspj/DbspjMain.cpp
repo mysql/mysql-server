@@ -293,6 +293,7 @@ Dbspj::execAPI_FAILREQ(Signal* signal)
 void
 Dbspj::execCONTINUEB(Signal* signal)
 {
+  jamEntry();
   switch(signal->theData[0]) {
   case 0:
     releaseGlobal(signal);
@@ -1044,6 +1045,15 @@ Dbspj::checkPrepareComplete(Signal * signal, Ptr<Request> requestPtr,
   if (requestPtr.p->m_outstanding == 0)
   {
     jam();
+
+    if (unlikely((requestPtr.p->m_state & Request::RS_ABORTING) != 0))
+    {
+      jam();
+      batchComplete(signal, requestPtr);
+      return;
+    }
+
+    requestPtr.p->m_state = Request::RS_RUNNING;
     Ptr<TreeNode> nodePtr;
     {
       Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
@@ -1138,6 +1148,18 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
 {
   if (requestPtr.p->isScan())
   {
+    if (unlikely((requestPtr.p->m_state & Request::RS_WAITING) != 0))
+    {
+      jam();
+      /**
+       * We aborted request ourselves (due to node-failure ?)
+       *   but TC haven't contacted us...so we can't reply yet...
+       */
+      ndbrequire(is_complete);
+      ndbrequire((requestPtr.p->m_state & Request::RS_ABORTING) != 0);
+      return;
+    }
+
     if (requestPtr.p->m_errCode == 0)
     {
       jam();
@@ -1157,6 +1179,11 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
        * reset for next batch
        */
       requestPtr.p->m_rows = 0;
+      if (!is_complete)
+      {
+        jam();
+        requestPtr.p->m_state |= Request::RS_WAITING;
+      }
 #ifdef DEBUG_SCAN_FRAGREQ
   ndbout_c("Dbspj::sendConf() sending SCAN_FRAGCONF ");
   printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
@@ -1571,8 +1598,10 @@ Dbspj::complete(Signal* signal, Ptr<Request> requestPtr)
   /**
    * we need to run complete-phase before sending last SCAN_FRAGCONF
    */
-  Uint32 is_abort = requestPtr.p->m_state & Request::RS_ABORTING;
-  requestPtr.p->m_state = Request::RS_COMPLETING | is_abort;
+  Uint32 flags = requestPtr.p->m_state &
+    (Request::RS_ABORTING | Request::RS_WAITING);
+
+  requestPtr.p->m_state = Request::RS_COMPLETING | flags;
   
   // clear bit so that next batchComplete()
   // will continue to cleanup
@@ -1623,10 +1652,19 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
       list.next(nodePtr);
       m_treenode_pool.release(tmp);
     }
+    list.remove();
   }
   if (requestPtr.p->isScan())
   {
     jam();
+
+    if (unlikely((requestPtr.p->m_state & Request::RS_WAITING) != 0))
+    {
+      jam();
+      requestPtr.p->m_state = Request::RS_ABORTED;
+      return;
+    }
+
 #ifdef VM_TRACE
     {
       Request key;
@@ -1833,6 +1871,26 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     return;
   }
 
+  Uint32 state = requestPtr.p->m_state;
+  requestPtr.p->m_state = state & ~Uint32(Request::RS_WAITING);
+
+  if (unlikely(state == Request::RS_ABORTED))
+  {
+    jam();
+    batchComplete(signal, requestPtr);
+    return;
+  }
+
+  if (unlikely((state & Request::RS_ABORTING) != 0))
+  {
+    jam();
+    /**
+     * abort is already in progress...
+     *   since RS_WAITING is cleared...it will end this request
+     */
+    return;
+  }
+
   if (req->closeFlag == ZTRUE)  // Requested close scan
   {
     jam();
@@ -1840,6 +1898,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     return;
   }
 
+  ndbrequire((state & Request::RS_WAITING) != 0);
   ndbrequire(requestPtr.p->m_outstanding == 0);
 
   {
@@ -3274,7 +3333,6 @@ Dbspj::lookup_execNODE_FAILREP(Signal* signal,
   {
     Uint32 cnt = requestPtr.p->m_lookup_node_data[node];
     sum += cnt;
-    ndbassert(requestPtr.p->m_outstanding >= sum);
     requestPtr.p->m_lookup_node_data[node] = 0;
   }
 
@@ -4246,6 +4304,7 @@ Dbspj::scanIndex_prepare(Signal * signal,
 {
   jam();
 
+  treeNodePtr.p->m_state = TreeNode::TN_PREPARING;
   ScanFragReq*dst=(ScanFragReq*)treeNodePtr.p->m_scanindex_data.m_scanFragReq;
 
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
@@ -4394,9 +4453,14 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
                  DihScanGetNodesReq::SignalLength, JBB);
       cnt++;
     }
-    requestPtr.p->m_outstanding += cnt;
+    data.m_frags_not_complete = cnt;
+    requestPtr.p->m_outstanding++;
   }
-
+  else
+  {
+    jam();
+    treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+  }
   checkPrepareComplete(signal, requestPtr, 1);
 
   return;
@@ -4424,18 +4488,27 @@ Dbspj::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   Uint32 node = conf->nodes[0];
   Uint32 instanceKey = conf->instanceKey;
 
-
   Ptr<ScanFragHandle> fragPtr;
   m_scanfraghandle_pool.getPtr(fragPtr, senderData);
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, fragPtr.p->m_treeNodePtrI);
   ndbrequire(treeNodePtr.p->m_info == &g_ScanIndexOpInfo);
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  ndbrequire(data.m_frags_not_complete > 0);
+  data.m_frags_not_complete--;
 
   fragPtr.p->m_ref = numberToRef(DBLQH, instanceKey, node);
 
-  Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
-  checkPrepareComplete(signal, requestPtr, 1);
+  if (data.m_frags_not_complete == 0)
+  {
+    jam();
+
+    treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+
+    Ptr<Request> requestPtr;
+    m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+    checkPrepareComplete(signal, requestPtr, 1);
+  }
 }
 
 Uint32
@@ -4865,6 +4938,8 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
   Uint32 done = conf->fragmentCompleted;
 
   Uint32 state = fragPtr.p->m_state;
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+
   if (state == ScanFragHandle::SFH_WAIT_CLOSE && done == 0)
   {
     jam();
@@ -4875,8 +4950,6 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
   }
 
   requestPtr.p->m_rows += rows;
-
-  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
 
   if (!treeNodePtr.p->isLeaf())
   {
@@ -4907,17 +4980,29 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
     }
   }
 
-  if (data.m_frags_outstanding == 0 && 
-      data.m_rows_received == data.m_rows_expecting)
+
+  if (data.m_frags_outstanding == 0)
   {
-    jam();
     /**
-     * Finished...
+     * Don't reportBatchComplete to children if we're aborting...
      */
-    if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE)
+    if (state == ScanFragHandle::SFH_WAIT_CLOSE)
     {
       jam();
-      reportBatchComplete(signal, requestPtr, treeNodePtr);
+      ndbrequire((requestPtr.p->m_state & Request::RS_ABORTING) != 0);
+    }
+    else if (! (data.m_rows_received == data.m_rows_expecting))
+    {
+      jam();
+      return;
+    }
+    else
+    {
+      if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE)
+      {
+        jam();
+        reportBatchComplete(signal, requestPtr, treeNodePtr);
+      }
     }
     
     checkBatchComplete(signal, requestPtr, 1);
@@ -4954,6 +5039,7 @@ Dbspj::scanIndex_execSCAN_FRAGREF(Signal* signal,
     ndbrequire(requestPtr.p->m_cnt_active);
     requestPtr.p->m_cnt_active--;
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+    mark_active(requestPtr, treeNodePtr, false);
   }
 
   if (data.m_frags_outstanding == 0)
@@ -5063,55 +5149,71 @@ Dbspj::scanIndex_abort(Signal* signal,
 {
   jam();
 
-  if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
-  {
+  switch(treeNodePtr.p->m_state){
+  case TreeNode::TN_BUILDING:
+  case TreeNode::TN_PREPARING:
+  case TreeNode::TN_INACTIVE:
+  case TreeNode::TN_COMPLETING:
+  case TreeNode::TN_END:
+    ndbout_c("H'%.8x H'%.8x scanIndex_abort state: %u",
+             requestPtr.p->m_transId[0],
+             requestPtr.p->m_transId[1],
+             treeNodePtr.p->m_state);
+    return;
+
+  case TreeNode::TN_ACTIVE:
     jam();
+    break;
+  }
 
-    ScanFragNextReq* req = CAST_PTR(ScanFragNextReq, signal->getDataPtrSend());
-    req->closeFlag = 1;
-    req->transId1 = requestPtr.p->m_transId[0];
-    req->transId2 = requestPtr.p->m_transId[1];
-    req->batch_size_rows = 0;
-    req->batch_size_bytes = 0;
+  ScanFragNextReq* req = CAST_PTR(ScanFragNextReq, signal->getDataPtrSend());
+  req->closeFlag = 1;
+  req->transId1 = requestPtr.p->m_transId[0];
+  req->transId2 = requestPtr.p->m_transId[1];
+  req->batch_size_rows = 0;
+  req->batch_size_bytes = 0;
 
-    ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
-    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
-    Ptr<ScanFragHandle> fragPtr;
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+  Ptr<ScanFragHandle> fragPtr;
 
-    Uint32 cnt_waiting = 0;
-    Uint32 cnt_scanning = 0;
-    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
-    {
-      switch(fragPtr.p->m_state){
-      case ScanFragHandle::SFH_NOT_STARTED:
-      case ScanFragHandle::SFH_COMPLETE:
-      case ScanFragHandle::SFH_WAIT_CLOSE:
-        break;
-      case ScanFragHandle::SFH_WAIT_NEXTREQ:
-        cnt_waiting++; // was idle...
-        goto do_abort;
-      case ScanFragHandle::SFH_SCANNING:
-        cnt_scanning++;
-        goto do_abort;
-      do_abort:
-        req->senderData = fragPtr.i;
-        sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
-                   ScanFragNextReq::SignalLength, JBB);
-
-        fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
-        break;
-      }
-    }
-
-    ndbrequire(cnt_waiting + cnt_scanning > 0);
-    if (cnt_scanning == 0)
-    {
-      /**
-       * If all were waiting...this should increase m_outstanding
-       */
+  Uint32 cnt_waiting = 0;
+  Uint32 cnt_scanning = 0;
+  for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+  {
+    switch(fragPtr.p->m_state){
+    case ScanFragHandle::SFH_NOT_STARTED:
+    case ScanFragHandle::SFH_COMPLETE:
+    case ScanFragHandle::SFH_WAIT_CLOSE:
       jam();
-      requestPtr.p->m_outstanding++;
+      break;
+    case ScanFragHandle::SFH_WAIT_NEXTREQ:
+      jam();
+      cnt_waiting++;              // was idle...
+      data.m_frags_outstanding++; // is closing
+      goto do_abort;
+    case ScanFragHandle::SFH_SCANNING:
+      jam();
+      cnt_scanning++;
+      goto do_abort;
+    do_abort:
+      req->senderData = fragPtr.i;
+      sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
+                 ScanFragNextReq::SignalLength, JBB);
+
+      fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+      break;
     }
+  }
+
+  ndbrequire(cnt_waiting + cnt_scanning > 0);
+  if (cnt_scanning == 0)
+  {
+    /**
+     * If all were waiting...this should increase m_outstanding
+     */
+    jam();
+    requestPtr.p->m_outstanding++;
   }
 }
 
@@ -5122,8 +5224,91 @@ Dbspj::scanIndex_execNODE_FAILREP(Signal* signal,
                                   NdbNodeBitmask nodes)
 {
   jam();
-  ndbrequire(false);
-  return 0;
+
+  switch(treeNodePtr.p->m_state){
+  case TreeNode::TN_PREPARING:
+  case TreeNode::TN_INACTIVE:
+    return 1;
+
+  case TreeNode::TN_BUILDING:
+  case TreeNode::TN_COMPLETING:
+  case TreeNode::TN_END:
+    return 0;
+
+  case TreeNode::TN_ACTIVE:
+    jam();
+    break;
+  }
+
+
+  Uint32 sum = 0;
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+  Ptr<ScanFragHandle> fragPtr;
+
+  Uint32 save0 = data.m_frags_outstanding;
+  Uint32 save1 = data.m_frags_not_complete;
+
+  for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+  {
+    if (nodes.get(refToNode(fragPtr.p->m_ref)) == false)
+    {
+      jam();
+      /**
+       * No action needed
+       */
+      continue;
+    }
+
+    switch(fragPtr.p->m_state){
+    case ScanFragHandle::SFH_NOT_STARTED:
+      jam();
+      ndbrequire(data.m_frags_not_complete > 0);
+      data.m_frags_not_complete--;
+      // fall through
+    case ScanFragHandle::SFH_COMPLETE:
+      jam();
+      sum++; // indicate that we should abort
+      /**
+       * we could keep list of all fragments...
+       *   or execute DIGETNODES again...
+       *   but for now, we don't
+       */
+      break;
+    case ScanFragHandle::SFH_WAIT_CLOSE:
+    case ScanFragHandle::SFH_SCANNING:
+      jam();
+      ndbrequire(data.m_frags_outstanding > 0);
+      data.m_frags_outstanding--;
+      // fall through
+    case ScanFragHandle::SFH_WAIT_NEXTREQ:
+      jam();
+      sum++;
+      ndbrequire(data.m_frags_not_complete > 0);
+      data.m_frags_not_complete--;
+      break;
+    }
+    fragPtr.p->m_ref = 0;
+    fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
+  }
+
+  if (save0 != 0 && data.m_frags_outstanding == 0)
+  {
+    jam();
+    ndbrequire(requestPtr.p->m_outstanding);
+    requestPtr.p->m_outstanding--;
+  }
+
+  if (save1 != 0 && data.m_frags_not_complete == 0)
+  {
+    jam();
+    ndbrequire(requestPtr.p->m_cnt_active);
+    requestPtr.p->m_cnt_active--;
+    treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+    mark_active(requestPtr, treeNodePtr, false);
+  }
+
+  return sum;
 }
 
 void

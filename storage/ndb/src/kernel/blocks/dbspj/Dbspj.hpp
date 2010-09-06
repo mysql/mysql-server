@@ -556,24 +556,24 @@ public:
       TN_BUILDING = 1,
 
       /**
-       * Tree node is build, but not active
+       * Tree node is preparing
        */
-      TN_INACTIVE = 2,
+      TN_PREPARING = 2,
+
+      /**
+       * Tree node is build and prepared, but not active
+       */
+      TN_INACTIVE = 3,
 
       /**
        * Tree node is active (i.e has outstanding request(s))
        */
-      TN_ACTIVE = 3,
+      TN_ACTIVE = 4,
 
       /**
        * Tree node is "finishing" (after TN_INACTIVE)
        */
       TN_COMPLETING = 5,
-
-      /**
-       * Tree node is aborting
-       */
-      TN_ABORTING = 6,
 
       /**
        * end-marker, not a valid state
@@ -741,8 +741,11 @@ public:
       RS_PREPARING  = 0x2,
       RS_RUNNING    = 0x3,
       RS_COMPLETING = 0x4,
-      RS_ABORTING   = 0x1000, // Or:ed together with other states
 
+      RS_ABORTING   = 0x1000, // Or:ed together with other states
+      RS_WAITING    = 0x2000, // Waiting for SCAN_NEXTREQ
+
+      RS_ABORTED    = 0x2008, // Aborted and waiting for SCAN_NEXTREQ
       RS_END = 0
     };
 
