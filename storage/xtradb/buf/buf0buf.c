@@ -792,7 +792,7 @@ buf_block_reuse(
 	ptrdiff_t	frame_offset)
 {
 	/* block_init */
-	block->frame = ((void*)(block->frame) + frame_offset);
+	block->frame = ((char*)(block->frame) + frame_offset);
 
 	UNIV_MEM_DESC(block->frame, UNIV_PAGE_SIZE, block);
 
@@ -809,7 +809,7 @@ buf_block_reuse(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	if (block->page.zip.data)
-		block->page.zip.data = ((void*)(block->page.zip.data) + frame_offset);
+		block->page.zip.data = ((char*)(block->page.zip.data) + frame_offset);
 
 	block->is_hashed = FALSE;
 
@@ -876,17 +876,17 @@ buf_chunk_init(
 		"InnoDB: You should ensure no change of InnoDB files while using innodb_buffer_pool_shm_key.\n");
 
 		/* FIXME: This is vague id still */
-		binary_id = (ulint) ((void*)mtr_commit - (void*)btr_root_get)
-			  + (ulint) ((void*)os_get_os_version - (void*)buf_calc_page_new_checksum)
-			  + (ulint) ((void*)page_dir_find_owner_slot - (void*)dfield_data_is_binary_equal)
-			  + (ulint) ((void*)que_graph_publish - (void*)dict_casedn_str)
-			  + (ulint) ((void*)read_view_oldest_copy_or_open_new - (void*)fil_space_get_version)
-			  + (ulint) ((void*)rec_get_n_extern_new - (void*)fsp_get_size_low)
-			  + (ulint) ((void*)row_get_trx_id_offset - (void*)ha_create_func)
-			  + (ulint) ((void*)srv_set_io_thread_op_info - (void*)thd_is_replication_slave_thread)
-			  + (ulint) ((void*)mutex_create_func - (void*)ibuf_inside)
-			  + (ulint) ((void*)trx_set_detailed_error - (void*)lock_check_trx_id_sanity)
-			  + (ulint) ((void*)ut_time - (void*)mem_heap_strdup);
+		binary_id = (ulint) ((char*)mtr_commit - (char *)btr_root_get)
+			  + (ulint) ((char *)os_get_os_version - (char *)buf_calc_page_new_checksum)
+			  + (ulint) ((char *)page_dir_find_owner_slot - (char *)dfield_data_is_binary_equal)
+			  + (ulint) ((char *)que_graph_publish - (char *)dict_casedn_str)
+			  + (ulint) ((char *)read_view_oldest_copy_or_open_new - (char *)fil_space_get_version)
+			  + (ulint) ((char *)rec_get_n_extern_new - (char *)fsp_get_size_low)
+			  + (ulint) ((char *)row_get_trx_id_offset - (char *)ha_create_func)
+			  + (ulint) ((char *)srv_set_io_thread_op_info - (char *)thd_is_replication_slave_thread)
+			  + (ulint) ((char *)mutex_create_func - (char *)ibuf_inside)
+			  + (ulint) ((char *)trx_set_detailed_error - (char *)lock_check_trx_id_sanity)
+			  + (ulint) ((char *)ut_time - (char *)mem_heap_strdup);
 
 		chunk->mem = os_shm_alloc(&chunk->mem_size, srv_buffer_pool_shm_key, &is_new);
 
@@ -902,7 +902,7 @@ buf_chunk_init(
 
 		shm_info = chunk->mem;
 
-		zip_hash_tmp = (hash_table_t*)((void*)chunk->mem + chunk->mem_size - zip_hash_mem_size);
+		zip_hash_tmp = (hash_table_t*)((char *)chunk->mem + chunk->mem_size - zip_hash_mem_size);
 
 		if (is_new) {
 			strncpy(shm_info->head_str, BUF_SHM_INFO_HEAD, 8);
@@ -959,7 +959,7 @@ buf_chunk_init(
 			ut_a(shm_info->zip_hash_n == zip_hash_n);
 
 			/* check checksum */
-			checksum = ut_fold_binary(chunk->mem + sizeof(buf_shm_info_t),
+			checksum = ut_fold_binary((byte*)chunk->mem + sizeof(buf_shm_info_t),
 						  chunk->mem_size - sizeof(buf_shm_info_t));
 			if (shm_info->checksum != checksum) {
 				fprintf(stderr,
@@ -992,7 +992,7 @@ buf_chunk_init(
 	/* Allocate the block descriptors from
 	the start of the memory block. */
 	if (srv_buffer_pool_shm_key) {
-		chunk->blocks = chunk->mem + sizeof(buf_shm_info_t);
+		chunk->blocks = (buf_block_t*)((char*)chunk->mem + sizeof(buf_shm_info_t));
 	} else {
 	chunk->blocks = chunk->mem;
 	}
@@ -1028,7 +1028,7 @@ buf_chunk_init(
 		ptrdiff_t	phys_offset;
 		ptrdiff_t	logi_offset;
 		ptrdiff_t	blocks_offset;
-		void*		previous_frame_address;
+		byte*		previous_frame_address;
 
 		if (chunk->size < shm_info->chunk_backup.size) {
 			fprintf(stderr,
@@ -1039,10 +1039,10 @@ buf_chunk_init(
 		}
 
 		chunk->size = shm_info->chunk_backup.size;
-		phys_offset = (void*)frame - (void*)((void*)chunk->mem + shm_info->frame_offset);
-		logi_offset = (void*)frame - (void*)chunk->blocks[0].frame;
+		phys_offset = (char*)frame - ((char*)chunk->mem + shm_info->frame_offset);
+		logi_offset = (char *)frame - (char *)chunk->blocks[0].frame;
 		previous_frame_address = chunk->blocks[0].frame;
-		blocks_offset = (void*)chunk->blocks - (void*)shm_info->chunk_backup.blocks;
+		blocks_offset = (char *)chunk->blocks - (char *)shm_info->chunk_backup.blocks;
 
 		if (phys_offset || logi_offset || blocks_offset) {
 			fprintf(stderr,
@@ -1053,8 +1053,8 @@ buf_chunk_init(
 			"InnoDB: Pysical offset                  : %ld (%#lx)\n"
 			"InnoDB: Logical offset (frames)         : %ld (%#lx)\n"
 			"InnoDB: Logical offset (blocks)         : %ld (%#lx)\n",
-				(void*)((void*)chunk->mem + shm_info->frame_offset),
-				(void*)chunk->blocks[0].frame, (void*)frame,
+				(char *)chunk->mem + shm_info->frame_offset,
+				chunk->blocks[0].frame, frame,
 				(ulong) phys_offset, (ulong) phys_offset, (ulong) logi_offset, (ulong) logi_offset,
 				(ulong) blocks_offset, (ulong) blocks_offset);
 		} else {
@@ -1066,7 +1066,7 @@ buf_chunk_init(
 			fprintf(stderr,
 			"InnoDB: Aligning physical offset...");
 
-			memmove((void*)frame, (void*)((void*)chunk->mem + shm_info->frame_offset),
+			memmove(frame, ((char*)chunk->mem + shm_info->frame_offset),
 				chunk->size * UNIV_PAGE_SIZE);
 
 			fprintf(stderr,
@@ -1094,8 +1094,8 @@ buf_chunk_init(
 					previous_frame_address, logi_offset, blocks_offset);
 			if (shm_info->buf_pool_backup.LRU_old)
 				shm_info->buf_pool_backup.LRU_old =
-					((void*)(shm_info->buf_pool_backup.LRU_old)
-						+ (((void*)shm_info->buf_pool_backup.LRU_old > previous_frame_address)
+					(buf_page_t*)((char*)(shm_info->buf_pool_backup.LRU_old)
+						+ (((byte*)shm_info->buf_pool_backup.LRU_old > previous_frame_address)
 						  ? logi_offset : blocks_offset));
 
 			UT_LIST_OFFSET(unzip_LRU, buf_block_t, shm_info->buf_pool_backup.unzip_LRU,
@@ -1141,7 +1141,7 @@ buf_chunk_init(
 	}
 
 	if (shm_info) {
-		shm_info->frame_offset = (void*)chunk->blocks[0].frame - (void*)chunk->mem;
+		shm_info->frame_offset = (char*)chunk->blocks[0].frame - (char*)chunk->mem;
 	}
 
 	return(chunk);
@@ -1396,10 +1396,10 @@ buf_pool_init(void)
 	if (srv_buffer_pool_shm_key) {
 		buf_shm_info_t*	shm_info;
 
-		ut_a(chunk->blocks == chunk->mem + sizeof(buf_shm_info_t));
+		ut_a((char*)chunk->blocks == (char*)chunk->mem + sizeof(buf_shm_info_t));
 		shm_info = chunk->mem;
 
-		buf_pool->zip_hash = (hash_table_t*)((void*)chunk->mem + shm_info->zip_hash_offset);
+		buf_pool->zip_hash = (hash_table_t*)((char*)chunk->mem + shm_info->zip_hash_offset);
 
 		if(shm_info->is_new) {
 			shm_info->is_new = FALSE; /* initialization was finished */
@@ -1504,7 +1504,7 @@ buf_pool_free(void)
 
 		chunk = buf_pool->chunks;
 		shm_info = chunk->mem;
-		ut_a(chunk->blocks == chunk->mem + sizeof(buf_shm_info_t));
+		ut_a((char*)chunk->blocks == (char*)chunk->mem + sizeof(buf_shm_info_t));
 
 		/* validation the shared memory segment doesn't have unrecoverable contents. */
 		/* Currently, validation became not needed */
@@ -1514,7 +1514,7 @@ buf_pool_free(void)
 		memcpy(&(shm_info->chunk_backup), chunk, sizeof(buf_chunk_t));
 
 		if (srv_fast_shutdown < 2) {
-			shm_info->checksum = ut_fold_binary(chunk->mem + sizeof(buf_shm_info_t),
+			shm_info->checksum = ut_fold_binary((byte*)chunk->mem + sizeof(buf_shm_info_t),
 							    chunk->mem_size - sizeof(buf_shm_info_t));
 			shm_info->clean = TRUE;
 		}

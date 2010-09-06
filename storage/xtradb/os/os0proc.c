@@ -243,8 +243,10 @@ os_shm_alloc(
 	ibool*	is_new)
 {
 	void*	ptr;
+#if defined HAVE_SYS_IPC_H && HAVE_SYS_SHM_H
 	ulint	size;
 	int	shmid;
+#endif
 
 	*is_new = FALSE;
 #if defined HAVE_SYS_IPC_H && HAVE_SYS_SHM_H
