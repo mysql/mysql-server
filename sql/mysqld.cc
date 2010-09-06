@@ -4662,6 +4662,8 @@ int mysqld_main(int argc, char **argv)
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
     opt_skip_slave_start= 1;
 
+  check_binlog_cache_size(NULL);
+
   binlog_unsafe_map_init();
   /*
     init_slave() must be called after the thread keys are created.
