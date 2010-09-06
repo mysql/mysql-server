@@ -1470,3 +1470,18 @@ ORDER BY field13;
 
 drop table t1,t2,t3;
 set @@optimizer_switch= default;
+
+#
+--echo # LP BUG#615760 (double transformation)
+#
+create table t1 (a int);
+insert into t1 values (1),(2);
+create table t2 (b int);
+insert into t2 values (1),(2);
+set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=on';
+
+explain extended
+select * from t1 where a in (select b from t2);
+
+drop table t1,t2;
+set @@optimizer_switch= default;

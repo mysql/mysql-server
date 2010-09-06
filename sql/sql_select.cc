@@ -1517,63 +1517,6 @@ setup_subq_exit:
 
 
 /**
-  Transform given item with changing it in all_fields if it is needed.
-
-  @param expr            Reference on expression to transform
-  @param transformer     Transformer to apply to the expression
-
-  @details
-  The function transforms the expression expr and, if the top item of the
-  expression has changed, the function looks for the item in
-  JOIN::all_fields and replaces it with the result of transformation.
-*/
-
-void JOIN::transform_and_change_in_all_fields(Item** expr,
-                                              Item_transformer transformer)
-{
-  DBUG_ENTER("JOIN::transform_and_change_in_all_fields");
-  Item *new_item= (*expr)->transform(transformer,
-                                    (uchar*) thd);
-  if (new_item != (*expr))
-  {
-    List_iterator<Item> li(all_fields);
-    Item *it;
-
-    /*
-      Check if this item already has expression cache and if it has then use
-      that cache instead of the cache we have just created
-   */
-    while ((it= li++))
-    {
-      if (((*expr) == it->get_cached_item()))
-      {
-        /*
-          We have to forget about the created cache, but this situation is
-          really rare.
-        */
-        new_item->cleanup();
-        new_item= it;
-        DBUG_PRINT("info", ("Other cache found"));
-        break;
-      }
-    }
-
-    li.rewind();
-    while ((it= li++))
-    {
-      if (it == (*expr))
-      {
-        li.replace(new_item);
-        DBUG_PRINT("info", ("Cache Added"));
-      }
-    }
-    *expr= new_item;
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-/**
   Setup expression caches for subqueries that need them
 
   @details
@@ -1633,7 +1576,7 @@ bool JOIN::setup_subquery_caches()
       select_lex->expr_cache_may_be_used[IN_GROUP_BY] ||
       select_lex->expr_cache_may_be_used[NO_MATTER])
   {
-    List_iterator<Item> li(fields_list);
+    List_iterator<Item> li(all_fields);
     Item *item;
     while ((item= li++))
     {
@@ -1646,16 +1589,18 @@ bool JOIN::setup_subquery_caches()
     }
     for (ORDER *group= group_list; group ; group= group->next)
     {
-      transform_and_change_in_all_fields(group->item,
-                                         &Item::expr_cache_insert_transformer);
+      *group->item=
+        (*group->item)->transform(&Item::expr_cache_insert_transformer,
+                                  (uchar*) thd);
     }
   }
   if (select_lex->expr_cache_may_be_used[NO_MATTER])
   {
     for (ORDER *ord= order; ord; ord= ord->next)
     {
-      transform_and_change_in_all_fields(ord->item,
-                                         &Item::expr_cache_insert_transformer);
+      *ord->item=
+        (*ord->item)->transform(&Item::expr_cache_insert_transformer,
+                                (uchar*) thd);
     }
   }
   DBUG_RETURN(FALSE);

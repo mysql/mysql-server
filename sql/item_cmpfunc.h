@@ -242,6 +242,7 @@ class Item_in_optimizer: public Item_bool_func
 {
 protected:
   Item_cache *cache;
+  Item *expr_cache;
   bool save_cache;
   /* 
     Stores the value of "NULL IN (SELECT ...)" for uncorrelated subqueries:
@@ -252,7 +253,7 @@ protected:
   my_bool result_for_null_param;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0),
+    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0), expr_cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
   {}
   bool fix_fields(THD *, Item **);

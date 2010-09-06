@@ -1742,8 +1742,6 @@ private:
   */
   bool implicit_grouping; 
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
-  void transform_and_change_in_all_fields(Item** item,
-                                          Item_transformer transformer);
 };
 
 

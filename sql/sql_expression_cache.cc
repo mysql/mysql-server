@@ -314,3 +314,21 @@ err:
   cache_table= NULL;
   DBUG_RETURN(TRUE);
 }
+
+
+void Expression_cache_tmptable::print(String *str, enum_query_type query_type)
+{
+  List_iterator<Item*> li(*list);
+  Item **item;
+  bool is_first= TRUE;
+
+  str->append('<');
+  while ((item= li++))
+  {
+    if (!is_first)
+      str->append(',');
+    (*item)->print(str, query_type);
+    is_first= FALSE;
+  }
+  str->append('>');
+}

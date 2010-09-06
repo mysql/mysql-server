@@ -567,10 +567,10 @@ Item* Item::set_expr_cache(THD *thd, List<Item *> &depends_on)
       !wrapper->fix_fields(thd, (Item**)&wrapper))
   {
     if (wrapper->set_cache(thd, depends_on))
-      DBUG_RETURN(this);
+      DBUG_RETURN(NULL);
     DBUG_RETURN(wrapper);
   }
-  DBUG_RETURN(this);
+  DBUG_RETURN(NULL);
 }
 
 
@@ -6632,6 +6632,19 @@ Item_cache_wrapper::Item_cache_wrapper(Item *item_arg)
     expr_value->setup(orig_item);
 
   fixed= 1;
+}
+
+
+void Item_cache_wrapper::print(String *str, enum_query_type query_type)
+{
+  str->append(func_name());
+  if (expr_cache)
+    expr_cache->print(str, query_type);
+  else
+    str->append(STRING_WITH_LEN("<<DISABLED>>"));
+  str->append('(');
+  orig_item->print(str, query_type);
+  str->append(')');
 }
 
 

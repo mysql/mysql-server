@@ -1774,6 +1774,9 @@ Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
   DBUG_ENTER("Item_in_optimizer::expr_cache_insert_transformer");
   List<Item*> &depends_on= ((Item_subselect *)args[1])->depends_on;
 
+  if (expr_cache)
+    DBUG_RETURN(expr_cache);
+
   /* Add left expression to the list of the parameters of the subquery */
   if (args[0]->cols() == 1)
     depends_on.push_front((Item**)args);
@@ -1785,8 +1788,11 @@ Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
     }
   }
 
-  if (args[1]->expr_cache_is_needed(thd))
-    DBUG_RETURN(set_expr_cache(thd, depends_on));
+  if (args[1]->expr_cache_is_needed(thd) &&
+      (expr_cache= set_expr_cache(thd, depends_on)))
+    DBUG_RETURN(expr_cache);
+
+  depends_on.pop();
   DBUG_RETURN(this);
 }
 
@@ -1889,6 +1895,7 @@ void Item_in_optimizer::cleanup()
   Item_bool_func::cleanup();
   if (!save_cache)
     cache= 0;
+  expr_cache= 0;
   DBUG_VOID_RETURN;
 }
 

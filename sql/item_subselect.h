@@ -53,6 +53,7 @@ public:
   /* unit of subquery */
   st_select_lex_unit *unit;
 protected:
+  Item *expr_cache;
   /* engine that perform execution of subselect (single select or union) */
   subselect_engine *engine;
   /* old engine if engine was changed */
@@ -214,7 +215,8 @@ protected:
   Item_cache *value, **row;
 public:
   Item_singlerow_subselect(st_select_lex *select_lex);
-  Item_singlerow_subselect() :Item_subselect(), value(0), row (0) {}
+  Item_singlerow_subselect() :Item_subselect(), value(0), row (0)
+  {}
 
   void cleanup();
   subs_type substype() { return SINGLEROW_SUBS; }

@@ -34,11 +34,10 @@
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), thd(0), substitution(0),
-  engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
-  const_item_cache(1), 
-  inside_first_fix_fields(0), done_first_fix_fields(FALSE),
-  eliminated(FALSE), 
-  engine_changed(0), changed(0), is_correlated(FALSE)
+  expr_cache(0), engine(0), old_engine(0), used_tables_cache(0),
+  have_to_be_excluded(0), const_item_cache(1), inside_first_fix_fields(0),
+  done_first_fix_fields(FALSE), eliminated(FALSE), engine_changed(0),
+  changed(0), is_correlated(FALSE)
 {
   with_subselect= 1;
   reset();
@@ -121,6 +120,7 @@ void Item_subselect::cleanup()
   depends_on.empty();
   reset();
   value_assigned= 0;
+  expr_cache= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -861,8 +861,12 @@ Item* Item_singlerow_subselect::expr_cache_insert_transformer(uchar *thd_arg)
   THD *thd= (THD*) thd_arg;
   DBUG_ENTER("Item_singlerow_subselect::expr_cache_insert_transformer");
 
-  if (expr_cache_is_needed(thd))
-    DBUG_RETURN(set_expr_cache(thd, depends_on));
+  if (expr_cache)
+    DBUG_RETURN(expr_cache);
+
+  if (expr_cache_is_needed(thd) &&
+      (expr_cache= set_expr_cache(thd, depends_on)))
+    DBUG_RETURN(expr_cache);
   DBUG_RETURN(this);
 }
 
@@ -1083,8 +1087,12 @@ Item* Item_exists_subselect::expr_cache_insert_transformer(uchar *thd_arg)
   THD *thd= (THD*) thd_arg;
   DBUG_ENTER("Item_exists_subselect::expr_cache_insert_transformer");
 
-  if (substype() == EXISTS_SUBS && expr_cache_is_needed(thd))
-    DBUG_RETURN(set_expr_cache(thd, depends_on));
+  if (expr_cache)
+    DBUG_RETURN(expr_cache);
+
+  if (substype() == EXISTS_SUBS && expr_cache_is_needed(thd) &&
+      (expr_cache= set_expr_cache(thd, depends_on)))
+    DBUG_RETURN(expr_cache);
   DBUG_RETURN(this);
 }
 

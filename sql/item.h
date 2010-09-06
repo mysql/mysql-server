@@ -2628,13 +2628,7 @@ public:
 
   /* Following methods make this item transparent as much as possible */
 
-  virtual void print(String *str, enum_query_type query_type)
-  {
-    str->append(func_name());
-    str->append('(');
-    orig_item->print(str, query_type);
-    str->append(')');
-  }
+  virtual void print(String *str, enum_query_type query_type);
   virtual const char *full_name() const { return orig_item->full_name(); }
   virtual void make_field(Send_field *field) { orig_item->make_field(field); }
   bool eq(const Item *item, bool binary_cmp) const

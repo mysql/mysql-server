@@ -32,6 +32,11 @@ public:
     into the expression cache
   */
   virtual my_bool put_value(Item *value)= 0;
+
+  /**
+    Print cache parameters
+  */
+  virtual void print(String *str, enum_query_type query_type)= 0;
 };
 
 struct st_table_ref;
@@ -50,6 +55,8 @@ public:
   virtual ~Expression_cache_tmptable();
   virtual result check_value(Item **value);
   virtual my_bool put_value(Item *value);
+
+  void print(String *str, enum_query_type query_type);
 
 private:
   void init();
