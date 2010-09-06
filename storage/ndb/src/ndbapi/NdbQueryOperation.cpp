@@ -724,7 +724,6 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     m_currentParentId = parentId;
     m_iterState = Iter_notStarted;
   }        
-  assert(m_iterState != Iter_finished);
 
   /* Loop until we either find a suitable set of rows for this operation
    * and its descendants, or until we decide that there are no more matches
