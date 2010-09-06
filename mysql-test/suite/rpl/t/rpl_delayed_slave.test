@@ -183,15 +183,16 @@ INSERT INTO t1(a) VALUES (delay_on_slave(1));
 --echo # sleep 1*T
 --sleep $time1
 
+let $bug_53167_is_fixed= 1;
 if ($bug_53167_is_fixed) {
-
---let $seconds_behind_master= query_get_value(SHOW SLAVE STATUS, Seconds_Behind_Master, 1)
-if (`SELECT $seconds_behind_master <= 0 OR $seconds_behind_master >= $time2`) {
-  --echo Seconds_Behind_Master was $seconds_behind_master. Expected that 0 < Seconds_Behind_Master < SQL_Delay = $time2
-  --source include/show_rpl_debug_info.inc
-  --die Seconds_Behind_Master was wrong
-}
-
+  --let $seconds_behind_master= query_get_value(SHOW SLAVE STATUS, Seconds_Behind_Master, 1)
+  # The value of Seconds_Behind_Master will be zero
+  # before the first non-FD event is executed.
+  if (`SELECT $seconds_behind_master < 0 OR $seconds_behind_master >= $time2`) {
+    --echo Seconds_Behind_Master was $seconds_behind_master. Expected that 0 =< Seconds_Behind_Master < SQL_Delay = $time2
+    --source include/show_rpl_debug_info.inc
+    --die Seconds_Behind_Master was wrong
+  }
 }
 
 --echo # sleep 1*T
