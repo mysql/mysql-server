@@ -3281,7 +3281,7 @@ runBug44915(NDBT_Context* ctx, NDBT_Step* step)
   
   NdbRestarter res;
   int error[] = { 13031, 13044, 13045, 0 };
-  for (int i = 0; error[i]; i++)
+  for (int i = 0; error[i] && result == NDBT_OK; i++)
   {
     ndbout_c("error: %d", error[i]);
     res.insertErrorInNode(res.getDbNodeId(rand() % res.getNumDbNodes()),
@@ -3289,6 +3289,29 @@ runBug44915(NDBT_Context* ctx, NDBT_Step* step)
     
     result = runCreateEvent(ctx, step); // should fail due to error insert
     result = runCreateEvent(ctx, step); // should pass
+    result = runDropEvent(ctx, step);
+  }
+  return result;
+}
+
+int
+runBug56579(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+
+  NdbRestarter res;
+  Ndb* pNdb = GETNDB(step);
+
+  int error_all[] = { 13046, 0 };
+  for (int i = 0; error_all[i] && result == NDBT_OK; i++)
+  {
+    ndbout_c("error: %d", error_all[i]);
+    res.insertErrorInAllNodes(error_all[i]);
+
+    if (createEventOperation(pNdb, *ctx->getTab()) != 0)
+    {
+      return NDBT_FAILED;
+    }
   }
 
   return result;
@@ -3515,6 +3538,12 @@ TESTCASE("Bug30780", "")
 TESTCASE("Bug44915", "")
 {
   INITIALIZER(runBug44915);
+}
+TESTCASE("Bug56579", "")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runBug56579);
+  FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
 
