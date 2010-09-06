@@ -237,6 +237,12 @@ SafeCounter::init(NodeReceiverGroup rg, Uint16 GSN, Uint32 senderData){
   {
     m_nodes = rg.m_nodes;
     m_count = m_nodes.count();
+
+    if (unlikely(m_count == 0))
+    {
+      ErrorReporter::handleAssert("SafeCounter::empty node list",
+                                  __FILE__, __LINE__);
+    }
     return true;
   }
   return false;
@@ -245,12 +251,20 @@ SafeCounter::init(NodeReceiverGroup rg, Uint16 GSN, Uint32 senderData){
 template<typename Ref>
 inline
 bool
-SafeCounter::init(NodeReceiverGroup rg, Uint32 senderData){
+SafeCounter::init(NodeReceiverGroup rg, Uint32 senderData)
+{
+  ErrorReporter::handleAssert("SafeCounter::init twice", __FILE__, __LINE__);
   
   if (init<Ref>(rg.m_block, Ref::GSN, senderData))
   {
     m_nodes = rg.m_nodes;
     m_count = m_nodes.count();
+
+    if (unlikely(m_count == 0))
+    {
+      ErrorReporter::handleAssert("SafeCounter::empty node list",
+                                  __FILE__, __LINE__);
+    }
     return true;
   }
   return false;

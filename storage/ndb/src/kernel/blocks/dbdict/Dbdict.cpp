@@ -11460,22 +11460,32 @@ void Dbdict::completeSubStartReq(Signal* signal,
     ndbout_c("SUB_START_REF");
 #endif
 
-    NodeReceiverGroup rg(DBDICT, subbPtr.p->m_reqTracker.m_confs);
-    RequestTracker & p = subbPtr.p->m_reqTracker;
-    ndbrequire(p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF,
-                                  subbPtr.i));
+    if (subbPtr.p->m_reqTracker.hasConf())
+    {
+      jam();
+      NodeReceiverGroup rg(DBDICT, subbPtr.p->m_reqTracker.m_confs);
+      RequestTracker & p = subbPtr.p->m_reqTracker;
+      ndbrequire(p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF,
+                                    subbPtr.i));
 
-    SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
+      SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
 
-    req->senderRef  = reference();
-    req->senderData = subbPtr.i;
-    req->subscriptionId = subbPtr.p->m_subscriptionId;
-    req->subscriptionKey = subbPtr.p->m_subscriptionKey;
-    req->subscriberRef = subbPtr.p->m_subscriberRef;
-    req->subscriberData = subbPtr.p->m_subscriberData;
-    req->requestInfo = SubStopReq::RI_ABORT_START;
-    sendSignal(rg, GSN_SUB_STOP_REQ, signal, SubStopReq::SignalLength, JBB);
-    return;
+      req->senderRef  = reference();
+      req->senderData = subbPtr.i;
+      req->subscriptionId = subbPtr.p->m_subscriptionId;
+      req->subscriptionKey = subbPtr.p->m_subscriptionKey;
+      req->subscriberRef = subbPtr.p->m_subscriberRef;
+      req->subscriberData = subbPtr.p->m_subscriberData;
+      req->requestInfo = SubStopReq::RI_ABORT_START;
+      sendSignal(rg, GSN_SUB_STOP_REQ, signal, SubStopReq::SignalLength, JBB);
+      return;
+    }
+    else
+    {
+      jam();
+      completeSubStopReq(signal, subbPtr.i, 0);
+      return;
+    }
   }
 #ifdef EVENT_DEBUG
   ndbout_c("SUB_START_CONF");
