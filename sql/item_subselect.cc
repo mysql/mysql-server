@@ -1731,7 +1731,7 @@ Item_in_subselect::inject_single_in_to_exists_cond(JOIN * join,
     this->having= 0;
   */
   Item* join_having= join->having ? join->having : join->tmp_having;
-  bool fix_res;
+  bool fix_res= 0;
   DBUG_ENTER("Item_in_subselect::inject_single_in_to_exists_cond");
 
   if (join_having || select_lex->with_sum_func ||
