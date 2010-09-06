@@ -153,6 +153,17 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   guard(lock), offset(off), on_check(on_check_func), on_update(on_update_func),
   is_os_charset(FALSE)
 {
+  /*
+    There is a limitation in handle_options() related to short options:
+    - either all short options should be declared when parsing in multiple stages,
+    - or none should be declared.
+    Because a lot of short options are used in the normal parsing phase
+    for mysqld, we enforce here that no short option is present
+    in the first (PARSE_EARLY) stage.
+    See handle_options() for details.
+  */
+  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+
   name.str= name_arg;
   name.length= strlen(name_arg);
   DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
