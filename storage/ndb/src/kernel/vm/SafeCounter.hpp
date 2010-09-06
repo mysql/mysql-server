@@ -253,8 +253,6 @@ inline
 bool
 SafeCounter::init(NodeReceiverGroup rg, Uint32 senderData)
 {
-  ErrorReporter::handleAssert("SafeCounter::init twice", __FILE__, __LINE__);
-  
   if (init<Ref>(rg.m_block, Ref::GSN, senderData))
   {
     m_nodes = rg.m_nodes;
