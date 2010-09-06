@@ -1236,6 +1236,39 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
   return TRUE;
 }
 
+/**
+   Check if the optimizer might choose to use join buffering for this
+   join. If that is the case, and if duplicate weedout semijoin
+   strategy is used, the duplicate generating range must be extended
+   to the first non-const table. 
+
+   This function is called from setup_semijoin_dups_elimination()
+   before the final decision is made on whether or not buffering is
+   used. It is therefore only a rough test that covers all cases where
+   join buffering might be used, but potentially also some cases where
+   join buffering will not be used.
+
+   @param join_cache_level     The join cache level
+   @param sj_tab               Table that might be joined by BNL/BKA
+
+   @return                     
+      true if join buffering might be used, false otherwise
+
+ */
+bool might_do_join_buffering(uint join_cache_level, 
+                             const JOIN_TAB *sj_tab) 
+{
+  /* 
+     (1) sj_tab is not a const table
+  */
+  return (sj_tab-sj_tab->join->join_tab != sj_tab->join->const_tables && // (1)
+          sj_tab->use_quick != QS_DYNAMIC_RANGE && 
+          ((join_cache_level != 0 && sj_tab->type == JT_ALL) ||
+           (join_cache_level > 4 && 
+            (sj_tab->type == JT_REF || 
+             sj_tab->type == JT_EQ_REF || 
+             sj_tab->type == JT_CONST))));
+}
 
 /**
   Setup the strategies to eliminate semi-join duplicates.
@@ -1243,8 +1276,8 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
   @param join           Join to process
   @param options        Join options (needed to see if join buffering will be 
                         used or not)
-  @param no_jbuf_after  Another bit of information re where join buffering will
-                        be used.
+  @param no_jbuf_after  Do not use join buffering after the table with this 
+                        number
 
   @retval FALSE  OK 
   @retval TRUE   Out of memory error
@@ -1368,32 +1401,32 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
 int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
                                     uint no_jbuf_after)
 {
-  uint i;
+  uint tableno;
   THD *thd= join->thd;
   DBUG_ENTER("setup_semijoin_dups_elimination");
 
-  for (i= join->const_tables ; i < join->tables; )
+  for (tableno= join->const_tables ; tableno < join->tables; )
   {
-    JOIN_TAB *tab=join->join_tab + i;
-    POSITION *pos= join->best_positions + i;
+    JOIN_TAB *tab=join->join_tab + tableno;
+    POSITION *pos= join->best_positions + tableno;
     uint keylen, keyno;
     if (pos->sj_strategy == SJ_OPT_NONE)
     {
-      i++;  // nothing to do
+      tableno++;  // nothing to do
       continue;
     }
-    JOIN_TAB *tab_end= tab + pos->n_sj_tables - 1;
+    JOIN_TAB *last_sj_tab= tab + pos->n_sj_tables - 1;
     switch (pos->sj_strategy) {
       case SJ_OPT_MATERIALIZE_LOOKUP:
       case SJ_OPT_MATERIALIZE_SCAN:
         /* Do nothing */
-        i+= pos->n_sj_tables;
+        tableno+= pos->n_sj_tables;
         break;
       case SJ_OPT_LOOSE_SCAN:
       {
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
         /* We jump from the last table to the first one */
-        tab->loosescan_match_tab= tab_end;
+        tab->loosescan_match_tab= last_sj_tab;
 
         /* For LooseScan, duplicate elimination is based on rows being sorted 
            on key. We need to make sure that range select keep the sorted index
@@ -1415,22 +1448,100 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
 
         tab->loosescan_key_len= keylen;
         if (pos->n_sj_tables > 1) 
-          tab_end->do_firstmatch= tab;
-        i+= pos->n_sj_tables;
+          last_sj_tab->do_firstmatch= tab;
+        tableno+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_DUPS_WEEDOUT:
       {
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
         /*
-          Check for join buffering. If there is one, move the first table
-          forwards, but do not destroy other duplicate elimination methods.
+          Consider a semijoin of one outer and one inner table, both
+          with two rows. The inner table is assumed to be confluent
+          (See sj_opt_materialize_lookup)
+
+          If normal nested loop execution is used, we do not need to
+          include semi-join outer table rowids in the duplicate
+          weedout temp table since NL guarantees that outer table rows
+          are encountered only consecutively and because all rows in
+          the temp table are deleted for every new outer table
+          combination (example is with a confluent inner table):
+
+            ot1.row1|it1.row1 
+                 '-> temp table's have_confluent_row == FALSE 
+                   |-> output ot1.row1
+                   '-> set have_confluent_row= TRUE
+            ot1.row1|it1.row2
+                 |-> temp table's have_confluent_row == TRUE
+                 | '-> do not output ot1.row1
+                 '-> no more join matches - set have_confluent_row= FALSE
+            ot1.row2|it1.row1 
+                 '-> temp table's have_confluent_row == FALSE 
+                   |-> output ot1.row2
+                   '-> set have_confluent_row= TRUE
+              ...                 
+
+          Note: not having outer table rowids in the temp table and
+          then emptying the temp table when a new outer table row
+          combinition is encountered is an optimization. Including
+          outer table rowids in the temp table is not harmful but
+          wastes memory.
+
+          Now consider the join buffering algorithms (BNL/BKA). These
+          algorithms join each inner row with outer rows in "reverse"
+          order compared to NL. Effectively, this means that outer
+          table rows may be encountered multiple times in a
+          non-consecutive manner:
+
+            NL:                 BNL/BKA:
+            ot1.row1|it1.row1   ot1.row1|it1.row1
+            ot1.row1|it1.row2   ot1.row2|it1.row1
+            ot1.row2|it1.row1   ot1.row1|it1.row2
+            ot1.row2|it1.row2   ot1.row2|it1.row2
+
+          It is clear from the above that there is no place we can
+          empty the temp table like we do in NL to avoid storing outer
+          table rowids. 
+
+          Below we check if join buffering might be used. If so, set
+          first_table to the first non-constant table so that outer
+          table rowids are included in the temp table. Do not destroy
+          other duplicate elimination methods. 
         */
-        uint first_table= i;
-        for (uint j= i; j < i + pos->n_sj_tables; j++)
+        uint first_table= tableno;
+        uint join_cache_level= join->thd->variables.optimizer_join_cache_level;
+        for (uint sj_tableno= tableno; 
+             sj_tableno < tableno + pos->n_sj_tables; 
+             sj_tableno++)
         {
-          if (join->best_positions[j].use_join_buffer && j <= no_jbuf_after)
+          /*
+            The final decision on whether or not join buffering will
+            be used is taken in check_join_cache_usage(), which is
+            called from make_join_readinfo()'s main loop.
+            check_join_cache_usage() needs to know if duplicate
+            weedout is used, so moving
+            setup_semijoin_dups_elimination() from before the main
+            loop to after it is not possible. I.e.,
+            join->best_positions[sj_tableno].use_join_buffer is not
+            trustworthy at this point.
+          */
+          /**
+            @todo: merge make_join_readinfo() and
+            setup_semijoin_dups_elimination() loops and change the
+            following 'if' to
+
+            "if (join->best_positions[sj_tableno].use_join_buffer && 
+                 sj_tableno <= no_jbuf_after)".
+
+            For now, use a rough criteria:
+          */
+
+          if (sj_tableno <= no_jbuf_after &&
+              might_do_join_buffering(join_cache_level, 
+                                      join->join_tab + sj_tableno))
+
           {
+            /* Join buffering will probably be used */
             first_table= join->const_tables;
             break;
           }
@@ -1445,21 +1556,23 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
            - tables that need their rowids to be put into temptable
            - the last outer table
         */
-        for (JOIN_TAB *j=join->join_tab + first_table; j <= tab_end; j++)
+        for (JOIN_TAB *tab_in_range= join->join_tab + first_table; 
+             tab_in_range <= last_sj_tab; 
+             tab_in_range++)
         {
-          if (sj_table_is_included(join, j))
+          if (sj_table_is_included(join, tab_in_range))
           {
-            last_tab->join_tab= j;
+            last_tab->join_tab= tab_in_range;
             last_tab->rowid_offset= jt_rowid_offset;
-            jt_rowid_offset += j->table->file->ref_length;
-            if (j->table->maybe_null)
+            jt_rowid_offset += tab_in_range->table->file->ref_length;
+            if (tab_in_range->table->maybe_null)
             {
               last_tab->null_byte= jt_null_bits / 8;
               last_tab->null_bit= jt_null_bits++;
             }
             last_tab++;
-            j->table->prepare_for_position();
-            j->keep_current_rowid= TRUE;
+            tab_in_range->table->prepare_for_position();
+            tab_in_range->keep_current_rowid= TRUE;
           }
         }
 
@@ -1497,24 +1610,26 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           sjtbl->have_confluent_row= FALSE;
         }
         join->join_tab[first_table].flush_weedout_table= sjtbl;
-        tab_end->check_weed_out_table= sjtbl;
+        last_sj_tab->check_weed_out_table= sjtbl;
 
-        i+= pos->n_sj_tables;
+        tableno+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_FIRST_MATCH:
       {
         JOIN_TAB *jump_to= tab - 1;
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
-        for (JOIN_TAB *j= tab; j <= tab_end; j++)
+        for (JOIN_TAB *tab_in_range= tab; 
+             tab_in_range <= last_sj_tab; 
+             tab_in_range++)
         {
-          if (!j->emb_sj_nest)
+          if (!tab_in_range->emb_sj_nest)
           {
             /*
               Let last non-correlated table be jump target for
               subsequent inner tables.
             */
-            jump_to= j;
+            jump_to= tab_in_range;
           }
           else
           {
@@ -1522,11 +1637,11 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
               Assign jump target for last table in a consecutive range of 
               inner tables.
             */
-            if (j == tab_end || !(j+1)->emb_sj_nest)
-              j->do_firstmatch= jump_to;
+            if (tab_in_range == last_sj_tab || !(tab_in_range+1)->emb_sj_nest)
+              tab_in_range->do_firstmatch= jump_to;
           }
         }
-        i+= pos->n_sj_tables;
+        tableno+= pos->n_sj_tables;
         break;
       }
     }
@@ -1537,11 +1652,13 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
     JOIN_TAB *last_sj_inner=
       (pos->sj_strategy == SJ_OPT_DUPS_WEEDOUT) ?
       /* Range may end with non-inner table so cannot set last_sj_inner_tab */
-      NULL : tab_end;
-    for (JOIN_TAB *j= tab; j <= tab_end; j++)
+      NULL : last_sj_tab;
+    for (JOIN_TAB *tab_in_range= tab; 
+         tab_in_range <= last_sj_tab; 
+         tab_in_range++)
     {
-      j->first_sj_inner_tab= tab;
-      j->last_sj_inner_tab=  last_sj_inner;
+      tab_in_range->first_sj_inner_tab= tab;
+      tab_in_range->last_sj_inner_tab=  last_sj_inner;
     }
   }
   DBUG_RETURN(FALSE);
@@ -8047,6 +8164,10 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
 			     (join_tab->table->s->reclength- rec_length));
     rec_length+=(uint) max(4,blob_length);
   }
+  /**
+    @todo why don't we count the rowids that we might need to store
+    when using DuplicateElimination?
+  */
   join_tab->used_fields=fields;
   join_tab->used_fieldlength=rec_length;
   join_tab->used_blobs=blobs;
@@ -9247,7 +9368,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	/* Range uses longer key;  Use this instead of ref on key */
 	tab->type=JT_ALL;
 	use_quick_range=1;
-	tab->use_quick=1;
+	tab->use_quick=QS_RANGE;
         tab->ref.key= -1;
 	tab->ref.key_parts=0;		// Don't use ref key.
 	join->best_positions[i].records_read= rows2double(tab->quick->records);
@@ -9440,10 +9561,10 @@ static bool make_join_select(JOIN *join, Item *cond)
 			     (sel->quick_keys.is_clear_all() ||
 			      (sel->quick &&
 			       (sel->quick->records >= 100L)))) ?
-	      2 : 1;
+	      QS_DYNAMIC_RANGE : QS_RANGE;
 	    sel->read_tables= used_tables & ~current_map;
 	  }
-	  if (i != join->const_tables && tab->use_quick != 2 &&
+	  if (i != join->const_tables && tab->use_quick != QS_DYNAMIC_RANGE &&
               !tab->first_inner)
 	  {					/* Read with cache */
 	    if (cond &&
@@ -10165,7 +10286,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     psergey-todo: why the below when execution code seems to handle the
     "range checked for each record" case?
   */
-  if (tab->use_quick == 2)
+  if (tab->use_quick == QS_DYNAMIC_RANGE)
     goto no_join_cache;
   
   /*
@@ -10235,6 +10356,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
          !tab->cache->init()))
     {
       *icp_other_tables_ok= FALSE;
+      DBUG_ASSERT(might_do_join_buffering(cache_level, tab));
       return JOIN_CACHE::ALG_BNL | force_unlinked_cache;
     }
     goto no_join_cache;
@@ -10258,6 +10380,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
             (tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache)))
            ) && !tab->cache->init())))
     {
+      DBUG_ASSERT(might_do_join_buffering(cache_level, tab));
       if (cache_level <= 6)
         return JOIN_CACHE::ALG_BKA | force_unlinked_cache;
       return JOIN_CACHE::ALG_BKA_UNIQUE | force_unlinked_cache;
@@ -10735,7 +10858,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         tab[-1].next_select=sub_select_cache;
       }
       /* These init changes read_record */
-      if (tab->use_quick == 2)
+      if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
 	join->thd->server_status|=SERVER_QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
@@ -17856,7 +17979,8 @@ test_if_quick_select(JOIN_TAB *tab)
 static 
 bool test_if_use_dynamic_range_scan(JOIN_TAB *join_tab)
 {
-    return (join_tab->use_quick == 2 && test_if_quick_select(join_tab) > 0);
+    return (join_tab->use_quick == QS_DYNAMIC_RANGE && 
+            test_if_quick_select(join_tab) > 0);
 }
 
 int join_init_read_record(JOIN_TAB *tab)
@@ -19578,7 +19702,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           */
           DBUG_ASSERT(tab->select->quick);
           tab->type=JT_ALL;
-          tab->use_quick=1;
+          tab->use_quick=QS_RANGE;
           tab->ref.key= -1;
           tab->ref.key_parts=0;		// Don't use ref key.
           tab->read_first_record= join_init_read_record;
@@ -22097,7 +22221,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     {
       SELECT_LEX *last_select= join->unit->first_select()->last_select();
       // # characters needed to print select_number of last select
-      int last_length= log10((double)last_select->select_number)+1;
+      int last_length= (int)log10((double)last_select->select_number)+1;
 
       SELECT_LEX *sl= join->unit->first_select();
       uint len= 6, lastop= 0;
@@ -22414,7 +22538,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         }
         if (tab->select)
 	{
-	  if (tab->use_quick == 2)
+	  if (tab->use_quick == QS_DYNAMIC_RANGE)
 	  {
             /* 4 bits per 1 hex digit + terminating '\0' */
             char buf[MAX_KEY / 4 + 1];
