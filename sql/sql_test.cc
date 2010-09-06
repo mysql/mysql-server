@@ -215,7 +215,7 @@ TEST_join(JOIN *join)
     if (tab->select)
     {
       char buf[MAX_KEY/8+1];
-      if (tab->use_quick == 2)
+      if (tab->use_quick == QS_DYNAMIC_RANGE)
 	fprintf(DBUG_FILE,
 		"                  quick select checked for each record (keys: %s)\n",
 		tab->select->quick_keys.print(buf));
