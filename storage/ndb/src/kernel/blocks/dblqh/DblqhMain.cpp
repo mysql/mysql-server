@@ -3300,6 +3300,21 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
     memcpy(signal->theData, &regTcPtr.p->lqhKeyReqId, 8);
     break;
   }
+  case AttributeHeader::CORR_FACTOR64:
+  {
+    Uint32 add = 0;
+    ScanRecordPtr tmp;
+    tmp.i = regTcPtr.p->tcScanRec;
+    if (tmp.i != RNIL)
+    {
+      c_scanRecordPool.getPtr(tmp);
+      add = tmp.p->m_curr_batch_size_rows;
+    }
+
+    signal->theData[0] = regTcPtr.p->m_corrFactorLo + add;
+    signal->theData[1] = regTcPtr.p->m_corrFactorHi;
+    break;
+  }
   default:
     ndbrequire(false);
   }
@@ -4422,13 +4437,12 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     nextPos++;
   }//if
 
-  Uint32 TanyValueFlag = LqhKeyReq::getAnyValueFlag(Treqinfo);
-  regTcPtr->m_anyValue = 0;
-  if (TanyValueFlag == 1) {
-    regTcPtr->m_rootStreamId = lqhKeyReq->variableData[nextPos];
-    nextPos++;
-    regTcPtr->m_anyValue = lqhKeyReq->variableData[nextPos];
-    nextPos++;
+  Uint32 TanyValueFlag = LqhKeyReq::getCorrFactorFlag(Treqinfo);
+  if (TanyValueFlag == 1)
+  {
+    regTcPtr->m_corrFactorLo = lqhKeyReq->variableData[nextPos + 0];
+    regTcPtr->m_corrFactorHi = lqhKeyReq->variableData[nextPos + 1];
+    nextPos += 2;
   }
 
   UintR TitcKeyLen = 0;
@@ -5821,8 +5835,6 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
 
   sig0 = regTcPtr->m_row_id.m_page_no;
   sig1 = regTcPtr->m_row_id.m_page_idx;
-  sig2 = regTcPtr->m_rootStreamId;
-  sig3 = regTcPtr->m_anyValue;
   
   tupKeyReq->primaryReplica = (tcConnectptr.p->seqNoReplica == 0)?true:false;
   tupKeyReq->coordinatorTC = tcConnectptr.p->tcBlockref;
@@ -5832,8 +5844,6 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
 
   tupKeyReq->m_row_id_page_no = sig0;
   tupKeyReq->m_row_id_page_idx = sig1;
-  tupKeyReq->rootStreamId = sig2;
-  tupKeyReq->anyValue = sig3;
   
   TRACE_OP(regTcPtr, "TUPKEYREQ");
   
@@ -9912,15 +9922,13 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     handle.clear();
   }
 
-  if (true)
+  if (ScanFragReq::getCorrFactorFlag(reqinfo))
   {
     /**
-     * TODO this needs to be parameterized using get/setAnyValueFlag
-     *      and nextPos (see execLQHKEYREQ)
-     *      but since long/short SCAN_FRAGREQ can arrive...we skip it for now
+     * Correlattion factor for SPJ
      */
-    tcConnectptr.p->m_rootStreamId = scanFragReq->variableData[0];
-    tcConnectptr.p->m_anyValue = scanFragReq->variableData[1];
+    tcConnectptr.p->m_corrFactorLo = scanFragReq->variableData[0];
+    tcConnectptr.p->m_corrFactorHi = scanFragReq->variableData[1];
   }
 
   errorCode = initScanrec(scanFragReq, aiLen);
@@ -10248,7 +10256,7 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     ndbrequire( keyInfoReader.getWord(&firstWord) );
     const Uint32 rangeLen= (firstWord >> 16) ? (firstWord >> 16) : totalLen;
     tcPtrP->m_scan_curr_range_no= (firstWord & 0xFFF0) >> 4;
-    tcPtrP->m_anyValue = ((firstWord & 0xFFF0) >> 4) << 16;
+    tcPtrP->m_corrFactorLo = ((firstWord & 0xFFF0) >> 4) << 16;
     /**
      * When running linked operations (i.e via the SPJ block) the API reqiures 
      * the combination of tuple id and root fragment id to be unique for each 
@@ -10265,7 +10273,7 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
      * NOTE: this can be fixed "only" in Dbspj...
      */
     ndbassert(tcPtrP->fragmentid < 0x100);
-    tcPtrP->m_anyValue |= (tcPtrP->fragmentid << 8);
+    tcPtrP->m_corrFactorLo |= (tcPtrP->fragmentid << 8);
     firstWord &= 0xF; // Remove length+range num from first word
     
     /* Write range info to dst */
@@ -10659,8 +10667,6 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   tupKeyReq->disk_page= disk_page;
   /* No AttrInfo sent to TUP, it uses a stored procedure */
   tupKeyReq->attrInfoIVal= RNIL;
-  tupKeyReq->rootStreamId = regTcPtr->m_rootStreamId;
-  tupKeyReq->anyValue = regTcPtr->m_anyValue+scanPtr.p->m_curr_batch_size_rows;
   Uint32 blockNo = refToMain(regTcPtr->tcTupBlockref);
   EXECUTE_DIRECT(blockNo, GSN_TUPKEYREQ, signal, 
 		 TupKeyReq::SignalLength);

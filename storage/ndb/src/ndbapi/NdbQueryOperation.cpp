@@ -94,20 +94,20 @@ public:
   {
     assert(tupleLength >= wordCount);
     assert(AttributeHeader(m_corrPart[0]).getAttributeId() 
-           == AttributeHeader::READ_ANY_VALUE);
+           == AttributeHeader::CORR_FACTOR64);
     assert(AttributeHeader(m_corrPart[0]).getByteSize() == 2*sizeof(Uint32));
     assert(getTupleId()<tupleNotFound);
     assert(getParentTupleId()<tupleNotFound);
   }
 
   Uint32 getRootReceiverId() const
-  { return m_corrPart[1];}
+  { return m_corrPart[2];}
 
   Uint16 getTupleId() const
-  { return m_corrPart[2] & 0xffff;}
+  { return m_corrPart[1] & 0xffff;}
 
   Uint16 getParentTupleId() const
-  { return m_corrPart[2] >> 16;}
+  { return m_corrPart[1] >> 16;}
 
 private:
   const Uint32* const m_corrPart;
@@ -3567,7 +3567,7 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
   bool withCorrelation = getRoot().getQueryDef().isScanQuery();
   if (withCorrelation) {
     Uint32 ah;
-    AttributeHeader::init(&ah, AttributeHeader::READ_ANY_VALUE, 0);
+    AttributeHeader::init(&ah, AttributeHeader::CORR_FACTOR64, 0);
     attrInfo.append(ah);
   }
 

@@ -1004,9 +1004,9 @@ private:
   Uint32 buildRowHeader(RowPtr::Header *, SegmentedSectionPtr);
   Uint32 buildRowHeader(RowPtr::Header *, const Uint32 *& src, Uint32 len);
   void getCorrelationData(const RowPtr::Section & row, Uint32 col,
-                          Uint32& rootStreamId, Uint32& correlationNumber);
+                          Uint32& correlationNumber);
   void getCorrelationData(const RowPtr::Linear & row, Uint32 col,
-                          Uint32& rootStreamId, Uint32& correlationNumber);
+                          Uint32& correlationNumber);
   Uint32 appendToPattern(Local_pattern_store &, DABuffer & tree, Uint32);
   Uint32 appendParamToPattern(Local_pattern_store&,const RowPtr::Linear&,
                               Uint32);

@@ -2428,12 +2428,25 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     flush_read_buffer(req_struct, outBuf, resultRef, resultData, routeRef);
     return 3;
   }
-  case AttributeHeader::READ_ANY_VALUE:
+  case AttributeHeader::CORR_FACTOR32:
   {
     jam();
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    sz = 1;
+    outBuffer[1] = signal->theData[0];
+    break;
+  }
+  case AttributeHeader::CORR_FACTOR64:
+  {
+    jam();
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
     sz = 2;
-    outBuffer[1] = req_struct->operPtrP->m_root_frag_id;
-    outBuffer[2] = req_struct->operPtrP->m_any_value;
+    outBuffer[1] = signal->theData[0];
+    outBuffer[2] = signal->theData[1];
     break;
   }
   case AttributeHeader::FRAGMENT_EXTENT_SPACE:
