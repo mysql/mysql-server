@@ -2474,6 +2474,25 @@ select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.b;
 
+# Test bushy lookups + 1scan, 
+# (Regression test for previous commit: http://lists.mysql.com/commits/117571)
+# Repeatable child rangescan with same parent should be allowed to be in 
+# 'm_iterState != Iter_finished' if the child row didn't exist (outer join):
+
+explain select straight_join count(*) from t1 as x1 
+  left join t1 as x3 on x3.b = x1.a
+  join t1 as x2 on x2.pk = x1.a;
+select straight_join count(*) from t1 as x1 
+  left join t1 as x3 on x3.b = x1.a
+  join t1 as x2 on x2.pk = x1.a;
+
+# Modify rows to force NULL rows from outer join
+update t1 set b=b+10;
+
+select straight_join count(*) from t1 as x1 
+  left join t1 as x3 on x3.b = x1.a
+  join t1 as x2 on x2.pk = x1.a;
+
 drop table t1;
 
 #############################################
