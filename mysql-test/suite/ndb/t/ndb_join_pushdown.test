@@ -2461,7 +2461,10 @@ left join t1 as x4 on x3.u=x4.pk
 left join t1 as x5 on x4.a=x5.b;
 set ndb_join_pushdown=on;
 
+#############
 # Test bushy-scans:
+# These should be serialized through an artificial dependency between the bushy scan childs.
+#
 explain select straight_join count(*) from t1 as x1 
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.b;
@@ -2474,6 +2477,31 @@ select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.b;
 
+##############
+# If we have a bushy lookup, with scandescendants depending on these lookups,
+# we dont serialize the scan by insertion of artificial dependencies.
+#
+# (Actually we could have serialized these also be forcing an artificial dependency
+#  between the referred lookup parent, and one of the other scan child. However, we
+#  don't believe this to be an efficient way of executing the pushed query, and would
+#  instead break these queries up into several smaller queries) 
+#
+explain
+select straight_join count(*) from t1 as x1
+  join t1 as x2 on x2.b = x1.a
+  join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
+
+set ndb_join_pushdown=off;
+select straight_join count(*) from t1 as x1
+  join t1 as x2 on x2.b = x1.a
+  join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
+set ndb_join_pushdown=on;
+select straight_join count(*) from t1 as x1
+  join t1 as x2 on x2.b = x1.a
+  join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
+
+
+#############
 # Test bushy lookups + 1scan, 
 # (Regression test for previous commit: http://lists.mysql.com/commits/117571)
 # Repeatable child rangescan with same parent should be allowed to be in 
