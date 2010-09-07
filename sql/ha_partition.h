@@ -156,6 +156,8 @@ private:
   uint m_extra_cache_size;
   /* The same goes for HA_EXTRA_PREPARE_FOR_UPDATE */
   bool m_extra_prepare_for_update;
+  /* Which partition has active cache */
+  uint m_extra_cache_part_id;
 
   void init_handler_variables();
   /*
