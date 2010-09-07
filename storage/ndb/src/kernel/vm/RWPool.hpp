@@ -56,8 +56,8 @@ public:
   void * getPtr(Uint32 i);
   
 private:  
-  void handle_invalid_release(Ptr<void>);
-  void handle_invalid_get_ptr(Uint32 i);
+  void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
+  void handle_invalid_get_ptr(Uint32 i) ATTRIBUTE_NORETURN;
 };
 
 inline

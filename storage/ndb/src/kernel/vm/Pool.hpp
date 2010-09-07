@@ -119,7 +119,7 @@ struct Pool_context
   /**
    * Abort
    */
-  void handleAbort(int code, const char* msg);
+  void handleAbort(int code, const char* msg) ATTRIBUTE_NORETURN;
 };
 
 template <typename T>
