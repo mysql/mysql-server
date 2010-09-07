@@ -932,4 +932,52 @@ disconnect con1;
 DROP USER 'no_rights'@'localhost';
 DROP DATABASE db1;
 
+#
+# Bug#55421 Protocol::end_statement(): Assertion `0' on multi-table UPDATE IGNORE
+# To reproduce a crash we need to provoke a trigger execution with
+# the following conditions:
+#   - active SELECT statement during trigger execution
+#    (i.e. LEX::current_select != NULL);
+#   - IGNORE option (i.e. LEX::current_select->no_error == TRUE);
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+
+GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--connect(con1,localhost,mysqltest_u1,,mysqltest_db1)
+
+CREATE TABLE t1 (
+  a1 int,
+  a2 int
+);
+INSERT INTO t1 VALUES (1, 20);
+
+CREATE TRIGGER mysqltest_db1.upd_t1
+BEFORE UPDATE ON t1 FOR EACH ROW SET new.a2 = 200;
+
+CREATE TABLE t2 (
+  a1 int
+);
+
+INSERT INTO t2 VALUES (2);
+
+--connection default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE IGNORE t1, t2 SET t1.a1 = 2, t2.a1 = 3 WHERE t1.a1 = 1 AND t2.a1 = 2;
+# Cleanup
+
+DROP DATABASE mysqltest_db1;
+DROP USER mysqltest_u1@localhost;
+
+--disconnect con1
+--connection default
+USE test;
+
 --echo End of 5.1 tests.
