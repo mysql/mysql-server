@@ -37,6 +37,7 @@ ADD_LIBRARY(ndbkernel STATIC
     SafeMutex.cpp
     Ndbinfo.cpp
     NdbinfoTables.cpp
+    ArenaPool.cpp
 )
 
 ADD_LIBRARY(ndbsched STATIC

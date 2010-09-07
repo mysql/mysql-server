@@ -54,10 +54,13 @@ public:
   bool seize(Ptr<void>&);
   void release(Ptr<void>);
   void * getPtr(Uint32 i);
+  void * getPtr(const Record_info&ri, Uint32 i);
   
+  STATIC_CONST( WORDS_PER_PAGE = RWPage::RWPAGE_WORDS );
+
 private:  
-  void handle_invalid_release(Ptr<void>);
-  void handle_invalid_get_ptr(Uint32 i);
+  void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
+  void handle_invalid_get_ptr(Uint32 i) ATTRIBUTE_NORETURN;
 };
 
 inline
@@ -70,6 +73,23 @@ RWPool::getPtr(Uint32 i)
   Uint32 * record = page->m_data + page_idx;
   Uint32 magic_val = * (record + m_record_info.m_offset_magic);
   if (likely(magic_val == ~(Uint32)m_record_info.m_type_id))
+  {
+    return record;
+  }
+  handle_invalid_get_ptr(i);
+  return 0;                                     /* purify: deadcode */
+}
+
+inline
+void*
+RWPool::getPtr(const Record_info &ri, Uint32 i)
+{
+  Uint32 page_no = i >> POOL_RECORD_BITS;
+  Uint32 page_idx = i & POOL_RECORD_MASK;
+  RWPage * page = m_memroot + page_no;
+  Uint32 * record = page->m_data + page_idx;
+  Uint32 magic_val = * (record + ri.m_offset_magic);
+  if (likely(magic_val == ~(Uint32)ri.m_type_id))
   {
     return record;
   }
