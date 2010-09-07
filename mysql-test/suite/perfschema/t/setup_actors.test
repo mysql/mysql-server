@@ -18,6 +18,7 @@
 # The checks for indirect activity caused by users, system threads etc.
 # are within setup_actors1.test.
 
+--source include/not_windows.inc
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
