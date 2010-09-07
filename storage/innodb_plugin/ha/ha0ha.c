@@ -354,6 +354,7 @@ ha_remove_all_nodes_to_page(
 #endif
 }
 
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
 @return	TRUE if ok */
@@ -400,6 +401,7 @@ ha_validate(
 
 	return(ok);
 }
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /*************************************************************//**
 Prints info of a hash table. */
