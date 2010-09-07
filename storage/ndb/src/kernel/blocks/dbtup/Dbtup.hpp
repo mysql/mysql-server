@@ -971,13 +971,13 @@ ArrayPool<TupTriggerData> c_triggerPool;
     Uint32 dynTabDescriptor;
 
     /* Mask of variable-sized dynamic attributes. */
-    Uint32* dynVarSizeMask;
+    Uint32* dynVarSizeMask[2];
     /*
       Mask of fixed-sized dynamic attributes. There is one bit set for each
       32-bit word occupied by fixed-size attributes, so fixed-size dynamic
       attributes >32bit have multiple bits here.
     */
-    Uint32* dynFixSizeMask;
+    Uint32* dynFixSizeMask[2];
 
     ReadFunction* readFunctionArray;
     UpdateFunction* updateFunctionArray;
