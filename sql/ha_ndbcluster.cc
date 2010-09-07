@@ -1005,12 +1005,33 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
      *        created in the SPJ block - Which adds extra (huge) communication overhead.
      *        As a longer term solution bushy scans should be nativily supported by SPJ.
      */
-     if (m_tables[parent_no].m_last_scan_descendant < MAX_TABLES)
-     {
-       parent_no= m_tables[parent_no].m_last_scan_descendant;
-       parent= m_plan.get_table_access(parent_no);
-       DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s", parent->get_table()->alias));
-     }
+
+    if (m_tables[parent_no].m_last_scan_descendant < MAX_TABLES)
+    {
+      parent_no= m_tables[parent_no].m_last_scan_descendant;
+      parent= m_plan.get_table_access(parent_no);
+      DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s", parent->get_table()->alias));
+    }
+    else
+    {
+      // Verify that there are no (bushy-) ancestors with scan descendants
+      uint ancestor_no= parent_no;
+      while (ancestor_no != MAX_TABLES)
+      {
+        if (m_tables[ancestor_no].m_last_scan_descendant < MAX_TABLES)
+        {
+          DBUG_PRINT("info", ("  Ancestor tab %d has scan descendants -> can't append", ancestor_no));
+          DBUG_RETURN(false);
+        }
+
+        const AQP::Table_access* const ancestor = m_plan.get_table_access(ancestor_no);
+        if (!is_lookup_operation(ancestor->get_access_type()))
+        {
+          break; // As adding this scanop was allowed, above ancestor can't be scan bushy
+        }
+        ancestor_no = m_tables[ancestor_no].m_parent;
+      }
+    }
   }
      // get_referred_table_access ??
   parent= m_plan.get_table_access(parent_no);
