@@ -5958,6 +5958,7 @@ enum options_mysqld
 #if defined(ENABLED_DEBUG_SYNC)
   OPT_DEBUG_SYNC_TIMEOUT,
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+  OPT_DEPRECATED_OPTION,
   OPT_SLAVE_EXEC_MODE,
   OPT_DEADLOCK_SEARCH_DEPTH_SHORT,
   OPT_DEADLOCK_SEARCH_DEPTH_LONG,
@@ -6737,6 +6738,9 @@ thread is in the relay logs.",
    "Show user and password in SHOW SLAVE HOSTS on this master.",
    &opt_show_slave_auth_info, &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-bdb", OPT_DEPRECATED_OPTION,
+   "Deprecated option; Exist only for compatiblity with old my.cnf files",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
   {"skip-grant-tables", OPT_SKIP_GRANT,
    "Start without grant tables. This gives all users FULL ACCESS to all tables.",
@@ -8408,6 +8412,10 @@ mysqld_get_one_option(int optid,
 #endif
   case '0':
     WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-long-format", "--log-short-format");
+    break;
+  case OPT_DEPRECATED_OPTION:
+    sql_print_warning("'%s' is deprecated and exists only for compatiblity with old my.cnf files; Please remove this option from all your my.cnf files!",
+                      opt->name);
     break;
   case 'a':
     global_system_variables.sql_mode= fix_sql_mode(MODE_ANSI);

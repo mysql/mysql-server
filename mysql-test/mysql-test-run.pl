@@ -4228,6 +4228,7 @@ sub extract_warning_lines ($) {
      qr/slave SQL thread aborted/,
      qr/unknown option '--loose[-_]/,
      qr/unknown variable 'loose[-_]/,
+     or/Invalid .*old.* table or database name/,
      qr/Now setting lower_case_table_names to [02]/,
      qr/Setting lower_case_table_names=2/,
      qr/You have forced lower_case_table_names to 0/,
