@@ -86,11 +86,14 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     if ((tablePtr.p->m_attributes[mm].m_no_of_varsize +
          tablePtr.p->m_attributes[mm].m_no_of_dynamic) > 0) 
     {
-      bits |= ScanOp::SCAN_VS;
-	
-      // disk pages have fixed page format
-      ndbrequire(! (bits & ScanOp::SCAN_DD));
+      if (bits & ScanOp::SCAN_DD)
+      {
+        // only dd scan varsize pages
+        // mm always has a fixed part
+        bits |= ScanOp::SCAN_VS;
+      }
     }
+
     if (! AccScanReq::getReadCommittedFlag(req->requestInfo)) 
     {
       if (AccScanReq::getLockMode(req->requestInfo) == 0)
@@ -123,6 +126,12 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       jam();
       ndbrequire((bits & ScanOp::SCAN_DD) == 0);
       ndbrequire((bits & ScanOp::SCAN_LOCK) == 0);
+    }
+
+    if (bits & ScanOp::SCAN_VS)
+    {
+      ndbrequire((bits & ScanOp::SCAN_NR) == 0);
+      ndbrequire((bits & ScanOp::SCAN_LCP) == 0);
     }
     
     // set up scan op
@@ -619,7 +628,7 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
     key.m_page_no = ext->m_first_page_no;
     pos.m_get = ScanPos::Get_page_dd;
   }
-  key.m_page_idx = 0;
+  key.m_page_idx = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
   // let scanNext() do the work
   scan.m_state = ScanOp::Next;
 }
@@ -652,7 +661,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   const bool lcp = (bits & ScanOp::SCAN_LCP);
   
   Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
-  Uint32 size = table.m_offsets[mm].m_fix_header_size;
+  const Uint32 size = ((bits & ScanOp::SCAN_VS) == 0) ?
+    table.m_offsets[mm].m_fix_header_size : 1;
+  const Uint32 first = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
 
   if (lcp && lcp_list != RNIL)
   {
@@ -666,12 +677,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 
   switch(pos.m_get){
   case ScanPos::Get_next_tuple:
-  case ScanPos::Get_next_tuple_fs:
     jam();
     key.m_page_idx += size;
     // fall through
   case ScanPos::Get_tuple:
-  case ScanPos::Get_tuple_fs:
     jam();
     /**
      * We need to refetch page after timeslice
@@ -729,7 +738,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           return true;
         }
     cont:
-        key.m_page_idx = 0;
+        key.m_page_idx = first;
         pos.m_get = ScanPos::Get_page_mm;
         // clear cached value
         pos.m_realpid_mm = RNIL;
@@ -791,7 +800,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             key.m_page_no = ext->m_first_page_no;
           }
         }
-        key.m_page_idx = 0;
+        key.m_page_idx = first;
         pos.m_get = ScanPos::Get_page_dd;
         /*
           read ahead for scan in disk order
@@ -906,23 +915,22 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       // get tuple
       // move to next tuple
     case ScanPos::Get_next_tuple:
-    case ScanPos::Get_next_tuple_fs:
       // move to next fixed size tuple
       jam();
       {
         key.m_page_idx += size;
-        pos.m_get = ScanPos::Get_tuple_fs;
+        pos.m_get = ScanPos::Get_tuple;
       }
       /*FALLTHRU*/
     case ScanPos::Get_tuple:
-    case ScanPos::Get_tuple_fs:
       // get fixed size tuple
       jam();
+      if ((bits & ScanOp::SCAN_VS) == 0)
       {
         Fix_page* page = (Fix_page*)pos.m_page;
         if (key.m_page_idx + size <= Fix_page::DATA_WORDS) 
 	{
-	  pos.m_get = ScanPos::Get_next_tuple_fs;
+	  pos.m_get = ScanPos::Get_next_tuple;
 #ifdef VM_TRACE
           if (! (bits & ScanOp::SCAN_DD))
           {
@@ -975,6 +983,29 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           jam();
           // no more tuples on this page
           pos.m_get = ScanPos::Get_next_page;
+        }
+      }
+      else
+      {
+        jam();
+        Var_page * page = (Var_page*)pos.m_page;
+        if (key.m_page_idx < page->high_index)
+        {
+          jam();
+          pos.m_get = ScanPos::Get_next_tuple;
+          if (!page->is_free(key.m_page_idx))
+          {
+            th = (Tuple_header*)page->get_ptr(key.m_page_idx);
+            thbits = th->m_header_bits;
+            goto found_tuple;
+          }
+        }
+        else
+        {
+          jam();
+          // no more tuples on this page
+          pos.m_get = ScanPos::Get_next_page;
+          break;
         }
       }
       break; // incr loop count

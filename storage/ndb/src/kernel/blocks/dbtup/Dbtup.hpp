@@ -463,9 +463,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       Get_next_page_dd,
       Get_page_dd,
       Get_next_tuple,
-      Get_tuple,
-      Get_next_tuple_fs,
-      Get_tuple_fs
+      Get_tuple
     };
     Get m_get;                  // entry point in scanNext
     Local_key m_key;            // scan position pointer MM or DD
