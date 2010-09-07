@@ -2352,9 +2352,9 @@ int ha_maria::reset(void)
 {
   if (file->trn)
   {
-    TRN *trn= file->trn;
     /* Next statement is a new statement. Ensure it's logged */
-    trnman_set_flags(trn, trnman_get_flags(trn) & ~TRN_STATE_INFO_LOGGED);
+    trnman_set_flags(file->trn,
+                     trnman_get_flags(file->trn) & ~TRN_STATE_INFO_LOGGED);
   }
   return maria_reset(file);
 }

@@ -486,8 +486,8 @@ my_bool _ma_log_suffix(MARIA_PAGE *ma_page, uint org_length, uint new_length)
 */
 
 my_bool _ma_log_add(MARIA_PAGE *ma_page,
-                    uint org_page_length, uchar *key_pos,
-                    uint changed_length, int move_length,
+                    uint org_page_length __attribute__ ((unused)),
+                    uchar *key_pos, uint changed_length, int move_length,
                     my_bool handle_overflow __attribute__ ((unused)))
 {
   LSN lsn;
@@ -670,9 +670,10 @@ void _ma_log_key_changes(MARIA_PAGE *ma_page, LEX_CUSTRING *log_array,
   log_array[1].length= page_length;
   (*changed_length)+=  page_length;
   (*translog_parts)++;
-#endif
-#endif
+#endif /* EXTRA_STORE_FULL_PAGE_IN_KEY_CHANGES */
 }
+
+#endif /* EXTRA_DEBUG_KEY_CHANGES */
 
 /****************************************************************************
   Redo of key pages

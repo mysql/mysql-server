@@ -1445,7 +1445,7 @@ static uint remove_key(MARIA_KEYDEF *keyinfo, uint page_flag, uint nod_flag,
 
 my_bool _ma_log_delete(MARIA_PAGE *ma_page, const uchar *key_pos,
                        uint changed_length, uint move_length,
-                       uint append_length,
+                       uint append_length __attribute__((unused)),
                        enum en_key_debug debug_marker __attribute__((unused)))
 {
   LSN lsn;

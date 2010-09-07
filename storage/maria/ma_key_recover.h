@@ -82,7 +82,7 @@ void _ma_log_key_changes(MARIA_PAGE *ma_page, LEX_CUSTRING *log_array,
                          uchar *log_pos, uint *changed_length,
                          uint *translog_parts);
 #else
-void _ma_log_key_changes(A,B,C,D,E)
+#define _ma_log_key_changes(A,B,C,D,E)
 #endif
 
 uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
