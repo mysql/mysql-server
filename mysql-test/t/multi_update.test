@@ -651,5 +651,26 @@ SET SESSION sql_safe_updates = 1;
 UPDATE IGNORE t1, t1 t1a SET t1.a = 1 WHERE t1a.a = 1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#54543: update ignore with incorrect subquery leads to assertion
+--echo # failure: inited==INDEX
+--echo #
+SET SESSION sql_safe_updates = 0;
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES (1), (2);
+
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES (1), (2);
+
+--echo # Should not crash
+UPDATE IGNORE
+  ( SELECT ( SELECT COUNT(*) FROM t1 GROUP BY a, @v ) a FROM t2 ) x, t3
+SET t3.a = 0;
+
+DROP TABLE t1, t2, t3;
+SET SESSION sql_safe_updates = DEFAULT;
 
 --echo end of tests

@@ -11157,22 +11157,20 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   if (error == NESTED_LOOP_NO_MORE_ROWS)
     error= NESTED_LOOP_OK;
 
+  if (table == NULL)					// If sending data to client
+    /*
+      The following will unlock all cursors if the command wasn't an
+      update command
+    */
+    join->join_free();			// Unlock all cursors
   if (error == NESTED_LOOP_OK)
   {
     /*
       Sic: this branch works even if rc != 0, e.g. when
       send_data above returns an error.
     */
-    if (!table)					// If sending data to client
-    {
-      /*
-	The following will unlock all cursors if the command wasn't an
-	update command
-      */
-      join->join_free();			// Unlock all cursors
-      if (join->result->send_eof())
-	rc= 1;                                  // Don't send error
-    }
+    if (table == NULL && join->result->send_eof()) // If sending data to client
+      rc= 1;                                  // Don't send error 
     DBUG_PRINT("info",("%ld records output", (long) join->send_records));
   }
   else
