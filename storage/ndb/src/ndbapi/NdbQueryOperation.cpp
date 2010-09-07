@@ -74,10 +74,10 @@ const bool traceSignals = false;
  * scan queries). These data have the following layout:
  *
  * Word 0: AttributeHeader
- * Word 1: Id of receiver for root operation (where the ancestor tuple of this
+ * Word 1, upper halfword: tuple id of parent tuple.
+ * Word 1, lower halfword: tuple id of this tuple.
+ * Word 2: Id of receiver for root operation (where the ancestor tuple of this
  *         tuple will go).
- * Word 2, upper halfword: tuple id of parent tuple.
- * Word 2, lower halfword: tuple id of this tuple.
  *
  * Both tuple identifiers are unique within this batch and root fragment.
  * With these identifiers, it is possible to relate a tuple to its parent and 
