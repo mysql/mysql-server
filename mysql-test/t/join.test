@@ -851,33 +851,37 @@ ENGINE=MERGE  UNION=(t1,t2);
 SELECT t1.a FROM mm1,t1;
 DROP TABLE t1, t2, mm1;
 
---echo #
---echo # Bug #55568: user variable assignments crash server when used within
---echo #             query
---echo #
+#--echo #
+#--echo # Bug #55568: user variable assignments crash server when used within
+#--echo #             query
+#--echo #
+#
+#
+# This test case is invalidated because of fix of bug 55531
+# The reason is that {1} is not a valid geometric collection.
+#
+#CREATE TABLE t1 (a INT);
 
-CREATE TABLE t1 (a INT);
+#INSERT INTO t1 VALUES (0), (1);
 
-INSERT INTO t1 VALUES (0), (1);
-
-let $i=2;
-while ($i)
-{
-  SELECT MULTIPOINT(
-    1,
-    (
-      SELECT MULTIPOINT(
-        MULTIPOINT(
-          1,
-          (SELECT COUNT(*) FROM (SELECT 1 FROM t1 GROUP BY a,a) d)
-        )
-      ) FROM t1
-    )
-  ) != COUNT(*) q FROM t1 GROUP BY a;
-  dec $i;
-}
-
-DROP TABLE t1;
+#let $i=2;
+#while ($i)
+#{
+#  SELECT MULTIPOINT(
+#    1,
+#    (
+#      SELECT MULTIPOINT(
+#        MULTIPOINT(
+#          1,
+#          (SELECT COUNT(*) FROM (SELECT 1 FROM t1 GROUP BY a,a) d)
+#        )
+#      ) FROM t1
+#    )
+#  ) != COUNT(*) q FROM t1 GROUP BY a;
+#  dec $i;
+#}
+#
+#DROP TABLE t1;
 
 --echo #
 --echo # Bug #54468: crash after item's print() function when ordering/grouping 
