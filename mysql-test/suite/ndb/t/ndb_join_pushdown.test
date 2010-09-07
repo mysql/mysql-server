@@ -2477,6 +2477,39 @@ select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.b;
 
+#############
+# If we have an outer join, we can't create an artificial dep. 'through' the outer join.
+# In this case the child scan can't be part of the pushed query.
+#
+explain select straight_join count(*) from t1 as x1 
+  left join t1 as x2 on x2.b = x1.a
+  join t1 as x3 on x3.b = x1.b;
+ 
+set ndb_join_pushdown=off;
+select straight_join count(*) from t1 as x1 
+  left join t1 as x2 on x2.b = x1.a
+  join t1 as x3 on x3.b = x1.b;
+set ndb_join_pushdown=on;
+select straight_join count(*) from t1 as x1 
+  left join t1 as x2 on x2.b = x1.a
+  join t1 as x3 on x3.b = x1.b;
+
+############
+# However, When the scanchild itself is an outer join, we *can* push that scan operation
+#
+explain select straight_join count(*) from t1 as x1 
+  join t1 as x2 on x2.b = x1.a
+  left join t1 as x3 on x3.b = x1.b;
+ 
+set ndb_join_pushdown=off;
+select straight_join count(*) from t1 as x1 
+  join t1 as x2 on x2.b = x1.a
+  left join t1 as x3 on x3.b = x1.b;
+set ndb_join_pushdown=on;
+select straight_join count(*) from t1 as x1 
+  join t1 as x2 on x2.b = x1.a
+  left join t1 as x3 on x3.b = x1.b;
+
 ##############
 # If we have a bushy lookup, with scandescendants depending on these lookups,
 # we dont serialize the scan by insertion of artificial dependencies.

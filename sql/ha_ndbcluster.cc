@@ -1008,13 +1008,26 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
 
     if (m_tables[parent_no].m_last_scan_descendant < MAX_TABLES)
     {
+      uint descendant_no= m_tables[parent_no].m_last_scan_descendant;
+      while (descendant_no != MAX_TABLES && descendant_no != parent_no)
+      {
+        const AQP::Table_access* const descendant= m_plan.get_table_access(descendant_no);
+        if (descendant->get_join_type() != AQP::JT_INNER_JOIN)
+        {
+          DBUG_PRINT("info", ("  There are outer joins between parent and artificial parent -> can't append"));
+          DBUG_RETURN(false);
+        }
+        descendant_no= m_tables[descendant_no].m_parent;
+      } // while
+
       parent_no= m_tables[parent_no].m_last_scan_descendant;
       parent= m_plan.get_table_access(parent_no);
       DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s", parent->get_table()->alias));
     }
     else
     {
-      // Verify that there are no (bushy-) ancestors with scan descendants
+      // Verify that there are no ancestors with scan descendants.
+      // (Which would cause an indirect bushy scan to be defined.)
       uint ancestor_no= parent_no;
       while (ancestor_no != MAX_TABLES)
       {
@@ -1024,15 +1037,16 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
           DBUG_RETURN(false);
         }
 
-        const AQP::Table_access* const ancestor = m_plan.get_table_access(ancestor_no);
+        const AQP::Table_access* const ancestor= m_plan.get_table_access(ancestor_no);
         if (!is_lookup_operation(ancestor->get_access_type()))
         {
-          break; // As adding this scanop was allowed, above ancestor can't be scan bushy
+          break; // As adding this scanop was prev. allowed, above ancestor can't be scan bushy
         }
-        ancestor_no = m_tables[ancestor_no].m_parent;
-      }
+        ancestor_no= m_tables[ancestor_no].m_parent;
+      } // while
     }
-  }
+  } // scan operation
+
      // get_referred_table_access ??
   parent= m_plan.get_table_access(parent_no);
   ndb_table_access_map parent_map(parent);
