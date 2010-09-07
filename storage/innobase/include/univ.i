@@ -234,6 +234,12 @@ typedef unsigned long long int	ullint;
 /* Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
 
+/* THe 'undefined' value for ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
+
+/* Maximum value for a ullint */
+#define ULLINT_MAX		((ullint)(-2))
+
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 #define ibool			ulint
