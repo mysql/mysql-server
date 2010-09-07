@@ -739,11 +739,10 @@ trx_commit(
 		transactions with an update undo log, do not necessarily come
 		in exactly the same order as commit lsn's, if the transactions
 		have different rollback segments. To get exactly the same
-		order we should hold the kernel mutex up to this point,
-		adding to the contention of the kernel mutex. However, if
-		a transaction T2 is able to see modifications made by
-		a transaction T1, T2 will always get a bigger transaction
-		number and a bigger commit lsn than T1. */
+		order we should hold the trx sys mutex up to this point.
+		However, if a transaction T2 is able to see modifications
+	       	made by a transaction T1, T2 will always get a bigger
+	       	transaction number and a bigger commit lsn than T1. */
 
 		/*--------------*/
 		mtr_commit(&mtr);

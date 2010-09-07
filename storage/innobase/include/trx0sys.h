@@ -478,6 +478,13 @@ ulint
 trx_sys_get_n_trx(void);
 /*===================*/
 
+/*********************************************************************
+Check if there are any active transactions. */
+UNIV_INTERN
+ibool
+trx_sys_any_active_transactions(void);
+/*=================================*/
+
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
