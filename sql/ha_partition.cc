@@ -233,6 +233,7 @@ void ha_partition::init_handler_variables()
   m_extra_cache= FALSE;
   m_extra_cache_size= 0;
   m_extra_prepare_for_update= FALSE;
+  m_extra_cache_part_id= NO_CURRENT_PART_ID;
   m_handler_status= handler_not_initialized;
   m_low_byte_first= 1;
   m_part_field_array= NULL;
@@ -5376,9 +5377,6 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     when performing the sequential scan we will check this recorded value
     and call extra_opt whenever we start scanning a new partition.
 
-    monty: Neads to be fixed so that it's passed to all handlers when we
-    move to another partition during table scan.
-
   HA_EXTRA_NO_CACHE:
     When performing a UNION SELECT HA_EXTRA_NO_CACHE is called from the
     flush method in the select_union class.
@@ -5390,7 +5388,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     for. If no cache is in use they will quickly return after finding
     this out. And we also ensure that all caches are disabled and no one
     is left by mistake.
-    In the future this call will probably be deleted an we will instead call
+    In the future this call will probably be deleted and we will instead call
     ::reset();
 
   HA_EXTRA_WRITE_CACHE:
@@ -5402,8 +5400,9 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     This is called as part of a multi-table update. When the table to be
     updated is also scanned then this informs MyISAM handler to drop any
     caches if dynamic records are used (fixed size records do not care
-    about this call). We pass this along to all underlying MyISAM handlers
-    and ignore it for the rest.
+    about this call). We pass this along to the first partition to scan, and
+    flag that it is to be called after HA_EXTRA_CACHE when moving to the next
+    partition to scan.
 
   HA_EXTRA_PREPARE_FOR_DROP:
     Only used by MyISAM, called in preparation for a DROP TABLE.
@@ -5559,6 +5558,7 @@ int ha_partition::extra(enum ha_extra_function operation)
     m_extra_prepare_for_update= TRUE;
     if (m_part_spec.start_part != NO_CURRENT_PART_ID)
     {
+      DBUG_ASSERT(m_extra_cache_part_id == m_part_spec.start_part);
       VOID(m_file[m_part_spec.start_part]->extra(HA_EXTRA_PREPARE_FOR_UPDATE));
     }
     break;
@@ -5586,11 +5586,22 @@ int ha_partition::extra(enum ha_extra_function operation)
     break;
   }
   case HA_EXTRA_NO_CACHE:
+  {
+    int ret= 0;
+    if (m_extra_cache_part_id != NO_CURRENT_PART_ID)
+      ret= m_file[m_extra_cache_part_id]->extra(HA_EXTRA_NO_CACHE);
+    m_extra_cache= FALSE;
+    m_extra_cache_size= 0;
+    m_extra_prepare_for_update= FALSE;
+    m_extra_cache_part_id= NO_CURRENT_PART_ID;
+    DBUG_RETURN(ret);
+  }
   case HA_EXTRA_WRITE_CACHE:
   {
     m_extra_cache= FALSE;
     m_extra_cache_size= 0;
     m_extra_prepare_for_update= FALSE;
+    m_extra_cache_part_id= NO_CURRENT_PART_ID;
     DBUG_RETURN(loop_extra(operation));
   }
   case HA_EXTRA_IGNORE_NO_KEY:
@@ -5777,16 +5788,18 @@ int ha_partition::loop_extra(enum ha_extra_function operation)
 {
   int result= 0, tmp;
   handler **file;
+  bool is_select;
   DBUG_ENTER("ha_partition::loop_extra()");
   
-  /* 
-    TODO, 5.2: this is where you could possibly add optimisations to add the bitmap
-    _if_ a SELECT.
-  */
+  is_select= (thd_sql_command(ha_thd()) == SQLCOM_SELECT);
   for (file= m_file; *file; file++)
   {
-    if ((tmp= (*file)->extra(operation)))
-      result= tmp;
+    if (!is_select ||
+        bitmap_is_set(&(m_part_info->used_partitions), file - m_file))
+    {
+      if ((tmp= (*file)->extra(operation)))
+        result= tmp;
+    }
   }
   DBUG_RETURN(result);
 }
@@ -5822,6 +5835,7 @@ void ha_partition::late_extra_cache(uint partition_id)
     DBUG_ASSERT(m_extra_cache);
     VOID(file->extra(HA_EXTRA_PREPARE_FOR_UPDATE));
   }
+  m_extra_cache_part_id= partition_id;
   DBUG_VOID_RETURN;
 }
 
@@ -5846,6 +5860,8 @@ void ha_partition::late_extra_no_cache(uint partition_id)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
   VOID(file->extra(HA_EXTRA_NO_CACHE));
+  DBUG_ASSERT(partition_id == m_extra_cache_part_id);
+  m_extra_cache_part_id= NO_CURRENT_PART_ID;
   DBUG_VOID_RETURN;
 }
 
