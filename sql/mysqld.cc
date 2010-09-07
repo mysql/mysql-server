@@ -3070,10 +3070,11 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     }
     else
     {
-      if (thd->main_da.is_ok())
+      if (thd->main_da.is_ok() && !thd->main_da.can_overwrite_status)
       {
         /*
-          Client has already got ok packet; Write message to error log.
+          Client has already got ok packet and we are not in net_flush(), so
+          we write a message to error log.
           This could happen if we get an error in implicit commit.
           This should never happen in normal operation, so lets
           assert here in debug builds.
