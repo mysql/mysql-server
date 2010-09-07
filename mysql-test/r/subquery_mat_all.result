@@ -598,7 +598,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in (select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);

@@ -2678,6 +2678,86 @@ DROP PROCEDURE p4;
 
 
 --echo # 
+--echo # Bug#48213 Materialized subselect crashes if using GEOMETRY type
+--echo # 
+
+CREATE TABLE t1 (
+  pk int,
+  a varchar(1),
+  b varchar(4),
+  c tinyblob,
+  d blob,
+  e mediumblob,
+  f longblob,
+  g tinytext,
+  h text,
+  i mediumtext,
+  j longtext,
+  k geometry,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo','ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff', 'ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
+
+# Test that materialization is skipped for semijoins where materialized
+# table would contain GEOMETRY or different kinds of BLOB/TEXT columns
+let $query=
+SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+let $query=
+SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+DROP TABLE t1, t2;
+--echo # End of Bug#48213
+
+--echo # 
 --echo # BUG#53060: LooseScan semijoin strategy does not return all rows
 --echo # 
 
