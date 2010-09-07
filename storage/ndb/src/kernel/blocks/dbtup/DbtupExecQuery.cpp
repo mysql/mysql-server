@@ -1137,6 +1137,8 @@ error:
   Both variable-sized and fixed-size attributes are stored in the same way
   in the expanded form as variable-sized attributes (in expand_var_part()).
 
+  This method is used for both mem and disk dynamic data.
+
     dst         Destination for expanded data
     tabPtrP     Table descriptor
     src         Pointer to the start of dynamic bitmap in source row
@@ -1151,8 +1153,8 @@ expand_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
 		Uint32 row_len,
 		const Uint32 * tabDesc,
 		const Uint16* order,
-		Uint32 mm_dynvar,
-		Uint32 mm_dynfix,
+		Uint32 dynvar,
+		Uint32 dynfix,
 		Uint32 max_bmlen)
 {
   /* Copy the bitmap, zeroing out any words not stored in the row. */
@@ -1185,11 +1187,11 @@ expand_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
   Uint16* dst_len_ptr= dst_off_ptr + no_attr;
   Uint16 this_src_off= row_len ? * src_off_ptr++ : 0;
   /* We need to reserve room for the offsets written by shrink_tuple+padding.*/
-  Uint16 dst_off= 4 * (max_bmlen + ((mm_dynvar+2)>>1));
+  Uint16 dst_off= 4 * (max_bmlen + ((dynvar+2)>>1));
   char *dst_ptr= (char*)dst_bm_ptr + dst_off;
-  for(Uint32 i= 0; i<mm_dynvar; i++)
+  for(Uint32 i= 0; i<dynvar; i++)
   {
-    Uint16 j= order[mm_dynfix+i];
+    Uint16 j= order[dynfix+i];
     Uint32 max_len= 4 *AttributeDescriptor::getSizeInWords(tabDesc[j]);
     Uint32 len;
     Uint32 pos = AttributeOffset::getNullFlagPos(tabDesc[j+1]);
@@ -1223,12 +1225,12 @@ expand_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
     dynamic part of the row. This is true both for the stored/shrunken and
     for the expanded form.
   */
-  for(Uint32 i= mm_dynfix; i>0; )
+  for(Uint32 i= dynfix; i>0; )
   {
     i--;
     Uint16 j= order[i];
     Uint32 fix_size= 4*AttributeDescriptor::getSizeInWords(tabDesc[j]);
-    dst_off_ptr[mm_dynvar+i]= dst_off;
+    dst_off_ptr[dynvar+i]= dst_off;
     /* len offset array is not used for fixed size. */
     Uint32 pos = AttributeOffset::getNullFlagPos(tabDesc[j+1]);
     if(bm_len > (pos >> 5) && BitmaskImpl::get(bm_len, src, pos))
@@ -3349,7 +3351,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
         /* ToDo: Put all of the dynattr code inside if(bm_len>0) { ... }, 
          * split to separate function. */
         Uint16 dyn_dst_data_offset= 0;
-        const Uint32 *dyn_bm_var_mask_ptr= tabPtrP->dynVarSizeMask;
+        const Uint32 *dyn_bm_var_mask_ptr= tabPtrP->dynVarSizeMask[MM];
         for(Uint16 i= 0; i< bm_len; i++)
         {
           Uint32 v= src_bm_ptr[i];
