@@ -18,6 +18,7 @@
 #
 # Show MySQL server related content in performance_schema.THREADS
 
+--source include/not_windows.inc
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
