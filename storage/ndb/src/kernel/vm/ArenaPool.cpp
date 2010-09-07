@@ -165,8 +165,8 @@ ArenaPool::handle_invalid_release(Ptr<void> ptr)
 {
   char buf[255];
 
-  Uint32 pos = ptr.i & POOL_RECORD_MASK;
-  Uint32 pageI = ptr.i >> POOL_RECORD_BITS;
+  //Uint32 pos = ptr.i & POOL_RECORD_MASK;
+  //Uint32 pageI = ptr.i >> POOL_RECORD_BITS;
   Uint32 * record_ptr_p = (Uint32*)ptr.p;
 
   Uint32 magic = * (record_ptr_p + m_record_info.m_offset_magic);
