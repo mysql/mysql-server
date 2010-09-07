@@ -1063,6 +1063,7 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
   param.isam_file_name= name= info->s->open_file_name.str;
   param.testflag= uint8korr(rec->header + FILEID_STORE_SIZE);
   param.tmpdir= maria_tmpdir;
+  param.max_trid= max_long_trid;
   DBUG_ASSERT(maria_tmpdir);
 
   info->s->state.key_map= uint8korr(rec->header + FILEID_STORE_SIZE + 8);

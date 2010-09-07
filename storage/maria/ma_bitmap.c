@@ -1875,6 +1875,7 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   uint offset_page, offset, tmp, org_tmp;
   uchar *data;
   DBUG_ENTER("set_page_bits");
+  DBUG_ASSERT(fill_pattern <= 7);
 
   bitmap_page= page - page % bitmap->pages_covered;
   if (bitmap_page != bitmap->page &&
@@ -2296,9 +2297,16 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
         The page has all bits set; The following test is an optimization
         to not set the bits to the same value as before.
       */
-      if (bits != current_bitmap_value &&
-          set_page_bits(info, bitmap, block->page, bits))
-        goto err;
+      if (bits != current_bitmap_value)
+      {
+        if (set_page_bits(info, bitmap, block->page, bits))
+          goto err;
+      }
+      else
+      {
+        DBUG_ASSERT(current_bitmap_value ==
+                    _ma_bitmap_get_page_bits(info, bitmap, block->page));
+      }
     }
     else if (!(block->used & BLOCKUSED_USED) &&
              _ma_bitmap_reset_full_page_bits(info, bitmap,

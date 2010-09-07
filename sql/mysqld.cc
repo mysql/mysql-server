@@ -3070,7 +3070,20 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     }
     else
     {
-      if (! thd->main_da.is_error())            // Return only first message
+      if (thd->main_da.is_ok() && !thd->main_da.can_overwrite_status)
+      {
+        /*
+          Client has already got ok packet and we are not in net_flush(), so
+          we write a message to error log.
+          This could happen if we get an error in implicit commit.
+          This should never happen in normal operation, so lets
+          assert here in debug builds.
+        */
+        DBUG_ASSERT(0);
+        func= sql_print_error;
+        MyFlags|= ME_NOREFRESH;
+      }
+      else if (! thd->main_da.is_error()) // Return only first message
       {
         thd->main_da.set_error_status(thd, error, str);
       }
@@ -4185,7 +4198,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-#ifdef WITH_CSV_STORAGE_ENGINE
   if (opt_bootstrap)
     log_output_options= LOG_FILE;
   else
@@ -4219,10 +4231,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
                         opt_log ? log_output_options:LOG_NONE);
   }
-#else
-  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
-                      opt_log ? LOG_FILE:LOG_NONE);
-#endif
 
   /*
     Check that the default storage engine is actually available.
@@ -6298,13 +6306,11 @@ each time the SQL thread starts.",
    "Log some extra information to update log. Please note that this option "
    "is deprecated; see --log-short-format option.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef WITH_CSV_STORAGE_ENGINE
   {"log-output", OPT_LOG_OUTPUT,
    "Syntax: log-output[=value[,value...]], where \"value\" could be TABLE, "
    "FILE or NONE.",
    &log_output_str, &log_output_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"log-queries-not-using-indexes", OPT_LOG_QUERIES_NOT_USING_INDEXES,
    "Log queries that are executed without benefit of any index to the slow log if it is open.",
    &opt_log_queries_not_using_indexes, &opt_log_queries_not_using_indexes,
@@ -8639,7 +8645,6 @@ mysqld_get_one_option(int optid,
     WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--log-slow-file'");
     opt_slow_log= 1;
     break;
-#ifdef WITH_CSV_STORAGE_ENGINE
   case  OPT_LOG_OUTPUT:
   {
     if (!argument || !argument[0])
@@ -8657,7 +8662,6 @@ mysqld_get_one_option(int optid,
   }
     break;
   }
-#endif
   case OPT_EVENT_SCHEDULER:
 #ifndef HAVE_EVENT_SCHEDULER
     sql_perror("Event scheduler is not supported in embedded build.");

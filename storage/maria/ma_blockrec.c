@@ -1990,7 +1990,8 @@ static my_bool write_tail(MARIA_HA *info,
   block->empty_space= (enough_free_entries(row_pos.buff, share->block_size,
                                            1 + share->base.blobs) ?
                        empty_space : 0);
-  block->used= BLOCKUSED_USED | BLOCKUSED_TAIL;
+  /* Keep BLOCKUSED_USE_ORG_BITMAP */
+  block->used|= BLOCKUSED_USED | BLOCKUSED_TAIL;
 
   /* Increase data file size, if extended */
   position= (my_off_t) block->page * block_size;

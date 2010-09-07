@@ -91,7 +91,8 @@ int maria_rtree_delete_key(MARIA_PAGE *page, uchar *key, uint key_length)
   page->size-= key_length_with_nod_flag;
   page_store_size(share, page);
   if (share->now_transactional &&
-      _ma_log_delete(page, key_start, 0, key_length_with_nod_flag))
+      _ma_log_delete(page, key_start, 0, key_length_with_nod_flag,
+                     0, KEY_OP_DEBUG_LOG_DEL_CHANGE_RT))
     return -1;
   return 0;
 }
