@@ -1414,8 +1414,8 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   Uint32 dynamic_count= 0;
   regTabPtr->blobAttributeMask.clear();
   regTabPtr->notNullAttributeMask.clear();
-  bzero(regTabPtr->dynVarSizeMask, dyn_null_words<<2);
-  bzero(regTabPtr->dynFixSizeMask, dyn_null_words<<2);
+  bzero(regTabPtr->dynVarSizeMask[MM], dyn_null_words<<2);
+  bzero(regTabPtr->dynFixSizeMask[MM], dyn_null_words<<2);
 
   for(Uint32 i= 0; i<regTabPtr->m_no_of_attributes; i++)
   {
@@ -1477,7 +1477,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
           while(size_in_words-- > 0)
 	  {
 	    BitmaskImpl::set(dyn_null_words, 
-			     regTabPtr->dynFixSizeMask, null_pos++);
+			     regTabPtr->dynFixSizeMask[ind], null_pos++);
 	  }
         }
         else
@@ -1488,7 +1488,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
       treat_as_varsize:
         jam();
         off= dynvar_count++;
-	BitmaskImpl::set(dyn_null_words, regTabPtr->dynVarSizeMask, null_pos);
+	BitmaskImpl::set(dyn_null_words, regTabPtr->dynVarSizeMask[ind], null_pos);
       }
     }
     AttributeOffset::setOffset(attrDes2, off);
@@ -1651,8 +1651,8 @@ void Dbtup::setupDynDescriptorReferences(Uint32 dynDescr,
 {
   regTabPtr->dynTabDescriptor= dynDescr;
   Uint32* desc= &tableDescriptor[dynDescr].tabDescr;
-  regTabPtr->dynVarSizeMask= desc+offset[0];
-  regTabPtr->dynFixSizeMask= desc+offset[1];
+  regTabPtr->dynVarSizeMask[MM] = desc+offset[0];
+  regTabPtr->dynFixSizeMask[MM] = desc+offset[1];
 }
 
 Uint32
@@ -1838,8 +1838,8 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
   {
     jam();
     regTabPtr->dynTabDescriptor= RNIL;
-    regTabPtr->dynVarSizeMask= NULL;
-    regTabPtr->dynFixSizeMask= NULL;
+    regTabPtr->dynVarSizeMask[MM]= NULL;
+    regTabPtr->dynFixSizeMask[MM]= NULL;
     releaseTabDescr(descriptor);
   }
 }
