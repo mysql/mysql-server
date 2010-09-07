@@ -9299,6 +9299,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   const Uint32 transid2 = nextReq->transId2;
   const Uint32 senderData = nextReq->senderData;
   Uint32 hashHi = signal->getSendersBlockRef();
+
   /**
    * XXX TODO handle upgrade...
    */
@@ -9348,6 +9349,14 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
 
   if(ERROR_INSERTED(5036)){
     return;
+  }
+
+  if (signal->getLength() > ScanFragNextReq::SignalLength)
+  {
+    jam();
+    Uint32 corrFactorLo = signal->theData[ScanFragNextReq::SignalLength];
+    tcConnectptr.p->m_corrFactorLo &= 0xFFFF0000;
+    tcConnectptr.p->m_corrFactorLo |= corrFactorLo;
   }
 
   scanptr.i = tcConnectptr.p->tcScanRec;

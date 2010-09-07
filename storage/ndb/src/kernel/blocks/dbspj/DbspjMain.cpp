@@ -5074,14 +5074,16 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   }
 
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
+  const Uint32 bs_rows = MAX(1, org->batch_size_rows/cnt);
   ScanFragNextReq* req = 
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
   req->closeFlag = 0;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
-  req->batch_size_rows = MAX(1, org->batch_size_rows/cnt);
+  req->batch_size_rows = bs_rows;
   req->batch_size_bytes = org->batch_size_bytes/cnt;
   
+  Uint32 batchRange = 0;
   Ptr<ScanFragHandle> fragPtr;
   Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
   list.first(fragPtr);
@@ -5094,7 +5096,9 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
 
       i++;
       data.m_frags_outstanding++;
+      signal->theData[ScanFragNextReq:: SignalLength] = batchRange;
       fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING;
+      batchRange += bs_rows;
 
       DEBUG("scanIndex_execSCAN_NEXTREQ to: " << hex 
             << treeNodePtr.p->m_send.m_ref
@@ -5102,12 +5106,12 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
 
 #ifdef DEBUG_SCAN_FRAGREQ
       printSCANNEXTREQ(stdout, &signal->theData[0], 
-                       ScanFragNextReq:: SignalLength, DBLQH);
+                       ScanFragNextReq:: SignalLength + 1, DBLQH);
 #endif
 
       req->senderData = fragPtr.i;
       sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal, 
-                 ScanFragNextReq::SignalLength, 
+                 ScanFragNextReq::SignalLength + 1, 
                  JBB);
     }
   }
