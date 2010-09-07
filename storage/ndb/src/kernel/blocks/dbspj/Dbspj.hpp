@@ -1089,8 +1089,6 @@ private:
 			       const RowPtr &);
   void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
-  void scanFrag_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr &);
-  void scanFrag_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);

@@ -1523,6 +1523,12 @@ Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
     for (list.first(nodePtr); !nodePtr.isNull(); list.next(nodePtr))
     {
       jam();
+      /**
+       * clear T_REPORT_BATCH_COMPLETE so that child nodes don't get confused
+       *   during abort
+       */
+      nodePtr.p->m_bits &= ~Uint32(TreeNode::T_REPORT_BATCH_COMPLETE);
+
       ndbrequire(nodePtr.p->m_info != 0);
       if (nodePtr.p->m_info->m_abort != 0)
       {
@@ -3516,8 +3522,8 @@ Dbspj::g_ScanFragOpInfo =
   0, // execLQHKEYCONF
   &Dbspj::scanFrag_execSCAN_FRAGREF,
   &Dbspj::scanFrag_execSCAN_FRAGCONF,
-  &Dbspj::scanFrag_parent_row,
-  &Dbspj::scanFrag_parent_batch_complete,
+  0, // parent row
+  0, // parent batch complete
   &Dbspj::scanFrag_execSCAN_NEXTREQ,
   0, // Dbspj::scanFrag_complete
   &Dbspj::scanFrag_abort,
@@ -3552,6 +3558,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
     }
 
     scanFragHandlePtr.p->m_treeNodePtrI = treeNodePtr.i;
+    scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_NOT_STARTED;
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = scanFragHandlePtr.i;
 
     requestPtr.p->m_bits |= Request::RT_SCAN;
@@ -3739,6 +3746,9 @@ Dbspj::scanFrag_send(Signal* signal,
   requestPtr.p->m_cnt_active++;
   mark_active(requestPtr, treeNodePtr, true);
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
+  Ptr<ScanFragHandle> scanFragHandlePtr;
+  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
+                               m_scanfrag_data.m_scanFragHandlePtrI);
 
   ScanFragReq* req = reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
 
@@ -3802,6 +3812,7 @@ Dbspj::scanFrag_send(Signal* signal,
 	     NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
              JBB, &handle);
 
+  scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_SCANNING;
   treeNodePtr.p->m_scanfrag_data.m_rows_received = 0;
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = ~Uint32(0);
 }
@@ -3851,7 +3862,7 @@ void
 Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
                                  Ptr<Request> requestPtr,
                                  Ptr<TreeNode> treeNodePtr,
-                                 Ptr<ScanFragHandle>)
+                                 Ptr<ScanFragHandle> scanFragHandlePtr)
 {
   const ScanFragRef* rep = 
     reinterpret_cast<const ScanFragRef*>(signal->getDataPtr());
@@ -3859,7 +3870,7 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
 
   DEBUG("scanFrag_execSCAN_FRAGREF, rep->senderData:" << rep->senderData
          << ", requestPtr.p->m_senderData:" << requestPtr.p->m_senderData);
-
+  scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
   ndbrequire(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
   ndbrequire(requestPtr.p->m_cnt_active);
   requestPtr.p->m_cnt_active--;
@@ -3875,13 +3886,23 @@ void
 Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
                                   Ptr<Request> requestPtr,
                                   Ptr<TreeNode> treeNodePtr,
-                                  Ptr<ScanFragHandle>)
+                                  Ptr<ScanFragHandle> scanFragHandlePtr)
 {
   const ScanFragConf * conf = 
     reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
   Uint32 rows = conf->completedOps;
   Uint32 done = conf->fragmentCompleted;
-  
+
+  Uint32 state = scanFragHandlePtr.p->m_state;
+  if (state == ScanFragHandle::SFH_WAIT_CLOSE && done == 0)
+  {
+    jam();
+    /**
+     * We sent an explicit close request...ignore this...a close will come later
+     */
+    return;
+  }
+
   ndbrequire(done <= 2); // 0, 1, 2 (=ZSCAN_FRAG_CLOSED)
 
   ndbassert(treeNodePtr.p->m_scanfrag_data.m_rows_expecting == ~Uint32(0));
@@ -3904,10 +3925,17 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     requestPtr.p->m_cnt_active--;
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
     mark_active(requestPtr, treeNodePtr, false);
+    scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
+  }
+  else
+  {
+    jam();
+    scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_WAIT_NEXTREQ;
   }
 
   if (treeNodePtr.p->m_scanfrag_data.m_rows_expecting ==
-      treeNodePtr.p->m_scanfrag_data.m_rows_received)
+      treeNodePtr.p->m_scanfrag_data.m_rows_received ||
+      (state == ScanFragHandle::SFH_WAIT_CLOSE))
   {
     jam();
 
@@ -3920,60 +3948,6 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     checkBatchComplete(signal, requestPtr, 1);
     return;
   }
-
-  if (unlikely((requestPtr.p->m_state & Request::RS_ABORTING) != 0))
-  {
-    jam();
-    /**
-     * We should have sent SCAN_NEXTREQ(close=true) 
-     *   and will get a done=true response...
-     *
-     * If 
-     *   done=true, no more response from LQH will arrive
-     *              call checkBatchComplete is not done...
-     *
-     *   done=false, the "close=true" signal is still being processed
-     */
-    if (done)
-    {
-      jam();
-      if (! (treeNodePtr.p->m_scanfrag_data.m_rows_expecting ==
-             treeNodePtr.p->m_scanfrag_data.m_rows_received))
-      {
-        jam();
-        checkBatchComplete(signal, requestPtr, 1);
-      }
-      return;
-    }
-    else
-    {
-      jam();
-      /**
-       * resetting m_rows_expecting to ~0
-       *   as another SCAN_FRAGCONF should arrive
-       */
-      treeNodePtr.p->m_scanfrag_data.m_rows_expecting = ~Uint32(0);
-    }
-  }
-}
-
-void
-Dbspj::scanFrag_parent_row(Signal* signal,
-                            Ptr<Request> requestPtr,
-                            Ptr<TreeNode> treeNodePtr,
-                            const RowPtr & rowRef)
-{
-  jam();
-  ndbrequire(false);
-}
-
-void
-Dbspj::scanFrag_parent_batch_complete(Signal* signal,
-                                      Ptr<Request> requestPtr,
-                                      Ptr<TreeNode> treeNodePtr)
-{
-  jam();
-  ndbrequire(false);
 }
 
 void
@@ -3982,6 +3956,10 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
                                  Ptr<TreeNode> treeNodePtr)
 {
   jamEntry();
+
+  Ptr<ScanFragHandle> scanFragHandlePtr;
+  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
+                               m_scanfrag_data.m_scanFragHandlePtrI);
 
   const ScanFragReq * org =
     (ScanFragReq*)treeNodePtr.p->m_scanfrag_data.m_scanFragReq;
@@ -4011,6 +3989,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
   treeNodePtr.p->m_scanfrag_data.m_rows_received = 0;
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = ~Uint32(0);
   requestPtr.p->m_outstanding++;
+  scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_SCANNING;
 }//Dbspj::scanFrag_execSCAN_NEXTREQ()
 
 void
@@ -4020,9 +3999,34 @@ Dbspj::scanFrag_abort(Signal* signal,
 {
   jam();
   
+  Ptr<ScanFragHandle> scanFragHandlePtr;
+  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
+                               m_scanfrag_data.m_scanFragHandlePtrI);
   if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
   {
     jam();
+
+    switch(scanFragHandlePtr.p->m_state){
+    case ScanFragHandle::SFH_NOT_STARTED:
+    case ScanFragHandle::SFH_COMPLETE:
+      ndbrequire(false); // we shouldnt be TN_ACTIVE then...
+
+    case ScanFragHandle::SFH_WAIT_CLOSE:
+      jam();
+      // close already sent
+      return;
+    case ScanFragHandle::SFH_WAIT_NEXTREQ:
+      jam();
+      // we were idle
+      requestPtr.p->m_outstanding++;
+      break;
+    case ScanFragHandle::SFH_SCANNING:
+      jam();
+      break;
+    }
+
+    treeNodePtr.p->m_scanfrag_data.m_rows_expecting = ~Uint32(0);
+    scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
 
     ScanFragNextReq* req = 
       reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
@@ -4038,14 +4042,6 @@ Dbspj::scanFrag_abort(Signal* signal,
                signal, 
                ScanFragNextReq::SignalLength, 
                JBB);
-
-    if (treeNodePtr.p->m_scanfrag_data.m_rows_expecting != ~Uint32(0))
-    {
-      jam();
-      // We were idle at the time..
-      requestPtr.p->m_outstanding++;
-      treeNodePtr.p->m_scanfrag_data.m_rows_expecting = ~Uint32(0);
-    }
   }
 }
 
