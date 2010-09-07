@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if defined(TOKUDB)
+#include "trace_mem.h"
+#endif
 
 #if !defined(DB_YESOVERWRITE)
 #define DB_YESOVERWRITE 0
@@ -362,6 +365,12 @@ static void fill_array (unsigned char *data, int size) {
     }
 }
 
+static void trace(const char *UU(s), int UU(n)) {
+#if defined(TOKUDB)
+    toku_add_trace_mem(s, n);
+#endif
+}
+
 static void insert (long long v) {
     int r;
     unsigned char kc[keysize];
@@ -384,16 +393,22 @@ static void insert (long long v) {
     else {
         for (which = 0; which < num_dbs; which++) {
             DB *db = dbs[which];
+            trace("pstart", __LINE__);
             r = db->put(db, tid, &kt, &vt, put_flags);
+            trace("pdone", __LINE__);
             CKERR(r);
         }
     }
     if (do_transactions) {
 	if (n_insertions_since_txn_began>=items_per_transaction && !singlex) {
 	    n_insertions_since_txn_began=0;
+            trace("cstart", __LINE__);
 	    r = tid->commit(tid, commitflags); assert(r==0);
+            trace("cdone", __LINE__);
             tid = NULL;
+            trace("txn", __LINE__);
 	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+            trace("txndone", __LINE__);
             for (which = 0; which < num_dbs; which++) {
                 DB *db = dbs[which];
                 do_prelock(db, tid);
@@ -726,6 +741,10 @@ static int test_main (int argc, char *const argv[]) {
 	extern void print_hash_histogram (void) __attribute__((__visibility__("default")));
 	print_hash_histogram();
     }
+#endif
+#if defined(TOKUDB)
+    // if tokudb has tracing enabled (see trace_mem.h) then this will dump the trace data
+    if (1) toku_print_trace_mem(stderr);
 #endif
 
     return 0;
