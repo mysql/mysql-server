@@ -2262,7 +2262,7 @@ loop:
 	/* ---- When there is database activity by users, we cycle in this
 	loop */
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = "reserving sys mutex";
 
 	buf_get_total_stat(&buf_stat);
 	n_ios_very_old = log_sys->n_log_ios + buf_stat.n_pages_read
@@ -2482,7 +2482,7 @@ loop:
 
 	log_checkpoint(TRUE, FALSE);
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = "reserving sys mutex";
 
 	/* ---- When there is database activity, we jump from here back to
 	the start of loop */
@@ -2521,7 +2521,7 @@ background_loop:
 		srv_master_do_purge();
 	}
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = "reserving sys mutex";
 
 	if (srv_check_activity(old_activity_count)) {
 		goto loop;
@@ -2540,7 +2540,7 @@ background_loop:
 							   PCT_IO(100));
 	}
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = "reserving sys mutex";
 
 	if (srv_check_activity(old_activity_count)) {
 		goto loop;
@@ -2566,7 +2566,7 @@ flush_loop:
 		n_pages_flushed = 0;
 	}
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = "reserving sys mutex";
 
 	if (srv_check_activity(old_activity_count)) {
 		goto loop;
@@ -2592,7 +2592,7 @@ flush_loop:
 	}
 	max_modified_ratio_exceeded = FALSE;
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = "reserving sys mutex";
 
 	if (srv_check_activity(old_activity_count)) {
 		goto loop;

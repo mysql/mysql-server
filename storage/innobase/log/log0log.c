@@ -3146,17 +3146,9 @@ loop:
 	for the 'very fast' shutdown, because the InnoDB layer may have
 	committed or prepared transactions and we don't want to lose them. */
 
-	trx_sys_mutex_enter();
-
-	if (trx_n_mysql_transactions > 0
-	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-
-		trx_sys_mutex_exit();
-
+	if (trx_sys_any_active_transactions()) {
 		goto loop;
 	}
-
-	trx_sys_mutex_exit();
 
 	if (srv_fast_shutdown == 2) {
 

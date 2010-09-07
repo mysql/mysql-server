@@ -1679,3 +1679,27 @@ trx_sys_close(void)
 	trx_sys = NULL;
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/*********************************************************************
+Check if there are any active transactions. */
+UNIV_INTERN
+ibool
+trx_sys_any_active_transactions(void)
+/*=================================*/
+{
+	ibool	active;
+
+	trx_sys_mutex_enter();
+
+	if (trx_n_mysql_transactions > 0
+	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+
+		active = TRUE;
+	} else {
+		active = FALSE;
+	}
+
+	trx_sys_mutex_exit();
+
+	return(active);
+}
