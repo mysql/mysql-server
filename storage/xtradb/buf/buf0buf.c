@@ -792,7 +792,7 @@ buf_block_reuse(
 	ptrdiff_t	frame_offset)
 {
 	/* block_init */
-	block->frame = ((char*)(block->frame) + frame_offset);
+	block->frame = ((byte*)(block->frame) + frame_offset);
 
 	UNIV_MEM_DESC(block->frame, UNIV_PAGE_SIZE, block);
 
@@ -809,7 +809,7 @@ buf_block_reuse(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	if (block->page.zip.data)
-		block->page.zip.data = ((char*)(block->page.zip.data) + frame_offset);
+		block->page.zip.data = ((byte*)(block->page.zip.data) + frame_offset);
 
 	block->is_hashed = FALSE;
 
