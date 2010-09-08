@@ -1056,21 +1056,6 @@ le_has_xids(LEAFENTRY le, XIDS xids) {
     return rval;
 }
 
-//DEBUG ONLY can be slow
-void*
-le_latest_key (LEAFENTRY le) {
-    ULE_S ule;
-    le_unpack(&ule, le);
-    UXR uxr = ule_get_innermost_uxr(&ule);
-    void *slow_rval;
-    if (uxr_is_insert(uxr))
-        slow_rval = ule.keyp;
-    else
-        slow_rval = NULL;
-    ule_cleanup(&ule);
-    return slow_rval;
-}
-
 u_int32_t
 le_latest_keylen (LEAFENTRY le) {
     u_int32_t rval;
