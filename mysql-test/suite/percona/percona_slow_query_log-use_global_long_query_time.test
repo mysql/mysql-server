@@ -20,3 +20,24 @@ let $cmd = cat $MYSQLD_DATADIR/percona_slow_query_log-use_global_long_query_time
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 exec echo '$cmd';
 exec $cmd;
+
+show global variables like 'use_global_log_slow_control';
+show global variables like 'use_global_long_query_time';
+
+set global use_global_log_slow_control = long_query_time;
+show global variables like 'use_global_log_slow_control';
+show global variables like 'use_global_long_query_time';
+
+set global use_global_log_slow_control = log_slow_filter;
+show global variables like 'use_global_log_slow_control';
+show global variables like 'use_global_long_query_time';
+
+set global use_global_long_query_time = ON;
+show global variables like 'use_global_log_slow_control';
+show global variables like 'use_global_long_query_time';
+
+set global use_global_long_query_time = OFF;
+show global variables like 'use_global_log_slow_control';
+show global variables like 'use_global_long_query_time';
+
+set global use_global_log_slow_control = none;

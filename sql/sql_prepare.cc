@@ -3338,7 +3338,7 @@ reexecute:
 bool
 Prepared_statement::reprepare()
 {
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   LEX_STRING stmt_db_name= { db, db_length };
@@ -3499,7 +3499,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   Query_arena *old_stmt_arena;
   bool error= TRUE;
 
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;

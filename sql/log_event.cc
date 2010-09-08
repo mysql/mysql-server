@@ -6234,7 +6234,7 @@ void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void Create_file_log_event::pack_info(Protocol *protocol)
 {
-  char buf[NAME_LEN*2 + 30 + 21*2], *pos;
+  char buf[SAFE_NAME_LEN*2 + 30 + 21*2], *pos;
   pos= strmov(buf, "db=");
   memcpy(pos, db, db_len);
   pos= strmov(pos + db_len, ";table=");

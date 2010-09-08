@@ -493,7 +493,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
-    char uname[NAME_LEN + 1];                   /* Unencoded name */
+    char uname[SAFE_NAME_LEN + 1];              /* Unencoded name */
     file=dirp->dir_entry+i;
     if (dir)
     {                                           /* Return databases */
@@ -4254,7 +4254,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
   MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
-  char sp_db_buff[NAME_LEN + 1], sp_name_buff[NAME_LEN + 1],
+  char sp_db_buff[SAFE_NAME_LEN + 1], sp_name_buff[SAFE_NAME_LEN + 1],
     definer_buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 2];
   String sp_db(sp_db_buff, sizeof(sp_db_buff), cs);
   String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
@@ -6589,8 +6589,8 @@ ST_FIELD_INFO table_names_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"TABLE_SCHEMA",NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Tables_in_",
-   SKIP_OPEN_TABLE},
+  {"TABLE_NAME", NAME_CHAR_LEN + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
+   MYSQL_TYPE_STRING, 0, 0, "Tables_in_", SKIP_OPEN_TABLE},
   {"TABLE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_type",
    OPEN_FRM_ONLY},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}

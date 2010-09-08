@@ -3064,17 +3064,16 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     object being copied.
   */
   ORDER *tmp;
-  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+  if (!(tmp= (ORDER *) thd->alloc(sizeof(ORDER *) * arg_count_order +
                                      sizeof(ORDER) * arg_count_order)))
     return;
-  tmp= (ORDER *)(order + arg_count_order);
+  order= (ORDER **)(tmp + arg_count_order);
   for (uint i= 0; i < arg_count_order; i++, tmp++)
   {
     memcpy(tmp, item->order[i], sizeof(ORDER));
     order[i]= tmp;
   }
 }
-
 
 
 void Item_func_group_concat::cleanup()

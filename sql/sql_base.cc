@@ -613,7 +613,7 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
 
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 {
-  char key[NAME_LEN*2+2];
+  char key[SAFE_NAME_LEN*2+2];
   TABLE_LIST table_list;
   uint key_length;
   safe_mutex_assert_owner(&LOCK_open);
@@ -6311,7 +6311,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
   const char *table_name= item->table_name;
   const char *name= item->field_name;
   uint length=(uint) strlen(name);
-  char name_buff[NAME_LEN+1];
+  char name_buff[SAFE_NAME_LEN+1];
   TABLE_LIST *cur_table= first_table;
   TABLE_LIST *actual_table;
   bool allow_rowid;
@@ -6468,7 +6468,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       (report_error == REPORT_ALL_ERRORS ||
        report_error == REPORT_EXCEPT_NON_UNIQUE))
   {
-    char buff[NAME_LEN*2 + 2];
+    char buff[SAFE_NAME_LEN*2 + 2];
     if (db && db[0])
     {
       strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
@@ -7854,7 +7854,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 {
   Field_iterator_table_ref field_iterator;
   bool found;
-  char name_buff[NAME_LEN+1];
+  char name_buff[SAFE_NAME_LEN+1];
   DBUG_ENTER("insert_fields");
   DBUG_PRINT("arena", ("stmt arena: 0x%lx", (ulong)thd->stmt_arena));
 
