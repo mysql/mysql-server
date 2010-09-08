@@ -504,7 +504,8 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
   DBUG_ENTER("_ma_log_add");
   DBUG_PRINT("enter", ("page: %lu  org_page_length: %u  changed_length: %u  "
                        "move_length: %d",
-                       (ulong) ma_page->pos, org_page_length, changed_length,
+                       (ulong) (ma_page->pos / info->s->block_size),
+                       org_page_length, changed_length,
                        move_length));
   DBUG_ASSERT(info->s->now_transactional);
   DBUG_ASSERT(move_length <= (int) changed_length);

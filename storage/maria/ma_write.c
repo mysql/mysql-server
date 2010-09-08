@@ -613,7 +613,7 @@ static int w_search(register MARIA_HA *info, uint32 comp_flag, MARIA_KEY *key,
   MARIA_KEYDEF *keyinfo= key->keyinfo;
   MARIA_PAGE page;
   DBUG_ENTER("w_search");
-  DBUG_PRINT("enter",("page: %ld", (long) page_pos));
+  DBUG_PRINT("enter", ("page: %lu", (ulong) (page_pos/keyinfo->block_length)));
 
   if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
 				      MARIA_MAX_KEY_BUFF*2)))

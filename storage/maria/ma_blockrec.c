@@ -1716,7 +1716,7 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
   MARIA_PINNED_PAGE page_link;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("get_head_or_tail_page");
-  DBUG_PRINT("enter", ("length: %u", length));
+  DBUG_PRINT("enter", ("page_type: %u  length: %u", page_type, length));
 
   block_size= share->block_size;
   if (block->org_bitmap_value == 0)             /* Empty block */
@@ -6238,7 +6238,10 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       /* Skip errors when reading outside of file and uninitialized pages */
       if (!new_page || (my_errno != HA_ERR_FILE_TOO_SHORT &&
                         my_errno != HA_ERR_WRONG_CRC))
+      {
+        DBUG_PRINT("error", ("Error %d when reading page", (int) my_errno));
         goto err;
+      }
       /* Create new page */
       buff= pagecache_block_link_to_buffer(page_link.link);
       buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
@@ -6266,7 +6269,13 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
         changed to new type.
       */
       if (!new_page)
+      {
+        DBUG_PRINT("error",
+                   ("Found page of wrong type: %u, should have been %u",
+                    (uint) (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK),
+                    page_type));
         goto crashed_file;
+      }
       make_empty_page(info, buff, page_type, 0);
       empty_space= block_size - PAGE_HEADER_SIZE - PAGE_SUFFIX_SIZE;
       (void) extend_directory(page_type == HEAD_PAGE ? info: 0, buff,
