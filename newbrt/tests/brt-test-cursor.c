@@ -885,40 +885,40 @@ static void test_brt_cursor(DB *db) {
     test_multiple_brt_cursors(3, db);
 
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_first(n, db); toku_memory_check_all_free();
+        test_brt_cursor_first(n, db); 
      }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rfirst(n, db); toku_memory_check_all_free();
+        test_brt_cursor_rfirst(n, db); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_walk(n, db); toku_memory_check_all_free();
+        test_brt_cursor_walk(n, db); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_last(n, db); toku_memory_check_all_free();
+        test_brt_cursor_last(n, db); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_first_last(n, db); toku_memory_check_all_free();
+        test_brt_cursor_first_last(n, db); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_split(n, db); toku_memory_check_all_free();
+        test_brt_cursor_split(n, db); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rand(n, db); toku_memory_check_all_free();
+        test_brt_cursor_rand(n, db); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rwalk(n, db); toku_memory_check_all_free();
+        test_brt_cursor_rwalk(n, db); 
     }
 
-    test_brt_cursor_set(1000, DB_SET, db); toku_memory_check_all_free();
-    test_brt_cursor_set(10000, DB_SET, db); toku_memory_check_all_free();
-    test_brt_cursor_set(1000, DB_SET_RANGE, db); toku_memory_check_all_free();
-    test_brt_cursor_set_range(1000, db); toku_memory_check_all_free();
-    test_brt_cursor_set_range(10000, db); toku_memory_check_all_free();
+    test_brt_cursor_set(1000, DB_SET, db); 
+    test_brt_cursor_set(10000, DB_SET, db); 
+    test_brt_cursor_set(1000, DB_SET_RANGE, db); 
+    test_brt_cursor_set_range(1000, db); 
+    test_brt_cursor_set_range(10000, db); 
 
 
-    test_brt_cursor_delete(1000, db); toku_memory_check_all_free();
-    test_multiple_brt_cursor_walk(10000, db); toku_memory_check_all_free();
-    test_multiple_brt_cursor_walk(100000, db); toku_memory_check_all_free();
+    test_brt_cursor_delete(1000, db); 
+    test_multiple_brt_cursor_walk(10000, db); 
+    test_multiple_brt_cursor_walk(100000, db); 
 }
 
 
@@ -929,8 +929,6 @@ test_main (int argc , const char *argv[]) {
     DB a_db;
     DB *db = &a_db;
     test_brt_cursor(db);
-
-    toku_malloc_cleanup();
     if (verbose) printf("test ok\n");
     return 0;
 }

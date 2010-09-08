@@ -45,6 +45,6 @@ test_main (int argc, const char *argv[]) {
             verbose = 0;
     }
     test_overflow();
-    toku_malloc_cleanup();
+    
     return 0;
 }

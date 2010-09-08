@@ -14,7 +14,7 @@ static void test1 (void) {
     char fname[]= __FILE__ "1.brt";
     DBT k,v;
     toku_memory_check=1;
-    toku_memory_check_all_free();
+    
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
@@ -29,7 +29,7 @@ static void test1 (void) {
     }
     r = toku_close_brt(t, 0);              assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
-    toku_memory_check_all_free();
+    
     if (verbose) printf("test1 ok\n");
 }
 int
@@ -37,7 +37,7 @@ test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
      if (verbose) printf("test1\n");
     test1();
-    toku_malloc_cleanup();
+    
     if (verbose) printf("test1 ok\n");
     return 0;
 }

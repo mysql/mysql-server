@@ -17,7 +17,7 @@ static void test3 (int nodesize, int count, int memcheck) {
     int i;
     CACHETABLE ct;
     toku_memory_check=memcheck;
-    toku_memory_check_all_free();
+    
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     gettimeofday(&t0, 0);
     unlink(fname);
@@ -33,7 +33,7 @@ static void test3 (int nodesize, int count, int memcheck) {
     r = toku_verify_brt(t); assert(r==0);
     r = toku_close_brt(t, 0);        assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
-    toku_memory_check_all_free();
+    
     gettimeofday(&t1, 0);
     {
 	double diff = toku_tdiff(&t1, &t0);
@@ -71,7 +71,7 @@ test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
     brt_blackbox_test();
-    toku_malloc_cleanup();
+    
     if (verbose) printf("test ok\n");
     return 0;
 }

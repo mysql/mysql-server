@@ -149,6 +149,5 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     toku_memory_check = 1;
     test_serialize_leaf();
     test_serialize_nonleaf();
-    toku_malloc_cleanup();
     return 0;
 }

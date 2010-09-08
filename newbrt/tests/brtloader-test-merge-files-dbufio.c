@@ -184,7 +184,7 @@ static void *my_malloc(size_t n) {
         my_big_malloc_count++;
         if (my_malloc_event) {
             caller = __builtin_return_address(1);
-            if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_malloc_report)
+            if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_set_func_malloc)
                 goto skip;
             event_count++;
             if (event_count == event_count_trigger) {
@@ -210,7 +210,7 @@ static void *my_realloc(void *p, size_t n) {
         my_big_realloc_count++;
         if (do_realloc_errors) {
             caller = __builtin_return_address(1);
-            if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_malloc_report)
+            if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_set_func_malloc)
                 goto skip;
             event_count++;
             if (event_count == event_count_trigger) {

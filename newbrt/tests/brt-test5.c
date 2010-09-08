@@ -15,7 +15,7 @@ static void test5 (void) {
     int i;
     CACHETABLE ct;
     char fname[]= __FILE__ ".brt";
-    toku_memory_check_all_free();
+    
     MALLOC_N(limit,values);
     for (i=0; i<limit; i++) values[i]=-1;
     unlink(fname);
@@ -51,7 +51,7 @@ static void test5 (void) {
     toku_free(values);
     r = toku_close_brt(t, 0);    assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
-    toku_memory_check_all_free();
+    
 }
 
 int
@@ -59,7 +59,7 @@ test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
     test5();
-    toku_malloc_cleanup();
+    
     if (verbose) printf("test ok\n");
     return 0;
 }

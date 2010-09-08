@@ -453,7 +453,6 @@ main (int argc, const char *const argv[]) {
                                 dump_node_wrapper, &info, TRUE, TRUE);
     }
     toku_brtheader_free(h);
-    toku_malloc_cleanup();
     return 0;
 }
 
