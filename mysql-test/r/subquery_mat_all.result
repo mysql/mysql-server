@@ -957,6 +957,35 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 # Cleanup for BUG#46680
 #
 DROP TABLE IF EXISTS t1,t2,t3,empty1;
+#
+# BUG#52344 - Subquery materialization: 
+#  	     Assertion if subquery in on-clause of outer join
+#
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (10);
+CREATE TABLE t2 (j INTEGER);
+INSERT INTO t2 VALUES (5);
+CREATE TABLE t3 (k INTEGER);
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+i
+10
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+i
+10
+DROP TABLE t1, t2, t3;
+# End BUG#52344
 CREATE TABLE t1 (
 pk INTEGER AUTO_INCREMENT,
 col_int_nokey INTEGER,
