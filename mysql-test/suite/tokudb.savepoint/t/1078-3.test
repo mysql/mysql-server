@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 set autocommit=0;
 
-set session transaction isolation level repeatable read;
+set session transaction isolation level read uncommitted;
 
 create table t1 (n int);
 #
