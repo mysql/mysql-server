@@ -37,7 +37,6 @@
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 
-#define VM_TRACE
 #ifdef VM_TRACE
 
 #define DEBUG(x) ndbout << "DBSPJ: "<< x << endl;
@@ -56,7 +55,7 @@
 #define DEBUG_CRASH()
 #endif
 
-#if 0
+#if 1
 #undef DEBUG
 #define DEBUG(x)
 #undef DEBUG_LQHKEYREQ
