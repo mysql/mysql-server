@@ -662,6 +662,33 @@ FROM t2);
 --echo #
 DROP TABLE IF EXISTS t1,t2,t3,empty1;
 
+
+--echo #
+--echo # BUG#52344 - Subquery materialization: 
+--echo #  	     Assertion if subquery in on-clause of outer join
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (10);
+
+CREATE TABLE t2 (j INTEGER);
+INSERT INTO t2 VALUES (5);
+
+CREATE TABLE t3 (k INTEGER);
+
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+
+DROP TABLE t1, t2, t3;
+
+--echo # End BUG#52344
+
+
 #
 # Bug #52538 Valgrind bug: Item_in_subselect::init_left_expr_cache()
 #
@@ -766,4 +793,6 @@ HAVING ('c')
 DROP TABLE t1,t2,t3;
 
 --echo # End BUG#54511
+
+
 
