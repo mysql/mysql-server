@@ -4,16 +4,19 @@
 log-slave-updates
 new=1
 innodb
+innodb_flush_log_at_trx_commit= 0
 
 [mysqld.2]
 log-slave-updates
 new=1
 innodb
+innodb_flush_log_at_trx_commit= 0
 
 [mysqld.3]
 log-slave-updates
 new=1
 innodb
+innodb_flush_log_at_trx_commit= 0
 
 [ENV]
 MASTER_MYPORT=          @mysqld.1.port
