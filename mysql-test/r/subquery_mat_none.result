@@ -1076,4 +1076,24 @@ IN (SELECT t2.c FROM (t2 JOIN t3));
 COUNT( i )	i
 DROP TABLE t1,t2,t3;
 # End BUG#54511
+#
+# BUG#56367 - Assertion exec_method != EXEC_MATERIALIZATION...
+#             on subquery in FROM
+#
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+explain SELECT a FROM (
+SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
+) table1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT a FROM (
+SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
+) table1;
+a
+DROP TABLE t1, t2;
+# End BUG#56367
 set optimizer_switch=default;
