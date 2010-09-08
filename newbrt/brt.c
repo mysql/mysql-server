@@ -281,7 +281,7 @@ fill_leafnode_estimates (OMTVALUE val, u_int32_t UU(idx), void *vs)
 {
     LEAFENTRY le = val;
     struct fill_leafnode_estimates_state *s = vs;
-    s->e->dsize += le_latest_keylen(le) + le_latest_vallen(le);
+    s->e->dsize += le_keylen(le) + le_latest_vallen(le);
     s->e->ndata++;
     s->e->nkeys++;
     s->prevval = le;
@@ -847,8 +847,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
                 assert(newle!=0); // it's a fresh mpool, so this should always work.
 		diff_est.nkeys++;
 		diff_est.ndata++;
-		diff_est.dsize += le_latest_keylen(oldle) + le_latest_vallen(oldle);
-		//printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_latest_keylen(oldle)+ le_latest_vallen(oldle), diff_est.dsize);
+		diff_est.dsize += le_keylen(oldle) + le_latest_vallen(oldle);
+		//printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(oldle)+ le_latest_vallen(oldle), diff_est.dsize);
                 diff_fp += toku_le_crc(oldle);
                 diff_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
                 memcpy(newle, oldle, leafentry_memsize(oldle));
@@ -1255,7 +1255,7 @@ brt_leaf_apply_clean_xids_once (BRTNODE node, LEAFENTRY le)
     assert(newdisksize == leafentry_disksize(le));
 #endif
 
-    //le_latest_keylen + le_latest_vallen(le); does not change.  No need to update leaf stats
+    //le_keylen + le_latest_vallen(le); does not change.  No need to update leaf stats
 
     assert(newmemsize < oldmemsize);
     size_t size_reclaimed = oldmemsize - newmemsize;
@@ -1314,7 +1314,7 @@ brt_leaf_apply_full_promotion_once (BRTNODE node, LEAFENTRY le)
     assert(newdisksize == leafentry_disksize(le));
 #endif
 
-    //le_latest_keylen + le_latest_vallen(le); does not change.  No need to update leaf stats
+    //le_keylen + le_latest_vallen(le); does not change.  No need to update leaf stats
 
     assert(newmemsize < oldmemsize);
     size_t size_reclaimed = oldmemsize - newmemsize;
@@ -1383,7 +1383,7 @@ brt_leaf_delete_leafentry (BRTNODE node, u_int32_t idx, LEAFENTRY le)
     node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
 
     {
-        u_int32_t oldlen = le_latest_vallen(le) + le_latest_keylen(le);
+        u_int32_t oldlen = le_latest_vallen(le) + le_keylen(le);
         assert(node->u.l.leaf_stats.dsize >= oldlen);
         node->u.l.leaf_stats.dsize -= oldlen;
     }
@@ -1437,18 +1437,18 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_MSG cmd,
 
 	// If we are replacing a leafentry, then the counts on the estimates remain unchanged, but the size might change
 	{
-	    u_int32_t oldlen = le_latest_keylen(le) + le_latest_vallen(le);
+	    u_int32_t oldlen = le_keylen(le) + le_latest_vallen(le);
 	    assert(node->u.l.leaf_stats.dsize >= oldlen);
 	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
 	    node->u.l.leaf_stats.dsize -= oldlen;
-	    node->u.l.leaf_stats.dsize += le_latest_keylen(new_le) + le_latest_vallen(new_le); // add it in two pieces to avoid ugly overflow
+	    node->u.l.leaf_stats.dsize += le_keylen(new_le) + le_latest_vallen(new_le); // add it in two pieces to avoid ugly overflow
 	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
 	}
 
         node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
         node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
         
-	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_latest_keylen(new_le), le_latest_vallen(le), node->u.l.leaf_stats.dsize);
+	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_keylen(new_le), le_latest_vallen(le), node->u.l.leaf_stats.dsize);
 	// the ndata and nkeys remains unchanged
 
         u_int32_t size = leafentry_memsize(le);
@@ -1475,7 +1475,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_MSG cmd,
             node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
             node->local_fingerprint += node->rand4fingerprint*toku_le_crc(new_le);
 
-	    node->u.l.leaf_stats.dsize += le_latest_vallen(new_le) + le_latest_keylen(new_le);
+	    node->u.l.leaf_stats.dsize += le_latest_vallen(new_le) + le_keylen(new_le);
 	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
 	    node->u.l.leaf_stats.ndata ++;
 	    // Look at the key to the left and the one to the right.  If both are different then increment nkeys.
@@ -1929,8 +1929,8 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
 
 	    a->u.l.leaf_stats.ndata++;
 	    maybe_bump_nkeys(a, +1);
-	    a->u.l.leaf_stats.dsize+= le_latest_keylen(le) + le_latest_vallen(le);
-	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_latest_keylen(le)+le_latest_vallen(le), a->u.l.leaf_stats.dsize);
+	    a->u.l.leaf_stats.dsize+= le_keylen(le) + le_latest_vallen(le);
+	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_latest_vallen(le), a->u.l.leaf_stats.dsize);
         }
         {
 	    maybe_bump_nkeys(b, -1);
@@ -1940,8 +1940,8 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
             b->local_fingerprint     -= b->rand4fingerprint * le_crc;
 
 	    b->u.l.leaf_stats.ndata--;
-	    b->u.l.leaf_stats.dsize-= le_latest_keylen(le) + le_latest_vallen(le);
-	    //printf("%s:%d Subed %u got %lu\n", __FILE__, __LINE__, le_latest_keylen(le)+le_latest_vallen(le), b->u.l.leaf_stats.dsize);
+	    b->u.l.leaf_stats.dsize-= le_keylen(le) + le_latest_vallen(le);
+	    //printf("%s:%d Subed %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_latest_vallen(le), b->u.l.leaf_stats.dsize);
 	    assert(b->u.l.leaf_stats.ndata < 1U<<31);
 	    assert(b->u.l.leaf_stats.nkeys < 1U<<31);
 	    assert(b->u.l.leaf_stats.dsize < 1U<<31);
@@ -1986,8 +1986,8 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             to  ->local_fingerprint     += to->rand4fingerprint * le_crc;
 
 	    to->u.l.leaf_stats.ndata++;
-	    to->u.l.leaf_stats.dsize+= le_latest_keylen(le) + le_latest_vallen(le);
-	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_latest_keylen(le)+ le_latest_vallen(le), to->u.l.leaf_stats.dsize);
+	    to->u.l.leaf_stats.dsize+= le_keylen(le) + le_latest_vallen(le);
+	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_latest_vallen(le), to->u.l.leaf_stats.dsize);
         }
         {
 	    maybe_bump_nkeys(from, -1);
@@ -1997,10 +1997,10 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             from->local_fingerprint     -= from->rand4fingerprint * le_crc;
 
 	    from->u.l.leaf_stats.ndata--;
-	    from->u.l.leaf_stats.dsize-= le_latest_keylen(le) + le_latest_vallen(le);
+	    from->u.l.leaf_stats.dsize-= le_keylen(le) + le_latest_vallen(le);
 	    assert(from->u.l.leaf_stats.ndata < 1U<<31);
 	    assert(from->u.l.leaf_stats.nkeys < 1U<<31);
-	    //printf("%s:%d Removed %u  get %lu\n", __FILE__, __LINE__, le_latest_keylen(le)+ le_latest_vallen(le), from->u.l.leaf_stats.dsize);
+	    //printf("%s:%d Removed %u  get %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_latest_vallen(le), from->u.l.leaf_stats.dsize);
 
             toku_mempool_mfree(&from->u.l.buffer_mempool, 0, le_size);
         }
