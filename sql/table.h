@@ -920,7 +920,8 @@ struct st_table {
   { return s->version != refresh_version; }
   bool alloc_keys(uint key_count);
   bool add_tmp_key(uint key, uint key_parts,
-                   uint (*next_field_no) (uchar *), uchar *arg);
+                   uint (*next_field_no) (uchar *), uchar *arg,
+                   bool unique);
   bool is_children_attached(void);
   inline void enable_keyread()
   {

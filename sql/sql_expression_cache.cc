@@ -12,61 +12,11 @@ Expression_cache_tmptable::Expression_cache_tmptable(THD *thd,
                                                  List<Item*> &dependants,
                                                  Item *value)
   :cache_table(NULL), table_thd(thd), list(&dependants), val(value),
-   equalities(NULL), inited (0)
+   inited (0)
 {
   DBUG_ENTER("Expression_cache_tmptable::Expression_cache_tmptable");
   DBUG_VOID_RETURN;
 };
-
-
-/**
-  Build and of equalities for the expression's parameters of certain types
-
-  @details
-  If the temporary table used as an expression cache contains fields of
-  certain types then it's not enough to perform a lookup into the table to
-  verify that there is no row in the table for a given set of parameters.
-  Additionally for those fields we have to check equalities of the form
-  fld=val, where val is the value of the parameter stored in the column
-  fld.
-  The function generates a conjunction of all such equality predicates
-  and saves a pointer to it in the field 'equalities'.
-
-  @retval FALSE OK
-  @retval TRUE  Error
-*/
-
-bool Expression_cache_tmptable::make_equalities()
-{
-  List<Item> args;
-  List_iterator_fast<Item*> li(*list);
-  Item **ref;
-  DBUG_ENTER("Expression_cache_tmptable::make_equalities");
-
-  for (uint i= 1 /* skip result filed */; (ref= li++); i++)
-  {
-    Field *fld= cache_table->field[i];
-    /* Only some field types should be checked after lookup */
-    if (fld->type() == MYSQL_TYPE_VARCHAR ||
-        fld->type() == MYSQL_TYPE_TINY_BLOB ||
-        fld->type() == MYSQL_TYPE_MEDIUM_BLOB ||
-        fld->type() == MYSQL_TYPE_LONG_BLOB ||
-        fld->type() == MYSQL_TYPE_BLOB ||
-        fld->type() == MYSQL_TYPE_VAR_STRING ||
-        fld->type() == MYSQL_TYPE_STRING ||
-        fld->type() == MYSQL_TYPE_NEWDECIMAL ||
-        fld->type() == MYSQL_TYPE_DECIMAL)
-    {
-      args.push_front(new Item_func_eq(*ref, new Item_field(fld)));
-    }
-  }
-  if (args.elements == 1)
-    equalities= args.head();
-  else
-    equalities= new Item_cond_and(args);
-
-  DBUG_RETURN(equalities->fix_fields(table_thd, &equalities));
-}
 
 
 /**
@@ -166,7 +116,8 @@ void Expression_cache_tmptable::init()
   if (cache_table->alloc_keys(1) ||
       (cache_table->add_tmp_key(0, items.elements - 1,
                                 &field_enumerator,
-                                (uchar*)&field_counter) < 0) ||
+                                (uchar*)&field_counter,
+                                TRUE) < 0) ||
       ref.tmp_table_index_lookup_init(table_thd, cache_table->key_info, it,
                                       TRUE))
   {
@@ -190,12 +141,6 @@ void Expression_cache_tmptable::init()
   if (!(cached_result= new Item_field(cache_table->field[0])))
   {
     DBUG_PRINT("error", ("Creating Item_field failed"));
-    goto error;
-  }
-
-  if (make_equalities())
-  {
-    DBUG_PRINT("error", ("Creating equalities failed"));
     goto error;
   }
 
@@ -249,7 +194,7 @@ Expression_cache::result Expression_cache_tmptable::check_value(Item **value)
                         (uint)cache_table->status, (uint)ref.has_record));
     if ((res= join_read_key2(table_thd, NULL, cache_table, &ref)) == 1)
       DBUG_RETURN(ERROR);
-    if (res || (equalities && !equalities->val_int()))
+    if (res)
     {
       subquery_cache_miss++;
       DBUG_RETURN(MISS);

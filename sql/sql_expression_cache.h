@@ -60,7 +60,6 @@ public:
 
 private:
   void init();
-  bool make_equalities();
 
   /* tmp table parameters */
   TMP_TABLE_PARAM cache_table_param;
@@ -78,8 +77,6 @@ private:
   List<Item> items;
   /* Value Item example */
   Item *val;
-  /* Expression to check after index lookup */
-  Item *equalities;
   /* Set on if the object has been succesfully initialized with init() */
   bool inited;
 };

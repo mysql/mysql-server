@@ -5162,6 +5162,7 @@ bool TABLE::alloc_keys(uint key_count)
   @param next_field_no  the call-back function that returns the number of
                         the field used as the next component of the key
   @param arg            the argument for the above function
+  @param unique         Is it unique index
 
   @details
   The function adds a new key to the table that is assumed to be
@@ -5173,7 +5174,8 @@ bool TABLE::alloc_keys(uint key_count)
 */
 
 bool TABLE::add_tmp_key(uint key, uint key_parts,
-                        uint (*next_field_no) (uchar *), uchar *arg)
+                        uint (*next_field_no) (uchar *), uchar *arg,
+                        bool unique)
 {
   DBUG_ASSERT(key < max_keys);
 
@@ -5192,6 +5194,8 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
   keyinfo->key_length=0;
   keyinfo->algorithm= HA_KEY_ALG_UNDEF;
   keyinfo->flags= HA_GENERATED_KEY;
+  if (unique)
+    keyinfo->flags|= HA_NOSAME;
   sprintf(buf, "key%i", key);
   if (!(keyinfo->name= strdup_root(&mem_root, buf)))
     return TRUE;
@@ -5230,6 +5234,8 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
     {
       key_part_info->store_length+= HA_KEY_NULL_LENGTH;
       keyinfo->key_length+= HA_KEY_NULL_LENGTH;
+      if (unique)
+        keyinfo->flags|= HA_NULL_ARE_EQUAL;     // def. that NULL == NULL
     }
     if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
         (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
