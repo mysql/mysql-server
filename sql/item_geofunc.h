@@ -179,6 +179,19 @@ public:
     item_type=it;
   }
   String *val_str(String *);
+  void fix_length_and_dec()
+  {
+    for( unsigned int i=0; i<arg_count; ++i)
+    {
+      if( args[i]->fixed && args[i]->field_type() != MYSQL_TYPE_GEOMETRY)
+      {
+        String str;
+        args[i]->val_str(&str);
+        my_error(ER_ILLEGAL_VALUE_FOR_TYPE,MYF(0),"non geometric",str.c_ptr());
+      }
+    }
+  }
+ 
   const char *func_name() const { return "multipoint"; }
 };
 
