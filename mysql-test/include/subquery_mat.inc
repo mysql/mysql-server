@@ -794,5 +794,24 @@ DROP TABLE t1,t2,t3;
 
 --echo # End BUG#54511
 
+--echo #
+--echo # BUG#56367 - Assertion exec_method != EXEC_MATERIALIZATION...
+--echo #             on subquery in FROM
+--echo #
 
+CREATE TABLE t1 (a INTEGER);
+
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+
+let $query =
+SELECT a FROM (
+  SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
+) table1;
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End BUG#56367
 
