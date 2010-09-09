@@ -4647,8 +4647,8 @@ build_template(
 			goto skip_field;
 include_field:
 			if (do_idx_cond_push
-			    && (need_second_pass && !index_covers_field
-				|| !need_second_pass && index_covers_field)) {
+			    && ((need_second_pass && !index_covers_field)
+				|| (!need_second_pass && index_covers_field))) {
 
 				goto skip_field;
 			}
