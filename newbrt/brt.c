@@ -5569,7 +5569,7 @@ toku_brt_is_empty (BRT brt, /*out*/BOOL *try_again) {
     DBT val;
     toku_init_dbt(&key);
     toku_init_dbt(&val);
-    BRT_MSG_S brtcmd = { BRT_OPTIMIZE, message_xids, .u.id={&key,&val}};
+    BRT_MSG_S brtcmd = { BRT_NONE, message_xids, .u.id={&key,&val}};
 
     struct is_empty_struct_s is_empty_struct = { TRUE, &brtcmd };
 
