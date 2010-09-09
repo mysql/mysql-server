@@ -58,7 +58,6 @@ lock_clust_rec_some_has_impl(
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	ut_ad(trx_sys_mutex_own());
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 
