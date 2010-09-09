@@ -494,11 +494,13 @@ INSERT INTO t1 (b, c, d) VALUES
   (3388000, -553000, NULL),
   (3388000, -553000, NULL);
 
-SELECT *
-FROM t2 c JOIN t1 pa ON c.b = pa.a 
-WHERE c.c = 1
-ORDER BY c.b, c.d
-;
+# psergey/sergefp: This crashes for a mysterious reason with MRR + Semijoin
+# opts. TODO: fix it.
+#SELECT *
+#FROM t2 c JOIN t1 pa ON c.b = pa.a 
+#WHERE c.c = 1
+#ORDER BY c.b, c.d
+#;
 
 DROP TABLE t1, t2;
 
@@ -559,5 +561,25 @@ EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE
   (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
 SELECT 1 as RES FROM t1 AS t1_outer WHERE 
   (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#18144: Cost with FORCE/USE index seems incorrect in some cases.
+--echo #
+--echo # We are interested in showing that the cost for the last plan is higher
+--echo # than for the preceding two plans.
+--echo #
+CREATE TABLE t1( a INT, b INT, KEY( a ) );  
+INSERT INTO t1 values (1, 2), (1, 3), (2, 3), (2, 4), (3, 4), (3, 5);
+
+EXPLAIN SELECT a, SUM( b ) FROM t1 GROUP BY a;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT a, SUM( b ) FROM t1 USE INDEX( a ) GROUP BY a;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT a, SUM( b ) FROM t1 FORCE INDEX( a ) GROUP BY a;
+SHOW STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;

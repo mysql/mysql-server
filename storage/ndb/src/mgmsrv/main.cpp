@@ -48,7 +48,7 @@ const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 extern "C" {
 #if defined( __WIN__)
 #include <conio.h>
-#elif !defined(__NETWARE__)
+#else
 #include <readline/readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
 #define HAVE_READLINE
@@ -142,29 +142,29 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgmd"),
   { "config-file", 'f', "Specify cluster configuration file",
-    (uchar**) &opt_config_filename, (uchar**) &opt_config_filename, 0,
+    &opt_config_filename, &opt_config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "print-full-config", 'P', "Print full config and exit",
-    (uchar**) &g_print_full_config, (uchar**) &g_print_full_config, 0,
+    &g_print_full_config, &g_print_full_config, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
-    (uchar**) &opt_daemon, (uchar**) &opt_daemon, 0,
+    &opt_daemon, &opt_daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "interactive", OPT_INTERACTIVE,
     "Run interactive. Not supported but provided for testing purposes",
-    (uchar**) &opt_interactive, (uchar**) &opt_interactive, 0,
+    &opt_interactive, &opt_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-nodeid-checks", OPT_NO_NODEID_CHECKS,
     "Do not provide any node id checks", 
-    (uchar**) &g_no_nodeid_checks, (uchar**) &g_no_nodeid_checks, 0,
+    &g_no_nodeid_checks, &g_no_nodeid_checks, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "nodaemon", OPT_NO_DAEMON,
     "Don't run as daemon, but don't read from stdin",
-    (uchar**) &opt_non_interactive, (uchar**) &opt_non_interactive, 0,
+    &opt_non_interactive, &opt_non_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "mycnf", 256,
     "Read cluster config from my.cnf",
-    (uchar**) &opt_mycnf, (uchar**) &opt_mycnf, 0,
+    &opt_mycnf, &opt_mycnf, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

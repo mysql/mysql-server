@@ -315,7 +315,8 @@ recv_sys_init(
 
 	mutex_enter(&(recv_sys->mutex));
 
-	recv_sys->heap = mem_heap_create_in_buffer(256);
+	recv_sys->heap = mem_heap_create_typed(256,
+					MEM_HEAP_FOR_RECV_SYS);
 #else /* !UNIV_HOTBACKUP */
 	recv_sys->heap = mem_heap_create(256);
 	recv_is_from_backup = TRUE;

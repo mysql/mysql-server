@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -242,10 +242,6 @@ public:
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
     has_null_value(FALSE), column_list(FALSE)
   {
-    all_fields_in_PF.clear_all();
-    all_fields_in_PPF.clear_all();
-    all_fields_in_SPF.clear_all();
-    some_fields_in_PF.clear_all();
     partitions.empty();
     temp_partitions.empty();
     part_field_list.empty();
@@ -299,6 +295,9 @@ public:
   bool init_column_part();
   bool add_column_list_value(THD *thd, Item *item);
   void set_show_version_string(String *packet);
+  partition_element *get_part_elem(const char *partition_name,
+                                   char *file_name,
+                                   uint32 *part_id);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
@@ -306,7 +305,8 @@ private:
   bool set_up_default_subpartitions(handler *file, HA_CREATE_INFO *info);
   char *create_default_partition_names(uint part_no, uint num_parts,
                                        uint start_no);
-  char *create_subpartition_name(uint subpart_no, const char *part_name);
+  char *create_default_subpartition_name(uint subpart_no,
+                                         const char *part_name);
   bool has_unique_name(partition_element *element);
 };
 

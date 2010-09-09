@@ -2,7 +2,7 @@
 #define SQL_VIEW_INCLUDED
 
 /* -*- C++ -*- */
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_class.h"     /* Required by sql_lex.h */
 #include "sql_lex.h"       /* enum_view_create_mode, enum_drop_mode */
@@ -42,8 +41,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
 bool check_key_in_view(THD *thd, TABLE_LIST * view);
 
 bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view);
-
-frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt);
 
 int view_checksum(THD *thd, TABLE_LIST *view);
 

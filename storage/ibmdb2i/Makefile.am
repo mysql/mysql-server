@@ -34,7 +34,7 @@ EXTRA_LTLIBRARIES =	ha_ibmdb2i.la
 pkgplugin_LTLIBRARIES =	@plugin_ibmdb2i_shared_target@
 ha_ibmdb2i_la_LIBADD =  -liconv
 ha_ibmdb2i_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
-ha_ibmdb2i_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_ibmdb2i_la_CXXFLAGS=	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_ibmdb2i_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_ibmdb2i_la_SOURCES =	ha_ibmdb2i.cc db2i_ileBridge.cc db2i_conversion.cc \
 			db2i_blobCollection.cc db2i_file.cc db2i_charsetSupport.cc \
@@ -44,7 +44,7 @@ ha_ibmdb2i_la_SOURCES =	ha_ibmdb2i.cc db2i_ileBridge.cc db2i_conversion.cc \
 
 EXTRA_LIBRARIES =	libibmdb2i.a
 noinst_LIBRARIES =	@plugin_ibmdb2i_static_target@
-libibmdb2i_a_CXXFLAGS =	$(AM_CFLAGS)
+libibmdb2i_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libibmdb2i_a_CFLAGS =	$(AM_CFLAGS)
 libibmdb2i_a_SOURCES=	$(ha_ibmdb2i_la_SOURCES)
 

@@ -115,7 +115,7 @@ if we are compiling on Windows. */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 # include <sys/stat.h>
-# if !defined(__NETWARE__) && !defined(__WIN__)
+# if !defined(__WIN__)
 #  include <sys/mman.h> /* mmap() for os0proc.c */
 # endif
 
@@ -254,8 +254,10 @@ by one. */
 			option off; also some ibuf tests are suppressed */
 
 /* Linkage specifier for non-static InnoDB symbols (variables and functions)
-that are only referenced from within InnoDB, not from MySQL */
-#if defined(__GNUC__) && (__GNUC__ >= 4) || defined(__INTEL_COMPILER)
+that are only referenced from within InnoDB, not from MySQL. We disable the
+GCC visibility directive on all Sun operating systems because there is no
+easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
+#if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(sun) || defined(__INTEL_COMPILER)
 # define UNIV_INTERN __attribute__((visibility ("hidden")))
 #else
 # define UNIV_INTERN

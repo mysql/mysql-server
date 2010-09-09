@@ -131,7 +131,7 @@ void free_aligned(void* p)
 {
   if (likely(p))
   {
-    my_free(*(char**)((char*)p-sizeof(void*)), MYF(0));
+    my_free(*(char**)((char*)p-sizeof(void*)));
   }  
 }
 

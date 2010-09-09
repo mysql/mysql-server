@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -34,11 +34,16 @@
   Create right type of Cached_item for an item.
 */
 
-Cached_item *new_Cached_item(THD *thd, Item *item)
+Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
 {
   if (item->real_item()->type() == Item::FIELD_ITEM &&
       !(((Item_field *) (item->real_item()))->field->flags & BLOB_FLAG))
-    return new Cached_item_field((Item_field *) (item->real_item()));
+  {
+    Item_field *real_item= (Item_field *) item->real_item();
+    Field *cached_field= use_result_field ? real_item->result_field :
+                                            real_item->field;
+    return new Cached_item_field(cached_field);
+  }
   switch (item->result_type()) {
   case STRING_RESULT:
     return new Cached_item_str(thd, (Item_field *) item);
@@ -65,7 +70,9 @@ Cached_item::~Cached_item() {}
 */
 
 Cached_item_str::Cached_item_str(THD *thd, Item *arg)
-  :item(arg), value(min(arg->max_length, thd->variables.max_sort_length))
+  :item(arg),
+   value_max_length(min(arg->max_length, thd->variables.max_sort_length)),
+   value(value_max_length)
 {}
 
 bool Cached_item_str::cmp(void)
@@ -73,21 +80,24 @@ bool Cached_item_str::cmp(void)
   String *res;
   bool tmp;
 
+  DBUG_ENTER("Cached_item_str::cmp");
   if ((res=item->val_str(&tmp_value)))
-    res->length(min(res->length(), value.alloced_length()));
+    res->length(min(res->length(), value_max_length));
+  DBUG_PRINT("info", ("old: %s, new: %s",
+                      value.c_ptr_safe(), res ? res->c_ptr_safe() : ""));
   if (null_value != item->null_value)
   {
     if ((null_value= item->null_value))
-      return TRUE;				// New value was null
+      DBUG_RETURN(TRUE);			// New value was null
     tmp=TRUE;
   }
   else if (null_value)
-    return 0;					// new and old value was null
+    DBUG_RETURN(0);				// new and old value was null
   else
     tmp= sortcmp(&value,res,item->collation.collation) != 0;
   if (tmp)
     value.copy(*res);				// Remember for next cmp
-  return tmp;
+  DBUG_RETURN(tmp);
 }
 
 Cached_item_str::~Cached_item_str()
@@ -97,32 +107,38 @@ Cached_item_str::~Cached_item_str()
 
 bool Cached_item_real::cmp(void)
 {
+  DBUG_ENTER("Cached_item_real::cmp");
   double nr= item->val_real();
+  DBUG_PRINT("info", ("old: %f, new: %f", value, nr));
   if (null_value != item->null_value || nr != value)
   {
     null_value= item->null_value;
     value=nr;
-    return TRUE;
+    DBUG_RETURN(TRUE);
   }
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 bool Cached_item_int::cmp(void)
 {
+  DBUG_ENTER("Cached_item_int::cmp");
   longlong nr=item->val_int();
+  DBUG_PRINT("info", ("old: %Ld, new: %Ld", value, nr));
   if (null_value != item->null_value || nr != value)
   {
     null_value= item->null_value;
     value=nr;
-    return TRUE;
+    DBUG_RETURN(TRUE);
   }
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
 bool Cached_item_field::cmp(void)
 {
+  DBUG_ENTER("Cached_item_field::cmp");
   bool tmp= field->cmp(buff) != 0;		// This is not a blob!
+  DBUG_EXECUTE("info", dbug_print(););
   if (tmp)
     field->get_image(buff,length,field->charset());
   if (null_value != field->is_null())
@@ -130,7 +146,7 @@ bool Cached_item_field::cmp(void)
     null_value= !null_value;
     tmp=TRUE;
   }
-  return tmp;
+  DBUG_RETURN(tmp);
 }
 
 

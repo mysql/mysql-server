@@ -100,16 +100,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     my_errno= tmp;
   }
 
-#elif defined(_ZTC__)
-  if (!dir)
-    dir=getenv("TMPDIR");
-  if ((res=tempnam((char*) dir,(char *) prefix)))
-  {
-    strmake(to,res,FN_REFLEN-1);
-    (*free)(res);
-    file=my_create(to, 0, mode | O_EXCL | O_NOFOLLOW, MyFlags);
-  }
-#elif defined(HAVE_MKSTEMP) && !defined(__NETWARE__)
+#elif defined(HAVE_MKSTEMP)
   {
     char prefix_buff[30];
     uint pfx_len;
@@ -143,9 +134,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   }
 #elif defined(HAVE_TEMPNAM)
   {
-#if !defined(__NETWARE__)
     extern char **environ;
-#endif
 
     char *res,**old_env,*temp_env[1];
     if (dir && !dir[0])
@@ -154,14 +143,14 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       to[1]= 0;
       dir=to;
     }
-#if !defined(__NETWARE__)
+
     old_env= (char**) environ;
     if (dir)
     {				/* Don't use TMPDIR if dir is given */
       environ=(const char**) temp_env;
       temp_env[0]=0;
     }
-#endif
+
     if ((res=tempnam((char*) dir, (char*) prefix)))
     {
       strmake(to,res,FN_REFLEN-1);
@@ -176,9 +165,8 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     {
       DBUG_PRINT("error",("Got error: %d from tempnam",errno));
     }
-#if !defined(__NETWARE__)
+
     environ=(const char**) old_env;
-#endif
   }
 #else
 #error No implementation found for create_temp_file

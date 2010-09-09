@@ -31,8 +31,8 @@ $LIBTOOLIZE --automake --force --copy || die "Can't execute libtoolize"
 automake --add-missing --force  --copy || die "Can't execute automake"
 autoconf || die "Can't execute autoconf"
 # Do not use autotools generated configure directly. Instead, use a script
-# that will either call CMake or original configure shell script at build 
+# that will either call CMake or original configure shell script at build
 # time (CMake is preferred if installed).
 mv configure configure.am
-cp BUILD/choose_configure.sh configure
+cp BUILD/cmake_configure.sh configure
 chmod a+x configure

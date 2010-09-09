@@ -29,8 +29,6 @@ UPDATE t SET f = 'magenta 2' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (5 + (2 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 ROLLBACK;
 Warnings:
@@ -58,8 +56,6 @@ UPDATE t SET f = 'dark blue 2' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (6 + (2 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 COMMIT;
 show binlog events from <binlog_start>;
@@ -83,8 +79,6 @@ UPDATE t SET f = 'magenta 1' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (5 + (1 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 ROLLBACK;
 Warnings:
@@ -110,8 +104,6 @@ UPDATE t SET f = 'dark blue 1' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (6 + (1 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 COMMIT;
 show binlog events from <binlog_start>;

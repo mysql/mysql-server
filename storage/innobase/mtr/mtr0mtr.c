@@ -337,9 +337,12 @@ mtr_memo_release(
 		slot = dyn_array_get_element(memo, offset);
 
 		if (object == slot->object && type == slot->type) {
-			if (mtr->modifications) {
-				mtr_memo_slot_note_modification(mtr, slot);
-			}
+
+			/* We cannot release a page that has been written
+			to in the middle of a mini-transaction. */
+
+			ut_ad(!(mtr->modifications
+			       	&& slot->type == MTR_MEMO_PAGE_X_FIX));
 
 			mtr_memo_slot_release(mtr, slot);
 

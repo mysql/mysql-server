@@ -102,8 +102,6 @@ static HA_ERRORS ha_errlist[]=
 };
 
 
-#include <help_start.h>
-
 static void print_version(void)
 {
   printf("%s Ver %s, for %s (%s)\n",my_progname,PERROR_VERSION,
@@ -121,8 +119,6 @@ static void usage(void)
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
-
-#include <help_end.h>
 
 
 static my_bool
@@ -281,7 +277,7 @@ int main(int argc,char *argv[])
 #endif
   {
     /*
-      On some system, like NETWARE, strerror(unknown_error) returns a
+      On some system, like Linux, strerror(unknown_error) returns a
       string 'Unknown Error'.  To avoid printing it we try to find the
       error string by asking for an impossible big error message.
 

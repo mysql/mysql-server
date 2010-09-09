@@ -1,1 +1,1 @@
---innodb_lock_wait_timeout=2
+--innodb_lock_wait_timeout=2 --default-storage-engine=MyISAM

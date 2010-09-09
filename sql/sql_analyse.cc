@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Analyse database */
@@ -408,7 +408,7 @@ void field_real::add()
 
   if ((decs = decimals()) == NOT_FIXED_DEC)
   {
-    length= my_sprintf(buff, (buff, "%g", num));
+    length= sprintf(buff, "%g", num);
     if (rint(num) != num)
       max_notzero_dec_len = 1;
   }
@@ -419,7 +419,7 @@ void field_real::add()
     snprintf(buff, sizeof(buff)-1, "%-.*f", (int) decs, num);
     length = (uint) strlen(buff);
 #else
-    length= my_sprintf(buff, (buff, "%-.*f", (int) decs, num));
+    length= sprintf(buff, "%-.*f", (int) decs, num);
 #endif
 
     // We never need to check further than this
@@ -1006,9 +1006,9 @@ void field_decimal::get_opt_type(String *answer,
   my_decimal_set_zero(&zero);
   my_bool is_unsigned= (my_decimal_cmp(&zero, &min_arg) >= 0);
 
-  length= my_sprintf(buff, (buff, "DECIMAL(%d, %d)",
-                            (int) (max_length - (item->decimals ? 1 : 0)),
-                            item->decimals));
+  length= my_snprintf(buff, sizeof(buff), "DECIMAL(%d, %d)",
+                      (int) (max_length - (item->decimals ? 1 : 0)),
+                      item->decimals);
   if (is_unsigned)
     length= (uint) (strmov(buff+length, " UNSIGNED")- buff);
   answer->append(buff, length);

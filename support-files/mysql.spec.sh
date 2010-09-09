@@ -121,43 +121,62 @@
 %define distro_specific 0
 %endif
 %if %{distro_specific}
-  %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-    %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-    %if "%rhelver" == "4"
-      %define distro_description        Red Hat Enterprise Linux 4
-      %define distro_releasetag         rhel4
+  %if %(test -f /etc/enterprise-release && echo 1 || echo 0)
+    %define oelver %(rpm -qf --qf '%%{version}\\n' /etc/enterprise-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+    %if "%oelver" == "4"
+      %define distro_description        Oracle Enterprise Linux 4
+      %define distro_releasetag         oel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
-      %if "%rhelver" == "5"
-        %define distro_description      Red Hat Enterprise Linux 5
-        %define distro_releasetag       rhel5
+      %if "%oelver" == "5"
+        %define distro_description      Oracle Enterprise Linux 5
+        %define distro_releasetag       oel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
+        %{error:Oracle Enterprise Linux %{oelver} is unsupported}
       %endif
     %endif
   %else
-    %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-      %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
-      %if "%susever" == "10"
-        %define distro_description      SUSE Linux Enterprise Server 10
-        %define distro_releasetag       sles10
-        %define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
-        %define distro_requires         aaa_base coreutils grep procps pwdutils
+    %if %(test -f /etc/redhat-release && echo 1 || echo 0)
+      %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+      %if "%rhelver" == "4"
+        %define distro_description      Red Hat Enterprise Linux 4
+        %define distro_releasetag       rhel4
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %if "%susever" == "11"
-          %define distro_description    SUSE Linux Enterprise Server 11
-          %define distro_releasetag     sles11
-          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
-          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %if "%rhelver" == "5"
+          %define distro_description    Red Hat Enterprise Linux 5
+          %define distro_releasetag     rhel5
+          %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+          %define distro_requires       chkconfig coreutils grep procps shadow-utils
         %else
-          %{error:SuSE %{susever} is unsupported}
+          %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
         %endif
       %endif
     %else
-      %{error:Unsupported distribution}
+      %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+        %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+        %if "%susever" == "10"
+          %define distro_description    SUSE Linux Enterprise Server 10
+          %define distro_releasetag     sles10
+          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %else
+          %if "%susever" == "11"
+            %define distro_description  SUSE Linux Enterprise Server 11
+            %define distro_releasetag   sles11
+            %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+            %define distro_requires     aaa_base coreutils grep procps pwdutils
+          %else
+            %{error:SuSE %{susever} is unsupported}
+          %endif
+        %endif
+      %else
+        %{error:Unsupported distribution}
+      %endif
     %endif
   %endif
 %else
@@ -247,7 +266,7 @@ Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires}
 Provides:       msqlormysql mysql-server mysql MySQL MySQL-server
-Obsoletes:      MySQL mysql mysql-server MySQL-server
+Obsoletes:      MySQL mysql mysql-server MySQL-server MySQL-server-community
 
 %description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -277,7 +296,7 @@ package "MySQL-client%{product_suffix}" as well!
 %package -n MySQL-client%{product_suffix}
 Summary:        MySQL - Client
 Group:          Applications/Databases
-Obsoletes:      mysql-client MySQL-client
+Obsoletes:      mysql-client MySQL-client MySQL-client-community
 Provides:       mysql-client MySQL-client
 
 %description -n MySQL-client%{product_suffix}
@@ -291,7 +310,7 @@ Requires:       MySQL-client%{product_suffix} perl
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test
-Obsoletes:      mysql-bench mysql-test
+Obsoletes:      mysql-bench mysql-test MySQL-test-community
 AutoReqProv:    no
 
 %description -n MySQL-test%{product_suffix}
@@ -304,7 +323,7 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:        MySQL - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
-Obsoletes:      mysql-devel
+Obsoletes:      mysql-devel MySQL-devel-community
 
 %description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -316,6 +335,7 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-shared%{product_suffix}
 Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
+Obsoletes:      MySQL-shared-community
 
 %description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -326,7 +346,7 @@ and applications need to dynamically load and use MySQL.
 Summary:        MySQL - embedded library
 Group:          Applications/Databases
 Requires:       MySQL-devel%{product_suffix}
-Obsoletes:      mysql-embedded
+Obsoletes:      mysql-embedded MySQL-embedded-community
 
 %description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -396,30 +416,30 @@ mkdir debug
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
                   -e 's/ $//'`
-  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included
-  # XXX: before install_layout so we can't just set it based on
-  # XXX: INSTALL_LAYOUT=RPM
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
+  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make VERBOSE=1
 )
 # Build full release
 mkdir release
 (
   cd release
-  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included
-  # XXX: before install_layout so we can't just set it based on
-  # XXX: INSTALL_LAYOUT=RPM
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
+  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make VERBOSE=1
 )
 
@@ -470,10 +490,8 @@ install -d $RBR%{_sbindir}
 mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
-install -m 644 $MBD/release/support-files/mysql-log-rotate \
-  $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m 755 $MBD/release/support-files/mysql.server \
-  $RBR%{_sysconfdir}/init.d/mysql
+install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -504,6 +522,9 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 ##############################################################################
 
 %pre -n MySQL-server%{product_suffix}
+
+# ATTENTION: Parts of this are duplicated in the "triggerpostun" !
+
 mysql_datadir=%{mysqldatadir}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
@@ -646,12 +667,15 @@ fi
 # so a "stop" is attempted even if there is no PID file.
 # (Maybe the "stop" doesn't work then, but we might fix that in itself.)
 if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-  %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
-  echo "Giving mysqld 5 seconds to exit nicely"
-  sleep 5
+        %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
+        echo "Giving mysqld 5 seconds to exit nicely"
+        sleep 5
 fi
 
 %post -n MySQL-server%{product_suffix}
+
+# ATTENTION: Parts of this are duplicated in the "triggerpostun" !
+
 mysql_datadir=%{mysqldatadir}
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
@@ -680,12 +704,12 @@ if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 # ----------------------------------------------------------------------
 # NOTE: This still needs to be debated. Should we check whether these links
 # for the other run levels exist(ed) before the upgrade?
-# use insserv for older SuSE Linux versions
-if [ -x /sbin/insserv ] ; then
-  /sbin/insserv %{_sysconfdir}/init.d/mysql
 # use chkconfig on Enterprise Linux and newer SuSE releases
-elif [ -x /sbin/chkconfig ] ; then
-  /sbin/chkconfig --add mysql
+if [ -x /sbin/chkconfig ] ; then
+        /sbin/chkconfig --add mysql
+# use insserv for older SuSE Linux versions
+elif [ -x /sbin/insserv ] ; then
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
 fi
 
 # ----------------------------------------------------------------------
@@ -766,12 +790,9 @@ if [ "$SERVER_TO_START" = "true" ] ; then
 	# Restart in the same way that mysqld will be started normally.
 	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 		%{_sysconfdir}/init.d/mysql start
-		echo "Giving mysqld 2 seconds to start"
-		sleep 2
+		echo "Giving mysqld 5 seconds to start"
+		sleep 5
 	fi
-
-	# Allow mysqld_safe to start mysqld and print a message before we exit
-	sleep 2
 fi
 
 # Collect an upgrade history ...
@@ -780,28 +801,93 @@ echo                                             >> $STATUS_FILE
 echo "====="                                     >> $STATUS_FILE
 STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
 cat $STATUS_FILE >> $STATUS_HISTORY
-rm  $STATUS_FILE
+mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 
+
+#echo "Thank you for installing the MySQL Community Server! For Production
+#systems, we recommend MySQL Enterprise, which contains enterprise-ready
+#software, intelligent advisory services, and full production support with
+#scheduled service packs and more.  Visit www.mysql.com/enterprise for more
+#information."
 
 %preun -n MySQL-server%{product_suffix}
 
+# Which '$1' does this refer to?  Fedora docs have info:
+# " ... a count of the number of versions of the package that are installed.
+#   Action                           Count
+#   Install the first time           1
+#   Upgrade                          2 or higher (depending on the number of versions installed)
+#   Remove last version of package   0 "
+#
+#  http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04s05.html
+ 
 if [ $1 = 0 ] ; then
-  # Stop MySQL before uninstalling it
-  if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-    %{_sysconfdir}/init.d/mysql stop > /dev/null
-    # Remove autostart of MySQL
-    # For older SuSE Linux versions
-    if [ -x /sbin/insserv ] ; then
-      /sbin/insserv -r %{_sysconfdir}/init.d/mysql
-    # use chkconfig on Enterprise Linux and newer SuSE releases
-    elif [ -x /sbin/chkconfig ] ; then
-      /sbin/chkconfig --del mysql
-    fi
-  fi
+        # Stop MySQL before uninstalling it
+        if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+                %{_sysconfdir}/init.d/mysql stop > /dev/null
+                # Remove autostart of MySQL
+                # use chkconfig on Enterprise Linux and newer SuSE releases
+                if [ -x /sbin/chkconfig ] ; then
+                        /sbin/chkconfig --del mysql
+                # For older SuSE Linux versions
+                elif [ -x /sbin/insserv ] ; then
+                        /sbin/insserv -r %{_sysconfdir}/init.d/mysql
+                fi
+        fi
 fi
 
 # We do not remove the mysql user since it may still own a lot of
 # database files.
+
+%triggerpostun -n MySQL-server%{product_suffix} --MySQL-server-community
+
+# Setup: We renamed this package, so any existing "server-community"
+#   package will be removed when this "server" is installed.
+# Problem: RPM will first run the "pre" and "post" sections of this script,
+#   and only then the "preun" of that old community server.
+#   But this "preun" includes stopping the server and uninstalling the service,
+#   "chkconfig --del mysql" which removes the symlinks to the start script.
+# Solution: *After* the community server got removed, restart this server
+#   and re-install the service.
+#
+# For information about triggers in spec files, see the Fedora docs:
+#   http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch10s02.html
+# For all details of this code, see the "pre" and "post" sections.
+
+mysql_datadir=%{mysqldatadir}
+NEW_VERSION=%{mysql_version}-%{release}
+STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER-LAST  # Note the difference!
+STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
+
+if [ -f $STATUS_FILE ] ; then
+	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
+else
+	# This should never happen, but let's be prepared
+	SERVER_TO_START=''
+fi
+echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
+
+if [ -x /sbin/chkconfig ] ; then
+        /sbin/chkconfig --add mysql
+# use insserv for older SuSE Linux versions
+elif [ -x /sbin/insserv ] ; then
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
+fi
+
+# Was the server running before the upgrade? If so, restart the new one.
+if [ "$SERVER_TO_START" = "true" ] ; then
+	# Restart in the same way that mysqld will be started normally.
+	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+		%{_sysconfdir}/init.d/mysql start
+		echo "Giving mysqld 5 seconds to start"
+		sleep 5
+	fi
+fi
+
+echo "Trigger 'postun --community' finished at `date`"        >> $STATUS_HISTORY
+echo                                             >> $STATUS_HISTORY
+echo "====="                                     >> $STATUS_HISTORY
+
 
 # ----------------------------------------------------------------------
 # Clean up the BuildRoot after build is done
@@ -883,13 +969,13 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/audit_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/daemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
@@ -989,6 +1075,13 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Aug 11 2010 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- With a recent spec file cleanup, names have changed: A "-community" part was dropped.
+  Reflect that in the "Obsoletes" specifications.
+- Add a "triggerpostun" to handle the uninstall of the "-community" server RPM.
+- This fixes bug#55015 "MySQL server is not restarted properly after RPM upgrade".
+
 * Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Change the behaviour on installation and upgrade:

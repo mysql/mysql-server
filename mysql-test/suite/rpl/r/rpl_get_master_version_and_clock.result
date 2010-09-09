@@ -24,6 +24,14 @@ slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_server_id';
 Check network error happened here
 set @@global.debug = "-d,'debug_lock.before_get_SERVER_ID'";
+stop slave;
+SET @@global.debug= "+d,'dbug.before_get_MASTER_UUID'";
+start slave;
+slave is going to hang in get_master_version_and_clock
+slave is unblocked
+SET DEBUG_SYNC='now SIGNAL signal.get_master_uuid';
+Check network error happened here
+set @@global.debug = "-d,'dbug.before_get_MASTER_UUID'";
 set global debug= '';
 reset master;
 include/stop_slave.inc

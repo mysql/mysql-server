@@ -120,7 +120,7 @@ SELECT @@global.ndb_log_updated_only;
 #SELECT @@global.ndb_log_updated_only;
 #SET @@global.ndb_log_updated_only = 1;
 #SELECT @@global.ndb_log_updated_only;
-## a value of 2 is used to just flush logs and then shutdown cold. Not supported on Netware
+## a value of 2 is used to just flush logs and then shutdown cold.
 #SET @@global.ndb_log_updated_only = 2;
 #SELECT @@global.ndb_log_updated_only;
 

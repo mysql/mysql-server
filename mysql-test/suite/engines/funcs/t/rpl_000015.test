@@ -6,7 +6,7 @@
 source include/master-slave.inc;
 
 reset master;
-show master status;
+source include/show_master_status.inc;
 save_master_pos;
 connection slave;
 stop slave;

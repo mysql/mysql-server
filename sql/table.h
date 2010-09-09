@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
 #include "sql_list.h"                           /* Sql_alloc */
 #include "mdl.h"
+#include "datadict.h"
 
 #ifndef MYSQL_CLIENT
 
@@ -42,7 +43,6 @@ class Security_context;
 struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
-struct TABLE_LIST;
 class Field;
 
 /*
@@ -305,14 +305,6 @@ enum tmp_table_type
   NO_TMP_TABLE, NON_TRANSACTIONAL_TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
   INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
 };
-
-enum frm_type_enum
-{
-  FRMTYPE_ERROR= 0,
-  FRMTYPE_TABLE,
-  FRMTYPE_VIEW
-};
-
 enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
 typedef struct st_filesort_info
@@ -515,7 +507,46 @@ public:
 };
 
 
-/*
+/**
+  Class representing the fact that some thread waits for table
+  share to be flushed. Is used to represent information about
+  such waits in MDL deadlock detector.
+*/
+
+class Wait_for_flush : public MDL_wait_for_subgraph
+{
+  MDL_context *m_ctx;
+  TABLE_SHARE *m_share;
+  uint m_deadlock_weight;
+public:
+  Wait_for_flush(MDL_context *ctx_arg, TABLE_SHARE *share_arg,
+               uint deadlock_weight_arg)
+    : m_ctx(ctx_arg), m_share(share_arg),
+      m_deadlock_weight(deadlock_weight_arg)
+  {}
+
+  MDL_context *get_ctx() const { return m_ctx; }
+
+  virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
+
+  virtual uint get_deadlock_weight() const;
+
+  /**
+    Pointers for participating in the list of waiters for table share.
+  */
+  Wait_for_flush *next_in_share;
+  Wait_for_flush **prev_in_share;
+};
+
+
+typedef I_P_List <Wait_for_flush,
+                  I_P_List_adapter<Wait_for_flush,
+                                   &Wait_for_flush::next_in_share,
+                                   &Wait_for_flush::prev_in_share> >
+                 Wait_for_flush_list;
+
+
+/**
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
 */
@@ -580,9 +611,7 @@ struct TABLE_SHARE
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
-  ulong   raid_chunksize;
   ulong   version, mysql_version;
-  ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
 
   plugin_ref db_plugin;			/* storage engine plugin */
@@ -593,11 +622,8 @@ struct TABLE_SHARE
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
-  enum enum_ha_unused unused1;
-  enum enum_ha_unused unused2;
 
   uint ref_count;                       /* How many TABLE objects uses this */
-  uint open_count;			/* Number of tables in open list */
   uint blob_ptr_size;			/* 4 or 8 */
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
@@ -613,7 +639,6 @@ struct TABLE_SHARE
   uint db_create_options;		/* Create options from database */
   uint db_options_in_use;		/* Options in use */
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
-  uint raid_type, raid_chunks;
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
   /* Index of auto-updated TIMESTAMP field in field array */
   uint primary_key;
@@ -642,7 +667,7 @@ struct TABLE_SHARE
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
   bool auto_partitioned;
-  const char *partition_info_str;
+  char *partition_info_str;
   uint  partition_info_str_len;
   uint  partition_info_buffer_size;
   handlerton *default_part_db_type;
@@ -674,6 +699,11 @@ struct TABLE_SHARE
 
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;
+
+  /**
+    List of tickets representing threads waiting for the share to be flushed.
+  */
+  Wait_for_flush_list m_flush_tickets;
 
   /*
     Set share's table cache key and update its db and table name appropriately.
@@ -744,10 +774,8 @@ struct TABLE_SHARE
   }
 
 
-  /*
-    Must all TABLEs be reopened?
-  */
-  inline bool needs_reopen()
+  /** Is this table share being expelled from the table definition cache?  */
+  inline bool has_old_version() const
   {
     return version != refresh_version;
   }
@@ -850,6 +878,13 @@ struct TABLE_SHARE
     return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
   }
 
+  bool visit_subgraph(Wait_for_flush *waiting_ticket,
+                      MDL_wait_for_graph_visitor *gvisitor);
+
+  bool wait_for_old_version(THD *thd, struct timespec *abstime,
+                            uint deadlock_weight);
+  /** Release resources and free memory occupied by the table share. */
+  void destroy();
 };
 
 
@@ -894,6 +929,8 @@ public:
   */
   key_map covering_keys;
   key_map quick_keys, merge_keys;
+  key_map used_keys;  /* Indexes that cover all fields used by the query */
+
   /*
     A set of keys that can be used in the query that references this
     table.
@@ -1097,9 +1134,7 @@ public:
     read_set= &def_read_set;
     write_set= &def_write_set;
   }
-  /*
-    Is this instance of the table should be reopen?
-  */
+  /** Should this instance of the table be reopened? */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
 
@@ -1117,6 +1152,8 @@ public:
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
+
+  bool update_const_key_parts(Item *conds);
 };
 
 
@@ -1202,7 +1239,6 @@ typedef struct st_field_info
 
 
 struct TABLE_LIST;
-typedef class Item COND;
 
 typedef struct st_schema_table
 {
@@ -1211,7 +1247,7 @@ typedef struct st_schema_table
   /* Create information_schema table */
   TABLE *(*create_table)  (THD *thd, TABLE_LIST *table_list);
   /* Fill table with data */
-  int (*fill_table) (THD *thd, TABLE_LIST *tables, COND *cond);
+  int (*fill_table) (THD *thd, TABLE_LIST *tables, Item *cond);
   /* Handle fileds for old SHOW */
   int (*old_format) (THD *thd, struct st_schema_table *schema_table);
   int (*process_table) (THD *thd, TABLE_LIST *tables, TABLE *table,
@@ -1300,6 +1336,10 @@ enum enum_open_type
   OT_TEMPORARY_OR_BASE= 0, OT_TEMPORARY_ONLY, OT_BASE_ONLY
 };
 
+class SJ_MATERIALIZATION_INFO;
+class Index_hint;
+class Item_exists_subselect;
+
 
 /*
   Table reference in the FROM clause.
@@ -1331,10 +1371,11 @@ enum enum_open_type
        (TABLE_LIST::natural_join != NULL)
        - JOIN ... USING
          (TABLE_LIST::join_using_fields != NULL)
+     - semi-join
+       ;
 */
 
 struct LEX;
-class Index_hint;
 struct TABLE_LIST
 {
   TABLE_LIST() {}                          /* Remove gcc warning */
@@ -1373,6 +1414,17 @@ struct TABLE_LIST
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
+  Item          *sj_on_expr;            /* Synthesized semijoin condition */
+  /*
+    (Valid only for semi-join nests) Bitmap of tables that are within the
+    semi-join (this is different from bitmap of all nest's children because
+    tables that were pulled out of the semi-join nest remain listed as
+    nest's children).
+  */
+  table_map     sj_inner_tables;
+  Item_exists_subselect  *sj_subq_pred;
+  SJ_MATERIALIZATION_INFO *sj_mat_info;
+
   /*
     The structure of ON expression presented in the member above
     can be changed during certain optimizations. This member
@@ -1599,22 +1651,6 @@ struct TABLE_LIST
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
-  /**
-    Indicates the locking strategy for the object being opened:
-    whether the associated metadata lock is shared or exclusive.
-  */
-  enum
-  {
-    /* Take a shared metadata lock before the object is opened. */
-    SHARED_MDL= 0,
-    /*
-       Take a exclusive metadata lock before the object is opened.
-       If opening is successful, downgrade to a shared lock.
-    */
-    EXCLUSIVE_DOWNGRADABLE_MDL,
-    /* Take a exclusive metadata lock before the object is opened. */
-    EXCLUSIVE_MDL
-  } lock_strategy;
   /* For transactional locking. */
   int           lock_timeout;           /* NOWAIT or WAIT [X]               */
   bool          lock_transactional;     /* If transactional lock requested. */
@@ -1776,6 +1812,27 @@ struct TABLE_LIST
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
 
+  /**
+    @brief Returns whether the table (or join nest) that this TABLE_LIST 
+    represents, is part of an outer-join nest.
+
+    @details There are two kinds of join nests, outer-join nests and semi-join 
+    nests.  This function returns @c TRUE in the following cases:
+      @li 1. If this table/nest is embedded in a nest and this nest IS NOT a 
+             semi-join nest.  (In other words, it is an outer-join nest.)
+      @li 2. If this table/nest is embedded in a nest and this nest IS a 
+             semi-join nest, but this semi-join nest is embedded in another 
+             nest. (This other nest will be an outer-join nest, since all inner 
+             joined nested semi-join nests have been merged in 
+             @c simplify_joins() ).
+    Note: This function assumes that @c simplify_joins() has been performed.
+    Before that, join nests will be present for all types of join.
+   */
+  bool in_outer_join_nest() const
+  { 
+    return (embedding && (!embedding->sj_on_expr || embedding->embedding)); 
+  }
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
@@ -1785,6 +1842,10 @@ private:
   ulong m_table_ref_version;
 };
 
+struct st_position;
+
+class SJ_MATERIALIZATION_INFO;
+  
 class Item;
 
 /*
@@ -1925,8 +1986,20 @@ typedef struct st_nested_join
        by the join optimizer. 
     Before each use the counters are zeroed by reset_nj_counters.
   */
-  uint              counter;
+  uint              counter_;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /*
+    Tables outside the semi-join that are used within the semi-join's
+    ON condition (ie. the subquery WHERE clause and optional IN equalities).
+  */
+  table_map         sj_depends_on;
+  /* Outer non-trivially correlated tables, a true subset of sj_depends_on */
+  table_map         sj_corr_tables;
+  /*
+    Lists of trivially-correlated expressions from the outer and inner tables
+    of the semi-join, respectively.
+  */
+  List<Item>        sj_outer_exprs, sj_inner_exprs;
   /**
      True if this join nest node is completely covered by the query execution
      plan. This means two things.
@@ -1935,7 +2008,7 @@ typedef struct st_nested_join
 
      2. All child join nest nodes are fully covered.
    */
-  bool is_fully_covered() const { return join_list.elements == counter; }
+  bool is_fully_covered() const { return join_list.elements == counter_; }
 } NESTED_JOIN;
 
 
@@ -2037,9 +2110,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 bool check_and_convert_db_name(LEX_STRING *db, bool preserve_lettercase);
-bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
-bool check_table_name(const char *name, uint length, bool check_for_path_chars);
+bool check_table_name(const char *name, size_t length, bool check_for_path_chars);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);
@@ -2099,6 +2171,8 @@ inline void mark_as_null_row(TABLE *table)
   table->status|=STATUS_NULL_ROW;
   bfill(table->null_flags,table->s->null_bytes,255);
 }
+
+bool is_simple_order(ORDER *order);
 
 #endif /* MYSQL_CLIENT */
 

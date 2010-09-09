@@ -1,0 +1,348 @@
+# ==== Purpose ====
+#
+# Test the time-delayed replication feature, i.e.,
+# CHANGE MASTER TO MASTER_DELAY=X:
+#
+#  - Verify that slave has executed the events after but not before the
+#    delay timeout.
+#
+#  - Verify that delay is correct works when slave is already lagging
+#    due to slow queries.
+#
+#  - Verify that Seconds_Behind_Master is greater than or equal to the
+#    delay if the slave still has unprocessed events in the relay log
+#    and more time than the delay has elapsed since the last event was
+#    executed on the master.
+#
+#  - Verify that STOP SLAVE works instantly even during a delay, and
+#    that it does not cause the waited-for event to be executed too
+#    early on slave.
+#
+#  - Verify that changing back to no delay works.
+#
+#  - Verify that RESET SLAVE sets the delay to 0.
+#
+#  - Verify that setting a bad value for the delay gives an error.
+#
+# ==== Implementation ====
+#
+# We run the slave with 10 seconds lag.
+#
+# In general, to test that a query has not been executed by the slave
+# before this time, we wait until the slave IO thread has received the
+# event, and then 5 seconds more, and check that the table has not
+# been updated.  To test that a query has been executed after this
+# time, we wait 10 seconds more.
+#
+# To simulate that the slave lags due to slow queries, we invoke a
+# stored function that executes SLEEP if @@server_id==2. This requires
+# that we run with binlog_format=STATEMENT.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#344: Time-delayed replication
+# BUG#28760: Simulating a replication lag
+# [duplicate] BUG#22072: configurable delayed replication
+# [duplicate] BUG#21639: Add Replication Delay parameter
+#
+# ==== Issues with this Test Case ====
+#
+# The test is inherently timing-sensitive (i.e., contains races) and
+# is likely to fail sporadically on a loaded host.
+#
+# The test takes a long time; it sleeps for around 20*10 seconds.
+
+--source include/master-slave.inc
+# Needed so that sleeps get executed in the slave SQL thread.
+--source include/have_binlog_format_statement.inc
+
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+--connection slave
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+--connection master
+
+
+# We assume that any simple operation takes zero time, with an error
+# margin of $time1 seconds. Hence, if we run with a delay of $time2
+# seconds, we expect that:
+#  - If we execute a query on master and wait $time1 seconds, then the
+#    query has been copied to slave but not yet executed.
+#  - If we execute a query on master and wait $time3 seconds, then the
+#    query has been executed.
+--let $time1= 10
+if (`SELECT '$max_query_execution_time' > 0`) {
+  --let $time1= $max_query_execution_time
+}
+--let $time2= `SELECT 2 * $time1`
+--let $time3= `SELECT 3 * $time1`
+
+
+--echo [on master]
+CREATE TABLE t1 (a VARCHAR(100), b INT AUTO_INCREMENT PRIMARY KEY);
+
+
+--echo ==== Normal setup ====
+
+--echo [on slave]
+--sync_slave_with_master
+
+--source include/stop_slave.inc
+
+--echo # CHANGE MASTER TO MASTER_DELAY = 2*T
+--disable_query_log
+eval CHANGE MASTER TO MASTER_DELAY = $time2;
+--enable_query_log
+
+--echo # Checking that delay is what we set it to
+--let $delay= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1)
+if (`SELECT $delay != $time2`) {
+  --echo Delay is wrong! Expected $time2, got $delay
+  --source include/show_rpl_debug_info.inc
+  --die wrong delay
+}
+
+--echo # Expect status to be ''
+SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY ID DESC LIMIT 1;
+
+--source include/start_slave.inc
+
+--echo [on master]
+--connection master
+INSERT INTO t1(a) VALUES ('normal setup');
+
+--source extra/rpl_tests/delayed_slave_wait_on_query.inc
+
+
+--echo ==== Slave lags "naturally" after master ====
+
+--echo [on master]
+--connection master
+
+--disable_query_log
+--echo # CREATE FUNCTION delay_on_slave(time_units INT) RETURNS INT BEGIN IF @@server_id = 2 THEN RETURN SLEEP(time_units * T); ELSE RETURN 0; END IF; END
+--eval CREATE FUNCTION delay_on_slave(time_units INT) RETURNS INT BEGIN IF @@server_id = 2 THEN RETURN SLEEP(time_units * $time1); ELSE RETURN 0; END IF; END
+--enable_query_log
+
+INSERT INTO t1(a) SELECT delay_on_slave(3);
+
+--save_master_pos
+INSERT INTO t1(a) VALUES ('slave is already lagging: this statement should execute immediately');
+INSERT INTO t1(a) SELECT delay_on_slave(2);
+
+--echo [on slave]
+--source include/sync_slave_io_with_master.inc
+--echo # sleep 1*T
+--sleep $time1
+
+--echo # Expect no query executed and status is 'Waiting until MASTER_DELAY...'
+SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
+--source include/show_delayed_slave_state.inc
+
+--echo # wait for first query to execute
+--sync_with_master
+
+--echo # sleep 1*T
+--sleep $time1
+
+--echo # Expect second query executed and status is executing third query (i.e., 'User sleep')
+SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
+--source include/show_delayed_slave_state.inc
+
+--echo # sleep 2*T
+--sleep $time2
+
+--echo # Expect query executed and status is 'Has read all relay log...'
+SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
+--source include/show_delayed_slave_state.inc
+
+
+--echo ==== Seconds_Behind_Master ====
+
+--echo # Bring slave to sync.
+--source include/stop_slave.inc
+eval CHANGE MASTER TO MASTER_DELAY = 0;
+--source include/start_slave.inc
+
+--connection master
+INSERT INTO t1(a) VALUES ('Syncing slave');
+--sync_slave_with_master
+
+--source include/stop_slave.inc
+--echo # CHANGE MASTER TO MASTER_DELAY = 2*T
+--disable_query_log
+eval CHANGE MASTER TO MASTER_DELAY = $time2;
+--enable_query_log
+--source include/start_slave.inc
+
+--connection master
+INSERT INTO t1(a) VALUES (delay_on_slave(1));
+--save_master_pos
+--connection slave
+
+--echo # sleep 1*T
+--sleep $time1
+
+if ($bug_53167_is_fixed) {
+
+--let $seconds_behind_master= query_get_value(SHOW SLAVE STATUS, Seconds_Behind_Master, 1)
+if (`SELECT $seconds_behind_master <= 0 OR $seconds_behind_master >= $time2`) {
+  --echo Seconds_Behind_Master was $seconds_behind_master. Expected that 0 < Seconds_Behind_Master < SQL_Delay = $time2
+  --source include/show_rpl_debug_info.inc
+  --die Seconds_Behind_Master was wrong
+}
+
+}
+
+--echo # sleep 1*T
+--sleep $time1
+
+--let $seconds_behind_master= query_get_value(SHOW SLAVE STATUS, Seconds_Behind_Master, 1)
+if (`SELECT $seconds_behind_master < $time2`) {
+  --echo Seconds_Behind_Master was $seconds_behind_master. Expected it to be >= SQL_Delay = $time2
+  --source include/show_rpl_debug_info.inc
+  --die Seconds_Behind_Master was < SQL_Delay
+}
+
+--sync_with_master
+
+
+--echo ==== STOP SLAVE and START SLAVE ====
+
+# Set up a longer delay.
+--source include/stop_slave.inc
+
+--echo # CHANGE MASTER TO MASTER_DELAY = 3*T
+--disable_query_log
+eval CHANGE MASTER TO MASTER_DELAY = $time3;
+--enable_query_log
+
+--source include/start_slave.inc
+
+--echo # Checking that delay is what we set it to
+--let $delay= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1)
+if (`SELECT $delay != $time3`) {
+  --echo Delay is wrong! Expected $time2, got $delay
+  --source include/show_rpl_debug_info.inc
+  --die wrong delay
+}
+
+--echo [on master]
+--connection master
+INSERT INTO t1(a) VALUES ('stop slave and start slave');
+
+--echo [on slave]
+--connection slave
+--echo # sleep 1*T
+--sleep $time1
+SET @before_stop_slave= UNIX_TIMESTAMP();
+--source include/stop_slave.inc
+if (`SELECT UNIX_TIMESTAMP() - @before_stop_slave >= $time1`)
+{
+  --source include/show_rpl_debug_info.inc
+  --die STOP SLAVE did not finish in time
+}
+--echo # STOP SLAVE finished in time.
+
+--echo # Expect query not executed and status is ''
+SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
+--source include/show_delayed_slave_state.inc
+
+--source include/start_slave.inc
+if (`SELECT UNIX_TIMESTAMP() - @before_stop_slave >= $time1`)
+{
+  --source include/show_rpl_debug_info.inc
+  --die START SLAVE did not finish in time
+}
+--echo # START SLAVE finished in time.
+
+--source extra/rpl_tests/delayed_slave_wait_on_query.inc
+
+
+--echo ==== Change back to no delay ====
+
+--echo [on slave]
+--connection slave
+--source include/stop_slave.inc
+eval CHANGE MASTER TO MASTER_DELAY = 0;
+
+--echo # Expect delay is 0.
+--let $delay= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1)
+--echo SQL_Delay='$delay'
+
+--source include/start_slave.inc
+
+--echo [on master]
+--connection master
+INSERT INTO t1(a) VALUES ('change back to no delay');
+
+--echo [on slave]
+--source include/sync_slave_io_with_master.inc
+--echo # sleep 1*T
+--sleep $time1
+
+--echo # Expect query executed and status is 'Has read all relay log...'
+SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
+--source include/show_delayed_slave_state.inc
+
+
+--echo ==== Reset delay with RESET SLAVE ====
+
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_DELAY = 71;
+--source include/start_slave.inc
+
+--echo # Expect delay is 71
+--let $delay= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1)
+--echo SQL_Delay='$delay'
+
+--source include/stop_slave.inc
+RESET SLAVE;
+--echo [on master]
+--connection master
+RESET MASTER;
+--echo [on slave]
+--connection slave
+--source include/start_slave.inc
+
+--echo # Expect delay is 0
+--let $delay= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1)
+--echo SQL_Delay='$delay'
+
+
+--echo ==== Set a bad value for the delay ====
+
+--source include/stop_slave.inc
+
+--echo # Expect error for setting negative delay
+--error ER_PARSE_ERROR
+CHANGE MASTER TO MASTER_DELAY = -1;
+
+--echo # Expect that it's ok to set delay of 2^31-1
+CHANGE MASTER TO MASTER_DELAY = 2147483647;
+--echo # Expect error for setting delay between 2^31 and 2^32-1
+--error ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
+CHANGE MASTER TO MASTER_DELAY = 2147483648;
+
+--echo # Expect error for setting delay to nonsense
+--error ER_PARSE_ERROR
+CHANGE MASTER TO MASTER_DELAY = blah;
+
+# todo: CHANGE MASTER TO MASTER_DELAY = 999999999999999999999999999
+# should give error
+
+CHANGE MASTER TO MASTER_DELAY = 0;
+--source include/start_slave.inc
+
+
+--echo ==== Clean up ====
+
+--echo [on master]
+--connection master
+DROP TABLE t1;
+DROP FUNCTION delay_on_slave;
+
+--echo [on slave]
+--sync_slave_with_master
+
+--source include/master-slave-end.inc

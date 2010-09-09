@@ -102,7 +102,7 @@ db2i_ileBridge* db2i_ileBridge::createNewBridge(CONNECTION_HANDLE connID)
 void db2i_ileBridge::destroyBridge(db2i_ileBridge* bridge)
 {
   bridge->freeErrorStorage();
-  my_free(bridge, MYF(0)); 
+  my_free(bridge);
 }
 
 
@@ -1306,7 +1306,7 @@ FILE_HANDLE db2i_ileBridge::PreservedHandleList::findAndRemove(const char* fileN
         prev->next = next;
       if (current == head)
         head = next;
-      my_free(current, MYF(0));
+      my_free(current);
       DBUG_PRINT("db2i_ileBridge", ("Found handle %d for %s", uint32(tmp), fileName));
       return tmp;
     }

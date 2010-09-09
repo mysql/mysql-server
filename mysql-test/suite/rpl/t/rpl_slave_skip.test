@@ -17,8 +17,8 @@ STOP SLAVE;
 connection master;
 SET SESSION BINLOG_FORMAT=ROW;
 
-CREATE TABLE t1 (a INT, b INT);
-CREATE TABLE t2 (c INT, d INT);
+CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1),(2,4),(3,9);
 INSERT INTO t2 VALUES (1,1),(2,8),(3,27);
 let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);

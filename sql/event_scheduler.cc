@@ -203,7 +203,6 @@ pre_init_event_thread(THD* thd)
   */
 
   thd->proc_info= "Initialized";
-  thd->version= refresh_version;
   thd->set_time();
 
   /* Do not use user-supplied timeout value for system threads. */
@@ -239,7 +238,7 @@ event_scheduler_thread(void *arg)
   res= post_init_event_thread(thd);
 
   DBUG_ENTER("event_scheduler_thread");
-  my_free((char*)arg, MYF(0));
+  my_free(arg);
   if (!res)
     scheduler->run(thd);
 

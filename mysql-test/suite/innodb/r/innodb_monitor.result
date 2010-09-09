@@ -63,6 +63,7 @@ compress_num_page_compressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	
 compress_num_page_decompressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	stopped	counter_value	Number of page decompressed
 index_num_split	Index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	stopped	counter_value	Number of index split
 index_num_merge	Index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	stopped	counter_value	Number of index merge
+fil_system_num_open_file	Tablespace	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	stopped	current_value	Number of files currently open
 dml_num_reads	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	stopped	counter_value	Number of rows read
 dml_num_inserts	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	stopped	counter_value	Number of rows inserted
 dml_num_deletes	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	stopped	counter_value	Number of rows deleted
@@ -132,6 +133,7 @@ compress_num_page_compressed	stopped
 compress_num_page_decompressed	stopped
 index_num_split	stopped
 index_num_merge	stopped
+fil_system_num_open_file	stopped
 dml_num_reads	stopped
 dml_num_inserts	stopped
 dml_num_deletes	stopped
@@ -202,6 +204,7 @@ compress_num_page_compressed	started
 compress_num_page_decompressed	started
 index_num_split	started
 index_num_merge	started
+fil_system_num_open_file	started
 dml_num_reads	started
 dml_num_inserts	started
 dml_num_deletes	started
@@ -274,6 +277,7 @@ compress_num_page_compressed	stopped
 compress_num_page_decompressed	stopped
 index_num_split	stopped
 index_num_merge	stopped
+fil_system_num_open_file	stopped
 dml_num_reads	stopped
 dml_num_inserts	stopped
 dml_num_deletes	stopped
@@ -344,6 +348,7 @@ compress_num_page_compressed	0	stopped
 compress_num_page_decompressed	0	stopped
 index_num_split	0	stopped
 index_num_merge	0	stopped
+fil_system_num_open_file	0	stopped
 dml_num_reads	0	stopped
 dml_num_inserts	0	stopped
 dml_num_deletes	0	stopped
@@ -554,6 +559,14 @@ dml_num_deletes	NULL	NULL	0	NULL	NULL	0	stopped
 dml_updates	NULL	NULL	0	NULL	NULL	0	stopped
 set global innodb_monitor_counter_off = module_dml;
 drop table monitor_test;
+set global innodb_monitor_counter_on = fil_system_num_open_file;
+select name, max_since_start, min_since_start, value_since_start,
+max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "fil_system_num_open_file";
+name	max_since_start	min_since_start	value_since_start	max_since_reset	min_since_reset	value_since_reset	status
+fil_system_num_open_file	3	3	3	3	3	3	started
+set global innodb_monitor_counter_off = fil_system_num_open_file;
 set global innodb_monitor_counter_on = default;
 set global innodb_monitor_counter_off = default;
 set global innodb_monitor_counter_reset = default;

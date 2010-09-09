@@ -323,7 +323,7 @@ static int t_ctype[][TOT_LEVELS] = {
     /*0xFF*/ { 255 /*IGNORE*/, IGNORE, IGNORE, IGNORE, X },
 };
 
-static uchar NEAR ctype_tis620[257] =
+static uchar ctype_tis620[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -344,7 +344,7 @@ static uchar NEAR ctype_tis620[257] =
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
-static uchar NEAR to_lower_tis620[]=
+static uchar to_lower_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -380,7 +380,7 @@ static uchar NEAR to_lower_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR to_upper_tis620[]=
+static uchar to_upper_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -416,7 +416,7 @@ static uchar NEAR to_upper_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR sort_order_tis620[]=
+static uchar sort_order_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -632,18 +632,26 @@ ret:
   Ret: Conveted string size
 */
 
-static
-size_t my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
-                          uchar *dest, size_t len,
-                          const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_tis620(CHARSET_INFO *cs,
+                   uchar *dst, size_t dstlen, uint nweights,
+                   const uchar *src, size_t srclen, uint flags)
 {
-  size_t dstlen= len;
-  len= (size_t) (strmake((char*) dest, (char*) src, min(len, srclen)) -
-                 (char*) dest);
-  len= thai2sortable(dest, len);
-  if (dstlen > len)
-    bfill(dest + len, dstlen - len, ' ');
-  return dstlen;
+  size_t len, dstlen0= dstlen;
+  len= (uint) (strmake((char*) dst, (char*) src, min(dstlen, srclen)) -
+	               (char*) dst);
+  len= thai2sortable(dst, len);
+  set_if_smaller(dstlen, nweights);
+  set_if_smaller(len, dstlen); 
+  len= my_strxfrm_pad_desc_and_reverse(cs, dst, dst + len, dst + dstlen,
+                                       dstlen - len, flags, 0);
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len < dstlen0)
+  {
+    uint fill_length= dstlen0 - len;
+    cs->cset->fill(cs, (char*) dst + len, fill_length, cs->pad_char);
+    len= dstlen0;
+  }
+  return len;
 }
 
 
@@ -909,11 +917,10 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     to_lower_tis620,
     to_upper_tis620,
     sort_order_tis620,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_unicase_default, /* caseinfo     */
+    &my_unicase_default,/* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     4,			/* strxfrm_multiply */
@@ -925,6 +932,8 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -941,11 +950,10 @@ CHARSET_INFO my_charset_tis620_bin=
     to_lower_tis620,
     to_upper_tis620,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_unicase_default, /* caseinfo     */
+    &my_unicase_default,/* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -957,6 +965,8 @@ CHARSET_INFO my_charset_tis620_bin=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_8bit_bin_handler
 };

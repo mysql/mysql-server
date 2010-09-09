@@ -68,7 +68,7 @@ LIB32=xilink6.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /D "WIN32" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /D "WIN32" /D "_DEBUG" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
 # ADD BASE CPP @includes@
 # ADD CPP @includes@
 # SUBTRACT CPP /YX

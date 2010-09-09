@@ -1,5 +1,5 @@
-# Copyright (C) 2009 Oracle/Innobase Oy
-#
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -11,7 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # This is the CMakeLists for InnoDB Plugin
 
@@ -43,7 +43,7 @@ ENDIF()
 # Enable InnoDB's UNIV_DEBUG if MySQL's WITH_DEBUG[_FULL] is defined
 # enable when this bug is resolved:
 # Bug#54861 Additional connections not handled properly in mtr --embedded
-#IF(WITH_DEBUG OR WITH_DEBUG_FULL)
+#IF(WITH_DEBUG)
 #  ADD_DEFINITIONS("-DUNIV_DEBUG")
 #ENDIF()
 
@@ -101,7 +101,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   #include <pthread.h>
   #include <string.h>
 
-  int main(int argc, char** argv) {
+  int main() {
     pthread_t       x1;
     pthread_t       x2;
     pthread_t       x3;
@@ -188,11 +188,7 @@ IF(SIZEOF_PTHREAD_T)
 ENDIF()
 
 IF(MSVC)
-  # Windows atomics do not perform well. Disable Windows atomics by default.
-  # See bug#52102 for details.
-
-  #ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
-  ADD_DEFINITIONS(-DHAVE_IB_PAUSE_INSTRUCTION)
+  ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
 ENDIF()
 
 
@@ -278,6 +274,7 @@ ELSEIF (MYSQL_VERSION_ID LESS "50137")
 ELSE()
 	# New plugin support, cross-platform ,  base name for shared module is "ha_innodb"
 	MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
+		DEFAULT
 		MODULE_OUTPUT_NAME ha_innodb
 		LINK_LIBRARIES ${ZLIB_LIBRARY})
 ENDIF()

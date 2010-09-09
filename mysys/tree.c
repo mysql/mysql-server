@@ -183,7 +183,7 @@ static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
       (*tree->free)(ELEMENT_KEY(tree,element), free_free, tree->custom_arg);
     delete_tree_element(tree,element->right);
     if (tree->with_delete)
-      my_free((char*) element,MYF(0));
+      my_free(element);
   }
 }
 
@@ -326,7 +326,7 @@ int tree_delete(TREE *tree, void *key, uint key_size, void *custom_arg)
   if (tree->free)
     (*tree->free)(ELEMENT_KEY(tree,element), free_free, tree->custom_arg);
   tree->allocated-= sizeof(TREE_ELEMENT) + tree->size_of_element + key_size;
-  my_free((uchar*) element,MYF(0));
+  my_free(element);
   tree->elements_in_tree--;
   return 0;
 }

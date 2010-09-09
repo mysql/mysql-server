@@ -91,8 +91,12 @@ ha_create_func(
 	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
 				order: this is used in the debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes);	/*!< in: number of mutexes to protect the
+	ulint	n_mutexes,	/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
+	ulint	type);		/*!< in: type of datastructure for which
+				the memory heap is going to be used e.g.:
+				MEM_HEAP_FOR_BTR_SEARCH or
+				MEM_HEAP_FOR_PAGE_HASH */
 #ifdef UNIV_SYNC_DEBUG
 /** Creates a hash table.
 @return		own: created table
@@ -101,7 +105,7 @@ chosen to be a slightly bigger prime number.
 @param level	in: level of the mutexes in the latching order
 @param n_m	in: number of mutexes to protect the hash table;
 		must be a power of 2, or 0 */
-# define ha_create(n_c,n_m,level) ha_create_func(n_c,level,n_m)
+# define ha_create(n_c,n_m,type,level) ha_create_func(n_c,level,n_m,type)
 #else /* UNIV_SYNC_DEBUG */
 /** Creates a hash table.
 @return		own: created table
@@ -110,7 +114,7 @@ chosen to be a slightly bigger prime number.
 @param level	in: level of the mutexes in the latching order
 @param n_m	in: number of mutexes to protect the hash table;
 		must be a power of 2, or 0 */
-# define ha_create(n_c,n_m,level) ha_create_func(n_c,n_m)
+# define ha_create(n_c,n_m,type,level) ha_create_func(n_c,n_m,type)
 #endif /* UNIV_SYNC_DEBUG */
 
 /*************************************************************//**
@@ -186,6 +190,7 @@ ha_remove_all_nodes_to_page(
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold,	/*!< in: fold value */
 	const page_t*	page);	/*!< in: buffer page */
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
 @return	TRUE if ok */
@@ -196,6 +201,7 @@ ha_validate(
 	hash_table_t*	table,		/*!< in: hash table */
 	ulint		start_index,	/*!< in: start index */
 	ulint		end_index);	/*!< in: end index */
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 /*************************************************************//**
 Prints info of a hash table. */
 UNIV_INTERN

@@ -53,13 +53,13 @@ int myrg_close(MYRG_INFO *info)
     }
   }
   else
-    my_free((uchar*) info->rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(info->rec_per_key_part);
   delete_queue(&info->by_key);
   mysql_mutex_lock(&THR_LOCK_open);
   myrg_open_list=list_delete(myrg_open_list,&info->open_list);
   mysql_mutex_unlock(&THR_LOCK_open);
   mysql_mutex_destroy(&info->mutex);
-  my_free((uchar*) info,MYF(0));
+  my_free(info);
   if (error)
   {
     DBUG_RETURN(my_errno=error);

@@ -23,6 +23,7 @@ set session transaction isolation level repeatable read;
 set autocommit=0;
 -- error ER_LOCK_WAIT_TIMEOUT
 update t1 set a=10 where a=5;
+commit;
 connection a;
 commit;
 connection b;

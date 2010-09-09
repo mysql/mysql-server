@@ -22,9 +22,6 @@
 #undef NO_ALARM_LOOP
 #endif
 #include <my_alarm.h>
-#ifdef __NETWARE__
-#include <nks/fsio.h>
-#endif
 
 #ifdef _WIN32
 #define WIN_LOCK_INFINITE -1
@@ -145,60 +142,14 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   int value;
   ALARM_VARIABLES;
 #endif
-#ifdef __NETWARE__
-  int nxErrno;
-#endif
 
   DBUG_ENTER("my_lock");
   DBUG_PRINT("my",("fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
 		   fd,locktype,(long) start,(long) length,MyFlags));
-#ifdef VMS
-  DBUG_RETURN(0);
-#else
   if (my_disable_locking)
     DBUG_RETURN(0);
 
-#if defined(__NETWARE__)
-  {
-    NXSOffset_t nxLength = length;
-    unsigned long nxLockFlags = 0;
-
-    if (length == F_TO_EOF)
-    {
-      /* EOF is interpreted as a very large length. */
-      nxLength = 0x7FFFFFFFFFFFFFFF;
-    }
-
-    if (locktype == F_UNLCK)
-    {
-      /* The lock flags are currently ignored by NKS. */
-      if (!(nxErrno= NXFileRangeUnlock(fd, 0L, start, nxLength)))
-        DBUG_RETURN(0);
-    }
-    else
-    {
-      if (locktype == F_RDLCK)
-      {
-        /* A read lock is mapped to a shared lock. */
-        nxLockFlags = NX_RANGE_LOCK_SHARED;
-      }
-      else
-      {
-        /* A write lock is mapped to an exclusive lock. */
-        nxLockFlags = NX_RANGE_LOCK_EXCL;
-      }
-
-      if (MyFlags & MY_DONT_WAIT)
-      {
-        /* Don't block on the lock. */
-        nxLockFlags |= NX_RANGE_LOCK_TRYLOCK;
-      }
-
-      if (!(nxErrno= NXFileRangeLock(fd, nxLockFlags, start, nxLength)))
-        DBUG_RETURN(0);
-    }
-  }
-#elif defined(_WIN32)
+#if defined(_WIN32)
   {
     int timeout_sec;
     if (MyFlags & MY_DONT_WAIT)
@@ -257,12 +208,9 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 #endif /* HAVE_FCNTL */
 #endif /* HAVE_LOCKING */
 
-#ifdef __NETWARE__
-  my_errno = nxErrno;
-#else
-	/* We got an error. We don't want EACCES errors */
+  /* We got an error. We don't want EACCES errors */
   my_errno=(errno == EACCES) ? EAGAIN : errno ? errno : -1;
-#endif
+
   if (MyFlags & MY_WME)
   {
     if (locktype == F_UNLCK)
@@ -272,5 +220,4 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   }
   DBUG_PRINT("error",("my_errno: %d (%d)",my_errno,errno));
   DBUG_RETURN(-1);
-#endif	/* ! VMS */
 } /* my_lock */

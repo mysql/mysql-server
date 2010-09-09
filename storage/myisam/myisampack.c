@@ -23,9 +23,6 @@
 #include <queues.h>
 #include <my_tree.h>
 #include "mysys_err.h"
-#ifdef MSDOS
-#include <io.h>
-#endif
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
 #endif
@@ -256,14 +253,10 @@ int main(int argc, char **argv)
 #endif
 }
 
-enum options_mp {OPT_CHARSETS_DIR_MP=256, OPT_AUTO_CLOSE};
+enum options_mp {OPT_CHARSETS_DIR_MP=256};
 
 static struct my_option my_long_options[] =
 {
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"backup", 'b', "Make a backup of the table as table_name.OLD.",
    &backup, &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR_MP,
@@ -295,13 +288,11 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s Ver 1.23 for %s on %s\n",
               my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -323,7 +314,6 @@ static void usage(void)
   my_print_variables(my_long_options);
 }
 
-#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -332,11 +322,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   uint length;
 
   switch(optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'f':
     force_pack= 1;
     tmpfile_createflag= O_RDWR | O_TRUNC;
@@ -486,7 +471,7 @@ static my_bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count)
  error:
   while (i--)
     mi_close(mrg->file[i]);
-  my_free((uchar*) mrg->file,MYF(0));
+  my_free(mrg->file);
   return 1;
 }
 
@@ -534,10 +519,10 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 	my_write(join_isam_file,buff,length,
 		 MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
-      my_free(buff,MYF(0));
+      my_free(buff);
       goto err;
     }
-    my_free(buff,MYF(0));
+    my_free(buff);
     (void) fn_format(new_name,result_table,"",MI_NAME_DEXT,2);
   }
   else if (!tmp_dir[0])
@@ -564,7 +549,6 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   }
   trees=fields=share->base.fields;
   huff_counts=init_huff_count(isam_file,mrg->records);
-  QUICK_SAFEMALLOC;
 
   /*
     Read the whole data file(s) for statistics.
@@ -574,7 +558,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     printf("- Calculating statistics\n");
   if (get_statistic(mrg,huff_counts))
     goto err;
-  NORMAL_SAFEMALLOC;
+
   old_length=0;
   for (i=0; i < mrg->count ; i++)
     old_length+= (mrg->file[i]->s->state.state.data_file_length -
@@ -857,11 +841,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     for (i=0 ; i < trees ; i++)
     {
       if (huff_trees[i].element_buffer)
-	my_free((uchar*) huff_trees[i].element_buffer,MYF(0));
+	my_free(huff_trees[i].element_buffer);
       if (huff_trees[i].code)
-	my_free((uchar*) huff_trees[i].code,MYF(0));
+	my_free(huff_trees[i].code);
     }
-    my_free((uchar*) huff_trees,MYF(0));
+    my_free(huff_trees);
   }
   if (huff_counts)
   {
@@ -869,11 +853,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     {
       if (huff_counts[i].tree_buff)
       {
-	my_free((uchar*) huff_counts[i].tree_buff,MYF(0));
+	my_free(huff_counts[i].tree_buff);
 	delete_tree(&huff_counts[i].int_tree);
       }
     }
-    my_free((uchar*) huff_counts,MYF(0));
+    my_free(huff_counts);
   }
   delete_queue(&queue);		/* This is safe to free */
   return;
@@ -977,7 +961,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	       count->int_tree.elements_in_tree > 1))
 	  {
 	    delete_tree(&count->int_tree);
-	    my_free(count->tree_buff,MYF(0));
+	    my_free(count->tree_buff);
 	    count->tree_buff=0;
 	  }
 	  else
@@ -1056,7 +1040,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	{
 	  uint field_length=count->field_length -portable_sizeof_char_ptr;
 	  ulong blob_length= _mi_calc_blob_length(field_length, start_pos);
-	  memcpy_fixed((char*) &pos,  start_pos+field_length,sizeof(char*));
+	  memcpy(&pos, start_pos+field_length, sizeof(char*));
 	  end_pos=pos+blob_length;
 	  tot_blob_length+=blob_length;
 	  set_if_bigger(count->max_length,blob_length);
@@ -1374,12 +1358,12 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       }
       else
       {
-	my_free((uchar*) huff_counts->tree_buff,MYF(0));
+	my_free(huff_counts->tree_buff);
 	delete_tree(&huff_counts->int_tree);
 	huff_counts->tree_buff=0;
       }
       if (tree.element_buffer)
-	my_free((uchar*) tree.element_buffer,MYF(0));
+	my_free(tree.element_buffer);
     }
     if (huff_counts->pack_type & PACK_TYPE_SPACE_FIELDS)
       space_fields++;
@@ -1496,8 +1480,8 @@ static HUFF_TREE* make_huff_trees(HUFF_COUNTS *huff_counts, uint trees)
     if (make_huff_tree(huff_tree+tree,huff_counts+tree))
     {
       while (tree--)
-	my_free((uchar*) huff_tree[tree].element_buffer,MYF(0));
-      my_free((uchar*) huff_tree,MYF(0));
+	my_free(huff_tree[tree].element_buffer);
+      my_free(huff_tree);
       DBUG_RETURN(0);
     }
   }
@@ -1905,9 +1889,9 @@ static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees)
 	      i->tree->tree_pack_length+j->tree->tree_pack_length+
 	      ALLOWED_JOIN_DIFF)
 	  {
-	    memcpy_fixed((uchar*) i->counts,(uchar*) count.counts,
+	    memcpy(i->counts, count.counts,
 			 sizeof(count.counts[0])*256);
-	    my_free((uchar*) j->tree->element_buffer,MYF(0));
+	    my_free(j->tree->element_buffer);
 	    j->tree->element_buffer=0;
 	    j->tree=i->tree;
 	    bmove((uchar*) i->counts,(uchar*) count.counts,
@@ -2056,7 +2040,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
   uchar *buff= (uchar*) file_buffer.pos;
 
   bzero(buff,HEAD_LENGTH);
-  memcpy_fixed(buff,myisam_pack_file_magic,4);
+  memcpy(buff,myisam_pack_file_magic,4);
   int4store(buff+4,head_length);
   int4store(buff+8, mrg->min_pack_length);
   int4store(buff+12,mrg->max_pack_length);
@@ -2713,8 +2697,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
             DBUG_PRINT("fields", ("FIELD_BLOB %lu bytes, bits: %2u",
                                   blob_length, count->length_bits));
 	    write_bits(blob_length,count->length_bits);
-	    memcpy_fixed(&blob,end_pos-portable_sizeof_char_ptr,
-			 sizeof(char*));
+	    memcpy(&blob, end_pos-portable_sizeof_char_ptr, sizeof(char*));
 	    blob_end=blob+blob_length;
             /* Encode the blob bytes. */
 	    for ( ; blob < blob_end ; blob++)
@@ -2913,7 +2896,7 @@ static int flush_buffer(ulong neaded_length)
 
 static void end_file_buffer(void)
 {
-  my_free((uchar*) file_buffer.buffer,MYF(0));
+  my_free(file_buffer.buffer);
 }
 
 	/* output `bits` low bits of `value' */
@@ -3117,7 +3100,7 @@ static int mrg_close(PACK_MRG_INFO *mrg)
   for (i=0 ; i < mrg->count ; i++)
     error|=mi_close(mrg->file[i]);
   if (mrg->free_file)
-    my_free((uchar*) mrg->file,MYF(0));
+    my_free(mrg->file);
   return error;
 }
 
@@ -3180,7 +3163,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     */
     if (huff_counts->tree_buff)
     {
-      my_free((uchar*) huff_counts->tree_buff, MYF(0));
+      my_free(huff_counts->tree_buff);
       delete_tree(&huff_counts->int_tree);
       huff_counts->tree_buff= NULL;
       DBUG_PRINT("fakebigcodes", ("freed distinct column values"));

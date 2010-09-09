@@ -138,7 +138,6 @@ dict_stats_update_transient(
 	dict_table_t*	table)	/*!< in/out: table */
 {
 	dict_index_t*	index;
-	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
 
 	/* Find out the sizes of the indexes and how many different values
@@ -154,26 +153,47 @@ dict_stats_update_transient(
 		return;
 	}
 
-	while (index) {
-		size = btr_get_size(index, BTR_TOTAL_SIZE);
+	do {
+		if (UNIV_LIKELY
+		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
+		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+			 && dict_index_is_clust(index)))) {
+			ulint	size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-		index->stat_index_size = size;
+			index->stat_index_size = size;
 
-		sum_of_index_sizes += size;
+			sum_of_index_sizes += size;
 
-		size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			size = btr_get_size(index, BTR_N_LEAF_PAGES);
 
-		if (size == 0) {
-			/* The root node of the tree is a leaf */
-			size = 1;
+			if (size == 0) {
+				/* The root node of the tree is a leaf */
+				size = 1;
+			}
+
+			index->stat_n_leaf_pages = size;
+
+			btr_estimate_number_of_different_key_vals(index);
+		} else {
+			/* If we have set a high innodb_force_recovery
+			level, do not calculate statistics, as a badly
+			corrupted index can cause a crash in it.
+			Initialize some bogus index cardinality
+			statistics, so that the data can be queried in
+			various means, also via secondary indexes. */
+			ulint	i;
+
+			sum_of_index_sizes++;
+			index->stat_index_size = index->stat_n_leaf_pages = 1;
+
+			for (i = dict_index_get_n_unique(index); i; ) {
+				index->stat_n_diff_key_vals[i--] = 1;
+			}
 		}
 
-		index->stat_n_leaf_pages = size;
-
-		btr_estimate_number_of_different_key_vals(index);
-
 		index = dict_table_get_next_index(index);
-	}
+	} while (index);
 
 	index = dict_table_get_first_index(table);
 
