@@ -91,12 +91,7 @@ trx_purge_update_undo_must_exist(
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (!read_view_sees_trx_id(purge_sys->view, trx_id)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(!read_view_sees_trx_id(purge_sys->view, trx_id));
 }
 
 /****************************************************************//**
