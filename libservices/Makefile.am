@@ -15,5 +15,7 @@
 
 AM_CPPFLAGS =		-I$(top_srcdir)/include
 pkglib_LIBRARIES =	libmysqlservices.a
-libmysqlservices_a_SOURCES =  my_snprintf_service.c thd_alloc_service.c
+libmysqlservices_a_SOURCES =	my_snprintf_service.c thd_alloc_service.c \
+				thd_wait_service.c \
+				my_thread_scheduler_service.c
 EXTRA_DIST = CMakeLists.txt
