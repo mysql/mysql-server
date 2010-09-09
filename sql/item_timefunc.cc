@@ -3368,6 +3368,8 @@ void Item_func_str_to_date::fix_length_and_dec()
   cached_field_type= MYSQL_TYPE_DATETIME;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;
+  sql_mode= (current_thd->variables.sql_mode &
+             (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE));
   if ((const_item= args[1]->const_item()))
   {
     char format_buff[64];
@@ -3433,6 +3435,14 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   return 0;
 
 null_date:
+  if (fuzzy_date & TIME_NO_ZERO_DATE)
+  {
+    char buff[128];
+    strmake(buff, val->ptr(), min(val->length(), sizeof(buff)-1));
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                        "datetime", buff, "str_to_date");
+  }
   return (null_value=1);
 }
 
@@ -3442,7 +3452,7 @@ String *Item_func_str_to_date::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
 
-  if (Item_func_str_to_date::get_date(&ltime, TIME_FUZZY_DATE))
+  if (Item_func_str_to_date::get_date(&ltime, TIME_FUZZY_DATE | sql_mode))
     return 0;
 
   if (!make_datetime((const_item ? cached_format_type :
@@ -3450,6 +3460,29 @@ String *Item_func_str_to_date::val_str(String *str)
 		     &ltime, str))
     return str;
   return 0;
+}
+
+
+longlong Item_func_str_to_date::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+
+  if (Item_func_str_to_date::get_date(&ltime, TIME_FUZZY_DATE | sql_mode))
+    return 0;
+
+  if (const_item)
+  {
+    switch (cached_field_type) {
+    case MYSQL_TYPE_DATE:
+      return TIME_to_ulonglong_date(&ltime);
+    case MYSQL_TYPE_TIME:
+      return TIME_to_ulonglong_time(&ltime);
+    default:
+      return TIME_to_ulonglong_datetime(&ltime);
+    }
+  }
+  return TIME_to_ulonglong_datetime(&ltime);
 }
 
 
