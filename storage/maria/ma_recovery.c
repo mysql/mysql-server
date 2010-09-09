@@ -638,6 +638,10 @@ prototype_redo_exec_hook(INCOMPLETE_LOG)
     /* no such table, don't need to warn */
     return 0;
   }
+
+  if (maria_is_crashed(info))
+    return 0;
+
   if (info->s->state.is_of_horizon > rec->lsn)
   {
     /*
@@ -673,7 +677,7 @@ prototype_redo_exec_hook(INCOMPLETE_LOG)
           "about insertion of data by ALTER TABLE and CREATE SELECT, "
           "as they are not necessary for recovery; "
           "present applying of log records to table '%s' may well not work."
-          "***\n", info->s->index_file_name.str);
+          "***", info->s->index_file_name.str);
 
   /* Prevent using the table for anything else than undo repair */
   _ma_mark_file_crashed(info->s);
