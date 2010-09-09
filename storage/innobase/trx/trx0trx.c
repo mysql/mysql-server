@@ -671,14 +671,6 @@ trx_commit(
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
 		trx_rseg_t*	rseg;
 
-		if (trx->update_undo != NULL) {
-			trx_sys_mutex_enter();
-
-			trx->no = trx_sys_get_new_trx_id();
-
-			trx_sys_mutex_exit();
-		}
-
 		rseg = trx->rseg;
 
 		mtr_start(&mtr);
@@ -697,6 +689,12 @@ trx_commit(
 		}
 
 		if (trx->update_undo != NULL) {
+
+			trx_sys_mutex_enter();
+
+			trx->no = trx_sys_get_new_trx_id();
+
+			trx_sys_mutex_exit();
 
 			/* It is not necessary to obtain trx->undo_mutex here
 			because only a single OS thread is allowed to do the
