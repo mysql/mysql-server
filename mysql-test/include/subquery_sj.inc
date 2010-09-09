@@ -2744,3 +2744,49 @@ explain extended SELECT * FROM t1 WHERE (t1.i) IN
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 drop table t1,t2,t3;
+
+--echo #
+--echo # BUG#49453: re-execution of prepared statement with view 
+--echo #            and semijoin crashes
+--echo #
+CREATE TABLE t1 (city VARCHAR(50), country_id INT);
+CREATE TABLE t2 (country_id INT, country VARCHAR(50));
+
+INSERT INTO t1 VALUES 
+  ('Batna',2),('Bchar',2),('Skikda',2),('Tafuna',3),('Algeria',2) ;
+INSERT INTO t2 VALUES (2,'Algeria'),(2,'AlgeriaDup'),(3,'XAmerican Samoa');
+
+CREATE VIEW v1 AS 
+  SELECT country_id as vf_country_id
+  FROM t2
+  WHERE LEFT(country,1) = "A"; 
+
+PREPARE stmt FROM "
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (SELECT vf_country_id FROM v1);
+";
+
+--echo
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1,t2;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#54437 Extra rows with LEFT JOIN + semijoin (firstmatch
+--echo # and duplicates weedout)
+--echo #
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+insert into t1 values(1),(1);
+insert into t2 values(1),(1),(1),(1);
+insert into t3 values(2),(2);
+
+let $query=select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+eval explain $query;
+eval $query;
+
+drop table t1,t2,t3;
