@@ -91,6 +91,9 @@ public:
           longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
           uint deprecated_version, const char *substitute, int parse_flag);
+
+  virtual ~sys_var() {}
+
   /**
     All the cleanup procedures should be performed here
   */
