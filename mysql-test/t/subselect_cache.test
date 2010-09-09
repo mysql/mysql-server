@@ -1489,7 +1489,7 @@ set @@optimizer_switch= default;
 #
 --echo # LP BUG#615760 (part 2: incorrect heap table index flags)
 #
-SET SESSION optimizer_switch = 'index_merge=off,index_merge_union=off,index_merge_sort_union=off,index_merge_intersection=off,index_condition_pushdown=off,firstmatch=off,loosescan=off,materialization=off,semijoin=off,partial_match_rowid_merge=off,partial_match_table_scan=off,subquery_cache=on,table_elimination=off';
+SET SESSION optimizer_switch = 'index_merge=off,index_merge_union=off,index_merge_sort_union=off,index_merge_intersection=off,index_condition_pushdown=off,firstmatch=off,loosescan=off,materialization=off,semijoin=off,partial_match_rowid_merge=off,partial_match_table_scan=off,subquery_cache=on';
 
 CREATE TABLE `t1` (
   `pk` int(11) NOT NULL AUTO_INCREMENT,
