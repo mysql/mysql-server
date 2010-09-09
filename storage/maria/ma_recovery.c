@@ -332,6 +332,8 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   if (end_lsn != LSN_IMPOSSIBLE)
   {
     abort_message_printed= 1;
+    if (!trace_file)
+      fputc('\n', stderr);
     my_message(HA_ERR_INITIALIZATION,
                "Maria recovery aborted as end_lsn/end of file was reached",
                MYF(0));
@@ -502,9 +504,13 @@ end:
   }
 
   if (error && !abort_message_printed)
+  {
+    if (!trace_file)
+      fputc('\n', stderr);
     my_message(HA_ERR_INITIALIZATION,
                "Maria recovery failed. Please run maria_chk -r on all maria "
                "tables and delete all maria_log.######## files", MYF(0));
+  }
   procent_printed= 0;
   /*
     We don't cleanly close tables if we hit some error (may corrupt them by

@@ -1760,7 +1760,7 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
             _ma_check_print_error(param,
                                   "Page %9s:  Row: %3d has an extent with "
                                   "wrong information in bitmap:  "
-                                  "Page %9s  Page_type: %d  Bitmap: %d",
+                                  "Page: %9s  Page_type: %d  Bitmap: %d",
                                   llstr(page, llbuff), row,
                                   llstr(extent_page, llbuff2),
                                   page_type, bitmap_pattern);
