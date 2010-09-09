@@ -11278,7 +11278,11 @@ opt_with_read_lock:
             TABLE_LIST *tables= Lex->query_tables;
             Lex->type|= REFRESH_READ_LOCK;
             for (; tables; tables= tables->next_global)
+            {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
+              tables->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+              tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
+            }
           }
         ;
 
