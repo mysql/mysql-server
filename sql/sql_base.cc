@@ -4522,13 +4522,15 @@ lock_table_names(THD *thd,
            ! (flags & MYSQL_OPEN_SKIP_TEMPORARY) &&
            find_temporary_table(thd, table))))
     {
-      if (schema_set.insert(table))
+      if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
+          schema_set.insert(table))
         return TRUE;
       mdl_requests.push_front(&table->mdl_request);
     }
   }
 
-  if (! mdl_requests.is_empty())
+  if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
+      ! mdl_requests.is_empty())
   {
     /*
       Scoped locks: Take intention exclusive locks on all involved
