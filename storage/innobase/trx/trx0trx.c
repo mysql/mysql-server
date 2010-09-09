@@ -431,7 +431,7 @@ trx_resurrect_insert(
 	}
 
 	if (!undo->empty) {
-		++trx->undo_no;
+		trx->undo_no = undo->top_undo_no + 1;
 	}
 
 	return(trx);
@@ -507,7 +507,7 @@ trx_resurrect_update(
 
 	if (!undo->empty && undo->top_undo_no >= trx->undo_no) {
 
-		++trx->undo_no;
+		trx->undo_no = undo->top_undo_no + 1;
 	}
 }
 
