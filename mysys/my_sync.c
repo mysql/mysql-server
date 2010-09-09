@@ -152,6 +152,7 @@ int my_sync_dir_by_file(const char *file_name, myf my_flags)
   size_t dir_name_length;
   dirname_part(dir_name, file_name, &dir_name_length);
   return my_sync_dir(dir_name, my_flags);
+}
 #else /* NEED_EXPLICIT_SYNC_DIR */
 int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
 			myf my_flags __attribute__((unused)))
