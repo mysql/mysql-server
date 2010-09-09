@@ -385,7 +385,7 @@ public:
     DBUG_ASSERT(scope() == GLOBAL);
     DBUG_ASSERT(size == sizeof(char *));
   }
-  ~Sys_var_charptr()
+  void cleanup()
   {
     if (flags & ALLOCATED)
       my_free(global_var(char*));

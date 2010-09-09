@@ -279,4 +279,43 @@ EXPLAIN
 
 --echo # End BUG#30597
 
+--echo #
+--echo # BUG#53562: EXPLAIN statement should hint when 
+--echo #            index is not used due to type conversion
+--echo #
+
+CREATE TABLE t1 (url char(1) PRIMARY KEY);
+INSERT INTO t1 VALUES ('1'),('2'),('3'),('4'),('5');       
+
+--echo
+--echo # Normally, lookup access on primary key is done
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1';
+--echo
+--echo # Test that index can't be used for lookup due to type conversion
+--echo # (comparing char and int)
+SELECT * FROM t1 WHERE url=1;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url=1;
+--echo
+--echo # Test that index can't be used for lookup due to collation mismatch
+SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
+
+--echo
+--echo # Normally, range access on primary key is done
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3';
+--echo
+--echo # Test that range access on index can't be done due to type conversion
+--echo # (comparing char and int)
+SELECT * FROM t1 WHERE url>3;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>3;
+--echo
+--echo # Test that range access on index can't be done due to collation mismatch
+SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
+
+--echo
+DROP TABLE t1;
+
+--echo # End BUG#53562
+
 --echo End of 6.0 tests.
