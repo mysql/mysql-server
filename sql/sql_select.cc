@@ -5307,6 +5307,46 @@ static uint get_semi_join_select_list_index(Field *field)
 }
 
 /**
+   @brief 
+   If EXPLAIN EXTENDED, add warning that an index cannot be used for
+   ref access
+
+   @details
+   If EXPLAIN EXTENDED, add a warning for each index that cannot be
+   used for ref access due to either type conversion or different
+   collations on the field used for comparison
+
+   Example type conversion (char compared to int):
+
+   CREATE TABLE t1 (url char(1) PRIMARY KEY);
+   SELECT * FROM t1 WHERE url=1;
+
+   Example different collations (danish vs german2):
+
+   CREATE TABLE t1 (url char(1) PRIMARY KEY) collate latin1_danish_ci;
+   SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
+
+   @param thd                Thread for the connection that submitted the query
+   @param field              Field used in comparision
+   @param cant_use_indexes   Indexes that cannot be used for lookup
+ */
+static void 
+warn_index_not_applicable(THD *thd, const Field *field, 
+                          const key_map cant_use_index) 
+{
+  if (thd->lex->describe & DESCRIBE_EXTENDED)
+    for (uint j=0 ; j < field->table->s->keys ; j++)
+      if (cant_use_index.is_set(j))
+        push_warning_printf(thd,
+                            MYSQL_ERROR::WARN_LEVEL_WARN, 
+                            ER_WARN_INDEX_NOT_APPLICABLE,
+                            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+                            "ref",
+                            field->table->key_info[j].name,
+                            field->field_name);
+}
+
+/**
   Add a possible key to array of possible keys if it's usable as a key
 
     @param key_fields      Pointer to add key, if usable
@@ -5331,6 +5371,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
               Field *field, bool eq_func, Item **value, uint num_values,
               table_map usable_tables, SARGABLE_PARAM **sargables)
 {
+  DBUG_PRINT("info",("add_key_field for field %s",field->field_name));
   uint exists_optimize= 0;
   if (!(field->flags & PART_KEY_FLAG))
   {
@@ -5432,7 +5473,10 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         if ((*value)->result_type() != STRING_RESULT)
         {
           if (field->cmp_type() != (*value)->result_type())
+          {
+            warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
+          }
         }
         else
         {
@@ -5442,7 +5486,10 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
           */
           if (field->cmp_type() == STRING_RESULT &&
               ((Field_str*)field)->charset() != cond->compare_collation())
+          {
+            warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
+          }
         }
       }
     }
