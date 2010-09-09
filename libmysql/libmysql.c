@@ -4874,6 +4874,9 @@ int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt)
     DBUG_RETURN(rc);
   }
 
+  if (mysql->status == MYSQL_STATUS_GET_RESULT)
+    mysql->status= MYSQL_STATUS_STATEMENT_GET_RESULT;
+
   stmt->state= MYSQL_STMT_EXECUTE_DONE;
   stmt->bind_result_done= FALSE;
 
