@@ -680,7 +680,7 @@ select 0.8 = 0.7 + 0.1;
 1
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 create table t1 (col1 decimal(38));
 insert into t1 values (12345678901234567890123456789012345678);
 select * from t1;

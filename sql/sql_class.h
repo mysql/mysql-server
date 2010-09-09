@@ -475,6 +475,7 @@ typedef struct system_variables
   Time_zone *time_zone;
 
   my_bool sysdate_is_now;
+  my_bool binlog_rows_query_log_events;
 
   double long_query_time_double;
 
@@ -1539,7 +1540,8 @@ public:
   */
   void binlog_start_trans_and_stmt();
   void binlog_set_stmt_begin();
-  int binlog_write_table_map(TABLE *table, bool is_transactional);
+  int binlog_write_table_map(TABLE *table, bool is_transactional,
+                             bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
                        MY_BITMAP const* cols, size_t colcnt,
                        const uchar *buf);
@@ -1658,6 +1660,10 @@ public:
       if (!xid_state.rm_error)
         xid_state.xid.null();
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+    }
+    my_bool is_active()
+    {
+      return (all.ha_list != NULL);
     }
     st_transactions()
     {
@@ -2689,7 +2695,7 @@ public:
   virtual void set_statement(Statement *stmt);
 
   /**
-    Assign a new value to thd->query and thd->query_id.
+    Assign a new value to thd->query and thd->query_id and mysys_var.
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
@@ -2702,6 +2708,7 @@ public:
     open_tables= open_tables_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+  void set_mysys_var(struct st_my_thread_var *new_mysys_var);
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);

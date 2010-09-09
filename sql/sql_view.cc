@@ -1660,13 +1660,15 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if (access(path, F_OK) || 
         FRMTYPE_VIEW != (type= dd_frm_type(thd, path, &not_used)))
     {
-      char name[FN_REFLEN];
-      my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
       if (thd->lex->drop_if_exists)
       {
+        String tbl_name;
+        tbl_name.append(String(view->db,system_charset_info));
+        tbl_name.append('.');
+        tbl_name.append(String(view->table_name,system_charset_info));
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    name);
+			    tbl_name.c_ptr());
 	continue;
       }
       if (type == FRMTYPE_TABLE)
@@ -1681,6 +1683,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       {
         if (non_existant_views.length())
           non_existant_views.append(',');
+
+        non_existant_views.append(String(view->db,system_charset_info));
+        non_existant_views.append('.');
         non_existant_views.append(String(view->table_name,system_charset_info));
       }
       continue;

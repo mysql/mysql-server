@@ -895,6 +895,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	my_free(fname);
       break;
     }
+    case ROWS_QUERY_LOG_EVENT:
+      if (verbose >= 2)
+        ev->print(result_file, print_event_info);
+      break;
     case TABLE_MAP_EVENT:
     {
       Table_map_log_event *map= ((Table_map_log_event *)ev);
