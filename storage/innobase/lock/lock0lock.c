@@ -4812,7 +4812,8 @@ lock_rec_queue_validate(
 
 	if (!index);
 	else if (dict_index_is_clust(index)) {
-		trx_id_t	trx;
+		trx_id_t	trx_id;
+		ibool		corrupt;
 
 		/* Unlike the non-debug code, this invariant can only succeed
 		if the check and assertion are covered by the lock mutex. */
@@ -4820,7 +4821,7 @@ lock_rec_queue_validate(
 		trx_id  = lock_clust_rec_some_has_impl(rec, index, offsets);
 
 
-		impl_trx = trx_is_active_low(trx_id);
+		impl_trx = trx_is_active_low(trx_id, &corrupt);
 
 		if (impl_trx != NULL
 		    && lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
