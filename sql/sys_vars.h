@@ -271,28 +271,28 @@ public:
                       deprecated_version, substitute)
   {
     option.var_type= GET_ENUM;
-    global_var(uint)= def_val;
+    global_var(ulong)= def_val;
     DBUG_ASSERT(def_val < typelib.count);
-    DBUG_ASSERT(size == sizeof(uint));
+    DBUG_ASSERT(size == sizeof(ulong));
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, uint)= var->save_result.ulonglong_value;
+    session_var(thd, ulong)= var->save_result.ulonglong_value;
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(uint)= var->save_result.ulonglong_value;
+    global_var(ulong)= var->save_result.ulonglong_value;
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
-  { var->save_result.ulonglong_value= global_var(uint); }
+  { var->save_result.ulonglong_value= global_var(ulong); }
   void global_save_default(THD *thd, set_var *var)
   { var->save_result.ulonglong_value= option.def_value; }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
-  { return (uchar*)typelib.type_names[session_var(thd, uint)]; }
+  { return (uchar*)typelib.type_names[session_var(thd, ulong)]; }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
-  { return (uchar*)typelib.type_names[global_var(uint)]; }
+  { return (uchar*)typelib.type_names[global_var(ulong)]; }
 };
 
 /**
@@ -385,7 +385,7 @@ public:
     DBUG_ASSERT(scope() == GLOBAL);
     DBUG_ASSERT(size == sizeof(char *));
   }
-  ~Sys_var_charptr()
+  void cleanup()
   {
     if (flags & ALLOCATED)
       my_free(global_var(char*));

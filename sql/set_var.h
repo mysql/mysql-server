@@ -92,10 +92,9 @@ public:
           on_check_function on_check_func, on_update_function on_update_func,
           uint deprecated_version, const char *substitute, int parse_flag);
   /**
-    The instance should only be destroyed on shutdown, as it doesn't unlink
-    itself from the chain.
+    All the cleanup procedures should be performed here
   */
-  virtual ~sys_var() {}
+  virtual void cleanup() {}
   /**
     downcast for sys_var_pluginvar. Returns this if it's an instance
     of sys_var_pluginvar, and 0 otherwise.

@@ -883,7 +883,7 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
       type (the types are supplied at execute). Check that the
       supplied type of placeholder can accept a data stream.
     */
-    else if (!is_param_long_data_type(param))
+    else if (! is_param_long_data_type(param))
       DBUG_RETURN(1);
     res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
@@ -929,7 +929,7 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
       type (the types are supplied at execute). Check that the
       supplied type of placeholder can accept a data stream.
     */
-    else if (is_param_long_data_type(param))
+    else if (! is_param_long_data_type(param))
       DBUG_RETURN(1);
     if (param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);                           /* out of memory */
@@ -1716,14 +1716,6 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
-
-   /*
-     The open and lock strategies will be set again once the
-     statement is executed. These values are only meaningful
-     for the prepare phase.
-   */
-  create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-  create_table->lock_strategy= TABLE_LIST::OTLS_NONE;
 
   if (select_lex->item_list.elements)
   {
