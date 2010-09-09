@@ -50,8 +50,8 @@ Created 3/26/1996 Heikki Tuuri
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 
 /** Number of transactions currently allocated for MySQL: protected by
-the kernel mutex */
-UNIV_INTERN ulint	trx_n_mysql_transactions = 0;
+the trx_sys_t::mutex */
+UNIV_INTERN ulint		trx_n_mysql_transactions = 0;
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */

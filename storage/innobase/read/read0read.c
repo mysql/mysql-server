@@ -152,13 +152,8 @@ read_view_validate(
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (i = 1; i < view->n_trx_ids; ++i) {
-		ib_int64_t	id;
-		ib_int64_t	prev_id;
 
-		id = read_view_get_nth_trx_id(view, i);
-		prev_id = read_view_get_nth_trx_id(view, i - 1);
-
-		ut_a(id < prev_id);
+		ut_a(view->trx_ids[i] < view->trx_ids[i - 1]);
 	}
 
 	return(TRUE);
