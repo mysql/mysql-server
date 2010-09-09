@@ -656,5 +656,30 @@ Note	1003	select `test`.`t1`.`Id` AS `Id`,`test`.`t1`.`AtTime` AS `AtTime` from 
 DROP TABLE t1;
 SET NAMES latin1;
 #
+# Bug#56271: Wrong comparison result with STR_TO_DATE function
+#
+CREATE TABLE t1 (
+`year` int(4) NOT NULL,
+`month` int(2) NOT NULL
+);
+INSERT INTO t1 VALUES (2010,3),(2010,4),(2009,8),(2008,9);
+SELECT *
+FROM t1
+WHERE STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') >=
+STR_TO_DATE('1/1/2010', '%m/%d/%Y');
+year	month
+2010	3
+2010	4
+create table t2(f1 datetime primary key);
+insert into t2 select STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') from t1;
+select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
+f1
+2010-04-01 00:00:00
+t2 should be const
+explain select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	8	const	1	Using index
+DROP TABLE t1,t2;
+#
 # End of 5.5 tests
 #

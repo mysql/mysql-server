@@ -984,7 +984,10 @@ bool subquery_types_allow_materialization(Item_in_subselect *predicate)
     if (!types_allow_materialization(predicate->left_expr->element_index(i),
                                      inner))
       DBUG_RETURN(FALSE);
+    if (inner->is_blob_field())
+      DBUG_RETURN(FALSE);
   }
+
   DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
   DBUG_RETURN(TRUE);
 }
@@ -1007,6 +1010,13 @@ bool subquery_types_allow_materialization(Item_in_subselect *predicate)
     1. Materialize and do index lookups in the materialized table. See 
        BUG#36752 for description of restrictions we need to put on the
        compared expressions.
+
+       In addition, since indexes are not supported for BLOB columns,
+       this strategy can not be used if any of the columns in the
+       materialized table will be BLOB/GEOMETRY columns.  (Note that
+       also columns for non-BLOB values that may be greater in size
+       than CONVERT_IF_BIGGER_TO_BLOB, will be represented as BLOB
+       columns.)
 
     2. Materialize and then do a full scan of the materialized table. At the
        moment, this strategy's applicability criteria are even stricter than
@@ -1049,8 +1059,10 @@ bool semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   List_iterator<Item> it2(sj_nest->nested_join->sj_inner_exprs);
 
   sj_nest->nested_join->sjm.scan_allowed= FALSE;
+  sj_nest->nested_join->sjm.lookup_allowed= FALSE;
 
   bool all_are_fields= TRUE;
+  bool blobs_involved= FALSE;
   Item *outer, *inner;
   while (outer= it1++, inner= it2++)
   {
@@ -1058,10 +1070,13 @@ bool semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
                        inner->real_item()->type() == Item::FIELD_ITEM);
     if (!types_allow_materialization(outer, inner))
       DBUG_RETURN(FALSE);
+    blobs_involved|= inner->is_blob_field();
   }
   sj_nest->nested_join->sjm.scan_allowed= all_are_fields;
+  sj_nest->nested_join->sjm.lookup_allowed= !blobs_involved;
   DBUG_PRINT("info",("semijoin_types_allow_materialization: ok, allowed"));
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(sj_nest->nested_join->sjm.scan_allowed || 
+              sj_nest->nested_join->sjm.lookup_allowed);
 }
 
 
@@ -5292,6 +5307,46 @@ static uint get_semi_join_select_list_index(Field *field)
 }
 
 /**
+   @brief 
+   If EXPLAIN EXTENDED, add warning that an index cannot be used for
+   ref access
+
+   @details
+   If EXPLAIN EXTENDED, add a warning for each index that cannot be
+   used for ref access due to either type conversion or different
+   collations on the field used for comparison
+
+   Example type conversion (char compared to int):
+
+   CREATE TABLE t1 (url char(1) PRIMARY KEY);
+   SELECT * FROM t1 WHERE url=1;
+
+   Example different collations (danish vs german2):
+
+   CREATE TABLE t1 (url char(1) PRIMARY KEY) collate latin1_danish_ci;
+   SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
+
+   @param thd                Thread for the connection that submitted the query
+   @param field              Field used in comparision
+   @param cant_use_indexes   Indexes that cannot be used for lookup
+ */
+static void 
+warn_index_not_applicable(THD *thd, const Field *field, 
+                          const key_map cant_use_index) 
+{
+  if (thd->lex->describe & DESCRIBE_EXTENDED)
+    for (uint j=0 ; j < field->table->s->keys ; j++)
+      if (cant_use_index.is_set(j))
+        push_warning_printf(thd,
+                            MYSQL_ERROR::WARN_LEVEL_WARN, 
+                            ER_WARN_INDEX_NOT_APPLICABLE,
+                            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+                            "ref",
+                            field->table->key_info[j].name,
+                            field->field_name);
+}
+
+/**
   Add a possible key to array of possible keys if it's usable as a key
 
     @param key_fields      Pointer to add key, if usable
@@ -5316,6 +5371,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
               Field *field, bool eq_func, Item **value, uint num_values,
               table_map usable_tables, SARGABLE_PARAM **sargables)
 {
+  DBUG_PRINT("info",("add_key_field for field %s",field->field_name));
   uint exists_optimize= 0;
   if (!(field->flags & PART_KEY_FLAG))
   {
@@ -5417,7 +5473,10 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         if ((*value)->result_type() != STRING_RESULT)
         {
           if (field->cmp_type() != (*value)->result_type())
+          {
+            warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
+          }
         }
         else
         {
@@ -5427,7 +5486,10 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
           */
           if (field->cmp_type() == STRING_RESULT &&
               ((Field_str*)field)->charset() != cond->compare_collation())
+          {
+            warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
+          }
         }
       }
     }
@@ -7621,9 +7683,10 @@ semijoin_order_allows_materialization(const JOIN *join,
 
   /*
     Must use MaterializeScan strategy if there are outer correlated tables
-    among the remaining tables, otherwise use MaterializeLookup.
+    among the remaining tables, otherwise, if possible, use MaterializeLookup.
   */
-  if (remaining_tables & emb_sj_nest->nested_join->sj_depends_on)
+  if ((remaining_tables & emb_sj_nest->nested_join->sj_depends_on) ||
+      !emb_sj_nest->nested_join->sjm.lookup_allowed)
   {
     if (emb_sj_nest->nested_join->sjm.scan_allowed)
       return SJ_OPT_MATERIALIZE_SCAN;
@@ -17601,7 +17664,15 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 	DBUG_RETURN(error);
     }
   }
-  if (*tab->on_expr_ref && !table->null_row)
+  /* We will evaluate on-expressions here only if it is not considered
+     expensive.  This also prevents executing materialized subqueries
+     in optimization phase.  This is necessary since proper setup for
+     such execution has not been done at this stage.  
+     (See comment in internal_remove_eq_conds() tagged 
+     DontEvaluateMaterializedSubqueryTooEarly).
+  */
+  if (*tab->on_expr_ref && !table->null_row && 
+      !(*tab->on_expr_ref)->is_expensive())
   {
     if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  

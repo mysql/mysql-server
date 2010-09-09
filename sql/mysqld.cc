@@ -1486,6 +1486,7 @@ void clean_up(bool print_message)
   cleanup_errmsgs();
   MYSQL_CALLBACK(thread_scheduler, end, ());
   finish_client_errs();
+  (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
