@@ -574,7 +574,10 @@ bool Item_singlerow_subselect::null_inside()
 
 void Item_singlerow_subselect::bring_value()
 {
-  exec();
+  if (!exec() && assigned())
+    null_value= 0;
+  else
+    reset();
 }
 
 double Item_singlerow_subselect::val_real()
