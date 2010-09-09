@@ -43,6 +43,8 @@ Created 11/11/1995 Heikki Tuuri
 #include "log0log.h"
 #include "os0file.h"
 #include "trx0sys.h"
+#include "mysql/plugin.h"
+#include "mysql/service_thd_wait.h"
 
 /**********************************************************************
 These statistics are generated for heuristics used in estimating the
@@ -1744,10 +1746,14 @@ buf_flush_wait_batch_end(
 
 			buf_pool = buf_pool_from_array(i);
 
+			thd_wait_begin(NULL, THD_WAIT_DISKIO);
 			os_event_wait(buf_pool->no_flush[type]);
+			thd_wait_end(NULL);
 		}
 	} else {
+		thd_wait_begin(NULL, THD_WAIT_DISKIO);
 		os_event_wait(buf_pool->no_flush[type]);
+		thd_wait_end(NULL);
 	}
 }
 

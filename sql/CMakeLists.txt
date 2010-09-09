@@ -74,6 +74,7 @@ SET (SQL_SOURCE
                sql_profile.cc event_parse_data.cc sql_alter.cc
                sql_signal.cc rpl_handler.cc mdl.cc sql_admin.cc
                transaction.cc sys_vars.cc sql_truncate.cc datadict.cc
+               sql_reload.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
@@ -270,8 +271,7 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
      COMMAND ${CMAKE_COMMAND}
      ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-     COMMAND  ${CMAKE_COMMAND} -E touch initdb.dep
-     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+     COMMAND  ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/initdb.dep
      DEPENDS mysqld
   )
   ADD_CUSTOM_TARGET(initial_database  

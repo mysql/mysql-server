@@ -63,6 +63,7 @@
 #include "sql_table.h"                  // build_table_filename,
                                         // build_table_shadow_filename,
                                         // table_to_filename
+                                        // mysql_*_alter_copy_data
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 
@@ -4377,7 +4378,6 @@ static int fast_end_partition(THD *thd, ulonglong copied,
                               ALTER_PARTITION_PARAM_TYPE *lpt,
                               bool written_bin_log)
 {
-  int error;
   char tmp_name[80];
   DBUG_ENTER("fast_end_partition");
 
@@ -4385,13 +4385,6 @@ static int fast_end_partition(THD *thd, ulonglong copied,
 
   if (!is_empty)
     query_cache_invalidate3(thd, table_list, 0);
-
-  error= trans_commit_stmt(thd);
-  if (trans_commit_implicit(thd))
-    error= 1;
-
-  if (error)
-    DBUG_RETURN(TRUE);                      /* The error has been reported */
 
   if ((!is_empty) && (!written_bin_log) &&
       (!thd->lex->no_write_to_binlog) &&
@@ -5535,17 +5528,25 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   char path[FN_REFLEN+1];
   int error;
   handler *file= lpt->table->file;
+  THD *thd= lpt->thd;
   DBUG_ENTER("mysql_change_partitions");
 
   build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
+
+  if(mysql_trans_prepare_alter_copy_data(thd))
+    DBUG_RETURN(TRUE);
+
   if ((error= file->ha_change_partitions(lpt->create_info, path, &lpt->copied,
                                          &lpt->deleted, lpt->pack_frm_data,
                                          lpt->pack_frm_len)))
   {
     file->print_error(error, MYF(error != ER_OUTOFMEMORY ? 0 : ME_FATALERROR));
-    DBUG_RETURN(TRUE);
   }
-  DBUG_RETURN(FALSE);
+
+  if (mysql_trans_commit_alter_copy_data(thd))
+    DBUG_RETURN(TRUE);                      /* The error has been reported */
+
+  DBUG_RETURN(test(error));
 }
 
 
@@ -6342,7 +6343,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
       */
       tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
                        table->s->db.str,
-                       table->s->table_name.str);
+                       table->s->table_name.str, TRUE);
     }
   }
   mysql_mutex_unlock(&LOCK_open);
