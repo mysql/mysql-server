@@ -3779,17 +3779,11 @@ ibuf_insert_to_index_page(
 	rec = page_rec_get_next(page_get_infimum_rec(page));
 
 	if (page_rec_is_supremum(rec)) {
-		/* Empty pages can result from buffered delete operations.
-		The first record from the free list can be used to find the
-		father node. */
-		rec = page_header_get_ptr(page, PAGE_FREE);
-		if (UNIV_UNLIKELY(rec == NULL)) {
-			fputs("InnoDB: Trying to insert a record from"
-			      " the insert buffer to an index page\n"
-			      "InnoDB: but the index page is empty!\n",
-			      stderr);
-			goto dump;
-		}
+		fputs("InnoDB: Trying to insert a record from"
+		      " the insert buffer to an index page\n"
+		      "InnoDB: but the index page is empty!\n",
+		      stderr);
+		goto dump;
 	}
 
 	if (UNIV_UNLIKELY(rec_get_n_fields(rec, index)
