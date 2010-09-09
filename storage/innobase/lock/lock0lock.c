@@ -5281,7 +5281,7 @@ lock_rec_convert_impl_to_expl(
 	if (dict_index_is_clust(index)) {
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
 	} else {
-		trx_id  = lock_sec_rec_some_has_impl(rec, index, offsets);
+		trx_id = lock_sec_rec_some_has_impl(rec, index, offsets);
 	}
 
 	/* The state of the transaction can change after the check above. */
