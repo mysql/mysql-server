@@ -19,14 +19,8 @@
 */
 
 #include "myisamdef.h"
-#if defined(MSDOS) || defined(__WIN__)
+#ifdef __WIN__
 #include <fcntl.h>
-#ifndef __WIN__
-#include <process.h>
-#endif
-#endif
-#ifdef VMS
-#include <processes.h>
 #endif
 
 #undef GETPID					/* For HPUX */
@@ -155,7 +149,7 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
 	 blob != end ;
 	 blob++)
     {
-      memcpy_fixed((uchar*) &pos, record+blob->offset+blob->pack_length,
+      memcpy(&pos, record+blob->offset+blob->pack_length,
                    sizeof(char*));
       (void) mysql_file_write(myisam_log_file, pos, blob->length, MYF(0));
     }

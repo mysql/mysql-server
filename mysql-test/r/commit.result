@@ -1,0 +1,272 @@
+#
+# Bug#20837 Apparent change of isolation level 
+#           during transaction
+#
+# Bug#53343 completion_type=1, COMMIT/ROLLBACK 
+#           AND CHAIN don't preserve the isolation 
+#           level
+connection default;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+CREATE TABLE t1 (s1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+COMMIT;
+START TRANSACTION;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+ERROR 25001: Transaction isolation level can't be changed while a transaction is in progress
+COMMIT;
+SET @@autocommit=0;
+COMMIT;
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT @@tx_isolation;
+@@tx_isolation
+REPEATABLE-READ
+Should be REPEATABLE READ
+SELECT * FROM t1;
+s1
+1
+2
+SELECT @@tx_isolation;
+@@tx_isolation
+REPEATABLE-READ
+Should be REPEATABLE READ
+INSERT INTO t1 VALUES (-1);
+SELECT @@tx_isolation;
+@@tx_isolation
+REPEATABLE-READ
+Should be REPEATABLE READ
+COMMIT;
+START TRANSACTION;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1000);
+COMMIT;
+connection default
+We should not be able to read the '1000'
+SELECT * FROM t1;
+s1
+1
+2
+-1
+COMMIT;
+Now, the '1000' should appear.
+START TRANSACTION;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1000
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+connection default
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT COUNT(*) FROM t1 WHERE s1 = 1001;
+COUNT(*)
+1
+Should be 1
+COMMIT AND CHAIN;
+connection con1
+INSERT INTO t1 VALUES (1002);
+COMMIT;
+connection default
+SELECT COUNT(*) FROM t1 WHERE s1 = 1002;
+COUNT(*)
+1
+Should be 1
+COMMIT;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1000
+1001
+1002
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT;
+connection default
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT COUNT(*) FROM t1 WHERE s1 = 1001;
+COUNT(*)
+1
+Should be 1
+ROLLBACK AND CHAIN;
+connection con1
+INSERT INTO t1 VALUES (1002);
+COMMIT;
+connection default
+SELECT COUNT(*) FROM t1 WHERE s1 = 1002;
+COUNT(*)
+1
+Should be 1
+COMMIT;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1001
+1002
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT;
+SET @@completion_type=1;
+connection default
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+Should see 1001
+COMMIT AND NO CHAIN;
+default transaction is now in REPEATABLE READ
+connection con1
+INSERT INTO t1 VALUES (1002);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+1002
+Should see 1001 and 1002
+connection con1
+INSERT INTO t1 VALUES (1003);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+1002
+Should see 1001 and 1002, but NOT 1003
+COMMIT;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1001
+1002
+1003
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT AND NO CHAIN;
+SET @@completion_type=0;
+COMMIT;
+connection default
+SET @@completion_type=1;
+COMMIT AND NO CHAIN;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+Should see 1001
+ROLLBACK AND NO CHAIN;
+default transaction is now in REPEATABLE READ
+connection con1
+INSERT INTO t1 VALUES (1002);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+1002
+Should see 1001 and 1002
+connection con1
+INSERT INTO t1 VALUES (1003);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+1002
+Should see 1001 and 1002, but NOT 1003
+COMMIT;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1001
+1002
+1003
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT AND NO CHAIN;
+SET @@completion_type=0;
+COMMIT;
+connection default
+SET TRANSACTION ISOLATION LEVEL	READ COMMITTED;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+connection con1
+INSERT INTO t1 VALUES (1000);
+COMMIT;
+connection default
+SELECT * FROM t1;
+s1
+1
+2
+-1
+Should get same result as above (i.e should not read '1000')
+COMMIT;
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT;
+SET @@completion_type=1;
+COMMIT AND NO CHAIN;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (1000);
+SELECT * FROM t1;
+s1
+1000
+Should read '1000'
+connection con1
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT * FROM t1;
+s1
+1000
+Should only read the '1000' as this transaction is now in REP READ
+COMMIT AND NO CHAIN;
+SET @@completion_type=0;
+COMMIT AND NO CHAIN;
+SET @autocommit=1;
+COMMIT;
+DROP TABLE t1;
+#
+# End of test cases for Bug#20837
+#

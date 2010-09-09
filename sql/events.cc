@@ -16,7 +16,7 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_parse.h"                          // check_access
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "sql_show.h"                           // append_definer
 #include "events.h"
 #include "sql_db.h"                          // check_db_dir_existence
@@ -76,7 +76,7 @@
 Event_queue *Events::event_queue;
 Event_scheduler *Events::scheduler;
 Event_db_repository *Events::db_repository;
-uint Events::opt_event_scheduler= Events::EVENTS_OFF;
+ulong Events::opt_event_scheduler= Events::EVENTS_OFF;
 mysql_mutex_t Events::LOCK_event_metadata;
 bool Events::check_system_tables_error= FALSE;
 
@@ -699,7 +699,6 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
 bool
 Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 {
-  Open_tables_backup open_tables_backup;
   Event_timed et;
   bool ret;
 
@@ -722,9 +721,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     deadlock can occur please refer to the description of 'system table'
     flag.
   */
-  thd->reset_n_backup_open_tables_state(&open_tables_backup);
   ret= db_repository->load_named_event(thd, dbname, name, &et);
-  thd->restore_backup_open_tables_state(&open_tables_backup);
 
   if (!ret)
     ret= send_show_create_event(thd, &et, thd->protocol);
@@ -750,11 +747,10 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 */
 
 int
-Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
+Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
 {
   char *db= NULL;
   int ret;
-  Open_tables_backup open_tables_backup;
   DBUG_ENTER("Events::fill_schema_events");
 
   if (check_if_system_tables_error())
@@ -773,15 +769,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
       DBUG_RETURN(1);
     db= thd->lex->select_lex.db;
   }
-  /*
-    Reset and backup of the currently open tables in this thread
-    is a way to allow SELECTs from INFORMATION_SCHEMA.events under
-    LOCK TABLES and in pre-locked mode. See also
-    Events::show_create_event for additional comments.
-  */
-  thd->reset_n_backup_open_tables_state(&open_tables_backup);
   ret= db_repository->fill_schema_events(thd, tables, db);
-  thd->restore_backup_open_tables_state(&open_tables_backup);
 
   DBUG_RETURN(ret);
 }
@@ -1161,8 +1149,7 @@ Events::load_events_from_db(THD *thd)
 end:
   end_read_record(&read_record_info);
 
-  close_thread_tables(thd);
-
+  close_mysql_tables(thd);
   DBUG_RETURN(ret);
 }
 

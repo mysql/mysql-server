@@ -88,12 +88,12 @@ extern "C" {
 #endif
 #endif
 
-#undef bcmp				// Fix problem with new readline
 #if defined(__WIN__)
 #include <conio.h>
-#elif !defined(__NETWARE__)
+#else
 #include <readline/readline.h>
 #define HAVE_READLINE
+#define USE_POPEN
 #endif
   //int vidattr(long unsigned int attrs);	// Was missing in sun curses
 }
@@ -107,10 +107,6 @@ extern "C" {
 #define cmp_database(cs,A,B) my_strcasecmp((cs), (A), (B))
 #else
 #define cmp_database(cs,A,B) strcmp((A),(B))
-#endif
-
-#if !defined(__WIN__) && !defined(__NETWARE__) && !defined(THREAD)
-#define USE_POPEN
 #endif
 
 #include "completion_hash.h"
@@ -628,10 +624,6 @@ static COMMANDS commands[] = {
   { "QUARTER", 0, 0, 0, ""},
   { "QUERY", 0, 0, 0, ""},
   { "QUICK", 0, 0, 0, ""},
-  { "RAID0", 0, 0, 0, ""},
-  { "RAID_CHUNKS", 0, 0, 0, ""},
-  { "RAID_CHUNKSIZE", 0, 0, 0, ""},
-  { "RAID_TYPE", 0, 0, 0, ""},
   { "READ", 0, 0, 0, ""},
   { "READS", 0, 0, 0, ""},
   { "REAL", 0, 0, 0, ""},
@@ -1205,7 +1197,7 @@ int main(int argc,char *argv[])
           strncmp(link_name, "/dev/null", 10) == 0)
       {
         /* The .mysql_history file is a symlink to /dev/null, don't use it */
-        my_free(histfile, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(histfile);
         histfile= 0;
       }
     }
@@ -1266,23 +1258,23 @@ sig_handler mysql_end(int sig)
   glob_buffer.free();
   old_buffer.free();
   processed_prompt.free();
-  my_free(server_version,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_mysql_unix_port,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(histfile,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(histfile_tmp,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(current_user,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(full_username,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(part_username,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(default_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(server_version);
+  my_free(opt_password);
+  my_free(opt_mysql_unix_port);
+  my_free(histfile);
+  my_free(histfile_tmp);
+  my_free(current_db);
+  my_free(current_host);
+  my_free(current_user);
+  my_free(full_username);
+  my_free(part_username);
+  my_free(default_prompt);
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
-  my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(current_prompt);
   while (embedded_server_arg_count > 1)
-    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
+    my_free(embedded_server_args[--embedded_server_arg_count]);
   mysql_server_end();
   free_defaults(defaults_argv);
   my_end(my_end_arg);
@@ -1365,10 +1357,6 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table "
    "and field completion, but startup and reconnecting may take a longer time. "
@@ -1582,11 +1570,6 @@ static struct my_option my_long_options[] =
 
 static void usage(int version)
 {
-  /* Divert all help information on NetWare to logger screen. */
-#ifdef __NETWARE__
-#define printf	consoleprintf
-#endif
-
 #if defined(USE_LIBEDIT_INTERFACE)
   const char* readline= "";
 #else
@@ -1609,10 +1592,6 @@ static void usage(int version)
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
-  NETWARE_SET_SCREEN_MODE(1);
-#ifdef __NETWARE__
-#undef printf
-#endif
 }
 
 
@@ -1621,11 +1600,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case OPT_CHARSETS_DIR:
     strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir) - 1);
     charsets_dir = mysql_charsets_dir;
@@ -1736,7 +1710,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start= argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		// Destroy argument
       if (*start)
@@ -1833,7 +1807,7 @@ static int get_options(int argc, char **argv)
   if (argc == 1)
   {
     skip_updates= 0;
-    my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(current_db);
     current_db= my_strdup(*argv, MYF(MY_WME));
   }
   if (tty_password)
@@ -1851,10 +1825,6 @@ static int get_options(int argc, char **argv)
 
 static int read_and_execute(bool interactive)
 {
-#if defined(__NETWARE__)
-  char linebuffer[254];
-  String buffer;
-#endif
 #if defined(__WIN__)
   String tmpbuf;
   String buffer;
@@ -1900,18 +1870,8 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
 
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
       tee_fputs(prompt, stdout);
-#if defined(__NETWARE__)
-      line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
-      /* Remove the '\n' */
-      if (line)
-      {
-        char *p = strrchr(line, '\n');
-        if (p != NULL)
-          *p = '\0';
-      }
-#else
       if (!tmpbuf.is_alloced())
         tmpbuf.alloc(65535);
       tmpbuf.length(0);
@@ -1932,12 +1892,11 @@ static int read_and_execute(bool interactive)
       */
       if (line)
         line= buffer.c_ptr();
-#endif /* __NETWARE__ */
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
       line= readline(prompt);
-#endif /* defined(__WIN__) || defined(__NETWARE__) */
+#endif /* defined(__WIN__) */
 
       /*
         When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
@@ -1985,10 +1944,8 @@ static int read_and_execute(bool interactive)
     }
   }
 
-#if defined(__WIN__) || defined(__NETWARE__)
-  buffer.free();
-#endif
 #if defined(__WIN__)
+  buffer.free();
   tmpbuf.free();
 #endif
 
@@ -2731,7 +2688,7 @@ static void get_current_db()
 {
   MYSQL_RES *res;
 
-  my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(current_db);
   current_db= NULL;
   /* In case of error below current_db will be NULL */
   if (!mysql_query(&mysql, "SELECT DATABASE()") &&
@@ -3692,7 +3649,7 @@ xmlencode_print(const char *src, uint length)
     tee_fputs("NULL", PAGER);
   else
   {
-    for (const char *p = src; length; *p++, length--)
+    for (const char *p = src; length; p++, length--)
     {
       const char *t;
       if ((t = array_value(xmlmeta, *p)))
@@ -3945,8 +3902,6 @@ static int
 com_quit(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-  /* let the screen auto close on a normal shutdown */
-  NETWARE_SET_SCREEN_MODE(SCR_AUTOCLOSE_ON_EXIT);
   status.exit_status=0;
   return 1;
 }
@@ -4023,12 +3978,12 @@ com_connect(String *buffer, char *line)
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
-      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(current_db);
       current_db= my_strdup(tmp, MYF(MY_WME));
       tmp= get_arg(buff, 1);
       if (tmp)
       {
-	my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
+	my_free(current_host);
 	current_host=my_strdup(tmp,MYF(MY_WME));
       }
     }
@@ -4200,7 +4155,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
       if (mysql_select_db(&mysql,tmp))
         return put_error(&mysql);
     }
-    my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(current_db);
     current_db=my_strdup(tmp,MYF(MY_WME));
 #ifdef HAVE_READLINE
     if (select_db > 1)
@@ -4664,7 +4619,6 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 {
   va_list args;
 
-  NETWARE_YIELD;
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
   va_end(args);
@@ -4680,7 +4634,6 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 
 void tee_fputs(const char *s, FILE *file)
 {
-  NETWARE_YIELD;
   fputs(s, file);
   if (opt_outfile)
     fputs(s, OUTFILE);
@@ -4689,7 +4642,6 @@ void tee_fputs(const char *s, FILE *file)
 
 void tee_puts(const char *s, FILE *file)
 {
-  NETWARE_YIELD;
   fputs(s, file);
   fputc('\n', file);
   if (opt_outfile)
@@ -4706,7 +4658,7 @@ void tee_putc(int c, FILE *file)
     putc(c, OUTFILE);
 }
 
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
 #include <time.h>
 #else
 #include <sys/times.h>
@@ -4718,8 +4670,8 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined(__WIN__) || defined(__NETWARE__)
- return clock();
+#if defined(__WIN__)
+  return clock();
 #else
   struct tms tms_tmp;
   return times(&tms_tmp);
@@ -4785,7 +4737,7 @@ static const char* construct_prompt()
   struct tm *t = localtime(&lclock);
 
   /* parse thru the settings for the prompt */
-  for (char *c = current_prompt; *c ; *c++)
+  for (char *c = current_prompt; *c ; c++)
   {
     if (*c != PROMPT_CHAR)
 	processed_prompt.append(*c);
@@ -4952,8 +4904,8 @@ static void add_int_to_prompt(int toadd)
 
 static void init_username()
 {
-  my_free(full_username,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(part_username,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(full_username);
+  my_free(part_username);
 
   MYSQL_RES *result;
   LINT_INIT(result);
@@ -4971,7 +4923,7 @@ static int com_prompt(String *buffer, char *line)
 {
   char *ptr=strchr(line, ' ');
   prompt_counter = 0;
-  my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(current_prompt);
   current_prompt=my_strdup(ptr ? ptr+1 : default_prompt,MYF(MY_WME));
   if (!ptr)
     tee_fprintf(stdout, "Returning to default PROMPT of %s\n", default_prompt);

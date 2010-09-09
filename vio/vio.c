@@ -164,7 +164,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 void vio_reset(Vio* vio, enum enum_vio_type type,
                my_socket sd, HANDLE hPipe, uint flags)
 {
-  my_free(vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(vio->read_buffer);
   vio_init(vio, type, sd, hPipe, flags);
 }
 
@@ -263,8 +263,8 @@ void vio_delete(Vio* vio)
 
   if (vio->type != VIO_CLOSED)
     vio->vioclose(vio);
-  my_free((uchar*) vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) vio,MYF(0));
+  my_free(vio->read_buffer);
+  my_free(vio);
 }
 
 

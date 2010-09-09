@@ -262,7 +262,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
     {
       queue_remove(&alarm_queue,i),MYF(0);
       if (alarm_data->malloced)
-	my_free((uchar*) alarm_data,MYF(0));
+	my_free(alarm_data);
       found++;
 #ifdef DBUG_OFF
       break;
@@ -306,7 +306,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 #if defined(MAIN) && !defined(__bsdi__)
     printf("thread_alarm in process_alarm\n"); fflush(stdout);
 #endif
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
     my_sigset(thr_client_alarm, process_alarm);	/* int. thread system calls */
 #endif
     return;
@@ -325,7 +325,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 #endif
   process_alarm_part2(sig);
 #ifndef USE_ALARM_THREAD
-#if defined(DONT_REMEMBER_SIGNAL) && !defined(USE_ONE_SIGNAL_HAND)
+#if defined(SIGNAL_HANDLER_RESET_ON_DELIVERY) && !defined(USE_ONE_SIGNAL_HAND)
   my_sigset(THR_SERVER_ALARM,process_alarm);
 #endif
   mysql_mutex_unlock(&LOCK_alarm);
@@ -523,12 +523,12 @@ void thr_alarm_info(ALARM_INFO *info)
 */
 
 
-static sig_handler thread_alarm(int sig)
+static sig_handler thread_alarm(int sig __attribute__((unused)))
 {
 #ifdef MAIN
   printf("thread_alarm\n"); fflush(stdout);
 #endif
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,thread_alarm);		/* int. thread system calls */
 #endif
 }
@@ -797,7 +797,7 @@ static sig_handler print_signal_warning(int sig)
 {
   printf("Warning: Got signal %d from thread %s\n",sig,my_thread_name());
   fflush(stdout);
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
   if (sig == SIGALRM)
@@ -903,11 +903,6 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   sigaddset(&set,THR_SERVER_ALARM);
   sigdelset(&set, thr_client_alarm);
   (void) pthread_sigmask(SIG_SETMASK,&set,NULL);
-#ifdef NOT_USED
-  sigemptyset(&set);
-  sigaddset(&set, thr_client_alarm);
-  pthread_sigmask(SIG_UNBLOCK, &set, (sigset_t*) 0);
-#endif
 
   pthread_attr_init(&thr_attr);
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);

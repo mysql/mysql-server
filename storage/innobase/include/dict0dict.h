@@ -102,6 +102,33 @@ void
 dict_load_space_id_list(void);
 /*=========================*/
 /*********************************************************************//**
+Gets the minimum number of bytes per character.
+@return minimum multi-byte char size, in bytes */
+UNIV_INLINE
+ulint
+dict_col_get_mbminlen(
+/*==================*/
+	const dict_col_t*	col);	/*!< in: column */
+/*********************************************************************//**
+Gets the maximum number of bytes per character.
+@return maximum multi-byte char size, in bytes */
+UNIV_INLINE
+ulint
+dict_col_get_mbmaxlen(
+/*==================*/
+	const dict_col_t*	col);	/*!< in: column */
+/*********************************************************************//**
+Sets the minimum and maximum number of bytes per character. */
+UNIV_INLINE
+void
+dict_col_set_mbminmaxlen(
+/*=====================*/
+	dict_col_t*	col,		/*!< in/out: column */
+	ulint		mbminlen,	/*!< in: minimum multi-byte
+					character size, in bytes */
+	ulint		mbmaxlen);	/*!< in: minimum multi-byte
+					character size, in bytes */
+/*********************************************************************//**
 Gets the column data type. */
 UNIV_INLINE
 void

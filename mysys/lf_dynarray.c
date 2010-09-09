@@ -57,10 +57,10 @@ static void recursive_free(void **alloc, int level)
     int i;
     for (i= 0; i < LF_DYNARRAY_LEVEL_LENGTH; i++)
       recursive_free(alloc[i], level-1);
-    my_free((void *)alloc, MYF(0));
+    my_free(alloc);
   }
   else
-    my_free(alloc[-1], MYF(0));
+    my_free(alloc[-1]);
 }
 
 void lf_dynarray_destroy(LF_DYNARRAY *array)
@@ -115,7 +115,7 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
       if (my_atomic_casptr(ptr_ptr, &ptr, alloc))
         ptr= alloc;
       else
-        my_free(alloc, MYF(0));
+        my_free(alloc);
     }
     ptr_ptr= ((void **)ptr) + idx / dynarray_idxes_in_prev_level[i];
     idx%= dynarray_idxes_in_prev_level[i];
@@ -139,7 +139,7 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
     if (my_atomic_casptr(ptr_ptr, &ptr, data))
       ptr= data;
     else
-      my_free(alloc, MYF(0));
+      my_free(alloc);
   }
   return ((uchar*)ptr) + array->size_of_element * idx;
 }

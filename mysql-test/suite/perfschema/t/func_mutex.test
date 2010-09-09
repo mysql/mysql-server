@@ -129,3 +129,6 @@ SET @after_count = (SELECT SUM(TIMER_WAIT)
 SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_fm2_rw_timed;
 
 DROP TABLE t1;
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+

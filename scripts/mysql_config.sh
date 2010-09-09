@@ -88,6 +88,8 @@ pkglibdir_rel=`echo $pkglibdir | sed -e "s;^$basedir/;;"`
 fix_path pkglibdir $pkglibdir_rel lib/mysql lib
 
 plugindir='@pkgplugindir@'
+plugindir_rel=`echo $plugindir | sed -e "s;^$basedir/;;"`
+fix_path plugindir $plugindir_rel lib/mysql/plugin lib/plugin
 
 pkgincludedir='@pkgincludedir@'
 fix_path pkgincludedir include/mysql include
@@ -106,7 +108,7 @@ fi
 # We intentionally add a space to the beginning and end of lib strings, simplifies replace later
 libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @NON_THREADED_LIBS@"
 libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@ "
-libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @LIBS@ @openssl_libs@ "
+libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
 embedded_libs=" $ldflags -L$pkglibdir -lmysqld @LIBDL@ @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
 
 if [ -r "$pkglibdir/libmygcc.a" ]; then
@@ -127,8 +129,7 @@ include="-I$pkgincludedir"
 #       and -xstrconst to make --cflags usable for Sun Forte C++
 # FIXME until we have a --cxxflags, we need to remove -AC99
 #       to make --cflags usable for HP C++ (aCC)
-for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
-              DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
+for remove in DDBUG_OFF DSAFE_MUTEX DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
               DEXTRA_DEBUG DHAVE_purify O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
               'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
               Xa xstrconst "xc99=none" AC99 \

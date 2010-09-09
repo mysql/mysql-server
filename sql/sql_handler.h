@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
 bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                    List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 void mysql_ha_flush(THD *thd);
+void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_cleanup(THD *thd);
 void mysql_ha_move_tickets_after_trans_sentinel(THD *thd);

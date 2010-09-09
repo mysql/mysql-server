@@ -25,7 +25,7 @@ DROP TABLE t1;
 # MySQL Bug#39200: optimize table does not recognize 
 # ROW_FORMAT=COMPRESSED
 #
-CREATE TABLE t1 (a INT) ROW_FORMAT=compressed;
+CREATE TABLE t1 (a INT) ROW_FORMAT=compressed, ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

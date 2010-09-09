@@ -143,6 +143,21 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 UNIV_INTERN my_bool	srv_use_native_aio = TRUE;
 
+#ifdef __WIN__
+/* Windows native condition variables. We use runtime loading / function
+pointers, because they are not available on Windows Server 2003 and
+Windows XP/2000.
+
+We use condition for events on Windows if possible, even if os_event
+resembles Windows kernel event object well API-wise. The reason is
+performance, kernel objects are heavyweights and WaitForSingleObject() is a
+performance killer causing calling thread to context switch. Besides, Innodb
+is preallocating large number (often millions) of os_events. With kernel event
+objects it takes a big chunk out of non-paged pool, which is better suited
+for tasks like IO than for storing idle event objects. */
+UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
+#endif /* __WIN__ */
+
 UNIV_INTERN ulint	srv_n_data_files = 0;
 UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
@@ -197,6 +212,8 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
+/* number of mutexes to protect buf_pool->page_hash */
+UNIV_INTERN ulong	srv_n_page_hash_mutexes = 256;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -1580,14 +1597,20 @@ srv_suspend_mysql_thread(
 	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {
+	case 0:
+		break;
 	case RW_S_LATCH:
 		/* Release foreign key check latch */
 		row_mysql_unfreeze_data_dictionary(trx);
 		break;
-	case RW_X_LATCH:
-		/* Release fast index creation latch */
-		row_mysql_unlock_data_dictionary(trx);
-		break;
+	default:
+		/* There should never be a lock wait when the
+		dictionary latch is reserved in X mode.  Dictionary
+		transactions should only acquire locks on dictionary
+		tables, not other tables. All access to dictionary
+		tables should be covered by dictionary
+		transactions. */
+		ut_error;
 	}
 
 	ut_a(trx->dict_operation_lock_mode == 0);
@@ -1599,13 +1622,8 @@ srv_suspend_mysql_thread(
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
 
-	switch (had_dict_lock) {
-	case RW_S_LATCH:
+	if (had_dict_lock) {
 		row_mysql_freeze_data_dictionary(trx);
-		break;
-	case RW_X_LATCH:
-		row_mysql_lock_data_dictionary(trx);
-		break;
 	}
 
 	if (was_declared_inside_innodb) {
@@ -1641,6 +1659,9 @@ srv_suspend_mysql_thread(
 		    start_time != -1 && finish_time != -1) {
 			srv_n_lock_max_wait_time = diff_time;
 		}
+
+		/* Record the lock wait time for this thread */
+		thd_set_lock_wait_time(trx->mysql_thd, diff_time);
 	}
 
 	if (trx->was_chosen_as_deadlock_victim) {
@@ -2006,6 +2027,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_num_open_files = fil_n_file_opened;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -3044,6 +3066,8 @@ srv_purge_thread(
 
 	slot_no = srv_table_reserve_slot(SRV_WORKER);
 
+	slot = srv_table_get_nth_slot(slot_no);
+
 	++srv_n_threads_active[SRV_WORKER];
 
 	mutex_exit(&kernel_mutex);
@@ -3095,19 +3119,15 @@ srv_purge_thread(
 
 	mutex_enter(&kernel_mutex);
 
+	ut_ad(srv_table_get_nth_slot(slot_no) == slot);
+
 	/* Decrement the active count. */
 	srv_suspend_thread();
 
-	mutex_exit(&kernel_mutex);
+	slot->in_use = FALSE;
 
 	/* Free the thread local memory. */
 	thr_local_free(os_thread_get_curr_id());
-
-	mutex_enter(&kernel_mutex);
-
-	/* Free the slot for reuse. */
-	slot = srv_table_get_nth_slot(slot_no);
-	slot->in_use = FALSE;
 
 	mutex_exit(&kernel_mutex);
 

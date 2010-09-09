@@ -127,7 +127,7 @@ void my_free_open_file_info()
     /* Copy data back for my_print_open_files */
     memcpy((char*) my_file_info_default, my_file_info,
            sizeof(*my_file_info_default)* MY_NFILE);
-    my_free((char*) my_file_info, MYF(0));
+    my_free(my_file_info);
     my_file_info= my_file_info_default;
     my_file_limit= MY_NFILE;
   }

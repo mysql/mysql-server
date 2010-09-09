@@ -86,6 +86,3 @@ Error	1005	Can't create table 'test.bug54679' (errno: 1478)
 SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE bug54679 (a INT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 DROP TABLE bug54679;
-SET GLOBAL innodb_file_format=Antelope;
-SET GLOBAL innodb_file_format_max=Antelope;
-SET GLOBAL innodb_file_per_table=0;

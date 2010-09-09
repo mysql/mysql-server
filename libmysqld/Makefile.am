@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2006 MySQL AB
+# Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -63,14 +63,16 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	sql_load.cc discover.cc sql_locale.cc \
-	sql_profile.cc \
+	sql_profile.cc sql_admin.cc sql_truncate.cc datadict.cc \
+	sql_reload.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
-	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc \
+        sql_join_cache.cc sql_lex.cc sql_list.cc sql_manager.cc\
 	scheduler.cc sql_connect.cc sql_parse.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc sys_vars.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
+	sql_alloc_error_handler.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc sql_time.cc \
 	unireg.cc uniques.cc sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc sql_cursor.cc \
@@ -78,9 +80,11 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
 	rpl_filter.cc sql_partition.cc sql_builtin.cc sql_plugin.cc \
 	debug_sync.cc sql_tablespace.cc transaction.cc \
-	rpl_injector.cc my_user.c partition_info.cc \
+	rpl_injector.cc my_user.c partition_info.cc sql_alter.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
-	rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc
+	sql_bootstrap.cc \
+	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc \
+	sql_partition_admin.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)
 nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)
@@ -157,27 +161,22 @@ if DARWIN_MWCC
 	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u` $(storageobjects)
 else
 	-rm -f libmysqld.a
-	if test "$(host_os)" = "netware" ; \
-		then \
-		  $(libmysqld_a_AR) libmysqld.a $(INC_LIB) libmysqld_int.a $(storageobjects); \
-		else \
-		  current_dir=`pwd`; \
-		  rm -rf tmp; mkdir tmp; \
-		  (for arc in $(INC_LIB) ./libmysqld_int.a; do \
-		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
-		    artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
-		    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
-		      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
-		      mkdir $$artmp; cd $$artmp > /dev/null; \
-		      $(AR) x ../../$$arc; \
-		      cd $$current_dir > /dev/null; \
-		      ls $$artmp/* | grep -v SYMDEF; \
-		      continue 2; fi; done; \
-		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
-		  $(AR) r libmysqld.a $(storageobjects); \
-		  $(RANLIB) libmysqld.a	; \
-		  rm -rf tmp; \
-		fi
+	current_dir=`pwd`; \
+	rm -rf tmp; mkdir tmp; \
+	(for arc in $(INC_LIB) ./libmysqld_int.a; do \
+	  arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
+	  artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
+	    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
+	      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
+	        mkdir $$artmp; cd $$artmp > /dev/null; \
+	        $(AR) x ../../$$arc; \
+	        cd $$current_dir > /dev/null; \
+	        ls $$artmp/* | grep -v SYMDEF; \
+	        continue 2; fi; done; \
+	done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a; \
+	$(AR) r libmysqld.a $(storageobjects); \
+	$(RANLIB) libmysqld.a ; \
+	rm -rf tmp
 endif
 
 ## XXX: any time the client interface changes, we'll need to bump

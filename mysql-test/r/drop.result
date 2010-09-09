@@ -157,3 +157,13 @@ Error	1051	Unknown table 't1'
 # --
 # -- End of Bug#37431.
 # --
+#
+# Bug#54282 Crash in MDL_context::upgrade_shared_lock_to_exclusive
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+DROP TABLE t1, t1;
+ERROR 42000: Not unique table/alias: 't1'
+UNLOCK TABLES;
+DROP TABLE t1;

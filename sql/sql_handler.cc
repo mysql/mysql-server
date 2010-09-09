@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* HANDLER ... commands - direct access to ISAM */
@@ -59,7 +59,7 @@
 #include "key.h"                                // key_copy
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
-#include <assert.h>
+#include "transaction.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 
@@ -109,7 +109,7 @@ static char *mysql_ha_hash_get_key(TABLE_LIST *tables, size_t *key_len_p,
 
 static void mysql_ha_hash_free(TABLE_LIST *tables)
 {
-  my_free((char*) tables, MYF(0));
+  my_free(tables);
 }
 
 /**
@@ -131,13 +131,11 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     /* Non temporary table. */
     tables->table->file->ha_index_or_rnd_end();
     tables->table->open_by_handler= 0;
-    mysql_mutex_lock(&LOCK_open);
     if (close_thread_table(thd, &tables->table))
     {
       /* Tell threads waiting for refresh that something has happened */
       broadcast_refresh();
     }
-    mysql_mutex_unlock(&LOCK_open);
     thd->mdl_context.release_lock(tables->mdl_request.ticket);
   }
   else if (tables->table)
@@ -261,7 +259,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
     {
-      my_free((char*) hash_tables, MYF(0));
+      my_free(hash_tables);
       DBUG_PRINT("exit",("ERROR"));
       DBUG_RETURN(TRUE);
     }
@@ -278,7 +276,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     See open_table() back-off comments for more details.
   */
   backup_open_tables= thd->open_tables;
-  thd->open_tables= NULL;
+  thd->set_open_tables(NULL);
   mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /*
@@ -311,9 +309,15 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   }
   if (error)
   {
+    /*
+      No need to rollback statement transaction, it's not started.
+      If called with reopen flag, no need to rollback either,
+      it will be done at statement end.
+    */
+    DBUG_ASSERT(thd->transaction.stmt.is_empty());
     close_thread_tables(thd);
-    thd->open_tables= backup_open_tables;
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+    thd->set_open_tables(backup_open_tables);
     if (!reopen)
       my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
     else
@@ -325,7 +329,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     DBUG_PRINT("exit",("ERROR"));
     DBUG_RETURN(TRUE);
   }
-  thd->open_tables= backup_open_tables;
+  thd->set_open_tables(backup_open_tables);
   if (hash_tables->mdl_request.ticket)
   {
     thd->mdl_context.
@@ -559,7 +563,7 @@ retry:
     mysql_lock_tables() needs thd->open_tables to be set correctly to
     be able to handle aborts properly.
   */
-  thd->open_tables= hash_tables->table;
+  thd->set_open_tables(hash_tables->table);
 
 
   sql_handler_lock_error.init();
@@ -575,11 +579,16 @@ retry:
   */
   DBUG_ASSERT(hash_tables->table == thd->open_tables);
   /* Restore previous context. */
-  thd->open_tables= backup_open_tables;
+  thd->set_open_tables(backup_open_tables);
 
   if (sql_handler_lock_error.need_reopen())
   {
     DBUG_ASSERT(!lock && !thd->is_error());
+    /*
+      Always close statement transaction explicitly,
+      so that the engine doesn't have to count locks.
+    */
+    trans_rollback_stmt(thd);
     mysql_ha_close_table(thd, hash_tables);
     goto retry;
   }
@@ -641,11 +650,11 @@ retry:
         {
           /* Check if we read from the same index. */
           DBUG_ASSERT((uint) keyno == table->file->get_index());
-          error= table->file->index_next(table->record[0]);
+          error= table->file->ha_index_next(table->record[0]);
         }
         else
         {
-          error= table->file->rnd_next(table->record[0]);
+          error= table->file->ha_rnd_next(table->record[0]);
         }
         break;
       }
@@ -655,13 +664,13 @@ retry:
       {
         table->file->ha_index_or_rnd_end();
         table->file->ha_index_init(keyno, 1);
-        error= table->file->index_first(table->record[0]);
+        error= table->file->ha_index_first(table->record[0]);
       }
       else
       {
         table->file->ha_index_or_rnd_end();
 	if (!(error= table->file->ha_rnd_init(1)))
-          error= table->file->rnd_next(table->record[0]);
+          error= table->file->ha_rnd_next(table->record[0]);
       }
       mode=RNEXT;
       break;
@@ -671,7 +680,7 @@ retry:
       DBUG_ASSERT((uint) keyno == table->file->get_index());
       if (table->file->inited != handler::NONE)
       {
-        error=table->file->index_prev(table->record[0]);
+        error= table->file->ha_index_prev(table->record[0]);
         break;
       }
       /* else fall through */
@@ -679,13 +688,13 @@ retry:
       DBUG_ASSERT(keyname != 0);
       table->file->ha_index_or_rnd_end();
       table->file->ha_index_init(keyno, 1);
-      error= table->file->index_last(table->record[0]);
+      error= table->file->ha_index_last(table->record[0]);
       mode=RPREV;
       break;
     case RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
       DBUG_ASSERT(keyname != 0);
-      error= table->file->index_next_same(table->record[0], key, key_len);
+      error= table->file->ha_index_next_same(table->record[0], key, key_len);
       break;
     case RKEY:
     {
@@ -725,8 +734,8 @@ retry:
       table->file->ha_index_or_rnd_end();
       table->file->ha_index_init(keyno, 1);
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
-      error= table->file->index_read_map(table->record[0],
-                                         key, keypart_map, ha_rkey_mode);
+      error= table->file->ha_index_read_map(table->record[0],
+                                            key, keypart_map, ha_rkey_mode);
       mode=rkey_to_rnext[(int)ha_rkey_mode];
       break;
     }
@@ -749,7 +758,11 @@ retry:
       goto ok;
     }
     if (cond && !cond->val_int())
+    {
+      if (thd->is_error())
+        goto err;
       continue;
+    }
     if (num_rows >= offset_limit_cnt)
     {
       protocol->prepare_for_resend();
@@ -762,12 +775,18 @@ retry:
     num_rows++;
   }
 ok:
+  /*
+    Always close statement transaction explicitly,
+    so that the engine doesn't have to count locks.
+  */
+  trans_commit_stmt(thd);
   mysql_unlock_tables(thd,lock);
   my_eof(thd);
   DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(FALSE);
 
 err:
+  trans_rollback_stmt(thd);
   mysql_unlock_tables(thd,lock);
 err0:
   DBUG_PRINT("exit",("ERROR"));
@@ -853,6 +872,35 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
 
 
 /**
+  Close cursors of matching tables from the HANDLER's hash table.
+
+  @param thd Thread identifier.
+  @param tables The list of tables to flush.
+*/
+
+void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables)
+{
+  DBUG_ENTER("mysql_ha_flush_tables");
+
+  for (TABLE_LIST *table_list= all_tables; table_list;
+       table_list= table_list->next_global)
+  {
+    TABLE_LIST *hash_tables= mysql_ha_find(thd, table_list);
+    /* Close all aliases of the same table. */
+    while (hash_tables)
+    {
+      TABLE_LIST *next_local= hash_tables->next_local;
+      if (hash_tables->table)
+        mysql_ha_close_table(thd, hash_tables);
+      hash_tables= next_local;
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Flush (close and mark for re-open) all tables that should be should
   be reopen.
 
@@ -886,7 +934,7 @@ void mysql_ha_flush(THD *thd)
         ((hash_tables->table->mdl_ticket &&
          hash_tables->table->mdl_ticket->has_pending_conflicting_lock()) ||
          (!hash_tables->table->s->tmp_table &&
-          hash_tables->table->s->needs_reopen())))
+          hash_tables->table->s->has_old_version())))
       mysql_ha_close_table(thd, hash_tables);
   }
 

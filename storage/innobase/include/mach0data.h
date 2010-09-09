@@ -289,8 +289,7 @@ mach_ull_parse_compressed(
 /*======================*/
 	byte*		ptr,	/*!< in: pointer to buffer from where to read */
 	byte*		end_ptr,/*!< in: pointer to end of the buffer */
-	ib_uint64_t*	val)	/*!< out: read value */
-	__attribute__((nonnull, pure));
+	ib_uint64_t*	val);	/*!< out: read value */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Reads a double. It is stored in a little-endian format.

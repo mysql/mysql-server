@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,19 +10,18 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_view.h"
-#include "sql_base.h"                     // find_table_in_global_list
+#include "sql_base.h"    // find_table_in_global_list, lock_table_names
 #include "sql_parse.h"                          // sql_parse
 #include "sql_cache.h"                          // query_cache_*
-#include "lock.h"        // wait_if_global_read_lock, lock_table_names
+#include "lock.h"        // wait_if_global_read_lock
 #include "sql_show.h"    // append_identifier
 #include "sql_table.h"                         // build_table_filename
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
@@ -32,6 +31,7 @@
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_cache.h"
+#include "datadict.h"   // dd_frm_type()
 
 #define MD5_BUFF_LENGTH 33
 
@@ -432,8 +432,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
 
   lex->link_first_table_back(view, link_to_local);
-  view->open_strategy= TABLE_LIST::OPEN_STUB;
-  view->lock_strategy= TABLE_LIST::EXCLUSIVE_MDL;
   view->open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
@@ -657,7 +655,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-  mysql_mutex_lock(&LOCK_open);
   res= mysql_register_view(thd, view, mode);
 
   if (mysql_bin_log.is_open())
@@ -704,7 +701,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       res= TRUE;
   }
 
-  mysql_mutex_unlock(&LOCK_open);
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
   thd->global_read_lock.start_waiting_global_read_lock(thd);
@@ -1651,19 +1647,18 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     DBUG_RETURN(TRUE);
   }
 
-  if (lock_table_names(thd, views))
+  if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_TEMPORARY))
     DBUG_RETURN(TRUE);
 
-  mysql_mutex_lock(&LOCK_open);
   for (view= views; view; view= view->next_local)
   {
-    TABLE_SHARE *share;
     frm_type_enum type= FRMTYPE_ERROR;
     build_table_filename(path, sizeof(path) - 1,
                          view->db, view->table_name, reg_ext, 0);
 
     if (access(path, F_OK) || 
-        FRMTYPE_VIEW != (type= mysql_frm_type(thd, path, &not_used)))
+        FRMTYPE_VIEW != (type= dd_frm_type(thd, path, &not_used)))
     {
       char name[FN_REFLEN];
       my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
@@ -1696,16 +1691,12 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     some_views_deleted= TRUE;
 
     /*
-      For a view, there is only one table_share object which should never
-      be used outside of LOCK_open
+      For a view, there is a TABLE_SHARE object, but its
+      ref_count never goes above 1. Remove it from the table
+      definition cache, in case the view was cached.
     */
-    if ((share= get_cached_table_share(view->db, view->table_name)))
-    {
-      DBUG_ASSERT(share->ref_count == 0);
-      share->ref_count++;
-      share->version= 0;
-      release_table_share(share);
-    }
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
+                     FALSE);
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
   }
@@ -1730,62 +1721,12 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       something_wrong= 1;
   }
 
-  mysql_mutex_unlock(&LOCK_open);
-  
   if (something_wrong)
   {
     DBUG_RETURN(TRUE);
   }
   my_ok(thd);
   DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Check type of .frm if we are not going to parse it
-
-  SYNOPSIS
-    mysql_frm_type()
-    path	path to file
-
-  RETURN
-    FRMTYPE_ERROR	error
-    FRMTYPE_TABLE	table
-    FRMTYPE_VIEW	view
-*/
-
-frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
-{
-  File file;
-  uchar header[10];	//"TYPE=VIEW\n" it is 10 characters
-  size_t error;
-  DBUG_ENTER("mysql_frm_type");
-
-  *dbt= DB_TYPE_UNKNOWN;
-
-  if ((file= mysql_file_open(key_file_frm,
-                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
-    DBUG_RETURN(FRMTYPE_ERROR);
-  error= mysql_file_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP));
-  mysql_file_close(file, MYF(MY_WME));
-
-  if (error)
-    DBUG_RETURN(FRMTYPE_ERROR);
-  if (!strncmp((char*) header, "TYPE=VIEW\n", sizeof(header)))
-    DBUG_RETURN(FRMTYPE_VIEW);
-
-  /*
-    This is just a check for DB_TYPE. We'll return default unknown type
-    if the following test is true (arg #3). This should not have effect
-    on return value from this function (default FRMTYPE_TABLE)
-  */
-  if (header[0] != (uchar) 254 || header[1] != 1 ||
-      (header[2] != FRM_VER && header[2] != FRM_VER+1 &&
-       (header[2] < FRM_VER+3 || header[2] > FRM_VER+4)))
-    DBUG_RETURN(FRMTYPE_TABLE);
-
-  *dbt= (enum legacy_db_type) (uint) *(header + 3);
-  DBUG_RETURN(FRMTYPE_TABLE);                   // Is probably a .frm table
 }
 
 

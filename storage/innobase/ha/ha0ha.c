@@ -31,9 +31,7 @@ Created 8/22/1994 Heikki Tuuri
 #ifdef UNIV_DEBUG
 # include "buf0buf.h"
 #endif /* UNIV_DEBUG */
-#ifdef UNIV_SYNC_DEBUG
-# include "btr0sea.h"
-#endif /* UNIV_SYNC_DEBUG */
+#include "btr0sea.h"
 #include "page0page.h"
 
 /*************************************************************//**
@@ -49,28 +47,30 @@ ha_create_func(
 	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
 				order: this is used in the debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes)	/*!< in: number of mutexes to protect the
+	ulint	n_mutexes,	/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
+	ulint	type)		/*!< in: type of datastructure for which
+				the memory heap is going to be used e.g.:
+				MEM_HEAP_FOR_BTR_SEARCH or
+				MEM_HEAP_FOR_PAGE_HASH */
 {
 	hash_table_t*	table;
 #ifndef UNIV_HOTBACKUP
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	ut_a(type == MEM_HEAP_FOR_BTR_SEARCH
+	     || type == MEM_HEAP_FOR_PAGE_HASH);
+
 	ut_ad(ut_is_2pow(n_mutexes));
 	table = hash_create(n);
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
-	table->adaptive = TRUE;
-# endif /* !UNIV_HOTBACKUP */
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
 
 	if (n_mutexes == 0) {
-		table->heap = mem_heap_create_in_btr_search(
-			ut_min(4096, MEM_MAX_ALLOC_IN_BUF));
+		table->heap = mem_heap_create_typed(
+			ut_min(4096, MEM_MAX_ALLOC_IN_BUF), type);
 		ut_a(table->heap);
 
 		return(table);
@@ -82,7 +82,7 @@ ha_create_func(
 	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
 
 	for (i = 0; i < n_mutexes; i++) {
-		table->heaps[i] = mem_heap_create_in_btr_search(4096);
+		table->heaps[i] = mem_heap_create_typed(4096, type);
 		ut_a(table->heaps[i]);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -104,7 +104,8 @@ ha_clear(
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
+	ut_ad(!table->adaptive
+	       || rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
@@ -114,6 +115,15 @@ ha_clear(
 	for (i = 0; i < n; i++) {
 		mem_heap_free(table->heaps[i]);
 	}
+
+	if (table->heaps) {
+		mem_free(table->heaps);
+	}
+
+	if (table->mutexes) {
+		mem_free(table->mutexes);
+	}
+
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Clear the hash table. */
@@ -127,7 +137,8 @@ ha_clear(
 /*************************************************************//**
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
-is inserted.
+is inserted. If btr_search_enabled is set to FALSE, we will only allow
+updating existing nodes, but no new node is allowed to be added.
 @return	TRUE if succeed, FALSE if no more memory could be allocated */
 UNIV_INTERN
 ibool
@@ -174,6 +185,7 @@ ha_insert_for_fold_func(
 				prev_block->n_pointers--;
 				block->n_pointers++;
 			}
+			ut_ad(!btr_search_fully_disabled);
 # endif /* !UNIV_HOTBACKUP */
 
 			prev_node->block = block;
@@ -184,6 +196,13 @@ ha_insert_for_fold_func(
 		}
 
 		prev_node = prev_node->next;
+	}
+
+	/* We are in the process of disabling hash index, do not add
+	new chain node */
+	if (!btr_search_enabled) {
+		ut_ad(!btr_search_fully_disabled);
+		return(TRUE);
 	}
 
 	/* We have to allocate a new chain node */
@@ -347,6 +366,7 @@ ha_remove_all_nodes_to_page(
 #endif
 }
 
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
 @return	TRUE if ok */
@@ -393,6 +413,7 @@ ha_validate(
 
 	return(ok);
 }
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /*************************************************************//**
 Prints info of a hash table. */

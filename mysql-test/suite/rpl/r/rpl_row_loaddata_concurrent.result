@@ -7,11 +7,11 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 char(50))
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 DROP TABLE t1;
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;

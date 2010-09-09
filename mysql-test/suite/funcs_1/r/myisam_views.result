@@ -4024,6 +4024,7 @@ RENAME TABLE v1 TO v2;
 RENAME VIEW  v2 TO v1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VIEW  v2 TO v1' at line 1
 ALTER TABLE v2 RENAME AS v1;
+ERROR HY000: 'test.v2' is not BASE TABLE
 ALTER VIEW  v1 RENAME AS v2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RENAME AS v2' at line 1
 DROP TABLE IF EXISTS t1, t2 ;

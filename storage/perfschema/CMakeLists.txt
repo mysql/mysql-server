@@ -10,9 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
@@ -39,15 +38,16 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_all_instr.h
   table_events_waits.h
   table_events_waits_summary.h
+  table_ews_global_by_event_name.h
   table_file_instances.h
   table_file_summary.h
+  table_helper.h
   table_performance_timers.h
-  table_processlist.h
   table_setup_consumers.h
   table_setup_instruments.h
-  table_setup_objects.h
   table_setup_timers.h
   table_sync_instances.h
+  table_threads.h
   ha_perfschema.cc
   pfs.cc
   pfs_column_values.cc
@@ -61,15 +61,15 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_all_instr.cc
   table_events_waits.cc
   table_events_waits_summary.cc
+  table_ews_global_by_event_name.cc
   table_file_instances.cc
   table_file_summary.cc
   table_performance_timers.cc
-  table_processlist.cc
   table_setup_consumers.cc
   table_setup_instruments.cc
-  table_setup_objects.cc
   table_setup_timers.cc
   table_sync_instances.cc
+  table_threads.cc
   pfs_atomic.cc
   pfs_check.cc
 )

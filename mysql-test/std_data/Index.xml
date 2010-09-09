@@ -25,7 +25,7 @@
       </rules>
    </collation>
 
-    <collation name="utf8_maxuserid_ci" id="2047">
+    <collation name="utf8_maxuserid_ci" id="2047" version="4.0.0">
       <rules>
         <reset>a</reset>
         <s>b</s>
@@ -35,10 +35,24 @@
 
 
   <charset name="utf8mb4">
-    <collation name="utf8mb4_test_ci" id="326">
+    <collation name="utf8mb4_test_ci" id="326" version="5.2.0">
       <rules>
         <reset>a</reset>
         <s>b</s>
+        <!-- check shift for a supplementary character -->
+        <i>\u10062</i>
+        <!-- check reset to a supplementaty character-->
+        <reset>\u10400</reset>
+        <i>\u100400</i>
+        <!-- check contractions with non-ascii characters -->
+        <reset>d</reset>
+        <p>d\u017e</p>
+        <t>D\u017e</t>
+        <t>D\u017d</t>
+      </rules>
+    </collation>
+    <collation name="utf8mb4_test_400_ci" id="328" version="4.0.0">
+      <rules>
       </rules>
     </collation>
   </charset>

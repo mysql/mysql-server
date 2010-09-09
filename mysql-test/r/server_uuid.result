@@ -1,0 +1,19 @@
+CALL mtr.add_suppression("Master's UUID has changed, its old UUID is");
+
+# Case 1:
+# @@SERVER_UUID is readonly.
+-----------------------------------------------------------------------------
+SET GLOBAL SERVER_UUID= UUID();
+ERROR HY000: Variable 'server_uuid' is a read only variable
+
+# Case 2:
+# If the file does not exists, mysqld generates it automatically.
+-----------------------------------------------------------------------------
+
+# Case 3:
+# If there is no UUID in the file, mysqld generates it automatically.
+-----------------------------------------------------------------------------
+
+# Case 4:
+# If there is a UUID in the file, it will be loaded into SERVER_UUID.
+-----------------------------------------------------------------------------

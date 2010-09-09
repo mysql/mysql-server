@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,17 +11,22 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+SET(INSTALL_ARGS 
+  DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" 
+  COMPONENT Test
+)
 
 IF (WIN32)
-  ADD_EXECUTABLE(my_safe_process safe_process_win.cc)
-  ADD_EXECUTABLE(my_safe_kill safe_kill_win.cc)
+  MYSQL_ADD_EXECUTABLE(my_safe_process safe_process_win.cc ${INSTALL_ARGS})
+  MYSQL_ADD_EXECUTABLE(my_safe_kill safe_kill_win.cc ${INSTALL_ARGS})
 ELSE()
-  ADD_EXECUTABLE(my_safe_process safe_process.cc)
+  MYSQL_ADD_EXECUTABLE(my_safe_process safe_process.cc ${INSTALL_ARGS})
 ENDIF()
 
-INSTALL(TARGETS my_safe_process DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess")
+INSTALL(TARGETS my_safe_process DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)
 IF(WIN32)
-  INSTALL(TARGETS my_safe_kill DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess")
+  INSTALL(TARGETS my_safe_kill DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)
 ENDIF()
-INSTALL(FILES safe_process.pl Base.pm DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess")
+INSTALL(FILES safe_process.pl Base.pm DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)

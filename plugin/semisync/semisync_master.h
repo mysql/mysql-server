@@ -255,7 +255,7 @@ private:
    */
   void free_block(Block *block)
   {
-    my_free(block, MYF(0));
+    my_free(block);
     --block_num;
   }
 

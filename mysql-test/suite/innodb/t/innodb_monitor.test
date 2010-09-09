@@ -270,6 +270,15 @@ set global innodb_monitor_counter_off = module_dml;
 
 drop table monitor_test;
 
+set global innodb_monitor_counter_on = fil_system_num_open_file;
+
+select name, max_since_start, min_since_start, value_since_start,
+       max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "fil_system_num_open_file";
+
+set global innodb_monitor_counter_off = fil_system_num_open_file;
+
 -- disable_warnings
 set global innodb_monitor_counter_on = default;
 set global innodb_monitor_counter_off = default;

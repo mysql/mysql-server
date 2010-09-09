@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -1217,8 +1217,7 @@ void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
-  if (value_arg)
-    value->store(value_arg);
+  value->store(value_arg);
   cmp= new Arg_comparator();
   cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
   collation.set(item->collation);
@@ -1906,7 +1905,7 @@ void Item_sum_variance::update_field()
 
 void Item_sum_hybrid::clear()
 {
-  value->null_value= 1;
+  value->clear();
   null_value= 1;
 }
 

@@ -1,6 +1,6 @@
 # We are using .opt file since we need small binlog size
 # TODO: Need to look at making a row based version once the new row based client is completed. [jbm]
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_binlog_format_statement.inc
 
 -- source include/have_log_bin.inc
 
@@ -36,6 +36,7 @@ load data infile '../../std_data/words.dat' into table t1;
 load data infile '../../std_data/words.dat' into table t1;
 load data infile '../../std_data/words.dat' into table t1;
 # simple query to show more in second binlog
+--let $binlog_start_pos=query_get_value(SHOW MASTER STATUS, Position, 1)
 insert into t1 values ("Alas");
 flush logs;
 
@@ -75,7 +76,7 @@ select "--- --start-position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=1074 $MYSQLD_DATADIR/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start_pos $MYSQLD_DATADIR/master-bin.000002
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -111,8 +112,7 @@ select "--- --start-position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=1074 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
-
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 mysqlbinlog does not accept input from stdin
 --disable_query_log
@@ -124,7 +124,9 @@ select "--- reading stdin --" as "";
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --start-position=79 - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+# postion is constant to correspond to an event in pre-recorded binlog
+--let $binlog_start_pos=79
+--exec $MYSQL_BINLOG --short-form --start-position=$binlog_start_pos - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
 drop table t1,t2;
 
 #
