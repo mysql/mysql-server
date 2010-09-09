@@ -59,8 +59,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
-1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using index; Start temporary; End temporary
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using index; End temporary
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -69,8 +69,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
-1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; Start temporary; End temporary
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; End temporary
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
@@ -96,8 +96,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
-1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; Start temporary; End temporary
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; End temporary
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 drop table t0, t1, t2, t3;
@@ -1690,8 +1690,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1731,8 +1731,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1837,8 +1837,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2179,8 +2179,8 @@ create table t3 (a int);
 insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using index; Start temporary; End temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using index; End temporary
 select * from t3 where a in (select kp1 from t1 where kp1<20);
 a
 0
@@ -2208,8 +2208,8 @@ insert into t4 select a from t3;
 explain select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using where; Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using where
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; End temporary
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -2370,12 +2370,12 @@ insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
 create table t2 as select * from t1;
 explain select * from t2 where a in (select b from t1 where a=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	a	a	10	const,test.t2.a	1	Using index; Start temporary; End temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	PRIMARY	t1	ref	a	a	10	const,test.t2.a	1	Using index; End temporary
 explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	a	a	10	const,test.t2.a	1	Using index; Start temporary; End temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	PRIMARY	t1	ref	a	a	10	const,test.t2.a	1	Using index; End temporary
 drop table t1,t2;
 create table t1 (a int, b int);
 insert into t1 select a,a from t0;
@@ -2580,8 +2580,8 @@ explain select *
 from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	
-1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Start temporary; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Start temporary
+1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Using join buffer (BNL, incremental buffers)
 1	PRIMARY	t2	ref	a	a	5	test.t1.a	1	Using index
 1	PRIMARY	t3	ref	a	a	5	test.t1.a	1	Using where; Using index; End temporary
 drop table t0, t1,t2,t3;
@@ -4029,8 +4029,8 @@ EXPLAIN SELECT Name FROM t1
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	31	
-1	PRIMARY	t2	ref	CountryCode	CountryCode	3	test.t1.Code	18	Using where; Start temporary; End temporary
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	31	Start temporary
+1	PRIMARY	t2	ref	CountryCode	CountryCode	3	test.t1.Code	18	Using where; End temporary
 SELECT Name FROM t1 
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
@@ -4051,8 +4051,8 @@ explain extended select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Start temporary
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	
 1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where; End temporary
 Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
@@ -4307,8 +4307,8 @@ alter table t3 add primary key(id), add key(a);
 The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	1000	Using where; Using index
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	30	Using index; Start temporary; End temporary
+1	PRIMARY	t2	index	a	a	5	NULL	1000	Using where; Using index; Start temporary
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	30	Using index; End temporary
 select count(a) from t2 where a in ( SELECT  a FROM t3);
 count(a)
 1000
@@ -4456,6 +4456,59 @@ SELECT * FROM t1 WHERE (t1.i) IN
 i
 1
 2
+drop table t1,t2,t3;
+#
+# BUG#49453: re-execution of prepared statement with view 
+#            and semijoin crashes
+#
+CREATE TABLE t1 (city VARCHAR(50), country_id INT);
+CREATE TABLE t2 (country_id INT, country VARCHAR(50));
+INSERT INTO t1 VALUES 
+('Batna',2),('Bchar',2),('Skikda',2),('Tafuna',3),('Algeria',2) ;
+INSERT INTO t2 VALUES (2,'Algeria'),(2,'AlgeriaDup'),(3,'XAmerican Samoa');
+CREATE VIEW v1 AS 
+SELECT country_id as vf_country_id
+FROM t2
+WHERE LEFT(country,1) = "A";
+PREPARE stmt FROM "
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (SELECT vf_country_id FROM v1);
+";
+
+EXECUTE stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+EXECUTE stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+DROP TABLE t1,t2;
+DROP VIEW v1;
+#
+# Bug#54437 Extra rows with LEFT JOIN + semijoin (firstmatch
+# and duplicates weedout)
+#
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+insert into t1 values(1),(1);
+insert into t2 values(1),(1),(1),(1);
+insert into t3 values(2),(2);
+explain select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+a
+1
+1
 drop table t1,t2,t3;
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
