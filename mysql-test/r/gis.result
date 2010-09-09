@@ -707,7 +707,7 @@ numgeometries(b) IS NULL, numinteriorrings(b) IS NULL, numpoints(b) IS NULL,
 area(b) IS NULL, glength(b) IS NULL, srid(b) IS NULL, x(b) IS NULL, 
 y(b) IS NULL
 from t1;
-ERROR 22007: Illegal non geometric '' value found during parsing
+ERROR 22007: Illegal non geometric '`test`.`t1`.`b`' value found during parsing
 select 
 within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL, 
 equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL, 
@@ -722,7 +722,7 @@ point(b, b) IS NULL, linestring(b) IS NULL, polygon(b) IS NULL, multipoint(b) IS
 multilinestring(b) IS NULL, multipolygon(b) IS NULL, 
 geometrycollection(b) IS NULL
 from t1;
-ERROR 22007: Illegal non geometric '' value found during parsing
+ERROR 22007: Illegal non geometric '`test`.`t1`.`b`' value found during parsing
 drop table t1;
 CREATE TABLE t1(a POINT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (NULL);
@@ -1006,7 +1006,7 @@ drop table t1;
 SELECT MultiPoint(12345,'');
 ERROR 22007: Illegal non geometric '12345' value found during parsing
 SELECT 1 FROM (SELECT GREATEST(1,GEOMETRYCOLLECTION('00000','00000')) b FROM DUAL) AS d WHERE (LINESTRING(d.b));
-ERROR 22007: Illegal non geometric '' value found during parsing
+ERROR 22007: Illegal non geometric ''00000'' value found during parsing
 #
 # BUG#51875: crash when loading data into geometry function polyfromwkb
 #
