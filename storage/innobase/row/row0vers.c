@@ -64,16 +64,14 @@ row_vers_impl_x_locked(
 	rec_t*		version;
 	trx_id_t	trx_id = 0;
 	mem_heap_t*	heap;
-	mem_heap_t*	heap2;
 	dtuple_t*	row;
-	dtuple_t*	entry	= NULL; /* assignment to eliminate compiler
-					warning */
 	trx_t*		trx;
 	ulint		rec_del;
 	ulint		err;
 	mtr_t		mtr;
 	ulint		comp;
 	ibool		corrupt;
+	rec_t*		prev_version = NULL;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -81,14 +79,13 @@ row_vers_impl_x_locked(
 
 	mtr_start(&mtr);
 
-	/* Search for the clustered index record: this is a time-consuming
-	operation: therefore we release the trx_sys_t::mutex; also, the
-       	release is required by the latching order convention. The latch on
-       	the clustered index locks the top of the stack of versions. We also
-	reserve purge_latch to lock the bottom of the version stack. */
+	/* Search for the clustered index record The latch on the clustered
+       	index locks the top of the stack of versions. We also reserve
+       	purge_latch to lock the bottom of the version stack. */
 
-	clust_rec = row_get_clust_rec(BTR_SEARCH_LEAF, rec, index,
-				      &clust_index, &mtr);
+	clust_rec = row_get_clust_rec(
+		BTR_SEARCH_LEAF, rec, index, &clust_index, &mtr);
+
 	if (!clust_rec) {
 		/* In a rare case it is possible that no clust rec is found
 		for a secondary index record: if in row0umod.c
@@ -108,8 +105,10 @@ row_vers_impl_x_locked(
 	}
 
 	heap = mem_heap_create(1024);
-	clust_offsets = rec_get_offsets(clust_rec, clust_index, NULL,
-					ULINT_UNDEFINED, &heap);
+
+	clust_offsets = rec_get_offsets(
+		clust_rec, clust_index, NULL, ULINT_UNDEFINED, &heap);
+
 	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
 
 	mtr_s_lock(&purge_sys->latch, &mtr);
@@ -154,50 +153,55 @@ row_vers_impl_x_locked(
 	modify rec, and does not necessarily have an implicit x-lock on rec. */
 
 	rec_del = rec_get_deleted_flag(rec, comp);
-	version = clust_rec;
 
-	for (;;) {
-		rec_t*		prev_version;
-		ulint		vers_del;
+	for (version = clust_rec; version != NULL; version = prev_version) {
+
 		row_ext_t*	ext;
+		dtuple_t*	entry;
+		ulint		vers_del;
 		trx_id_t	prev_trx_id;
+		mem_heap_t*	old_heap = heap;
 
-		/* While we retrieve an earlier version of clust_rec, we
-		release the trx_sys_t::mutex, because it may take time to
-	       	access the disk. After the release, we have to check if the
-	       	trx_id transaction is still active. We keep the semaphore
-	       	in mtr on the clust_rec page, so that no other transaction
-	       	can update it and get an implicit x-lock on rec. */
+		/* We have to check if the trx_id transaction is still active.
+	       	We keep the semaphore in mtr on the clust_rec page, so that no
+	       	other transaction can update it and get an implicit x-lock on
+	       	rec. */
 
-		heap2 = heap;
 		heap = mem_heap_create(1024);
-		err = trx_undo_prev_version_build(clust_rec, &mtr, version,
-						  clust_index, clust_offsets,
-						  heap, &prev_version);
-		mem_heap_free(heap2); /* free version and clust_offsets */
+
+		err = trx_undo_prev_version_build(
+			clust_rec, &mtr, version, clust_index, clust_offsets,
+			heap, &prev_version);
+
+ 		/* Free version and clust_offsets. */
+
+		mem_heap_free(old_heap);
 
 		if (prev_version == NULL) {
 
-			/* If the transaction is still active,
-			clust_rec must be a fresh insert, because no
-			previous version was found. */
-			ut_ad(err == DB_SUCCESS);
+			/* If the transaction is still active, clust_rec must
+		       	be a fresh insert, because no previous version was
+		       	found. */
 
+			ut_ad(err == DB_SUCCESS);
 			break;
 		}
 
-		clust_offsets = rec_get_offsets(prev_version, clust_index,
-						NULL, ULINT_UNDEFINED, &heap);
+		clust_offsets = rec_get_offsets(
+			prev_version, clust_index, NULL, ULINT_UNDEFINED,
+		       	&heap);
 
 		vers_del = rec_get_deleted_flag(prev_version, comp);
-		prev_trx_id = row_get_rec_trx_id(prev_version, clust_index,
-						 clust_offsets);
+
+		prev_trx_id = row_get_rec_trx_id(
+			prev_version, clust_index, clust_offsets);
 
 		/* If the trx_id and prev_trx_id are different and if
 		the prev_version is marked deleted then the
 		prev_trx_id must have already committed for the trx_id
 		to be able to modify the row. Therefore, prev_trx_id
 		cannot hold any implicit lock. */
+
 		if (vers_del && trx_id != prev_trx_id) {
 
 			break;
@@ -206,15 +210,18 @@ row_vers_impl_x_locked(
 		/* The stack of versions is locked by mtr.  Thus, it
 		is safe to fetch the prefixes for externally stored
 		columns. */
+
 		row = row_build(ROW_COPY_POINTERS, clust_index, prev_version,
 				clust_offsets, NULL, &ext, heap);
 
 		entry = row_build_index_entry(row, ext, index, heap);
+
 		/* entry may be NULL if a record was inserted in place
 		of a deleted record, and the BLOB pointers of the new
 		record were not initialized yet.  But in that case,
 		prev_version should be NULL. */
-		ut_a(entry);
+
+		ut_a(entry != NULL);
 
 		/* If we get here, we know that the trx_id transaction is
 		still active and it has modified prev_version. Let us check
@@ -224,10 +231,12 @@ row_vers_impl_x_locked(
 		/* The previous version of clust_rec must be
 		accessible, because the transaction is still active
 		and clust_rec was not a fresh insert. */
+
 		ut_ad(err == DB_SUCCESS);
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
+
 		if (trx_is_active(trx_id) == NULL) {
 
 			/* Transaction no longer active: no implicit x-lock */
@@ -264,8 +273,9 @@ row_vers_impl_x_locked(
 			in the state required by prev_version */
 
 			break;
-
-		} else if (trx_id != prev_trx_id) {
+		}
+		
+		if (trx_id != prev_trx_id) {
 			/* The versions modified by the trx_id transaction end
 			to prev_version: no implicit x-lock */
 
@@ -273,9 +283,7 @@ row_vers_impl_x_locked(
 
 			break;
 		}
-
-		version = prev_version;
-	}/* for (;;) */
+	}
 
 exit_func:
 
