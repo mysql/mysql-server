@@ -4224,6 +4224,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
 
     ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
     data.m_fragments.init();
+    data.m_frags_outstanding = 0;
     data.m_frags_not_complete = 0;
 
     if (treeBits & Node::SI_PRUNE_PATTERN)
@@ -4445,7 +4446,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
                  DihScanGetNodesReq::SignalLength, JBB);
       cnt++;
     }
-    data.m_frags_not_complete = cnt;
+    data.m_frags_outstanding = cnt;
     requestPtr.p->m_outstanding++;
   }
   else
@@ -4486,12 +4487,12 @@ Dbspj::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   m_treenode_pool.getPtr(treeNodePtr, fragPtr.p->m_treeNodePtrI);
   ndbrequire(treeNodePtr.p->m_info == &g_ScanIndexOpInfo);
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
-  ndbrequire(data.m_frags_not_complete > 0);
-  data.m_frags_not_complete--;
+  ndbrequire(data.m_frags_outstanding > 0);
+  data.m_frags_outstanding--;
 
   fragPtr.p->m_ref = numberToRef(DBLQH, instanceKey, node);
 
-  if (data.m_frags_not_complete == 0)
+  if (data.m_frags_outstanding == 0)
   {
     jam();
 
@@ -4699,6 +4700,12 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
 {
   jam();
 
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  data.m_rows_received = 0;
+  data.m_rows_expecting = 0;
+  ndbassert(data.m_frags_outstanding == 0);
+  ndbassert(data.m_frags_not_complete == 0);
+
   /**
    * When parent's batch is complete, we send our batch
    */
@@ -4715,18 +4722,14 @@ Dbspj::scanIndex_send(Signal* signal,
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
 
-  data.m_rows_received = 0;
-  data.m_rows_expecting = 0;
-  data.m_frags_outstanding = 0;
-
   Uint32 cnt = 1;
   Uint32 bs_rows = org->batch_size_rows;
   Uint32 bs_bytes = org->batch_size_bytes;
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
-    ndbrequire(data.m_fragCount > 0);
     cnt = data.m_fragCount;
+    ndbrequire(cnt > 0);
 
     // TODO: In case of pruned scan, divide batchsize by how many fragments we will actually involve.
     bs_rows /= cnt;
@@ -4767,7 +4770,6 @@ Dbspj::scanIndex_send(Signal* signal,
     }
   }
 
-  data.m_frags_not_complete = 0;
   Uint32 batchRange = 0;
   list.first(fragPtr);
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
