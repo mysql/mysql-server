@@ -678,13 +678,13 @@ loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2)
 	true
 
 loader-stress-test0.tdbrun: loader-stress-test.tdb$(BINSUF)
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -c $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 0 -c $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 loader-stress-test1.tdbrun: loader-stress-test.tdb$(BINSUF)
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -c -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 1 -c -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 loader-stress-test2.tdbrun: loader-stress-test.tdb$(BINSUF) 
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -r 5000 -s $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD) # to manifest #2717.
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 2 -r 5000 -s $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD) # to manifest #2717.
 
 loader-dup-test.loader loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
 	true $(SUMMARIZE_CMD) #State that this has passed.  Override the default rule.
