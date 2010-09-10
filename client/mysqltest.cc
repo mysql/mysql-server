@@ -7309,11 +7309,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
                            (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
 
-  init_dynamic_string(&ds_warnings, NULL, 0, 256);
-
   if (cn->pending && (flags & QUERY_SEND_FLAG))
     die ("Cannot run query on connection between send and reap");
 
+  init_dynamic_string(&ds_warnings, NULL, 0, 256);
   /*
     Evaluate query if this is an eval command
   */
