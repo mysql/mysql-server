@@ -283,8 +283,9 @@ scan_it_again:
   DBUG_RETURN(result);
 }
 
+
 /****************************************************************************
- * DS-MRR implementation 
+ * SimpleBuffer class implementation (used by DS-MRR code)
  ***************************************************************************/
 void SimpleBuffer::setup_writing(uchar **data1, size_t len1, 
                                  uchar **data2, size_t len2)
@@ -321,6 +322,13 @@ void SimpleBuffer::write(const uchar *data, size_t bytes)
   if (direction == 1)
     write_pos += bytes;
 }
+
+
+bool SimpleBuffer::can_write()
+{
+  return have_space_for(write_size1 + (write_ptr2? write_size2:0));
+}
+
 
 bool SimpleBuffer::have_space_for(size_t bytes)
 {
@@ -405,8 +413,11 @@ uchar *SimpleBuffer::end_of_space()
     return start;
   else
     return end;
-//TODO: check this.
 }
+
+/****************************************************************************
+ * DS-MRR implementation 
+ ***************************************************************************/
 
 /**
   DS-MRR: Initialize and start MRR scan
@@ -472,28 +483,21 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   }
   DBUG_ASSERT(do_sort_keys || do_rowid_fetch);
 
-  full_buf= buf->buffer;
-  full_buf_end= buf->buffer_end;
   
+  if (is_mrr_assoc)
+    status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
+
   /* 
     At start, alloc all of the buffer for rowids. Key sorting code will grab a
     piece if necessary.
   */
+  full_buf= buf->buffer;
+  full_buf_end= buf->buffer_end;
   rowid_buffer.set_buffer_space(full_buf, full_buf_end, 1);
-
-  if (is_mrr_assoc)
-    status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
   
-  /*
-    psergey2-todo: for CPK scans:
-     - use MRR irrespectively of @@mrr_sort_keys setting,
-     - dont do rowid retrieval.
-  */
   if (do_sort_keys)
   {
-    /* It's a DS-MRR/CPK scan */
-    key_tuple_length= 0; /* dummy value telling it needs to be inited */
-    key_buff_elem_size= 0;
+    know_key_tuple_params= FALSE;
     in_index_range= FALSE;
     h->mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
     h->mrr_funcs= *seq_funcs;
@@ -693,7 +697,7 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
   if (do_sort_keys && key_buffer.is_reverse())
     key_buffer.flip();
 
-  while (rowid_buffer.have_space_for(rowid_buff_elem_size))
+  while (rowid_buffer.can_write())
   {
     if (do_sort_keys)
       res= dsmrr_next_from_index(&range_info);
@@ -729,6 +733,7 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
   DBUG_RETURN(0);
 }
 
+
 void SimpleBuffer::sort(qsort2_cmp cmp_func, void *cmp_func_arg)
 {
   uint elem_size=write_size1 + (write_ptr2 ? write_size2 : 0);
@@ -736,10 +741,9 @@ void SimpleBuffer::sort(qsort2_cmp cmp_func, void *cmp_func_arg)
   my_qsort2(used_area(), n_elements, elem_size, cmp_func, cmp_func_arg);
 }
 
+
 /* 
   my_qsort2-compatible function to compare key tuples 
-
-  If dsmrr->use_key_pointers==FALSE
 */
 
 int DsMrr_impl::key_tuple_cmp(void* arg, uchar* key1, uchar* key2)
@@ -890,9 +894,10 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
   uchar **range_info_ptr= (uchar**)&cur_range.ptr;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_key_buffer");
 
-  DBUG_ASSERT(!key_tuple_length || key_buffer.is_empty());
+  DBUG_ASSERT(!know_key_tuple_params || key_buffer.is_empty());
 
-  if (key_tuple_length)
+  uchar *key_ptr;
+  if (know_key_tuple_params)
   {
     if (do_rowid_fetch && rowid_buffer.is_empty())
     {
@@ -904,21 +909,24 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
       key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, -1);
     }
     key_buffer.reset_for_writing();
+    key_buffer.setup_writing(&key_ptr, key_size_in_keybuf,
+                             is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
+                             sizeof(uchar*));
   }
 
-  uchar *key_ptr;
-  while ((key_tuple_length == 0 || 
-          key_buffer.have_space_for(key_buff_elem_size)) && 
+  while ((!know_key_tuple_params || key_buffer.can_write()) && 
          !(res= h->mrr_funcs.next(h->mrr_iter, &cur_range)))
   {
     DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
-    if (!key_tuple_length)
+    if (!know_key_tuple_params)
     {
       /* This only happens when we've just started filling the buffer */
       setup_buffer_sizes(&cur_range.start_key);
+      know_key_tuple_params= TRUE;
       key_buffer.setup_writing(&key_ptr, key_size_in_keybuf,
                                is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
                                sizeof(uchar*));
+      DBUG_ASSERT(key_buffer.can_write());
     }
     
     /* Put key, or {key, range_id} pair into the buffer */
@@ -934,6 +942,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
 
   key_buffer.sort((qsort2_cmp)DsMrr_impl::key_tuple_cmp, (void*)this);
   
+  //psergey4: cur_range_info will point to range-info bytes.
   key_buffer.setup_reading(&cur_index_tuple, key_size_in_keybuf,
                            is_mrr_assoc? (uchar**)&cur_range_info: NULL, sizeof(void*));
 
@@ -995,7 +1004,7 @@ check_record:
     {
       continue;
     }
-    memcpy(range_info_arg, cur_range_info, sizeof(void*));
+    memcpy(range_info_arg, cur_range_info, sizeof(void*)); //psergey4: this copyies junk there
 
     return 0;
   }
@@ -1200,11 +1209,12 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     if (is_mrr_assoc)
     {
       memcpy(range_info, rowids_range_id, sizeof(uchar*));
-      memcpy(&cur_range_info, rowids_range_id, sizeof(uchar*));
+      //psergey5: memcpy(&cur_range_info, rowids_range_id, sizeof(uchar*)); // psergey: ???
     }
 
     if (h2->mrr_funcs.skip_record &&
-	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
+	h2->mrr_funcs.skip_record(h2->mrr_iter, /* psergey5 (char *)
+        cur_range_info */ *range_info, rowid))
       continue;
 
     res= h->ha_rnd_pos(table->record[0], rowid);

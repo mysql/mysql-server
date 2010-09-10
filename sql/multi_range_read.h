@@ -76,6 +76,13 @@ class SimpleBuffer
   uchar **read_ptr2;
   size_t read_size2;
 
+  bool have_space_for(size_t bytes);
+  uchar *used_area() { return (direction == 1)? read_pos : write_pos; }
+  size_t used_size();
+
+  void write(const uchar *data, size_t bytes);
+  uchar *read(size_t bytes);
+
 public:
   /* Set up writing*/
   void setup_writing(uchar **data1, size_t len1, 
@@ -86,26 +93,17 @@ public:
   /* Write-mode functions */
   void reset_for_writing();
   void write();
-  bool have_space_for(size_t bytes);
-
-private:
-  void write(const uchar *data, size_t bytes);
-  uchar *used_area() { return (direction == 1)? read_pos : write_pos; }
-  size_t used_size();
-public:
+  bool can_write();
 
   bool is_empty() { return used_size() == 0; }
 
   /* Read-mode functions */
   void reset_for_reading();
-  
-  // todo: join with setup-writing?
+  // todo: join with setup-writing? (but what for?)
   void setup_reading(uchar **data1, size_t len1, 
                      uchar **data2, size_t len2);
   bool read();
-private:
-  uchar *read(size_t bytes);
-public:
+
   bool have_data(size_t bytes);
   uchar *end_of_space();
 
@@ -115,6 +113,7 @@ public:
     start= start_arg;
     end= end_arg;
     direction= direction_arg;
+  //  TRASH(start, end - start);
     reset_for_writing();
   }
   
@@ -166,6 +165,10 @@ public:
       DBUG_ASSERT(0); /* Attempt to grow buffer in wrong direction */
   }
   
+  /*
+    An iterator to do look at what we're about to read from the buffer without
+    actually reading it.
+  */
   class PeekIterator
   {
     // if direction==1 : pointer to what to return next
@@ -342,8 +345,9 @@ private:
 
   bool doing_cpk_scan; /* TRUE <=> DS-MRR/CPK variant is used */
 
-  /** DS-MRR/CPK variables start */
-
+  
+  /* Initially FALSE, becomes TRUE when we've set key_tuple_xxx members */
+  bool know_key_tuple_params;
   /* Length of lookup tuple being used, in bytes */
   uint key_tuple_length;
   key_part_map key_tuple_map; 
@@ -368,6 +372,7 @@ private:
   /* TRUE<=> we're in a middle of enumerating records from a range */ 
   bool in_index_range;
   uchar *cur_index_tuple;
+
   /* if in_index_range==TRUE: range_id of the range we're enumerating */
   char *cur_range_info;
 
