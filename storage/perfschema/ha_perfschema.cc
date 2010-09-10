@@ -19,8 +19,8 @@
 */
 
 #include "my_global.h"
-#include "my_atomic.h"
 #include "my_pthread.h"
+#include "my_atomic.h"
 #include "sql_plugin.h"
 #include "mysql/plugin.h"
 #include "ha_perfschema.h"
