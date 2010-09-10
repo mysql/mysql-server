@@ -4344,7 +4344,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   data.m_scanCookie = cookie;
 
   const Uint32 prunemask = TreeNode::T_PRUNE_PATTERN | TreeNode::T_CONST_PRUNE;
-  const bool pruned = (treeNodePtr.p->m_bits & prunemask) != 0;
+  bool pruned = (treeNodePtr.p->m_bits & prunemask) != 0;
 
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
@@ -4406,6 +4406,11 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     Uint32 clear = TreeNode::T_PRUNE_PATTERN | TreeNode::T_SCAN_PARALLEL;
     treeNodePtr.p->m_bits &= ~clear;
     treeNodePtr.p->m_bits |= TreeNode::T_CONST_PRUNE;
+
+    /**
+     * We must get fragPtr.p->m_ref...so set pruned=false
+     */
+    pruned = false;
   }
   else
   {
