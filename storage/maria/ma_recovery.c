@@ -3321,7 +3321,12 @@ static int close_all_tables(void)
       state while they were used. As Recovery corrected them, don't alarm the
       user, don't ask for a table check:
     */
-    info->s->state.open_count= 0;
+    if (info->s->state.open_count != 0)
+    {
+      /* let ma_close() mark the table properly closed */
+      info->s->state.open_count= 1;
+      info->s->global_changed= 1;
+    }
     prepare_table_for_close(info, addr);
     error|= maria_close(info);
     pthread_mutex_lock(&THR_LOCK_maria);

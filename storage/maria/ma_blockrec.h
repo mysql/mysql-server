@@ -176,6 +176,7 @@ my_bool _ma_compare_block_record(register MARIA_HA *info,
 void    _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
                                my_bool extend_block, TrID min_read_from,
                                uint min_row_length);
+my_bool enough_free_entries_on_page(MARIA_SHARE *share, uchar *page_buff);
 TRANSLOG_ADDRESS
 maria_page_get_lsn(uchar *page, pgcache_page_no_t page_no, uchar* data_ptr);
 
