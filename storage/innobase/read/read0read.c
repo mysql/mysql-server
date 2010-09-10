@@ -196,7 +196,7 @@ read_view_purge_open(
 	ulint		i;
 	read_view_t*	view;
 	read_view_t*	oldest_view;
-	ib_int64_t	creator_trx_id;
+	trx_id_t	creator_trx_id;
 	ulint		insert_done	= 0;
 
 	ut_ad(trx_sys_mutex_own());
@@ -219,7 +219,7 @@ read_view_purge_open(
 	correct slot. */
 
 	for (i = 0; i < oldest_view->n_trx_ids; ++i) {
-		ib_int64_t	id;
+		trx_id_t	id;
 
 		id = oldest_view->trx_ids[i - insert_done];
 
