@@ -1975,7 +1975,9 @@ struct Semijoin_mat_optimize
 {
   /* Optimal join order calculated for inner tables of this semijoin op. */
   struct st_position *positions;
-  /* True if data types allow the MaterializeScan semijoin strategy */
+  /** True if data types allow the MaterializeLookup semijoin strategy */
+  bool lookup_allowed;
+  /** True if data types allow the MaterializeScan semijoin strategy */
   bool scan_allowed;
   /* Expected #rows in the materialized table */
   double expected_rowcount;
