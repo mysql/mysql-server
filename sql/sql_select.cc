@@ -984,7 +984,10 @@ bool subquery_types_allow_materialization(Item_in_subselect *predicate)
     if (!types_allow_materialization(predicate->left_expr->element_index(i),
                                      inner))
       DBUG_RETURN(FALSE);
+    if (inner->is_blob_field())
+      DBUG_RETURN(FALSE);
   }
+
   DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
   DBUG_RETURN(TRUE);
 }
@@ -1007,6 +1010,13 @@ bool subquery_types_allow_materialization(Item_in_subselect *predicate)
     1. Materialize and do index lookups in the materialized table. See 
        BUG#36752 for description of restrictions we need to put on the
        compared expressions.
+
+       In addition, since indexes are not supported for BLOB columns,
+       this strategy can not be used if any of the columns in the
+       materialized table will be BLOB/GEOMETRY columns.  (Note that
+       also columns for non-BLOB values that may be greater in size
+       than CONVERT_IF_BIGGER_TO_BLOB, will be represented as BLOB
+       columns.)
 
     2. Materialize and then do a full scan of the materialized table. At the
        moment, this strategy's applicability criteria are even stricter than
@@ -1049,8 +1059,10 @@ bool semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   List_iterator<Item> it2(sj_nest->nested_join->sj_inner_exprs);
 
   sj_nest->nested_join->sjm.scan_allowed= FALSE;
+  sj_nest->nested_join->sjm.lookup_allowed= FALSE;
 
   bool all_are_fields= TRUE;
+  bool blobs_involved= FALSE;
   Item *outer, *inner;
   while (outer= it1++, inner= it2++)
   {
@@ -1058,10 +1070,13 @@ bool semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
                        inner->real_item()->type() == Item::FIELD_ITEM);
     if (!types_allow_materialization(outer, inner))
       DBUG_RETURN(FALSE);
+    blobs_involved|= inner->is_blob_field();
   }
   sj_nest->nested_join->sjm.scan_allowed= all_are_fields;
+  sj_nest->nested_join->sjm.lookup_allowed= !blobs_involved;
   DBUG_PRINT("info",("semijoin_types_allow_materialization: ok, allowed"));
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(sj_nest->nested_join->sjm.scan_allowed || 
+              sj_nest->nested_join->sjm.lookup_allowed);
 }
 
 
@@ -7668,9 +7683,10 @@ semijoin_order_allows_materialization(const JOIN *join,
 
   /*
     Must use MaterializeScan strategy if there are outer correlated tables
-    among the remaining tables, otherwise use MaterializeLookup.
+    among the remaining tables, otherwise, if possible, use MaterializeLookup.
   */
-  if (remaining_tables & emb_sj_nest->nested_join->sj_depends_on)
+  if ((remaining_tables & emb_sj_nest->nested_join->sj_depends_on) ||
+      !emb_sj_nest->nested_join->sjm.lookup_allowed)
   {
     if (emb_sj_nest->nested_join->sjm.scan_allowed)
       return SJ_OPT_MATERIALIZE_SCAN;
@@ -17648,7 +17664,15 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 	DBUG_RETURN(error);
     }
   }
-  if (*tab->on_expr_ref && !table->null_row)
+  /* We will evaluate on-expressions here only if it is not considered
+     expensive.  This also prevents executing materialized subqueries
+     in optimization phase.  This is necessary since proper setup for
+     such execution has not been done at this stage.  
+     (See comment in internal_remove_eq_conds() tagged 
+     DontEvaluateMaterializedSubqueryTooEarly).
+  */
+  if (*tab->on_expr_ref && !table->null_row && 
+      !(*tab->on_expr_ref)->is_expensive())
   {
     if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
