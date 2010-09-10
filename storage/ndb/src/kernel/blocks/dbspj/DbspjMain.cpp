@@ -4387,6 +4387,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
 
     fragPtr.p->m_fragId = tmp.fragId; 
     fragPtr.p->m_ref = tmp.receiverRef;
+    data.m_fragCount = 1;
   }
   else if (fragCount == 1)
   {
@@ -4600,6 +4601,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       {
         jam();
         fragPtr.p->m_ref = tmp.receiverRef;
+        data.m_frags_not_complete++;
       }
       else
       {
@@ -4619,6 +4621,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
        * and send to 1 or all resp.
        */
       list.first(fragPtr);
+      data.m_frags_not_complete++;
     }
     
     Uint32 ptrI = fragPtr.p->m_rangePtrI;
@@ -4709,7 +4712,20 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   data.m_rows_received = 0;
   data.m_rows_expecting = 0;
   ndbassert(data.m_frags_outstanding == 0);
-  ndbassert(data.m_frags_not_complete == 0);
+
+  if (data.m_frags_not_complete == 0)
+  {
+    jam();
+    /**
+     * No keys was produced...
+     */
+    return;
+  }
+  else if ((treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN) == 0)
+  {
+    jam();
+    data.m_frags_not_complete = data.m_fragCount;
+  }
 
   /**
    * When parent's batch is complete, we send our batch
@@ -4733,10 +4749,9 @@ Dbspj::scanIndex_send(Signal* signal,
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
-    cnt = data.m_fragCount;
+    cnt = data.m_frags_not_complete;
     ndbrequire(cnt > 0);
 
-    // TODO: In case of pruned scan, divide batchsize by how many fragments we will actually involve.
     bs_rows /= cnt;
     bs_bytes /= cnt;
 
@@ -4768,11 +4783,7 @@ Dbspj::scanIndex_send(Signal* signal,
     jam();
     list.first(fragPtr);
     keyInfoPtrI = fragPtr.p->m_rangePtrI;
-    if (keyInfoPtrI == RNIL)
-    {
-      jam();
-      return;
-    }
+    ndbrequire(keyInfoPtrI != RNIL);
   }
 
   Uint32 batchRange = 0;
@@ -4857,7 +4868,6 @@ Dbspj::scanIndex_send(Signal* signal,
     i++;
     fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING; // running
     data.m_frags_outstanding++;
-    data.m_frags_not_complete++;
     batchRange += bs_rows;
   }
 
@@ -4869,10 +4879,13 @@ Dbspj::scanIndex_send(Signal* signal,
     releaseSection(keyInfoPtrI);
   }
 
-  if (data.m_frags_outstanding == 0)
+  if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
-    jam();
-    return;
+    ndbrequire(data.m_frags_outstanding == data.m_frags_not_complete);
+  }
+  else
+  {
+    ndbrequire(data.m_frags_outstanding == 1);
   }
 
   requestPtr.p->m_cnt_active++;
