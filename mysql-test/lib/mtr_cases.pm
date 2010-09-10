@@ -701,6 +701,13 @@ sub process_opts_file {
 	next;
       }
 
+      $value= mtr_match_prefix($opt, "--testcase-timeout=");
+      if ( defined $value ) {
+	# Overrides test case timeout for this test
+	$tinfo->{'case-timeout'}= $value;
+	next;
+      }
+
       # Ok, this was a real option, add it
       push(@{$tinfo->{$opt_name}}, $opt);
     }
