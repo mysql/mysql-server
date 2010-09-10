@@ -217,6 +217,10 @@ BOOL toku_brt_is_empty (BRT brt, BOOL *try_again);
 // Effect: Return TRUE iff the tree is empty.  (However if  *try_again is set to TRUE by toku_brt_is_empty, then the answer is inconclusive, and the function should
 //  be tried again.  It's a good idea to release the big ydb lock in this case.
 
+BOOL toku_brt_is_empty_fast (BRT brt);
+// Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
+// even though if we were to optimize the tree it might turn out that they are empty.
+
 double get_tdiff(void) __attribute__((__visibility__("default")));
 
 BOOL toku_brt_is_recovery_logging_suppressed (BRT);

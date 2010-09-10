@@ -4416,21 +4416,6 @@ static int toku_c_pre_acquire_read_lock(DBC *dbc, const DBT *key_left, const DBT
     return r;
 }
 
-static BOOL brt_is_empty_keep_trying (BRT brt) {
-    BOOL try_again = TRUE;
-    BOOL is_empty;
-    while (try_again) {
-	try_again = FALSE;
-	is_empty = toku_brt_is_empty(brt, &try_again);
-	if (try_again) {
-	    // If the tree changed shape, release the lock for a moment to give others a chance to work.
-	    toku_ydb_unlock();
-	    toku_ydb_lock();
-	}
-    }
-    return is_empty;
-}
-
 //static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
 // needed by loader.c
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
@@ -4449,7 +4434,7 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
 
     if (r==0 && !just_lock &&
         !toku_brt_is_recovery_logging_suppressed(db->i->brt) &&
-        brt_is_empty_keep_trying(db->i->brt)
+        toku_brt_is_empty_fast(db->i->brt)
     ) {
         //Try to suppress both rollback and recovery logs
         DB_LOADER *loader;
