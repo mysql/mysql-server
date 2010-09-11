@@ -7006,7 +7006,7 @@ static my_uca_scanner_handler my_ucs2_uca_scanner_handler=
   my_uca_scanner_next_ucs2
 };
 
-#endif
+#endif /* HAVE_CHARSET_ucs2 */
 
 
 /*
@@ -8836,7 +8836,7 @@ struct charset_info_st my_charset_ucs2_croatian_uca_ci=
 };
 
 
-#endif
+#endif /* HAVE_CHARSET_ucs2 */
 
 
 #ifdef HAVE_CHARSET_utf8

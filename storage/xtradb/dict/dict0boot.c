@@ -62,32 +62,47 @@ dict_hdr_get(
 }
 
 /**********************************************************************//**
-Returns a new table, index, or tree id.
-@return	the new id */
+Returns a new table, index, or space id. */
 UNIV_INTERN
-dulint
+void
 dict_hdr_get_new_id(
 /*================*/
-	ulint	type)	/*!< in: DICT_HDR_ROW_ID, ... */
+	dulint*	table_id,	/*!< out: table id (not assigned if NULL) */
+	dulint*	index_id,	/*!< out: index id (not assigned if NULL) */
+	ulint*	space_id)	/*!< out: space id (not assigned if NULL) */
 {
 	dict_hdr_t*	dict_hdr;
 	dulint		id;
 	mtr_t		mtr;
 
-	ut_ad((type == DICT_HDR_TABLE_ID) || (type == DICT_HDR_INDEX_ID));
-
 	mtr_start(&mtr);
 
 	dict_hdr = dict_hdr_get(&mtr);
 
-	id = mtr_read_dulint(dict_hdr + type, &mtr);
-	id = ut_dulint_add(id, 1);
+	if (table_id) {
+		id = mtr_read_dulint(dict_hdr + DICT_HDR_TABLE_ID, &mtr);
+		id = ut_dulint_add(id, 1);
+		mlog_write_dulint(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
+		*table_id = id;
+	}
 
-	mlog_write_dulint(dict_hdr + type, id, &mtr);
+	if (index_id) {
+		id = mtr_read_dulint(dict_hdr + DICT_HDR_INDEX_ID, &mtr);
+		id = ut_dulint_add(id, 1);
+		mlog_write_dulint(dict_hdr + DICT_HDR_INDEX_ID, id, &mtr);
+		*index_id = id;
+	}
+
+	if (space_id) {
+		*space_id = mtr_read_ulint(dict_hdr + DICT_HDR_MAX_SPACE_ID,
+					   MLOG_4BYTES, &mtr);
+		if (fil_assign_new_space_id(space_id)) {
+			mlog_write_ulint(dict_hdr + DICT_HDR_MAX_SPACE_ID,
+					 *space_id, MLOG_4BYTES, &mtr);
+		}
+	}
 
 	mtr_commit(&mtr);
-
-	return(id);
 }
 
 /**********************************************************************//**
@@ -151,9 +166,12 @@ dict_hdr_create(
 	mlog_write_dulint(dict_header + DICT_HDR_INDEX_ID,
 			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
-	/* Obsolete, but we must initialize it to 0 anyway. */
-	mlog_write_dulint(dict_header + DICT_HDR_MIX_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ulint(dict_header + DICT_HDR_MAX_SPACE_ID,
+			 0, MLOG_4BYTES, mtr);
+
+	/* Obsolete, but we must initialize it anyway. */
+	mlog_write_ulint(dict_header + DICT_HDR_MIX_ID_LOW,
+			 DICT_HDR_FIRST_ID, MLOG_4BYTES, mtr);
 
 	/* Create the B-tree roots for the clustered indexes of the basic
 	system tables */
@@ -244,6 +262,29 @@ dict_boot(void)
 
 	/* Get the dictionary header */
 	dict_hdr = dict_hdr_get(&mtr);
+
+	if (ut_dulint_cmp(mtr_read_dulint(dict_hdr + DICT_HDR_XTRADB_MARK, &mtr),
+			  DICT_HDR_XTRADB_FLAG) != 0) {
+		/* not extended yet by XtraDB, need to be extended */
+		ulint	root_page_no;
+
+		root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
+					  DICT_HDR_SPACE, 0, DICT_STATS_ID,
+					  dict_ind_redundant, &mtr);
+		if (root_page_no == FIL_NULL) {
+			fprintf(stderr, "InnoDB: Warning: failed to create SYS_STATS btr.\n");
+			srv_use_sys_stats_table = FALSE;
+		} else {
+			mlog_write_ulint(dict_hdr + DICT_HDR_STATS, root_page_no,
+					 MLOG_4BYTES, &mtr);
+			mlog_write_dulint(dict_hdr + DICT_HDR_XTRADB_MARK,
+					  DICT_HDR_XTRADB_FLAG, &mtr);
+		}
+		mtr_commit(&mtr);
+		/* restart mtr */
+		mtr_start(&mtr);
+		dict_hdr = dict_hdr_get(&mtr);
+	}
 
 	/* Because we only write new row ids to disk-based data structure
 	(dictionary header) when it is divisible by
@@ -406,7 +447,7 @@ dict_boot(void)
 	table->id = DICT_FIELDS_ID;
 	dict_table_add_to_cache(table, heap);
 	dict_sys->sys_fields = table;
-	mem_heap_free(heap);
+	mem_heap_empty(heap);
 
 	index = dict_mem_index_create("SYS_FIELDS", "CLUST_IND",
 				      DICT_HDR_SPACE,
@@ -423,6 +464,41 @@ dict_boot(void)
 					FALSE);
 	ut_a(error == DB_SUCCESS);
 
+	/*-------------------------*/
+	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 3, 0);
+	table->n_mysql_handles_opened = 1; /* for pin */
+
+	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "KEY_COLS", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, heap, "DIFF_VALS", DATA_BINARY, 0, 0);
+
+	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
+#if DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2
+#error "DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2"
+#endif
+
+	table->id = DICT_STATS_ID;
+	dict_table_add_to_cache(table, heap);
+	dict_sys->sys_stats = table;
+	mem_heap_empty(heap);
+
+	index = dict_mem_index_create("SYS_STATS", "CLUST_IND",
+				      DICT_HDR_SPACE,
+				      DICT_UNIQUE | DICT_CLUSTERED, 2);
+
+	dict_mem_index_add_field(index, "INDEX_ID", 0);
+	dict_mem_index_add_field(index, "KEY_COLS", 0);
+
+	index->id = DICT_STATS_ID;
+	error = dict_index_add_to_cache(table, index,
+					mtr_read_ulint(dict_hdr
+						       + DICT_HDR_STATS,
+						       MLOG_4BYTES, &mtr),
+					FALSE);
+	ut_a(error == DB_SUCCESS);
+
+	mem_heap_free(heap);
+
 	mtr_commit(&mtr);
 	/*-------------------------*/
 
@@ -436,6 +512,7 @@ dict_boot(void)
 	dict_load_sys_table(dict_sys->sys_columns);
 	dict_load_sys_table(dict_sys->sys_indexes);
 	dict_load_sys_table(dict_sys->sys_fields);
+	dict_load_sys_table(dict_sys->sys_stats);
 
 	mutex_exit(&(dict_sys->mutex));
 }

@@ -476,6 +476,7 @@ static void handle_bootstrap_impl(THD *thd)
       buff= (char*) thd->net.buff;
       if (!fgets(buff + length, thd->net.max_packet - length, file))
       {
+        net_end_statement(thd);
         bootstrap_error= 1;
         break;
       }
@@ -1000,7 +1001,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
-  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
+  DBUG_PRINT("info", ("command: %d", command));
 
   thd->command=command;
   /*
@@ -1264,7 +1265,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *fields, *packet_end= packet + packet_length, *wildcard;
     /* Locked closure of all tables */
     TABLE_LIST table_list;
-    char db_buff[NAME_LEN+1];
+    char db_buff[SAFE_NAME_LEN+1];
     uint32 db_length;
     uint dummy_errors, query_length;
 
@@ -1283,7 +1284,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     db_length= wildcard - packet;
     wildcard++;
     query_length= (uint) (packet_end - wildcard); // Don't count end \0
-    if (db_length > NAME_LEN || query_length > NAME_LEN)
+    if (db_length > SAFE_NAME_LEN || query_length > NAME_LEN)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
@@ -1533,13 +1534,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                            (sf_malloc_max_memory+1023L)/1024L);
     }
 #endif
-#ifdef EMBEDDED_LIBRARY
-    /* Store the buffer in permanent memory */
-    my_ok(thd, 0, 0, buff);
-#else
+#ifndef EMBEDDED_LIBRARY
     VOID(my_net_write(net, (uchar*) buff, length));
     VOID(net_flush(net));
     thd->main_da.disable_status();
+#else
+    /* Store the buffer in permanent memory */
+    my_ok(thd, 0, 0, buff);
 #endif
     break;
   }
@@ -4741,7 +4742,7 @@ create_sp_error:
         my_error(ER_XAER_NOTA, MYF(0));
         break;
       }
-      thd->transaction.xid_state.xa_state=XA_ACTIVE;
+      thd->transaction.xid_state.xa_state= XA_ACTIVE;
       my_ok(thd);
       break;
     }
@@ -4761,16 +4762,16 @@ create_sp_error:
       my_error(ER_XAER_OUTSIDE, MYF(0));
       break;
     }
-    if (xid_cache_search(thd->lex->xid))
-    {
-      my_error(ER_XAER_DUPID, MYF(0));
-      break;
-    }
     DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
-    thd->transaction.xid_state.xa_state=XA_ACTIVE;
+    thd->transaction.xid_state.xa_state= XA_ACTIVE;
     thd->transaction.xid_state.rm_error= 0;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
-    xid_cache_insert(&thd->transaction.xid_state);
+    if (xid_cache_insert(&thd->transaction.xid_state))
+    {
+      thd->transaction.xid_state.xa_state= XA_NOTR;
+      thd->transaction.xid_state.xid.null();
+      break;
+    }
     thd->transaction.all.modified_non_trans_table= FALSE;
     thd->options= ((thd->options & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -4824,6 +4825,16 @@ create_sp_error:
   case SQLCOM_XA_COMMIT:
     if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
+      /*
+        xid_state.in_thd is always true beside of xa recovery
+        procedure. Note, that there is no race condition here
+        between xid_cache_search and xid_cache_delete, since we're always
+        deleting our own XID (thd->lex->xid == thd->transaction.xid_state.xid).
+        The only case when thd->lex->xid != thd->transaction.xid_state.xid
+        and xid_state->in_thd == 0 is in ha_recover() functionality,
+        which is called before starting client connections, and thus is
+        always single-threaded.
+      */
       XID_STATE *xs=xid_cache_search(thd->lex->xid);
       if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
@@ -5970,13 +5981,13 @@ void mysql_init_multi_delete(LEX *lex)
   Parse a query.
 
   @param       thd     Current thread
-  @param       inBuf   Begining of the query text
+  @param       rawbuf  Begining of the query text
   @param       length  Length of the query text
   @param[out]  found_semicolon For multi queries, position of the character of
                                the next query in the query text.
 */
 
-void mysql_parse(THD *thd, const char *inBuf, uint length,
+void mysql_parse(THD *thd, char *rawbuf, uint length,
                  const char ** found_semicolon)
 {
   DBUG_ENTER("mysql_parse");
@@ -6001,7 +6012,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
-  if (query_cache_send_result_to_client(thd, (char*) inBuf, length) <= 0)
+  if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
   {
     LEX *lex= thd->lex;
 
@@ -6010,7 +6021,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
 
     Parser_state parser_state;
     bool err;
-    if (!(err= parser_state.init(thd, inBuf, length)))
+    if (!(err= parser_state.init(thd, rawbuf, length)))
     {
       err= parse_sql(thd, & parser_state, NULL);
       *found_semicolon= parser_state.m_lip.found_semicolon;
@@ -6097,14 +6108,14 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     1	can be ignored
 */
 
-bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
+bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 {
   LEX *lex= thd->lex;
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   Parser_state parser_state;
-  if (!(error= parser_state.init(thd, inBuf, length)))
+  if (!(error= parser_state.init(thd, rawbuf, length)))
   {
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd, opt_userstat_running);
@@ -7732,7 +7743,7 @@ LEX_USER *create_default_definer(THD *thd)
   if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
-  get_default_definer(thd, definer);
+  thd->get_definer(definer);
 
   return definer;
 }

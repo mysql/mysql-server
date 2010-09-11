@@ -11,13 +11,7 @@ dnl internals@lists.mysql.com in advance of pushing the change.
 dnl
 dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
-dnl to update version.c in ndb.
-dnl
-dnl When merging new MariaDB releases, update the version number to match the
-dnl MariaDB version number.
-dnl
-dnl Note: the following line must be parseable by win/configure.js:GetVersion()
-AC_INIT([MariaDB Server], [5.2.1-MariaDB-beta], [], [mysql])
+AC_INIT([MariaDB Server], [5.2.2-MariaDB-gamma], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -70,6 +64,7 @@ MYSQL_TCP_PORT_DEFAULT=3306
 MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 
 dnl Include m4 
+sinclude(config/ac-macros/maintainer.m4)
 sinclude(config/ac-macros/alloca.m4)
 sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
@@ -108,6 +103,8 @@ AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 
+# Whether the maintainer mode should be enabled.
+MY_MAINTAINER_MODE
 
 # Canonicalize the configuration name.
 
@@ -2907,7 +2904,13 @@ do
 done
 AC_SUBST(sql_union_dirs)
 
-# Some useful subst
+#
+# Setup maintainer mode options by the end to not disturb
+# system and other checks.
+#
+MY_MAINTAINER_MODE_SETUP
+
+# Some usefull subst
 AC_SUBST(CC)
 AC_SUBST(GXX)
 
@@ -2932,7 +2935,8 @@ fi
 
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
- unittest/mysys/Makefile unittest/examples/Makefile dnl
+ unittest/mysys/Makefile unittest/strings/Makefile dnl
+ unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile libmysql_r/Makefile client/Makefile dnl

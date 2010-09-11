@@ -68,8 +68,7 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
     DBUG_ASSERT(info->last_key.data_length == MARIA_UNIQUE_HASH_LENGTH);
     if (_ma_search_next(info, &info->last_key, SEARCH_BIGGER,
 			info->s->state.key_root[def->key]) ||
-	bcmp((char*) info->last_key.data, (char*) key_buff,
-             MARIA_UNIQUE_HASH_LENGTH))
+	bcmp(info->last_key.data, key_buff, MARIA_UNIQUE_HASH_LENGTH))
     {
       info->page_changed= 1;			/* Can't optimize read next */
       info->cur_row.lastpos= lastpos;

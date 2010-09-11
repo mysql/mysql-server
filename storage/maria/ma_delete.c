@@ -1,4 +1,5 @@
 /* Copyright (C) 2006 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+   Copyright (C) 2009-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -180,7 +181,11 @@ my_bool _ma_ck_delete(MARIA_HA *info, MARIA_KEY *key)
     key->data= key_buff;
   }
 
-  res= _ma_ck_real_delete(info, key, &new_root);
+  if ((res= _ma_ck_real_delete(info, key, &new_root)))
+  {
+    /* We have to mark the table crashed before unpin_all_pages() */
+    maria_mark_crashed(info);
+  }
 
   key->data= save_key_data;
   if (!res && share->now_transactional)
@@ -218,7 +223,8 @@ my_bool _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
     my_errno=ENOMEM;
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("info",("root_page: %ld", (long) old_root));
+  DBUG_PRINT("info",("root_page: %lu",
+                     (ulong) (old_root / keyinfo->block_length)));
   if (_ma_fetch_keypage(&page, info, keyinfo, old_root,
                         PAGECACHE_LOCK_WRITE, DFLT_INIT_HITS, root_buff, 0))
   {
@@ -435,7 +441,8 @@ static int d_search(MARIA_HA *info, MARIA_KEY *key, uint32 comp_flag,
     */
     if (share->now_transactional &&
         _ma_log_delete(anc_page, s_temp.key_pos,
-                       s_temp.changed_length, s_temp.move_length))
+                       s_temp.changed_length, s_temp.move_length,
+                       0, KEY_OP_DEBUG_LOG_DEL_CHANGE_1))
       DBUG_RETURN(-1);
 
     if (!nod_flag)
@@ -458,7 +465,7 @@ static int d_search(MARIA_HA *info, MARIA_KEY *key, uint32 comp_flag,
   }
   if (ret_value >0)
   {
-    save_flag=1;
+    save_flag= 2;
     if (ret_value == 1)
       ret_value= underflow(info, keyinfo, anc_page, &leaf_page, keypos);
     else
@@ -474,17 +481,20 @@ static int d_search(MARIA_HA *info, MARIA_KEY *key, uint32 comp_flag,
       ret_value= _ma_insert(info, key, anc_page, keypos,
                             last_key.data,
                             (MARIA_PAGE*) 0, (uchar*) 0, (my_bool) 0);
+
+      if (_ma_write_keypage(&leaf_page, PAGECACHE_LOCK_LEFT_WRITELOCKED,
+                            DFLT_INIT_HITS))
+        ret_value= -1;
     }
   }
-  if (ret_value == 0 && anc_page->size >
-      (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
+  if (ret_value == 0 && anc_page->size > share->max_index_block_size)
   {
     /* parent buffer got too big ; We have to split the page */
-    save_flag=1;
+    save_flag= 3;
     ret_value= _ma_split_page(info, key, anc_page,
-                              (uint) (keyinfo->block_length -
-                                      KEYPAGE_CHECKSUM_SIZE),
+                              share->max_index_block_size,
                               (uchar*) 0, 0, 0, lastkey, 0) | 2;
+    DBUG_ASSERT(anc_page->org_size == anc_page->size);
   }
   if (save_flag && ret_value != 1)
   {
@@ -550,7 +560,8 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
   MARIA_KEY ret_key;
   MARIA_PAGE next_page;
   DBUG_ENTER("del");
-  DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx", (long) leaf_page,
+  DBUG_PRINT("enter",("leaf_page: %lu  keypos: 0x%lx",
+                      (ulong) (leaf_page->pos / share->block_size),
 		      (ulong) keypos));
   DBUG_DUMP("leaf_buff", leaf_page->buff, leaf_page->size);
 
@@ -587,11 +598,10 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
 	  ret_value= underflow(info, keyinfo, leaf_page, &next_page,
                                endpos);
 	  if (ret_value == 0 && leaf_page->size >
-              (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
+              share->max_index_block_size)
 	  {
 	    ret_value= (_ma_split_page(info, key, leaf_page,
-                                       (uint) (keyinfo->block_length -
-                                               KEYPAGE_CHECKSUM_SIZE),
+                                       share->max_index_block_size,
                                        (uchar*) 0, 0, 0,
                                        ret_key_buff, 0) | 2);
 	  }
@@ -708,8 +718,7 @@ err:
 
    @fn    underflow()
    @param anc_buff        Anchestor page data
-   @param leaf_page       Page number of leaf page
-   @param leaf_buff       Leaf page (page that underflowed)
+   @param leaf_page       Leaf page (page that underflowed)
    @param leaf_page_link  Pointer to pin information about leaf page
    @param keypos          Position after current key in anc_buff
 
@@ -743,7 +752,8 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   MARIA_KEY tmp_key, anc_key, leaf_key;
   MARIA_PAGE next_page;
   DBUG_ENTER("underflow");
-  DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx",(long) leaf_page->pos,
+  DBUG_PRINT("enter",("leaf_page: %lu  keypos: 0x%lx",
+                      (ulong) (leaf_page->pos / share->block_size),
 		      (ulong) keypos));
   DBUG_DUMP("anc_buff", anc_page->buff,  anc_page->size);
   DBUG_DUMP("leaf_buff", leaf_page->buff, leaf_page->size);
@@ -841,7 +851,7 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     anc_page->size= new_anc_length;
     page_store_size(share, anc_page);
 
-    if (buff_length <= (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
+    if (buff_length <= share->max_index_block_size)
     {
       /* All keys fitted into one page */
       page_mark_changed(info, &next_page);
@@ -854,10 +864,15 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
       if (share->now_transactional)
       {
-        /* Log changes to parent page */
+        /*
+          Log changes to parent page. Note that this page may have been
+          temporarily bigger than block_size.
+         */
         if (_ma_log_delete(anc_page, key_deleted.key_pos,
                            key_deleted.changed_length,
-                           key_deleted.move_length))
+                           key_deleted.move_length,
+                           anc_length - anc_page->org_size,
+                           KEY_OP_DEBUG_LOG_DEL_CHANGE_2))
           goto err;
         /*
           Log changes to leaf page. Data for leaf page is in leaf_buff
@@ -986,7 +1001,8 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
         */
         DBUG_ASSERT(new_buff_length <= next_buff_length);
         if (_ma_log_prefix(&next_page, key_inserted.changed_length,
-                           (int) (new_buff_length - next_buff_length)))
+                           (int) (new_buff_length - next_buff_length),
+                           KEY_OP_DEBUG_LOG_PREFIX_1))
           goto err;
       }
       page_mark_changed(info, &next_page);
@@ -1044,10 +1060,18 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
   /* Remember for logging how many bytes of leaf_buff that are not changed */
   DBUG_ASSERT((int) key_inserted.changed_length >= key_inserted.move_length);
-  unchanged_leaf_length= leaf_length - (key_inserted.changed_length -
-                                        key_inserted.move_length);
+  unchanged_leaf_length= (leaf_length - p_length -
+                          (key_inserted.changed_length -
+                           key_inserted.move_length));
 
   new_buff_length= buff_length + leaf_length - p_length + t_length;
+
+#ifdef EXTRA_DEBUG
+  /* Ensure that unchanged_leaf_length is correct */
+  DBUG_ASSERT(bcmp(next_page.buff + new_buff_length - unchanged_leaf_length,
+                   leaf_buff + leaf_length - unchanged_leaf_length,
+                   unchanged_leaf_length) == 0);
+#endif
 
   page_flag= next_page.flag | leaf_page->flag;
   if (anc_key.flag & (SEARCH_USER_KEY_HAS_TRANSID |
@@ -1069,8 +1093,7 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   anc_page->size= new_anc_length;
   page_store_size(share, anc_page);
 
-  if (new_buff_length <= (uint) (keyinfo->block_length -
-                                 KEYPAGE_CHECKSUM_SIZE))
+  if (new_buff_length <= share->max_index_block_size)
   {
     /* All keys fitted into one page */
     page_mark_changed(info, leaf_page);
@@ -1079,10 +1102,14 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
     if (share->now_transactional)
     {
-      /* Log changes to parent page */
+      /*
+        Log changes to parent page. Note that this page may have been
+        temporarily bigger than block_size.
+      */
       if (_ma_log_delete(anc_page, key_deleted.key_pos,
-                         key_deleted.changed_length, key_deleted.move_length))
-
+                         key_deleted.changed_length, key_deleted.move_length,
+                         anc_length - anc_page->org_size,
+                         KEY_OP_DEBUG_LOG_DEL_CHANGE_3))
         goto err;
       /*
         Log changes to next page. Data for leaf page is in buff
@@ -1192,8 +1219,10 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
         This contains original data with new data added first
       */
       DBUG_ASSERT(leaf_length <= new_leaf_length);
+      DBUG_ASSERT(new_leaf_length >= unchanged_leaf_length);
       if (_ma_log_prefix(leaf_page, new_leaf_length - unchanged_leaf_length,
-                         (int) (new_leaf_length - leaf_length)))
+                         (int) (new_leaf_length - leaf_length),
+                         KEY_OP_DEBUG_LOG_PREFIX_2))
         goto err;
       /*
         Log changes to next page
@@ -1395,7 +1424,9 @@ static uint remove_key(MARIA_KEYDEF *keyinfo, uint page_flag, uint nod_flag,
 ****************************************************************************/
 
 /**
-   @brief log entry where some parts are deleted and some things are changed
+   @brief
+   log entry where some parts are deleted and some things are changed
+   and some data could be added last.
 
    @fn _ma_log_delete()
    @param info		  Maria handler
@@ -1404,74 +1435,148 @@ static uint remove_key(MARIA_KEYDEF *keyinfo, uint page_flag, uint nod_flag,
    @param key_pos         Start of change area
    @param changed_length  How many bytes where changed at key_pos
    @param move_length     How many bytes where deleted at key_pos
+   @param append_length	  Length of data added last
+		          This is taken from end of ma_page->buff
 
+   This is mainly used when a key is deleted. The append happens
+   when we delete a key from a page with data > block_size kept in
+   memory and we have to add back the data that was stored > block_size
 */
 
 my_bool _ma_log_delete(MARIA_PAGE *ma_page, const uchar *key_pos,
-                       uint changed_length, uint move_length)
+                       uint changed_length, uint move_length,
+                       uint append_length __attribute__((unused)),
+                       enum en_key_debug debug_marker __attribute__((unused)))
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 9 + 7], *log_pos;
-  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
-  uint translog_parts;
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 2 + 3 + 3 + 6 + 3 + 7];
+  uchar *log_pos;
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 7];
+  uint translog_parts, current_size, extra_length;
   uint offset= (uint) (key_pos - ma_page->buff);
   MARIA_HA *info= ma_page->info;
   MARIA_SHARE *share= info->s;
   my_off_t page;
   DBUG_ENTER("_ma_log_delete");
   DBUG_PRINT("enter", ("page: %lu  changed_length: %u  move_length: %d",
-                       (ulong) ma_page->pos, changed_length, move_length));
+                       (ulong) (ma_page->pos / share->block_size),
+                       changed_length, move_length));
   DBUG_ASSERT(share->now_transactional && move_length);
   DBUG_ASSERT(offset + changed_length <= ma_page->size);
+  DBUG_ASSERT(ma_page->org_size - move_length + append_length == ma_page->size);
+  DBUG_ASSERT(move_length <= ma_page->org_size - share->keypage_header);
 
   /* Store address of new root page */
   page= ma_page->pos / share->block_size;
   page_store(log_data + FILEID_STORE_SIZE, page);
   log_pos= log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE;
+  current_size= ma_page->org_size;
+
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  *log_pos++= KEY_OP_DEBUG;
+  *log_pos++= debug_marker;
+#endif
+
+  /* Store keypage_flag */
+  *log_pos++= KEY_OP_SET_PAGEFLAG;
+  *log_pos++= ma_page->buff[KEYPAGE_TRANSFLAG_OFFSET];
+
   log_pos[0]= KEY_OP_OFFSET;
   int2store(log_pos+1, offset);
-  log_pos[3]= KEY_OP_SHIFT;
-  int2store(log_pos+4, -(int) move_length);
-  log_pos+= 6;
-  translog_parts= 1;
+  log_pos+= 3;
+  translog_parts= TRANSLOG_INTERNAL_PARTS + 1;
+  extra_length= 0;
+
   if (changed_length)
   {
+    if (offset + changed_length >= share->max_index_block_size)
+    {
+      changed_length= share->max_index_block_size - offset;
+      move_length= 0;                           /* Nothing to move */
+      current_size= share->max_index_block_size;
+    }
+
     log_pos[0]= KEY_OP_CHANGE;
     int2store(log_pos+1, changed_length);
     log_pos+= 3;
-    translog_parts= 2;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    ma_page->buff + offset;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= changed_length;
-  }
-
-#ifdef EXTRA_DEBUG_KEY_CHANGES
-  {
-    int page_length= ma_page->size;
-    ha_checksum crc;
-    crc= my_checksum(0, ma_page->buff + LSN_STORE_SIZE,
-                     page_length - LSN_STORE_SIZE);
-    log_pos[0]= KEY_OP_CHECK;
-    int2store(log_pos+1, page_length);
-    int4store(log_pos+3, crc);
-
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
-    changed_length+= 7;
+    log_array[translog_parts].str=    ma_page->buff + offset;
+    log_array[translog_parts].length= changed_length;
     translog_parts++;
+
+    /* We only have to move things after offset+changed_length */
+    offset+= changed_length;
   }
-#endif
 
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
 
+  if (move_length)
+  {
+    uint log_length;
+    if (offset + move_length < share->max_index_block_size)
+    {
+      /*
+        Move down things that is on page.
+        page_offset in apply_redo_inxed() will be at original offset
+        + changed_length.
+      */
+      log_pos[0]= KEY_OP_SHIFT;
+      int2store(log_pos+1, - (int) move_length);
+      log_length= 3;
+      current_size-= move_length;
+    }
+    else
+    {
+      /* Delete to end of page */
+      uint tmp= current_size - offset;
+      current_size= offset;
+      log_pos[0]= KEY_OP_DEL_SUFFIX;
+      int2store(log_pos+1, tmp);
+      log_length= 3;
+    }
+    log_array[translog_parts].str=    log_pos;
+    log_array[translog_parts].length= log_length;
+    translog_parts++;
+    log_pos+= log_length;
+    extra_length+= log_length;
+  }
+
+  if (current_size != ma_page->size &&
+      current_size != share->max_index_block_size)
+  {
+    /* Append data that didn't fit on the page before */
+    uint length= (min(ma_page->size, share->max_index_block_size) -
+                  current_size);
+    uchar *data= ma_page->buff + current_size;
+
+    DBUG_ASSERT(length <= append_length);
+
+    log_pos[0]= KEY_OP_ADD_SUFFIX;
+    int2store(log_pos+1, length);
+    log_array[translog_parts].str=        log_pos;
+    log_array[translog_parts].length=     3;
+    log_array[translog_parts + 1].str=    data;
+    log_array[translog_parts + 1].length= length;
+    log_pos+= 3;
+    translog_parts+= 2;
+    current_size+= length;
+    extra_length+= 3 + length;
+  }
+
+  _ma_log_key_changes(ma_page,
+                      log_array + translog_parts,
+                      log_pos, &extra_length, &translog_parts);
+  /* Remember new page length for future log entires for same page */
+  ma_page->org_size= current_size;
+
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,
                             (translog_size_t)
-                            log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
-                            changed_length,
-                            TRANSLOG_INTERNAL_PARTS + translog_parts,
+                            log_array[TRANSLOG_INTERNAL_PARTS].length +
+                            changed_length + extra_length, translog_parts,
                             log_array, log_data, NULL))
     DBUG_RETURN(1);
+
   DBUG_RETURN(0);
 }
 

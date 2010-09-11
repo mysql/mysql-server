@@ -550,6 +550,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     strmov(share->open_file_name.str,  name);
 
     share->block_size= share->base.block_size;   /* Convenience */
+    share->max_index_block_size= share->block_size - KEYPAGE_CHECKSUM_SIZE;
     {
       HA_KEYSEG *pos=share->keyparts;
       uint32 ftkey_nr= 1;

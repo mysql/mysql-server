@@ -43,6 +43,7 @@ extern struct st_mysql_plugin	i_s_innodb_index_stats;
 extern struct st_mysql_plugin	i_s_innodb_admin_command;
 extern struct st_mysql_plugin   i_s_innodb_sys_tables;
 extern struct st_mysql_plugin   i_s_innodb_sys_indexes;
+extern struct st_mysql_plugin	i_s_innodb_sys_stats;
 
 extern struct st_maria_plugin i_s_innodb_buffer_pool_pages_maria;
 extern struct st_maria_plugin i_s_innodb_buffer_pool_pages_index_maria;
@@ -61,5 +62,6 @@ extern struct st_maria_plugin i_s_innodb_index_stats_maria;
 extern struct st_maria_plugin i_s_innodb_admin_command_maria;
 extern struct st_maria_plugin i_s_innodb_sys_tables_maria;
 extern struct st_maria_plugin i_s_innodb_sys_indexes_maria;
+extern struct st_maria_plugin i_s_innodb_sys_stats_maria;
 
 #endif /* i_s_h */

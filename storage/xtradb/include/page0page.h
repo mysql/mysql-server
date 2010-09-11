@@ -500,7 +500,7 @@ ibool
 page_is_leaf(
 /*=========*/
 	const page_t*	page)	/*!< in: page */
-	__attribute__((nonnull, pure));
+	__attribute__((pure));
 /************************************************************//**
 Gets the pointer to the next record on the page.
 @return	pointer to next record */

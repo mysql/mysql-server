@@ -878,7 +878,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     /* Read extra data segment */
     uchar *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
-    if (!(next_chunk= buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
+    if (!(next_chunk= buff= (uchar*) my_malloc(n_length+1, MYF(MY_WME))))
       goto err;
     if (my_pread(file, buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
@@ -953,6 +953,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
         /* purecov: begin inspected */
         error= 8;
+        name.str[name.length]= 0;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
         goto free_and_err;
         /* purecov: end */
@@ -3157,14 +3158,14 @@ bool check_db_name(LEX_STRING *org_name)
   uint name_length= org_name->length;
   bool check_for_path_chars;
 
-  if (!name_length || name_length > NAME_LEN)
-    return 1;
-
   if ((check_for_path_chars= check_mysql50_prefix(name)))
   {
     name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
     name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
   }
+
+  if (!name_length || name_length > NAME_LEN)
+    return 1;
 
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
@@ -3183,6 +3184,15 @@ bool check_table_name(const char *name, uint length, bool check_for_path_chars)
 {
   uint name_length= 0;  // name length in symbols
   const char *end= name+length;
+
+
+  if (!check_for_path_chars &&
+      (check_for_path_chars= check_mysql50_prefix(name)))
+  {
+    name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+    length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+  }
+
   if (!length || length > NAME_LEN)
     return 1;
 #if defined(USE_MB) && defined(USE_MB_IDENT)

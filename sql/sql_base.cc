@@ -613,7 +613,7 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
 
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 {
-  char key[NAME_LEN*2+2];
+  char key[SAFE_NAME_LEN*2+2];
   TABLE_LIST table_list;
   uint key_length;
   safe_mutex_assert_owner(&LOCK_open);
@@ -5709,7 +5709,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
   DBUG_ENTER("update_field_dependencies");
   if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
-    MY_BITMAP *current_bitmap;
+    MY_BITMAP *bitmap;
 
     /*
       We always want to register the used keys, as the column bitmap may have
@@ -5723,9 +5723,9 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
       table->mark_virtual_col(field);
 
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
-      current_bitmap= table->read_set;
+      bitmap= table->read_set;
     else
-      current_bitmap= table->write_set;
+      bitmap= table->write_set;
 
     /* 
        The test-and-set mechanism in the bitmap is not reliable during
@@ -5734,7 +5734,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
        only those columns that are used in the SET clause. I.e they are being
        set here. See multi_update::prepare()
     */
-    if (bitmap_fast_test_and_set(current_bitmap, field->field_index))
+    if (bitmap_fast_test_and_set(bitmap, field->field_index))
     {
       if (thd->mark_used_columns == MARK_COLUMNS_WRITE)
       {
@@ -6327,7 +6327,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
   const char *table_name= item->table_name;
   const char *name= item->field_name;
   uint length=(uint) strlen(name);
-  char name_buff[NAME_LEN+1];
+  char name_buff[SAFE_NAME_LEN+1];
   TABLE_LIST *cur_table= first_table;
   TABLE_LIST *actual_table;
   bool allow_rowid;
@@ -6484,7 +6484,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       (report_error == REPORT_ALL_ERRORS ||
        report_error == REPORT_EXCEPT_NON_UNIQUE))
   {
-    char buff[NAME_LEN*2 + 2];
+    char buff[SAFE_NAME_LEN*2 + 2];
     if (db && db[0])
     {
       strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
@@ -7870,7 +7870,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 {
   Field_iterator_table_ref field_iterator;
   bool found;
-  char name_buff[NAME_LEN+1];
+  char name_buff[SAFE_NAME_LEN+1];
   DBUG_ENTER("insert_fields");
   DBUG_PRINT("arena", ("stmt arena: 0x%lx", (ulong)thd->stmt_arena));
 
@@ -8569,15 +8569,15 @@ my_bool mysql_rm_tmp_tables(void)
                                    (file->name[1] == '.' &&  !file->name[2])))
         continue;
 
-      if (!bcmp((uchar*) file->name, (uchar*) tmp_file_prefix,
-                tmp_file_prefix_length))
+      if (!memcmp(file->name, tmp_file_prefix,
+                  tmp_file_prefix_length))
       {
         char *ext= fn_ext(file->name);
         uint ext_len= strlen(ext);
         uint filePath_len= my_snprintf(filePath, sizeof(filePath),
                                        "%s%c%s", tmpdir, FN_LIBCHAR,
                                        file->name);
-        if (!bcmp((uchar*) reg_ext, (uchar*) ext, ext_len))
+        if (!strcmp(reg_ext, ext))
         {
           handler *handler_file= 0;
           /* We should cut file extention before deleting of table */

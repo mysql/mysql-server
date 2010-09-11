@@ -92,7 +92,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
   
   for (; tables; tables= tables->next_global)
   {
-    char hash_key[2*NAME_LEN+2];
+    char hash_key[SAFE_NAME_LEN*2+2];
     char *end;
     uint len;
 
@@ -227,7 +227,7 @@ Rpl_filter::db_ok_with_wild_table(const char *db)
 {
   DBUG_ENTER("Rpl_filter::db_ok_with_wild_table");
 
-  char hash_key[NAME_LEN+2];
+  char hash_key[SAFE_NAME_LEN+2];
   char *end;
   int len;
   end= strmov(hash_key, db);

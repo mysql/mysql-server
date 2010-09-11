@@ -802,8 +802,10 @@ THD::THD()
   thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
-
   arena_for_cached_items= 0;
+  current_user_used= FALSE;
+  memset(&invoker_user, 0, sizeof(invoker_user));
+  memset(&invoker_host, 0, sizeof(invoker_host));
 }
 
 
@@ -1216,13 +1218,13 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
   while (to != end)
     *(to++)+= *(from++) - *(dec++);
 
-  to_var->bytes_received=       (from_var->bytes_received -
-                                 dec_var->bytes_received);
-  to_var->bytes_sent+=          from_var->bytes_sent - dec_var->bytes_sent;
-  to_var->binlog_bytes_written= (from_var->binlog_bytes_written -
-                                 dec_var->binlog_bytes_written);
-  to_var->cpu_time+=            from_var->cpu_time - dec_var->cpu_time;
-  to_var->busy_time+=           from_var->busy_time - dec_var->busy_time;
+  to_var->bytes_received+=       from_var->bytes_received -
+                                 dec_var->bytes_received;
+  to_var->bytes_sent+=           from_var->bytes_sent - dec_var->bytes_sent;
+  to_var->binlog_bytes_written+= from_var->binlog_bytes_written -
+                                 dec_var->binlog_bytes_written;
+  to_var->cpu_time+=             from_var->cpu_time - dec_var->cpu_time;
+  to_var->busy_time+=            from_var->busy_time - dec_var->busy_time;
 }
 
 #define SECONDS_TO_WAIT_FOR_KILL 2
@@ -1429,6 +1431,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
+  clean_current_user_used();
 }
 
 
@@ -3455,6 +3458,23 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
   pthread_mutex_unlock(&LOCK_thd_data);
 }
 
+void THD::get_definer(LEX_USER *definer)
+{
+  set_current_user_used();
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  if (slave_thread && has_invoker())
+  {
+    definer->user = invoker_user;
+    definer->host= invoker_host;
+    definer->password= null_lex_str;
+    definer->plugin= empty_lex_str;
+    definer->auth= empty_lex_str;
+  }
+  else
+#endif
+    get_default_definer(this, definer);
+}
+
 
 /**
   Mark transaction to rollback and mark error as fatal to a sub-statement.
@@ -3553,9 +3573,13 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(hash_search(&xid_cache, xid_state->xid.key(),
-                          xid_state->xid.key_length())==0);
-  my_bool res=my_hash_insert(&xid_cache, (uchar*)xid_state);
+  if (hash_search(&xid_cache, xid_state->xid.key(), xid_state->xid.key_length()))
+  {
+    pthread_mutex_unlock(&LOCK_xid_cache);
+    my_error(ER_XAER_DUPID, MYF(0));
+    return TRUE;
+  }
+  my_bool res= my_hash_insert(&xid_cache, (uchar*)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
 }

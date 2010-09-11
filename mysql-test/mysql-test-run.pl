@@ -3561,8 +3561,9 @@ sub timezone {
   my ($tinfo)= @_;
   local $_ = $tinfo->{timezone};
   return 'DEFAULT' unless defined $_;
-  s/\$\{(\w+)\}/envsubst($1)/ge;
-  s/\$(\w+)/envsubst($1)/ge;
+  no warnings 'uninitialized';
+  s/\$\{(\w+)\}/$ENV{$1}/ge;
+  s/\$(\w+)/$ENV{$1}/ge;
   $_;
 }
 
@@ -4224,6 +4225,7 @@ sub extract_warning_lines ($) {
      qr/slave SQL thread aborted/,
      qr/unknown option '--loose[-_]/,
      qr/unknown variable 'loose[-_]/,
+     qr/Invalid .*old.* table or database name/,
      qr/Now setting lower_case_table_names to [02]/,
      qr/Setting lower_case_table_names=2/,
      qr/You have forced lower_case_table_names to 0/,
@@ -5068,18 +5070,6 @@ sub started { return grep(defined $_, map($_->{proc}, @_));  }
 sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 
-sub envsubst {
-  my $string= shift;
-
-  if ( ! defined $ENV{$string} )
-  {
-    mtr_error(".opt file references '$string' which is not set");
-  }
-
-  return $ENV{$string};
-}
-
-
 sub get_extra_opts {
   my ($mysqld, $tinfo)= @_;
 
@@ -5090,8 +5080,9 @@ sub get_extra_opts {
   # Expand environment variables
   foreach my $opt ( @$opts )
   {
-    $opt =~ s/\$\{(\w+)\}/envsubst($1)/ge;
-    $opt =~ s/\$(\w+)/envsubst($1)/ge;
+    no warnings 'uninitialized';
+    $opt =~ s/\$\{(\w+)\}/$ENV{$1}/ge;
+    $opt =~ s/\$(\w+)/$ENV{$1}/ge;
   }
   return $opts;
 }
@@ -5843,7 +5834,7 @@ sub time_format($) {
 my $num_tests;
 
 sub xterm_stat {
-  if (-t STDOUT and $ENV{TERM} =~ /xterm/) {
+  if (-t STDOUT and defined $ENV{TERM} and $ENV{TERM} =~ /xterm/) {
     my ($left) = @_;
 
     # 2.5 -> best by test

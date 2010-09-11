@@ -123,6 +123,3 @@ link_sources:
 	rm -f $(srcdir)/my_user.c; \
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
 	echo timestamp > link_sources;
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

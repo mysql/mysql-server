@@ -434,20 +434,19 @@ mutex_set_waiters(
 	mutex_t*	mutex,	/*!< in: mutex */
 	ulint		n)	/*!< in: value to set */
 {
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	volatile ulint*	ptr;		/* declared volatile to ensure that
-					the value is stored to memory */
-#endif
-
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	ut_ad(mutex);
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	if (n) {
 		os_compare_and_swap_ulint(&mutex->waiters, 0, 1);
 	} else {
 		os_compare_and_swap_ulint(&mutex->waiters, 1, 0);
 	}
 #else
+	volatile ulint*	ptr;		/* declared volatile to ensure that
+					the value is stored to memory */
+	ut_ad(mutex);
+
 	ptr = &(mutex->waiters);
 
 	*ptr = n;		/* Here we assume that the write of a single

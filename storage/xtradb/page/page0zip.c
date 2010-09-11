@@ -571,7 +571,7 @@ page_zip_dir_encode(
 	/* Traverse the list of stored records in the collation order,
 	starting from the first user record. */
 
-	rec = page + PAGE_NEW_INFIMUM, TRUE;
+	rec = page + PAGE_NEW_INFIMUM;
 
 	i = 0;
 
@@ -1153,6 +1153,10 @@ page_zip_compress(
 	FILE*		logfile = NULL;
 #endif
 
+	if (!page) {
+		return(FALSE);
+	}
+
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(page_simple_validate_new((page_t*) page));
@@ -1464,6 +1468,7 @@ page_zip_fields_free(
 		dict_table_t*	table = index->table;
 		mem_heap_free(index->heap);
 		mutex_free(&(table->autoinc_mutex));
+		ut_free(table->name);
 		mem_heap_free(table->heap);
 	}
 }

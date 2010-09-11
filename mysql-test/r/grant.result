@@ -1425,7 +1425,7 @@ ERROR 42S02: Table 'db1.../db2/tb2' doesn't exist
 SELECT * FROM `../db2`.tb2;
 ERROR 42000: SELECT command denied to user 'testbug'@'localhost' for table 'tb2'
 SELECT * FROM `#mysql50#/../db2/tb2`;
-ERROR 42S02: Table 'db1.#mysql50#/../db2/tb2' doesn't exist
+ERROR 42000: Incorrect table name '#mysql50#/../db2/tb2'
 DROP USER 'testbug'@localhost;
 DROP TABLE db2.t1;
 DROP DATABASE db1;
