@@ -568,43 +568,33 @@ int	__void__;
 #endif /* DONT_DEFINE_VOID */
 
 /*
-  Try to suppress warning for not initialized variables.
+  Deprecated workaround for false-positive uninitialized variables
+  warnings. Those should be silenced using tool-specific heuristics.
 
-  With gcc when using C, we suppress the uninitialized variable warning
-  without generating code. We can't do this with C++
-  for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772).
+  Enabled by default for g++ due to the bug referenced below.
 */
-
-#if defined(FORCE_INIT_OF_VARS)
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
+    (defined(__GNUC__) && defined(__cplusplus))
 #define LINT_INIT(var) var= 0
-#if defined(__cplusplus) || !defined(__GNUC__)
+#else
+#define LINT_INIT(var)
+#endif
+
+/*
+   Suppress uninitialized variable warning without generating code.
+
+   The _cplusplus is a temporary workaround for C++ code pending a fix
+   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772).
+*/
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
+    defined(__cplusplus) || !defined(__GNUC__)
 #define UNINIT_VAR(x) x= 0
 #else
 /* GCC specific self-initialization which inhibits the warning. */
 #define UNINIT_VAR(x) x= x
 #endif
-#else /* !FORCE_INIT_OF_VARS */
-#define LINT_INIT(var)
-#if !defined(__cplusplus) && !defined(__GNUC__)
-/* GCC specific self-initialization which inhibits the warning. */
-#define UNINIT_VAR(x) x= x
-#else
-#define UNINIT_VAR(x) x
-#endif
-#endif /* FORCE_INIT_OF_VARS */
 
 #include <my_valgrind.h>
-
-/*
-  The following is to force some unitialized variables to 0 if we are
-  running valgrind. This is needed when the compiler may access the variable
-  even if the value of it is never used.
-*/
-#if defined(HAVE_valgrind)
-#define VALGRIND_OR_LINT_INIT(var) var=0
-#else
-#define VALGRIND_OR_LINT_INIT(var) LINT_INIT(var)
-#endif
 
 /* Define some useful general macros */
 #if !defined(max)
@@ -621,7 +611,7 @@ typedef unsigned short ushort;
 
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 #define sgn(a)		(((a) < 0) ? -1 : ((a) > 0) ? 1 : 0)
-#define swap_variables(t, a, b) { t swap_dummy; swap_dummy= a; a= b; b= swap_dummy; }
+#define swap_variables(t, a, b) { t dummy; dummy= a; a= b; b= dummy; }
 #define test(a)		((a) ? 1 : 0)
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
