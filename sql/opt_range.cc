@@ -262,8 +262,8 @@ public:
   uint8 part;					// Which key part
   uint8 maybe_null;
   /* 
-    The ordinal number the least significant component encountered the ranges
-    of the SEL_ARG tree (the first component has number 1) 
+    The ordinal number the least significant component encountered in
+    the ranges of the SEL_ARG tree (the first component has number 1) 
   */
   uint16 max_part_no; 
   /* 
@@ -851,8 +851,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
 static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
 static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
                              uint length);
-static bool sel_trees_have_common_keys(RANGE_OPT_PARAM* param,
-                                       SEL_TREE *tree1, SEL_TREE *tree2, 
+static bool sel_trees_have_common_keys(SEL_TREE *tree1, SEL_TREE *tree2, 
                                        key_map *common_keys);
 static void eliminate_single_tree_imerges(RANGE_OPT_PARAM *param,
                                           SEL_TREE *tree);
@@ -964,7 +963,7 @@ bool SEL_IMERGE::have_common_keys(RANGE_OPT_PARAM *param, SEL_TREE *tree)
        or_tree != bound; or_tree++)
   {
     key_map common_keys;
-    if (sel_trees_have_common_keys(param, *or_tree, tree, &common_keys))
+    if (sel_trees_have_common_keys(*or_tree, tree, &common_keys))
       return TRUE;
   }
   return FALSE;
@@ -988,12 +987,15 @@ bool SEL_IMERGE::have_common_keys(RANGE_OPT_PARAM *param, SEL_TREE *tree)
     If this imerge m represent the formula
       RT_1 OR ... OR RT_k
     then the resulting imerge of the function represents the formula
-      (RT_1 AND RT) OR ... (RT_k AND RT)
+      (RT_1 AND RT) OR ... OR (RT_k AND RT)
     The function calls the function and_range_trees to construct the
     range tree representing (RT_i AND RT).
     
   NOTE
-    The function may return an empty imerge without any range trees
+    The function may return an empty imerge without any range trees.
+    This happens when each call of and_range_trees returns an 
+    impossible range tree (SEL_TREE::IMPOSSIBLE).
+    Example: (key1 < 2 AND key2 > 10) AND (key1 > 4 OR key2 < 6).
          
   RETURN
      0  if the operation is a success
@@ -1005,13 +1007,12 @@ int SEL_IMERGE::and_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree,
 {
   for (SEL_TREE** or_tree= trees; or_tree != trees_next; or_tree++) 
   {
-    SEL_TREE *result= 0;
-    key_map  result_keys;
-    if (!(result= new SEL_TREE()))
+    SEL_TREE *res_or_tree= 0;
+    if (!(res_or_tree= new SEL_TREE()))
       return (-1);
-    if (!and_range_trees(param, *or_tree, tree, result))
+    if (!and_range_trees(param, *or_tree, tree, res_or_tree))
     {
-      if (new_imerge->or_sel_tree(param, result))
+      if (new_imerge->or_sel_tree(param, res_or_tree))
         return (-1);
     }        
   }
@@ -1030,7 +1031,7 @@ int SEL_IMERGE::and_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree,
       is_last_check_pass OUT <=> no more calls of the function for this imerge
 
   DESCRIPTION
-    The functions performs OR operation on this imerge m and the range part
+    The function performs OR operation on this imerge m and the range part
     of the SEL_TREE tree rt. It always replaces this imerge with the result
     of the operation.
  
@@ -1044,7 +1045,7 @@ int SEL_IMERGE::and_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree,
     1. In the first mode, when is_first_check_pass==TRUE :
       1.1. If rt must be ored(see the function sel_trees_must_be_ored) with
            some rt_j (there may be only one such range tree in the imerge)
-           then the function produces the imerge representing the formula
+           then the function produces an imerge representing the formula
              RT_1 OR ... OR (RT_j OR RT) OR ... OR RT_k,
            where the tree for (RT_j OR RT) is built by oring the pairs
            of SEL_ARG trees for the corresponding indexes
@@ -1090,7 +1091,8 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
     {
       bool must_be_ored= sel_trees_must_be_ored(param, *or_tree, tree,
                                                 ored_keys);
-      if (must_be_ored == is_first_check_pass)      {
+      if (must_be_ored == is_first_check_pass) 
+      {
         result_keys.clear_all();
         result= *or_tree;
         for (uint key_no= 0; key_no < param->keys; key_no++)
@@ -6962,7 +6964,6 @@ void eliminate_single_tree_imerges(RANGE_OPT_PARAM *param, SEL_TREE *tree)
  
   SYNOPSIS
     sel_trees_have_common_keys()
-      param           Context info for the function
       tree1           SEL_TREE for the first tree
       tree2           SEL_TREE for the second tree
       common_keys OUT bitmap of all indexes with ranges in both trees
@@ -6979,8 +6980,7 @@ void eliminate_single_tree_imerges(RANGE_OPT_PARAM *param, SEL_TREE *tree)
 */
 
 static
-bool sel_trees_have_common_keys(RANGE_OPT_PARAM* param,
-                                SEL_TREE *tree1, SEL_TREE *tree2, 
+bool sel_trees_have_common_keys(SEL_TREE *tree1, SEL_TREE *tree2, 
                                 key_map *common_keys)
 {
   *common_keys= tree1->keys_map;
@@ -7027,7 +7027,7 @@ bool sel_trees_can_be_ored(RANGE_OPT_PARAM* param,
                            key_map *common_keys)
 {
   DBUG_ENTER("sel_trees_can_be_ored");
-  if (!sel_trees_have_common_keys(param, tree1, tree2, common_keys))
+  if (!sel_trees_have_common_keys(tree1, tree2, common_keys))
     DBUG_RETURN(FALSE);
   int key_no;
   key_map::Iterator it(*common_keys);
@@ -7151,7 +7151,7 @@ bool sel_trees_must_be_ored(RANGE_OPT_PARAM* param,
       key1part1=1 AND key2part1=3 OR key2part1=3 AND key2part2=2 
     for which an index merge can be built. 
 
-    Any final SEL_TREE may contains SEL_ARG trees for which no quick select
+    Any final SEL_TREE may contain SEL_ARG trees for which no quick select
     can be built. Such SEL_ARG trees should be removed from the range part
     before different range scans are evaluated. Such SEL_ARG trees also should
     be removed from all range trees of each index merge before different
@@ -7335,7 +7335,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
         result->merges.push_back(imerge_from_ranges) ||
         imerge_from_ranges->or_sel_tree(param, rt1) ||
         imerge_from_ranges->or_sel_tree(param, rt2))
-        result= NULL;
+      result= NULL;
   }
   if (!result)
     DBUG_RETURN(result);
