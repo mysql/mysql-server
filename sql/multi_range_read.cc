@@ -356,7 +356,7 @@ void SimpleBuffer::setup_reading(uchar **data1, size_t len1,
 
 bool SimpleBuffer::read()
 {
-  if (!have_data(read_size1 + read_ptr2? read_size2 : 0))
+  if (!have_data(read_size1 + (read_ptr2? read_size2 : 0)))
     return TRUE;
   *read_ptr1 =read(read_size1);
   if (read_ptr2)
