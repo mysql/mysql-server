@@ -39,6 +39,7 @@
 #define SANITY_CHECKS 1
 #ifdef EXTRA_DEBUG
 #define EXTRA_DEBUG_KEY_CHANGES
+#define EXTRA_STORE_FULL_PAGE_IN_KEY_CHANGES
 #endif
 
 #define MAX_NONMAPPED_INSERTS 1000
@@ -243,7 +244,8 @@ typedef struct st_maria_file_bitmap
   uchar *map;
   pgcache_page_no_t page;              /* Page number for current bitmap */
   uint used_size;                      /* Size of bitmap head that is not 0 */
-  my_bool changed;                     /* 1 if page needs to be flushed */
+  my_bool changed;                     /* 1 if page needs to be written */
+  my_bool changed_not_flushed;         /* 1 if some bitmap is not flushed */
   my_bool flush_all_requested;         /**< If _ma_bitmap_flush_all waiting */
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
@@ -361,6 +363,7 @@ typedef struct st_maria_share
   uint in_trans;                        /* Number of references by trn */
   uint w_locks, r_locks, tot_locks;	/* Number of read/write locks */
   uint block_size;			/* block_size of keyfile & data file*/
+  uint max_index_block_size;            /* block_size - end_of_page_info */
   /* Fixed length part of a packed row in BLOCK_RECORD format */
   uint base_length;
   myf write_flag;
@@ -833,6 +836,7 @@ typedef struct st_maria_page
   uchar *buff;				/* Data for page */
   my_off_t pos;                         /* Disk address to page */
   uint     size;                        /* Size of data on page */
+  uint     org_size;                    /* Size of page at read or after log */
   uint     node;      			/* 0 or share->base.key_reflength */
   uint     flag;			/* Page flag */
   uint     link_offset;

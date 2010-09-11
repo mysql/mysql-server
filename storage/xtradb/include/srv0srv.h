@@ -156,6 +156,8 @@ extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
+extern uint	srv_buffer_pool_shm_key;
+
 extern ibool	srv_thread_concurrency_timer_based;
 
 extern ulint	srv_n_file_io_threads;
@@ -207,6 +209,7 @@ extern ulong	srv_stats_method;
 #define SRV_STATS_METHOD_IGNORE_NULLS    2
 extern ulong	srv_stats_auto_update;
 extern ulint	srv_stats_update_need_lock;
+extern ibool	srv_use_sys_stats_table;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
@@ -367,8 +370,9 @@ enum {
 				when writing data files, but do flush
 				after writing to log files */
 	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
-	SRV_UNIX_O_DIRECT	/*!< invoke os_file_set_nocache() on
+	SRV_UNIX_O_DIRECT,	/*!< invoke os_file_set_nocache() on
 				data files */
+	SRV_UNIX_ALL_O_DIRECT  /* new method for examination: logfile also open O_DIRECT */
 };
 
 /** Alternatives for file i/o in Windows */

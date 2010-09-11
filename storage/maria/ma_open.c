@@ -434,8 +434,14 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         share->base.born_transactional &&
         ((!(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
           memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE)) ||
-         share->state.create_trid > trnman_get_max_trid()))
+         (share->state.create_trid > trnman_get_max_trid() &&
+          !maria_in_recovery)))
     {
+      DBUG_PRINT("warning", ("table is moved from another system.  uuid_diff: %d  create_trid: %lu  max_trid: %lu",
+                            memcmp(share->base.uuid, maria_uuid,
+                                   MY_UUID_SIZE) != 0,
+                             (ulong) share->state.create_trid,
+                             (ulong) trnman_get_max_trid()));
       if (open_flags & HA_OPEN_FOR_REPAIR)
         share->state.changed|= STATE_MOVED;
       else
@@ -550,6 +556,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     strmov(share->open_file_name.str,  name);
 
     share->block_size= share->base.block_size;   /* Convenience */
+    share->max_index_block_size= share->block_size - KEYPAGE_CHECKSUM_SIZE;
     {
       HA_KEYSEG *pos=share->keyparts;
       uint32 ftkey_nr= 1;

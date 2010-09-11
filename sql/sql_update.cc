@@ -467,11 +467,10 @@ int mysql_update(THD *thd,
       thd_proc_info(thd, "Searching rows for update");
       ha_rows tmp_limit= limit;
 
-      while (!(error=info.read_record(&info)) && 
-             !thd->killed && !thd->is_error())
+      while (!(error=info.read_record(&info)) && !thd->killed)
       {
         thd->examined_row_count++;
-	if (!select || select->skip_record(thd) > 0)
+	if (!select || (error= select->skip_record(thd)) > 0)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -490,7 +489,15 @@ int mysql_update(THD *thd,
 	  }
 	}
 	else
+        {
 	  table->file->unlock_row();
+          if (error < 0)
+          {
+            /* Fatal error from select->skip_record() */
+            error= 1;
+            break;
+          }
+        }
       }
       if (thd->killed && !error)
 	error= 1;				// Aborted

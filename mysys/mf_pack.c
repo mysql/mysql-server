@@ -52,7 +52,7 @@ void pack_dirname(char * to, const char *from)
     buff_length= strlen(buff);
     d_length= (size_t) (start-to);
     if ((start == to ||
-	 (buff_length == d_length && !bcmp(buff,start,d_length))) &&
+	 (buff_length == d_length && !memcmp(buff,start,d_length))) &&
 	*start != FN_LIBCHAR && *start)
     {						/* Put current dir before */
       bchange((uchar*) to, d_length, (uchar*) buff, buff_length, strlen(to)+1);
@@ -70,7 +70,7 @@ void pack_dirname(char * to, const char *from)
     }
     if (length > 1 && length < d_length)
     {						/* test if /xx/yy -> ~/yy */
-      if (bcmp(to,home_dir,length) == 0 && to[length] == FN_LIBCHAR)
+      if (memcmp(to,home_dir,length) == 0 && to[length] == FN_LIBCHAR)
       {
 	to[0]=FN_HOMELIB;			/* Filename begins with ~ */
 	(void) strmov_overlapp(to+1,to+length);
@@ -80,7 +80,7 @@ void pack_dirname(char * to, const char *from)
     {						/* Test if cwd is ~/... */
       if (length > 1 && length < buff_length)
       {
-	if (bcmp(buff,home_dir,length) == 0 && buff[length] == FN_LIBCHAR)
+	if (memcmp(buff,home_dir,length) == 0 && buff[length] == FN_LIBCHAR)
 	{
 	  buff[0]=FN_HOMELIB;
 	  (void) strmov_overlapp(buff+1,buff+length);
@@ -166,7 +166,7 @@ size_t cleanup_dirname(register char *to, const char *from)
       *pos = FN_LIBCHAR;
     if (*pos == FN_LIBCHAR)
     {
-      if ((size_t) (pos-start) > length && bcmp(pos-length,parent,length) == 0)
+      if ((size_t) (pos-start) > length && memcmp(pos-length,parent,length) == 0)
       {						/* If .../../; skip prev */
 	pos-=length;
 	if (pos != start)
@@ -197,7 +197,7 @@ size_t cleanup_dirname(register char *to, const char *from)
 	  end_parentdir=pos;
 	  while (pos >= start && *pos != FN_LIBCHAR)	/* remove prev dir */
 	    pos--;
-	  if (pos[1] == FN_HOMELIB || bcmp(pos,parent,length) == 0)
+	  if (pos[1] == FN_HOMELIB || memcmp(pos,parent,length) == 0)
 	  {					/* Don't remove ~user/ */
 	    pos=strmov(end_parentdir+1,parent);
 	    *pos=FN_LIBCHAR;
@@ -206,7 +206,7 @@ size_t cleanup_dirname(register char *to, const char *from)
 	}
       }
       else if ((size_t) (pos-start) == length-1 &&
-	       !bcmp(start,parent+1,length-1))
+	       !memcmp(start,parent+1,length-1))
 	start=pos;				/* Starts with "../" */
       else if (pos-start > 0 && pos[-1] == FN_LIBCHAR)
       {

@@ -203,7 +203,7 @@ mlog_write_initial_log_record_fast(
 	system tablespace */
 	if ((space == TRX_SYS_SPACE
 	     || (srv_doublewrite_file && space == TRX_DOUBLEWRITE_SPACE))
-	    && offset >= FSP_EXTENT_SIZE && offset < 3 * FSP_EXTENT_SIZE) {
+	    && offset >= (ulint)FSP_EXTENT_SIZE && offset < 3 * (ulint)FSP_EXTENT_SIZE) {
 		if (trx_doublewrite_buf_is_being_created) {
 			/* Do nothing: we only come to this branch in an
 			InnoDB database creation. We do not redo log

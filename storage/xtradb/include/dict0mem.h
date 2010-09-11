@@ -382,7 +382,7 @@ initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_struct{
 	dulint		id;	/*!< id of the table */
 	mem_heap_t*	heap;	/*!< memory heap */
-	const char*	name;	/*!< table name */
+	char*		name;	/*!< table name */
 	const char*	dir_path_of_temp_table;/*!< NULL or the directory path
 				where a TEMPORARY table that was explicitly
 				created by a user should be placed if

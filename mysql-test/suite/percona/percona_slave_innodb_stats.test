@@ -1,0 +1,43 @@
+source include/have_innodb.inc;
+source include/master-slave.inc;
+
+connection master;
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;
+INSERT INTO t VALUES
+(1,"aaaaabbbbbcccccdddddeeeeefffff"),
+(2,"aaaaabbbbbcccccdddddeeeeefffff"),
+(3,"aaaaabbbbbcccccdddddeeeeefffff"),
+(4,"aaaaabbbbbcccccdddddeeeeefffff"),
+(5,"aaaaabbbbbcccccdddddeeeeefffff");
+INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
+INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
+sync_slave_with_master;
+
+connection slave;
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+START SLAVE;
+-- source include/wait_for_slave_to_start.inc
+
+connection master;
+INSERT INTO t SELECT t.id,t.data from t;
+sync_slave_with_master;
+
+connection master;
+DROP TABLE IF EXISTS t;
+sync_slave_with_master;
+
+exec cat var/mysqld.2/mysqld-slow.log | grep InnoDB_IO_r_ops | wc -l;

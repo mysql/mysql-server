@@ -2967,10 +2967,13 @@ int ha_federatedx::rnd_pos(uchar *buf, uchar *pos)
   DBUG_ENTER("ha_federatedx::rnd_pos");
   ha_statistic_increment(&SSV::ha_read_rnd_count);
 
+  /* We have to move this to 'ref' to get things aligned */
+  bmove(ref, pos, ref_length);
+
   if ((retval= txn->acquire(share, TRUE, &io)))
     goto error;
 
-  if ((retval= io->seek_position(&result, pos)))
+  if ((retval= io->seek_position(&result, ref)))
     goto error;
 
   retval= read_next(buf, result);

@@ -750,8 +750,11 @@ static int maria_create_trn_for_mysql(MARIA_HA *info)
                                    thd->query_length());
   }
   else
+  {
     DBUG_PRINT("info", ("lock_type: %d  trnman_flags: %u",
-                        info->lock_type, trnman_get_flags(trn))); /* QQ */
+                        info->lock_type, trnman_get_flags(trn)));
+  }
+  
 #endif
   DBUG_RETURN(0);
 }
@@ -2003,14 +2006,16 @@ bool ha_maria::check_and_repair(THD *thd)
 
   check_opt.init();
 
-  if (file->s->state.changed & STATE_MOVED)
+  error= 1;
+  if ((file->s->state.changed &
+       (STATE_CRASHED | STATE_CRASHED_ON_REPAIR | STATE_MOVED)) ==
+      STATE_MOVED)
   {
-    sql_print_information("Zerofilling table:   '%s'", table->s->path.str);
+    sql_print_information("Zerofilling moved table:  '%s'",
+                          table->s->path.str);
     if (!(error= zerofill(thd, &check_opt)))
       DBUG_RETURN(0);
   }
-  else
-    error= 1;
 
   /*
     if we got this far - the table is crashed.
@@ -2347,6 +2352,12 @@ int ha_maria::extra(enum ha_extra_function operation)
 
 int ha_maria::reset(void)
 {
+  if (file->trn)
+  {
+    /* Next statement is a new statement. Ensure it's logged */
+    trnman_set_flags(file->trn,
+                     trnman_get_flags(file->trn) & ~TRN_STATE_INFO_LOGGED);
+  }
   return maria_reset(file);
 }
 

@@ -145,6 +145,7 @@ static uchar *trn_get_hash_key(const uchar *trn, size_t *len,
 int trnman_init(TrID initial_trid)
 {
   DBUG_ENTER("trnman_init");
+  DBUG_PRINT("enter", ("initial_trid: %lu", (ulong) initial_trid));
 
   short_trid_to_active_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
                                      MYF(MY_WME|MY_ZEROFILL));
@@ -363,6 +364,7 @@ TRN *trnman_new_trn(WT_THD *wt)
   trn->used_tables= 0;
 
   trn->locked_tables= 0;
+  trn->flags= 0;
 
   /*
     only after the following function TRN is considered initialized,

@@ -1,0 +1,12 @@
+drop table if exists t1;
+create table t (a int not null);
+insert into t values (1),(2),(3);
+SELECT SQL_NO_FCACHE SLEEP(0);
+SLEEP(0)
+0
+SELECT /*!40001 SQL_NO_CACHE */ /*!50084 SQL_NO_FCACHE */ * FROM t;
+a
+1
+2
+3
+DROP TABLE t;

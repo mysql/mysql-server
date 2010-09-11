@@ -352,6 +352,7 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
+	size_t		sql_length,	/*!< in: length of sql_string */
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */
@@ -1039,8 +1040,9 @@ void
 dict_update_statistics_low(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex);/*!< in: TRUE if the caller has the
+	ibool		has_dict_mutex,	/*!< in: TRUE if the caller has the
 					dictionary mutex */
+	ibool		sync);
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
@@ -1048,7 +1050,8 @@ UNIV_INTERN
 void
 dict_update_statistics(
 /*===================*/
-	dict_table_t*	table);	/*!< in/out: table */
+	dict_table_t*	table,	/*!< in/out: table */
+	ibool		sync);
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN
@@ -1159,6 +1162,7 @@ struct dict_sys_struct{
 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
+	dict_table_t*	sys_stats;	/*!< SYS_STATS table */
 };
 #endif /* !UNIV_HOTBACKUP */
 

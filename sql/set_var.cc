@@ -95,14 +95,13 @@ TYPELIB delay_key_write_typelib=
   delay_key_write_type_names, NULL
 };
 
-const char *slave_exec_mode_names[]=
-{ "STRICT", "IDEMPOTENT", NullS };
-static const unsigned int slave_exec_mode_names_len[]=
-{ sizeof("STRICT") - 1, sizeof("IDEMPOTENT") - 1, 0 };
+static const char *slave_exec_mode_names[]= { "STRICT", "IDEMPOTENT", NullS };
+static unsigned int slave_exec_mode_names_len[]= { sizeof("STRICT") - 1,
+                                                   sizeof("IDEMPOTENT") - 1, 0 };
 TYPELIB slave_exec_mode_typelib=
 {
   array_elements(slave_exec_mode_names)-1, "",
-  slave_exec_mode_names, (unsigned int *) slave_exec_mode_names_len
+  slave_exec_mode_names, slave_exec_mode_names_len
 };
 
 static int  sys_check_ftb_syntax(THD *thd,  set_var *var);
@@ -1267,7 +1266,7 @@ uchar *sys_var_set::value_ptr(THD *thd, enum_var_type type,
 
 void sys_var_set_slave_mode::set_default(THD *thd, enum_var_type type)
 {
-  slave_exec_mode_options= (ULL(1) << SLAVE_EXEC_MODE_STRICT);
+  slave_exec_mode_options= SLAVE_EXEC_MODE_STRICT;
 }
 
 bool sys_var_set_slave_mode::check(THD *thd, set_var *var)
@@ -1275,8 +1274,7 @@ bool sys_var_set_slave_mode::check(THD *thd, set_var *var)
   bool rc=  sys_var_set::check(thd, var);
   if (!rc &&
       test_all_bits(var->save_result.ulong_value,
-                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
-                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
+                    SLAVE_EXEC_MODE_STRICT | SLAVE_EXEC_MODE_IDEMPOTENT))
   {
     rc= true;
     my_error(ER_SLAVE_AMBIGOUS_EXEC_MODE, MYF(0), "");
@@ -1293,21 +1291,18 @@ bool sys_var_set_slave_mode::update(THD *thd, set_var *var)
   return rc;
 }
 
-void fix_slave_exec_mode(enum_var_type type)
+void fix_slave_exec_mode(void)
 {
   DBUG_ENTER("fix_slave_exec_mode");
-  compile_time_assert(sizeof(slave_exec_mode_options) * CHAR_BIT
-                      > SLAVE_EXEC_MODE_LAST_BIT - 1);
+
   if (test_all_bits(slave_exec_mode_options,
-                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
-                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
+                    SLAVE_EXEC_MODE_STRICT | SLAVE_EXEC_MODE_IDEMPOTENT))
   {
-    sql_print_error("Ambiguous slave modes combination."
-                    " STRICT will be used");
-    slave_exec_mode_options&= ~(ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT);
+    sql_print_error("Ambiguous slave modes combination. STRICT will be used");
+    slave_exec_mode_options&= ~SLAVE_EXEC_MODE_IDEMPOTENT;
   }
-  if (!(slave_exec_mode_options & (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT)))
-    slave_exec_mode_options|= (ULL(1)<< SLAVE_EXEC_MODE_STRICT);
+  if (!(slave_exec_mode_options & SLAVE_EXEC_MODE_IDEMPOTENT))
+    slave_exec_mode_options|= SLAVE_EXEC_MODE_STRICT;
   DBUG_VOID_RETURN;
 }
 

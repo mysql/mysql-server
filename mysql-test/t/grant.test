@@ -1541,7 +1541,7 @@ connect (con1,localhost,testbug,,db1);
 SELECT * FROM `../db2/tb2`;
 --error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM `../db2`.tb2;
---error ER_NO_SUCH_TABLE
+--error ER_WRONG_TABLE_NAME
 SELECT * FROM `#mysql50#/../db2/tb2`;
 connection default;
 disconnect con1;
