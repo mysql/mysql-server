@@ -263,8 +263,11 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
                                           &stmt->lex->param_list,
                                           Protocol::SEND_EOF);
   }
-  /* Flag that a response has already been sent */
-  thd->main_da.disable_status();
+
+  if (!error)
+    /* Flag that a response has already been sent */
+    thd->main_da.disable_status();
+
   DBUG_RETURN(error);
 }
 #else
@@ -790,7 +793,7 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
       type (the types are supplied at execute). Check that the
       supplied type of placeholder can accept a data stream.
     */
-    else if (!is_param_long_data_type(param))
+    else if (! is_param_long_data_type(param))
       DBUG_RETURN(1);
     res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
@@ -836,7 +839,7 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
       type (the types are supplied at execute). Check that the
       supplied type of placeholder can accept a data stream.
     */
-    else if (is_param_long_data_type(param))
+    else if (! is_param_long_data_type(param))
       DBUG_RETURN(1);
     if (param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);                           /* out of memory */
@@ -3335,7 +3338,7 @@ reexecute:
 bool
 Prepared_statement::reprepare()
 {
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   LEX_STRING stmt_db_name= { db, db_length };
@@ -3496,7 +3499,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   Query_arena *old_stmt_arena;
   bool error= TRUE;
 
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;

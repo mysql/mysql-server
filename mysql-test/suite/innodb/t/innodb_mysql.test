@@ -8,6 +8,8 @@
 # Slow test, don't run during staging part
 -- source include/not_staging.inc
 -- source include/have_innodb.inc
+-- source include/have_query_cache.inc
+
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
 # InnoDB does support FOREIGN KEYFOREIGN KEYs
@@ -751,5 +753,19 @@ EXPLAIN SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
 ORDER BY f1 DESC LIMIT 5;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#54117 crash in thr_multi_unlock, temporary table
+--echo #
+
+CREATE TEMPORARY TABLE t1(a INT) ENGINE = InnoDB;
+
+LOCK TABLES t1 READ;
+ALTER TABLE t1 COMMENT 'test';
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
 
 --echo End of 5.1 tests

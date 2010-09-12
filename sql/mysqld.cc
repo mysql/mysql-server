@@ -187,7 +187,7 @@ typedef fp_except fp_except_t;
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
 # define _FPU_DOUBLE 0x200
-# if defined(__GNUC__) || defined(__SUNPRO_CC)
+# if defined(__GNUC__) || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
 #  define _FPU_GETCW(cw) asm volatile ("fnstcw %0" : "=m" (*&cw))
 #  define _FPU_SETCW(cw) asm volatile ("fldcw %0" : : "m" (*&cw))
 # else
@@ -573,7 +573,7 @@ ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
-const char *slave_exec_mode_str= "STRICT";
+static const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
@@ -2549,7 +2549,9 @@ extern "C" sig_handler handle_segfault(int sig)
 {
   time_t curr_time;
   struct tm tm;
+#ifdef HAVE_STACKTRACE
   THD *thd=current_thd;
+#endif
 
   /*
     Strictly speaking, one needs a mutex here
@@ -2616,13 +2618,14 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 #endif /* HAVE_LINUXTHREADS */
 
 #ifdef HAVE_STACKTRACE
+
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr,"thd: 0x%lx\n",(long) thd);
-    fprintf(stderr,"\
-Attempting backtrace. You can use the following information to find out\n\
-where mysqld died. If you see no messages after this, something went\n\
-terribly wrong...\n");  
+    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Attempting backtrace. You can use the following "
+                    "information to find out\nwhere mysqld died. If "
+                    "you see no messages after this, something went\n"
+                    "terribly wrong...\n");
     my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
                         my_thread_stack_size);
   }
@@ -3067,7 +3070,20 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     }
     else
     {
-      if (! thd->main_da.is_error())            // Return only first message
+      if (thd->main_da.is_ok() && !thd->main_da.can_overwrite_status)
+      {
+        /*
+          Client has already got ok packet and we are not in net_flush(), so
+          we write a message to error log.
+          This could happen if we get an error in implicit commit.
+          This should never happen in normal operation, so lets
+          assert here in debug builds.
+        */
+        DBUG_ASSERT(0);
+        func= sql_print_error;
+        MyFlags|= ME_NOREFRESH;
+      }
+      else if (! thd->main_da.is_error()) // Return only first message
       {
         thd->main_da.set_error_status(thd, error, str);
       }
@@ -4182,7 +4198,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-#ifdef WITH_CSV_STORAGE_ENGINE
   if (opt_bootstrap)
     log_output_options= LOG_FILE;
   else
@@ -4216,10 +4231,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
                         opt_log ? log_output_options:LOG_NONE);
   }
-#else
-  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
-                      opt_log ? LOG_FILE:LOG_NONE);
-#endif
 
   /*
     Check that the default storage engine is actually available.
@@ -5955,6 +5966,7 @@ enum options_mysqld
 #if defined(ENABLED_DEBUG_SYNC)
   OPT_DEBUG_SYNC_TIMEOUT,
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+  OPT_DEPRECATED_OPTION,
   OPT_SLAVE_EXEC_MODE,
   OPT_DEADLOCK_SEARCH_DEPTH_SHORT,
   OPT_DEADLOCK_SEARCH_DEPTH_LONG,
@@ -6294,13 +6306,11 @@ each time the SQL thread starts.",
    "Log some extra information to update log. Please note that this option "
    "is deprecated; see --log-short-format option.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef WITH_CSV_STORAGE_ENGINE
   {"log-output", OPT_LOG_OUTPUT,
    "Syntax: log-output[=value[,value...]], where \"value\" could be TABLE, "
    "FILE or NONE.",
    &log_output_str, &log_output_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"log-queries-not-using-indexes", OPT_LOG_QUERIES_NOT_USING_INDEXES,
    "Log queries that are executed without benefit of any index to the slow log if it is open.",
    &opt_log_queries_not_using_indexes, &opt_log_queries_not_using_indexes,
@@ -6734,6 +6744,9 @@ thread is in the relay logs.",
    "Show user and password in SHOW SLAVE HOSTS on this master.",
    &opt_show_slave_auth_info, &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-bdb", OPT_DEPRECATED_OPTION,
+   "Deprecated option; Exist only for compatiblity with old my.cnf files",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
   {"skip-grant-tables", OPT_SKIP_GRANT,
    "Start without grant tables. This gives all users FULL ACCESS to all tables.",
@@ -8154,10 +8167,11 @@ static int mysql_init_variables(void)
 
   /* Things with default values that are not zero */
   delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
-  slave_exec_mode_options= 0;
-  slave_exec_mode_options= (uint)
-    find_bit_type_or_exit(slave_exec_mode_str, &slave_exec_mode_typelib, NULL,
-                          &error);
+  slave_exec_mode_options= find_bit_type_or_exit(slave_exec_mode_str,
+                                                 &slave_exec_mode_typelib,
+                                                 NULL, &error);
+  /* Default mode string must not yield a error. */
+  DBUG_ASSERT(!error);
   if (error)
     return 1;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -8405,6 +8419,10 @@ mysqld_get_one_option(int optid,
   case '0':
     WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-long-format", "--log-short-format");
     break;
+  case OPT_DEPRECATED_OPTION:
+    sql_print_warning("'%s' is deprecated and exists only for compatiblity with old my.cnf files; Please remove this option from all your my.cnf files!",
+                      opt->name);
+    break;
   case 'a':
     global_system_variables.sql_mode= fix_sql_mode(MODE_ANSI);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
@@ -8448,8 +8466,9 @@ mysqld_get_one_option(int optid,
     init_slave_skip_errors(argument);
     break;
   case OPT_SLAVE_EXEC_MODE:
-    slave_exec_mode_options= (uint)
-      find_bit_type_or_exit(argument, &slave_exec_mode_typelib, "", &error);
+    slave_exec_mode_options= find_bit_type_or_exit(argument,
+                                                   &slave_exec_mode_typelib,
+                                                   "", &error);
     if (error)
       return 1;
     break;
@@ -8553,7 +8572,7 @@ mysqld_get_one_option(int optid,
     *val= 0;
     val+= 2;
     while (*val && my_isspace(mysqld_charset, *val))
-      *val++;
+      val++;
     if (!*val)
     {
       sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
@@ -8626,7 +8645,6 @@ mysqld_get_one_option(int optid,
     WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--log-slow-file'");
     opt_slow_log= 1;
     break;
-#ifdef WITH_CSV_STORAGE_ENGINE
   case  OPT_LOG_OUTPUT:
   {
     if (!argument || !argument[0])
@@ -8644,7 +8662,6 @@ mysqld_get_one_option(int optid,
   }
     break;
   }
-#endif
   case OPT_EVENT_SCHEDULER:
 #ifndef HAVE_EVENT_SCHEDULER
     sql_perror("Event scheduler is not supported in embedded build.");
@@ -8769,8 +8786,7 @@ mysqld_get_one_option(int optid,
     if (!slave_warning_issued)                 //only show the warning once
     {
       slave_warning_issued = true;   
-      WARN_DEPRECATED(NULL, "6.0", "for replication startup options", 
-        "'CHANGE MASTER'");
+      WARN_DEPRECATED(NULL, "6.0", opt->name, "'CHANGE MASTER'");
     }
     break;
   case OPT_CONSOLE:
@@ -9143,7 +9159,7 @@ static int get_options(int *argc,char **argv)
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write((THD*) 0, OPT_GLOBAL);
   /* Set global slave_exec_mode from its option */
-  fix_slave_exec_mode(OPT_GLOBAL);
+  fix_slave_exec_mode();
 
   global_system_variables.log_slow_filter=
     fix_log_slow_filter(global_system_variables.log_slow_filter);

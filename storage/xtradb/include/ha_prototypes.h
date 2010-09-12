@@ -215,11 +215,21 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return	connection character set */
+UNIV_INTERN
 struct charset_info_st*
 innobase_get_charset(
 /*=================*/
 	void*	mysql_thd);	/*!< in: MySQL thread handle */
-
+/**********************************************************************//**
+Determines the current SQL statement.
+@return	SQL statement string */
+UNIV_INTERN
+const char*
+innobase_get_stmt(
+/*==============*/
+	void*	mysql_thd,	/*!< in: MySQL thread handle */
+	size_t*	length)		/*!< out: length of the SQL statement */
+	__attribute__((nonnull));
 /******************************************************************//**
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
@@ -257,5 +267,13 @@ thd_lock_wait_timeout(
 /*==================*/
 	void*	thd);	/*!< in: thread handle (THD*), or NULL to query
 			the global innodb_lock_wait_timeout */
+
+/******************************************************************//**
+*/
+
+ulong
+thd_flush_log_at_trx_commit_session(
+/*================================*/
+	void*	thd);
 
 #endif

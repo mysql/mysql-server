@@ -408,20 +408,16 @@ else
   echo "    shell> $bindir/mysql -u root mysql"
   echo "    mysql> show tables"
   echo
-  echo "Try 'mysqld --help' if you have problems with paths.  Using --log"
-  echo "gives you a log in $ldata that may be helpful."
+  echo "Try 'mysqld --help' if you have problems with paths.  Using"
+  echo "--general-log gives you a log in $ldata that may be helpful."
   echo
-  echo "The latest information about MariaDB is available on the web at"
-  echo "http://askmonty.org/wiki/index.php/MariaDB".
-  echo "If you have a problem, you can consult the MySQL manual section"
-  echo "'Problems running mysql_install_db', and the manual section that"
-  echo "describes problems on your OS at http://dev.mysql.com/doc/"
+  echo "The latest information about mysql_install_db is available at"
+  echo "http://kb.askmonty.org/v/installing-system-tables-mysql_install_db."
   echo "MariaDB is hosted on launchpad; You can find the latest source and"
   echo "email lists at http://launchpad.net/maria"
   echo
   echo "Please check all of the above before mailing us!  And remember, if"
   echo "you do mail us, you should use the $scriptdir/mysqlbug script!"
-  echo
   exit 1
 fi
 

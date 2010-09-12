@@ -717,7 +717,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
@@ -1928,7 +1928,7 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
             Hence, the overrun happens only if the name is in length > 32 and
             uses multibyte (cyrillic, greek, etc.)
           */
-          char n[NAME_LEN*2+2];
+          char n[SAFE_NAME_LEN*2+2];
 
           /* m_qname.str is not always \0 terminated */
           memcpy(n, name.m_qname.str, name.m_qname.length);

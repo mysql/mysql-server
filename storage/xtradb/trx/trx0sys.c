@@ -840,13 +840,13 @@ UNIV_INTERN
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
+	trx_sysf_t*	sys_header,
 	const char*	file_name_in,/*!< in: MySQL log file name */
 	ib_int64_t	offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	trx_sysf_t*	sys_header;
 	const char*	file_name;
 
 	if (ut_strlen(file_name_in) >= TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN) {
@@ -859,8 +859,6 @@ trx_sys_update_mysql_binlog_offset(
 	else {
 		file_name = file_name_in;
 	}
-
-	sys_header = trx_sysf_get(mtr);
 
 	if (mach_read_from_4(sys_header + field
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
@@ -1143,14 +1141,8 @@ trx_sysf_dummy_create(
 	ulint	space,
 	mtr_t*	mtr)
 {
-#ifdef UNDEFINED
-	trx_sysf_t*	sys_header;
-	ulint		slot_no;
-	ulint		page_no;
-	ulint		i;
-#endif
-	page_t*		page;
 	buf_block_t*	block;
+	page_t*		page;
 
 	ut_ad(mtr);
 

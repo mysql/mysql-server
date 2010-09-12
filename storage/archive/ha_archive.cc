@@ -293,7 +293,7 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
   DBUG_PRINT("ha_archive", ("Version %u", data_buffer[1]));
 
   if ((data_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) &&  
-      (data_buffer[1] != (uchar)ARCHIVE_VERSION))
+      (data_buffer[1] == 1 || data_buffer[1] == 2))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   DBUG_RETURN(0);
@@ -360,9 +360,19 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
       my_free(share, MYF(0));
       DBUG_RETURN(NULL);
     }
-    stats.auto_increment_value= archive_tmp.auto_increment + 1;
-    share->rows_recorded= (ha_rows)archive_tmp.rows;
-    share->crashed= archive_tmp.dirty;
+    share->version= archive_tmp.version;
+    if (archive_tmp.version == ARCHIVE_VERSION)
+    {
+      stats.auto_increment_value= archive_tmp.auto_increment + 1;
+      share->rows_recorded= (ha_rows)archive_tmp.rows;
+      share->crashed= archive_tmp.dirty;
+    }
+    else
+    {
+      /* Used by repair */
+      share->rows_recorded= ~(ha_rows) 0;
+      stats.auto_increment_value= 0;
+    }
     /*
       If archive version is less than 3, It should be upgraded before
       use.
@@ -512,10 +522,19 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   case 0:
     break;
   case HA_ERR_CRASHED_ON_USAGE:
+    DBUG_PRINT("ha_archive", ("archive table was crashed"));
     if (open_options & HA_OPEN_FOR_REPAIR)
+    {
+      rc= 0;
       break;
+    }
     /* fall through */
   case HA_ERR_TABLE_NEEDS_UPGRADE:
+    if (open_options & HA_OPEN_FOR_REPAIR)
+    {
+      rc= 0;
+      break;
+    }
     free_share();
     /* fall through */
   default:
@@ -534,13 +553,6 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   }
 
   thr_lock_data_init(&share->lock, &lock, NULL);
-
-  DBUG_PRINT("ha_archive", ("archive table was crashed %s", 
-                      rc == HA_ERR_CRASHED_ON_USAGE ? "yes" : "no"));
-  if (rc == HA_ERR_CRASHED_ON_USAGE && open_options & HA_OPEN_FOR_REPAIR)
-  {
-    DBUG_RETURN(0);
-  }
 
   DBUG_RETURN(rc);
 }
@@ -1266,6 +1278,14 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   DBUG_RETURN(get_row(&archive, buf));
 }
+
+int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
+{
+  if (share->version < ARCHIVE_VERSION)
+    return HA_ADMIN_NEEDS_ALTER;
+  return 0;
+}
+
 
 /*
   This method repairs the meta file. It does this by walking the datafile and 

@@ -977,7 +977,7 @@ NULL	test	t1	c	NULL	NO	int	NULL	NULL	int(11)	PRI		select,insert,update,reference
 ----------------------------------------------------------------
 SHOW TABLES LIKE 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			TABLE_NAMES	TABLE_NAME	Tables_in_test (t1)	253	192	2	N	1	0	33
+def			TABLE_NAMES	TABLE_NAME	Tables_in_test (t1)	253	219	2	N	1	0	33
 Tables_in_test (t1)
 t1
 ----------------------------------------------------------------

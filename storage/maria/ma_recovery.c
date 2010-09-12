@@ -332,6 +332,8 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   if (end_lsn != LSN_IMPOSSIBLE)
   {
     abort_message_printed= 1;
+    if (!trace_file)
+      fputc('\n', stderr);
     my_message(HA_ERR_INITIALIZATION,
                "Maria recovery aborted as end_lsn/end of file was reached",
                MYF(0));
@@ -502,9 +504,13 @@ end:
   }
 
   if (error && !abort_message_printed)
+  {
+    if (!trace_file)
+      fputc('\n', stderr);
     my_message(HA_ERR_INITIALIZATION,
                "Maria recovery failed. Please run maria_chk -r on all maria "
                "tables and delete all maria_log.######## files", MYF(0));
+  }
   procent_printed= 0;
   /*
     We don't cleanly close tables if we hit some error (may corrupt them by
@@ -545,7 +551,7 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
   if (log_desc->record_execute_in_redo_phase == NULL)
   {
     /* die on all not-yet-handled records :) */
-    DBUG_ASSERT("one more hook" == "to write");
+    DBUG_ASSERT("one more hook to write" == 0);
     return 1;
   }
   if ((error= (*log_desc->record_execute_in_redo_phase)(rec)))
@@ -638,6 +644,20 @@ prototype_redo_exec_hook(INCOMPLETE_LOG)
     /* no such table, don't need to warn */
     return 0;
   }
+
+  if (maria_is_crashed(info))
+    return 0;
+
+  if (info->s->state.is_of_horizon > rec->lsn)
+  {
+    /*
+      This table was repaired at a time after this log entry.
+      We can assume that all rows was inserted sucessfully and we don't
+      have to warn about that the inserted data was not logged
+    */
+    return 0;
+  }
+
   /*
     Example of what can go wrong when replaying DDLs:
     CREATE TABLE t (logged); INSERT INTO t VALUES(1) (logged);
@@ -658,10 +678,15 @@ prototype_redo_exec_hook(INCOMPLETE_LOG)
     there was a crash during a DDL (see comment in execution of
     REDO_RENAME_TABLE ).
   */
-  tprint(tracef, "***WARNING: MySQL server currently logs no records"
-         " about insertion of data by ALTER TABLE and CREATE SELECT,"
-         " as they are not necessary for recovery;"
-         " present applying of log records may well not work.***\n");
+
+  eprint(tracef, "***WARNING: Aria engine currently logs no records "
+          "about insertion of data by ALTER TABLE and CREATE SELECT, "
+          "as they are not necessary for recovery; "
+          "present applying of log records to table '%s' may well not work."
+          "***", info->s->index_file_name.str);
+
+  /* Prevent using the table for anything else than undo repair */
+  _ma_mark_file_crashed(info->s);
   recovery_warnings++;
   return 0;
 }
@@ -1052,7 +1077,11 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
   }
   if ((info= get_MARIA_HA_from_REDO_record(rec)) == NULL)
     DBUG_RETURN(0);
-
+  if (maria_is_crashed(info))
+  {
+    tprint(tracef, "we skip repairing crashed table\n");
+    DBUG_RETURN(0);
+  }
   /*
     Otherwise, the mapping is newer than the table, and our record is newer
     than the mapping, so we can repair.
@@ -1063,6 +1092,7 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
   param.isam_file_name= name= info->s->open_file_name.str;
   param.testflag= uint8korr(rec->header + FILEID_STORE_SIZE);
   param.tmpdir= maria_tmpdir;
+  param.max_trid= max_long_trid;
   DBUG_ASSERT(maria_tmpdir);
 
   info->s->state.key_map= uint8korr(rec->header + FILEID_STORE_SIZE + 8);
@@ -1366,7 +1396,8 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
   int error= 1;
   uchar *buff= NULL;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
+
   {
     /*
       Table was skipped at open time (because later dropped/renamed, not
@@ -1432,7 +1463,7 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL)
   int error= 1;
   uchar *buff;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
@@ -1473,7 +1504,7 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS)
   pgcache_page_no_t first_page, last_page;
   char llbuf1[22], llbuf2[22];
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL  || maria_is_crashed(info))
     return 0;
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
@@ -1507,7 +1538,7 @@ prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
   if (_ma_apply_redo_purge_row_head_or_tail(info, current_group_end_lsn,
                                             HEAD_PAGE,
@@ -1523,7 +1554,7 @@ prototype_redo_exec_hook(REDO_PURGE_ROW_TAIL)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
   if (_ma_apply_redo_purge_row_head_or_tail(info, current_group_end_lsn,
                                             TAIL_PAGE,
@@ -1540,7 +1571,7 @@ prototype_redo_exec_hook(REDO_FREE_BLOCKS)
   int error= 1;
   uchar *buff;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
   enlarge_buffer(rec);
 
@@ -1567,7 +1598,7 @@ prototype_redo_exec_hook(REDO_FREE_HEAD_OR_TAIL)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
 
   if (_ma_apply_redo_free_head_or_tail(info, current_group_end_lsn,
@@ -1599,7 +1630,7 @@ prototype_redo_exec_hook(REDO_INDEX)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
   enlarge_buffer(rec);
 
@@ -1625,7 +1656,7 @@ prototype_redo_exec_hook(REDO_INDEX_NEW_PAGE)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
   enlarge_buffer(rec);
 
@@ -1652,7 +1683,7 @@ prototype_redo_exec_hook(REDO_INDEX_FREE_PAGE)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
 
   if (_ma_apply_redo_index_free_page(info, current_group_end_lsn,
@@ -1668,7 +1699,7 @@ prototype_redo_exec_hook(REDO_BITMAP_NEW_PAGE)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
     return 0;
   enlarge_buffer(rec);
 
@@ -2114,7 +2145,7 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
   MARIA_SHARE *share;
   const uchar *record_ptr;
 
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
   {
     /*
       Unlike for REDOs, if the table was skipped it is abnormal; we have a
@@ -2170,7 +2201,7 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
   LSN previous_undo_lsn= lsn_korr(rec->header);
   MARIA_SHARE *share;
 
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
   {
     skip_undo_record(previous_undo_lsn, trn);
     return 0;
@@ -2209,7 +2240,7 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
   LSN previous_undo_lsn= lsn_korr(rec->header);
   MARIA_SHARE *share;
 
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
   {
     skip_undo_record(previous_undo_lsn, trn);
     return 0;
@@ -2248,7 +2279,7 @@ prototype_undo_exec_hook(UNDO_KEY_INSERT)
   LSN previous_undo_lsn= lsn_korr(rec->header);
   MARIA_SHARE *share;
 
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
   {
     skip_undo_record(previous_undo_lsn, trn);
     return 0;
@@ -2289,7 +2320,7 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE)
   LSN previous_undo_lsn= lsn_korr(rec->header);
   MARIA_SHARE *share;
 
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
   {
     skip_undo_record(previous_undo_lsn, trn);
     return 0;
@@ -2330,7 +2361,7 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
   LSN previous_undo_lsn= lsn_korr(rec->header);
   MARIA_SHARE *share;
 
-  if (info == NULL)
+  if (info == NULL || maria_is_crashed(info))
   {
     skip_undo_record(previous_undo_lsn, trn);
     return 0;
@@ -2371,6 +2402,7 @@ prototype_undo_exec_hook(UNDO_BULK_INSERT)
   LSN previous_undo_lsn= lsn_korr(rec->header);
   MARIA_SHARE *share;
 
+  /* Here we don't check for crashed as we can undo the bulk insert */
   if (info == NULL)
   {
     skip_undo_record(previous_undo_lsn, trn);
@@ -3289,7 +3321,12 @@ static int close_all_tables(void)
       state while they were used. As Recovery corrected them, don't alarm the
       user, don't ask for a table check:
     */
-    info->s->state.open_count= 0;
+    if (info->s->state.open_count != 0)
+    {
+      /* let ma_close() mark the table properly closed */
+      info->s->state.open_count= 1;
+      info->s->global_changed= 1;
+    }
     prepare_table_for_close(info, addr);
     error|= maria_close(info);
     pthread_mutex_lock(&THR_LOCK_maria);

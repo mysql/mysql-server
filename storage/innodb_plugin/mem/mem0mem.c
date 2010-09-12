@@ -367,7 +367,7 @@ mem_heap_create_block(
 	block->line = line;
 
 #ifdef MEM_PERIODIC_CHECK
-	mem_pool_mutex_enter();
+	mutex_enter(&(mem_comm_pool->mutex));
 
 	if (!mem_block_list_inited) {
 		mem_block_list_inited = TRUE;
@@ -376,7 +376,7 @@ mem_heap_create_block(
 
 	UT_LIST_ADD_LAST(mem_block_list, mem_block_list, block);
 
-	mem_pool_mutex_exit();
+	mutex_exit(&(mem_comm_pool->mutex));
 #endif
 	mem_block_set_len(block, len);
 	mem_block_set_type(block, type);
@@ -479,11 +479,11 @@ mem_heap_block_free(
 	UT_LIST_REMOVE(list, heap->base, block);
 
 #ifdef MEM_PERIODIC_CHECK
-	mem_pool_mutex_enter();
+	mutex_enter(&(mem_comm_pool->mutex));
 
 	UT_LIST_REMOVE(mem_block_list, mem_block_list, block);
 
-	mem_pool_mutex_exit();
+	mutex_exit(&(mem_comm_pool->mutex));
 #endif
 
 	ut_ad(heap->total_size >= block->len);
@@ -556,7 +556,7 @@ mem_validate_all_blocks(void)
 {
 	mem_block_t*	block;
 
-	mem_pool_mutex_enter();
+	mutex_enter(&(mem_comm_pool->mutex));
 
 	block = UT_LIST_GET_FIRST(mem_block_list);
 
@@ -568,6 +568,6 @@ mem_validate_all_blocks(void)
 		block = UT_LIST_GET_NEXT(mem_block_list, block);
 	}
 
-	mem_pool_mutex_exit();
+	mutex_exit(&(mem_comm_pool->mutex));
 }
 #endif

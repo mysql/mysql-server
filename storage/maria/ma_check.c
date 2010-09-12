@@ -136,11 +136,13 @@ void maria_chk_init_for_check(HA_CHECK *param, MARIA_HA *info)
     Set up transaction handler so that we can see all rows. When rows is read
     we will check the found id against param->max_tried
   */
-  if (!ma_control_file_inited())
-    param->max_trid= 0;                 /* Give warning for first trid found */
-  else
-    param->max_trid= max_trid_in_system();
-
+  if (param->max_trid == 0)
+  {
+    if (!ma_control_file_inited())
+      param->max_trid= 0;      /* Give warning for first trid found */
+    else
+      param->max_trid= max_trid_in_system();
+  }
   maria_ignore_trids(info);
 }
 
@@ -867,7 +869,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                           llstr(anc_page->pos, llbuff));
   }
 
-  if (anc_page->size > (uint) keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE)
+  if (anc_page->size > share->max_index_block_size)
   {
     _ma_check_print_error(param,
                           "Page at %s has impossible (too big) pagelength",
@@ -1758,7 +1760,7 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
             _ma_check_print_error(param,
                                   "Page %9s:  Row: %3d has an extent with "
                                   "wrong information in bitmap:  "
-                                  "Page %9s  Page_type: %d  Bitmap: %d",
+                                  "Page: %9s  Page_type: %d  Bitmap: %d",
                                   llstr(page, llbuff), row,
                                   llstr(extent_page, llbuff2),
                                   page_type, bitmap_pattern);
@@ -2325,11 +2327,13 @@ static int initialize_variables_for_repair(HA_CHECK *param,
   }
 
   /* Set up transaction handler so that we can see all rows */
-  if (!ma_control_file_inited())
-    param->max_trid= 0;                 /* Give warning for first trid found */
-  else
-    param->max_trid= max_trid_in_system();
-
+  if (param->max_trid == 0)
+  {
+    if (!ma_control_file_inited())
+      param->max_trid= 0;      /* Give warning for first trid found */
+    else
+      param->max_trid= max_trid_in_system();
+  }
   maria_ignore_trids(info);
   /* Don't write transid's during repair */
   maria_versioning(info, 0);
@@ -3372,7 +3376,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
     case TAIL_PAGE:
     {
       uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
-      uint offset, dir_start;
+      uint offset, dir_start, empty_space;
       uchar *dir;
 
       if (zero_lsn)
@@ -3385,9 +3389,13 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
                                is_head_page ? ~(TrID) 0 : 0,
                                is_head_page ?
                                share->base.min_block_length : 0);
+
         /* compactation may have increased free space */
+        empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
+        if (!enough_free_entries_on_page(share, buff))
+          empty_space= 0;                         /* Page is full */
         if (_ma_bitmap_set(info, page, is_head_page,
-                           uint2korr(buff + EMPTY_SPACE_OFFSET)))
+                           empty_space))
           goto err;
 
         /* Zerofill the not used part */
@@ -5609,7 +5617,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   a_length+=t_length;
   _ma_store_page_used(share, anc_buff, a_length);
   key_block->end_pos+=t_length;
-  if (a_length <= (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
+  if (a_length <= share->max_index_block_size)
   {
     MARIA_KEY tmp_key2;
     tmp_key2.data= key_block->lastkey;
