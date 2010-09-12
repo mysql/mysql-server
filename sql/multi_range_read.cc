@@ -942,9 +942,9 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
 
   key_buffer.sort((qsort2_cmp)DsMrr_impl::key_tuple_cmp, (void*)this);
   
-  //psergey4: cur_range_info will point to range-info bytes.
   key_buffer.setup_reading(&cur_index_tuple, key_size_in_keybuf,
-                           is_mrr_assoc? (uchar**)&cur_range_info: NULL, sizeof(void*));
+                           is_mrr_assoc? (uchar**)&cur_range_info: NULL,
+                           sizeof(void*));
 
   last_identical_key_ptr= NULL;
   in_identical_keys_range= FALSE;
@@ -1004,8 +1004,7 @@ check_record:
     {
       continue;
     }
-    memcpy(range_info_arg, cur_range_info, sizeof(void*)); //psergey4: this copyies junk there
-
+    memcpy(range_info_arg, cur_range_info, sizeof(void*));
     return 0;
   }
   
@@ -1209,12 +1208,10 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     if (is_mrr_assoc)
     {
       memcpy(range_info, rowids_range_id, sizeof(uchar*));
-      //psergey5: memcpy(&cur_range_info, rowids_range_id, sizeof(uchar*)); // psergey: ???
     }
 
     if (h2->mrr_funcs.skip_record &&
-	h2->mrr_funcs.skip_record(h2->mrr_iter, /* psergey5 (char *)
-        cur_range_info */ *range_info, rowid))
+	h2->mrr_funcs.skip_record(h2->mrr_iter, *range_info, rowid))
       continue;
 
     res= h->ha_rnd_pos(table->record[0], rowid);
