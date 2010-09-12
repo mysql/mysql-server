@@ -11738,6 +11738,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       condition is true => a match is found.
     */
     bool found= 1;
+    bool use_not_exists_opt= 0;
     while (join_tab->first_unmatched && found)
     {
       /*
@@ -11754,7 +11755,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
         if (tab->table->reginfo.not_exists_optimize)
-          return NESTED_LOOP_NO_MORE_ROWS;
+          use_not_exists_opt= 1;
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -11786,6 +11787,9 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         first_unmatched= 0;
       join_tab->first_unmatched= first_unmatched;
     }
+
+    if (use_not_exists_opt)
+      return NESTED_LOOP_NO_MORE_ROWS;
 
     /*
       It was not just a return to lower loop level when one
