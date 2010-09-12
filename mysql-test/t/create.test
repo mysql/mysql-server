@@ -1384,11 +1384,11 @@ drop function f1;
 # Bug#25629 CREATE TABLE LIKE does not work with INFORMATION_SCHEMA
 #
 create table t1 like information_schema.processlist;
---replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
+--replace_result ENGINE=MyISAM "" ENGINE=Aria "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 show create table t1;
 drop table t1;
 create temporary table t1 like information_schema.processlist;
---replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
+--replace_result ENGINE=MyISAM "" ENGINE=Aria "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 show create table t1;
 drop table t1;
 create table t1 like information_schema.character_sets;

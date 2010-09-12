@@ -19,9 +19,9 @@ connection default;
 connection default;
 
 let MYSQLD_DATADIR= `select @@datadir`;
-remove_file $MYSQLD_DATADIR/$MARIA_LOG/maria_log.00000001;
---replace_regex /Size unknown ; .*maria_log.00000001/Size unknown ; maria_log.00000001/
-show engine maria logs;
+remove_file $MYSQLD_DATADIR/$MARIA_LOG/aria_log.00000001;
+--replace_regex /Size unknown ; .*aria_log.00000001/Size unknown ; aria_log.00000001/
+show engine aria logs;
 
 # cleunup after this test
 -- source include/maria_empty_logs.inc

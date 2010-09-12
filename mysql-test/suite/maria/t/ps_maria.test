@@ -1,6 +1,6 @@
 ###############################################
 #                                             #
-#  Prepared Statements test on MARIA tables  #
+#  Prepared Statements test on ARIA tables  #
 #                                             #
 ###############################################
 
@@ -12,7 +12,7 @@
 
 use test;
 
-let $type= 'MARIA' ;
+let $type= 'ARIA' ;
 -- source include/ps_create.inc
 -- source include/ps_renew.inc
 
@@ -47,6 +47,6 @@ drop table t1, t9;
 
 --disable_result_log
 --disable_query_log
-set global maria_log_file_size=default;
+set global aria_log_file_size=default;
 --enable_result_log
 --enable_query_log

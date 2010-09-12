@@ -1,4 +1,4 @@
-# Maria recovery test which cannot run in shared memory
+# Aria recovery test which cannot run in shared memory
 # because it generates too much data, or which takes a lot of time.
 
 --source include/not_embedded.inc
@@ -9,7 +9,7 @@
 --source include/have_maria.inc
 --source include/big_test.inc
 
-set global maria_log_file_size=4294967295;
+set global aria_log_file_size=4294967295;
 
 --disable_warnings
 drop database if exists mysqltest;
@@ -33,7 +33,7 @@ use mysqltest;
 
 --echo * TEST of recovery with blobs
 -- source include/maria_empty_logs.inc
-create table t1 (a int, b longtext) engine=maria table_checksum=1;
+create table t1 (a int, b longtext) engine=aria table_checksum=1;
 let $mms_tables=1;
 -- source include/maria_make_snapshot_for_feeding_recovery.inc
 insert into t1 values (1,"123456789012345678901234567890"),(2,"09876543210987654321");
@@ -57,7 +57,7 @@ select a,length(b) from t1;
 let $mvr_restore_old_snapshot=1;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 drop table t1;
 

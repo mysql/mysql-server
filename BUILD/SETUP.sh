@@ -163,7 +163,7 @@ base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables"
-base_configs="$base_configs --with-plugin-maria --with-maria-tmp-tables --without-plugin-innodb_plugin"
+base_configs="$base_configs --with-plugin-aria --with-aria-tmp-tables --without-plugin-innodb_plugin"
 # Compile our client programs with static libraries to allow them to be moved
 base_configs="$base_configs --with-mysqld-ldflags=-static --with-client-ldflags=-static"
 

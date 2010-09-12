@@ -1,4 +1,4 @@
-# Test of the --maria-recover option.
+# Test of the --aria-recover option.
 
 --source include/have_maria.inc
 
@@ -14,13 +14,13 @@ call mtr.add_suppression("Table '\\..mysqltest.t_corrupted2' is marked as crashe
 # so that the perl code below can access it.
 let MYSQLD_DATADIR= `select @@datadir`;
 
-select @@global.maria_recover;
-set global maria_recover=off;
-select @@global.maria_recover;
-set global maria_recover=default;
-select @@global.maria_recover;
-set global maria_recover=normal;
-select @@global.maria_recover;
+select @@global.aria_recover;
+set global aria_recover=off;
+select @@global.aria_recover;
+set global aria_recover=default;
+select @@global.aria_recover;
+set global aria_recover=normal;
+select @@global.aria_recover;
 
 --disable_warnings
 drop database if exists mysqltest;
@@ -29,7 +29,7 @@ create database mysqltest;
 
 use mysqltest;
 
-create table t1 (a varchar(1000), index(a)) engine=maria;
+create table t1 (a varchar(1000), index(a)) engine=aria;
 insert into t1 values("ThursdayMorningsMarket");
 
 flush table t1; # put index page on disk
@@ -45,7 +45,7 @@ copy_file $MYSQLD_DATADIR/mysqltest/t1.MAD $MYSQLD_DATADIR/mysqltest/t_corrupted
 copy_file $MYSQLD_DATADIR/mysqltest/t1.MAI $MYSQLD_DATADIR/mysqltest/t_corrupted2.MAI;
 
 # Ruin the index file.
-# If maria-block-size is smaller than the default, the corruption
+# If aria-block-size is smaller than the default, the corruption
 # messages will differ.
 perl;
     use strict;
@@ -65,4 +65,4 @@ select * from t_corrupted2; # should show corruption and repair messages
 select * from t_corrupted2; # should show just rows
 
 drop database mysqltest;
-set global maria_recover=backup;
+set global aria_recover=backup;

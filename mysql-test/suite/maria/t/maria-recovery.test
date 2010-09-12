@@ -5,7 +5,7 @@
 --source include/have_debug.inc
 --source include/have_maria.inc
 
-set global maria_log_file_size=4294967295;
+set global aria_log_file_size=4294967295;
 let $MARIA_LOG=../../tmp;
 
 --disable_warnings
@@ -27,7 +27,7 @@ use mysqltest;
 # A sample test
 -- source include/maria_empty_logs.inc
 let $mms_tables=1;
-create table t1 (a varchar(1000)) engine=maria;
+create table t1 (a varchar(1000)) engine=aria;
 
 --echo * TEST of REDO: see if recovery can reconstruct if we give it an old table
 
@@ -42,7 +42,7 @@ let $mvr_restore_old_snapshot=1;
 # produce a physically identical table.
 let $mms_compare_physically=1;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 # the script below will trigger recovery and compare checksums
 -- source include/maria_verify_recovery.inc
 let $mms_compare_physically=0;
@@ -63,7 +63,7 @@ let $mvr_restore_old_snapshot=0;
 # UNDO phase prevents physical comparison, normally,
 # so we'll only use checksums to compare.
 let $mms_compare_physically=0;
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 
 # Note that we don't remove logs between iterations. Test is
 # cumulative (each new recovery processes more log records than the previous).
@@ -131,7 +131,7 @@ CREATE TABLE t1 (
   i int,
   b blob default NULL,
   c varchar(6000) default NULL
-) ENGINE=MARIA CHECKSUM=1;
+) ENGINE=ARIA CHECKSUM=1;
 -- source include/maria_make_snapshot_for_feeding_recovery.inc
 INSERT INTO t1 VALUES (1, REPEAT('a', 5000), REPEAT('b', 5000));
 UPDATE t1 SET i=3, b=CONCAT(b,'c') WHERE i=1;
@@ -141,7 +141,7 @@ SELECT LENGTH(b) FROM t1 WHERE i=3;
 let $mvr_restore_old_snapshot=1;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 SELECT LENGTH(b) FROM t1 WHERE i=3;
 drop table t1;
@@ -154,7 +154,7 @@ CREATE TABLE t1 (
   i int auto_increment primary key,
   c varchar(6),
   key(c)
-) ENGINE=MARIA;
+) ENGINE=ARIA;
 insert into t1 values(null,"b");
 -- source include/maria_make_snapshot_for_feeding_recovery.inc
 insert into t1 values(null,"a"), (null,"c"), (null,"d");
@@ -164,7 +164,7 @@ delete from t1 where c="d";
 let $mvr_restore_old_snapshot=1;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 show create table t1;
 
@@ -176,7 +176,7 @@ update t1 set i=15 where c="a";
 let $mvr_restore_old_snapshot=1;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 show create table t1;
 
@@ -187,7 +187,7 @@ show create table t1;
 let $mvr_restore_old_snapshot=0;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 lock tables t1 write;
 insert into t1 values(null, "e");
 -- source include/maria_verify_recovery.inc

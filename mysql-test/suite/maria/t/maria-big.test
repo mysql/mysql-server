@@ -9,7 +9,7 @@ connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 
 enable_info;
-set storage_engine=maria;
+set storage_engine=aria;
 disable_warnings;
 drop table if exists t1, t2;
 enable_warnings;
@@ -68,7 +68,7 @@ drop table t1;
 # Set defaults back
 --disable_result_log
 --disable_query_log
-set global maria_log_file_size=default;
+set global aria_log_file_size=default;
 set global max_allowed_packet=default;
 --enable_result_log
 --enable_query_log

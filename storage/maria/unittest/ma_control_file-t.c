@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Unit test of the control file module of the Maria engine WL#3234 */
+/* Unit test of the control file module of the Aria engine WL#3234 */
 
 /*
   Note that it is not possible to test the durability of the write (can't
@@ -24,11 +24,11 @@
 #include <my_sys.h>
 #include <tap.h>
 
-#ifndef WITH_MARIA_STORAGE_ENGINE
+#ifndef WITH_ARIA_STORAGE_ENGINE
 /*
-  If Maria is not compiled in, normally we don't come to building this test.
+  If Aria is not compiled in, normally we don't come to building this test.
 */
-#error "Maria engine is not compiled in, test cannot be built"
+#error "Aria engine is not compiled in, test cannot be built"
 #endif
 
 #include "maria.h"
@@ -547,7 +547,7 @@ static struct my_option my_long_options[] =
 static void version(void)
 {
   printf("ma_control_file_test: unit test for the control file "
-         "module of the Maria storage engine. Ver 1.0 \n");
+         "module of the Aria storage engine. Ver 1.0 \n");
 }
 
 static my_bool

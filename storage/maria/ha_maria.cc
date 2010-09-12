@@ -144,7 +144,7 @@ static void update_log_file_size(MYSQL_THD thd,
 
 static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-       "Block size to be used for MARIA index pages.", 0, 0,
+       "Block size to be used for Aria index pages.", 0, 0,
        MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
        MARIA_MAX_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH);
 
@@ -184,7 +184,7 @@ static MYSQL_SYSVAR_ULONG(log_file_size, log_file_size,
 
 static MYSQL_SYSVAR_ENUM(group_commit, maria_group_commit,
        PLUGIN_VAR_RQCMDARG,
-       "Specifies maria group commit mode. "
+       "Specifies Aria group commit mode. "
        "Possible values are \"none\" (no group commit), "
        "\"hard\" (with waiting to actual commit), "
        "\"soft\" (no wait for commit (DANGEROUS!!!))",
@@ -197,12 +197,12 @@ static MYSQL_SYSVAR_ULONG(group_commit_interval, maria_group_commit_interval,
        " 0 stands for no waiting"
        " for other threads to come and do a commit in \"hard\" mode and no"
        " sync()/commit at all in \"soft\" mode.  Option has only an effect"
-       " if maria_group_commit is used",
+       " if aria_group_commit is used",
        NULL, update_maria_group_commit_interval, 0, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_ENUM(log_purge_type, log_purge_type,
        PLUGIN_VAR_RQCMDARG,
-       "Specifies how maria transactional log will be purged. "
+       "Specifies how aria transactional log will be purged. "
        "Possible values of name are \"immediate\", \"external\" "
        "and \"at_flush\"",
        NULL, NULL, TRANSLOG_PURGE_IMMIDIATE,
@@ -224,7 +224,7 @@ static MYSQL_SYSVAR_ULONG(pagecache_age_threshold,
 
 static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-       "The size of the buffer used for index blocks for Maria tables. "
+       "The size of the buffer used for index blocks for Aria tables. "
        "Increase this to get better index handling (for all reads and "
        "multiple writes) to as much as you can afford.", 0, 0,
        KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, IO_SIZE);
@@ -241,7 +241,7 @@ static MYSQL_SYSVAR_ENUM(recover, maria_recover_options, PLUGIN_VAR_OPCMDARG,
        NULL, NULL, HA_RECOVER_DEFAULT, &maria_recover_typelib);
 
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
-       "Number of threads to use when repairing maria tables. The value of 1 "
+       "Number of threads to use when repairing Aria tables. The value of 1 "
        "disables parallel repair.",
        0, 0, 1, 1, ~0L, 1);
 
@@ -251,7 +251,7 @@ static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
        0, 0, 128L*1024L*1024L, 4, ~0L, 1);
 
 static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
-       "Specifies how maria index statistics collection code should treat "
+       "Specifies how Aria index statistics collection code should treat "
        "NULLs. Possible values are \"nulls_unequal\", \"nulls_equal\", "
        "and \"nulls_ignored\".", 0, 0, 0, &maria_stats_method_typelib);
 
@@ -269,7 +269,7 @@ static my_bool use_maria_for_temp_tables= 0;
 
 static MYSQL_SYSVAR_BOOL(used_for_temp_tables, 
        use_maria_for_temp_tables, PLUGIN_VAR_READONLY | PLUGIN_VAR_NOCMDOPT,
-       "Whether temporary tables should be MyISAM or Maria", 0, 0,
+       "Whether temporary tables should be MyISAM or Aria", 0, 0,
        1);
 
 /*****************************************************************************
@@ -1464,7 +1464,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   if (file->dfile.file == -1)
   {
     sql_print_information("Retrying repair of: '%s' failed. "
-                          "Please try REPAIR EXTENDED or maria_chk",
+                          "Please try REPAIR EXTENDED or aria_chk",
                           table->s->path.str);
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
@@ -3199,7 +3199,7 @@ static my_bool translog_callback_delete_all(const char *directory,
 
 
 /**
-  Helper function for option maria-force-start-after-recovery-failures.
+  Helper function for option aria-force-start-after-recovery-failures.
   Deletes logs if too many failures. Otherwise, increments the counter of
   failures in the control file.
   Notice how this has to be called _before_ translog_init() (if log is
@@ -3215,9 +3215,9 @@ static int mark_recovery_start(const char* log_dir)
   DBUG_ENTER("mark_recovery_start");
   if (unlikely(maria_recover_options == HA_RECOVER_NONE))
     ma_message_no_user(ME_JUST_WARNING, "Please consider using option"
-                       " --maria-recover[=...] to automatically check and"
+                       " --aria-recover[=...] to automatically check and"
                        " repair tables when logs are removed by option"
-                       " --maria-force-start-after-recovery-failures=#");
+                       " --aria-force-start-after-recovery-failures=#");
   if (recovery_failures >= force_start_after_recovery_failures)
   {
     /*
@@ -3243,9 +3243,9 @@ static int mark_recovery_start(const char* log_dir)
 
 
 /**
-  Helper function for option maria-force-start-after-recovery-failures.
+  Helper function for option aria-force-start-after-recovery-failures.
   Records in the control file that recovery was a success, so that it's not
-  counted for maria-force-start-after-recovery-failures.
+  counted for aria-force-start-after-recovery-failures.
 */
 
 static int mark_recovery_success(void)
@@ -3525,25 +3525,25 @@ static void update_log_file_size(MYSQL_THD thd,
 
 
 static SHOW_VAR status_variables[]= {
-  {"Maria_pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG_NOFLUSH},
-  {"Maria_pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG_NOFLUSH},
-  {"Maria_pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG_NOFLUSH},
-  {"Maria_pagecache_read_requests",      (char*) &maria_pagecache_var.global_cache_r_requests, SHOW_LONGLONG},
-  {"Maria_pagecache_reads",              (char*) &maria_pagecache_var.global_cache_read, SHOW_LONGLONG},
-  {"Maria_pagecache_write_requests",     (char*) &maria_pagecache_var.global_cache_w_requests, SHOW_LONGLONG},
-  {"Maria_pagecache_writes",             (char*) &maria_pagecache_var.global_cache_write, SHOW_LONGLONG},
-  {"Maria_transaction_log_syncs",        (char*) &translog_syncs, SHOW_LONGLONG},
+  {"Aria_pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG_NOFLUSH},
+  {"Aria_pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG_NOFLUSH},
+  {"Aria_pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG_NOFLUSH},
+  {"Aria_pagecache_read_requests",      (char*) &maria_pagecache_var.global_cache_r_requests, SHOW_LONGLONG},
+  {"Aria_pagecache_reads",              (char*) &maria_pagecache_var.global_cache_read, SHOW_LONGLONG},
+  {"Aria_pagecache_write_requests",     (char*) &maria_pagecache_var.global_cache_w_requests, SHOW_LONGLONG},
+  {"Aria_pagecache_writes",             (char*) &maria_pagecache_var.global_cache_write, SHOW_LONGLONG},
+  {"Aria_transaction_log_syncs",        (char*) &translog_syncs, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
 struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-mysql_declare_plugin(maria)
+mysql_declare_plugin(aria)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &maria_storage_engine,
-  "MARIA",
+  "Aria",
   "Monty Program Ab",
   "Crash-safe tables with MyISAM heritage",
   PLUGIN_LICENSE_GPL,
@@ -3555,12 +3555,12 @@ mysql_declare_plugin(maria)
   NULL
 }
 mysql_declare_plugin_end;
-maria_declare_plugin(maria)
+maria_declare_plugin(aria)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &maria_storage_engine,
-  "MARIA",
-  "MySQL AB",
+  "Aria",
+  "Monty Program Ab",
   "Crash-safe tables with MyISAM heritage",
   PLUGIN_LICENSE_GPL,
   ha_maria_init,              /* Plugin Init                     */

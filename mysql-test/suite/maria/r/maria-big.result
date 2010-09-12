@@ -1,5 +1,5 @@
 set global max_allowed_packet=400000000;
-set storage_engine=maria;
+set storage_engine=aria;
 affected rows: 0
 drop table if exists t1, t2;
 affected rows: 0

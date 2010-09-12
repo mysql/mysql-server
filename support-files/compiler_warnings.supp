@@ -126,7 +126,7 @@ signal\.c : .*unused parameter.*
 .*/ndb/.* : .*defined but not used.*
 
 #
-# Maria warning that is ok in debug builds
+# Aria warning that is ok in debug builds
 #
 storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 

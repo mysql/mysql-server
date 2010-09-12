@@ -2757,7 +2757,7 @@ public:
 };
 
 
-#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
 #include <maria.h>
 #define ENGINE_COLUMNDEF MARIA_COLUMNDEF
 #else

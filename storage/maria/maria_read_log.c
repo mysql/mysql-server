@@ -20,13 +20,13 @@
 
 #define LOG_FLAGS 0
 
-static const char *load_default_groups[]= { "maria_read_log",0 };
+static const char *load_default_groups[]= { "aria_read_log",0 };
 static void get_options(int *argc,char * * *argv);
 #ifndef DBUG_OFF
 #if defined(__WIN__)
-const char *default_dbug_option= "d:t:O,\\maria_read_log.trace";
+const char *default_dbug_option= "d:t:O,\\aria_read_log.trace";
 #else
-const char *default_dbug_option= "d:t:o,/tmp/maria_read_log.trace";
+const char *default_dbug_option= "d:t:o,/tmp/aria_read_log.trace";
 #endif
 #endif /* DBUG_OFF */
 static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent;
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 
   if (maria_init())
   {
-    fprintf(stderr, "Can't init Maria engine (%d)\n", errno);
+    fprintf(stderr, "Can't init Aria engine (%d)\n", errno);
     goto err;
   }
   maria_block_size= 0;                          /* Use block size from file */
@@ -134,7 +134,7 @@ int main(int argc, char **argv)
     opt_apply_undo= 0;
   }
 
-  fprintf(stdout, "TRACE of the last maria_read_log\n");
+  fprintf(stdout, "TRACE of the last aria_read_log\n");
   if (maria_apply_log(lsn, opt_end_lsn, opt_apply ?  MARIA_LOG_APPLY :
                       (opt_check ? MARIA_LOG_CHECK :
                        MARIA_LOG_DISPLAY_HEADER), opt_silent ? NULL : stdout,
@@ -192,7 +192,7 @@ static struct my_option my_long_options[] =
   {"display-only", 'd', "display brief info read from records' header",
    &opt_display_only, &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
-  {"maria-log-dir-path", 'l',
+  {"aria-log-dir-path", 'l',
     "Path to the directory where to store transactional log",
     (uchar **) &maria_data_root, (uchar **) &maria_data_root, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -249,10 +249,10 @@ static void usage(void)
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
-  puts("Display and apply log records from a MARIA transaction log");
+  puts("Display and apply log records from a Aria transaction log");
   puts("found in the current directory (for now)");
 #ifndef IDENTICAL_PAGES_AFTER_RECOVERY
-  puts("\nNote: Maria is compiled without -DIDENTICAL_PAGES_AFTER_RECOVERY\n"
+  puts("\nNote: Aria is compiled without -DIDENTICAL_PAGES_AFTER_RECOVERY\n"
        "which means that the table files are not byte-to-byte identical to\n"
        "files created during normal execution. This should be ok, except for\n"
        "test scripts that tries to compare files before and after recovery.");

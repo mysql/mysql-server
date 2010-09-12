@@ -5,10 +5,10 @@
 --source include/have_debug.inc
 --source include/have_maria.inc
 
-call mtr.add_suppression("File '.*maria_log.000.*' not found \\(Errcode: 2\\)");
-call mtr.add_suppression("Table '.\/mysqltest\/t_corrupted1' is crashed, skipping it. Please repair it with maria_chk -r");
+call mtr.add_suppression("File '.*aria_log.000.*' not found \\(Errcode: 2\\)");
+call mtr.add_suppression("Table '.\/mysqltest\/t_corrupted1' is crashed, skipping it. Please repair it with aria_chk -r");
 
-set global maria_log_file_size=4294967295;
+set global aria_log_file_size=4294967295;
 let $MARIA_LOG=../../tmp;
 
 --disable_warnings
@@ -31,13 +31,13 @@ let $mms_tables=1;
 let $mvr_restore_old_snapshot=0;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 
 # Test of removing logs manually
 --echo * TEST of removing logs manually
 let $mel_keep_control_file=1;
 # this will shut mysqld down cleanly (so, take a checkpoint) and
-# remove only logs; at restart Maria will create a new log with a high
+# remove only logs; at restart Aria will create a new log with a high
 # number
 -- source include/maria_empty_logs.inc
 let $mel_keep_control_file=0;
@@ -49,8 +49,8 @@ let $mvr_restore_old_snapshot=0;
 # UNDO phase prevents physical comparison, normally,
 # so we'll only use checksums to compare.
 let $mms_compare_physically=0;
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
-create table t1(a int) engine=maria;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
+create table t1(a int) engine=aria;
 insert into t1 values(1),(2);
 -- source include/maria_make_snapshot_for_comparison.inc
 lock tables t1 write;
@@ -64,8 +64,8 @@ drop table t1;
 # Don't take a full checkpoints, we want to test checkpoint vs dirty pages
 set global debug="+d,info,query,enter,exit,loop,maria_checkpoint_indirect";
 # restart checkpoint thread for it to notice the above
-set global maria_checkpoint_interval=10000;
-create table t1(a int, b varchar(10), index(a,b)) engine=maria;
+set global aria_checkpoint_interval=10000;
+create table t1(a int, b varchar(10), index(a,b)) engine=aria;
 insert into t1 values(1,"a"),(2,"b"),(3,"c");
 delete from t1 where b="b";
 update t1 set b="d" where a=1;
@@ -74,15 +74,15 @@ lock tables t1 write;
 insert into t1 values(4,"e"),(5,"f"),(6,"g");
 update t1 set b="h" where a=5;
 delete from t1 where b="g";
-show status like "Maria_pagecache_blocks_not_flushed";
+show status like "Aria_pagecache_blocks_not_flushed";
 # force a checkpoint; there should be dirty pages and an open transaction
-set global maria_checkpoint_interval=10000;
+set global aria_checkpoint_interval=10000;
 # do some more work
 update t1 set b="i" where a=5;
 let $mvr_restore_old_snapshot=0;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 # Now we have a recovery, which should use the checkpoint record
 # and its dirty pages list.
 -- source include/maria_verify_recovery.inc
@@ -90,10 +90,10 @@ drop table t1;
 
 --echo Test of REPAIR's implicit commit
 let $mms_tables=1;
-create table t1 (a varchar(100), key(a)) engine=maria;
+create table t1 (a varchar(100), key(a)) engine=aria;
 let $mvr_restore_old_snapshot=0;
 let $mms_compare_physically=0;
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
 insert into t1 values(3);
@@ -111,11 +111,11 @@ select * from t1;
 drop table t1;
 
 --echo * TEST of recovery when crash before bulk-insert-with-repair is committed
-create table t1 (a varchar(100), key(a)) engine=maria;
+create table t1 (a varchar(100), key(a)) engine=aria;
 create table t2 (a varchar(100)) engine=myisam;
 let $mvr_restore_old_snapshot=0;
 let $mms_compare_physically=0;
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
 set rand_seed1=12, rand_seed2=254; # repeatable
 insert into t2 values (rand());
@@ -136,7 +136,7 @@ show keys from t1; # should be enabled
 drop table t1;
 
 --echo * TEST of recovery when OPTIMIZE has replaced the index file and crash
-create table t_corrupted1 (a varchar(100), key(a)) engine=maria;
+create table t_corrupted1 (a varchar(100), key(a)) engine=aria;
 # we use a special name because this test portion will generate
 # corruption warnings, which we tell mtr_report.pl to ignore by
 # putting the message in mtr_report.pl, but we don't want to it ignore

@@ -431,9 +431,9 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
   storage/myisam/myisamchk$BS storage/myisam/myisampack$BS \
   storage/myisam/myisamlog$BS storage/myisam/myisam_ftdump$BS \
-  storage/maria/maria_chk$BS storage/maria/maria_pack$BS \
-  storage/maria/maria_ftdump$BS storage/maria/maria_read_log$BS \
-  storage/maria/maria_dump_log$BS \
+  storage/maria/aria_chk$BS storage/maria/aria_pack$BS \
+  storage/maria/aria_ftdump$BS storage/maria/aria_read_log$BS \
+  storage/maria/aria_dump_log$BS \
   sql/mysqld$BS sql/mysqld-debug$BS \
   sql/mysql_tzinfo_to_sql$BS \
   server-tools/instance-manager/mysqlmanager$BS \

@@ -263,7 +263,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 static void usage()
 {
-  printf("Use: maria_ft_dump <table_name> <index_num>\n");
+  printf("Use: aria_ft_dump <table_name> <index_num>\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   NETWARE_SET_SCREEN_MODE(1);

@@ -37,7 +37,7 @@
 #include <my_bit.h>
 #include <hash.h>
 #include <ft_global.h>
-#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
 #include "../storage/maria/ha_maria.h"
 #define TMP_ENGINE_HTON maria_hton
 #else
@@ -10083,7 +10083,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   /*
     No need to change table name to lower case as we are only creating
-    MyISAM, Maria or HEAP tables here
+    MyISAM, Aria or HEAP tables here
   */
   fn_format(path, tmp_table_name, mysql_tmpdir, "",
             MY_REPLACE_EXT|MY_UNPACK_FILENAME);
@@ -10854,9 +10854,9 @@ static bool open_tmp_table(TABLE *table)
 }
 
 
-#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
 
-/* Create internal Maria temporary table */
+/* Create internal Aria temporary table */
 
 static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
                                       ulonglong options)
@@ -10936,7 +10936,7 @@ static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	seg->null_pos= (uint) (field->null_ptr - (uchar*) table->record[0]);
 	/*
 	  We are using a GROUP BY on something that contains NULL
-	  In this case we have to tell Maria that two NULL should
+	  In this case we have to tell Aria that two NULL should
 	  on INSERT be regarded at the same value
 	*/
 	if (!using_unique_constraint)
@@ -10982,7 +10982,7 @@ bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
   return create_internal_tmp_table_from_heap2(thd, table, param, error,
                                               ignore_last_dupp_key_error,
                                               maria_hton,
-                                              "converting HEAP to Maria");
+                                              "converting HEAP to Aria");
 }
 
 #else

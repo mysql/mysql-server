@@ -1925,7 +1925,7 @@ sub mysqld_client_arguments () {
 
 
 sub have_maria_support () {
-  my $maria_var= $mysqld_variables{'maria'};
+  my $maria_var= $mysqld_variables{'aria'};
   return defined $maria_var and $maria_var eq 'TRUE';
 }
 
@@ -2124,12 +2124,12 @@ sub environment_setup {
   $ENV{'MYISAM_FTDUMP'}= tool_arguments("storage/myisam", "myisam_ftdump");
 
   # ----------------------------------------------------
-  # maria tools
+  # aria tools
   # ----------------------------------------------------
   if (have_maria_support())
   {
-    $ENV{'MARIA_CHK'}= tool_arguments("storage/maria", "maria_chk");
-    $ENV{'MARIA_PACK'}= tool_arguments("storage/maria", "maria_pack");
+    $ENV{'MARIA_CHK'}= tool_arguments("storage/maria", "aria_chk");
+    $ENV{'MARIA_PACK'}= tool_arguments("storage/maria", "aria_pack");
   }
 
   # ----------------------------------------------------
@@ -3018,7 +3018,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-pbxt");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
-  mtr_add_arg($args, "--loose-skip-maria");
+  mtr_add_arg($args, "--loose-skip-aria");
   mtr_add_arg($args, "--disable-sync-frm");
   mtr_add_arg($args, "--loose-disable-debug");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
@@ -3045,7 +3045,7 @@ sub mysql_install_db {
   # Setup args for bootstrap.test
   #
   #mtr_init_args(\$cmd_args);
-  #mtr_add_arg($cmd_args, "--loose-skip-maria")
+  #mtr_add_arg($cmd_args, "--loose-skip-aria")
 
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>

@@ -1,21 +1,19 @@
-MYSQL_STORAGE_ENGINE(maria,, [Maria Storage Engine],
+MYSQL_STORAGE_ENGINE(aria,, [Aria Storage Engine],
         [Crash-safe tables with MyISAM heritage], [default,max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(maria,  [storage/maria])
-MYSQL_PLUGIN_STATIC(maria,     [libmaria.a])
-# Maria will probably go first into max builds, not all builds,
-# so we don't declare it mandatory.
-MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(maria, [ha_maria.cc])
+MYSQL_PLUGIN_DIRECTORY(aria,  [storage/maria])
+MYSQL_PLUGIN_STATIC(aria,     [libaria.a])
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(aria, [ha_maria.cc])
 
-MYSQL_PLUGIN_ACTIONS(maria,  [
+MYSQL_PLUGIN_ACTIONS(aria,  [
 # AC_CONFIG_FILES(storage/maria/unittest/Makefile)
-AC_ARG_WITH(maria-tmp-tables,
-    AC_HELP_STRING([--with-maria-tmp-tables],[Use Maria for internal temporary tables]),
-    [with_maria_tmp_tables=$withval],
-    [with_maria_tmp_tables=yes]
+AC_ARG_WITH(aria-tmp-tables,
+    AC_HELP_STRING([--with-aria-tmp-tables],[Use Aria for internal temporary tables]),
+    [with_aria_tmp_tables=$withval],
+    [with_aria_tmp_tables=yes]
 )
 
-if test "$with_maria_tmp_tables" = "yes"
+if test "$with_aria_tmp_tables" = "yes"
 then
-  AC_DEFINE([USE_MARIA_FOR_TMP_TABLES], [1], [Maria is used for internal temporary tables])
+  AC_DEFINE([USE_MARIA_FOR_TMP_TABLES], [1], [Aria is used for internal temporary tables])
 fi
 ])

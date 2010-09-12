@@ -4,7 +4,7 @@
 -- source include/have_maria.inc
 
 let $default_engine=`select @@session.storage_engine`;
-set session storage_engine=maria;
+set session storage_engine=aria;
 
 # Verify that INSERT DELAYED is disabled only for transactional tables
 # ("embedded" server translates them to plain INSERT)

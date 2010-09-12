@@ -53,7 +53,7 @@ public:
   ~ha_maria() {}
   handler *clone(MEM_ROOT *mem_root);
   const char *table_type() const
-  { return "MARIA"; }
+  { return "Aria"; }
   const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulonglong table_flags() const

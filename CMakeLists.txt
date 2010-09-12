@@ -282,13 +282,13 @@ IF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
   SET (maria_plugin_defs  "${maria_plugin_defs},builtin_maria_partition_plugin")
 ENDIF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
 
-# Special handling for tmp tables with the maria engine
-IF(WITH_MARIA_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-DWITH_MARIA_STORAGE_ENGINE)
+# Special handling for tmp tables with the Aria engine
+IF(WITH_ARIA_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-DWITH_ARIA_STORAGE_ENGINE)
   IF(WITH_MARIA_TMP_TABLES)
     ADD_DEFINITIONS(-DUSE_MARIA_FOR_TMP_TABLES)
   ENDIF(WITH_MARIA_TMP_TABLES)
-ENDIF(WITH_MARIA_STORAGE_ENGINE)
+ENDIF(WITH_ARIA_STORAGE_ENGINE)
 
 ADD_DEFINITIONS(${STORAGE_ENGINE_DEFS}) 
 
@@ -395,7 +395,7 @@ INSTALL(FILES libmysql/libmysql.def DESTINATION include COMPONENT headers)
 # Handle the database files
 FILE(GLOB datafiles "${CMAKE_CURRENT_SOURCE_DIR}/win/data/mysql/*")
 INSTALL(FILES ${datafiles} DESTINATION data/clean/mysql)
-INSTALL(FILES win/data/maria_log.00000001 win/data/maria_log_control DESTINATION data/clean)
+INSTALL(FILES win/data/aria_log.00000001 win/data/aria_log_control DESTINATION data/clean)
 INSTALL(DIRECTORY win/data/test DESTINATION data/clean)
 SET(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
   IfFileExists '$INSTDIR\\\\data\\\\mysql\\\\db.frm' 0 CopyDatabaseFiles

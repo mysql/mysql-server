@@ -4,7 +4,7 @@ create table t1
 (
 a int, b varchar(30),
 primary key(a)
-) engine = 'MARIA'  ;
+) engine = 'ARIA'  ;
 create table t9 
 (
 c1  tinyint, c2  smallint, c3  mediumint, c4  int,
@@ -17,7 +17,7 @@ c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
 c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
 c32 set('monday', 'tuesday', 'wednesday'),
 primary key(c1)
-) engine = 'MARIA'  ;
+) engine = 'ARIA'  ;
 delete from t1 ;
 insert into t1 values (1,'one');
 insert into t1 values (2,'two');
@@ -1166,7 +1166,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	2	
 drop table if exists t2 ;
 create table t2 (s varchar(25), fulltext(s)) TRANSACTIONAL= 0
-ENGINE = 'MARIA'  ;
+ENGINE = 'ARIA'  ;
 insert into t2 values ('Gravedigger'), ('Greed'),('Hollow Dogs') ;
 commit ;
 prepare stmt1 from ' select s from t2 where match (s) against (?) ' ;
@@ -1352,7 +1352,7 @@ create table t2
 (
 a int, b varchar(30),
 primary key(a)
-) engine = 'MARIA'  ;
+) engine = 'ARIA'  ;
 insert into t2(a,b) select a, b from t1 ;
 prepare stmt1 from 'update t1 set a=? where b=?
                     and a in (select ? from t2
@@ -1542,7 +1542,7 @@ execute stmt1 using @arg00, @arg01;
 ERROR 23000: Duplicate entry '82' for key 'PRIMARY'
 drop table if exists t2 ;
 create table t2 (id int auto_increment primary key) 
-ENGINE= 'MARIA'  ;
+ENGINE= 'ARIA'  ;
 prepare stmt1 from ' select last_insert_id() ' ;
 insert into t2 values (NULL) ;
 execute stmt1 ;

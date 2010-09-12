@@ -28,7 +28,7 @@
 #include "events.h"
 #include "sql_trigger.h"
 
-#ifdef WITH_MARIA_STORAGE_ENGINE
+#ifdef WITH_ARIA_STORAGE_ENGINE
 #include "../storage/maria/ha_maria.h"
 #endif
 
@@ -181,7 +181,7 @@ bool end_active_trans(THD *thd)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
-#ifdef WITH_MARIA_STORAGE_ENGINE
+#ifdef WITH_ARIA_STORAGE_ENGINE
     ha_maria::implicit_commit(thd, TRUE);
 #endif
   }
@@ -1208,7 +1208,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       char *beginning_of_next_stmt= (char*) end_of_stmt;
 
-#ifdef WITH_MARIA_STORAGE_ENGINE
+#ifdef WITH_ARIA_STORAGE_ENGINE
       ha_maria::implicit_commit(thd, FALSE);
 #endif
 
@@ -1622,7 +1622,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   thd->transaction.stmt.reset();
 
-#ifdef WITH_MARIA_STORAGE_ENGINE
+#ifdef WITH_ARIA_STORAGE_ENGINE
   ha_maria::implicit_commit(thd, FALSE);
 #endif
 

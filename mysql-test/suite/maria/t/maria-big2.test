@@ -5,7 +5,7 @@
 # (CHECK TABLE said Invalid key block position: 15731098820608  key
 # block size: 8192  file_length: 425984)
 
-create table t2(id int,a varchar(255),b varchar(255),key(a))engine=maria row_format=dynamic transactional=0;
+create table t2(id int,a varchar(255),b varchar(255),key(a))engine=aria row_format=dynamic transactional=0;
 
 disable_query_log;
 insert into t2(a,b) values ('zmysnptvgzljpaumbdhrzkmbhefugcyhncbl','urecietrsfhgusavxffpdszrfcpdqbwxzvygsuwammwunjhpxanvozwnngnnjbwfenjgosaixpccjyviiutzpxkwiecuprltzrpxvkrjnjqgsneniewbagpvwelajvnckbbkqpaicxor')

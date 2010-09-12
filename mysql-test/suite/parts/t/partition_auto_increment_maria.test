@@ -27,7 +27,7 @@
 
 ##### Storage engine to be tested
 --source include/have_maria.inc
-let $engine= 'MARIA';
+let $engine= 'Aria';
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines

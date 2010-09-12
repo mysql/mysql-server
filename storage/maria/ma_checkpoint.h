@@ -89,4 +89,4 @@ static inline LSN lsn_read_non_atomic_32(const volatile LSN *x)
    @param  sentence        text to write
 */
 #define ma_message_no_user(level, sentence)                               \
-  my_printf_error(HA_ERR_GENERIC, "Maria engine: %s", MYF(level), sentence)
+  my_printf_error(HA_ERR_GENERIC, "Aria engine: %s", MYF(level), sentence)

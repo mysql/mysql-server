@@ -155,7 +155,7 @@ let $wait_condition=
 SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE DB = 'information_schema' AND COMMAND = 'Sleep' AND USER = 'ddicttestuser1';
 --source include/wait_condition.inc
---replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
+--replace_result ENGINE=MyISAM "" ENGINE=Aria "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 eval SHOW CREATE TABLE $table;
 --replace_column 1 ID 3 HOST_NAME 6 TIME 9 TIME_MS
 eval SHOW $table;
@@ -175,7 +175,7 @@ connection con100;
 # No need for poll routine here.
 # The current state of the default session might depend on load of testing box
 # but "ddicttestuser1" must not see anything of the root session.
---replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
+--replace_result ENGINE=MyISAM "" ENGINE=Aria "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 eval SHOW CREATE TABLE $table;
 --replace_column 1 ID 3 HOST_NAME 6 TIME 9 TIME_MS
 eval SHOW $table;

@@ -38,7 +38,7 @@ my_bool maria_log_remove()
   for (i= 0; i < dirp->number_off_files; i++)
   {
     char *file= dirp->dir_entry[i].name;
-    if (strncmp(file, "maria_log.", 10) == 0 &&
+    if (strncmp(file, "aria_log.", 10) == 0 &&
         file[10] >= '0' && file[10] <= '9' &&
         file[11] >= '0' && file[11] <= '9' &&
         file[12] >= '0' && file[12] <= '9' &&

@@ -3048,7 +3048,7 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
   {
     /* At least, prevent new abuse ... */
     DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0 ||
-                strncmp(str, "MARIA table", 11) == 0);
+                strncmp(str, "Aria table", 11) == 0);
     error= ER_UNKNOWN_ERROR;
   }
 
@@ -4316,10 +4316,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       pthread_mutex_unlock(&LOCK_global_system_variables);
     }
   }
-#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
   if (!ha_storage_engine_is_enabled(maria_hton) && !opt_bootstrap)
   {
-    sql_print_error("Maria engine is not enabled or did not start. The Maria engine must be enabled to continue as mysqld was configured with --with-maria-tmp-tables");
+    sql_print_error("Aria engine is not enabled or did not start. The Aria engine must be enabled to continue as mysqld was configured with --with-aria-tmp-tables");
     unireg_abort(1);
   }
 #endif
@@ -7537,7 +7537,7 @@ thread is in the relay logs.",
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmp_table_size", OPT_TMP_TABLE_SIZE,
    "If an internal in-memory temporary table exceeds this size, MySQL will "
-   "automatically convert it to an on-disk MyISAM/Maria table.",
+   "automatically convert it to an on-disk MyISAM/Aria table.",
    &global_system_variables.tmp_table_size,
    &max_system_variables.tmp_table_size, 0, GET_ULL,
    REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},

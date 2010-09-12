@@ -197,7 +197,7 @@ static struct st_file_buffer file_buffer;
 static QUEUE queue;
 static HUFF_COUNTS *global_count;
 static char zero_string[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-static const char *load_default_groups[]= { "mariapack",0 };
+static const char *load_default_groups[]= { "ariapack",0 };
 
 	/* The main program */
 
@@ -238,7 +238,7 @@ int main(int argc, char **argv)
     }
   }
   if (ok && isamchk_neaded && !silent)
-    puts("Remember to run maria_chk -rq on compressed tables");
+    puts("Remember to run aria_chk -rq on compressed tables");
   VOID(fflush(stdout));
   VOID(fflush(stderr));
   free_defaults(default_argv);
@@ -306,11 +306,11 @@ static void usage(void)
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
-  puts("Pack a MARIA-table to take much less space.");
-  puts("Keys are not updated, you must run maria_chk -rq on the index (.MAI) file");
+  puts("Pack a Aria-table to take much less space.");
+  puts("Keys are not updated, you must run aria_chk -rq on the index (.MAI) file");
   puts("afterwards to update the keys.");
   puts("You should give the .MAI file as the filename argument.");
-  puts("To unpack a packed table, run maria_chk -u on the table");
+  puts("To unpack a packed table, run aria_chk -u on the table");
 
   VOID(printf("\nUsage: %s [OPTIONS] filename...\n", my_progname));
   my_print_help(my_long_options);
@@ -359,7 +359,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     silent= 0;
     break;
   case '#':
-    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/maria_pack.trace");
+    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/aria_pack.trace");
     break;
   case 'V':
     print_version();
@@ -2990,7 +2990,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   }
   /*
     If there are no disabled indexes, keep key_file_length value from
-    original file so "maria_chk -rq" can use this value (this is necessary
+    original file so "aria_chk -rq" can use this value (this is necessary
     because index size cannot be easily calculated for fulltext keys)
   */
   maria_clear_all_keys_active(share->state.key_map);

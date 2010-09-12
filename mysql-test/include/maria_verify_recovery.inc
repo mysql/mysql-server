@@ -56,8 +56,8 @@ if ($mvr_restore_old_snapshot)
   # also copy back control file, to force recovery to start from an early
   # point, ignoring further checkpoints.
   -- error 0,1
-  remove_file $MYSQLD_DATADIR/$MARIA_LOG/maria_log_control;
-  copy_file $MYSQLTEST_VARDIR/tmp/mms_for_$mms_purpose.maria_log_control $MYSQLD_DATADIR/$MARIA_LOG/maria_log_control;
+  remove_file $MYSQLD_DATADIR/$MARIA_LOG/aria_log_control;
+  copy_file $MYSQLTEST_VARDIR/tmp/mms_for_$mms_purpose.aria_log_control $MYSQLD_DATADIR/$MARIA_LOG/aria_log_control;
 }
 
 --echo * recovery happens

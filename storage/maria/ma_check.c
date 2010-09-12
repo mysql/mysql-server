@@ -2518,7 +2518,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   start_records= share->state.state.records;
   if (!(param->testflag & T_SILENT))
   {
-    printf("- recovering (with keycache) MARIA-table '%s'\n",name);
+    printf("- recovering (with keycache) Aria-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records, llbuff));
   }
 
@@ -3003,7 +3003,7 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
       DBUG_RETURN(0);
 
   if (!(param->testflag & T_SILENT))
-    printf("- Sorting index for MARIA-table '%s'\n",name);
+    printf("- Sorting index for Aria-table '%s'\n",name);
 
   if (protect_against_repair_crash(info, param, FALSE))
     DBUG_RETURN(1);
@@ -3235,7 +3235,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
   DBUG_ENTER("maria_zerofill_index");
 
   if (!(param->testflag & T_SILENT))
-    printf("- Zerofilling index for MARIA-table '%s'\n",name);
+    printf("- Zerofilling index for Aria-table '%s'\n",name);
 
   /* Go through the index file */
   for (pos= share->base.keystart, page= (ulonglong) (pos / block_size);
@@ -3327,7 +3327,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
     DBUG_RETURN(0);
 
   if (!(param->testflag & T_SILENT))
-    printf("- Zerofilling data  for MARIA-table '%s'\n",name);
+    printf("- Zerofilling data  for Aria-table '%s'\n",name);
 
   /* Go through the record file */
   for (page= 1, pos= block_size;
@@ -3586,7 +3586,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   start_records= share->state.state.records;
   if (!(param->testflag & T_SILENT))
   {
-    printf("- recovering (with sort) MARIA-table '%s'\n",name);
+    printf("- recovering (with sort) Aria-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
 
@@ -4091,7 +4091,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   start_records= share->state.state.records;
   if (!(param->testflag & T_SILENT))
   {
-    printf("- parallel recovering (with sort) MARIA-table '%s'\n",name);
+    printf("- parallel recovering (with sort) Aria-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records, llbuff));
   }
 
@@ -5683,7 +5683,7 @@ static int sort_delete_record(MARIA_SORT_PARAM *sort_param)
     _ma_check_print_error(param,
                           "Recover aborted; Can't run standard recovery on "
                           "compressed tables with errors in data-file. "
-                          "Use 'maria_chk --safe-recover' to fix it");
+                          "Use 'aria_chk --safe-recover' to fix it");
     DBUG_RETURN(1);
   }
 
@@ -6125,7 +6125,7 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
   }
   if (!(param->testflag & T_SILENT) &&
       !(param->testflag & T_REP))
-    printf("Updating MARIA file: %s\n", param->isam_file_name);
+    printf("Updating Aria file: %s\n", param->isam_file_name);
   /*
     We have to use an allocated buffer instead of info->rec_buff as
     _ma_put_key_in_record() may use info->rec_buff
@@ -6766,7 +6766,7 @@ static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid)
     {
       _ma_check_print_warning(param,
                               "Found row with transaction id %s but no "
-                              "maria_control_file was used or specified.  "
+                              "aria_control_file was used or specified.  "
                               "The table may be corrupted",
                               llstr(used_trid, buff));
     }
@@ -6774,7 +6774,7 @@ static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid)
     {
       _ma_check_print_error(param,
                             "Found row with transaction id %s when max "
-                            "transaction id according to maria_control_file "
+                            "transaction id according to aria_control_file "
                             "is %s",
                             llstr(used_trid, buff),
                             llstr(param->max_trid, buff2));

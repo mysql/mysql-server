@@ -141,7 +141,7 @@ fi
 # Copy executables, and client DLL
 # ----------------------------------------------------------------------
 MYISAM_BINARIES="myisamchk myisamlog myisampack myisam_ftdump"
-MARIA_BINARIES="maria_chk maria_dump_log maria_ftdump maria_pack maria_read_log"
+MARIA_BINARIES="aria_chk aria_dump_log aria_ftdump aria_pack aria_read_log"
 mkdir $DESTDIR
 mkdir $DESTDIR/bin
 cp client/$TARGET/*.exe                                  $DESTDIR/bin/

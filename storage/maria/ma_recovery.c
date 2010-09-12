@@ -211,12 +211,12 @@ int maria_recovery_from_log(void)
   maria_in_recovery= TRUE;
 
 #ifdef EXTRA_DEBUG
-  fn_format(name_buff, "maria_recovery.trace", maria_data_root, "", MYF(0));
+  fn_format(name_buff, "aria_recovery.trace", maria_data_root, "", MYF(0));
   trace_file= my_fopen(name_buff, O_WRONLY|O_APPEND|O_CREAT, MYF(MY_WME));
 #else
   trace_file= NULL; /* no trace file for being fast */
 #endif
-  tprint(trace_file, "TRACE of the last MARIA recovery from mysqld\n");
+  tprint(trace_file, "TRACE of the last Aria recovery from mysqld\n");
   DBUG_ASSERT(maria_pagecache->inited);
   res= maria_apply_log(LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, MARIA_LOG_APPLY,
                        trace_file, TRUE, TRUE, TRUE, &warnings_count);
@@ -508,14 +508,14 @@ end:
     if (!trace_file)
       fputc('\n', stderr);
     my_message(HA_ERR_INITIALIZATION,
-               "Maria recovery failed. Please run maria_chk -r on all maria "
-               "tables and delete all maria_log.######## files", MYF(0));
+               "Aria recovery failed. Please run aria_chk -r on all Aria "
+               "tables and delete all aria_log.######## files", MYF(0));
   }
   procent_printed= 0;
   /*
     We don't cleanly close tables if we hit some error (may corrupt them by
     flushing some wrong blocks made from wrong REDOs). It also leaves their
-    open_count>0, which ensures that --maria-recover, if used, will try to
+    open_count>0, which ensures that --aria-recover, if used, will try to
     repair them.
   */
   DBUG_RETURN(error);
@@ -672,7 +672,7 @@ prototype_redo_exec_hook(INCOMPLETE_LOG)
     failure in _ma_apply_redo_insert_row_head_or_tail(): new data page is
     created whereas rownr is not 0).
     So when the server disables logging for ALTER TABLE or CREATE SELECT, it
-    logs LOGREC_INCOMPLETE_LOG to warn maria_read_log and then the user.
+    logs LOGREC_INCOMPLETE_LOG to warn aria_read_log and then the user.
 
     Another issue is that replaying of DDLs is not correct enough to work if
     there was a crash during a DDL (see comment in execution of
@@ -892,7 +892,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
          new_name);
   /*
     Here is why we skip CREATE/DROP/RENAME when doing a recovery from
-    ha_maria (whereas we do when called from maria_read_log). Consider:
+    ha_maria (whereas we do when called from aria_read_log). Consider:
     CREATE TABLE t;
     RENAME TABLE t to u;
     DROP TABLE u;
@@ -912,8 +912,8 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     crash. We however sync files and directories at each file rename. The SQL
     layer is anyway not crash-safe for DDLs (except the repartioning-related
     ones).
-    We replay DDLs in maria_read_log to be able to recreate tables from
-    scratch. It means that "maria_read_log -a" should not be used on a
+    We replay DDLs in aria_read_log to be able to recreate tables from
+    scratch. It means that "aria_read_log -a" should not be used on a
     database which just crashed during a DDL. And also ALTER TABLE does not
     log insertions of records into the temporary table, so replaying may
     fail (grep for INCOMPLETE_LOG in files).
@@ -1317,7 +1317,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
   if (maria_is_crashed(info))
   {
     eprint(tracef, "Table '%s' is crashed, skipping it. Please repair it with"
-           " maria_chk -r", share->open_file_name.str);
+           " aria_chk -r", share->open_file_name.str);
     recovery_found_crashed_tables++;
     error= -1; /* not fatal, try with other tables */
     goto end;
@@ -1976,7 +1976,7 @@ prototype_redo_exec_hook(IMPORTED_TABLE)
     return 1;
   }
   name= (char *)log_record_buffer.str;
-  tprint(tracef, "Table '%s' was imported (auto-zerofilled) in this Maria instance\n", name);
+  tprint(tracef, "Table '%s' was imported (auto-zerofilled) in this Aria instance\n", name);
   return 0;
 }
 

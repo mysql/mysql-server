@@ -653,7 +653,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   if (info_length > 65535)
   {
     my_printf_error(HA_WRONG_CREATE_OPTION,
-                    "Maria table '%s' has too many columns and/or "
+                    "Aria table '%s' has too many columns and/or "
                     "indexes and/or unique constraints.",
                     MYF(0), name + dirname_length(name));
     my_errno= HA_WRONG_CREATE_OPTION;
@@ -841,7 +841,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   */
   if (_ma_test_if_reopen(filename))
   {
-    my_printf_error(0, "MARIA table '%s' is in use "
+    my_printf_error(0, "Aria table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
                     MYF(0), name + dirname_length(name));
     my_errno= HA_ERR_TABLE_EXIST;
