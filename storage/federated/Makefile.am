@@ -32,7 +32,8 @@ noinst_HEADERS =	ha_federated.h
 
 EXTRA_LTLIBRARIES =	ha_federated.la
 pkgplugin_LTLIBRARIES =	@plugin_federated_shared_target@
-ha_federated_la_LDFLAGS =	-module -rpath $(pkgplugindir)
+ha_federated_la_LDFLAGS =	-module -rpath $(pkgplugindir) \
+				-L$(top_builddir)/libservices -lmysqlservices
 ha_federated_la_CXXFLAGS=	-shared $(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_federated_la_CFLAGS =	-shared $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_federated_la_SOURCES =	ha_federated.cc $(top_srcdir)/mysys/string.c
