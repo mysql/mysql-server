@@ -147,6 +147,12 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   DBUG_ASSERT(bitmap->file.write_callback != 0);
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
 
+  /*
+    Mark that a bitmap page has been written to page cache and we have
+    to flush it during checkpoint.
+  */
+  bitmap->changed_not_flushed= 1;
+
   if ((bitmap->non_flushable == 0)
 #ifdef WRONG_BITMAP_FLUSH
       || 1
@@ -347,7 +353,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   DBUG_ENTER("_ma_bitmap_flush_all");
   pthread_mutex_lock(&bitmap->bitmap_lock);
-  if (bitmap->changed)
+  if (bitmap->changed || bitmap->changed_not_flushed)
   {
     bitmap->flush_all_requested= TRUE;
 #ifndef WRONG_BITMAP_FLUSH
@@ -384,6 +390,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
                                            &bitmap->pages_covered) &
         PCFLUSH_PINNED_AND_ERROR)
       res= TRUE;
+    bitmap->changed_not_flushed= FALSE;
     bitmap->flush_all_requested= FALSE;
     /*
       Some well-behaved threads may be waiting for flush_all_requested to
