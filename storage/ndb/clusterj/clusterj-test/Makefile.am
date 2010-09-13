@@ -154,7 +154,6 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/YearTypes.java
 
 EXTRA_DIST = \
-  src/main/resources/clusterj.properties \
   src/main/resources/META-INF \
   src/main/resources/schema.sql \
   $(clusterj_test_java) \
