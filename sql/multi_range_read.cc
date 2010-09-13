@@ -591,6 +591,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     h2= NULL;
     int res= (h->inited == handler::INDEX && h->ha_index_end());
     h2= save_h2;
+    use_default_impl= FALSE;
     if (res)
       goto error;
   }

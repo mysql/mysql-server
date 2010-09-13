@@ -153,7 +153,7 @@ public:
       - it is adjacent to buffer space we're using
       - it is on the end towards which we grow.
     */
-    DBUG_ASSERT(unused_end > unused_start);
+    DBUG_ASSERT(unused_end >= unused_start);
     TRASH(unused_start, unused_end - unused_start);
     if (direction == 1 && end == unused_start)
     {
