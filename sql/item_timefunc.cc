@@ -288,11 +288,6 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   CHARSET_INFO *cs= &my_charset_bin;
   DBUG_ENTER("extract_date_time");
 
-  LINT_INIT(strict_week_number);
-  /* Remove valgrind varnings when using gcc 3.3 and -O1 */
-  VALGRIND_OR_LINT_INIT(strict_week_number_year_type);
-  VALGRIND_OR_LINT_INIT(sunday_first_n_first_week_non_iso);
-
   if (!sub_pattern_end)
     bzero((char*) l_time, sizeof(*l_time));
 
