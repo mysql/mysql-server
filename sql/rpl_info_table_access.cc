@@ -19,22 +19,6 @@
 #include "sql_parse.h"
 
 /**
-  Constructor of the Rpl_info_table_access class.
- */
-Rpl_info_table_access::Rpl_info_table_access()
-{
-  init_sql_alloc(&mem_root, 256, 512);
-}
-
-/**
-  Destructor of the Rpl_info_table_access class.
- */
-Rpl_info_table_access::~Rpl_info_table_access()
-{
-  free_root(&mem_root, MYF(0));
-}
-
-/**
   Opens and locks a table.
 
   It's assumed that the caller knows what they are doing:
@@ -169,14 +153,14 @@ enum enum_return_id Rpl_info_table_access::find_info_id(ulong server_id,
   uchar key[MAX_KEY_LENGTH];
   DBUG_ENTER("Rpl_info_table_access::find_info_id");
 
-  longlong2str(server_id, field_values->field[idx].use.str, 10);
-  field_values->field[idx].use.length= strlen(field_values->field[idx].use.str);
+  longlong2str(server_id, field_values->field[idx].value.str, 10);
+  field_values->field[idx].value.length= strlen(field_values->field[idx].value.str);
 
-  if (field_values->field[idx].use.length > table->field[idx]->field_length)
+  if (field_values->field[idx].value.length > table->field[idx]->field_length)
     DBUG_RETURN(ERROR_ID);
 
-  table->field[idx]->store(field_values->field[idx].use.str,
-                           field_values->field[idx].use.length,
+  table->field[idx]->store(field_values->field[idx].value.str,
+                           field_values->field[idx].value.length,
                            &my_charset_bin);
 
   if (!(table->field[idx]->flags & PRI_KEY_FLAG))
@@ -191,85 +175,6 @@ enum enum_return_id Rpl_info_table_access::find_info_id(ulong server_id,
   }
 
   DBUG_RETURN(FOUND_ID);
-}
-
-/**
-  Reads information from a sequence of fields into a set of LEX_STRING
-  structures. The additional parameters must be specified as a pair:
-  (i) field number and (ii) LEX_STRING structure. The last additional
-  parameter  must be equal to the first regular parameter in order to
-  identify when one must stop reading fields.
-   
-  @param[in] max_num_field Maximum number of fields
-  @param[in] fields        The sequence of fields
-
-  @return
-    @retval FALSE No error
-    @retval TRUE  Failure
- */
-bool Rpl_info_table_access::load_info_fields(uint max_num_field, Field **fields, ...)
-{
-  va_list args;
-  uint field_idx;
-  LEX_STRING *field_value;
-
-  DBUG_ENTER("Rpl_info_table_access::load_info_fields");
-
-  va_start(args, fields);
-  field_idx= (uint) va_arg(args, int);
-  while (field_idx < max_num_field)
-  {
-    field_value= va_arg(args, LEX_STRING *);
-    field_value->str= get_field(&mem_root, fields[field_idx]);
-    field_value->length= field_value->str ? strlen(field_value->str) : 0;
-    field_idx= (uint) va_arg(args, int);
-  }
-  va_end(args);
-
-  DBUG_RETURN(FALSE);
-}
-
-/**
-  Stores information from a set of LEX_STRING structures into a sequence
-  of fields. The additional parameters must be specified as a pair:
-  (i) field number and (i) LEX_STRING structure. The last additional
-  parameter must be equal to the first regular parameter in order to
-  identify when one must stop reading LEX_STRING structures.
-   
-  @param[in] max_num_field Maximum number of fields
-  @param[in] fields        The sequence of fields
-
-  @return
-    @retval FALSE No error
-    @retval TRUE  Failure
- */
-bool Rpl_info_table_access::store_info_fields(uint max_num_field, Field **fields, ...)
-{
-  va_list args;
-  uint field_idx;
-  LEX_STRING *field_value;
-
-  DBUG_ENTER("Rpl_info_table_access::load_info_fields");
-
-  va_start(args, fields);
-  field_idx= (uint) va_arg(args, int);
-  while (field_idx < max_num_field)
-  {
-    field_value= va_arg(args, LEX_STRING *);
-    fields[field_idx]->set_notnull();
-    if (fields[field_idx]->store(field_value->str,
-                                 field_value->length,
-                                 &my_charset_bin))
-    {
-      my_error(ER_INFO_DATA_TOO_LONG, MYF(0),
-               fields[field_idx]->field_name);
-      DBUG_RETURN(TRUE);
-    }
-    field_idx= (uint) va_arg(args, int);
-  }
-  va_end(args);
-
-  DBUG_RETURN(FALSE);
 }
 
 /**
@@ -289,15 +194,25 @@ bool Rpl_info_table_access::load_info_fields(uint max_num_field, Field **fields,
                                              Rpl_info_fields *field_values)
 {
   DBUG_ENTER("Rpl_info_table_access::load_info_fields");
-  uint field_idx= 0;
+  char buff[MAX_FIELD_WIDTH];
+  String str(buff, sizeof(buff), &my_charset_bin);
+  uint length;
 
+  uint field_idx= 0;
   while (field_idx < max_num_field)
   {
-    field_values->field[field_idx].use.str= 
-      get_field(&mem_root, fields[field_idx]);
-    field_values->field[field_idx].use.length= 
-      (field_values->field[field_idx].use.str ?
-       strlen(field_values->field[field_idx].use.str) : 0);
+    fields[field_idx]->val_str(&str);
+    length= str.length();
+
+    if (field_values->resize(length, field_idx))
+      DBUG_RETURN(TRUE);
+
+    if (length)
+      memcpy(field_values->field[field_idx].value.str, str.ptr(), (uint) length);
+
+    field_values->field[field_idx].value.str[length]=0;
+    field_values->field[field_idx].value.length= length;
+
     field_idx++;
   }
 
@@ -325,11 +240,11 @@ bool Rpl_info_table_access::store_info_fields(uint max_num_field, Field **fields
 
   while (field_idx < max_num_field)
   {
-    DBUG_PRINT("info", ("store %s %d\n", field_values->field[field_idx].use.str, 
+    DBUG_PRINT("info", ("store %s %d\n", field_values->field[field_idx].value.str, 
             field_idx));
     fields[field_idx]->set_notnull();
-    if (fields[field_idx]->store(field_values->field[field_idx].use.str,
-                                 field_values->field[field_idx].use.length,
+    if (fields[field_idx]->store(field_values->field[field_idx].value.str,
+                                 field_values->field[field_idx].value.length,
                                  &my_charset_bin))
     {
       my_error(ER_INFO_DATA_TOO_LONG, MYF(0),

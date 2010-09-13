@@ -301,19 +301,14 @@ int Rpl_info_table::do_prepare_info_for_write()
     return TRUE;
 
   cursor= 1;
-  if (field_values)
-    field_values->restore();
 
   return FALSE;
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const char *value)
 {
-  /*
-    Note that we did not need to copy any information at this point.
-  */
-  field_values->field[pos].use.str= const_cast<char *>(value);
-  field_values->field[pos].use.length= strlen(field_values->field[pos].use.str);
+  strmov(field_values->field[pos].value.str, const_cast<char *>(value));
+  field_values->field[pos].value.length= strlen(field_values->field[pos].value.str);
 
   return FALSE;
 }
@@ -326,9 +321,9 @@ bool Rpl_info_table::do_set_info(const int pos, const ulong value)
     ULONG_MAX 	32 bit compiler   +4,294,967,295
                 64 bit compiler   +18,446,744,073,709,551,615
   */
-  if (sprintf(field_values->field[pos].use.str, "%lu", value) < 0)
+  if (sprintf(field_values->field[pos].value.str, "%lu", value) < 0)
     return TRUE;
-  field_values->field[pos].use.length= strlen(field_values->field[pos].use.str);
+  field_values->field[pos].value.length= strlen(field_values->field[pos].value.str);
 
   return (FALSE);
 }
@@ -341,9 +336,9 @@ bool Rpl_info_table::do_set_info(const int pos, const int value)
     INT_MIN    –2,147,483,648
     INT_MAX    +2,147,483,647
   */
-  if ((sprintf(field_values->field[pos].use.str, "%d", value)) < 0)
+  if ((sprintf(field_values->field[pos].value.str, "%d", value)) < 0)
     return TRUE;
-  field_values->field[pos].use.length= strlen(field_values->field[pos].use.str);
+  field_values->field[pos].value.length= strlen(field_values->field[pos].value.str);
 
   return FALSE;
 }
@@ -362,10 +357,10 @@ bool Rpl_info_table::do_set_info(const int pos, const float value)
     If a file is manually and not properly changed, this function may
     crash the server.
   */
-  if (sprintf(field_values->field[pos].use.str, "%.3f", value) < 0)
+  if (sprintf(field_values->field[pos].value.str, "%.3f", value) < 0)
     return TRUE;
-  field_values->field[pos].use.length=
-    strlen(field_values->field[pos].use.str);
+  field_values->field[pos].value.length=
+    strlen(field_values->field[pos].value.str);
 
   return FALSE;
 }
@@ -375,7 +370,7 @@ bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
   int needed_size= (sizeof(::server_id) * 3 + 1) *
                     (1 + value->server_ids.elements);
   /*
-    If the information does not fit in the field_values->field[pos].use.str,
+    If the information does not fit in the field_values->field[pos].value.str,
     memory is reallocated and the size updated.
   */
   if (field_values->resize(needed_size, pos))
@@ -384,9 +379,9 @@ bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
   /*
     This produces a line listing the total number and all the server_ids.
   */
-  if (const_cast<Server_ids *>(value)->pack_server_ids(field_values->field[pos].use.str))
+  if (const_cast<Server_ids *>(value)->pack_server_ids(field_values->field[pos].value.str))
     return TRUE;
-  field_values->field[pos].use.length= strlen(field_values->field[pos].use.str);
+  field_values->field[pos].value.length= strlen(field_values->field[pos].value.str);
     
   return FALSE;
 }
@@ -397,8 +392,8 @@ bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
   if (use_default)
     strmov(value, default_value ? default_value : "");
   else
-    strmov(value, field_values->field[pos].use.str ? 
-           field_values->field[pos].use.str : "");
+    strmov(value, field_values->field[pos].value.str ?
+           field_values->field[pos].value.str : "");
   
   return FALSE;
 }
@@ -407,7 +402,7 @@ bool Rpl_info_table::do_get_info(const int pos, ulong *value,
                                  const ulong default_value)
 {
   *value= (use_default ? default_value :
-           (int) strtoul(field_values->field[pos].use.str, 0, 10));
+           (int) strtoul(field_values->field[pos].value.str, 0, 10));
 
   return FALSE;
 }
@@ -416,7 +411,7 @@ bool Rpl_info_table::do_get_info(const int pos, int *value,
                                  const int default_value)
 {
   *value= (use_default ? default_value :
-           (int) strtol(field_values->field[pos].use.str, 0, 10));
+           (int) strtol(field_values->field[pos].value.str, 0, 10));
 
   return FALSE;
 }
@@ -426,7 +421,7 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
 {
   *value= default_value;
   if (!use_default &&
-      sscanf(field_values->field[pos].use.str, "%f", value) != 1)
+      sscanf(field_values->field[pos].value.str, "%f", value) != 1)
     return TRUE;
 
   return FALSE;
@@ -435,7 +430,7 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
 bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
                                  const Server_ids *default_value __attribute__((unused)))
 {
-  if (value->unpack_server_ids(field_values->field[pos].use.str))
+  if (value->unpack_server_ids(field_values->field[pos].value.str))
     return TRUE;
 
   return FALSE;

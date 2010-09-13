@@ -30,8 +30,8 @@ enum enum_return_id { FOUND_ID= 1, NOT_FOUND_ID, ERROR_ID };
 class Rpl_info_table_access
 {
 public:
-  Rpl_info_table_access();
-  virtual ~Rpl_info_table_access();
+  Rpl_info_table_access() { };
+  virtual ~Rpl_info_table_access() { };
 
   bool open_table(THD* thd, const char *dbstr,
                   size_t dbstr_size, const char *tbstr,
@@ -42,10 +42,8 @@ public:
   bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup);
   enum enum_return_id find_info_id(ulong server_id, uint idx, Rpl_info_fields *,
                                    TABLE *table);
-  bool load_info_fields(uint max_num_field, Field **fields, ...);
   bool load_info_fields(uint max_num_field, Field **fields,
                         Rpl_info_fields *field_values);
-  bool store_info_fields(uint max_num_field, Field **fields, ...);
   bool store_info_fields(uint max_num_field, Field **fields,
                          Rpl_info_fields *field_values);
   THD *create_bootstrap_thd();
@@ -54,8 +52,6 @@ public:
 private:
   THD *saved_current_thd;
   enum enum_thread_type saved_thd_type;
-
-  MEM_ROOT mem_root;
 
   Rpl_info_table_access& operator=(const Rpl_info_table_access& info);
   Rpl_info_table_access(const Rpl_info_table_access& info);
