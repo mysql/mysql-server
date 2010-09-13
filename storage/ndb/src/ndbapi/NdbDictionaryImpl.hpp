@@ -601,7 +601,7 @@ public:
 			  LinearSectionPtr ptr[3],
 			  Uint32 noOfSections, bool fullyQualifiedNames);
 
-  int forceGCPWait();
+  int forceGCPWait(int type);
 
   static int parseTableInfo(NdbTableImpl ** dst, 
 			    const Uint32 * data, Uint32 len,
@@ -750,7 +750,7 @@ public:
   int executeSubscribeEvent(NdbEventOperationImpl &);
   int stopSubscribeEvent(NdbEventOperationImpl &);
 
-  int forceGCPWait();
+  int forceGCPWait(int type);
 
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);

@@ -2256,6 +2256,7 @@ public:
      * Force gcp and wait for gcp complete
      */
     int forceGCPWait();
+    int forceGCPWait(int type);
 #endif
 
     /** @} *******************************************************************/
