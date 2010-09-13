@@ -1,0 +1,3355 @@
+include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+RESET SLAVE;
+include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+RESET SLAVE;
+include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+RESET SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_A_PORT,master_user='root',MASTER_LOG_FILE='MASTER_A_LOG_FILE';
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',MASTER_LOG_FILE='MASTER_B_LOG_FILE';
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	2
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	3
+include/start_slave.inc
+include/start_slave.inc
+CON: 'mysqld_a', IMG: 'NOBLOB', RESTART SLAVE: 'N'
+SET SESSION binlog_row_image= 'NOBLOB';
+SET GLOBAL binlog_row_image= 'NOBLOB';
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+CON: 'mysqld_b', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'NOBLOB';
+SET GLOBAL binlog_row_image= 'NOBLOB';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+CON: 'mysqld_c', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'NOBLOB';
+SET GLOBAL binlog_row_image= 'NOBLOB';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+### engines: MyISAM, MyISAM, MyISAM
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: One key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+### engines: MyISAM, MyISAM, InnoDB
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: One key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+### engines: MyISAM, InnoDB, MyISAM
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: One key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+### engines: MyISAM, InnoDB, InnoDB
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: One key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+### engines: InnoDB, MyISAM, MyISAM
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: One key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+### engines: InnoDB, MyISAM, InnoDB
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: One key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+### engines: InnoDB, InnoDB, MyISAM
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: One key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+### engines: InnoDB, InnoDB, InnoDB
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite NOT NULL Unique key with holes
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: One key
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= InnoDB;;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables mysqld_a:test.t and mysqld_b:test.t
+Comparing tables mysqld_b:test.t and mysqld_c:test.t
+DROP TABLE t;
+CON: 'mysqld_a', IMG: 'FULL', RESTART SLAVE: 'N'
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+CON: 'mysqld_b', IMG: 'FULL', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+CON: 'mysqld_c', IMG: 'FULL', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
