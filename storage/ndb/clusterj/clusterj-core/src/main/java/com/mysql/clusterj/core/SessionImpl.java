@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Transaction;
 
@@ -52,6 +53,7 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDefinition;
+import com.mysql.clusterj.query.QueryDomainType;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -93,6 +95,9 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     /** The underlying ClusterTransaction */
     protected ClusterTransaction clusterTransaction;
 
+    /** The transaction id to join */
+    protected String joinTransactionId = null;
+
     /** The properties for this session */
     protected Map properties;
 
@@ -116,6 +121,9 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     /** Number of retries for retriable exceptions */
     // TODO get this from properties
     protected int numberOfRetries = 5;
+
+    /** The lock mode for read operations */
+    private LockMode lockmode = LockMode.READ_COMMITTED;
 
     /** Create a SessionImpl with factory, properties, Db, and dictionary
      */
@@ -355,6 +363,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public int deletePersistentAll(DomainTypeHandler domainTypeHandler) {
         startAutoTransaction();
+        // cannot use early autocommit optimization here
+        clusterTransaction.setAutocommit(false);
         Table storeTable = domainTypeHandler.getStoreTable();
         ScanOperation op = null;
         int count = 0;
@@ -363,7 +373,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             op = clusterTransaction.getSelectScanOperationLockModeExclusiveScanFlagKeyInfo(storeTable);
 //                    Operation.LockMode.LM_Exclusive,
 //                    ScanOperation.ScanFlag.KEY_INFO, 0,0);
-            clusterTransaction.executeNoCommit(true, false);
+            clusterTransaction.executeNoCommit(true, true);
             boolean done = false;
             boolean fetch = true;
             while (!done ) {
@@ -378,12 +388,12 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     case SCAN_FINISHED:
                         done = true;
                         if (cacheCount != 0) {
-                            clusterTransaction.executeNoCommit(true, false);
+                            clusterTransaction.executeNoCommit(true, true);
                         }
                         op.close();
                         break;
                     case CACHE_EMPTY:
-                        clusterTransaction.executeNoCommit(true, false);
+                        clusterTransaction.executeNoCommit(true, true);
                         cacheCount = 0;
                         fetch = true;
                         break;
@@ -552,6 +562,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * 
      */
     public void begin() {
+        if (logger.isDebugEnabled()) logger.debug("begin transaction.");
         transactionState = transactionState.begin();
         handleTransactionException();
     }
@@ -561,7 +572,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     protected void internalBegin() {
         try {
-            clusterTransaction = db.startTransaction();
+            clusterTransaction = db.startTransaction(joinTransactionId);
             // if a transaction has already begun, tell the cluster transaction about the key
             if (partitionKey != null) {
                 clusterTransaction.setPartitionKey(partitionKey);
@@ -576,6 +587,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * 
      */
     public void commit() {
+        if (logger.isDebugEnabled()) logger.debug("commit transaction.");
         transactionState = transactionState.commit();
         handleTransactionException();
     }
@@ -595,8 +607,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             }
         }
         try {
-            // first flush deferred operations
-            flush();
             clusterTransaction.executeCommit(true, true);
         } finally {
             // always close the transaction
@@ -610,6 +620,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      *
      */
     public void rollback() {
+        if (logger.isDebugEnabled()) logger.debug("roll back transaction.");
         transactionState = transactionState.rollback();
         handleTransactionException();
     }
@@ -638,6 +649,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * Throw a ClusterJException if there is any problem.
      */
     public void startAutoTransaction() {
+        if (logger.isDebugEnabled()) logger.debug("start AutoTransaction");
         transactionState = transactionState.start();
         handleTransactionException();
     }
@@ -646,6 +658,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * Throw a ClusterJException if there is any problem.
      */
     public void endAutoTransaction() {
+        if (logger.isDebugEnabled()) logger.debug("end AutoTransaction");
         transactionState = transactionState.end();
         handleTransactionException();
     }
@@ -654,6 +667,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * Throw a ClusterJException if there is any problem.
      */
     public void failAutoTransaction() {
+        if (logger.isDebugEnabled()) logger.debug("fail AutoTransaction");
         transactionState = transactionState.fail();
     }
 
@@ -731,6 +745,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         public TransactionState start() {
             try {
                 internalBegin();
+                clusterTransaction.setAutocommit(true);
                 nestedAutoTransactionCounter = 1;
                 return transactionStateAutocommit;
             } catch (ClusterJException ex) {
@@ -768,6 +783,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
 
         public TransactionState commit() {
             try {
+                // flush unwritten changes
+                flush();
                 internalCommit();
             } catch (ClusterJException ex) {
                 transactionException = ex;
@@ -893,15 +910,17 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         return transactionState.isActive();
     }
 
-    /** Is the transaction enlisted.
-     * 
+    /** Is the transaction enlisted. A transaction is enlisted if and only if
+     * an operation has been defined that requires an ndb transaction to be
+     * started.
      * @return true if the transaction is enlisted
      */
-    boolean isEnlisted() {
+    public boolean isEnlisted() {
         return clusterTransaction==null?false:clusterTransaction.isEnlisted();
     }
 
-    /** Assert that there is an active transaction.
+    /** Assert that there is an active transaction (the user has called begin
+     * or an autotransaction has begun).
      * Throw a user exception if not.
      */
     private void assertActive() {
@@ -1010,9 +1029,14 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
 
     public void flush() {
         if (logger.isDetailEnabled()) logger.detail("flush changes with changeList: " + changeList);
+        if (changeList.isEmpty()) {
+            return;
+        }
         for (StateManager sm: changeList) {
             sm.flush(this);
         }
+        // now flush changes to the back end
+        clusterTransaction.executeNoCommit();
         changeList.clear();
     }
 
@@ -1066,6 +1090,34 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
 
     public void executeNoCommit() {
         clusterTransaction.executeNoCommit();
+    }
+
+    public <T> QueryDomainType<T> createQueryDomainType(DomainTypeHandler<T> domainTypeHandler) {
+        QueryBuilderImpl builder = (QueryBuilderImpl)getQueryBuilder();
+        return builder.createQueryDefinition(domainTypeHandler);
+    }
+
+    /** Return the coordinatedTransactionId of the current transaction.
+     * The transaction might not have been enlisted.
+     * @return the coordinatedTransactionId
+     */
+    public String getCoordinatedTransactionId() {
+        return clusterTransaction.getCoordinatedTransactionId();
+    }
+
+    /** Set the coordinatedTransactionId for the next transaction. This
+     * will take effect as soon as the transaction is enlisted.
+     * @param coordinatedTransactionId the coordinatedTransactionId
+     */
+    public void setCoordinatedTransactionId(String coordinatedTransactionId) {
+        clusterTransaction.setCoordinatedTransactionId(coordinatedTransactionId);
+    }
+
+    public void setLockMode(LockMode lockmode) {
+        this.lockmode = lockmode;
+        if (clusterTransaction != null) {
+            clusterTransaction.setLockMode(lockmode);
+        }
     }
 
 }

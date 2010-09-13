@@ -67,4 +67,48 @@ public interface ResultData {
 
     public Object getObject(Column storeColumn);
 
+    public java.math.BigDecimal getDecimal(int columnNumber);
+
+    public java.math.BigInteger getBigInteger(int columnNumber);
+
+    public Blob getBlob(int columnNumber);
+
+    public boolean getBoolean(int columnNumber);
+
+    public boolean[] getBooleans(int columnNumber);
+
+    public byte getByte(int columnNumber);
+
+    public double getDouble(int columnNumber);
+
+    public float getFloat(int columnNumber);
+
+    public int getInt(int columnNumber);
+
+    public long getLong(int columnNumber);
+
+    public short getShort(int columnNumber);
+
+    public Boolean getObjectBoolean(int columnNumber);
+
+    public Byte getObjectByte(int columnNumber);
+
+    public Double getObjectDouble(int columnNumber);
+
+    public Float getObjectFloat(int columnNumber);
+
+    public Integer getObjectInteger(int columnNumber);
+
+    public Long getObjectLong(int columnNumber);
+
+    public Short getObjectShort(int columnNumber);
+
+    public String getString(int columnNumber);
+
+    public byte[] getBytes(int columnNumber);
+
+    public Object getObject(int column);
+
+    public Column[] getColumns();
+
 }

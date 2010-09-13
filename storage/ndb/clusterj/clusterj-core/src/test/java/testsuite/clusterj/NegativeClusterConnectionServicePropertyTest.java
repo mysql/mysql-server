@@ -3,7 +3,7 @@ package testsuite.clusterj;
 import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.core.store.ClusterConnectionService;
-public class NegativeClusterConnectionServicePropertyTest extends AbstractClusterJTest {
+public class NegativeClusterConnectionServicePropertyTest extends AbstractClusterJCoreTest {
 
     public void testBadClassName() {
         try {

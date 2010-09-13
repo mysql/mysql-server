@@ -18,7 +18,10 @@
 
 package com.mysql.clusterj.tie;
 
+import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.core.store.ClusterConnection;
+import com.mysql.clusterj.core.util.I18NHelper;
+import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 /**
@@ -27,12 +30,25 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 public class ClusterConnectionServiceImpl
         implements com.mysql.clusterj.core.store.ClusterConnectionService {
 
+    /** My message translator */
+    static final I18NHelper local = I18NHelper.getInstance(ClusterConnectionServiceImpl.class);
+
+    /** My logger */
+    static final Logger logger = LoggerFactoryService.getFactory()
+            .getInstance(ClusterConnectionServiceImpl.class);
+
     static {
         LoggerFactoryService.getFactory().registerLogger("com.mysql.clusterj.tie");
     }
 
     public ClusterConnection create(String connectString) {
-        return new ClusterConnectionImpl(connectString);
+        try {
+            return new ClusterConnectionImpl(connectString);
+        } catch (Exception e) {
+            String message = local.message("ERR_Connect", connectString);
+            logger.fatal(message);
+            throw new ClusterJFatalUserException(message, e);
+        }
     }
 
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2009-2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -23,6 +23,8 @@ import com.mysql.clusterj.core.query.PredicateImpl;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.IndexScanOperation.BoundType;
 import com.mysql.clusterj.core.store.Operation;
+import com.mysql.clusterj.core.store.PartitionKey;
+import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanFilter.BinaryCondition;
 
@@ -48,5 +50,26 @@ public interface DomainFieldHandler {
     void operationSetBounds(Object value, BoundType type, IndexScanOperation op);
 
     void operationSetValue(ValueHandler handler, Operation op);
+
+    void objectSetKeyValue(Object keys, ValueHandler handler);
+
+    void objectSetValue(ResultData rs, ValueHandler handler);
+
+    Class<?> getType();
+
+    String getName();
+
+    int getFieldNumber();
+
+    void partitionKeySetPart(PartitionKey result, ValueHandler handler);
+
+    boolean includedInIndex(String index);
+
+    void operationSetModifiedValue(ValueHandler handler, Operation op);
+
+    void operationGetValue(Operation op);
+
+    void objectSetValueExceptIndex(ResultData rs, ValueHandler handler,
+            String indexName);
 
 }

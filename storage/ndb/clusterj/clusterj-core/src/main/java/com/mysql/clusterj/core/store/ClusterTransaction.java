@@ -18,6 +18,8 @@
 
 package com.mysql.clusterj.core.store;
 
+import com.mysql.clusterj.LockMode;
+
 /**
  *
  */
@@ -56,5 +58,13 @@ public interface ClusterTransaction {
     public boolean isEnlisted();
 
     public void setPartitionKey(PartitionKey partitionKey);
+
+    public String getCoordinatedTransactionId();
+
+    public void setCoordinatedTransactionId(String coordinatedTransactionId);
+
+    public void setLockMode(LockMode lockmode);
+
+    public void setAutocommit(boolean autocommit);
 
 }

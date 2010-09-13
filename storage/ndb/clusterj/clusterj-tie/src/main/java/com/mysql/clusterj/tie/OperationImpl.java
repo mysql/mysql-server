@@ -21,6 +21,7 @@ package com.mysql.clusterj.tie;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,6 +30,7 @@ import com.mysql.clusterj.core.store.Blob;
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ResultData;
+import com.mysql.clusterj.core.store.Table;
 
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -51,15 +53,55 @@ class OperationImpl implements Operation {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(OperationImpl.class);
 
+    /** Scratch buffers for String encoding; reused for each String column in the operation */
+    ByteBuffer scratchByteBuffer = null;
+    CharBuffer scratchCharBuffer = null;
+
+    /** Current scratch buffer size */
+    int scratchBufferSize = Utility.MAX_STRING_SIZE;
+
     private NdbOperation ndbOperation;
 
     protected List<Column> storeColumns = new ArrayList<Column>();
 
     protected ClusterTransactionImpl clusterTransaction;
 
+    /** The size of the receive buffer for this operation (may be zero for non-read operations) */
+    protected int bufferSize;
+
+    /** The maximum column id for this operation (may be zero for non-read operations) */
+    protected int maximumColumnId;
+
+    /** The offsets into the buffer for each column (may be null for non-read operations) */
+    protected int[] offsets;
+
+    /** The lengths of fields in the buffer for each column (may be null for non-read operations) */
+    protected int[] lengths;
+
+    /** Constructor used for insert and delete operations that do not need to read data.
+     * 
+     * @param operation the operation
+     * @param transaction the transaction
+     */
     public OperationImpl(NdbOperation operation, ClusterTransactionImpl transaction) {
         this.ndbOperation = operation;
         this.clusterTransaction = transaction;
+    }
+
+    /** Constructor used for read operations. The table is used to obtain data used
+     * to lay out memory for the result. 
+     * @param storeTable the table
+     * @param operation the operation
+     * @param transaction the transaction
+     */
+    public OperationImpl(Table storeTable, NdbOperation operation, ClusterTransactionImpl transaction) {
+        this.ndbOperation = operation;
+        this.clusterTransaction = transaction;
+        TableImpl tableImpl = (TableImpl)storeTable;
+        this.maximumColumnId = tableImpl.getMaximumColumnId();
+        this.bufferSize = tableImpl.getBufferSize();
+        this.offsets = tableImpl.getOffsets();
+        this.lengths = tableImpl.getLengths();
     }
 
     public void equalBigInteger(Column storeColumn, BigInteger value) {
@@ -158,8 +200,8 @@ class OperationImpl implements Operation {
     public ResultData resultData() {
         if (logger.isDetailEnabled()) logger.detail("storeColumns: " + Arrays.toString(storeColumns.toArray()));
         ResultDataImpl result;
-        result = new ResultDataImpl(ndbOperation, storeColumns);
-        clusterTransaction.executeNoCommit(false, false);
+        result = new ResultDataImpl(ndbOperation, storeColumns, maximumColumnId, bufferSize, offsets, lengths);
+        clusterTransaction.executeNoCommit(false, true);
         NdbErrorConst error = ndbOperation.getNdbError();
         int errorCode = error.code();
         if (errorCode != 0)
@@ -229,7 +271,8 @@ class OperationImpl implements Operation {
     }
 
     public void setString(Column storeColumn, String value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        ByteBuffer byteBuffer = convertStringToByteBuffer(value);
+        ByteBuffer buffer = Utility.convertValue(storeColumn, byteBuffer);
         int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), buffer);
         handleError(returnCode, ndbOperation);
     }
@@ -248,6 +291,32 @@ class OperationImpl implements Operation {
         } else {
             Utility.throwError(null, ndbOperation.getNdbError());
         }
+    }
+
+    /** Copy the contents of the parameter String into a reused scratch buffer.
+     * 
+     * @param value the string
+     * @return the byte buffer with the String in it
+     */
+    protected ByteBuffer convertStringToByteBuffer(String value) {
+        int sizeNeeded = value.length() * 2 + 2;
+        if (sizeNeeded > scratchBufferSize) {
+            scratchBufferSize = sizeNeeded;
+            scratchByteBuffer = ByteBuffer.allocateDirect(sizeNeeded);
+            scratchCharBuffer = scratchByteBuffer.asCharBuffer();
+//   why did this ever work         scratchByteBuffer = null;
+        }
+        if (scratchByteBuffer == null) {
+            scratchByteBuffer = ByteBuffer.allocateDirect(scratchBufferSize);
+            scratchCharBuffer = scratchByteBuffer.asCharBuffer();
+        } else {
+            scratchByteBuffer.clear();
+            scratchCharBuffer.clear();
+        }
+        scratchCharBuffer.append(value);
+        // characters in java are always two bytes (UCS-16)
+        scratchByteBuffer.limit(scratchCharBuffer.position() * 2);
+        return scratchByteBuffer;
     }
 
 }

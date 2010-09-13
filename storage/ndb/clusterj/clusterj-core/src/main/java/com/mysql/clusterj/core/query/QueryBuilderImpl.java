@@ -45,4 +45,12 @@ public class QueryBuilderImpl implements QueryBuilder {
         return new QueryDomainTypeImpl<T>(domainTypeHandler, cls);
     }
 
+    /** Create a query definition for the domain type handler (no class mapping).
+     * @param domainTypeHandler the domain type handler
+     * @return the query definition
+     */
+    public <T> QueryDomainTypeImpl<T> createQueryDefinition(DomainTypeHandler<T> domainTypeHandler) {
+        return new QueryDomainTypeImpl<T>(domainTypeHandler);
+    }
+
 }

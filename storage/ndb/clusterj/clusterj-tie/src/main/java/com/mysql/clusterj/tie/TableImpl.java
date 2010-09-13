@@ -31,6 +31,7 @@ import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
+import com.mysql.ndbjtie.ndbapi.NdbRecord;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
@@ -50,6 +51,9 @@ class TableImpl implements Table {
     /** The table name */
     private String tableName;
 
+    /** The column names */
+    private String[] columnNames;
+
     /** The primary key column names */
     private String[] primaryKeyColumnNames;
 
@@ -62,13 +66,28 @@ class TableImpl implements Table {
     /** The index names for this table */
     private String[] indexNames;
 
+    /** The array of lengths of column space indexed by column id */
+    private int[] lengths;
+
+    /** The array of offsets of column space indexed by column id */
+    private int[] offsets;
+
+    /** The total size of buffer needed for all columns */
+    private int bufferSize;
+
+    /** The maximum column id */
+    private int maximumColumnId;
+
     public TableImpl(TableConst ndbTable, String[] indexNames) {
         this.tableName = ndbTable.getName();
         // process columns and partition key columns
         List<String> partitionKeyColumnNameList = new ArrayList<String>();
         List<String> primaryKeyColumnNameList = new ArrayList<String>();
 
-        for (int i = 0; i < ndbTable.getNoOfColumns(); ++i) {
+        int noOfColumns = ndbTable.getNoOfColumns();
+        ColumnImpl[] columnImpls = new ColumnImpl[noOfColumns];
+        columnNames = new String[noOfColumns];
+        for (int i = 0; i < noOfColumns; ++i) {
             ColumnConst column = ndbTable.getColumn(i);
             // primary key and partition key columns are listed in the order declared in the schema
             if (column.getPartitionKey()) {
@@ -78,8 +97,30 @@ class TableImpl implements Table {
                 primaryKeyColumnNameList.add(column.getName());
             }
             ColumnConst ndbColumn = ndbTable.getColumn(i);
-            columns.put(ndbColumn.getName(), new ColumnImpl(tableName, ndbColumn));
+            String columnName = ndbColumn.getName();
+            ColumnImpl columnImpl = new ColumnImpl(tableName, ndbColumn);
+            columns.put(columnName, columnImpl);
+            columnImpls[i] = columnImpl;
+            columnNames[i] = columnName;
+            // find maximum column id
+            int columnId = ndbColumn.getColumnNo();
+            if (columnId > maximumColumnId) {
+                maximumColumnId = columnId;
+            }
         }
+        // iterate columns again and construct layout of record in memory
+        offsets = new int[maximumColumnId + 1];
+        lengths = new int[maximumColumnId + 1];
+        int offset = 0;
+        for (int i = 0; i < noOfColumns; ++i) {
+            ColumnImpl columnImpl = columnImpls[i];
+            int columnId = columnImpl.getColumnId();
+            int columnSpace = columnImpl.getColumnSpace();
+            lengths[columnId] = columnSpace;
+            offsets[columnId] = offset;
+            offset += columnSpace;            
+        }
+        bufferSize = offset;
         this.primaryKeyColumnNames = 
             primaryKeyColumnNameList.toArray(new String[primaryKeyColumnNameList.size()]);
         this.partitionKeyColumnNames = 
@@ -111,6 +152,26 @@ class TableImpl implements Table {
 
     public String[] getIndexNames() {
         return indexNames;
+    }
+
+    public String[] getColumnNames() {
+        return columnNames;
+    }
+
+    public int getMaximumColumnId() {
+        return maximumColumnId;
+    }
+
+    public int getBufferSize() {
+        return bufferSize;
+    }
+
+    public int[] getOffsets() {
+        return offsets;
+    }
+
+    public int[] getLengths() {
+        return lengths;
     }
 
 }

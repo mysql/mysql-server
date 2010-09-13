@@ -54,6 +54,10 @@ public class CandidateIndexImpl {
 
     public CandidateIndexImpl(
             String className, Index storeIndex, boolean unique, AbstractDomainFieldHandlerImpl[] fields) {
+        if (logger.isDebugEnabled()) logger.debug("className: " + className
+                + " storeIndex: " + storeIndex.getName()
+                + " unique: " + Boolean.toString(unique)
+                + " fields: " + toString(fields));
         this.className = className;
         this.storeIndex = storeIndex;
         this.indexName = storeIndex.getName();
@@ -69,6 +73,18 @@ public class CandidateIndexImpl {
             candidateColumns[i++] = candidateColumn;
         }
         if (logger.isDebugEnabled()) logger.debug(toString());
+    }
+
+    private String toString(AbstractDomainFieldHandlerImpl[] fields) {
+        StringBuilder builder = new StringBuilder();
+        char separator = '[';
+        for (AbstractDomainFieldHandlerImpl field: fields) {
+            builder.append(separator);
+            builder.append(field.getName());
+            separator = ' ';
+        }
+        builder.append(']');
+        return builder.toString();
     }
 
     /** The CandidateIndexImpl used in cases of no where clause. */

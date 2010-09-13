@@ -24,6 +24,7 @@ import com.mysql.clusterj.ClusterJFatalInternalException;
 
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.IndexScanOperation;
+import com.mysql.clusterj.core.store.Table;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -46,9 +47,9 @@ class IndexScanOperationImpl extends ScanOperationImpl implements IndexScanOpera
 
     private NdbIndexScanOperation ndbIndexScanOperation;
 
-    public IndexScanOperationImpl(NdbIndexScanOperation ndbIndexScanOperation,
+    public IndexScanOperationImpl(Table storeTable, NdbIndexScanOperation ndbIndexScanOperation,
             ClusterTransactionImpl transaction) {
-        super(ndbIndexScanOperation, transaction);
+        super(storeTable, ndbIndexScanOperation, transaction);
         this.ndbIndexScanOperation = ndbIndexScanOperation;
     }
 

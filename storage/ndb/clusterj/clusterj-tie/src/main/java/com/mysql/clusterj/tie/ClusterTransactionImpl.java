@@ -18,11 +18,13 @@
 
 package com.mysql.clusterj.tie;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.LockMode;
 
 import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Index;
@@ -47,7 +49,6 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst.AbortOption;
-import com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanFlag;
 
 /**
@@ -75,9 +76,37 @@ class ClusterTransactionImpl implements ClusterTransaction {
     /** The NdbDictionary */
     private Dictionary ndbDictionary;
 
-    public ClusterTransactionImpl(DbImpl db, Dictionary ndbDictionary) {
+    /** The coordinated transaction identifier */
+    private String coordinatedTransactionId = null;
+
+    /** Is getCoordinatedTransactionId supported? True until proven false. */
+    private static boolean supportsGetCoordinatedTransactionId = true;
+
+    /** Lock mode for find operations */
+    private int findLockMode = com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead;
+
+    /** Lock mode for index lookup operations */
+    private int lookupLockMode = com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead;
+
+    /** Lock mode for index scan operations */
+    private int indexScanLockMode = com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead;
+
+    /** Lock mode for index scan operations */
+    private int tableScanLockMode = com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead;
+
+    /** Autocommit flag if we are in an autocommit transaction */
+    private boolean autocommit = false;
+
+    /** Autocommitted flag if we autocommitted early */
+    private boolean autocommitted = false;
+
+    /** The transaction id to join this transaction to */
+    private String joinTransactionId;
+
+    public ClusterTransactionImpl(DbImpl db, Dictionary ndbDictionary, String joinTransactionId) {
         this.db = db;
         this.ndbDictionary = ndbDictionary;
+        this.joinTransactionId = joinTransactionId;
     }
 
     public void close() {
@@ -88,35 +117,46 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeCommit() {
-        executeCommit(true, false);
+        executeCommit(true, true);
     }
 
     public boolean isEnlisted() {
         return ndbTransaction != null;
     }
 
+    /**
+     * Enlist the ndb transaction if not already enlisted.
+     * If the coordinated transaction id is set, join an existing transaction.
+     * Otherwise, use the partition key to enlist the transaction.
+     */
     private void enlist() {
         if (ndbTransaction == null) {
-            ndbTransaction = partitionKey.enlist(db);
+            if (coordinatedTransactionId != null) {
+                ndbTransaction = db.joinTransaction(coordinatedTransactionId);
+            } else {
+                ndbTransaction = partitionKey.enlist(db);
+                getCoordinatedTransactionId(db);
+            }
         }
     }
 
     public void executeCommit(boolean abort, boolean force) {
         if (logger.isTraceEnabled()) logger.trace("");
-        if (!isEnlisted()) {
-            // nothing to do if no ndbTransaction was ever enlisted
-            return;
+        // nothing to do if no ndbTransaction was ever enlisted or already autocommitted
+        if (isEnlisted() && !autocommitted) {
+            handlePendingPostExecuteCallbacks();
+            int abortOption = abort?AbortOption.AbortOnError:AbortOption.AO_IgnoreError;
+            int forceOption = force?1:0;
+            int returnCode = ndbTransaction.execute(NdbTransaction.ExecType.Commit,
+                    abortOption, forceOption);
+            handleError(returnCode, ndbTransaction);
         }
-        handlePendingPostExecuteCallbacks();
-        int abortOption = abort?AbortOption.AbortOnError:AbortOption.AO_IgnoreError;
-        int forceOption = force?0:1;
-        int returnCode = ndbTransaction.execute(NdbTransaction.ExecType.Commit,
-                abortOption, forceOption);
-        handleError(returnCode, ndbTransaction);
+        autocommitted = false;
+        autocommit = false;
     }
 
     public void executeNoCommit() {
-        executeNoCommit(true, false);
+        executeNoCommit(true, true);
     }
 
     public void executeNoCommit(boolean abort, boolean force) {
@@ -125,8 +165,14 @@ class ClusterTransactionImpl implements ClusterTransaction {
             // nothing to do if no ndbTransaction was ever enlisted
             return;
         }
+        if (autocommit && postExecuteCallbacks.size() == 0) {
+            // optimization to commit now because no blob columns
+            executeCommit(abort, force);
+            autocommitted = true;
+            return;
+        }
         int abortOption = abort?AbortOption.AbortOnError:AbortOption.AO_IgnoreError;
-        int forceOption = force?0:1;
+        int forceOption = force?1:0;
         int returnCode = ndbTransaction.execute(NdbTransaction.ExecType.NoCommit,
                 abortOption, forceOption);
         handleError(returnCode, ndbTransaction);
@@ -175,14 +221,14 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbIndex, ndbDictionary);
         NdbIndexScanOperation ndbOperation = ndbTransaction.getNdbIndexScanOperation(ndbIndex);
         handleError(ndbOperation, ndbTransaction);
-        int lockMode = 0;
+        int lockMode = lookupLockMode;
         int scanFlags = 0;
         int parallel = 0;
         int batch = 0;
         int returnCode = ndbOperation.readTuples(lockMode, scanFlags, parallel, batch);
         handleError(returnCode, ndbTransaction);
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName() + " index: " + storeIndex.getName());
-        return new IndexScanOperationImpl(ndbOperation, this);
+        return new IndexScanOperationImpl(storeTable, ndbOperation, this);
     }
 
     public Operation getSelectOperation(Table storeTable) {
@@ -191,11 +237,11 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
         handleError(ndbOperation, ndbTransaction);
-        int lockMode = LockMode.LM_Read;
+        int lockMode = findLockMode;
         int returnCode = ndbOperation.readTuple(lockMode);
         handleError(returnCode, ndbTransaction);
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
-        return new OperationImpl(ndbOperation, this);
+        return new OperationImpl(storeTable, ndbOperation, this);
     }
 
     public ScanOperation getSelectScanOperation(Table storeTable) {
@@ -204,14 +250,14 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbTable, ndbDictionary);
         NdbScanOperation ndbScanOperation = ndbTransaction.getNdbScanOperation(ndbTable);
         handleError(ndbScanOperation, ndbTransaction);
-        int lockMode = LockMode.LM_Read;
+        int lockMode = indexScanLockMode;
         int scanFlags = 0;
         int parallel = 0;
         int batch = 0;
         int returnCode = ndbScanOperation.readTuples(lockMode, scanFlags, parallel, batch);
         handleError(returnCode, ndbTransaction);
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
-        return new ScanOperationImpl(ndbScanOperation, this);
+        return new ScanOperationImpl(storeTable, ndbScanOperation, this);
     }
 
     public ScanOperation getSelectScanOperationLockModeExclusiveScanFlagKeyInfo(Table storeTable) {
@@ -220,14 +266,14 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbTable, ndbDictionary);
         NdbScanOperation ndbScanOperation = ndbTransaction.getNdbScanOperation(ndbTable);
         handleError(ndbScanOperation, ndbTransaction);
-        int lockMode = LockMode.LM_Exclusive;
+        int lockMode = com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_Exclusive;
         int scanFlags = ScanFlag.SF_KeyInfo;
         int parallel = 0;
         int batch = 0;
         int returnCode = ndbScanOperation.readTuples(lockMode, scanFlags, parallel, batch);
         handleError(returnCode, ndbTransaction);
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
-        return new ScanOperationImpl(ndbScanOperation, this);
+        return new ScanOperationImpl(storeTable, ndbScanOperation, this);
     }
 
     public IndexOperation getSelectUniqueOperation(Index storeIndex, Table storeTable) {
@@ -236,11 +282,11 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbIndex, ndbDictionary);
         NdbIndexOperation ndbIndexOperation = ndbTransaction.getNdbIndexOperation(ndbIndex);
         handleError(ndbIndexOperation, ndbTransaction);
-        int lockMode = LockMode.LM_Read;
+        int lockMode = lookupLockMode;
         int returnCode = ndbIndexOperation.readTuple(lockMode);
         handleError(returnCode, ndbTransaction);
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName() + " index: " + storeIndex.getName());
-        return new IndexOperationImpl(ndbIndexOperation, this);
+        return new IndexOperationImpl(storeTable, ndbIndexOperation, this);
     }
 
     public Operation getUpdateOperation(Table storeTable) {
@@ -252,7 +298,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         int returnCode = ndbOperation.updateTuple();
         handleError(returnCode, ndbTransaction);
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
-        return new OperationImpl(ndbOperation, this);
+        return new OperationImpl(storeTable, ndbOperation, this);
     }
 
     public Operation getWriteOperation(Table storeTable) {
@@ -264,7 +310,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         int returnCode = ndbOperation.writeTuple();
         handleError(returnCode, ndbTransaction);
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
-        return new OperationImpl(ndbOperation, this);
+        return new OperationImpl(storeTable, ndbOperation, this);
     }
 
     public void postExecuteCallback(Runnable callback) {
@@ -347,6 +393,64 @@ class ClusterTransactionImpl implements ClusterTransaction {
                     local.message("ERR_Partition_Key_Null"));
         }
         this.partitionKey = (PartitionKeyImpl)partitionKey;
+    }
+
+    public String getCoordinatedTransactionId() {
+        return coordinatedTransactionId;
+    }
+
+    /** Get the coordinated transaction id if possible and update the field with
+     * the id. If running on a back level system (prior to 7.1.6 for the ndbjtie
+     * and native library) the ndbTransaction.getCoordinatedTransactionId() method
+     * will throw an Error of some kind (java.lang.NoSuchMethodError or
+     * java.lang.UnsatisfiedLinkError) and this will cause this instance
+     * (and any other instance with access to the new value of the static variable 
+     * supportsGetCoordinatedTransactionId) to never try again.
+     * @param db the DbImpl instance
+     */
+    private void getCoordinatedTransactionId(DbImpl db) {
+        try {
+            if (supportsGetCoordinatedTransactionId) {
+// not implemented quite yet...
+//                ByteBuffer buffer = db.getCoordinatedTransactionIdBuffer();
+//                coordinatedTransactionId = ndbTransaction.
+//                        getCoordinatedTransactionId(buffer, buffer.capacity());
+                if (logger.isDetailEnabled()) logger.detail("CoordinatedTransactionId: "
+                        + coordinatedTransactionId);
+                throw new ClusterJFatalInternalException("Not Implemented");
+            }
+        } catch (Throwable t) {
+            // oops, don't do this again
+            supportsGetCoordinatedTransactionId = false;
+        }
+    }
+
+    public void setCoordinatedTransactionId(String coordinatedTransactionId) {
+        this.coordinatedTransactionId = coordinatedTransactionId;
+    }
+
+    public void setLockMode(LockMode lockmode) {
+        findLockMode = translateLockMode(lockmode);
+        lookupLockMode = findLockMode;
+        indexScanLockMode = findLockMode;
+        tableScanLockMode = findLockMode;
+    }
+
+    private int translateLockMode(LockMode lockmode) {
+        switch(lockmode) {
+            case READ_COMMITTED:
+                return com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead;
+            case SHARED:
+                return com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_Read;
+            case EXCLUSIVE:
+                return com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_Exclusive;
+            default:
+                throw new ClusterJFatalInternalException(local.message("ERR_Unknown_Lock_Mode", lockmode));
+        }
+    }
+
+    public void setAutocommit(boolean autocommit) {
+        this.autocommit = autocommit;
     }
 
 }

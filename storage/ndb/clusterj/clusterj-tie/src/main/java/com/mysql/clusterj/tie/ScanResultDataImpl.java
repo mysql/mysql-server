@@ -49,8 +49,9 @@ class ScanResultDataImpl extends ResultDataImpl {
     protected final int SCAN_FINISHED = 1;
     protected final int CACHE_EMPTY = 2;
 
-    public ScanResultDataImpl(NdbScanOperation ndbScanOperation, List<Column> storeColumns) {
-        super(ndbScanOperation, storeColumns);
+    public ScanResultDataImpl(NdbScanOperation ndbScanOperation, List<Column> storeColumns,
+            int maximumColumnId, int bufferSize, int[] offsets, int[] lengths) {
+        super(ndbScanOperation, storeColumns, maximumColumnId, bufferSize, offsets, lengths);
         this.ndbScanOperation = ndbScanOperation;
     }
 

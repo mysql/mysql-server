@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2009-2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -72,7 +72,7 @@ public class IndexHandlerImpl {
     protected String tableName;
 
     /** The indexName of the index. */
-    protected String indexName;
+    private String indexName;
 
     /** The store Index of this index. */
     protected Index storeIndex;
@@ -96,9 +96,8 @@ public class IndexHandlerImpl {
      * This constructor is used when the column handlers are not yet known.
      * @param domainTypeHandler the domain type handler
      * @param dictionary the dictionary for validation
-     * @param indexName the index name
+     * @param storeIndex the store index
      * @param columnNames the column names for the index
-     * @param unique if the index is a unique index
      */
     public IndexHandlerImpl(DomainTypeHandler<?> domainTypeHandler,
             Dictionary dictionary, Index storeIndex, String[] columnNames) {
@@ -109,7 +108,7 @@ public class IndexHandlerImpl {
         this.columnNames = columnNames;
         int numberOfColumns = columnNames.length;
         // the fields are not yet known; will be filled later 
-        this.fields = new DomainFieldHandlerImpl[numberOfColumns];
+        this.fields = new AbstractDomainFieldHandlerImpl[numberOfColumns];
         this.unique = storeIndex.isUnique();
         if (logger.isDebugEnabled()) logger.debug(toString());
     }
@@ -166,20 +165,20 @@ public class IndexHandlerImpl {
      * @param i the index into the fields array
      * @param fmd the DomainFieldHandlerImpl for the corresponding column
      */
-    protected void setDomainFieldHandlerFor(int i, AbstractDomainFieldHandlerImpl fmd) {
+    public void setDomainFieldHandlerFor(int i, AbstractDomainFieldHandlerImpl fmd) {
         fields[i] = fmd;
         fmd.validateIndexType(indexName, unique);
     }
 
     /** Accessor for columnNames. */
-    protected String[] getColumnNames() {
+    public String[] getColumnNames() {
         return columnNames;
     }
 
     /** Validate that all columnNames have fields.
      * 
      */
-    protected void assertAllColumnsHaveFields() {
+    public void assertAllColumnsHaveFields() {
         for (int i = 0; i < columnNames.length; ++i) {
             AbstractDomainFieldHandlerImpl fmd = fields[i];
             if (fmd == null || !(columnNames[i].equals(fmd.getColumnName()))) {
@@ -205,6 +204,10 @@ public class IndexHandlerImpl {
     protected Index getIndex(Dictionary dictionary,
             String tableName, String indexName) {
         return dictionary.getIndex(indexName, tableName, indexName);
+    }
+
+    public String getIndexName() {
+        return indexName;
     }
 
 }

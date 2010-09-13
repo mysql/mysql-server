@@ -27,6 +27,7 @@ import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanOperation;
 import com.mysql.clusterj.core.store.Table;
+import com.mysql.clusterj.query.QueryDomainType;
 
 import java.util.BitSet;
 
@@ -77,5 +78,13 @@ public interface SessionSPI extends Session {
     IndexOperation getIndexOperation(Index storeIndex, Table storeTable);
 
     Dictionary getDictionary();
+
+    <T> QueryDomainType<T> createQueryDomainType(DomainTypeHandler<T> handler);
+
+    String getCoordinatedTransactionId();
+
+    void setCoordinatedTransactionId(String coordinatedTransactionId);
+
+    boolean isEnlisted();
 
 }

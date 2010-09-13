@@ -685,4 +685,14 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         return "NdbOpenJPADomainTypeHandlerImpl:" + typeName;
     }
 
+    public String[] getFieldNames() {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
+    public void operationSetValues(ValueHandler valueHandler, Operation op) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
 }

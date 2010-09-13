@@ -19,9 +19,9 @@
 package testsuite.clusterj.util;
 
 import com.mysql.clusterj.core.util.I18NHelper;
-import testsuite.clusterj.AbstractClusterJTest;
+import testsuite.clusterj.AbstractClusterJCoreTest;
 
-public class I18NTest extends AbstractClusterJTest {
+public class I18NTest extends AbstractClusterJCoreTest {
 
     public void test() {
         I18NHelper helper = I18NHelper.getInstance(I18NTest.class);

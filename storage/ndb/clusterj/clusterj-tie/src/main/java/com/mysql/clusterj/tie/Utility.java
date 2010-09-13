@@ -77,6 +77,9 @@ public class Utility {
 
     static protected final int charsetUTF16 = charsetMap.getUTF16CharsetNumber();
     
+    /** Maximum size in bytes of a UCS-16 string plus 2 byte length field */
+    static protected final int MAX_STRING_SIZE = 16300;
+
     public static CharsetMap getCharsetMap() {
         return charsetMap;
     }
@@ -725,8 +728,23 @@ public class Utility {
         return endianManager.convertValue(storeColumn, value);
     }
 
-    /** Convert the parameter value to a ByteBuffer that can be passed to ndbjtie.
-     * 
+    /** Encode a String (as a ByteBuffer) to a ByteBuffer that can be passed to ndbjtie.
+     * Put the length information in the beginning of the buffer.
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     * @return the ByteBuffer
+     */
+    public static ByteBuffer convertValue(Column storeColumn, ByteBuffer value) {
+
+        int offset = storeColumn.getPrefixLength();
+        ByteBuffer byteBuffer = encodeToByteBuffer(value, storeColumn.getCharsetNumber(), offset);
+        fixBufferPrefixLength(byteBuffer, offset);
+        if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
+        return byteBuffer;
+    }
+
+    /** Encode a String as a ByteBuffer that can be passed to ndbjtie.
+     * Put the length information in the beginning of the buffer.
      * @param storeColumn the column definition
      * @param value the value to be converted
      * @return the ByteBuffer
@@ -737,6 +755,17 @@ public class Utility {
         }
         int offset = storeColumn.getPrefixLength();
         ByteBuffer byteBuffer = encodeToByteBuffer(value, storeColumn.getCharsetNumber(), offset);
+        fixBufferPrefixLength(byteBuffer, offset);
+        if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
+        return byteBuffer;
+    }
+
+    /** Fix the length information in a buffer based on the length prefix,
+     * either 0, 1, or 2 bytes that hold the length information.
+     * @param byteBuffer the byte buffer to fix
+     * @param offset the size of the length prefix
+     */
+    private static void fixBufferPrefixLength(ByteBuffer byteBuffer, int offset) {
         int limit = byteBuffer.limit();
         // go back and fill in the length field(s)
         // size of the output char* is current limit minus offset
@@ -756,22 +785,6 @@ public class Utility {
         // reset the position and limit for return
         byteBuffer.position(0);
         byteBuffer.limit(limit);
-        if (logger.isDetailEnabled()) {
-            StringBuffer message = new StringBuffer("String position is: ");
-            message.append(byteBuffer.position());
-            message.append(" limit: ");
-            message.append(byteBuffer.limit());
-            message.append(" data [");
-            while (byteBuffer.hasRemaining()) {
-                message.append((int)byteBuffer.get());
-                message.append(" ");
-            }
-            message.append("]");
-            logger.detail(message.toString());
-            byteBuffer.position(0);
-            byteBuffer.limit(limit);
-        }
-        return byteBuffer;
     }
 
     /** Pack milliseconds since the Epoch into an int in database Date format.
@@ -868,6 +881,22 @@ public class Utility {
         byteBuffer.get(dst);
         byteBuffer.reset();
         return dumpBytes(dst);
+    }
+
+    private static void dumpBytesToLog(ByteBuffer byteBuffer, int limit) {
+        StringBuffer message = new StringBuffer("String position is: ");
+        message.append(byteBuffer.position());
+        message.append(" limit: ");
+        message.append(byteBuffer.limit());
+        message.append(" data [");
+        while (byteBuffer.hasRemaining()) {
+            message.append((int)byteBuffer.get());
+            message.append(" ");
+        }
+        message.append("]");
+        logger.detail(message.toString());
+        byteBuffer.position(0);
+        byteBuffer.limit(limit);
     }
 
     public static BigDecimal getDecimal(ByteBuffer byteBuffer, int length, int precision, int scale) {
@@ -1043,6 +1072,41 @@ public class Utility {
         }
     }
 
+    /** Decode a ByteBuffer into a String using the charset. The return value
+     * is in UTF16 format.
+     * 
+     * @param inputByteBuffer the byte buffer to be decoded
+     * @param charsetNumber the charset number
+     * @return the decoded String
+     */
+    public static String decode(ByteBuffer inputByteBuffer, int charsetNumber) {
+        int inputLength = inputByteBuffer.limit() - inputByteBuffer.position();
+        // TODO make this more reasonable
+        int outputLength = inputLength * 4;
+        ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(outputLength);
+        int[] lengths = new int[] {inputLength, outputLength};
+        int returnCode = charsetMap.recode(lengths, charsetNumber, charsetUTF16, 
+                inputByteBuffer, outputByteBuffer);
+        switch (returnCode) {
+            case CharsetMapConst.RecodeStatus.RECODE_OK:
+                outputByteBuffer.limit(lengths[1]);
+                CharBuffer charBuffer = outputByteBuffer.asCharBuffer();
+                return charBuffer.toString();
+            case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
+                throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Charset",
+                        charsetNumber));
+            case CharsetMapConst.RecodeStatus.RECODE_BAD_SRC:
+                throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Source",
+                        charsetNumber, lengths[0]));
+            case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
+                throw new ClusterJFatalInternalException(local.message("ERR_Decode_Buffer_Too_Small",
+                        charsetNumber, inputLength, outputLength, lengths[0], lengths[1]));
+            default:
+                throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Return_Code",
+                        returnCode));
+        }
+    }
+
     /** Encode a String into a byte[] for storage
      * 
      * @param string the String to encode
@@ -1058,7 +1122,7 @@ public class Utility {
     }
 
     /** Encode a String into a ByteBuffer
-     * 
+     * using the mysql native encoding method.
      * @param string the String to encode
      * @param charsetNumber the charset number
      * @param prefixLength the length of the length prefix
@@ -1071,6 +1135,26 @@ public class Utility {
         ByteBuffer inputByteBuffer = ByteBuffer.allocateDirect(inputLength);
         CharBuffer charBuffer = inputByteBuffer.asCharBuffer();
         charBuffer.append(string);
+        return recode(charsetNumber, prefixLength, inputLength, inputByteBuffer);
+    }
+
+    /** Encode a String (copied into a ByteBuffer) into a ByteBuffer
+     * using the mysql native encoding method.
+     * @param string the String to encode
+     * @param charsetNumber the charset number
+     * @param prefixLength the length of the length prefix
+     * @return the encoded ByteBuffer with position set to prefixLength
+     * and limit one past the last converted byte
+     */
+    private static ByteBuffer encodeToByteBuffer(ByteBuffer value,
+            int charsetNumber, int prefixLength) {
+        if (value == null) return null;
+        int inputLength = (value.limit());
+        return recode(charsetNumber, prefixLength, inputLength, value);
+    }
+
+    private static ByteBuffer recode(int charsetNumber, int prefixLength,
+            int inputLength, ByteBuffer inputByteBuffer) {
         // TODO make this more reasonable
         int outputLength = (2 * inputLength) + prefixLength;
         ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(outputLength);

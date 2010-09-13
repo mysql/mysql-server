@@ -52,9 +52,11 @@ public class JDK14LoggerFactoryImpl implements LoggerFactory {
         registerLogger(CLUSTERJ_UTIL_LOGGER);
     }
 
-    public void registerLogger(String loggerName) {
+    public Logger registerLogger(String loggerName) {
         java.util.logging.Logger logger = java.util.logging.Logger.getLogger(loggerName);
-        loggerMap.put(loggerName, new JDK14LoggerImpl(logger));
+        Logger result = new JDK14LoggerImpl(logger);
+        loggerMap.put(loggerName, result);
+        return result;
     }
 
     @SuppressWarnings("unchecked")
@@ -66,14 +68,14 @@ public class JDK14LoggerFactoryImpl implements LoggerFactory {
     public synchronized Logger getInstance(String loggerName) {
         Logger result = loggerMap.get(loggerName);
         if (result == null) {
-            registerLogger(loggerName);
+            result = registerLogger(loggerName);
         }
         return result;
     }
 
     /**  
      * Returns the package portion of the specified class.
-     * @param className the name of the class from which to extract the 
+     * @param cls the class from which to extract the 
      * package 
      * @return package portion of the specified class
      */   

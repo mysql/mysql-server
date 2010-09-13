@@ -22,9 +22,9 @@ import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactory;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 import java.io.File;
-import testsuite.clusterj.AbstractClusterJTest;
+import testsuite.clusterj.AbstractClusterJCoreTest;
 
-public class LoggerTest extends AbstractClusterJTest {
+public class LoggerTest extends AbstractClusterJCoreTest {
 
     public void test() {
         String loggingPropertiesName = System.getProperty("java.util.logging.config.file");

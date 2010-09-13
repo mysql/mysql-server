@@ -155,7 +155,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
                     + "Id: " + sm.getId() + " requested fields: "
                     + NdbOpenJPAUtility.printBitSet(sm, fields));
         }
-        if (context != null) {
+        if (context != null && ((ConnectionInfo) context).result != null) {
             // there is already a result set to process
             return super.load(sm, fields, fetch, lockLevel, context);
         } else {

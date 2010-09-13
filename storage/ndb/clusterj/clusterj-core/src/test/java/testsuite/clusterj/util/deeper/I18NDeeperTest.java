@@ -19,9 +19,9 @@
 package testsuite.clusterj.util.deeper;
 
 import com.mysql.clusterj.core.util.I18NHelper;
-import testsuite.clusterj.AbstractClusterJTest;
+import testsuite.clusterj.AbstractClusterJCoreTest;
 
-public class I18NDeeperTest extends AbstractClusterJTest {
+public class I18NDeeperTest extends AbstractClusterJCoreTest {
 
     /** This test uses the Bundle.properties in the super-package.
      * 

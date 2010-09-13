@@ -183,7 +183,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         return indexNames.contains(index);
     }
 
-    boolean isPrimitive() {
+    public boolean isPrimitive() {
         return objectOperationHandlerDelegate.isPrimitive();
     }
 
@@ -196,7 +196,6 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
     }
 
     public void markEqualBounds(CandidateIndexImpl[] candidateIndexImpls, PredicateImpl predicate) {
-	logger.detail("Field: " + name);
         for (int[] indexBounds : indices) {
             candidateIndexImpls[indexBounds[0]].markEqualBound(indexBounds[1], predicate);
         }
@@ -218,7 +217,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         objectOperationHandlerDelegate.objectInitializeJavaDefaultValue(this, handler);
     }
 
-    public void objectSetValue(Object key, ValueHandler handler) {
+    public void objectSetKeyValue(Object key, ValueHandler handler) {
         if (logger.isDetailEnabled()) {
             logger.detail("Setting value " + key + ".");
         }

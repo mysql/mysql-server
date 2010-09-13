@@ -113,9 +113,6 @@ class PartitionKeyImpl implements PartitionKey {
                     + " table: " + (tableName==null?"null":tableName));
             result = db.enlist(tableName, keyParts);
         }
-      if (logger.isDebugEnabled()) logger.debug(
-              "PartitionKeyImpl.enlist transaction id: "
-               + Long.toHexString(result.getTransactionId()));
         return result;
     }
 

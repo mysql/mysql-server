@@ -86,6 +86,8 @@ class ColumnImpl implements Column {
 
     private int size;
 
+    private boolean nullable;
+
     public ColumnImpl(String tableName, ColumnConst ndbColumn) {
         this.columnName = ndbColumn.getName();
         this.columnId = ndbColumn.getColumnNo();
@@ -93,7 +95,7 @@ class ColumnImpl implements Column {
         int ndbType = ndbColumn.getType();
         this.columnType = convertType(ndbType);
         this.primaryKey = ndbColumn.getPrimaryKey();
-        
+        this.nullable = ndbColumn.getNullable();
         this.length = ndbColumn.getLength();
         this.inlineSize = ndbColumn.getInlineSize();
         this.precision = ndbColumn.getPrecision();
@@ -328,6 +330,10 @@ class ColumnImpl implements Column {
     @Override
     public String toString() {
         return columnName;
+    }
+
+    public boolean getNullable() {
+        return nullable;
     }
 
 }

@@ -87,4 +87,8 @@ public interface DomainTypeHandler<T> {
 
     public PartitionKey createPartitionKey(ValueHandler handler);
 
+    public String[] getFieldNames();
+
+    public void operationSetValues(ValueHandler valueHandler, Operation op);
+
 }

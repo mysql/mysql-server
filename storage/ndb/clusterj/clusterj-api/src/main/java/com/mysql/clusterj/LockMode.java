@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2009 Sun Microsystems, Inc.
+ *  Copyright (C) 2010 Sun Microsystems, Inc.
  *  All rights reserved. Use is subject to license terms.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,20 +16,16 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-package com.mysql.clusterj.tie;
+package com.mysql.clusterj;
 
-import com.mysql.ndbjtie.ndbapi.NdbIndexOperation;
-import com.mysql.clusterj.core.store.IndexOperation;
-import com.mysql.clusterj.core.store.Table;
-
-/**
- *
+/** Lock modes for read operations.
+ * <ul><li>SHARED: Set a shared lock on rows
+ * </li><li>EXCLUSIVE: Set an exclusive lock on rows
+ * </li><li>READ_COMMITTED: Set no locks but read the most recent committed values
+ * </li></ul>
  */
-class IndexOperationImpl extends OperationImpl implements IndexOperation {
-
-    public IndexOperationImpl(Table storeTable, NdbIndexOperation ndbIndexOperation,
-            ClusterTransactionImpl transaction) {
-        super(storeTable, ndbIndexOperation, transaction);
-    }
-
+public enum LockMode {
+    SHARED,
+    EXCLUSIVE,
+    READ_COMMITTED
 }
