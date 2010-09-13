@@ -18,7 +18,7 @@
 #include "rpl_info_fields.h"
 
 /**
-  Initializes a sequence of fields to be read from or stored to a repository.
+  Initializes a sequence of fields to be read from or stored into a repository.
   The number of fields created and initialized are determined by the property
   @c ninfo which is set while calling the constructor. Each field is created
   with the default size of @c FN_REFLEN.
@@ -28,24 +28,23 @@
 */
 bool Rpl_info_fields::init()
 {
-  DBUG_ENTER("Rpl_info_fields::configure");
+  DBUG_ENTER("Rpl_info_fields::init");
 
   if (!field && !(field= new info_field[ninfo]))
       DBUG_RETURN(TRUE);
 
   for (int pos= 0; field && pos < ninfo; pos++)
   {
-    field[pos].saved.str= field[pos].use.str= 0;
+    field[pos].value.str= 0;
     field[pos].size= 0;
   }
 
   for (int pos= 0; field && pos < ninfo; pos++)
   {
-    if (!(field[pos].saved.str= static_cast<char*>
+    if (!(field[pos].value.str= static_cast<char*>
          (my_malloc(FN_REFLEN, MYF(0)))))
       DBUG_RETURN(TRUE);
     field[pos].size= FN_REFLEN;
-    field[pos].use.str= field[pos].saved.str;
   }
 
   DBUG_RETURN(FALSE);
@@ -62,7 +61,7 @@ bool Rpl_info_fields::init()
 */
 bool Rpl_info_fields::resize(int needed_size, int pos)
 {
-  char *buffer= field[pos].saved.str;
+  char *buffer= field[pos].value.str;
   
   DBUG_ENTER("Rpl_info_fields::resize");
 
@@ -74,23 +73,11 @@ bool Rpl_info_fields::resize(int needed_size, int pos)
     if (!buffer)
       DBUG_RETURN(TRUE);
 
-    field[pos].saved.str= field[pos].use.str= buffer;
+    field[pos].value.str= buffer;
     field[pos].size= needed_size;
   }
 
   DBUG_RETURN(FALSE);
-}
-
-/**
-  Restore the pointer from "saved" to "use". This member function must be
-  called if the "use" points to another space in memory that it is not the
-  original one initially allocated. For instance, this may happen when
-  a the repository is a table and one reads from it.
-*/
-void Rpl_info_fields::restore()
-{
-  for (int pos= 0; field && pos < ninfo; pos++)
-    field[pos].use.str= field[pos].saved.str;
 }
 
 Rpl_info_fields::~Rpl_info_fields()
@@ -99,9 +86,9 @@ Rpl_info_fields::~Rpl_info_fields()
   {
     for (int pos= 0; pos < ninfo; pos++)
     {
-      if (field[pos].saved.str)
+      if (field[pos].value.str)
       {
-        my_free(field[pos].saved.str);
+        my_free(field[pos].value.str);
       }
     }
     delete [] field;

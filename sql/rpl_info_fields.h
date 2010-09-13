@@ -21,32 +21,24 @@
 
 /*
   Structure that represents a field as a LEX_STRING plus a size.
-
-  The "use" and "saved" points to the same space in memory but as the
-  structure can be used to read and store information from a variaty
-  of repositories, it is possible that the reference to the allocated
-  space is lost. In such cases, we use the reference in the saved ptr
-  to restore the original values.
 */
 struct info_field
 {
-  LEX_STRING use;
-  LEX_STRING saved;
+  LEX_STRING value;
   int size;
 } typedef info_field;
 
 class Rpl_info_fields
 {
 public:
-  Rpl_info_fields(int param_ninfo): field(0), 
+  Rpl_info_fields(int param_ninfo): field(0),
     ninfo(param_ninfo) { };
   virtual ~Rpl_info_fields();
 
   bool init();
   bool resize(int needed_size, int pos);
-  void restore();
 
-  /* Sequence of fields to be read or stored from a repository. */
+  /* Sequence of fields to be read from or stored into a repository. */
   info_field *field;
 
 private:
