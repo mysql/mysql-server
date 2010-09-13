@@ -554,6 +554,11 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
     DBUG_ASSERT("one more hook to write" == 0);
     return 1;
   }
+  if (rec->type == LOGREC_DEBUG_INFO)
+  {
+    /* Query already printed by display_record_position() */
+    return 0;
+  }
   if ((error= (*log_desc->record_execute_in_redo_phase)(rec)))
     eprint(tracef, "Got error %d when executing record %s",
            my_errno, log_desc->name);
@@ -692,6 +697,45 @@ prototype_redo_exec_hook(INCOMPLETE_LOG)
 }
 
 
+static my_bool create_database_if_not_exists(const char *name)
+{
+  char dirname[FN_REFLEN];
+  size_t length;
+  MY_STAT stat_info;
+  DBUG_ENTER("create_database_if_not_exists");
+
+  dirname_part(dirname, name, &length);
+  if (!length)
+  {
+    /* Skip files without directores */
+    DBUG_RETURN(0);
+  }
+  /*
+    Safety;  Don't create files with hard path;
+    Should never happen with MariaDB
+    If hard path, then error will be detected when trying to create index file
+  */
+  if (test_if_hard_path(dirname))
+    DBUG_RETURN(0);
+
+  if (my_stat(dirname,&stat_info,MYF(0)))
+    DBUG_RETURN(0);
+
+
+  tprint(tracef, "Creating not existing database '%s'\n", dirname);
+  if (my_mkdir(dirname, 0777, MYF(MY_WME)))
+  {
+    eprint(tracef, "***WARNING: Can't create not existing database '%s'",
+           dirname);
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+    
+
+
+
 prototype_redo_exec_hook(REDO_CREATE_TABLE)
 {
   File dfile= -1, kfile= -1;
@@ -703,11 +747,12 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   int error= 1, create_mode= O_RDWR | O_TRUNC, i;
   MARIA_HA *info= NULL;
   uint kfile_size_before_extension, keystart;
+  DBUG_ENTER("exec_REDO_LOGREC_REDO_CREATE_TABLE");
 
   if (skip_DDLs)
   {
     tprint(tracef, "we skip DDLs\n");
-    return 0;
+    DBUG_RETURN(0);
   }
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
@@ -810,6 +855,8 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
            name);
     goto end;
   }
+  if (create_database_if_not_exists(name))
+    goto end;
   fn_format(filename, name, "", MARIA_NAME_IEXT,
             (MY_UNPACK_FILENAME |
              (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
@@ -863,7 +910,7 @@ end:
     error|= my_close(kfile, MYF(MY_WME));
   if (info != NULL)
     error|= maria_close(info);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -872,10 +919,12 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
   char *old_name, *new_name;
   int error= 1;
   MARIA_HA *info= NULL;
+  DBUG_ENTER("exec_REDO_LOGREC_REDO_RENAME_TABLE");
+
   if (skip_DDLs)
   {
     tprint(tracef, "we skip DDLs\n");
-    return 0;
+    DBUG_RETURN(0);
   }
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
@@ -1050,7 +1099,7 @@ end:
   tprint(tracef, "\n");
   if (info != NULL)
     error|= maria_close(info);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1252,6 +1301,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
   MARIA_HA *info;
   MARIA_SHARE *share;
   my_off_t dfile_len, kfile_len;
+  DBUG_ENTER("new_table");
 
   checkpoint_useful= TRUE;
   if ((name == NULL) || (name[0] == 0))
@@ -1288,6 +1338,12 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     */
     if (close_one_table(share->open_file_name.str, lsn_of_file_id))
       goto end;
+    /*
+      We should not try to get length of data/index files as the files
+      are not on disk yet.
+    */
+    _ma_tmp_disable_logging_for_table(info, FALSE);
+    goto set_lsn_of_file_id;
   }
   if (!share->base.born_transactional)
   {
@@ -1356,6 +1412,8 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     /* Recovery will fix this, no error */
     ALERT_USER();
   }
+
+set_lsn_of_file_id:
   /*
     This LSN serves in this situation; assume log is:
     FILE_ID(6->"t2") REDO_INSERT(6) FILE_ID(6->"t1") CHECKPOINT(6->"t1")
@@ -1383,7 +1441,7 @@ end:
     if (error == -1)
       error= 0;
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 /*
