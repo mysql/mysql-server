@@ -13636,7 +13636,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       by clustered PK values.
     */
   
-    if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE || 
+    if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+        quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT || 
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
       DBUG_RETURN(0);
@@ -14042,6 +14043,7 @@ check_reverse_order:
         QUICK_SELECT_DESC *tmp;
         int quick_type= select->quick->get_type();
         if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION ||
             quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
@@ -16811,6 +16813,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         quick_type= tab->select->quick->get_type();
         if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
           tab->type = JT_INDEX_MERGE;
         else
@@ -17015,6 +17018,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       {
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
         {
           extra.append(STRING_WITH_LEN("; Using "));

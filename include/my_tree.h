@@ -31,6 +31,7 @@ extern "C" {
 #define tree_set_pointer(element,ptr) *((uchar **) (element+1))=((uchar*) (ptr))
 
 #define TREE_NO_DUPS 1
+#define TREE_ONLY_DUPS 2
 
 typedef enum { left_root_right, right_root_left } TREE_WALK;
 typedef uint32 element_count;
