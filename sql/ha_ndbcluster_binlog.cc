@@ -6347,7 +6347,24 @@ restart_cluster_failure:
           DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
           if (ndb_log_binlog_index)
           {
-            ndb_add_ndb_binlog_index(thd, rows);
+            if (ndb_add_ndb_binlog_index(thd, rows))
+            {
+              /* 
+                 Writing to ndb_binlog_index failed, check if we are
+                 being killed and retry
+              */
+              if (thd->killed)
+              {
+                (void) pthread_mutex_lock(&LOCK_thread_count);
+                volatile THD::killed_state killed= thd->killed;
+                /* We are cleaning up, allow for flushing last epoch */
+                thd->killed= THD::NOT_KILLED;
+                ndb_add_ndb_binlog_index(thd, rows);
+                /* Restore kill flag */
+                thd->killed= killed;
+                (void) pthread_mutex_unlock(&LOCK_thread_count);
+              }
+            }
           }
           ndb_latest_applied_binlog_epoch= gci;
           break;
