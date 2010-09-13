@@ -82,10 +82,10 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup);
+  access->close_table(thd, table, &backup, error);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  access->drop_bootstrap_thd(thd, error);
+  access->drop_bootstrap_thd(thd);
   DBUG_RETURN(test(error));
 }
 
@@ -104,7 +104,7 @@ int Rpl_info_table::do_flush_info(const bool force)
   if (!(force || (sync_period &&
       ++(sync_counter) >= sync_period)))
   {
-    access->drop_bootstrap_thd(thd, 0);
+    access->drop_bootstrap_thd(thd);
     DBUG_RETURN(0);
   }
 
@@ -173,10 +173,10 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup);
+  access->close_table(thd, table, &backup, error);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  access->drop_bootstrap_thd(thd, error);
+  access->drop_bootstrap_thd(thd);
   DBUG_RETURN(test(error));
 }
 
@@ -225,10 +225,10 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup);
+  access->close_table(thd, table, &backup, error);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  access->drop_bootstrap_thd(thd, error);
+  access->drop_bootstrap_thd(thd);
   DBUG_RETURN(test(error));
 }
 
@@ -274,9 +274,9 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup);
+  access->close_table(thd, table, &backup, error);
   thd->variables.sql_mode= saved_mode;
-  access->drop_bootstrap_thd(thd, error);
+  access->drop_bootstrap_thd(thd);
   DBUG_RETURN(test(error));
 }
 
@@ -462,9 +462,9 @@ bool Rpl_info_table::do_is_transactional()
                           &table, &backup))
     is_trans= table->file->has_transactions();
 
-  access->close_table(thd, table, &backup);
+  access->close_table(thd, table, &backup, 0);
   thd->variables.sql_mode= saved_mode;
-  access->drop_bootstrap_thd(thd, 0);
+  access->drop_bootstrap_thd(thd);
 
   DBUG_RETURN(is_trans);
 }
