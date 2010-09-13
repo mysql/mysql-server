@@ -109,7 +109,7 @@ int Rpl_info_file::do_prepare_info_for_read()
 {
   cursor= 0;
   prv_error= FALSE;
-  return (reinit_io_cache(&info_file, READ_CACHE, 0L,0,0));
+  return (reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0));
 }
 
 int Rpl_info_file::do_prepare_info_for_write()

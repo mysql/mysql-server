@@ -19,7 +19,7 @@
 Rpl_info_table::Rpl_info_table(uint nparam, uint param_field_idx,
                                const char* param_schema,
                                const char *param_table)
-:Rpl_info_handler(nparam), field_idx(param_field_idx), use_default(FALSE)
+:Rpl_info_handler(nparam), field_idx(param_field_idx)
 {
 
   strmov(str_schema, param_schema);
@@ -289,7 +289,6 @@ int Rpl_info_table::do_prepare_info_for_read()
   if (!field_values)
     return TRUE;
 
-  use_default= do_check_info();
   cursor= 1;
 
   return FALSE;
@@ -389,11 +388,8 @@ bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
                                  const char *default_value)
 {
-  if (use_default)
-    strmov(value, default_value ? default_value : "");
-  else
-    strmov(value, field_values->field[pos].value.str ?
-           field_values->field[pos].value.str : "");
+  strmov(value, field_values->field[pos].value.str ?
+         field_values->field[pos].value.str : "");
   
   return FALSE;
 }
@@ -401,8 +397,7 @@ bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
 bool Rpl_info_table::do_get_info(const int pos, ulong *value,
                                  const ulong default_value)
 {
-  *value= (use_default ? default_value :
-           (int) strtoul(field_values->field[pos].value.str, 0, 10));
+  *value= (int) strtoul(field_values->field[pos].value.str, 0, 10);
 
   return FALSE;
 }
@@ -410,8 +405,7 @@ bool Rpl_info_table::do_get_info(const int pos, ulong *value,
 bool Rpl_info_table::do_get_info(const int pos, int *value,
                                  const int default_value)
 {
-  *value= (use_default ? default_value :
-           (int) strtol(field_values->field[pos].value.str, 0, 10));
+  *value=  (int) strtol(field_values->field[pos].value.str, 0, 10);
 
   return FALSE;
 }
@@ -419,9 +413,7 @@ bool Rpl_info_table::do_get_info(const int pos, int *value,
 bool Rpl_info_table::do_get_info(const int pos, float *value,
                                  const float default_value)
 {
-  *value= default_value;
-  if (!use_default &&
-      sscanf(field_values->field[pos].value.str, "%f", value) != 1)
+  if (sscanf(field_values->field[pos].value.str, "%f", value) != 1)
     return TRUE;
 
   return FALSE;

@@ -52,11 +52,6 @@ private:
   */
   uint field_idx;
   /*
-    This is a flag that identifies when a table should be filled
-    up with default values.
-  */
-  bool use_default;
-  /*
     This property represents a description of the repository.
     Speciffically, "schema"."table".
   */
