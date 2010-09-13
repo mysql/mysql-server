@@ -1,8 +1,34 @@
 # the first statement is a drop table for the test table
 drop table if exists t_basic;
 # the second statement is a test; if it succeeds, skip the rest of the file.
-select count(*) from t_basic;
+select id from t_basic;
 # the following statements are delimited by semicolon
+DROP TABLE IF EXISTS subscriber ;
+
+CREATE TABLE IF NOT EXISTS subscriber (
+  imsi   VARCHAR(9) NOT NULL ,
+  guti   VARCHAR(10) NOT NULL ,
+  mme_s1ap_id   INT NOT NULL ,
+  enb_s1ap_id   INT NOT NULL ,
+  mme_teid   INT NULL ,
+  sgw_teid   VARCHAR(39) NULL ,
+  pgw_teid   VARCHAR(39) NULL ,
+  imei   VARCHAR(9) NOT NULL ,
+  msisdn   VARCHAR(11) NOT NULL ,
+  ecm_state   CHAR NULL ,
+  emm_state   CHAR NULL ,
+  eps_cgi   VARCHAR(7) NULL ,
+  global_enb_id   VARCHAR(7) NULL ,
+  bearer_id   CHAR NULL ,
+  sgw_ip_addr   VARCHAR(34) NULL ,
+PRIMARY KEY (  imsi  ) ,
+UNIQUE INDEX   imsi_UNIQUE   USING BTREE (  imsi   ASC) ,
+UNIQUE INDEX   guti_UNIQUE   USING BTREE (  guti   ASC) ,
+UNIQUE INDEX   mme_s1ap_id_UNIQUE   (  mme_s1ap_id   ASC) ,
+UNIQUE INDEX   imei_UNIQUE   (  imei   ASC) ,
+UNIQUE INDEX   msisdn_UNIQUE   (  msisdn   ASC) )
+ENGINE = ndbcluster;
+
 drop table if exists longlongstringpk;
 create table longlongstringpk (
  longpk1 bigint not null,

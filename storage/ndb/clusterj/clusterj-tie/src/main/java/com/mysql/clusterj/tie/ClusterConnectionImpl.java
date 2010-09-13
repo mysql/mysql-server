@@ -35,17 +35,17 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 public class ClusterConnectionImpl
         implements com.mysql.clusterj.core.store.ClusterConnection {
 
-    /** Load the ndbjtie system library */
-    static {
-        loadSystemLibrary("ndbclient");
-    }
-
     /** My message translator */
     static final I18NHelper local = I18NHelper.getInstance(ClusterConnectionImpl.class);
 
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(com.mysql.clusterj.core.store.ClusterConnection.class);
+
+    /** Load the ndbjtie system library */
+    static {
+        loadSystemLibrary("ndbclient");
+    }
 
     /** Ndb_cluster_connection: one per factory. */
     protected Ndb_cluster_connection clusterConnection;
@@ -99,8 +99,12 @@ public class ClusterConnectionImpl
     }
 
     public Db createDb(String database, int maxTransactions) {
-        Ndb ndb = Ndb.create(clusterConnection, database, "def");
-        handleError(ndb, clusterConnection);
+        Ndb ndb = null;
+        // synchronize because create is not guaranteed thread-safe
+        synchronized(this) {
+            ndb = Ndb.create(clusterConnection, database, "def");
+            handleError(ndb, clusterConnection);
+        }
         return new DbImpl(ndb, maxTransactions);
     }
 

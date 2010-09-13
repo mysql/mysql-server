@@ -175,6 +175,13 @@ public interface Session {
      */
     void setPartitionKey(Class<?> cls, Object key);
 
+    /** Set the lock mode for read operations. This will take effect immediately
+     * and will remain in effect until this session is closed or this method
+     * is called again.
+     * @param lockmode the LockMode
+     */
+    void setLockMode(LockMode lockmode);
+
     /** Mark the field in the object as modified so it is flushed.
      *
      * @param instance the persistent instance

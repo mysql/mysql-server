@@ -27,6 +27,7 @@ import com.mysql.clusterj.core.query.QueryExecutionContextImpl;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
+import com.mysql.clusterj.core.store.Table;
 
 /**
  *
@@ -35,8 +36,9 @@ class ScanOperationImpl extends OperationImpl implements ScanOperation {
 
     private NdbScanOperation ndbScanOperation;
 
-    ScanOperationImpl(NdbScanOperation operation, ClusterTransactionImpl clusterTransaction) {
-        super(operation, clusterTransaction);
+    ScanOperationImpl(Table storeTable, NdbScanOperation operation,
+            ClusterTransactionImpl clusterTransaction) {
+        super(storeTable, operation, clusterTransaction);
         this.ndbScanOperation = operation;
     }
 
@@ -65,8 +67,9 @@ class ScanOperationImpl extends OperationImpl implements ScanOperation {
 
     @Override
     public ResultData resultData() {
-        ResultData result = new ScanResultDataImpl(ndbScanOperation, storeColumns);
-        clusterTransaction.executeNoCommit(false, false);
+        ResultData result = new ScanResultDataImpl(ndbScanOperation, storeColumns,
+                maximumColumnId, bufferSize, offsets, lengths);
+        clusterTransaction.executeNoCommit(false, true);
         return result;
     }
 

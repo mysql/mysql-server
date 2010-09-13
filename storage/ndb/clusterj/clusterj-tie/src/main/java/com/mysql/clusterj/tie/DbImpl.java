@@ -50,11 +50,22 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(com.mysql.clusterj.core.store.ClusterConnection.class);
 
+    /** The Ndb instance that this instance is wrapping */
     private Ndb ndb;
 
-    // TODO change the allocation from 300 to a constant in ndbjtie
+    // TODO change the allocation to a constant in ndbjtie
+    private int errorBufferSize = 300;
+
     /** The ndb error detail buffer */
-    private ByteBuffer errorBuffer = ByteBuffer.allocateDirect(300);
+    private ByteBuffer errorBuffer = ByteBuffer.allocateDirect(errorBufferSize);
+
+    // TODO change the allocation to a constant in ndbjtie
+    /** The size of the coordinated transaction identifier buffer */
+    private int coordinatedTransactionIdBufferSize = 26;
+
+    /** The coordinated transaction identifier buffer */
+    private ByteBuffer coordinatedTransactionIdBuffer =
+            ByteBuffer.allocateDirect(coordinatedTransactionIdBufferSize);
 
     // TODO change the allocation to something reasonable
     /** The partition key scratch buffer */
@@ -83,8 +94,8 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         return dictionary;
     }
 
-    public ClusterTransaction startTransaction() {
-        return new ClusterTransactionImpl(this, ndbDictionary);
+    public ClusterTransaction startTransaction(String joinTransactionId) {
+        return new ClusterTransactionImpl(this, ndbDictionary, joinTransactionId);
     }
 
     protected void handleError(int returnCode, Ndb ndb) {
@@ -184,6 +195,32 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         }
         handleError (result, ndb);
         return result;
+    }
+
+    /** Return the coordinated transaction id buffer. 
+     * The buffer is allocated here because there is only one buffer 
+     * ever needed and it is only needed in one place, after the
+     * transaction is enlisted.
+     * @return the coordinated transaction id buffer
+     */
+    public ByteBuffer getCoordinatedTransactionIdBuffer() {
+        return coordinatedTransactionIdBuffer;
+    }
+
+    /** Join a transaction already in progress. The transaction might be
+     * on the same or a different node from this node. The usual case is
+     * for the transaction to be joined is on a different node.
+     * @param coordinatedTransactionId
+     * (from ClusterTransaction.getCoordinatedTransactionId())
+     * @return a transaction joined to the existing transaction
+     */
+    public NdbTransaction joinTransaction(String coordinatedTransactionId) {
+        if (logger.isDetailEnabled()) logger.detail("CoordinatedTransactionId: "
+                + coordinatedTransactionId);
+//        NdbTransaction result = ndb.joinTransaction(coordinatedTransactionId);
+//        handleError(result, ndb);
+//        return result;
+        throw new ClusterJFatalInternalException("Not Implemented");
     }
 
 }

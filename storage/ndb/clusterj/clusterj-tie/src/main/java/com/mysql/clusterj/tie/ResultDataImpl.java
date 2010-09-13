@@ -76,47 +76,32 @@ class ResultDataImpl implements ResultData {
     /** Lengths of the fields in the ByteBuffer containing the results */
     private int[] lengths = null;
 
-    /** Construct the ResultDataImpl based on an NdbOperation and a list of columns
-     * to include in the result. The ResultDataImpl is constructed before the operation
-     * is defined.
+    /** The Columns in this result */
+    private final Column[] storeColumns;
+
+    /** Construct the ResultDataImpl based on an NdbOperation, a list of columns
+     * to include in the result, and the pre-computed buffer layout for the result.
      * @param ndbOperation the NdbOperation
      * @param storeColumns the columns in the result
+     * @param maximumColumnId the largest column id
+     * @param bufferSize the size of the buffer needed
+     * @param offsets the array of offsets indexed by column id
+     * @param lengths the array of lengths indexed by column id
      */
-    public ResultDataImpl(NdbOperation ndbOperation, List<Column> storeColumns) {
+    public ResultDataImpl(NdbOperation ndbOperation, List<Column> storeColumns,
+            int maximumColumnId, int bufferSize, int[] offsets, int[] lengths) {
         this.ndbOperation = ndbOperation;
-        initializeColumns(ndbOperation, storeColumns);
-    }
-
-    /** Initialize the operation using the columns that are requested.
-     * @param ndbOperation the operation
-     * @param storeColumns the columns to be retrieved
-     */
-    private void initializeColumns(NdbOperation ndbOperation,
-            List<Column> storeColumns) {
-        // collect the column ids so we can use an indexed array for offsets and lengths
-        int capacity = 0;
-        int columnId = 0;
-        int maximumColumnId = 0;
-        for (Column storeColumn: storeColumns) {
-            maximumColumnId = Math.max(maximumColumnId, storeColumn.getColumnId());
-        }
-        offsets = new int[maximumColumnId + 1];
-        lengths = new int[maximumColumnId + 1];
-        // iterate the list of store columns and create a buffer big enough for all columns
-        for (Column storeColumn: storeColumns) {
-            columnId = storeColumn.getColumnId();
-            int columnSpace = storeColumn.getColumnSpace();
-            lengths[columnId] = columnSpace;
-            offsets[columnId] = capacity;
-            capacity += columnSpace;
-        }
-        byteBuffer = ByteBuffer.allocateDirect(capacity);
+        // save the column list
+        this.storeColumns = storeColumns.toArray(new Column[storeColumns.size()]);
+        this.offsets = offsets;
+        this.lengths = lengths;
+        byteBuffer = ByteBuffer.allocateDirect(bufferSize);
         byteBuffer.order(ByteOrder.nativeOrder());
         // iterate the list of store columns and allocate an NdbRecAttr (via getValue) for each
         ndbRecAttrs = new NdbRecAttr[maximumColumnId + 1];
         for (Column storeColumn: storeColumns) {
             NdbRecAttr ndbRecAttr = null;
-            columnId = storeColumn.getColumnId();
+            int columnId = storeColumn.getColumnId();
             byteBuffer.position(offsets[columnId]);
             if (lengths[columnId] == 0) {
                 ndbRecAttr = ndbOperation.getValue(columnId, null);
@@ -138,10 +123,18 @@ class ResultDataImpl implements ResultData {
         }
     }
 
+    public Blob getBlob(int column) {
+        return getBlob(storeColumns[column]);
+    }
+
     public Blob getBlob(Column storeColumn) {
         NdbBlob ndbBlob = ndbOperation.getBlobHandle(storeColumn.getColumnId());
         handleError(ndbBlob, ndbOperation);
         return new BlobImpl(ndbBlob);
+    }
+
+    public boolean getBoolean(int column) {
+        return getBoolean(storeColumns[column]);
     }
 
     public boolean getBoolean(Column storeColumn) {
@@ -150,8 +143,16 @@ class ResultDataImpl implements ResultData {
         return Utility.getBoolean(storeColumn, ndbRecAttr);
     }
 
+    public boolean[] getBooleans(int column) {
+        return getBooleans(storeColumns[column]);
+    }
+
     public boolean[] getBooleans(Column storeColumn) {
         throw new ClusterJFatalInternalException(local.message("ERR_Not_Implemented"));
+    }
+
+    public byte getByte(int column) {
+        return getByte(storeColumns[column]);
     }
 
     public byte getByte(Column storeColumn) {
@@ -160,16 +161,28 @@ class ResultDataImpl implements ResultData {
         return Utility.getByte(storeColumn, ndbRecAttr);
     }
 
+    public short getShort(int column) {
+        return getShort(storeColumns[column]);
+    }
+
     public short getShort(Column storeColumn) {
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
         return Utility.getShort(storeColumn, ndbRecAttr);
      }
 
+    public int getInt(int column) {
+        return getInt(storeColumns[column]);
+    }
+
     public int getInt(Column storeColumn) {
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
         return Utility.getInt(storeColumn, ndbRecAttr);
+    }
+
+    public long getLong(int column) {
+        return getLong(storeColumns[column]);
     }
 
     public long getLong(Column storeColumn) {
@@ -178,10 +191,18 @@ class ResultDataImpl implements ResultData {
         return Utility.getLong(storeColumn, ndbRecAttr);
      }
 
+    public float getFloat(int column) {
+        return getFloat(storeColumns[column]);
+    }
+
     public float getFloat(Column storeColumn) {
         int index = storeColumn.getColumnId();
         float result = ndbRecAttrs[index].float_value();
         return result;
+    }
+
+    public double getDouble(int column) {
+        return getDouble(storeColumns[column]);
     }
 
     public double getDouble(Column storeColumn) {
@@ -190,9 +211,54 @@ class ResultDataImpl implements ResultData {
         return result;
     }
 
+    public String getString(int column) {
+        return getString(storeColumns[column]);
+    }
+
     public String getString(Column storeColumn) {
-        byte[] bytes = getBytes(storeColumn);
-        return storeColumn.decode(bytes);
+        byte[] bytes = getBytes(storeColumn); // just to see if there is something wrong
+        int index = storeColumn.getColumnId();
+        NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
+        if (ndbRecAttr.isNULL() == 1) return null;
+        int prefixLength = storeColumn.getPrefixLength();
+        int actualLength;
+        int offset = offsets[index];
+        switch (prefixLength) {
+            case 0:
+                actualLength = lengths[index];
+                break;
+            case 1:
+                actualLength = (byteBuffer.get(offset) + 256) % 256;
+                offset += 1;
+                break;
+            case 2:
+                actualLength = (byteBuffer.get(offset) + 256) % 256;
+                int length2 = (byteBuffer.get(offset + 1) + 256) % 256;
+                actualLength += 256 * length2;
+                offset += 2;
+                break;
+            default:
+                throw new ClusterJFatalInternalException(
+                        local.message("ERR_Invalid_Prefix_Length", prefixLength));
+        }
+
+        // save the position and limit
+        int savedPosition = byteBuffer.position();
+        int savedLimit = byteBuffer.limit();
+
+        byteBuffer.position(offset);
+        byteBuffer.limit(offset + actualLength);
+
+        String result = Utility.decode(byteBuffer, storeColumn.getCharsetNumber());
+
+        // restore the position and limit
+        byteBuffer.position(savedPosition);
+        byteBuffer.limit(savedLimit);
+        return result;
+    }
+
+    public byte[] getBytes(int column) {
+        return getBytes(storeColumns[column]);
     }
 
     public byte[] getBytes(Column storeColumn) {
@@ -226,12 +292,20 @@ class ResultDataImpl implements ResultData {
      }
 
 
+    public Object getObject(int column) {
+        return getObject(storeColumns[column]);
+    }
+
     public Object getObject(Column storeColumn) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
     public boolean wasNull(Column storeColumn) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
+    public Boolean getObjectBoolean(int column) {
+        return getObjectBoolean(storeColumns[column]);
     }
 
     public Boolean getObjectBoolean(Column storeColumn) {
@@ -246,10 +320,18 @@ class ResultDataImpl implements ResultData {
         }
     }
 
+    public Byte getObjectByte(int column) {
+        return getObjectByte(storeColumns[column]);
+    }
+
     public Byte getObjectByte(Column storeColumn) {
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
         return (ndbRecAttr.isNULL() == 1)?null:Utility.getByte(storeColumn, ndbRecAttr);
+    }
+
+    public Short getObjectShort(int column) {
+        return getObjectShort(storeColumns[column]);
     }
 
     public Short getObjectShort(Column storeColumn) {
@@ -258,10 +340,18 @@ class ResultDataImpl implements ResultData {
         return (ndbRecAttr.isNULL() == 1)?null:Utility.getShort(storeColumn, ndbRecAttr);
     }
 
+    public Integer getObjectInteger(int column) {
+        return getObjectInteger(storeColumns[column]);
+    }
+
     public Integer getObjectInteger(Column storeColumn) {
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
         return (ndbRecAttr.isNULL() == 1)?null:Utility.getInt(storeColumn, ndbRecAttr);
+    }
+
+    public Long getObjectLong(int column) {
+        return getObjectLong(storeColumns[column]);
     }
 
     public Long getObjectLong(Column storeColumn) {
@@ -270,16 +360,28 @@ class ResultDataImpl implements ResultData {
         return (ndbRecAttr.isNULL() == 1)?null:Utility.getLong(storeColumn, ndbRecAttr);
     }
 
+    public Float getObjectFloat(int column) {
+        return getObjectFloat(storeColumns[column]);
+    }
+
     public Float getObjectFloat(Column storeColumn) {
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
         return (ndbRecAttr.isNULL() == 1)?null:getFloat(storeColumn);
     }
 
+    public Double getObjectDouble(int column) {
+        return getObjectDouble(storeColumns[column]);
+    }
+
     public Double getObjectDouble(Column storeColumn) {
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
         return (ndbRecAttr.isNULL() == 1)?null:getDouble(storeColumn);
+    }
+
+    public BigInteger getBigInteger(int column) {
+        return getBigInteger(storeColumns[column]);
     }
 
     public BigInteger getBigInteger(Column storeColumn) {
@@ -290,6 +392,10 @@ class ResultDataImpl implements ResultData {
         int length = Utility.getDecimalColumnSpace(precision, scale);
         byteBuffer.position(offset);
         return Utility.getBigInteger(byteBuffer, length, precision, scale);
+    }
+
+    public BigDecimal getDecimal(int column) {
+        return getDecimal(storeColumns[column]);
     }
 
     public BigDecimal getDecimal(Column storeColumn) {
@@ -310,6 +416,10 @@ class ResultDataImpl implements ResultData {
 
     public void setNoResult() {
         nextDone = true;
+    }
+
+    public Column[] getColumns() {
+        return storeColumns;
     }
 
 }

@@ -78,7 +78,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
             }
         } else if (className.equals("CrazyDelegate")) {
             final String delegateName = className;
-            return new DomainTypeHandler() {
+            return new DomainTypeHandler<T>() {
 
                 public CandidateIndexImpl[] createCandidateIndexes() {
                     throw new UnsupportedOperationException("Not supported yet.");
@@ -104,7 +104,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Nice Job!");
                 }
 
-                public Object newInstance() {
+                public T newInstance() {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
@@ -112,7 +112,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public Object getInstance(ValueHandler handler) {
+                public T getInstance(ValueHandler handler) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
@@ -182,6 +182,15 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
 
                 public PartitionKey createPartitionKey(
                         ValueHandler handler) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
+
+                public String[] getFieldNames() {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
+
+                public void operationSetValues(ValueHandler valueHandler,
+                        Operation op) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
             };

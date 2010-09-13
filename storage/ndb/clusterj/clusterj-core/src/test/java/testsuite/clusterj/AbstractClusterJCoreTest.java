@@ -50,7 +50,7 @@ import java.util.Properties;
 
 import junit.framework.TestCase;
 
-public abstract class AbstractClusterJTest extends TestCase {
+public abstract class AbstractClusterJCoreTest extends TestCase {
 
     /** 
      * Indicates an exception thrown in method <code>tearDown</code>.
@@ -142,7 +142,7 @@ public abstract class AbstractClusterJTest extends TestCase {
 
     protected Object[] dn2idPK = new Object[16];
 
-    public AbstractClusterJTest() {
+    public AbstractClusterJCoreTest() {
     }
 
     /** The name of the properties file; default "clusterj.properties". */

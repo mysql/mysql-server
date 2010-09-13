@@ -18,30 +18,21 @@
 
 package com.mysql.clusterj.core.metadata;
 
+import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.ValueHandler;
-import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 
 import com.mysql.clusterj.annotation.PersistenceCapable;
-import com.mysql.clusterj.annotation.Column;
 
 import com.mysql.clusterj.core.CacheManager;
 
 import com.mysql.clusterj.core.store.Index;
-import com.mysql.clusterj.core.store.IndexOperation;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
-import com.mysql.clusterj.core.store.PartitionKey;
-import com.mysql.clusterj.core.store.ResultData;
-import com.mysql.clusterj.core.store.Table;
 
-import com.mysql.clusterj.core.query.CandidateIndexImpl;
 
-import com.mysql.clusterj.core.util.I18NHelper;
-import com.mysql.clusterj.core.util.Logger;
-import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -50,7 +41,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -64,67 +54,14 @@ import java.util.Set;
  * similarly-named set method.
  * @param T the class of the persistence-capable type
  */
-public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
-
-    /** My message translator */
-    static final I18NHelper local = I18NHelper.getInstance(DomainTypeHandlerImpl.class);
-
-    /** My logger */
-    static final Logger logger = LoggerFactoryService.getFactory().getInstance(DomainTypeHandlerImpl.class);
+public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
     /** The domain class. */
     Class<T> cls;
 
-    /** The name of the class. */
-    String className;
-
-    /** The table for the class. */
-    String tableName;
-
-    /** The NDB table for the class. */
-    Table table;
-
-    /** The NDB table for the class. */
-    Dictionary dictionary;
-
-    /** The PrimaryKey column names. */
-    String[] primaryKeyColumnNames;
-
-    /** The id field(s) for the class, mapped to primary key columns */
-    DomainFieldHandlerImpl[] idFieldHandlers;
-
-    /** The names of the partition key columns */
-    private String[] partitionKeyColumnNames;
-
-    /** The number of partition key columns */
-    int numberOfPartitionKeyColumns = 0;
-
-    /** The partition key fields */
-    private DomainFieldHandlerImpl[] partitionKeyFieldHandlers;
-
-    /** The field numbers of the id fields. */
-    private int[] idFieldNumbers;
-
-    /** The number of id fields for the class. */
-    private int numberOfPrimaryKeyColumns;
-
-    /** The types of the properties. */
+    /** The methods of the properties. */
     private Map<String, Method> unmatchedGetMethods = new HashMap<String, Method>();
     private Map<String, Method> unmatchedSetMethods = new HashMap<String, Method>();
-
-    /** The number of fields. Dynamically created as fields are added. */
-    int numberOfFields = 0;
-
-    /** Persistent fields. */
-    private List<DomainFieldHandlerImpl> persistentFieldHandlers =
-            new ArrayList<DomainFieldHandlerImpl>();
-
-    /** Primitive fields. */
-    private List<DomainFieldHandlerImpl> primitiveFieldHandlers =
-            new ArrayList<DomainFieldHandlerImpl>();
-
-    /** Map of field names to field numbers. */
-    private Map<String, Integer> fieldNameToNumber = new HashMap<String, Integer>();
 
     /** The Proxy class for the Domain Class. */
     protected Class<T> proxyClass;
@@ -139,17 +76,6 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
     protected static final Class<?>[] invocationHandlerClassArray = 
             new Class[]{InvocationHandler.class};
 
-    /** All index handlers defined for the mapped class. The position in this
-     * array is significant. Each DomainFieldHandlerImpl contains the index into
-     * this array and the index into the fields array within the
-     * IndexHandlerImpl.
-     */
-    protected List<IndexHandlerImpl> indexHandlerImpls =
-            new ArrayList<IndexHandlerImpl>();
-
-    /** Index names to check for duplicates. */
-    protected Set<String> indexNames = new HashSet<String>();
-
     /** Initialize DomainTypeHandler for a class.
      * 
      * @param cls the domain class (this is the only class 
@@ -160,7 +86,7 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
     public DomainTypeHandlerImpl(Class<T> cls, Dictionary dictionary) {
         if (logger.isDebugEnabled()) logger.debug("New DomainTypeHandlerImpl for class " + cls.getName());
         this.cls = cls;
-        this.className = cls.getName();
+        this.name = cls.getName();
         // Create a proxy class for the domain class
         proxyClass = (Class<T>)Proxy.getProxyClass(
                 cls.getClassLoader(), new Class[]{cls});
@@ -168,21 +94,20 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
         if (persistenceCapable == null) {
             throw new ClusterJUserException(local.message(
-                    "ERR_No_Persistence_Capable_Annotation", className));
+                    "ERR_No_Persistence_Capable_Annotation", name));
         }
         tableName = persistenceCapable.table();
-        this.dictionary = dictionary;
         this.table = getTable(dictionary);
         if (table == null) {
-            throw new ClusterJUserException(local.message("ERR_Get_NdbTable", className, tableName));
+            throw new ClusterJUserException(local.message("ERR_Get_NdbTable", name, tableName));
         }
         if (logger.isDebugEnabled()) logger.debug("Found Table for " + tableName);
 
         // the id field handlers will be initialized via registerPrimaryKeyColumn
         this.primaryKeyColumnNames = table.getPrimaryKeyColumnNames();
-        this.numberOfPrimaryKeyColumns  = primaryKeyColumnNames.length;
-        this.idFieldHandlers = new DomainFieldHandlerImpl[numberOfPrimaryKeyColumns];
-        this.idFieldNumbers = new int[numberOfPrimaryKeyColumns];
+        this.numberOfIdFields  = primaryKeyColumnNames.length;
+        this.idFieldHandlers = new DomainFieldHandlerImpl[numberOfIdFields];
+        this.idFieldNumbers = new int[numberOfIdFields];
 
         // the partition key field handlers will be initialized via registerPrimaryKeyColumn
         this.partitionKeyColumnNames = table.getPartitionKeyColumnNames();
@@ -208,6 +133,7 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         }
 
         // Now iterate the fields in the class
+        List<String> fieldNameList = new ArrayList<String>();
         Method[] methods = cls.getMethods();
         for (Method method: methods) {
             // remember get methods
@@ -253,6 +179,8 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
             if (domainFieldHandler != null) {
                 // found matching methods
                 // set up field name to number map
+                String fieldName = domainFieldHandler.getName();
+                fieldNameList.add(fieldName);
                 fieldNameToNumber.put(domainFieldHandler.getName(), domainFieldHandler.getFieldNumber());
                 // put field into either persistent or not persistent list
                 if (domainFieldHandler.isPersistent()) {
@@ -263,6 +191,7 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
                 }
             }
         }
+        fieldNames = fieldNameList.toArray(new String[fieldNameList.size()]);
         // done with methods; if anything in unmatched we have a problem
         if ((!unmatchedGetMethods.isEmpty()) || (!unmatchedSetMethods.isEmpty())) {
             throw new ClusterJUserException(
@@ -276,9 +205,10 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
             indexHandler.assertAllColumnsHaveFields();
         }
 
-        if (logger.isDebugEnabled()) logger.debug(toString());
-        logger.debug("DomainTypeHandlerImpl " + className +
-                "Indices " + indexHandlerImpls);
+        if (logger.isDebugEnabled()) {
+            logger.debug(toString());
+            logger.debug("DomainTypeHandlerImpl " + name + "Indices " + indexHandlerImpls);
+        }
     }
 
     /** Is this type supported? */
@@ -303,127 +233,6 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         handler.markModified(fieldNumber);
     }
 
-    /** Register a primary key column field. This is used to associate
-     * primary key and partition key column names with field handlers.
-     * This method is called by the DomainFieldHandlerImpl constructor
-     * after the mapped column name is known. It is only called by fields
-     * that are mapped to primary key columns.
-     * @param fmd the field handler instance calling us
-     * @param columnName the name of the column
-     */
-    protected void registerPrimaryKeyColumn(DomainFieldHandlerImpl fmd,
-            String columnName) {
-        // find the primary key column that matches the primary key column
-        for (int i = 0; i < primaryKeyColumnNames.length; ++i) {
-            if (primaryKeyColumnNames[i].equals(columnName)) {
-                idFieldHandlers[i] = fmd;
-                idFieldNumbers[i] = fmd.fieldNumber;
-            }
-        }
-        // find the partition key column that matches the primary key column
-        for (int j = 0; j < partitionKeyColumnNames.length; ++j) {
-            if (partitionKeyColumnNames[j].equals(columnName)) {
-                partitionKeyFieldHandlers[j] = fmd;
-            }
-        }
-        return;
-    }
-
-    /** Create and register an index from a field and return a special int[][] that
-     * contains all indexHandlerImpls in which the
-     * field participates. The int[][] is used by the query optimizer to determine
-     * which if any index can be used. This method is called by the
-     * DomainFieldHandlerImpl constructor after the mapped column name is known.
-     * @see AbstractDomainFieldHandlerImpl#indices
-     * @param fmd the FieldHandler
-     * @param columnName the column name mapped to the field
-     * @return the array of array identifying the indexes into the IndexHandler
-     * list and columns in the IndexHandler corresponding to the field
-     */
-    protected int[][] registerIndices(
-            AbstractDomainFieldHandlerImpl fmd, String columnName) {
-        // Find all the indexes that this field belongs to, by iterating
-        // the list of indexes and comparing column names.
-        List<int[]> result =new ArrayList<int[]>();
-        for (int i = 0; i < indexHandlerImpls.size(); ++i) {
-            IndexHandlerImpl indexHandler = indexHandlerImpls.get(i);
-            String[] columns = indexHandler.getColumnNames();
-            for (int j = 0; j < columns.length; ++j) {
-                if (fmd.getColumnName().equals(columns[j])) {
-                    if (logger.isDetailEnabled()) logger.detail("Found field " + fmd.getName()
-                            + " column " + fmd.getColumnName() + " matching " + indexHandler.indexName);
-                    indexHandler.setDomainFieldHandlerFor(j, fmd);
-                    result.add(new int[]{i,j});
-                }
-            }
-        }
-
-        if (logger.isDebugEnabled()) logger.debug("Found " + result.size() + " indexes for " + columnName);
-        return result.toArray(new int[result.size()][]);
-    }
-
-    /** Extract the column names from a Columns annotation. This is used for
-     * Index annotations and PrimaryKey annotations.
-     * 
-     * @param indexName the index name (for error messages)
-     * @param columns the Columns from the annotation
-     * @return an array of column names
-     */
-    protected String[] getColumnNames(String indexName, Column[] columns) {
-        Set<String> columnNames = new HashSet<String>();
-        for (Column column : columns) {
-            String columnName = column.name();
-            if (columnNames.contains(columnName)) {
-                // error: the column name is duplicated
-                throw new ClusterJUserException(
-                        local.message("ERR_Duplicate_Column",
-                        className, indexName, columnName));
-            }
-            columnNames.add(columnName);
-        }
-        return columnNames.toArray(new String[columnNames.size()]);
-    }
-
-    /** Return the list of index names corresponding to the parameter indexHandlerImpls.
-     * This method is called by the DomainFieldHandlerImpl constructor after the
-     * registerIndices method is called.
-     * @param indexArray the result of registerIndices
-     * @return all index names for the corresponding indexHandlerImpls
-     */
-    public Set<String> getIndexNames(int[][] indexArray) {
-        Set<String> result = new HashSet<String>();
-        for (int[] index: indexArray) {
-            result.add(indexHandlerImpls.get(index[0]).indexName);
-        }
-        return result;
-    }
-
-    /** Create a list of candidate indexes to evaluate query terms and
-     * decide what type of operation to use. The result must correspond
-     * one to one with the indexHandlerImpls.
-     * @return a new array of CandidateIndexImpl
-     */
-    public CandidateIndexImpl[] createCandidateIndexes() {
-        CandidateIndexImpl[] result = new CandidateIndexImpl[indexHandlerImpls.size()];
-        int i = 0;
-        for (IndexHandlerImpl indexHandler: indexHandlerImpls) {
-            result[i++] = indexHandler.toCandidateIndexImpl();
-        }
-        return result;
-    }
-
-    public String getName() {
-        return className;
-    }
-
-    public String getTableName() {
-        return tableName;
-    }
-
-    public int getNumberOfFields() {
-        return numberOfFields;
-    }
-
     public Class<T> getProxyClass() {
         return proxyClass;
     }
@@ -432,104 +241,10 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         return cls;
     }
 
-    public DomainFieldHandlerImpl[] getIdFieldHandlers() {
-        return idFieldHandlers;
-    }
-
-    public DomainFieldHandlerImpl getFieldHandler(String fieldName) {
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-            if (fmd.getName().equals(fieldName)) {
-                return fmd;
-            }
-        }
-        throw new ClusterJUserException(
-                local.message("ERR_Not_A_Member", fieldName, cls.getName()));
-    }
-
-    public int getFieldNumber(String fieldName) {
-        Integer fieldNumber = fieldNameToNumber.get(fieldName);
-        if (fieldNumber == null) {
-            throw new ClusterJFatalInternalException(
-                    local.message("ERR_No_Field_Number", fieldName, cls.getName()));
-        }
-        return fieldNumber.intValue();
-    }
-
     public void operationSetValues(Object instance, Operation op) {
         ValueHandler handler = getValueHandler(instance);
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
+        for (DomainFieldHandler fmd: persistentFieldHandlers) {
             fmd.operationSetValue(handler, op);
-        }
-    }
-
-    public void operationSetValuesExcept(ValueHandler handler, Operation op, String index) {
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-            if (!fmd.includedInIndex(index)) {
-                if (logger.isDetailEnabled()) logger.detail("operationSetValuesExcept field: " + fmd.name + " is not included in index: " + index);
-                fmd.operationSetValue(handler, op);
-            }
-        }
-    }
-
-    public void operationSetModifiedValuesExcept(ValueHandler handler, Operation op, String index) {
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-            if (!fmd.includedInIndex(index)) {
-                if (logger.isDetailEnabled()) logger.detail("operationSetModifiedValuesExcept index: " + index);
-                fmd.operationSetModifiedValue(handler, op);
-            }
-        }
-    }
-
-    public void operationSetModifiedValues(ValueHandler handler, Operation op) {
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-            fmd.operationSetModifiedValue(handler, op);
-        }
-    }
-
-    public void operationSetKeys(ValueHandler handler, Operation op) {
-        for (DomainFieldHandlerImpl fmd: idFieldHandlers) {
-            fmd.operationSetValue(handler, op);
-        }        
-    }
-
-    public void operationGetValues(Operation op) {
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-            fmd.operationGetValue(op);
-        }
-    }
-
-    public void operationGetValues(Operation op, BitSet fields) {
-        if (fields == null) {
-            operationGetValues(op);
-        } else {
-            int i = 0;
-            for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-                if (fields.get(i++)) {
-                    fmd.operationGetValue(op);
-                }
-            }
-        }
-    }
-
-    public void operationGetValuesExcept(IndexOperation op, String index) {
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-            if (!fmd.includedInIndex(index)) {
-                if (logger.isDetailEnabled()) logger.detail("operationGetValuesExcept index: " + index);
-                fmd.operationGetValue(op);
-            }
-        }
-    }
-
-    public void objectSetValues(ResultData rs, ValueHandler handler) {
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-            fmd.objectSetValue(rs, handler);
-        }
-    }
-
-    public void objectSetValuesExcept(
-            ResultData rs, ValueHandler handler, String indexName) {
-        for (DomainFieldHandlerImpl fmd: persistentFieldHandlers) {
-            fmd.objectSetValueExceptIndex(rs, handler, indexName);
         }
     }
 
@@ -538,14 +253,14 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         int size = idFieldHandlers.length;
         if (size == 1) {
             // single primary key; store value in key field
-            for (DomainFieldHandlerImpl fmd: idFieldHandlers) {
-                fmd.objectSetValue(keys, handler);
+            for (DomainFieldHandler fmd: idFieldHandlers) {
+                fmd.objectSetKeyValue(keys, handler);
             }
         } else if (keys instanceof java.lang.Object[]) {
             if (logger.isDetailEnabled()) logger.detail(keys.toString());
             // composite primary key; store values in key fields
             for (int i = 0; i < idFieldHandlers.length; ++i) {
-                idFieldHandlers[i].objectSetValue(((Object[])keys)[i], handler);
+                idFieldHandlers[i].objectSetKeyValue(((Object[])keys)[i], handler);
             }
         } else {
                 // composite key but parameter is not Object[]
@@ -591,8 +306,8 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
 
 
     public void initializeNotPersistentFields(InvocationHandlerImpl<T> handler) {
-        for (DomainFieldHandlerImpl fmd:primitiveFieldHandlers) {
-            fmd.objectSetDefaultValue(handler);
+        for (DomainFieldHandler fmd:primitiveFieldHandlers) {
+            ((AbstractDomainFieldHandlerImpl) fmd).objectSetDefaultValue(handler);
         }
     }
 
@@ -608,39 +323,9 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         return head + tail;
     }
 
-    private Table getTable(Dictionary dictionary) {
-        Table result;
-        try {
-            result = dictionary.getTable(tableName);
-        } catch (Exception ex) {
-            throw new ClusterJException(
-                    local.message("ERR_Get_NdbTable", className, tableName), ex);
-        }
-        return result;
-    }
-
     @SuppressWarnings( "unchecked" )
     public T getInstance(ValueHandler handler) {
         return (T)((InvocationHandlerImpl)handler).getProxy();
-    }
-
-    protected Index getIndex(String indexName) {
-        Index result;
-        String uniqueIndexName = indexName + "$unique";
-        try {
-            result = dictionary.getIndex(indexName, tableName, indexName);
-        } catch (Exception ex1) {
-            // index name failed; try unique index name
-            try {
-                result = dictionary.getIndex(uniqueIndexName, tableName, indexName);
-            } catch (Exception ex2) {
-                // fall through
-            }
-            throw new ClusterJException(
-                    local.message("ERR_Get_NdbIndex", 
-                    tableName, indexName, uniqueIndexName), ex1);
-        }
-        return result;
     }
 
     private Class<?> getType(Method method) {
@@ -687,9 +372,9 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         }
         Object[] keyValues = new Object[numberOfFields];
         // check the cardinality of the keys with the number of key fields
-        if (numberOfPrimaryKeyColumns == 1) {
+        if (numberOfIdFields == 1) {
             Class<?> keyType = idFieldHandlers[0].getType();
-            DomainFieldHandlerImpl fmd = idFieldHandlers[0];
+            DomainFieldHandler fmd = idFieldHandlers[0];
             checkKeyType(fmd.getName(), keyType, keys);
             int keyFieldNumber = fmd.getFieldNumber();
             keyValues[keyFieldNumber] = keys;
@@ -697,11 +382,11 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
             if (!(keys.getClass().isArray())) {
                 throw new ClusterJUserException(
                         local.message("ERR_Key_Must_Be_An_Object_Array",
-                        numberOfPrimaryKeyColumns));
+                        numberOfIdFields));
             }
             Object[]keyObjects = (Object[])keys;
-            for (int i = 0; i < numberOfPrimaryKeyColumns; ++i) {
-                DomainFieldHandlerImpl fmd = idFieldHandlers[i];
+            for (int i = 0; i < numberOfIdFields; ++i) {
+                DomainFieldHandler fmd = idFieldHandlers[i];
                 int index = fmd.getFieldNumber();
                 Object keyObject = keyObjects[i];
                 Class<?> keyType = fmd.getType();
@@ -739,51 +424,8 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         }
     }
 
-    public int[] getKeyFieldNumbers() {
-        return idFieldNumbers;
-    }
-
     public Class<?> getOidClass() {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
-    }
-
-    public Set<String> getColumnNames(BitSet fields) {
-        throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
-    }
-
-    public Set<com.mysql.clusterj.core.store.Column> getStoreColumns(BitSet fields) {
-        throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
-    }
-
-    public Table getStoreTable() {
-        return table;
-    }
-
-    /** Create a partition key for a find by primary key. 
-     * @param clusterTransaction the transaction
-     * @param handler the handler that contains the values of the primary key
-     */
-    public PartitionKey createPartitionKey(ValueHandler handler) {
-        // create the partition key based on the mapped table
-        PartitionKey result = table.createPartitionKey();
-        // add partition key part value for each partition key field
-        for (DomainFieldHandlerImpl fmd: partitionKeyFieldHandlers) {
-            if (logger.isDetailEnabled()) logger.detail(
-                        "Field number " + fmd.getFieldNumber()
-                        + " column name " + fmd.getColumnName() + " field name " + fmd.getName());
-            fmd.partitionKeySetPart(result, handler);
-        }
-        return result;
-    }
-
-    private String removeUniqueSuffix(String indexName) {
-        int beginIndex = indexName.lastIndexOf("$unique");
-        if (beginIndex < 0) {
-            // there's no $unique suffix
-            return indexName;
-        }
-        String result = indexName.substring(0, beginIndex);
-        return result;
     }
 
 }

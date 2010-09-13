@@ -136,4 +136,10 @@ public interface Column {
      */
     public byte[] encode(String string);
 
+    /** Is this column nullable?
+     * 
+     * @return true if the column is nullable
+     */
+    public boolean getNullable();
+
 }

@@ -52,6 +52,9 @@ public class AndPredicateImpl extends PredicateImpl {
         } else if (predicate instanceof InPredicateImpl) {
             predicates.add((PredicateImpl)predicate);
             return this;
+        } else if (predicate instanceof NotPredicateImpl) {
+            predicates.add((PredicateImpl)predicate);
+            return this;
         } else {
             throw new UnsupportedOperationException(
                     local.message("ERR_NotImplemented"));

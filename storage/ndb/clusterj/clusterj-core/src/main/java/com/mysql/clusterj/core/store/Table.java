@@ -39,4 +39,7 @@ public interface Table {
     /** Get the names of the indexes on this table */
     public String[] getIndexNames();
 
+    /** Get the names of all columns for this table */
+    String[] getColumnNames();
+
 }

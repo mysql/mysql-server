@@ -80,6 +80,10 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         this.domainTypeHandler = domainTypeHandler;
     }
 
+    public QueryDomainTypeImpl(DomainTypeHandler<T> domainTypeHandler) {
+        this.domainTypeHandler = domainTypeHandler;
+    }
+
     public PredicateOperand get(String propertyName) {
         // if called multiple times for the same property,
         // return the same PropertyImpl instance

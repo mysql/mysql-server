@@ -28,6 +28,7 @@ CLASSPATH_ENV=CLASSPATH=$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-
 clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/CacheManager.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/metadata/AbstractDomainFieldHandlerImpl.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/metadata/AbstractDomainTypeHandlerImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/metadata/DomainFieldHandlerImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/metadata/DomainTypeHandlerFactoryImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/metadata/DomainTypeHandlerImpl.java \
@@ -86,7 +87,6 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/Logger.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/LoggerFactory.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/LoggerFactoryService.java 
-
 noinst_DATA = classclusterj_core.stamp
 
 EXTRA_DIST = \

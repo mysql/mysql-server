@@ -53,6 +53,7 @@ noinst_DATA = classclusterj_tie.stamp
 
 EXTRA_DIST = \
   src/main/resources/META-INF \
+  src/test/resources/clusterj.properties \
   src/main/resources/com/mysql/clusterj/tie/Bundle.properties \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/*.java \
   $(clusterj_tie_test)/testsuite/clusterj/tie/*.java \

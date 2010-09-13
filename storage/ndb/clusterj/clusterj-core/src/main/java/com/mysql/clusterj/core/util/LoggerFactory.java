@@ -40,5 +40,5 @@ public interface LoggerFactory {
      *
      * @param loggerName the name of the logger, normally the package name
      */
-    public void registerLogger(String loggerName);
+    public Logger registerLogger(String loggerName);
 }

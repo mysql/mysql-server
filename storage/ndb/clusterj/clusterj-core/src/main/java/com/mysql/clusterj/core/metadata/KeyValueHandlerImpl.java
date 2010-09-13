@@ -58,27 +58,27 @@ public class KeyValueHandlerImpl implements ValueHandler {
     }
 
     public int getInt(int fieldNumber) {
-        logger.detail("KeyValueHandler.getInt(" + fieldNumber + ") returns: " + values[fieldNumber]);
+        if (logger.isDetailEnabled()) logger.detail("KeyValueHandler.getInt(" + fieldNumber + ") returns: " + values[fieldNumber]);
         return (Integer) values[fieldNumber];
     }
 
     public long getLong(int fieldNumber) {
-        logger.detail("KeyValueHandler.getLong(" + fieldNumber + ") returns: " + values[fieldNumber]);
+        if (logger.isDetailEnabled()) logger.detail("KeyValueHandler.getLong(" + fieldNumber + ") returns: " + values[fieldNumber]);
         return (Long) values[fieldNumber];
     }
 
     public Integer getObjectInt(int fieldNumber) {
-        logger.detail("KeyValueHandler.getObjectInt(" + fieldNumber + ") returns: " + values[fieldNumber]);
+        if (logger.isDetailEnabled()) logger.detail("KeyValueHandler.getObjectInt(" + fieldNumber + ") returns: " + values[fieldNumber]);
         return (Integer) values[fieldNumber];
     }
 
     public Long getObjectLong(int fieldNumber) {
-        logger.detail("KeyValueHandler.getObjectLong(" + fieldNumber + ") returns: " + values[fieldNumber]);
+        if (logger.isDetailEnabled()) logger.detail("KeyValueHandler.getObjectLong(" + fieldNumber + ") returns: " + values[fieldNumber]);
         return (Long) values[fieldNumber];
     }
 
     public String getString(int fieldNumber) {
-        logger.detail("KeyValueHandler.getString(" + fieldNumber + ") returns: " + values[fieldNumber]);
+        if (logger.isDetailEnabled()) logger.detail("KeyValueHandler.getString(" + fieldNumber + ") returns: " + values[fieldNumber]);
         return (String) values[fieldNumber];
     }
 

@@ -29,7 +29,7 @@ public interface Db {
 
     public Dictionary getDictionary();
 
-    public ClusterTransaction startTransaction();
+    public ClusterTransaction startTransaction(String joinTransactionId);
 
     public boolean isRetriable(ClusterJDatastoreException ex);
 

@@ -18,6 +18,7 @@
 
 package testsuite.clusterj;
 
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -121,11 +122,14 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
         List<Thread> threads = new ArrayList<Thread>();
         // create thread group
         threadGroup = new ThreadGroup("Stuff");
+        // create uncaught exception handler
+        MyUncaughtExceptionHandler uncaughtExceptionHandler = new MyUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler(uncaughtExceptionHandler);
         // create all threads
         for (int i = 0; i < numberOfThreads ; ++i) {
             Thread thread = new Thread(threadGroup, new StuffToDo());
             threads.add(thread);
-            thread.run();
+            thread.start();
         }
         // wait until all threads have finished
         for (Thread t: threads) {
@@ -133,6 +137,14 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
                 t.join();
             } catch (InterruptedException e) {
                 throw new RuntimeException("Interrupted while joining threads.");
+            }
+        }
+        // if any uncaught exceptions (from threads) signal an error
+        for (Throwable thrown: uncaughtExceptionHandler.getUncaughtExceptions()) {
+            error("Caught exception: " + thrown.getClass().getName() + ": " + thrown.getMessage());
+            StackTraceElement[] elements = thrown.getStackTrace();
+            for (StackTraceElement element: elements) {
+                error("        at " + element.toString());
             }
         }
         // summarize for the record
@@ -168,6 +180,18 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
                     expectedTotal, actualTotal);
         }
         failOnError();
+    }
+
+    public static class  MyUncaughtExceptionHandler implements UncaughtExceptionHandler {
+        private static List<Throwable> uncaughtExceptions = new ArrayList<Throwable>();
+        public List<Throwable> getUncaughtExceptions() {
+            return uncaughtExceptions;
+        }
+        public synchronized void uncaughtException(Thread t, Throwable e) {
+            {
+                uncaughtExceptions.add(e);
+            }
+        }
     }
 
     /** This class implements the logic per thread. For each thread created,
@@ -262,8 +286,8 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
         }
         order.setValue(orderValue);
         session.persist(order);
-        addOrder(order);
         session.currentTransaction().commit();
+        addOrder(order);
     }
 
     /** Update an order; change one or more order lines

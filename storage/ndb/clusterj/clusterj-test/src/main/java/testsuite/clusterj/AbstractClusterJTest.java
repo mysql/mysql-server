@@ -54,6 +54,8 @@ import junit.framework.TestCase;
  *
  */
 public abstract class AbstractClusterJTest extends TestCase {
+    protected static final String JDBC_DRIVER_NAME = "jdbc.driverName";
+    protected static final String JDBC_URL = "jdbc.url";
     protected static Connection connection;
     protected static String jdbcDriverName;
     protected static String jdbcPassword;
@@ -84,6 +86,7 @@ public abstract class AbstractClusterJTest extends TestCase {
      * Corresponding pc instances are deleted in <code>localTearDown</code>.
      */
     private Collection<Object> tearDownInstances = new LinkedList<Object>();
+
     /**
      *
      * Indicates an exception thrown in method <code>tearDown</code>.
@@ -93,7 +96,7 @@ public abstract class AbstractClusterJTest extends TestCase {
 //    private Throwable tearDownThrowable;
     private String NL = "\n";
 
-    protected static boolean debug;
+    protected boolean debug;
 
     /** Subclasses can override this method to get debugging info printed to System.out */
     protected boolean getDebug() {
@@ -113,6 +116,7 @@ public abstract class AbstractClusterJTest extends TestCase {
     protected void createSessionFactory() {
         loadProperties();
         Properties modifiedProperties = modifyProperties();
+        if (debug) System.out.println("createSessionFactory props: " + modifiedProperties);
         if (sessionFactory == null) {
             sessionFactory = ClusterJHelper.getSessionFactory(modifiedProperties);
         }
@@ -124,7 +128,7 @@ public abstract class AbstractClusterJTest extends TestCase {
         return props;
     }
 
-    protected void createSession() {
+    public void createSession() {
         if (session != null && !session.isClosed()) {
             tx = session.currentTransaction();
             if (tx.isActive()) {
@@ -156,6 +160,14 @@ public abstract class AbstractClusterJTest extends TestCase {
         errorMessages.append(message + NL);
     }
 
+    protected void error(String context, Exception ex) {
+        String message = context + " " + ex.getClass().getName() + ":" + ex.getMessage();
+        error(message);
+        if (getDebug()) {
+            ex.printStackTrace();
+        }
+    }
+
     protected void errorIfNotEqual(String message, Object expected, Object actual) {
         if (expected == null && actual == null) {
             return;
@@ -168,6 +180,20 @@ public abstract class AbstractClusterJTest extends TestCase {
             errorMessages.append(
                     "Expected: " + ((expected==null)?"null":expected.toString())
                     + " actual: " + ((actual==null)?"null":actual.toString()) + NL);
+        }
+    }
+
+    protected void errorIfEqual(String message, Object expected, Object actual) {
+        if (expected == null && actual != null) {
+            return;
+        }
+        if (expected != null && !expected.equals(actual)) {
+            return;
+        } else {
+            initializeErrorMessages();
+            errorMessages.append(message + NL);
+            errorMessages.append(
+                    "Error value: " + ((expected==null)?"null":expected.toString()));
         }
     }
 
@@ -188,7 +214,7 @@ public abstract class AbstractClusterJTest extends TestCase {
         } catch (SQLException e) {
             throw new RuntimeException("Caught SQLException during close.", e);
         } finally {
-        connection = null;
+            connection = null;
         }
     }
 
@@ -219,7 +245,7 @@ public abstract class AbstractClusterJTest extends TestCase {
     /** Get a connection with properties from the Properties instance.
      * 
      */
-    protected void getConnection() {
+    protected Connection getConnection() {
         if (connection == null) {
             try {
                 Class.forName(jdbcDriverName, true, Thread.currentThread().getContextClassLoader());
@@ -229,6 +255,43 @@ public abstract class AbstractClusterJTest extends TestCase {
             } catch (ClassNotFoundException ex) {
                 throw new ClusterJException("Exception loading JDBC driver." + jdbcDriverName, ex);
             }
+        }
+        return connection;
+    }
+
+    /** Get a connection with properties from a file.
+     * 
+     * @param propertiesFileName the name of the properties file
+     */
+    protected void getConnection(String propertiesFileName) {
+        loadProperties(propertiesFileName);
+        loadDriver();
+        String url = props.getProperty(JDBC_URL);
+        try {
+            connection = DriverManager.getConnection(url);
+            setAutoCommit(connection, false);
+        } catch (SQLException e) {
+            throw new RuntimeException("Could not get Connection: " + url, e);
+        }
+    }
+
+    /**
+     * @throws ClassNotFoundException
+     */
+    protected void loadDriver() {
+        String driverName = props.getProperty(JDBC_DRIVER_NAME);
+        try {
+            Class.forName(driverName);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Class not found: " + driverName, e);
+        }
+    }
+
+    protected void setAutoCommit(Connection connection, boolean b) {
+        try {
+            connection.setAutoCommit(false);
+        } catch (SQLException e) {
+            throw new RuntimeException("setAutoCommit failed", e);
         }
     }
 
@@ -240,7 +303,9 @@ public abstract class AbstractClusterJTest extends TestCase {
             result.load(stream);
             return result;
         } catch (FileNotFoundException ex) {
+            // ignore and try getResourceAsStream
         } catch (IOException ex) {
+            // ignore and try getResourceAsStream
         }
         if (result == null) {
             try {
@@ -273,6 +338,7 @@ public abstract class AbstractClusterJTest extends TestCase {
     }
 
     protected void initializeSchema() {
+        getConnection();
         Iterator<String> it = schemaDefinition.iterator();
         // skip past drop table
         it.next();
@@ -299,9 +365,14 @@ public abstract class AbstractClusterJTest extends TestCase {
 
     /** Load properties from clusterj.properties */
     protected void loadProperties() {
-        if (props == null) {
-            props = getProperties(PROPS_FILE_NAME);
-        }
+        loadProperties(PROPS_FILE_NAME);
+    }
+
+    /** Load properties from an arbitrary file name */
+    protected void loadProperties(String propsFileName) {
+//        if (props == null) {
+            props = getProperties(propsFileName);
+//        }
         jdbcDriverName = props.getProperty(Constants.PROPERTY_JDBC_DRIVER_NAME);
         jdbcURL = props.getProperty(Constants.PROPERTY_JDBC_URL);
         jdbcUsername = props.getProperty(Constants.PROPERTY_JDBC_USERNAME);
@@ -421,6 +492,7 @@ public abstract class AbstractClusterJTest extends TestCase {
             ps.close();
             return true;
         } catch (SQLException ex) {
+            if (debug) ex.printStackTrace();
             System.out.println("Test schema failed (normal)" + schemaDefinition.get(1));
             return false;
         }
