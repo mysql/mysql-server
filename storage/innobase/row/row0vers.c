@@ -49,7 +49,7 @@ Created 2/6/1997 Heikki Tuuri
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record.
-@return 0 if committed, else the active transaction */
+@return 0 if committed, else the active transaction id */
 UNIV_INTERN
 trx_id_t
 row_vers_impl_x_locked(
@@ -62,7 +62,8 @@ row_vers_impl_x_locked(
 	rec_t*		clust_rec;
 	ulint*		clust_offsets;
 	rec_t*		version;
-	trx_id_t	trx_id = 0;
+	trx_id_t	trx_id;
+	trx_id_t	active_trx_id = 0;
 	mem_heap_t*	heap;
 	dtuple_t*	row;
 	trx_t*		trx;
@@ -101,7 +102,7 @@ row_vers_impl_x_locked(
 
 		mtr_commit(&mtr);
 
-		return(0);
+		return(active_trx_id);
 	}
 
 	heap = mem_heap_create(1024);
@@ -132,8 +133,6 @@ row_vers_impl_x_locked(
 
 			ut_a(!is_ok == corrupt);
 		}
-
-		trx_id = 0;
 
 		goto exit_func;
 	}
@@ -184,6 +183,10 @@ row_vers_impl_x_locked(
 		       	found. */
 
 			ut_ad(err == DB_SUCCESS);
+
+			/* The caller should check the tranasction status. */
+			active_trx_id = trx_id;
+
 			break;
 		}
 
@@ -241,8 +244,6 @@ row_vers_impl_x_locked(
 
 			/* Transaction no longer active: no implicit x-lock */
 
-			trx_id = 0;
-
 			break;
 
 		} else if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
@@ -252,6 +253,7 @@ row_vers_impl_x_locked(
 
 			if (rec_del != vers_del) {
 
+				active_trx_id = trx_id;
 				break;
 			}
 
@@ -272,14 +274,13 @@ row_vers_impl_x_locked(
 			/* The delete mark should be set in rec for it to be
 			in the state required by prev_version */
 
+			active_trx_id = trx_id;
 			break;
 		}
 		
 		if (trx_id != prev_trx_id) {
 			/* The versions modified by the trx_id transaction end
 			to prev_version: no implicit x-lock */
-
-			trx_id = 0;
 
 			break;
 		}
@@ -290,7 +291,7 @@ exit_func:
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
 
-	return(trx_id);
+	return(active_trx_id);
 }
 
 /*****************************************************************//**
