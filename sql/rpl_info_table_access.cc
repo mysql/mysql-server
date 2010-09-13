@@ -93,6 +93,7 @@ bool Rpl_info_table_access::open_table(THD* thd, const char *dbstr,
   if (!open_n_lock_single_table(thd, &tables, lock_type, 0))
   {
     close_thread_tables(thd);
+    thd->restore_backup_open_tables_state(backup);
     my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr, tbstr);
     DBUG_RETURN(TRUE);
   }
@@ -350,7 +351,7 @@ bool Rpl_info_table_access::store_info_fields(uint max_num_field, Field **fields
   @return
     @retval THD* Pointer to thread structure
 */
-THD *Rpl_info_table_access::create_fake_thd()
+THD *Rpl_info_table_access::create_bootstrap_thd()
 {
   THD *thd= NULL;
   saved_current_thd= current_thd;
@@ -386,9 +387,9 @@ THD *Rpl_info_table_access::create_fake_thd()
   @return
     @retval THD* Pointer to thread structure
 */
-bool Rpl_info_table_access::drop_fake_thd(THD *thd, bool error)
+bool Rpl_info_table_access::drop_bootstrap_thd(THD *thd, bool error)
 {
-  DBUG_ENTER("Rpl_info::drop_fake_thd");
+  DBUG_ENTER("Rpl_info::drop_bootstrap_thd");
 
   thd->system_thread= saved_thd_type;
 
