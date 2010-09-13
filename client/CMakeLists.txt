@@ -64,7 +64,10 @@ MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.c)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
 
-ADD_EXECUTABLE(echo echo.c)
+# "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
+IF(WIN32)
+  MYSQL_ADD_EXECUTABLE(echo echo.c)
+ENDIF(WIN32)
 
 SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap 
 PROPERTIES HAS_CXX TRUE)

@@ -69,6 +69,7 @@ table_file_summary_by_event_name::m_share=
   &table_file_summary_by_event_name::create,
   NULL, /* write_row */
   table_file_summary_by_event_name::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
@@ -232,6 +233,7 @@ table_file_summary_by_instance::m_share=
   &table_file_summary_by_instance::create,
   NULL, /* write_row */
   table_file_summary_by_instance::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
