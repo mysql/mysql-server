@@ -39,7 +39,8 @@ public:
                   enum thr_lock_type lock_type,
                   TABLE** table,
                   Open_tables_backup* backup);
-  bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup);
+  bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
+                   bool error);
   enum enum_return_id find_info_id(ulong server_id, uint idx, Rpl_info_fields *,
                                    TABLE *table);
   bool load_info_fields(uint max_num_field, Field **fields,
@@ -47,7 +48,7 @@ public:
   bool store_info_fields(uint max_num_field, Field **fields,
                          Rpl_info_fields *field_values);
   THD *create_bootstrap_thd();
-  bool drop_bootstrap_thd(THD* thd, bool error);
+  bool drop_bootstrap_thd(THD* thd);
 
 private:
   THD *saved_current_thd;

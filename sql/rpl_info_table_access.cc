@@ -58,12 +58,8 @@ bool Rpl_info_table_access::open_table(THD* thd, const char *dbstr,
 
   /*
     This is equivalent to a new "statement". For that reason, we call both
-    lex_start() and mysql_reset_thd_for_next_command. Note that the calls
-    may reset the value of current_stmt_binlog_format. So we need  to save
-    the value outside the function and restore it after executing the new
-    "statement".
+    lex_start() and mysql_reset_thd_for_next_command.
   */
- 
   if (thd->slave_thread || !current_thd)
   { 
     lex_start(thd);
@@ -102,26 +98,47 @@ bool Rpl_info_table_access::open_table(THD* thd, const char *dbstr,
 }
 
 /**
-  Unlocks and closes a table.
+  Commits the changes, unlocks the table and closes it. This method
+  needs to be called even if the open_table fails, in order to ensure
+  the lock info is properly restored.
 
   @param[in] thd    Thread requesting to close the table
   @param[in] table  Table to be closed
   @param[in] backup Restore the lock info from here
+  @param[in] error  If there was an error while updating
+                    the table
 
-  This method needs to be called even if the open_table fails,
-  in order to ensure the lock info is properly restored.
-
+  If there is an error, rolls back the current statement. Otherwise,
+  commits it. However, if a new thread was created and there is an
+  error, the transaction must be rolled back. Otherwise, it must be
+  committed. In this case, the changes were not done on behalf of
+  any user transaction and if not finished, there would be pending
+  changes.
+  
   @return
     @retval FALSE No error
     @retval TRUE  Failure
 */
 bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
-                                        Open_tables_backup *backup)
+                                        Open_tables_backup *backup,
+                                        bool error)
 {
   DBUG_ENTER("Rpl_info_table_access::close_table");
 
   if (table)
   {
+    if (error)
+      ha_rollback_trans(thd, FALSE);
+    else
+      ha_commit_trans(thd, FALSE);
+
+    if (saved_current_thd != current_thd)
+    {
+      if (error)
+        ha_rollback_trans(thd, TRUE);
+      else
+        ha_commit_trans(thd, TRUE);
+    }
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
   }
@@ -278,9 +295,7 @@ THD *Rpl_info_table_access::create_bootstrap_thd()
     thd->store_globals();
   }
   else
-  {
     thd= current_thd;
-  }
 
   saved_thd_type= thd->system_thread;
   thd->system_thread= SYSTEM_THREAD_INFO;
@@ -289,37 +304,23 @@ THD *Rpl_info_table_access::create_bootstrap_thd()
 }
 
 /**
-  Destroys the created thread if necessary and does the following actions:
+  Destroys the created thread if necessary and restores the
+  system_thread information.
 
-  - Restores the system_thread information. 
-  - If there is an error, rolls back the current statement. Otherwise,
-  commits it. 
-  - If a new thread was created and there is an error, the transaction
-  must be rolled back. Otherwise, it must be committed. In this case,
-  the changes were not done on behalf of any user transaction and if
-  not finished, there would be pending changes. 
+  @param[in] thd Thread requesting to be destroyed
 
   @return
-    @retval THD* Pointer to thread structure
+    @retval FALSE No error
+    @retval TRUE  Failure
 */
-bool Rpl_info_table_access::drop_bootstrap_thd(THD *thd, bool error)
+bool Rpl_info_table_access::drop_bootstrap_thd(THD *thd)
 {
   DBUG_ENTER("Rpl_info::drop_bootstrap_thd");
 
   thd->system_thread= saved_thd_type;
 
-  if (error)
-    ha_rollback_trans(thd, FALSE);
-  else
-    ha_commit_trans(thd, FALSE);
-
   if (saved_current_thd != current_thd)
   {
-    if (error)
-      ha_rollback_trans(thd, TRUE);
-    else
-      ha_commit_trans(thd, TRUE);
-    
     delete thd;
     my_pthread_setspecific_ptr(THR_THD,  NULL);
   }
