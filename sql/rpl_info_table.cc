@@ -46,7 +46,7 @@ int Rpl_info_table::do_init_info()
   ulong saved_mode;
   Open_tables_backup backup;
 
-  THD *thd= access->create_fake_thd();
+  THD *thd= access->create_bootstrap_thd();
 
   DBUG_ENTER("Rlp_info_table::do_init_info");
 
@@ -85,7 +85,7 @@ end:
   access->close_table(thd, table, &backup);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  access->drop_fake_thd(thd, error);
+  access->drop_bootstrap_thd(thd, error);
   DBUG_RETURN(test(error));
 }
 
@@ -97,14 +97,14 @@ int Rpl_info_table::do_flush_info(const bool force)
   ulong saved_mode;
   Open_tables_backup backup;
 
-  THD *thd= access->create_fake_thd();
+  THD *thd= access->create_bootstrap_thd();
 
   DBUG_ENTER("Rpl_info_table::do_flush_info");
 
   if (!(force || (sync_period &&
       ++(sync_counter) >= sync_period)))
   {
-    access->drop_fake_thd(thd, 0);
+    access->drop_bootstrap_thd(thd, 0);
     DBUG_RETURN(0);
   }
 
@@ -176,7 +176,7 @@ end:
   access->close_table(thd, table, &backup);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  access->drop_fake_thd(thd, error);
+  access->drop_bootstrap_thd(thd, error);
   DBUG_RETURN(test(error));
 }
 
@@ -188,7 +188,7 @@ int Rpl_info_table::do_reset_info()
   ulong saved_mode;
   Open_tables_backup backup;
 
-  THD *thd= access->create_fake_thd();
+  THD *thd= access->create_bootstrap_thd();
 
   DBUG_ENTER("Rpl_info_table::do_reset_info");
 
@@ -228,7 +228,7 @@ end:
   access->close_table(thd, table, &backup);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  access->drop_fake_thd(thd, error);
+  access->drop_bootstrap_thd(thd, error);
   DBUG_RETURN(test(error));
 }
 
@@ -239,10 +239,7 @@ int Rpl_info_table::do_check_info()
   ulong saved_mode;
   Open_tables_backup backup;
 
-  if (!current_thd)
-    return TRUE;
-
-  THD *thd= access->create_fake_thd();
+  THD *thd= access->create_bootstrap_thd();
 
   DBUG_ENTER("Rpl_info_table::do_check_info");
 
@@ -279,7 +276,7 @@ end:
   */
   access->close_table(thd, table, &backup);
   thd->variables.sql_mode= saved_mode;
-  access->drop_fake_thd(thd, error);
+  access->drop_bootstrap_thd(thd, error);
   DBUG_RETURN(test(error));
 }
 
@@ -456,7 +453,7 @@ bool Rpl_info_table::do_is_transactional()
   Open_tables_backup backup;
   bool is_trans= FALSE;
 
-  THD *thd= access->create_fake_thd();
+  THD *thd= access->create_bootstrap_thd();
 
   DBUG_ENTER("Rpl_info_table::do_is_transactional");
 
@@ -472,7 +469,7 @@ bool Rpl_info_table::do_is_transactional()
 
   access->close_table(thd, table, &backup);
   thd->variables.sql_mode= saved_mode;
-  access->drop_fake_thd(thd, 0);
+  access->drop_bootstrap_thd(thd, 0);
 
   DBUG_RETURN(is_trans);
 }

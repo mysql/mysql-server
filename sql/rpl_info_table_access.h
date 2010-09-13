@@ -48,8 +48,8 @@ public:
   bool store_info_fields(uint max_num_field, Field **fields, ...);
   bool store_info_fields(uint max_num_field, Field **fields,
                          Rpl_info_fields *field_values);
-  THD *create_fake_thd();
-  bool drop_fake_thd(THD* thd, bool error);
+  THD *create_bootstrap_thd();
+  bool drop_bootstrap_thd(THD* thd, bool error);
 
 private:
   THD *saved_current_thd;
