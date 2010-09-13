@@ -1748,6 +1748,7 @@ ndbcluster_update_slock(THD *thd,
     }
     if (trans->execute(NdbTransaction::NoCommit))
       goto err;
+
     bitmap_clear_bit(&slock, node_id);
     {
       NdbOperation *op= 0;
@@ -1782,6 +1783,7 @@ ndbcluster_update_slock(THD *thd,
     {
       DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'",
                           node_id, db, table_name));
+      dict->forceGCPWait(1);
       break;
     }
   err:
@@ -2155,6 +2157,7 @@ int ndbcluster_log_schema_op(THD *thd,
     if (trans->execute(NdbTransaction::Commit) == 0)
     {
       DBUG_PRINT("info", ("logged: %s", query));
+      dict->forceGCPWait(1);
       break;
     }
 err:

@@ -2136,7 +2136,13 @@ NdbDictionary::Dictionary::invalidateIndex(const char * indexName,
 int
 NdbDictionary::Dictionary::forceGCPWait()
 {
-  return m_impl.forceGCPWait();
+  return forceGCPWait(0);
+}
+
+int
+NdbDictionary::Dictionary::forceGCPWait(int type)
+{
+  return m_impl.forceGCPWait(type);
 }
 
 void
