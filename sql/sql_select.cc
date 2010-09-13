@@ -9315,7 +9315,10 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   DBUG_ENTER("optimize_cond");
 
   if (!conds)
+  {
     *cond_value= Item::COND_TRUE;
+    build_equal_items(join->thd, NULL, NULL, join_list, &join->cond_equal);
+  }  
   else
   {
     /* 

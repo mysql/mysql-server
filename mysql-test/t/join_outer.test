@@ -981,4 +981,19 @@ EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#49600: outer join of two single-row tables with joining attributes
+--echo #            evaluated to nulls
+
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+insert into t1 values (1, NULL);
+insert into t2 values (2, NULL);
+
+select * from t1 left join t2 on t1.b=t2.b;
+
+select * from t1 left join t2 on t1.b=t2.b where 1=1;
+
+drop table t1,t2;
+
 --echo End of 5.1 tests
