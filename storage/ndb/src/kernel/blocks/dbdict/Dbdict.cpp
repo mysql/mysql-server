@@ -25078,6 +25078,9 @@ Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
     signal->theData[2] = gci_hi;
     signal->theData[3] = gci_lo;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+
+    signal->theData[0] = 6099;
+    sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
   }
   else
   {
