@@ -3209,7 +3209,7 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`pk`),
 KEY `col_int_key` (`col_int_key`),
 KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
-) ENGINE=MARIA AUTO_INCREMENT=30 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+) AUTO_INCREMENT=30 DEFAULT CHARSET=latin1;
 INSERT INTO `t1` VALUES (10,7,8,'v','v');
 INSERT INTO `t1` VALUES (11,1,9,'r','r');
 INSERT INTO `t1` VALUES (12,5,9,'a','a');
@@ -3239,7 +3239,7 @@ CREATE TABLE `t2` (
 PRIMARY KEY (`pk`),
 KEY `col_int_key` (`col_int_key`),
 KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
-) ENGINE=MARIA AUTO_INCREMENT=21 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+) AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
 INSERT INTO `t2` VALUES (1,NULL,2,'w','w');
 INSERT INTO `t2` VALUES (2,7,9,'m','m');
 INSERT INTO `t2` VALUES (3,9,3,'m','m');
