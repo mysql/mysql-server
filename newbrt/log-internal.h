@@ -84,8 +84,13 @@ struct tokulogger {
     LSN lsn; // the next available lsn
     OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
     OMT live_root_txns; // a sorted tree.
-    OMT snapshot_txnids;    //contains TXNID pairs (x,y) | x is snapshot txn, y is oldest in its live list
-    OMT live_list_reverse;  //contains TXNID pairs (x,y) | y is oldest txnid s.t. x is in y's live list
+    OMT snapshot_txnids;    //contains TXNID x | x is snapshot txn
+    //contains TXNID pairs (x,y) | y is oldest txnid s.t. x is in y's live list
+    // every TXNID that is in some snapshot's live list is used as the key for this OMT, x, as described above. 
+    // The second half of the pair, y, is the youngest snapshot txnid (that is, has the highest LSN), such that x is in its live list.
+    // So, for example, Say T_800 begins, T_800 commits right after snapshot txn T_1100  begins. Then (800,1100) is in 
+    // this list
+    OMT live_list_reverse;  
     struct logbuf inbuf; // data being accumulated for the write
 
     // To access these, you must have the output condition lock.

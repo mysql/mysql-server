@@ -146,6 +146,10 @@ toku_get_youngest_live_list_txnid_for(TXNID xc, OMT live_list_reverse) {
     return rval;
 }
 
+//
+// This function returns TRUE if live transaction TL1 is allowed to read a value committed by
+// transaction xc, false otherwise.
+//
 static BOOL
 xid_reads_committed_xid(TXNID tl1, TXNID xc, OMT live_list_reverse) {
     BOOL rval;
@@ -219,9 +223,7 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
     for (i = 0; i < ule->num_cuxrs; i++) {
         //Shift values to 'delete' garbage values.
         if (necessary[i]) {
-            if (i != first_free) {
-                ule->uxrs[first_free] = ule->uxrs[i];
-            }
+            ule->uxrs[first_free] = ule->uxrs[i];
             first_free++;
         }
     }

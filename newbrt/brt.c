@@ -4015,6 +4015,17 @@ brt_cursor_cleanup_dbts(BRT_CURSOR c) {
     }
 }
 
+//
+// This function is used by the leafentry iterators.
+// returns TOKUDB_ACCEPT if live transaction context is allowed to read a value
+// that is written by transaction with LSN of id
+// live transaction context may read value if either id is the root ancestor of context, or if
+// id was committed before context's snapshot was taken.
+// For id to be committed before context's snapshot was taken, the following must be true:
+//  - id < context->snapshot_txnid64 AND id is not in context's live root transaction list
+// For the above to NOT be true:
+//  - id > context->snapshot_txnid64 OR id is in context's live root transaction list
+//
 static
 int does_txn_read_entry(TXNID id, TOKUTXN context) {
     int rval;
