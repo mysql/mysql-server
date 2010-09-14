@@ -186,4 +186,6 @@ public class CoordinatedTransactionIdVariableTest extends AbstractClusterJTest {
         }
     }
 
+    public void testCoordinatedTransactionIdVariable() {
+    }
 }
