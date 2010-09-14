@@ -2217,6 +2217,7 @@ end:
       pthread_mutex_unlock(&ndb_schema_share->mutex);
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
+      bitmap_free(&servers);
 
       /* remove any unsubscribed from ndb_schema_object->slock */
       bitmap_intersect(&ndb_schema_object->slock_bitmap, &schema_subscribers);
