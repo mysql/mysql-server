@@ -252,7 +252,9 @@ struct st_connection
   int cur_query_len;
   pthread_mutex_t mutex;
   pthread_cond_t cond;
+  pthread_t tid;
   int query_done;
+  my_bool has_thread;
 #endif /*EMBEDDED_LIBRARY*/
 };
 
@@ -732,8 +734,6 @@ pthread_handler_t send_one_query(void *arg)
 static int do_send_query(struct st_connection *cn, const char *q, int q_len,
                          int flags)
 {
-  pthread_t tid;
-
   if (flags & QUERY_REAP_FLAG)
     return mysql_send_query(&cn->mysql, q, q_len);
 
@@ -744,9 +744,10 @@ static int do_send_query(struct st_connection *cn, const char *q, int q_len,
   cn->cur_query= q;
   cn->cur_query_len= q_len;
   cn->query_done= 0;
-  if (pthread_create(&tid, &cn_thd_attrib, send_one_query, (void*)cn))
+  if (pthread_create(&cn->tid, &cn_thd_attrib, send_one_query, (void*)cn))
     die("Cannot start new thread for query");
 
+  cn->has_thread= TRUE;
   return 0;
 }
 
@@ -758,6 +759,11 @@ static void wait_query_thread_end(struct st_connection *con)
     while (!con->query_done)
       pthread_cond_wait(&con->cond, &con->mutex);
     pthread_mutex_unlock(&con->mutex);
+  }
+  if (con->has_thread)
+  {
+    pthread_join(con->tid, NULL);
+    con->has_thread= FALSE;
   }
 }
 
@@ -5217,6 +5223,7 @@ void do_connect(struct st_command *command)
 
 #ifdef EMBEDDED_LIBRARY
   con_slot->query_done= 1;
+  con_slot->has_thread= FALSE;
 #endif
   if (!mysql_init(&con_slot->mysql))
     die("Failed on mysql_init()");
@@ -7353,11 +7360,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
                            (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
 
-  init_dynamic_string(&ds_warnings, NULL, 0, 256);
-
   if (cn->pending && (flags & QUERY_SEND_FLAG))
     die ("Cannot run query on connection between send and reap");
 
+  init_dynamic_string(&ds_warnings, NULL, 0, 256);
   /*
     Evaluate query if this is an eval command
   */
