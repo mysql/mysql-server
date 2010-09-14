@@ -390,6 +390,14 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
 	   fi
      ;;
    esac
+   # Similarly, disable shared plugins when configured with --disable-shared
+   # as libtool will not be able to produce them
+   if test "X[$enable_shared]" = Xno; then
+     if test "X[$mysql_plugin_]$2" != Xyes -a \
+             "X[$with_plugin_]$2" != Xyes; then
+       [with_plugin_]$2=no
+     fi
+   fi
   ])
 
 
