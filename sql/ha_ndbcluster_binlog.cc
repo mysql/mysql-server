@@ -1765,7 +1765,8 @@ ndbcluster_update_slock(THD *thd,
       r|= op->setValue(SCHEMA_TYPE_I, (uint32)SOT_CLEAR_SLOCK);
       DBUG_ASSERT(r == 0);
     }
-    if (trans->execute(NdbTransaction::Commit) == 0)
+    if (trans->execute(NdbTransaction::Commit, 
+                       NdbOperation::DefaultAbortOption, 1 /*force send*/) == 0)
     {
       DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'",
                           node_id, db, table_name));
@@ -2141,7 +2142,8 @@ int ndbcluster_log_schema_op(THD *thd,
 #endif
       break;
     }
-    if (trans->execute(NdbTransaction::Commit) == 0)
+    if (trans->execute(NdbTransaction::Commit, NdbOperation::DefaultAbortOption,
+                       1 /* force send */) == 0)
     {
       DBUG_PRINT("info", ("logged: %s", query));
       dict->forceGCPWait(1);
