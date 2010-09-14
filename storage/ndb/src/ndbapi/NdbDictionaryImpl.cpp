@@ -2276,7 +2276,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     }    
     
     m_error.code= 0;
-    int ret_val= poll_guard.wait_n_unlock(timeout, node, wst);
+    int ret_val= poll_guard.wait_n_unlock(timeout, node, wst, true);
     // End of Protected area  
     
     if(ret_val == 0 && m_error.code == 0){
@@ -5449,7 +5449,8 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
     }
     m_error.code= 0;
     int ret_val= poll_guard.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
-                                          aNodeId, WAIT_LIST_TABLES_CONF);
+                                          aNodeId, WAIT_LIST_TABLES_CONF,
+                                          true);
     // end protected
     if (ret_val == 0 && m_error.code == 0)
       return 0;
@@ -5619,6 +5620,8 @@ NdbDictInterface::forceGCPWait(int type)
         m_transporter->unlock_mutex();
         continue;
       }
+
+      m_transporter->forceSend(refToBlock(m_reference));
       m_transporter->unlock_mutex();
     }
     return 0;
