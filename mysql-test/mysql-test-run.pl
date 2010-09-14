@@ -4035,7 +4035,7 @@ sub run_testcase ($$) {
 sub _preserve_error_log_names {
   my ($mysqld)= @_;
   my $error_log_file= $mysqld->if_exist('#log-error');
-  return unless $error_log_file and -r $error_log_file;
+  return (undef, undef) unless $error_log_file;
   my $error_log_dir= dirname($error_log_file);
   my $save_name= $error_log_dir ."/../". $mysqld->name() .".error.log";
   return ($error_log_file, $save_name);
