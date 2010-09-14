@@ -2037,7 +2037,9 @@ row_upd_in_place_in_select(
 	upd_node_t*	node;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
+#ifdef UNIV_DEBUG
 	ulint		err;
+#endif /* UNIV_DEBUG */
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
@@ -2074,8 +2076,11 @@ row_upd_in_place_in_select(
 	ut_ad(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE);
 	ut_ad(node->select_will_do_update);
 
-	err = btr_cur_update_in_place(BTR_NO_LOCKING_FLAG, btr_cur,
-				      node->update, node->cmpl_info,
-				      thr, mtr);
+#ifdef UNIV_DEBUG
+	err =
+#endif /* UNIV_DEBUG */
+	btr_cur_update_in_place(BTR_NO_LOCKING_FLAG, btr_cur,
+				node->update, node->cmpl_info,
+				thr, mtr);
 	ut_ad(err == DB_SUCCESS);
 }
