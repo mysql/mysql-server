@@ -59,7 +59,9 @@ row_vers_impl_x_locked_off_kernel(
 	trx_t*		trx;
 	ulint		vers_del;
 	ulint		rec_del;
+#ifdef UNIV_DEBUG
 	ulint		err;
+#endif /* UNIV_DEBUG */
 	mtr_t		mtr;
 	ulint		comp;
 
@@ -152,9 +154,12 @@ row_vers_impl_x_locked_off_kernel(
 
 		heap2 = heap;
 		heap = mem_heap_create(1024);
-		err = trx_undo_prev_version_build(clust_rec, &mtr, version,
-						  clust_index, clust_offsets,
-						  heap, &prev_version);
+#ifdef UNIV_DEBUG
+		err =
+#endif /* UNIV_DEBUG */
+		trx_undo_prev_version_build(clust_rec, &mtr, version,
+					    clust_index, clust_offsets,
+					    heap, &prev_version);
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version) {
