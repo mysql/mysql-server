@@ -502,7 +502,7 @@ static void set_tabname(const char *pathname, char *tabname);
     static member function as it needs to access private
     NdbTransaction methods
   */
-  static void release_completed_operations(Thd_ndb*, NdbTransaction*);
+  static void release_completed_operations(NdbTransaction*);
 
   /*
     Condition pushdown
