@@ -203,6 +203,30 @@ AC_DEFUN([_MYSQL_PLUGIN_DISABLED],[
 
 
 dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_PLUGIN_WITHOUT
+dnl
+dnl SYNOPSIS
+dnl   MYSQL_PLUGIN_WITHOUT([name])
+dnl
+dnl DESCRIPTION
+dnl   Exclude the plugin from being built, as if --without-plugin-name
+dnl   was specified.
+dnl   If the plugin was selected manually by --with-plugin-name,
+dnl   excluding it here will abort the configure script with an error,
+dnl   otherwise plugin will be silently disabled.
+dnl
+dnl ---------------------------------------------------------------------------
+
+AC_DEFUN([MYSQL_PLUGIN_WITHOUT],[
+ MYSQL_REQUIRE_PLUGIN([$1])
+ if test "X[$with_plugin_]$1" = Xyes; then
+   AC_MSG_ERROR([Plugin $1 cannot be built])
+ else
+   [with_plugin_]$1=no
+ fi
+])
+
+dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_PLUGIN_DEPENDS
 dnl
 dnl SYNOPSIS

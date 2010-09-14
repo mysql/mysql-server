@@ -35,6 +35,6 @@ AC_PREPROC_IFELSE(
    ],
    [AC_MSG_RESULT([yes])],
    [AC_MSG_RESULT([no])
-   with_plugin_oqgraph=no])
+   MYSQL_PLUGIN_WITHOUT(oqgraph)])
 
 AC_LANG_POP()
