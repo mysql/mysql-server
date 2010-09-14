@@ -667,7 +667,7 @@ row_purge_step(
 
 	err = row_purge(node, thr);
 
-	ut_ad(err == DB_SUCCESS);
+	ut_a(err == DB_SUCCESS);
 
 	return(thr);
 }
