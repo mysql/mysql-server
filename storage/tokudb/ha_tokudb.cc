@@ -4152,6 +4152,9 @@ int ha_tokudb::index_end() {
 int ha_tokudb::handle_cursor_error(int error, int err_to_return, uint keynr) {
     TOKUDB_DBUG_ENTER("ha_tokudb::handle_cursor_error");
     if (error) {
+        if (error == DB_LOCK_NOTGRANTED) {
+            error = HA_ERR_LOCK_WAIT_TIMEOUT;
+        }
         last_cursor_error = error;
         table->status = STATUS_NOT_FOUND;
         int r = cursor->c_close(cursor);
@@ -4302,6 +4305,9 @@ int ha_tokudb::read_full_row(uchar * buf) {
         lockretry_wait;
     }
     if (error) {
+        if (error == DB_LOCK_NOTGRANTED) {
+            error = HA_ERR_LOCK_WAIT_TIMEOUT;
+        }
         table->status = STATUS_NOT_FOUND;
         TOKUDB_DBUG_RETURN(error == DB_NOTFOUND ? HA_ERR_CRASHED : error);
     }
