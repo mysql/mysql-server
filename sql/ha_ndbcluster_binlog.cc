@@ -1959,10 +1959,10 @@ int ndbcluster_log_schema_op(THD *thd,
   char bitbuf_e[sizeof(bitbuf)];
   bzero(bitbuf_e, sizeof(bitbuf_e));
   {
-    int i, updated= 0;
+    int i;
     int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
     bitmap_init(&schema_subscribers, bitbuf, sizeof(bitbuf)*8, FALSE);
-    bitmap_set_all(&schema_subscribers);
+    bitmap_clear_all(&schema_subscribers);
 
     /* begin protect ndb_schema_share */
     pthread_mutex_lock(&ndb_schema_share_mutex);
@@ -1976,35 +1976,16 @@ int ndbcluster_log_schema_op(THD *thd,
     pthread_mutex_lock(&ndb_schema_share->mutex);
     for (i= 0; i < no_storage_nodes; i++)
     {
-      MY_BITMAP *table_subscribers= &ndb_schema_share->subscriber_bitmap[i];
-      if (!bitmap_is_clear_all(table_subscribers))
-      {
-        bitmap_intersect(&schema_subscribers,
-                         table_subscribers);
-        updated= 1;
-      }
+      bitmap_union(&schema_subscribers,&ndb_schema_share->subscriber_bitmap[i]);
     }
     pthread_mutex_unlock(&ndb_schema_share->mutex);
     pthread_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
 
-    if (updated)
-    {
-      bitmap_clear_bit(&schema_subscribers, node_id);
-      /*
-        if setting own acknowledge bit it is important that
-        no other mysqld's are registred, as subsequent code
-        will cause the original event to be hidden (by blob
-        merge event code)
-      */
-      if (bitmap_is_clear_all(&schema_subscribers))
-          bitmap_set_bit(&schema_subscribers, node_id);
-    }
-    else
-      bitmap_clear_all(&schema_subscribers);
-
     if (also_internal)
       bitmap_set_bit(&schema_subscribers, node_id);        
+    else
+      bitmap_clear_bit(&schema_subscribers, node_id);
 
     if (ndb_schema_object)
     {
@@ -2194,15 +2175,6 @@ end:
   if (ndb_error == 0 &&
       !bitmap_is_clear_all(&schema_subscribers))
   {
-    if (!also_internal)
-    {
-      /*
-        if own nodeid is set we are a single mysqld registred
-        as an optimization we update the slock directly
-      */
-      if (bitmap_is_set(&schema_subscribers, node_id))
-        ndbcluster_update_slock(thd, db, table_name);
-    }
     int max_timeout= opt_ndb_sync_timeout;
     pthread_mutex_lock(&ndb_schema_object->mutex);
     if (have_lock_open)
@@ -2229,14 +2201,17 @@ end:
         pthread_mutex_unlock(&ndb_schema_share_mutex);
         break;
       }
+      MY_BITMAP servers;
+      bitmap_init(&servers, 0, 256, FALSE);
+      bitmap_clear_all(&servers);
       pthread_mutex_lock(&ndb_schema_share->mutex);
       for (i= 0; i < no_storage_nodes; i++)
       {
         /* remove any unsubscribed from schema_subscribers */
         MY_BITMAP *tmp= &ndb_schema_share->subscriber_bitmap[i];
-        if (!bitmap_is_clear_all(tmp))
-          bitmap_intersect(&schema_subscribers, tmp);
+        bitmap_union(&servers, tmp);
       }
+      bitmap_intersect(&schema_subscribers, &servers);
       pthread_mutex_unlock(&ndb_schema_share->mutex);
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
