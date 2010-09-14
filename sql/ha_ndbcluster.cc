@@ -2395,7 +2395,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
        nextResult() on Blobs generates Blob part read ops,
        so we will free them here
     */
-    release_completed_operations(m_thd_ndb, trans);
+    release_completed_operations(trans);
     
     if ((local_check= cursor->nextResult(&_m_next_row,
                                          contact_ndb,
