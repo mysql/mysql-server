@@ -400,10 +400,8 @@ recv_synchronize_groups(
 	dulint		start_lsn;
 	dulint		end_lsn;
 	dulint		recovered_lsn;
-	dulint		limit_lsn;
 
 	recovered_lsn = recv_sys->recovered_lsn;
-	limit_lsn = recv_sys->limit_lsn;
 
 	/* Read the last recovered log block to the recovery system buffer:
 	the block is always incomplete */
