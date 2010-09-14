@@ -5966,7 +5966,6 @@ innobase_drop_database(
 	trx_t*	parent_trx;
 	trx_t*	trx;
 	char*	ptr;
-	int	error;
 	char*	namebuf;
 	THD*	thd		= current_thd;
 
@@ -6004,7 +6003,7 @@ innobase_drop_database(
 		trx->check_foreigns = FALSE;
 	}
 
-	error = row_drop_database_for_mysql(namebuf, trx);
+	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf, MYF(0));
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -6020,13 +6019,7 @@ innobase_drop_database(
 
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
-#ifdef NO_LONGER_INTERESTED_IN_DROP_DB_ERROR
-	error = convert_error_code_to_mysql(error, NULL);
-
-	return(error);
-#else
 	return;
-#endif
 }
 
 /*************************************************************************
