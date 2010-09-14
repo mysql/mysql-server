@@ -802,13 +802,11 @@ que_thr_dec_refer_count(
 {
 	que_fork_t*	fork;
 	trx_t*		trx;
-	sess_t*		sess;
 	ulint		fork_type;
 	ibool		stopped;
 
 	fork = thr->common.parent;
 	trx = thr_get_trx(thr);
-	sess = trx->sess;
 
 	mutex_enter(&kernel_mutex);
 
