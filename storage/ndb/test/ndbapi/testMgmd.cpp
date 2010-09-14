@@ -847,12 +847,6 @@ TESTCASE("Basic2Mgm",
   INITIALIZER(runTestBasic2Mgm);
 }
 
-TESTCASE("Bug45495",
-         "Test that mgmd can be restarted in any order")
-{
-  INITIALIZER(runTestBug45495);
-}
-
 TESTCASE("Bug42015",
          "Test that mgmd can fetch configuration from another mgmd")
 {
@@ -878,6 +872,12 @@ TESTCASE("NoCfgCache",
          "connect to the mgm node and retrieve the config.")
 {
   INITIALIZER(runTestNoConfigCache);
+}
+
+TESTCASE("Bug45495",
+         "Test that mgmd can be restarted in any order")
+{
+  INITIALIZER(runTestBug45495);
 }
 
 
