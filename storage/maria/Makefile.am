@@ -77,7 +77,7 @@ noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_checkpoint.h ma_recovery.h ma_commit.h ma_state.h \
 			trnman_public.h ma_check_standalone.h \
 			ma_key_recover.h ma_recovery_util.h \
-			ma_servicethread.h
+			ma_servicethread.h compat_aliases.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
 ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
@@ -140,7 +140,7 @@ libaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_pagecache.c ma_pagecaches.c \
 			ma_checkpoint.c ma_recovery.c ma_commit.c \
 			ma_pagecrc.c ma_recovery_util.c \
-			ha_maria.cc ma_servicethread.c
+			ha_maria.cc compat_aliases.cc ma_servicethread.c
 CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA? aria_log_control aria_log.0000*
 
 SUFFIXES = .sh

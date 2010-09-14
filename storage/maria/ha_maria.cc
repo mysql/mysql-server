@@ -29,6 +29,7 @@
 #include "ha_maria.h"
 #include "trnman_public.h"
 #include "trnman.h"
+#include "compat_aliases.h"
 
 C_MODE_START
 #include "maria_def.h"
@@ -202,7 +203,7 @@ static MYSQL_SYSVAR_ULONG(group_commit_interval, maria_group_commit_interval,
 
 static MYSQL_SYSVAR_ENUM(log_purge_type, log_purge_type,
        PLUGIN_VAR_RQCMDARG,
-       "Specifies how aria transactional log will be purged. "
+       "Specifies how Aria transactional log will be purged. "
        "Possible values of name are \"immediate\", \"external\" "
        "and \"at_flush\"",
        NULL, NULL, TRANSLOG_PURGE_IMMIDIATE,
@@ -212,7 +213,7 @@ static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size,
        maria_max_temp_length, PLUGIN_VAR_RQCMDARG,
        "Don't use the fast sort index method to created index if the "
        "temporary file would get bigger than this.",
-       0, 0, MAX_FILE_SIZE, 0, MAX_FILE_SIZE, 1024*1024);
+       0, 0, MAX_FILE_SIZE & ~(1*MB-1), 0, MAX_FILE_SIZE, 1*MB);
 
 static MYSQL_SYSVAR_ULONG(pagecache_age_threshold,
        pagecache_age_threshold, PLUGIN_VAR_RQCMDARG,
@@ -227,7 +228,7 @@ static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        "The size of the buffer used for index blocks for Aria tables. "
        "Increase this to get better index handling (for all reads and "
        "multiple writes) to as much as you can afford.", 0, 0,
-       KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, IO_SIZE);
+       KEY_CACHE_SIZE, 0, ~(ulong) 0, 1);
 
 static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
        PLUGIN_VAR_RQCMDARG,
@@ -262,10 +263,11 @@ static MYSQL_SYSVAR_ENUM(sync_log_dir, sync_log_dir, PLUGIN_VAR_RQCMDARG,
        &maria_sync_log_dir_typelib);
 
 #ifdef USE_MARIA_FOR_TMP_TABLES
-static my_bool use_maria_for_temp_tables= 1;
+#define USE_MARIA_FOR_TMP_TABLES_VAL 1
 #else
-static my_bool use_maria_for_temp_tables= 0;
+#define USE_MARIA_FOR_TMP_TABLES_VAL 0
 #endif
+my_bool use_maria_for_temp_tables= USE_MARIA_FOR_TMP_TABLES_VAL;
 
 static MYSQL_SYSVAR_BOOL(used_for_temp_tables, 
        use_maria_for_temp_tables, PLUGIN_VAR_READONLY | PLUGIN_VAR_NOCMDOPT,
@@ -3272,6 +3274,7 @@ bool ha_maria::is_changed() const
 static int ha_maria_init(void *p)
 {
   int res;
+  copy_variable_aliases();
   const char *log_dir= maria_data_root;
   maria_hton= (handlerton *)p;
   maria_hton->state= SHOW_OPTION_YES;
@@ -3388,7 +3391,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 }
 #endif
 
-static struct st_mysql_sys_var* system_variables[]= {
+struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
   MYSQL_SYSVAR(force_start_after_recovery_failures),
@@ -3524,38 +3527,28 @@ static void update_log_file_size(MYSQL_THD thd,
 }
 
 
-static SHOW_VAR status_variables[]= {
-  {"Aria_pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG_NOFLUSH},
-  {"Aria_pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG_NOFLUSH},
-  {"Aria_pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG_NOFLUSH},
-  {"Aria_pagecache_read_requests",      (char*) &maria_pagecache_var.global_cache_r_requests, SHOW_LONGLONG},
-  {"Aria_pagecache_reads",              (char*) &maria_pagecache_var.global_cache_read, SHOW_LONGLONG},
-  {"Aria_pagecache_write_requests",     (char*) &maria_pagecache_var.global_cache_w_requests, SHOW_LONGLONG},
-  {"Aria_pagecache_writes",             (char*) &maria_pagecache_var.global_cache_write, SHOW_LONGLONG},
-  {"Aria_transaction_log_syncs",        (char*) &translog_syncs, SHOW_LONGLONG},
+SHOW_VAR status_variables[]= {
+  {"pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG_NOFLUSH},
+  {"pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG_NOFLUSH},
+  {"pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG_NOFLUSH},
+  {"pagecache_read_requests",      (char*) &maria_pagecache_var.global_cache_r_requests, SHOW_LONGLONG},
+  {"pagecache_reads",              (char*) &maria_pagecache_var.global_cache_read, SHOW_LONGLONG},
+  {"pagecache_write_requests",     (char*) &maria_pagecache_var.global_cache_w_requests, SHOW_LONGLONG},
+  {"pagecache_writes",             (char*) &maria_pagecache_var.global_cache_write, SHOW_LONGLONG},
+  {"transaction_log_syncs",        (char*) &translog_syncs, SHOW_LONGLONG},
+  {NullS, NullS, SHOW_LONG}
+};
+
+static struct st_mysql_show_var aria_status_variables[]= {
+  {"Aria", (char*) &status_variables, SHOW_ARRAY},
   {NullS, NullS, SHOW_LONG}
 };
 
 struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-mysql_declare_plugin(aria)
-{
-  MYSQL_STORAGE_ENGINE_PLUGIN,
-  &maria_storage_engine,
-  "Aria",
-  "Monty Program Ab",
-  "Crash-safe tables with MyISAM heritage",
-  PLUGIN_LICENSE_GPL,
-  ha_maria_init,              /* Plugin Init                     */
-  NULL,                       /* Plugin Deinit                   */
-  0x0105,                     /* 1.5                             */
-  status_variables,           /* status variables                */
-  system_variables,           /* system variables                */
-  NULL
-}
-mysql_declare_plugin_end;
 maria_declare_plugin(aria)
+compat_aliases,
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &maria_storage_engine,
@@ -3563,12 +3556,12 @@ maria_declare_plugin(aria)
   "Monty Program Ab",
   "Crash-safe tables with MyISAM heritage",
   PLUGIN_LICENSE_GPL,
-  ha_maria_init,              /* Plugin Init                     */
-  NULL,                       /* Plugin Deinit                   */
-  0x0105,                     /* 1.5                             */
-  status_variables,           /* status variables                */
-  system_variables,           /* system variables                */
-  "1.5",                      /* string version */
-  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+  ha_maria_init,                /* Plugin Init      */
+  NULL,                         /* Plugin Deinit    */
+  0x0105,                       /* 1.5              */
+  aria_status_variables,        /* status variables */
+  system_variables,             /* system variables */
+  "1.5",                        /* string version   */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity         */
 }
 maria_declare_plugin_end;

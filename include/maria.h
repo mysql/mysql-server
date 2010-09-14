@@ -21,12 +21,9 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-#ifndef _my_base_h
 #include <my_base.h>
-#endif
-#ifndef _m_ctype_h
+#include <my_sys.h>
 #include <m_ctype.h>
-#endif
 #include "../storage/maria/ma_pagecache.h"
 #include "my_handler.h"
 #include "ft_global.h"
@@ -333,6 +330,12 @@ extern int maria_commit(MARIA_HA *info);
 extern int maria_begin(MARIA_HA *info);
 extern void maria_disable_logging(MARIA_HA *info);
 extern void maria_enable_logging(MARIA_HA *info);
+
+#define HA_RECOVER_NONE         0       /* No automatic recover */
+#define HA_RECOVER_DEFAULT      1       /* Automatic recover active */
+#define HA_RECOVER_BACKUP       2       /* Make a backupfile on recover */
+#define HA_RECOVER_FORCE        4       /* Recover even if we loose rows */
+#define HA_RECOVER_QUICK        8       /* Don't check rows in data file */
 
 /* this is used to pass to mysql_mariachk_table */
 

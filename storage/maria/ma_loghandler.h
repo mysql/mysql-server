@@ -16,12 +16,14 @@
 #ifndef _ma_loghandler_h
 #define _ma_loghandler_h
 
+#define MB (1024UL*1024)
+
 /* transaction log default cache size  (TODO: make it global variable) */
-#define TRANSLOG_PAGECACHE_SIZE (1024U*1024*2)
+#define TRANSLOG_PAGECACHE_SIZE (2*MB)
 /* transaction log default file size */
-#define TRANSLOG_FILE_SIZE (1024U*1024*1024)
+#define TRANSLOG_FILE_SIZE (1024U*MB)
 /* minimum possible transaction log size */
-#define TRANSLOG_MIN_FILE_SIZE (1024U*1024*8)
+#define TRANSLOG_MIN_FILE_SIZE (8*MB)
 /* transaction log default flags (TODO: make it global variable) */
 #define TRANSLOG_DEFAULT_FLAGS 0
 

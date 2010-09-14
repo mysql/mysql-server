@@ -257,7 +257,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
 #define DECLARE_MYSQL_SYSVAR_BASIC(name, type) struct { \
   MYSQL_PLUGIN_VAR_HEADER;      \
   type *value;                  \
-  const type def_val;           \
+  type def_val;                 \
 } MYSQL_SYSVAR_NAME(name)
 
 #define DECLARE_MYSQL_SYSVAR_SIMPLE(name, type) struct { \
@@ -279,7 +279,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
 #define DECLARE_MYSQL_THDVAR_BASIC(name, type) struct { \
   MYSQL_PLUGIN_VAR_HEADER;      \
   int offset;                   \
-  const type def_val;           \
+  type def_val;                 \
   DECLARE_THDVAR_FUNC(type);    \
 } MYSQL_SYSVAR_NAME(name)
 
