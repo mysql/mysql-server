@@ -689,8 +689,7 @@ check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
 }
 
 void
-ha_ndbcluster::release_completed_operations(Thd_ndb *thd_ndb,
-                                            NdbTransaction *trans)
+ha_ndbcluster::release_completed_operations(NdbTransaction *trans)
 {
   /**
    * mysqld reads/write blobs fully,
@@ -712,7 +711,7 @@ int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                       uint *ignore_count)
 {
   DBUG_ENTER("execute_no_commit");
-  ha_ndbcluster::release_completed_operations(thd_ndb, trans);
+  ha_ndbcluster::release_completed_operations(trans);
   const NdbOperation *first= trans->getFirstDefinedOperation();
   thd_ndb->m_execute_count++;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
@@ -774,7 +773,7 @@ inline
 int execute_no_commit_ie(Thd_ndb *thd_ndb, NdbTransaction *trans)
 {
   DBUG_ENTER("execute_no_commit_ie");
-  ha_ndbcluster::release_completed_operations(thd_ndb, trans);
+  ha_ndbcluster::release_completed_operations(trans);
   int res= trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError,
                           thd_ndb->m_force_send);
@@ -3029,7 +3028,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
        nextResult() on Blobs generates Blob part read ops,
        so we will free them here
     */
-    release_completed_operations(m_thd_ndb, trans);
+    release_completed_operations(trans);
     
     if ((local_check= cursor->nextResult(&_m_next_row,
                                          contact_ndb,
