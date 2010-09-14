@@ -22,9 +22,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.junit.Ignore;
+
 /** Test that mysql session variable ndb_coordinated_transaction_id can be
  * read and written by jdbc.
  */
+@Ignore
 public class CoordinatedTransactionIdVariableTest extends AbstractClusterJTest {
 
     /** Format is Uint32+Uint32:Uint64 */
@@ -186,6 +189,4 @@ public class CoordinatedTransactionIdVariableTest extends AbstractClusterJTest {
         }
     }
 
-    public void testCoordinatedTransactionIdVariable() {
-    }
 }
