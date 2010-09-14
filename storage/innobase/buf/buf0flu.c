@@ -841,7 +841,6 @@ buf_flush_batch(
 {
 	buf_block_t*	block;
 	ulint		page_count	= 0;
-	ulint		old_page_count;
 	ulint		space;
 	ulint		offset;
 	ibool		found;
@@ -913,15 +912,9 @@ buf_flush_batch(
 				mutex_exit(&block->mutex);
 				mutex_exit(&(buf_pool->mutex));
 
-				old_page_count = page_count;
-
 				/* Try to flush also all the neighbors */
 				page_count += buf_flush_try_neighbors(
 					space, offset, flush_type);
-				/* fprintf(stderr,
-				"Flush type %lu, page no %lu, neighb %lu\n",
-				flush_type, offset,
-				page_count - old_page_count); */
 
 				mutex_enter(&(buf_pool->mutex));
 
