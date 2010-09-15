@@ -1278,8 +1278,8 @@ bool might_do_join_buffering(uint join_cache_level,
   */
   return (sj_tab-sj_tab->join->join_tab != sj_tab->join->const_tables && // (1)
           sj_tab->use_quick != QS_DYNAMIC_RANGE && 
-          ((join_cache_level != 0 && sj_tab->type == JT_ALL) ||
-           (join_cache_level > 4 && 
+          ((join_cache_level != 0U && sj_tab->type == JT_ALL) ||
+           (join_cache_level > 4U && 
             (sj_tab->type == JT_REF || 
              sj_tab->type == JT_EQ_REF || 
              sj_tab->type == JT_CONST))));
