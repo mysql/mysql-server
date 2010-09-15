@@ -177,6 +177,9 @@ mysqltest: At line 1: End of line junk detected: "disconnect default # comment
 "
 mysqltest: At line 1: Extra delimiter ";" found
 mysqltest: At line 1: Extra delimiter ";" found
+mysqltest: At line 1: Spurious text after `query` expression
+mysqltest: At line 1: Spurious text after `query` expression
+mysqltest: At line 2: Spurious text after `query` expression
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: The sqlstate definition must start with an uppercase S
