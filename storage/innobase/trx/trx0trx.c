@@ -831,10 +831,10 @@ trx_commit(
 
 	trx_sys_mutex_enter();
 
-	trx_mutex_enter(trx);
-
 	/* Free all savepoints */
 	trx_roll_free_all_savepoints(trx);
+
+	trx_mutex_enter(trx);
 
 	trx->rseg = NULL;
 	trx->undo_no = 0;

@@ -149,10 +149,10 @@ static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
-static char*	innobase_monitor_counter_on		= NULL;
-static char*	innobase_monitor_counter_off		= NULL;
-static char*	innobase_monitor_counter_reset		= NULL;
-static char*	innobase_monitor_counter_reset_all	= NULL;
+static char*	innobase_enable_monitor_counter		= NULL;
+static char*	innobase_disable_monitor_counter	= NULL;
+static char*	innobase_reset_monitor_counter		= NULL;
+static char*	innobase_reset_all_monitor_counter	= NULL;
 
 /* The highest file format being used in the database. The value can be
 set by user, however, it will be adjusted to the newer file format if
@@ -7725,27 +7725,14 @@ ha_innobase::info(
 	dict_index_t*	index;
 	ha_rows		rec_per_key;
 	ib_int64_t	n_rows;
-	ulong		j;
-	ulong		i;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
-
 
 	DBUG_ENTER("info");
 
 	/* If we are forcing recovery at a high level, we will suppress
 	statistics calculation on tables, because that may crash the
 	server if an index is badly corrupted. */
-
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
-
-		/* We return success (0) instead of HA_ERR_CRASHED,
-		because we want MySQL to process this query and not
-		stop, like it would do if it received the error code
-		HA_ERR_CRASHED. */
-
-		DBUG_RETURN(0);
-	}
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -7841,12 +7828,18 @@ ha_innobase::info(
 		acquiring latches inside InnoDB, we do not call it if we
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
-		See Bug#38185.
-		We do not update delete_length if no locking is requested
-		so the "old" value can remain. delete_length is initialized
-		to 0 in the ha_statistics' constructor. */
-		if (!(flag & HA_STATUS_NO_LOCK)) {
-
+		See Bug#38185. */
+		if (flag & HA_STATUS_NO_LOCK) {
+			/* We do not update delete_length if no
+			locking is requested so the "old" value can
+			remain. delete_length is initialized to 0 in
+			the ha_statistics' constructor. */
+		} else if (UNIV_UNLIKELY
+			   (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE)) {
+			/* Avoid accessing the tablespace if
+			innodb_crash_recovery is set to a high value. */
+			stats.delete_length = 0;
+		} else {
 			/* lock the data dictionary to avoid races with
 			ibd_file_missing and tablespace_discarded */
 			row_mysql_lock_data_dictionary(prebuilt->trx);
@@ -7891,6 +7884,7 @@ ha_innobase::info(
 	}
 
 	if (flag & HA_STATUS_CONST) {
+		ulong	i;
 		/* Verify the number of index in InnoDB and MySQL
 		matches up. If prebuilt->clust_index_was_generated
 		holds, InnoDB defines GEN_CLUST_INDEX internally */
@@ -7907,6 +7901,7 @@ ha_innobase::info(
 		}
 
 		for (i = 0; i < table->s->keys; i++) {
+			ulong	j;
 			/* We could get index quickly through internal
 			index mapping with the index translation table.
 			The identity of index (match up index name with
@@ -7972,6 +7967,11 @@ ha_innobase::info(
 		}
 	}
 
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+
+		goto func_exit;
+	}
+
 	if (flag & HA_STATUS_ERRKEY) {
 		const dict_index_t*	err_index;
 
@@ -7992,6 +7992,7 @@ ha_innobase::info(
 		stats.auto_increment_value = innobase_peek_autoinc();
 	}
 
+func_exit:
 	prebuilt->trx->op_info = (char*)"";
 
 	DBUG_RETURN(0);
@@ -10845,8 +10846,7 @@ innodb_monitor_update(
 				    ER_NO_DEFAULT,
 				    "Default value is not defined for "
 				    "this set option. Please specify "
-				    "counter or module name to turn on/off "
-				    "or reset monitor counters.");
+				    "correct counter or module name.");
 		*(const char**) var_ptr = NULL;
 	} else {
 		monitor_info = srv_mon_get_info(monitor_id);
@@ -10916,20 +10916,20 @@ exit:
 	been turned on, we will set err_monitor. Print related
 	information */
 	if (err_monitor) {
-		sql_print_warning("Monitor %s already turned on.",
+		sql_print_warning("Monitor %s is already enabled.",
 				  srv_mon_get_name((monitor_id_t)err_monitor));
 	}
 
 	return;
 }
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_on and turn on
+Update the system variable innodb_enable_monitor_counter and enable 
 specified monitor counter.
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_on_update(
-/*=====================*/
+innodb_enable_monitor_update(
+/*=========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
 						system variable */
@@ -10941,12 +10941,12 @@ innodb_monitor_on_update(
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON);
 }
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_off and turn
+Update the system variable innodb_disable_monitor_counter and turn
 off specified monitor counter. */
 static
 void
-innodb_monitor_off_update(
-/*======================*/
+innodb_disable_monitor_update(
+/*==========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
 						system variable */
@@ -10963,7 +10963,7 @@ specified monitor counter(s).
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_reset_update(
+innodb_reset_monitor_update(
 /*========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -10981,7 +10981,7 @@ all value related monitor counter.
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_reset_all_update(
+innodb_reset_all_monitor_update(
 /*============================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -11364,29 +11364,29 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
-static MYSQL_SYSVAR_STR(monitor_counter_on, innobase_monitor_counter_on,
+static MYSQL_SYSVAR_STR(enable_monitor_counter, innobase_enable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn on a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_on_update, NULL);
+  innodb_enable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_off, innobase_monitor_counter_off,
+static MYSQL_SYSVAR_STR(disable_monitor_counter, innobase_disable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn off a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_off_update, NULL);
+  innodb_disable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_reset, innobase_monitor_counter_reset,
+static MYSQL_SYSVAR_STR(reset_monitor_counter, innobase_reset_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_reset_update, NULL);
+  innodb_reset_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_reset_all, innobase_monitor_counter_reset_all,
+static MYSQL_SYSVAR_STR(reset_all_monitor_counter, innobase_reset_all_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset all values for a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_reset_all_update, NULL);
+  innodb_reset_all_monitor_update, NULL);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -11447,10 +11447,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(monitor_counter_on),
-  MYSQL_SYSVAR(monitor_counter_off),
-  MYSQL_SYSVAR(monitor_counter_reset),
-  MYSQL_SYSVAR(monitor_counter_reset_all),
+  MYSQL_SYSVAR(enable_monitor_counter),
+  MYSQL_SYSVAR(disable_monitor_counter),
+  MYSQL_SYSVAR(reset_monitor_counter),
+  MYSQL_SYSVAR(reset_all_monitor_counter),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
   MYSQL_SYSVAR(page_hash_mutexes),

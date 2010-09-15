@@ -234,8 +234,6 @@ trx_roll_savepoint_free(
 	trx_t*			trx,	/*!< in: transaction handle */
 	trx_named_savept_t*	savep)	/*!< in: savepoint to free */
 {
-	ut_ad(trx_mutex_own(trx));
-
 	ut_a(savep != NULL);
 	ut_a(UT_LIST_GET_LEN(trx->trx_savepoints) > 0);
 
@@ -257,8 +255,6 @@ trx_roll_savepoints_free(
 					of trx */
 {
 	trx_named_savept_t*	next_savep;
-
-	ut_ad(trx_mutex_own(trx));
 
 	if (savep == NULL) {
 		savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
@@ -299,8 +295,6 @@ trx_rollback_to_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 	ulint			err;
-
-	ut_ad(trx_mutex_own(trx));
 
 	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 

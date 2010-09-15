@@ -424,8 +424,6 @@ enum srv_thread_type {
 			be biggest) */
 };
 
-struct srv_slot_struct;
-
 /*********************************************************************//**
 Boots Innobase server.
 @return	DB_SUCCESS or error code */

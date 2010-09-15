@@ -28,7 +28,8 @@ ALTER TABLE t1 TRUNCATE PARTITION pMax;
 --echo # con default
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE STATE = "Waiting for table" AND INFO = "ALTER TABLE t1 TRUNCATE PARTITION pMax";
+    WHERE STATE = "Waiting for table metadata lock" AND
+          INFO = "ALTER TABLE t1 TRUNCATE PARTITION pMax";
 --source include/wait_condition.inc
 --sorted_result
 SELECT * FROM t1;
