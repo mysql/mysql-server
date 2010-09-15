@@ -9530,9 +9530,20 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   ndbcluster_drop_database_impl(thd, path);
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);
+  uint32 table_id= 0, table_version= 0;
+  /*
+    Since databases aren't real ndb schema object
+    they don't have any id/version
+
+    But since that id/version is used to make sure that event's on SCHEMA_TABLE
+    is correct, we set random numbers
+  */
+  table_id = (uint32)rand();
+  table_version = (uint32)rand();
   ndbcluster_log_schema_op(thd,
                            thd->query(), thd->query_length(),
-                           db, "", 0, 0, SOT_DROP_DB, 0, 0, 0);
+                           db, "", table_id, table_version,
+                           SOT_DROP_DB, 0, 0, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -13513,42 +13524,84 @@ err:
     /* ndb_share reference schema free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
                              m_share->key, m_share->use_count));
+    delete alter_data;
+    alter_info->data= 0;
   }
   set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
-  delete alter_data;
   DBUG_RETURN(error);
 }
 
-int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
+int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
+                                      HA_CREATE_INFO *create_info,
+                                      HA_ALTER_INFO *alter_info,
+                                      HA_ALTER_FLAGS *alter_flags)
 {
   DBUG_ENTER("alter_table_phase3");
 
+  NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) alter_info->data;
   if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+  {
+    delete alter_data;
+    alter_info->data= 0;
     DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
                 (thd, "ha_ndbcluster::alter_table_phase3"));
+  }
 
   const char *db= table->s->db.str;
   const char *name= table->s->table_name.str;
+
   /*
     all mysqld's will read frms from disk and setup new
     event operation for the table (new_op)
   */
+  uint32 table_id= 0, table_version= 0;
+  DBUG_ASSERT(alter_data != 0);
+  if (alter_data)
+  {
+    table_id= alter_data->table_id;
+    table_version= alter_data->old_table_version;
+  }
   ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                            db, name,
-                           0, 0,
+                           table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
                            0, 0, 0);
+
+  /*
+    Get table id/version for new table
+  */
+  table_id= 0;
+  table_version= 0;
+  {
+    Ndb* ndb= get_ndb(thd);
+    DBUG_ASSERT(ndb != 0);
+    if (ndb)
+    {
+      ndb->setDatabaseName(db);
+      Ndb_table_guard ndbtab(ndb->getDictionary(), name);
+      const NDBTAB *new_tab= ndbtab.get_table();
+      DBUG_ASSERT(new_tab != 0);
+      if (new_tab)
+      {
+        table_id= new_tab->getObjectId();
+        table_version= new_tab->getObjectVersion();
+      }
+    }
+  }
+
   /*
     all mysqld's will switch to using the new_op, and delete the old
     event operation
   */
   ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                            db, name,
-                           0, 0,
+                           table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_COMMIT,
                            0, 0, 0);
 
+  delete alter_data;
+  alter_info->data= 0;
   DBUG_RETURN(0);
 }
 
@@ -13623,6 +13676,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   }
   dict= ndb->getDictionary();
 
+  uint32 table_id= 0, table_version= 0;
   switch (alter_info->ts_cmd_type){
   case (CREATE_TABLESPACE):
   {
@@ -13645,6 +13699,8 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       DBUG_PRINT("error", ("createTablespace returned %d", error));
       goto ndberror;
     }
+    table_id = objid.getObjectId();
+    table_version = objid.getObjectVersion();
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnExtentRoundUp)
     {
@@ -13697,10 +13753,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
 	DBUG_RETURN(1);
       }
       errmsg= " CREATE DATAFILE";
-      if (dict->createDatafile(ndb_df))
+      NdbDictionary::ObjectId objid;
+      if (dict->createDatafile(ndb_df, false, &objid))
       {
 	goto ndberror;
       }
+      table_id= objid.getObjectId();
+      table_version= objid.getObjectVersion();
       if (dict->getWarningFlags() &
           NdbDictionary::Dictionary::WarnDatafileRoundUp)
       {
@@ -13723,6 +13782,8 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       NdbDictionary::Datafile df= dict->getDatafile(0, alter_info->data_file_name);
       NdbDictionary::ObjectId objid;
       df.getTablespaceId(&objid);
+      table_id = df.getObjectId();
+      table_version = df.getObjectVersion();
       if (ts.getObjectId() == objid.getObjectId() && 
 	  strcmp(df.getPath(), alter_info->data_file_name) == 0)
       {
@@ -13770,6 +13831,8 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     {
       goto ndberror;
     }
+    table_id = objid.getObjectId();
+    table_version = objid.getObjectVersion();
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnUndobufferRoundUp)
     {
@@ -13820,10 +13883,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       DBUG_RETURN(1);
     }
     errmsg= "CREATE UNDOFILE";
-    if (dict->createUndofile(ndb_uf))
+    NdbDictionary::ObjectId objid;
+    if (dict->createUndofile(ndb_uf, false, &objid))
     {
       goto ndberror;
     }
+    table_id = objid.getObjectId();
+    table_version = objid.getObjectVersion();
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnUndofileRoundDown)
     {
@@ -13837,7 +13903,11 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   {
     error= ER_DROP_FILEGROUP_FAILED;
     errmsg= "TABLESPACE";
-    if (dict->dropTablespace(dict->getTablespace(alter_info->tablespace_name)))
+    NdbDictionary::Tablespace ts=
+      dict->getTablespace(alter_info->tablespace_name);
+    table_id= ts.getObjectId();
+    table_version= ts.getObjectVersion();
+    if (dict->dropTablespace(ts))
     {
       goto ndberror;
     }
@@ -13848,7 +13918,11 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   {
     error= ER_DROP_FILEGROUP_FAILED;
     errmsg= "LOGFILE GROUP";
-    if (dict->dropLogfileGroup(dict->getLogfileGroup(alter_info->logfile_group_name)))
+    NdbDictionary::LogfileGroup lg=
+      dict->getLogfileGroup(alter_info->logfile_group_name);
+    table_id= lg.getObjectId();
+    table_version= lg.getObjectVersion();
+    if (dict->dropLogfileGroup(lg))
     {
       goto ndberror;
     }
@@ -13871,13 +13945,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     ndbcluster_log_schema_op(thd,
                              thd->query(), thd->query_length(),
                              "", alter_info->tablespace_name,
-                             0, 0,
+                             table_id, table_version,
                              SOT_TABLESPACE, 0, 0, 0);
   else
     ndbcluster_log_schema_op(thd,
                              thd->query(), thd->query_length(),
                              "", alter_info->logfile_group_name,
-                             0, 0,
+                             table_id, table_version,
                              SOT_LOGFILE_GROUP, 0, 0, 0);
   DBUG_RETURN(FALSE);
 
