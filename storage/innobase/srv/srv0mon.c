@@ -98,7 +98,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING, MONITOR_OVLD_ROW_LOCK_WAIT},
 
 	/* ========== Counters for Buffer Manager and I/O ========== */
-	{"module_buffer", "Buffer", "Buufer Manager Module",
+	{"module_buffer", "Buffer", "Buffer Manager Module",
 	 MONITOR_MODULE, MONITOR_MODULE_BUFFER},
 
 	{"buffer_reads", "Buffer", "Number of reads from disk",
@@ -553,12 +553,12 @@ srv_mon_process_existing_counter(
 		value = stat.n_pages_read;
 		break;
 
-	/* innodb_data_writes, the total number of data writes. */
+	/* innodb_data_reads, the total number of data reads */
 	case MONITOR_OVLD_BYTE_READ:
 		value = srv_data_read;
 		break;
 
-	/* innodb_data_reads, the total number of data reads */
+	/* innodb_data_writes, the total number of data writes. */
 	case MONITOR_OVLD_BYTE_WRITTEN:
 		value = srv_data_written;
 		break;
