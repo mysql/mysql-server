@@ -71,6 +71,7 @@ static const char *log_dir = NULL;
 static int commitflags = 0;
 static int redzone = 0;
 static int redzone_set = 0;
+static int do_optimize = 0;
 
 static int use_random = 0;
 enum { MAX_RANDOM_C = 16000057 }; // prime-numbers.org
@@ -330,6 +331,12 @@ static void benchmark_shutdown (void) {
 
     for (which = 0; which < num_dbs; which++) {
         DB *db = dbs[which];
+        if (do_optimize) {
+#if defined(TOKUDB)
+            r = db->optimize(db);
+            assert(r == 0);
+#endif
+        }
         r = db->close(db, 0);
         assert(r == 0);
     }
@@ -666,6 +673,8 @@ static int test_main (int argc, char *const argv[]) {
 	    if (i+1 >= argc) return print_usage(argv[0]);
 	    redzone_set = 1;
 	    redzone = atoi(argv[++i]);
+        } else if (strcmp(arg, "--optimize") == 0) {
+            do_optimize = 1;
         } else {
 	    return print_usage(argv[0]);
 	}
