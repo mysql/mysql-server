@@ -2181,8 +2181,14 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   DBUG_ENTER("var_query_set");
   LINT_INIT(res);
 
+  /* Only white space or ) allowed past ending ` */
   while (end > query && *end != '`')
+  {
+    if (*end && (*end != ' ' && *end != '\t' && *end != '\n' && *end != ')'))
+      die("Spurious text after `query` expression");
     --end;
+  }
+
   if (query == end)
     die("Syntax error in query, missing '`'");
   ++query;
