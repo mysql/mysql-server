@@ -246,7 +246,8 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
 int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type, uint flags);
+                                thr_lock_type lock_type, uint flags,
+                                Prelocking_strategy *prelocking_strategy);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
@@ -452,6 +453,16 @@ open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
   DML_prelocking_strategy prelocking_strategy;
 
   return open_tables(thd, tables, counter, flags, &prelocking_strategy);
+}
+
+
+inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+                                       thr_lock_type lock_type, uint flags)
+{
+  DML_prelocking_strategy prelocking_strategy;
+
+  return open_n_lock_single_table(thd, table_l, lock_type, flags,
+                                  &prelocking_strategy);
 }
 
 
