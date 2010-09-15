@@ -128,10 +128,15 @@ buf_flush_delete_from_flush_rbt(
 	buf_page_t*	bpage)		/*!< in: bpage to be removed. */
 {
 
+#ifdef UNIV_DEBUG
 	ibool	ret = FALSE;
+#endif /* UNIV_DEBUG */
 
 	ut_ad(buf_pool_mutex_own());
-	ret = rbt_delete(buf_pool->flush_rbt, &bpage);
+#ifdef UNIV_DEBUG
+	ret =
+#endif /* UNIV_DEBUG */
+	rbt_delete(buf_pool->flush_rbt, &bpage);
 	ut_ad(ret);
 }
 
