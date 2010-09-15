@@ -47,11 +47,11 @@ BOOST_CXXFLAGS+=	-funroll-loops -fno-trapping-math
 
 EXTRA_DIST =	ha_oqgraph.h ha_oqgraph.cc graphcore.cc \
 		graphcore-graph.h graphcore-types.h graphcore.h \
-		CMakeFiles.txt plug.in oqgraph_probes.d
+		CMakeLists.txt plug.in oqgraph_probes.d
 
 # DTRACE =                @DTRACE@
 # DTRACEFLAGS =           @DTRACEFLAGS@
-# DTRACEFILES =           .libs/liboqgraph_engine_la-ha_oqgraph.o
+# DTRACEFILES =           .libs/libha_oqgraph_la-ha_oqgraph.o
 
 ORIG_CXXFLAGS = @CXXFLAGS@
 CXXFLAGS=
@@ -71,18 +71,18 @@ else
 INCLUDES = -I$(top_srcdir)/include -I$(top_builddir)/include -I$(top_srcdir)/regex -I$(top_srcdir)/sql -I$(srcdir) -DHAVE_OQGRAPH 
 endif !BUILD_OQGRAPH_STANDALONE
 
-EXTRA_LTLIBRARIES = oqgraph_engine.la
+EXTRA_LTLIBRARIES = ha_oqgraph.la
 mysqlplugin_LTLIBRARIES = @plugin_oqgraph_shared_target@
-oqgraph_engine_la_SOURCES = ha_oqgraph.cc
-oqgraph_engine_la_LIBADD = libgraphcore.la
+ha_oqgraph_la_SOURCES = ha_oqgraph.cc
+ha_oqgraph_la_LIBADD = libgraphcore.la
 
 # if HAVE_DTRACE
-#   oqgraph_engine_la_LIBADD += oqgraph_probes.o
+#   ha_oqgraph_la_LIBADD += oqgraph_probes.o
 # endif
 
-oqgraph_engine_la_LDFLAGS =	-module -rpath $(mysqlplugindir)
-oqgraph_engine_la_CFLAGS = $(ORIG_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-oqgraph_engine_la_CXXFLAGS = $(ORIG_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_oqgraph_la_LDFLAGS =	-shared -module -rpath $(mysqlplugindir)
+ha_oqgraph_la_CFLAGS = $(ORIG_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_oqgraph_la_CXXFLAGS = $(ORIG_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 
 # oqgraph_probes.h: oqgraph_probes.d
 # 	$(DTRACE) $(DTRACEFLAGS) -h -s oqgraph_probes.d

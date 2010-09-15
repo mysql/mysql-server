@@ -13,10 +13,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+INCLUDE (CheckCXXSourceCompiles)
+CHECK_CXX_SOURCE_COMPILES(
+"#include <boost/version.hpp>
+#if BOOST_VERSION >= 104000
+#else
+#error oops
+#endif
+int main() { return 0; }" BOOST_OK)
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
-ADD_LIBRARY(oqgraph ha_oqgraph.cc)
+IF(BOOST_OK)
+  INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_OQGRAPH /EHsc")
+
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/sql
+                      ${CMAKE_SOURCE_DIR}/regex
+                      ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+
+  SET(OQGRAPH_SOURCES ha_oqgraph.cc graphcore.cc)
+  MYSQL_STORAGE_ENGINE(OQGRAPH)
+ENDIF()
+
