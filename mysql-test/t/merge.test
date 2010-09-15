@@ -2,6 +2,9 @@
 # Test of MERGE TABLES
 #
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
 # MERGE tables require MyISAM tables
 let $default=`select @@global.storage_engine`;
 set global storage_engine=myisam;
@@ -2664,6 +2667,55 @@ drop view v1;
 drop temporary table tmp;
 drop table t1, t2, t3, m1, m2;
 
+
+--echo #
+--echo # Test for bug #56251 "Deadlock with INSERT DELAYED and MERGE tables".
+--echo #
+connect (con1,localhost,root,,);
+connection default;
+--disable_warnings
+drop table if exists t1, t2, tm;
+--enable_warnings
+create table t1(a int);
+create table t2(a int);
+create table tm(a int) engine=merge union=(t1, t2);
+begin;
+select * from t1;
+
+--echo # Connection 'con1'.
+connection con1;
+--echo # Sending:
+--send alter table t1 comment 'test'
+
+--echo # Connection 'default'.
+connection default;
+--echo # Wait until ALTER TABLE blocks and starts waiting
+--echo # for connection 'default'. It should wait with a
+--echo # pending SNW lock on 't1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 comment 'test'";
+--source include/wait_condition.inc
+--echo # Attempt to perform delayed insert into 'tm' should not lead
+--echo # to a deadlock. Instead error ER_DELAYED_NOT_SUPPORTED should
+--echo # be emitted.
+--error ER_DELAYED_NOT_SUPPORTED
+insert delayed into tm values (1);
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Connection 'con1'.
+connection con1;
+--echo # Reaping ALTER TABLE:
+--reap
+
+--echo # Connection 'default'.
+connection default;
+disconnect con1;
+drop tables tm, t1, t2;
+
+
 --echo End of 6.0 tests
 
 --disable_result_log
@@ -2671,3 +2723,7 @@ drop table t1, t2, t3, m1, m2;
 eval set global storage_engine=$default;
 --enable_result_log
 --enable_query_log
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
