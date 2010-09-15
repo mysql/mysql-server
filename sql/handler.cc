@@ -3565,7 +3565,10 @@ handler::alter_table_phase2(THD *thd,
 }
 
 int
-handler::alter_table_phase3(THD *thd, TABLE *table)
+handler::alter_table_phase3(THD *thd, TABLE *table,
+                            HA_CREATE_INFO *create_info,
+                            HA_ALTER_INFO *alter_info,
+                            HA_ALTER_FLAGS *alter_flags)
 {
   DBUG_ENTER("alter_table_phase3");
   DBUG_RETURN(0);
