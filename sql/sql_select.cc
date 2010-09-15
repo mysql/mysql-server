@@ -6637,7 +6637,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   DBUG_ENTER("make_join_select");
   if (select)
   {
-    add_not_null_conds(join);
     table_map used_tables;
     /*
       Step #1: Extract constant condition
@@ -7082,6 +7081,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
 
     }
+    add_not_null_conds(join);
   }
   DBUG_RETURN(0);
 }
