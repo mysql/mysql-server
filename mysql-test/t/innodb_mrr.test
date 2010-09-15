@@ -123,3 +123,34 @@ SELECT id FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 explain SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 drop table t1;
+
+
+-- echo #
+-- echo # BUG#628785: multi_range_read.cc:430: int DsMrr_impl::dsmrr_init(): Assertion `do_sort_keys || do_rowid_fetch' failed 
+-- echo #
+set @save_join_cache_level= @@join_cache_level;
+set @save_optimizer_switch= @@optimizer_switch;
+SET SESSION join_cache_level=9;
+SET SESSION optimizer_switch='mrr_sort_keys=off';
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (1,6,NULL,'r','r');
+INSERT INTO `t1` VALUES (2,8,0,'c','c');
+INSERT INTO `t1` VALUES (97,7,0,'z','z');
+INSERT INTO `t1` VALUES (98,1,1,'j','j');
+INSERT INTO `t1` VALUES (99,7,8,'c','c');
+INSERT INTO `t1` VALUES (100,2,5,'f','f');
+SELECT table1 .`col_varchar_key`
+FROM t1 table1 STRAIGHT_JOIN ( t1 table3 JOIN t1 table4 ON table4 .`pk` = table3 .`col_int_nokey` ) ON table4 .`col_varchar_nokey` ;
+DROP TABLE t1;
+set join_cache_level=@save_join_cache_level;
+set optimizer_switch=@save_optimizer_switch;
+

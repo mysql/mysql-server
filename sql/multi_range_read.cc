@@ -474,8 +474,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   }
 
   do_rowid_fetch= FALSE;
-  doing_cpk_scan= check_cpk_scan(h->inited == handler::INDEX? 
-                                 h->active_index: h2->active_index, mode);
+  doing_cpk_scan= check_cpk_scan(thd, h->inited == handler::INDEX? 
+                                      h->active_index: h2->active_index, mode);
   if (!doing_cpk_scan /* && !index_only_read */)
   {
     /* Will use rowid buffer to store/sort rowids, etc */
@@ -1370,12 +1370,13 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
     FALSE  Otherwise
 */
 
-bool DsMrr_impl::check_cpk_scan(uint keyno, uint mrr_flags)
+bool DsMrr_impl::check_cpk_scan(THD *thd, uint keyno, uint mrr_flags)
 {
   return test((mrr_flags & HA_MRR_SINGLE_POINT) && 
               !(mrr_flags & HA_MRR_SORTED) && 
               keyno == table->s->primary_key && 
-              h->primary_key_is_clustered());
+              h->primary_key_is_clustered() && 
+              optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS));
 }
 
 
@@ -1410,11 +1411,11 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   bool res;
   THD *thd= current_thd;
 
-  doing_cpk_scan= check_cpk_scan(keyno, *flags); 
+  doing_cpk_scan= check_cpk_scan(thd, keyno, *flags); 
+  bool using_cpk= test(keyno == table->s->primary_key &&
+                       h->primary_key_is_clustered());
   if (thd->variables.optimizer_use_mrr == 2 || *flags & HA_MRR_INDEX_ONLY ||
-      (keyno == table->s->primary_key && h->primary_key_is_clustered() &&
-       !doing_cpk_scan) ||
-       key_uses_partial_cols(table, keyno))
+      (using_cpk && !doing_cpk_scan) || key_uses_partial_cols(table, keyno))
   {
     /* Use the default implementation */
     *flags |= HA_MRR_USE_DEFAULT_IMPL;

@@ -384,7 +384,7 @@ private:
                        COST_VECT *cost);
   bool get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags, 
                                uint *buffer_size, COST_VECT *cost);
-  bool check_cpk_scan(uint keyno, uint mrr_flags);
+  bool check_cpk_scan(THD *thd, uint keyno, uint mrr_flags);
   static int key_tuple_cmp(void* arg, uchar* key1, uchar* key2);
   int dsmrr_fill_rowid_buffer();
   void dsmrr_fill_key_buffer();
