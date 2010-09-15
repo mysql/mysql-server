@@ -183,7 +183,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
          * Let's disappear it, so that it doesn't cause confusion
          * after further restarts.
          */
-        savedRecords[i].m_gci = (1 << 31) -1; // Big number
+        savedRecords[i].m_gci = (Uint32(1) << 31) -1; // Big number
       }
     } else {
       // Record was found in db
