@@ -12946,7 +12946,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       }
       errmsg= " CREATE DATAFILE";
       NdbDictionary::ObjectId objid;
-      if (dict->createDatafile(ndb_df, &objid))
+      if (dict->createDatafile(ndb_df, false, &objid))
       {
 	goto ndberror;
       }
@@ -13076,7 +13076,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     }
     errmsg= "CREATE UNDOFILE";
     NdbDictionary::ObjectId objid;
-    if (dict->createUndofile(ndb_uf, &objid))
+    if (dict->createUndofile(ndb_uf, false, &objid))
     {
       goto ndberror;
     }
