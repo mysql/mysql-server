@@ -846,7 +846,75 @@ select * from t1 where (c1='      100000' or c2='         2000000') and c3='2';
 
 drop table t1;
 
+#
+# Bug #637978: invalid index merge access plan causes to wrong results
+#
 
+CREATE TABLE t1 (
+  a smallint DEFAULT NULL,
+  pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  b varchar(10) DEFAULT NULL,
+  c varchar(64) DEFAULT NULL,
+  INDEX idx1 (a),
+  INDEX idx2 (b),
+  INDEX idx3 (c)
+);
+--disable_query_log
+--disable_result_log
+INSERT INTO t1 VALUES
+(30371,99001,'dl','e'),(3,99002,'Ohio','t'),(9,99003,'Delaware','xb'),
+(0,99004,'Pennsylvan','i'),(-199,99005,'y','d'),(0,99006,'with','Rhode Island'),
+(3,99007,'km','qkmiimdxbdljsejtsfrvwlrgacinbmfuosflnenlpomkmvbig'),
+(22860,99008,'ovqkmiimdx','uovqkmiimdxbdljsejtsfrvwlrgacinbmfuosflnenlpomkmvbig'),
+(212,99009,'f','p'),(NULL,99010,'i','k'),(20426,99011,'Vermont','New York'),
+(0,99012,'Oregon','w'),(31831,99013,'s','isrcijpuovqkmiimdxbdljsejtsfrvwl'),
+(123,99014,'t','p'),(32767,99015,'q','Maine'),
+(NULL,99016,'know','qqqpisrcijpuovqkmiimdxbdljsejtsfrvwlrgacinbmfuosflnenlpo'),
+(1,99017,'going','North Carolina'),(-717,99018,'ad','Indiana'),
+(32767,99019,'Maryland','aa'),(31280,99020,'Nebraska','Colorado'),
+(0,99021,'q','Ohio'),
+(5989,99022,'rovaadtqqq','lrovaadtqqqpisrcijpuovqkmiimdxbdljsejtsfrvwlrgacinb'),
+(89,99023,'n','Pennsylvania'),(0,99024,'Florida','c'),(97,99025,'Maine','y'),
+(149,99026,'xaemnl','Idaho'),(NULL,99027,'h','y'),(26276,99028,'going','New York'),
+(242,99029,'bdhxaemnlr','sbdhxaemnlrovaadtqqqpisrcijpuovqkmiimdxb'),
+(32767,99030,'if','a'),(26581,99031,'Arizona','q'),(45,99032,'ysazsbdhxa','f'),
+(0,99033,'qv','s'),(NULL,99034,'Louisiana','lqvfysazsbdhxaemnlrovaadtqqqpisrc'),
+(160,99035,'Connecticu','x'),(23241,99036,'lx','q'),(0,99037,'u','Colorado'),
+(-19141,99038,'w','h'),(218,99039,'s','uo'),(4,99040,'Montana','Oklahoma'),
+(97,99041,'r','ls'),(32767,99042,'q','v'),(7,99043,'mlsuownlnl','did'),
+(NULL,99044,'ui','i'),(2,99045,'to','I\'ll'),(0,99046,'Nevada','g'),
+(3251,99047,'y','New York'),(0,99048,'wyttuimlsu','you\'re'),
+(7,99049,'he','South Carolina'),(32767,99050,'s','right'),
+(172,99051,'Arizona','e'),(0,99052,'x','lxmvwyttuimlsuownlnlxklq'),
+(NULL,99053,'f','wfjlxmvwyttuimlsuownlnlxklqvfysazs'),(44,99054,'s','n'),
+(-17561,99055,'me','wm'),(88,99056,'y','my'),(7313,99057,'jx','New Hampshire'),
+(63,99058,'zl','South Carolina'),(9,99059,'ma','Illinois'),
+(6,99060,'lamazljxpg','like'),(17021,99061,'x','v'),(0,99062,'New Mexico','j'),
+(179,99427,'fliq','because'),
+(107,99063,'Virginia','Mississippi'),
+(0,99064,'si','to'),(113,99065,'Illinois','Kansas'),(20808,99066,'tsi','d'),
+(-15372,99067,'d','vdftsidjtvulamazljxpgiwmbnmwfjlxmvwyttuimlsuownlnl'),
+(0,99068,'y','then'),(2,99069,'all','b'),(NULL,99070,'by','Wisconsin'),
+(4,99071,'about','right'),(5,99072,'m','s'),(0,99073,'e','Pennsylvania'),
+(-28284,99074,'x','f'),(1,99075,'Rhode Isla','Georgia'),(NULL,99076,'p','was'),
+(168,99077,'Tennessee','Minnesota'),(18349,99078,'x','Rhode Island'),
+(5,99079,'as','d'),(12217,99080,'c','i'),(0,99081,'rdvdxboydm','s'),
+(19132,99082,'her','jerdvdxboydmpefbiesqbyyvdftsidjtvulamazljxpgiwmbn'),
+(0,99083,'all','jhjerdvdxboydmpefbiesqbyyvdftsidjtvulamazljx'),
+(32767,99084,'s','flj'),(-4947,99085,'something','Vermont'),
+(0,99086,'cjfljhjerd','Washington');
+--enable_query_log
+--enable_result_log
 
+SELECT COUNT(*) FROM t1 IGNORE INDEX (idx2,idx3)
+  WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+  (pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
+SELECT COUNT(*) FROM t1 
+  WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+  (pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
+EXPLAIN
+SELECT COUNT(*) FROM t1 
+  WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+  (pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
 
-
+DROP TABLE t1;

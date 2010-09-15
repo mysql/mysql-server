@@ -1360,3 +1360,29 @@ id	c1	c2	c3
 select * from t1 where (c1='      100000' or c2='         2000000') and c3='2';
 id	c1	c2	c3
 drop table t1;
+CREATE TABLE t1 (
+a smallint DEFAULT NULL,
+pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+b varchar(10) DEFAULT NULL,
+c varchar(64) DEFAULT NULL,
+INDEX idx1 (a),
+INDEX idx2 (b),
+INDEX idx3 (c)
+);
+SELECT COUNT(*) FROM t1 IGNORE INDEX (idx2,idx3)
+WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+(pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
+COUNT(*)
+5
+SELECT COUNT(*) FROM t1 
+WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+(pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
+COUNT(*)
+5
+EXPLAIN
+SELECT COUNT(*) FROM t1 
+WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+(pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	PRIMARY,idx1,idx2,idx3	idx3,idx2,PRIMARY,idx1	67,13,4,3	NULL	8	Using sort_union(idx3,idx2,PRIMARY,idx1); Using where
+DROP TABLE t1;

@@ -890,10 +890,12 @@ public:
   int and_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree, 
                    SEL_IMERGE *new_imerge);
   int or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
+                              uint n_init_trees, 
                               SEL_TREE *new_tree,
                               bool is_first_check_pass,
                               bool *is_last_check_pass);
   int or_sel_imerge_with_checks(RANGE_OPT_PARAM *param,
+                                uint n_init_trees,
                                 SEL_IMERGE* imerge,
                                 bool is_first_check_pass,
                                 bool *is_last_check_pass);
@@ -1025,7 +1027,8 @@ int SEL_IMERGE::and_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree,
 
   SYNOPSIS
     or_sel_tree_with_checks()
-      param                  Context info for the operation         
+      param                  Context info for the operation 
+      n_trees                Number of trees in this imerge to check for oring        
       tree                   SEL_TREE whose range part is to be ored 
       is_first_check_pass    <=> the first call of the function for this imerge  
       is_last_check_pass OUT <=> no more calls of the function for this imerge
@@ -1075,14 +1078,14 @@ int SEL_IMERGE::and_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree,
 */
 
 int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
+                                        uint n_trees,
                                         SEL_TREE *tree,
                                         bool is_first_check_pass,
                                         bool *is_last_check_pass)
 {
-  *is_last_check_pass= TRUE; 
-  for (SEL_TREE** or_tree = trees;
-       or_tree != trees_next;
-       or_tree++)
+  *is_last_check_pass= TRUE;
+  SEL_TREE** or_tree = trees;
+  for (uint i= 0; i < n_trees; i++, or_tree++)
   {
     SEL_TREE *result= 0;
     key_map result_keys;
@@ -1116,7 +1119,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
               (key1)->test_use_count(key1);
             }
 #endif
-          }
+          }       
         }
       }
       else if(is_first_check_pass) 
@@ -1152,8 +1155,9 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
   Perform OR operation on this imerge and and another imerge
 
   SYNOPSIS
-    or_sel_tree_with_checks()
-      param                  Context info for the operation         
+    or_sel_imerge_with_checks()
+      param                  Context info for the operation 
+      n_trees           Number of trees in this imerge to check for oring        
       imerge                 The second operand of the operation 
       is_first_check_pass    <=> the first call of the function for this imerge  
       is_last_check_pass OUT <=> no more calls of the function for this imerge
@@ -1176,18 +1180,19 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
 */
 
 int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param,
+                                          uint n_trees,
                                           SEL_IMERGE* imerge,
                                           bool is_first_check_pass,
                                           bool *is_last_check_pass)
 {
   *is_last_check_pass= TRUE;
-  for (SEL_TREE** tree= imerge->trees;
-       tree != imerge->trees_next;
-       tree++)
+  SEL_TREE** tree= imerge->trees;
+  for (uint i= 0; i < n_trees; i++, tree++)
   {
     uint rc;
-    bool is_last; 
-    rc= or_sel_tree_with_checks(param, *tree, is_first_check_pass, &is_last);
+    bool is_last= TRUE; 
+    rc= or_sel_tree_with_checks(param, n_trees, *tree, 
+                               is_first_check_pass, &is_last);
     if (!is_last)
       *is_last_check_pass= FALSE;
     if (rc)
@@ -1368,7 +1373,7 @@ int imerge_list_or_list(RANGE_OPT_PARAM *param,
   im1->empty();
   im1->push_back(imerge);
 
-  rc= imerge->or_sel_imerge_with_checks(param, im2->head(),
+  rc= imerge->or_sel_imerge_with_checks(param, elems, im2->head(),
                                         TRUE, &is_last_check_pass);
   if (rc)
   {
@@ -1386,7 +1391,7 @@ int imerge_list_or_list(RANGE_OPT_PARAM *param,
     if (new_imerge)
     {
       is_last_check_pass= TRUE;
-      rc= new_imerge->or_sel_imerge_with_checks(param, im2->head(),
+      rc= new_imerge->or_sel_imerge_with_checks(param, elems, im2->head(),
                                                  FALSE, &is_last_check_pass);
       if (!rc)
         im1->push_back(new_imerge); 
@@ -1463,14 +1468,14 @@ int imerge_list_or_tree(RANGE_OPT_PARAM *param,
     if (or_tree)
     {
       uint elems= imerge->trees_next-imerge->trees;
-      rc= imerge->or_sel_tree_with_checks(param, or_tree,
+      rc= imerge->or_sel_tree_with_checks(param, elems, or_tree,
                                           TRUE, &is_last_check_pass);
       if (!is_last_check_pass)
       {
         SEL_IMERGE *new_imerge= new SEL_IMERGE(imerge, elems, param);
         if (new_imerge)
 	{ 
-          rc1= new_imerge->or_sel_tree_with_checks(param, or_tree,
+          rc1= new_imerge->or_sel_tree_with_checks(param, elems, or_tree,
                                                    FALSE, &is_last_check_pass);
           if (!rc1)
             additional_merges.push_back(new_imerge);
