@@ -1079,7 +1079,8 @@ void check_command_args(struct st_command *command,
   DBUG_VOID_RETURN;
 }
 
-void handle_command_error(struct st_command *command, uint error)
+void handle_command_error(struct st_command *command, uint error,
+                          int sys_errno)
 {
   DBUG_ENTER("handle_command_error");
   DBUG_PRINT("enter", ("error: %d", error));
@@ -1095,12 +1096,13 @@ void handle_command_error(struct st_command *command, uint error)
 
     if (i >= 0)
     {
-      DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
-                          command->first_word_len, command->query, error));
+      DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %u, errno: %d",
+                          command->first_word_len, command->query, error,
+                          sys_errno));
       DBUG_VOID_RETURN;
     }
-    die("command \"%.*s\" failed with wrong error: %d",
-        command->first_word_len, command->query, error);
+    die("command \"%.*s\" failed with wrong error: %u, errno: %d",
+        command->first_word_len, command->query, error, sys_errno);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1809,7 +1811,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   {
     my_close(fd, MYF(0));
     /* Remove the temporary file */
-    my_delete(temp_file_path, MYF(0));
+    my_delete(temp_file_path, MYF(MY_WME));
     die("Failed to write file '%s'", temp_file_path);
   }
 
@@ -1817,7 +1819,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 
   my_close(fd, MYF(0));
   /* Remove the temporary file */
-  my_delete(temp_file_path, MYF(0));
+  my_delete(temp_file_path, MYF(MY_WME));
 
   DBUG_RETURN(error);
 }
@@ -2931,8 +2933,8 @@ void do_remove_file(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
-  error= my_delete(ds_filename.str, MYF(0)) != 0;
-  handle_command_error(command, error);
+  error= my_delete(ds_filename.str, MYF(disable_warnings ? 0 : MY_WME)) != 0;
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
 }
@@ -2950,7 +2952,7 @@ void do_remove_file(struct st_command *command)
 
 void do_remove_files_wildcard(struct st_command *command)
 {
-  int error= 0;
+  int error= 0, sys_errno= 0;
   uint i;
   MY_DIR *dir_info;
   FILEINFO *file;
@@ -2974,9 +2976,10 @@ void do_remove_files_wildcard(struct st_command *command)
 
   DBUG_PRINT("info", ("listing directory: %s", dirname));
   /* Note that my_dir sorts the list if not given any flags */
-  if (!(dir_info= my_dir(dirname, MYF(MY_DONT_SORT | MY_WANT_STAT))))
+  if (!(dir_info= my_dir(dirname, MYF(MY_DONT_SORT | MY_WANT_STAT | MY_WME))))
   {
     error= 1;
+    sys_errno= my_errno;
     goto end;
   }
   init_dynamic_string(&ds_file_to_remove, dirname, 1024, 1024);
@@ -2998,14 +3001,15 @@ void do_remove_files_wildcard(struct st_command *command)
     ds_file_to_remove.str[ds_directory.length + 1]= 0;
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
-    error= my_delete(ds_file_to_remove.str, MYF(0)) != 0;
+    if ((error= (my_delete(ds_file_to_remove.str, MYF(MY_WME)) != 0)))
+      sys_errno= my_errno;
     if (error)
       break;
   }
   my_dirend(dir_info);
 
 end:
-  handle_command_error(command, error);
+  handle_command_error(command, error, sys_errno);
   dynstr_free(&ds_directory);
   dynstr_free(&ds_wild);
   dynstr_free(&ds_file_to_remove);
@@ -3043,8 +3047,8 @@ void do_copy_file(struct st_command *command)
 
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_copy(ds_from_file.str, ds_to_file.str,
-                  MYF(MY_DONT_OVERWRITE_FILE)) != 0);
-  handle_command_error(command, error);
+                  MYF(MY_DONT_OVERWRITE_FILE | MY_WME)) != 0);
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
   DBUG_VOID_RETURN;
@@ -3079,8 +3083,8 @@ void do_move_file(struct st_command *command)
 
   DBUG_PRINT("info", ("Move %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_rename(ds_from_file.str, ds_to_file.str,
-                    MYF(0)) != 0);
-  handle_command_error(command, error);
+                    MYF(disable_warnings ? 0 : MY_WME)) != 0);
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
   DBUG_VOID_RETURN;
@@ -3100,6 +3104,7 @@ void do_move_file(struct st_command *command)
 
 void do_chmod_file(struct st_command *command)
 {
+  int error;
   long mode= 0;
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
@@ -3120,7 +3125,10 @@ void do_chmod_file(struct st_command *command)
     die("You must write a 4 digit octal number for mode");
 
   DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
-  handle_command_error(command, chmod(ds_file.str, mode));
+  error= 0;
+  if (chmod(ds_file.str, mode))
+    error= 1;
+  handle_command_error(command, error, errno);
   dynstr_free(&ds_mode);
   dynstr_free(&ds_file);
   DBUG_VOID_RETURN;
@@ -3153,7 +3161,7 @@ void do_file_exist(struct st_command *command)
 
   DBUG_PRINT("info", ("Checking for existence of file: %s", ds_filename.str));
   error= (access(ds_filename.str, F_OK) != 0);
-  handle_command_error(command, error);
+  handle_command_error(command, error, errno);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
 }
@@ -3183,8 +3191,8 @@ void do_mkdir(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("creating directory: %s", ds_dirname.str));
-  error= my_mkdir(ds_dirname.str, 0777, MYF(0)) != 0;
-  handle_command_error(command, error);
+  error= my_mkdir(ds_dirname.str, 0777, MYF(MY_WME)) != 0;
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_dirname);
   DBUG_VOID_RETURN;
 }
@@ -3214,7 +3222,7 @@ void do_rmdir(struct st_command *command)
 
   DBUG_PRINT("info", ("removing directory: %s", ds_dirname.str));
   error= rmdir(ds_dirname.str) != 0;
-  handle_command_error(command, error);
+  handle_command_error(command, error, errno);
   dynstr_free(&ds_dirname);
   DBUG_VOID_RETURN;
 }
@@ -3288,7 +3296,7 @@ static void do_list_files(struct st_command *command)
                      sizeof(list_files_args)/sizeof(struct command_arg), ' ');
 
   error= get_list_files(&ds_res, &ds_dirname, &ds_wild);
-  handle_command_error(command, error);
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_dirname);
   dynstr_free(&ds_wild);
   DBUG_VOID_RETURN;
@@ -3330,7 +3338,7 @@ static void do_list_files_write_file_command(struct st_command *command,
 
   init_dynamic_string(&ds_content, "", 1024, 1024);
   error= get_list_files(&ds_content, &ds_dirname, &ds_wild);
-  handle_command_error(command, error);
+  handle_command_error(command, error, my_errno);
   str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
   dynstr_free(&ds_content);
   dynstr_free(&ds_filename);
@@ -3612,7 +3620,7 @@ void do_diff_files(struct st_command *command)
 
   dynstr_free(&ds_filename);
   dynstr_free(&ds_filename2);
-  handle_command_error(command, error);
+  handle_command_error(command, error, -1);
   DBUG_VOID_RETURN;
 }
 
@@ -3818,9 +3826,9 @@ void do_perl(struct st_command *command)
     error= pclose(res_file);
 
     /* Remove the temporary file */
-    my_delete(temp_file_path, MYF(0));
+    my_delete(temp_file_path, MYF(MY_WME));
 
-    handle_command_error(command, WEXITSTATUS(error));
+    handle_command_error(command, WEXITSTATUS(error), my_errno);
   }
   dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
@@ -8199,12 +8207,12 @@ int main(int argc, char **argv)
         command->last_argument= command->end;
 	break;
       case Q_PING:
-        handle_command_error(command, mysql_ping(&cur_con->mysql));
+        handle_command_error(command, mysql_ping(&cur_con->mysql), -1);
         break;
       case Q_SEND_SHUTDOWN:
         handle_command_error(command,
                              mysql_shutdown(&cur_con->mysql,
-                                            SHUTDOWN_DEFAULT));
+                                            SHUTDOWN_DEFAULT), -1);
         break;
       case Q_SHUTDOWN_SERVER:
         do_shutdown_server(command);
