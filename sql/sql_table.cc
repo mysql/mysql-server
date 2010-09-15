@@ -6442,7 +6442,10 @@ int mysql_fast_or_online_alter_table(THD *thd,
       Tell the handler that the changed frm is on disk and table
       has been re-opened
    */
-    if ((error= t_table->file->alter_table_phase3(thd, t_table)))
+    if ((error= t_table->file->alter_table_phase3(thd, t_table,
+                                                  create_info,
+                                                  alter_info,
+                                                  ha_alter_flags)))
     {
       goto err;
     }
