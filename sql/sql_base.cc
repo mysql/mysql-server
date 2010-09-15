@@ -5165,6 +5165,8 @@ static bool check_lock_and_start_stmt(THD *thd,
   @param[in]    lock_type       lock to use for table
   @param[in]    flags           options to be used while opening and locking
                                 table (see open_table(), mysql_lock_tables())
+  @param[in]    prelocking_strategy  Strategy which specifies how prelocking
+                                     algorithm should work for this statement.
 
   @return       table
     @retval     != NULL         OK, opened table returned
@@ -5190,7 +5192,8 @@ static bool check_lock_and_start_stmt(THD *thd,
 */
 
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type, uint flags)
+                                thr_lock_type lock_type, uint flags,
+                                Prelocking_strategy *prelocking_strategy)
 {
   TABLE_LIST *save_next_global;
   DBUG_ENTER("open_n_lock_single_table");
@@ -5206,7 +5209,8 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
   table_l->required_type= FRMTYPE_TABLE;
 
   /* Open the table. */
-  if (open_and_lock_tables(thd, table_l, FALSE, flags))
+  if (open_and_lock_tables(thd, table_l, FALSE, flags,
+                           prelocking_strategy))
     table_l->table= NULL; /* Just to be sure. */
 
   /* Restore list. */
