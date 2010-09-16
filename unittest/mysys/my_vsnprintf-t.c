@@ -31,7 +31,7 @@ void test1(const char *res, const char *fmt, ...)
 
 int main(void)
 {
-  plan(54);
+  plan(58);
 
   test1("Constant string",
         "Constant string");
@@ -44,6 +44,8 @@ int main(void)
         "Format specifier c %c", '!');
   test1("Format specifier d 1",
         "Format specifier d %d", 1);
+  test1("Format specifier i 1",
+        "Format specifier i %i", 1);
   test1("Format specifier u 2",
         "Format specifier u %u", 2);
   test1("Format specifier o 375",
@@ -76,6 +78,9 @@ int main(void)
 
   test1("Length modifiers work: 1 * -1 * 2 * 3",
         "Length modifiers work: %d * %ld * %lld * %zd", 1, -1L, 2LL, (size_t)3);
+
+  test1("Length modifiers work: 1 * -1 * 2 * 3",
+        "Length modifiers work: %i * %li * %lli * %zd", 1, -1L, 2LL, (size_t)3);
 
   test1("long long X: 123456789abcdef0",
         "long long X: %llx", 0x123456789abcdef0LL);
@@ -121,6 +126,10 @@ int main(void)
         "Hello int, %d", 1);
   test1("Hello int, -1",
         "Hello int, %d", -1);
+  test1("Hello int, 1",
+        "Hello int, %i", 1);
+  test1("Hello int, -1",
+        "Hello int, %i", -1);
   test1("Hello string 'I am a string'",
         "Hello string '%s'", "I am a string");
   test1("Hello hack hack hack hack hack hack hack 1",
