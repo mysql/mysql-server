@@ -106,6 +106,10 @@ le_malloc(OMT omt, struct mempool *mp, size_t size, void **maybe_free)
 }
 
 
+/////////////////////////////////////////////////////////////////////
+// Garbage collection related functions
+//
+
 static TXNID
 get_next_older_txnid(TXNID xc, OMT omt) {
     int r;
@@ -434,6 +438,9 @@ struct __attribute__ ((__packed__)) leafentry {
 #endif
 
 
+//
+// required for every le_unpack that is done
+//
 void
 ule_cleanup(ULE ule) {
     invariant(ule->uxrs);
