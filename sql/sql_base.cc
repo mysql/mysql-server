@@ -7658,6 +7658,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   List_iterator<Item> it(fields);
   bool save_is_item_list_lookup;
+  JOIN *join= thd->lex->current_select->join;
   DBUG_ENTER("setup_fields");
 
   thd->mark_used_columns= mark_used_columns;
@@ -7717,6 +7718,8 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->used_tables|= item->used_tables();
+    if (join)
+      join->used_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
@@ -8063,7 +8066,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       views and natural joins this update is performed inside the loop below.
     */
     if (table)
+    {
       thd->used_tables|= table->map;
+      if (thd->lex->current_select->join)
+        thd->lex->current_select->join->used_tables|=table->map;
+    }
 
     /*
       Initialize a generic field iterator for the current table reference.
@@ -8149,6 +8156,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           if (field_table)
           {
             thd->used_tables|= field_table->map;
+            thd->lex->current_select->join->used_tables|= field_table->map;
             field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
@@ -8156,7 +8164,10 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         }
       }
       else
+      {
         thd->used_tables|= item->used_tables();
+        thd->lex->current_select->join->used_tables|= item->used_tables();
+      }
       thd->lex->current_select->cur_pos_in_select_list++;
     }
     /*

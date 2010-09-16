@@ -4830,9 +4830,12 @@ void TABLE::use_index(int key_to_save)
     key_info= s->key_info= 0;
     s->key_parts= 0;
     s->keys= 0;
+    covering_keys.clear_all();
   } else {
     s->keys= 1;
     s->key_parts= key_info[0].key_parts;
+    if (covering_keys.is_set(key_to_save))
+      covering_keys.set_prefix(1);
   }
 }
 

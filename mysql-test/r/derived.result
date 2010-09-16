@@ -516,3 +516,38 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP TABLE CC;
 DROP TABLE C;
 # End of test for bug#55950
+#
+# Bug#56592: Subquery with DISTINCT in FROM clause returns only partial
+# result
+#
+CREATE TABLE `t1` (
+`pk` int(11) NOT NULL,
+`col_int_key` int(11) DEFAULT NULL,
+`col_datetime_key` datetime DEFAULT NULL
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2, 9, NULL), (3, 3, '1900-01-01 00:00:00'),
+(8, 8, '1900-01-01 00:00:00'), (15, 0, '2007-12-15 12:39:34');
+SELECT * FROM ( 
+SELECT DISTINCT tableB.col_datetime_key 
+FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+col_datetime_key
+NULL
+1900-01-01 00:00:00
+EXPLAIN SELECT * FROM ( 
+SELECT DISTINCT tableB.col_datetime_key 
+FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	
+2	DERIVED	tableA	ALL	NULL	NULL	NULL	NULL	4	Using temporary
+2	DERIVED	tableB	ALL	NULL	NULL	NULL	NULL	4	
+EXPLAIN SELECT * FROM ( 
+SELECT DISTINCT tableA.col_datetime_key 
+FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	
+2	DERIVED	tableA	ALL	NULL	NULL	NULL	NULL	4	Using temporary
+2	DERIVED	tableB	ALL	NULL	NULL	NULL	NULL	4	Distinct
+DROP TABLE t1;
