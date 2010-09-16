@@ -3543,12 +3543,17 @@ bool JOIN::choose_subquery_plan()
                               select_lex->master_unit()->item;
 
   /* Always revert to IN->EXISTS. */
-  mat_strategy_cost= 1;
-  in_exists_strategy_cost= 0;
+  mat_strategy_cost= 0;
+  in_exists_strategy_cost= 1;
 
-  if (mat_strategy_cost < in_exists_strategy_cost)
+  /*
+    If (1) materialization is a possible strategy based on static analysis, and
+    (2) it is cheaper strategy than the IN->EXISTS transformation, then compute
+    in_subs via the materialization trategy.
+  */
+  if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION && // 1
+      mat_strategy_cost < in_exists_strategy_cost)                  // 2
   {
-    in_subs->exec_method = Item_in_subselect::MATERIALIZATION;
     if (in_subs->setup_mat_engine())
     {
       /*
