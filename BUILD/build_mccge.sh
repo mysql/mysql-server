@@ -63,40 +63,49 @@ sysadmin_usage()
 cat <<EOF
 
   This script can be used to build MySQL Cluster Carrier Grade Edition
-  based on a source code release you received from MySQL.
+  based on a source code release you received from MySQL. It can also
+  be used to build many variants other variants of MySQL, in particular
+  various performance-optimised versions of MySQL.
 
   It is assumed that you are building on a computer which is of the 
-  same type as that on which you intend to run MySQL Cluster.
+  same type as that on which you intend to run MySQL/MySQL Cluster.
 
   The simplest possible way to run this script is to allow it to use the 
-  built-in defaults everywhere, invoking it simply as:
+  built-in defaults everywhere, invoking it simply as (from top-level
+  MySQL directory):
 
-  shell> ./build_mccge.sh
+  shell> BUILD/build_mccge.sh
 
   This performs the following operations:
     1) Detects the operating system. Currently, Linux, FreeBSD, Solaris 
-      10/11, and Mac OS X are supported by this script.
+      8/9/10/11, and Mac OS X are supported by this script.
     2) Detect the type of CPU being used. Currently supported processors 
       are: x86 for all supported operating systems, Itanium for Linux 
-      with GCC, and SPARC for Solaris using the Forte compiler.
+      with GCC, and x86 + SPARC for Solaris using the Forte compiler and
+      finally x86 on Linux using the Intel compiler.
     3) Invokes the GCC compiler.
-    4) Builds a set of MySQL Cluster Carrier Grade Edition binaries; for
+    4) Builds a set of MySQL/MySQL Cluster binaries; for
       more information about these, see --extended-help.
+    5) Default compiler is always gcc.
   
   The default version assumes that you have a source code tarball from 
   which you are building, and thus autoconf and automake do not need to 
   be run. If you have downloaded a BitKeeper tree then you should read 
   --developer-help.
 
-  If you are building MySQL Cluster Carrier Grade Edition for commercial 
+  If you are building MySQL/MySQL Cluster for commercial 
   use then you need to set the --commercial flag to ensure that the 
   commercial libraries are compiled in, rather than the GPL-only 
   libraries. The default is to build a GPL version of MySQL Cluster 
   Carrier Grade Edition.
 
-  If your building on a Solaris SPARC machine you must set 
+  If your building on a Solaris SPARC machine and you want to compile
+  using SunStudio you must set 
   --compiler=forte; if you want to build using the Intel compiler on 
   Linux, you need to set --compiler=icc.
+
+  A synonym for forte is SunStudio, so one can also use
+  --compiler=SunStudio.
 
   If you want to make sure that a 64-bit version is built then you 
   should add the flag --64. This is always set on Solaris machines and 
@@ -120,7 +129,7 @@ cat <<EOF
   information in the binary then use --debug.
 
   If your aim is not to build MySQL Cluster Carrier Grade Edition, you 
-  can also use this script to build MySQL Classic and MySQL Pro 
+  can also use this script to build MySQL Classic and MySQL Enterprise Pro 
   versions; see the --extended-help for descriptions of these packages.
 EOF
 }
@@ -133,13 +142,20 @@ Usage: $0 [options]
   --help                  Show this help message.
   --sysadmin-help         Show help for system administrators wishing 
                           to build MySQL Cluster Carrier Grade Edition
+                          or other MySQL versions.
   --developer-help        Show help for developers trying to build MySQL
   --with-help             Show extended help on --with-xxx options to 
                           configure
   --extended-help         Show extended help message
   --without-debug         Build non-debug version
+  --use-comment           Set the comment in the build
+  --with-fast-mutexes     Use try/retry method of acquiring mutex
   --with-debug            Build debug version
   --with-debug=full       Build with full debug.
+  --with-link-time-optimizer
+                          Link time optimizations enabled (Requires GCC 4.5
+                          if GCC used), available for icc as well. This flag
+                          is only considered if also fast is set.
   --configure-only        Stop after running configure.
   --use-autotools         Start by running autoconf, automake,.. tools
   --no-autotools          Start from configure
@@ -155,10 +171,10 @@ Usage: $0 [options]
                           MySQL use
   --commercial            Use commercial libraries
   --gpl                   Use gpl libraries
-  --compiler=[gcc|icc|forte]                  Select compiler
-  --cpu=[x86|x86_64|sparc]                    Select CPU type
-                          x86 => 32-bit binary
-                          x86_64 => 64 bit binary unless Mac OS X
+  --compiler=[gcc|icc|forte|SunStudio]        Select compiler
+  --cpu=[x86|x86_64|sparc|itanium]            Select CPU type
+                          x86 => x86 and 32-bit binary
+                          x86_64 => x86 and 64 bit binary
   --warning-mode=[extra|pedantic|normal|no]   Set warning mode level
   --warnings              Set warning mode to normal
   --32                    Build a 32-bit binary even if CPU is 64-bit
@@ -170,8 +186,9 @@ Usage: $0 [options]
   --error-inject          Enable error injection into MySQL Server and 
                           data nodes
   --valgrind              Build with valgrind
-  --fast                  Optimise for CPU architecture buildt on
+  --fast                  Optimise for CPU architecture built on
   --static-linking        Statically link system libraries into binaries
+  --use-tcmalloc          Link with tcmalloc instead of standard malloc (Linux only)
   --with-flags *          Pass extra --with-xxx options to configure
 EOF
   if test "x$1" != "x" ; then
@@ -186,13 +203,14 @@ extended_usage()
   Extended help text for this script:
   -----------------------------------
   This script is intended to make it easier for customers using MySQL
-  Cluster Carrier Grade Edition to build the product from source on 
-  these platforms/compilers: Linux/x86 (32-bit and 64-bit),
-  Solaris 10 and 11/x86/gcc, Solaris 9/Sparc/Forte, and MacOSX/x86/gcc. 
-  The script automatically detects CPU type and operating system; in 
-  most cases this also determines which compiler to use, the exception 
-  being Linux/x86 where you can choose between gcc and icc (gcc is the
-  default).
+  Cluster Carrier Grade Edition, customers using performance-optimised
+  MySQL versions and developers to build the product from source on 
+  these platforms/compilers: Linux/x86 (32-bit and 64-bit) (either using
+  gcc or icc), Linux Itanium, Solaris 8,9,10 and 11 x86 and SPARC using
+  gcc or SunStudio and MacOSX/x86/gcc.
+
+  The script automatically detects CPU type and operating system; The
+  default compiler is always gcc.
 
   To build on other platforms you can use the --print-only option on a
   supported platform and edit the output for a proper set of commands on
@@ -213,7 +231,7 @@ extended_usage()
 
   --package=cge
     storage engines:
-      ARCHIVE, BLACKHOLE, CSV, EXAMPLE, FEDERATED, MYISAM, NDB
+      ARCHIVE, BLACKHOLE, CSV, FEDERATED, MYISAM, NDB
       (All storage engines except InnoDB)
     comment: MySQL Cluster Carrier Grade Edition GPL/Commercial version 
              built from source
@@ -221,7 +239,7 @@ extended_usage()
 
   --package=extended
     storage engines:
-      ARCHIVE, BLACKHOLE, CSV, EXAMPLE, FEDERATED, MYISAM, INNODB, NDB
+      ARCHIVE, BLACKHOLE, CSV, FEDERATED, MYISAM, INNODB, NDB
       (All storage engines)
     comment: MySQL Cluster Carrier Grade Extended Edition GPL/Commercial 
              version built from source
@@ -229,7 +247,7 @@ extended_usage()
 
   --package=pro
     storage engines:
-      ARCHIVE, BLACKHOLE, CSV, EXAMPLE, FEDERATED, INNODB, MYISAM
+      ARCHIVE, BLACKHOLE, CSV, FEDERATED, INNODB, MYISAM
       (All storage engines except NDB)
     comment: MySQL Pro GPL/Commercial version built from 
              source
@@ -291,10 +309,15 @@ extended_usage()
     by MySQL (cannot be overridden).
 
   --with-ssl: Enable use of yaSSL library included in the MySQL source
+    if possible (GCC and same CC and CXX).
     (cannot be overridden).
 
   --with-pic: Build all binaries using position independent assembler
     to avoid problems with dynamic linkers (cannot be overridden).
+
+  --without-example-engine: Ensure that the example engine isn't built,
+    it cannot do any useful things, it's merely intended as documentation.
+    (cannot be overridden)
 
   --with-csv-storage-engine: Ensure that the CSV storage engine is
     included in all builds. Since CSV is required for log tables in
@@ -313,10 +336,6 @@ extended_usage()
 
   In addition there are some configure options that are specific to
   Linux operating systems:
-
-  --with-fast-mutexes
-    Include an alternative implementation of mutexes that is faster on
-    Linux systems
 
   --enable-assembler
     Include assembler code optimisations for a number of mostly string
@@ -364,17 +383,24 @@ extended_usage()
 
   --with-mysqld-libs=-lmtmalloc
     Used on Solaris to ensure that the proper malloc library is used.
+    Investigations have shown mtmalloc to be the best choice on Solaris,
+    also umem has good performance on Solaris but better debugging
+    capabilities.
 
   Compiler options:
   -----------------
 
-  This section describes the compiler options for each of the different
-  platforms supported by thisscript.
+    This section describes the compiler options for each of the different
+    platforms supported by this script.
 
-  The --fast option adds -mtune=cpu_arg to the C/C++ flags (provides
-  support for Nocona, K8, and other processors).
+    The --fast option adds -mtune=cpu_arg to the C/C++ flags (provides
+    support for Nocona, K8, and other processors).
 
-  Use of the --debug option adds -g to the C/C++ flags.
+    Use of the --debug option adds -g to the C/C++ flags.
+
+    In all cases it is possible to override the definition of CC and CXX
+    by calling the script as follows:
+    CC="/usr/local/bin/gcc" CXX="/usr/local/bin/gcc" BUILD/build_mccge.sh
 
   FreeBSD/x86/gcc
   ---------------
@@ -383,8 +409,7 @@ extended_usage()
 
   Linux/x86+Itanium/gcc
   -------------
-    No flags are used. Instead the configure script determines the
-    proper flags to use for both normal and debug builds. Discovery of a
+    For debug builds -O is used and otherwise -O3 is used.Discovery of a
     Nocona or Core 2 Duo CPU causes a 64-bit binary to be built;
     otherwise, the binary is 32-bit. To build a 64-bit binary, -m64 is
     added to the C/C++ flags. (To build a 32-bit binary on a 64-bit CPU,
@@ -393,48 +418,105 @@ extended_usage()
   Linux/x86+Itanium/icc
   -------------
     Flags used:
-    CC  = icc -static-libgcc -static-libcxa -i-static
-    C++ = icpc -static-libgcc -static-libcxa -i-static
+    CC  = icc -static-libgcc -static-intel
+    C++ = icpc -static-libgcc -static-intel
     C/C++ flags = -mp -restrict
 
-    On Itanium we also add -no-ftz and -no-prefetch to CC and C++ flags.
+    On Itanium we also add -no-ftz and to CC and C++ flags.
 
-  The non-debug versions also add the following:
-    C/C++ flags += -O3 unroll2 -ip
+    Note that if the user of this script sets CC or CXX explicitly then
+    also -static-libgcc and -static-intel needs to be set in the CC and
+    CXX.
 
-  The fast version adds:
-    C/C++ flags += -ipo
+    The non-debug versions also add the following:
+      C/C++ flags += -O3 unroll2 -ip
 
-  On discovery of a Core 2 Duo architecture while using icc, -xT is also 
-  added to the C/C++ flags; this provides optimisations specific to Core 
-  2 Duo. This is added only when the --fast flag is set.
+    The fast version adds (if --with-link-time-optimizer is used):
+      C/C++ flags += -ipo
+
+    On discovery of a Core 2 Duo architecture while using icc, -xT is also 
+    added to the C/C++ flags; this provides optimisations specific to Core 
+    2 Duo. This is added only when the --fast flag is set.
 
   Solaris/x86/gcc
   ---------------
-    All builds on Solaris are 64-bit, so -m64 is always used in the
-    C/C++ flags. LDFLAGS is set to -m64 -static-libgcc -O/-O2.
+    All builds on Solaris are by default 64-bit, so -m64 is always used in
+    the C/C++ flags. LDFLAGS is set to -m64 -O/-O2/-O3. If for
+    some reason a 32-bit Solaris is used it is necessary to add the flag
+    --32 to the script invocation. Due to bugs in compiling with -O3 on
+    Solaris only -O2 is used by default, when --fast flag is used -O3 will
+    be used instead.
+
+    Sets -m64 (default) or -m32 (if specifically set) in LDFLAGS and
+    C/C++ flags.
 
   Solaris/Sparc/Forte
   -------------------
-    Uses cc-5.0 as CC
-    Sets ASFLAGS=LDFLAGS=xarch=v9, so that we compile Sparc v9 binaries
-    C flags   = -Xa -strconst -xc99=none
+    Uses cc as CC and CC as CXX
+    Note that SunStudio uses different binaries for C and C++ compilers.
+
+    Set -m64 (default) or -m32 (if specifically set) in ASFLAGS,
+    LDFLAGS and C/C++ flags.
+
+    Sets ASFLAGS=LDFLAGS=compiler flags=xarch=sparc, so that we compile
+    Sparc v9 binaries, also -mt is set in all those since we're always
+    building a multithreaded program.
+
+    C flags   = -xstrconst    This flag is set only on SPARC
     C++ flags = -noex
-    C/C++ flags = -mt -D_FORTEC -xarch=v9
 
-    For non-debug builds, the following flags are also used:
+    Set the following C/C++ flags:
+    -fsimple=1
+    -ftrap=%none
+    -nofstore          This flag is set only on x86
+    -xbuiltin=%all
+    -xlibmil
+    -xlibmopt
 
-    C/C++ flags = -xO3
+    Set the C++ flag:
+    -noex
+    -features=no%except    This flag is set only on x86
+
+    When compiling with fast we set (-ipo only used if we have
+    set --with-link-time-optimizer):
+    C/C++ flags: -xtarget=native -xunroll=3 -xipo
+    LDFLAGS: -xipo
+
+    When not compiling with fast we always set -xtarget=generic
+
+    When compiling with fast on SPARC we also set:
+    C/C++ flags: -xbinopt=prepare
+    LDFLAGS: -xbinopt=prepare
+
+    When compiling with fast on x86 we also set:
+    C/C++ flags: -xregs=frameptr
+    When not compiling with fast we set on x86
+    C/C++ flags: -xregs=no%frameptr
+
+    On SPARC we set
+    ASFLAGS = LDFLAGS = C/C++ flags = -xarch=sparc
+
+    The optimisation level is
+    -xO         Debug builds
+    -xO2        Production build on SPARC
+    -xO3        Production build on x86
+    -xO4        Fast builds on SPARC/x86
 
   MacOSX/x86/gcc
   --------------
-  C/C++ flags include -fno-common -arch i386.
+    C/C++ flags include -fno-common -arch i386.
+    When 64-bits builds then i386 is replaced by x86_64.
 
-  Non-debug versions also add -Os -felide-constructors, where "-Os"
-  means the build is space-optimised as long as the space optimisations
-  do not negatively affect performance. Debug versions use -O.
+    Non-debug versions also add -Os -felide-constructors, where "-Os"
+    means the build is space-optimised as long as the space optimisations
+    do not negatively affect performance. Debug versions use -O.
+  
+    Mac OS X builds will always be 32-bit by default, when --64 is added
+    the build will be 64 bit instead. Thus the flag --m64 is added only
+    when specifically given as an option.
 EOF
 }
+
 with_usage()
 {
   cat <<EOF
@@ -495,7 +577,7 @@ parse_package()
       package="pro"
       ;;
     extended )
-      package=""
+      package="extended"
       ;;
     cge )
       package="cge"
@@ -537,11 +619,15 @@ parse_cpu_type()
   case "$cpu_type" in
     x86 )
       cpu_type="x86"
-      m32="yes"
+      if test "x$m64" = "x" ; then
+        m64="no"
+      fi
       ;;
     x86_64 )
       cpu_type="x86"
-      m64="yes"
+      if test "x$m64" = "x" ; then
+        m64="yes"
+      fi
       ;;
     itanium )
       cpu_type="itanium"
@@ -569,7 +655,7 @@ parse_compiler()
     icc )
       compiler="icc"
       ;;
-    forte )
+    forte | SunStudio | sunstudio )
       compiler="forte"
       ;;
     *)
@@ -590,6 +676,9 @@ parse_options()
     --datadir=*)
       datadir=`get_key_value "$1"`
       ;;
+    --with-link-time-optimizer)
+      with_link_time_optimizer="yes"
+      ;;
     --with-debug=full)
       full_debug="=full"
       with_debug_flag="yes"
@@ -600,6 +689,15 @@ parse_options()
       if test "x$fast_flag" != "xyes" ; then
         fast_flag="generic"
       fi
+      ;;
+    --use-comment)
+      without_comment="no"
+      ;;
+    --with-fast-mutexes)
+      with_fast_mutexes="yes"
+      ;;
+    --use-tcmalloc)
+      use_tcmalloc="yes"
       ;;
     --with-debug)
       with_debug_flag="yes"
@@ -636,17 +734,19 @@ parse_options()
       warning_mode="normal"
       ;;
     --32)
-      if test "x$m64" != "x" ; then
+      if test "x$explicit_size_set" != "x" ; then
         echo "Cannot set both --32 and --64"
         exit 1
       fi
-      m32="yes"
+      explicit_size_set="yes"
+      m64="no"
       ;;
     --64)
-      if test "x$m32" != "x" ; then
+      if test "x$explicit_size_set" != "x" ; then
         echo "Cannot set both --32 and --64"
         exit 1
       fi
+      explicit_size_set="yes"
       m64="yes"
       ;;
     --package=*)
@@ -750,13 +850,15 @@ set_cpu_base()
   if test "x$cpu_type" = "x" ; then
     if test "x$cpu_arg" = "x" ; then
       usage "CPU type not discovered, cannot proceed"
-      return 1
+      exit 1
     fi
     case "$cpu_arg" in
       core2 | nocona | prescott | pentium* | i*86 )
+        # Intel CPU
         cpu_base_type="x86"
         ;;
-      athlon* | opteron* )
+      athlon* | opteron* | k6 | k8 )
+        # AMD CPU
         cpu_base_type="x86"
         ;;
       sparc )
@@ -775,18 +877,20 @@ set_cpu_base()
     check_cpu_cflags=""
   fi
   if test "x$os" = "xMacOSX" ; then
-    m64="no"
+    if test "x$m64" = "x" ; then
+      m64="no"
+    fi
   elif test "x$os" = "xSolaris" ; then
-    m64="yes"
-  elif test "x$m32" = "x" ; then
+    if test "x$m64" = "x" ; then
+      m64="yes"
+    fi
+  elif test "x$m64" = "x" ; then
     if test "x$cpu_arg" = "xnocona" || test "x$cpu_arg" = "xcore2" || \
        test "x$cpu_arg" = "xathlon64" || test "x$cpu_arg" = "xopteron" ; then
       m64="yes"
-    elif test "x$m64" != "xyes" ; then
+    else
       m64="no"
     fi
-  else
-    m64="no"
   fi
   echo "Discovered CPU of type $cpu_base_type ($cpu_arg) on $os"
   if test "x$m64" = "xyes" ; then
@@ -806,18 +910,15 @@ init_configure_commands()
   cxxflags="$cxx_warnings $base_cxxflags $compiler_flags"
   configure="./configure $base_configs $with_flags"
 
-  commands="$commands
-    CC=\"$CC\" CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\""
+  env_flags="CC=\"$CC\" CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\""
   if test "x$LDFLAGS" != "x" ; then
-    commands="$commands
-      LDFLAGS=\"$LDFLAGS\""
+    env_flags="$env_flags LDFLAGS=\"$LDFLAGS\""
   fi
   if test "x$ASFLAGS" != "x" ; then
-    commands="$commands
-      ASFLAGS=\"$ASFLAGS\""
+    env_flags="$env_flags ASFLAGS=\"$ASFLAGS\""
   fi
   commands="$commands
-    $configure"
+    $env_flags $configure"
 } 
 
 #
@@ -920,7 +1021,7 @@ set_libtoolize_version()
 # We do not use ccache when gcov is used. Also only when
 # gcc is used.
 #
-set_up_ccache()
+set_ccache_usage()
 {
   if test "x$compiler" = "xgcc" ; then
     if ccache -V > /dev/null 2>&1 && test "$USING_GCOV" != "1"
@@ -994,7 +1095,7 @@ set_with_debug_flags()
   if test "x$with_debug_flag" = "xyes" ; then
     if test "x$developer_flag" = "xyes" ; then
       loc_debug_flags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
-      loc_debug_flags="$loc_debug_cflags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC"
+      loc_debug_flags="$loc_debug_flags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC"
       compiler_flags="$compiler_flags $loc_debug_flags"
     fi
   fi
@@ -1024,6 +1125,18 @@ set_debug_flag()
 }
 
 #
+# We compile in SSL support if we can, this isn't possible if CXX
+# and CC aren't the same and we're not using GCC.
+# 
+set_ssl()
+{
+  if test "x$compiler" = "xgcc" && \
+     test "x$CC" = "x$CXX" ; then
+    base_configs="$base_configs --with-ssl"
+  fi
+}
+
+#
 # Base options used by all packages
 #
 # SSL library to use. --with-ssl selects the bundled yaSSL
@@ -1048,9 +1161,12 @@ set_base_configs()
   base_configs="$base_configs --enable-thread-safe-client"
   base_configs="$base_configs --with-big-tables"
   base_configs="$base_configs --with-extra-charsets=all"
-  base_configs="$base_configs --with-ssl"
+  if test "x$with_fast_mutexes" = "xyes" ; then
+    base_configs="$base_configs --with-fast-mutexes"
+  fi
   base_configs="$base_configs --with-pic"
   base_configs="$base_configs --with-csv-storage-engine"
+  base_configs="$base_configs --with-perfschema"
 }
 
 #
@@ -1060,18 +1176,30 @@ set_base_configs()
 #
 set_base_engines()
 {
-  engine_configs="$engine_configs --with-archive-storage-engine"
+  engine_configs="--with-archive-storage-engine"
   engine_configs="$engine_configs --with-blackhole-storage-engine"
-  engine_configs="$engine_configs --with-example-storage-engine"
+  engine_configs="$engine_configs --without-example-storage-engine"
   engine_configs="$engine_configs --with-federated-storage-engine"
   engine_configs="$engine_configs --with-partition"
+  base_configs="$base_configs $engine_configs"
+}
+
+set_innodb_engine()
+{
+  base_configs="$base_configs --with-innodb"
+}
+
+set_ndb_engine()
+{
+  base_configs="$base_configs --with-ndbcluster"
+  base_configs="$base_configs --without-ndb-debug"
 }
 
 set_pro_package()
 {
-  base_configs="$base_configs $engine_configs"
-  base_configs="$base_configs --with-innodb"
-  base_configs="$base_configs --with-comment=\"MySQL Pro $version_text built from source\""
+  if test "x$without_comment" != "xyes" ; then
+    base_configs="$base_configs --with-comment=\"MySQL Enterprise Pro $version_text built from source\""
+  fi
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-debug\""
   fi
@@ -1079,40 +1207,37 @@ set_pro_package()
 
 set_cge_extended_package()
 {
-  if test "x$gpl" = "xno" ; then
-    echo "Cannot build Extended Carrier Grade Edition as Commercial version"
+  if test "x$without_comment" != "xyes" ; then
+    base_configs="$base_configs --with-comment=\"MySQL Cluster Carrier Grade Extended Edition $version_text built from source\""
   fi
-  base_configs="$base_configs --with-ndbcluster"
-  base_configs="$base_configs --without-ndb-debug"
-  base_configs="$base_configs $engine_configs"
-  base_configs="$base_configs --with-innodb"
-  base_configs="$base_configs --with-comment=\"MySQL Cluster Carrier Grade Extended Edition $version_text built from source\""
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-cge-extended-debug\""
   else
-    base_configs="$base_configs --with-server-suffix=\"-cge-extended"\"
+    base_configs="$base_configs --with-server-suffix=\"-cge-extended\""
   fi
 }
 
 set_cge_package()
 {
-  base_configs="$base_configs --with-ndbcluster"
-  base_configs="$base_configs --without-ndb-debug"
-  base_configs="$base_configs $engine_configs"
-  base_configs="$base_configs --with-comment=\"MySQL Cluster Carrier Grade Edition $version_text built from source\""
+  if test "x$without_comment" != "xyes" ; then
+    base_configs="$base_configs --with-comment=\"MySQL Cluster Carrier Grade Edition $version_text built from source\""
+  fi
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-cge-debug\""
   else
-    base_configs="$base_configs --with-server-suffix=\"-cge"\"
+    base_configs="$base_configs --with-server-suffix=\"-cge\""
   fi
 }
 
 set_classic_package()
 {
-  base_configs="$base_configs --with-comment=\"MySQL Classic $version_text built from source\""
+  if test "x$without_comment" != "xyes" ; then
+    base_configs="$base_configs --with-comment=\"MySQL Classic $version_text built from source\""
+  fi
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-debug\""
   fi
+  base_configs="$base_configs --without-example-storage-engine"
 }
 
 #
@@ -1137,6 +1262,36 @@ set_gcc_special_options()
 {
   if test "x$fast_flag" = "xyes" && test "x$compiler" = "xgcc" ; then
     compiler_flags="$compiler_flags $check_cpu_cflags"
+  fi
+}
+
+set_cc_and_cxx_for_gcc()
+{
+  if test "x$CC" = "x" ; then
+    CC="gcc -static-libgcc -fno-exceptions"
+  fi
+  if test "x$CXX" = "x" ; then
+    CXX="gcc -static-libgcc -fno-exceptions"
+  fi
+}
+
+set_cc_and_cxx_for_icc()
+{
+  if test "x$CC" = "x" ; then
+    CC="icc -static-intel -static-libgcc"
+  fi
+  if test "x$CXX" = "x" ; then
+    CXX="icpc -static-intel -static-libgcc"
+  fi
+}
+
+set_cc_and_cxx_for_forte()
+{
+  if test "x$CC" = "x" ; then
+    CC="cc"
+  fi
+  if test "x$CXX" = "x" ; then
+    CXX="CC"
   fi
 }
 
@@ -1167,10 +1322,69 @@ set_bsd_configs()
     exit 1
   fi
   base_configs="$base_configs --enable-assembler"
-  CC="gcc"
-  CXX="gcc"
+  if test "x$fast_flag" != "xno" ; then
+    compiler_flags="$compiler_flags -O3"
+  else
+    compiler_flags="$compiler_flags -O0"
+  fi
+  set_cc_and_cxx_for_gcc
 }
 
+check_64_bits()
+{
+  echo "Checking for 32/64-bits compilation"
+  echo "int main() { return 0; }" > temp_test.c
+  if test "x$m64" = "xyes" ; then
+    cmd="$CC $compile_flags -m64 temp_test.c"
+    if ! $cmd 2>1 ; then
+      m64="no"
+      echo "Changing to 32-bits since 64-bits didn't work"
+    else
+      echo "Will use 64-bits"
+    fi
+  else
+    cmd="$CC $compile_flags -m32 temp_test.c"
+    if ! $cmd 2>1 ; then
+      m64="yes"
+      echo "Changing to 64-bits since 32-bits didn't work"
+    else
+      echo "Will use 32-bits"
+    fi
+  fi
+  rm temp_test.c
+}
+
+#
+# Get GCC version
+#
+get_gcc_version()
+{
+  # check if compiler is gcc and dump its version
+  cc_verno=`$cc -dumpversion 2>/dev/null`
+  if test "x$?" = "x0" ; then
+    set -- `echo $cc_verno | tr '.' ' '`
+    cc_ver="GCC"
+    cc_major=$1
+    cc_minor=$2
+    cc_patch=$3
+    gcc_version=`expr $cc_major '*' 100 '+' $cc_minor`
+  fi
+}
+
+#
+# Link Time Optimizer in GCC (LTO) uses a parameter -flto
+# which was added to GCC 4.5, if --with-link-time-optimizer
+# is set then use this feature
+#
+check_for_link_time_optimizer()
+{
+  get_gcc_version
+  if test "$gcc_version" -ge 405 && \
+     test "x$with_link_time_optimizer" = "xyes" ; then
+    compiler_flags="$compiler_flags -flto"
+    LDFLAGS="$LDFLAGS -flto"
+  fi
+}
 #
 # Linux Section
 #
@@ -1178,31 +1392,46 @@ set_linux_configs()
 {
   if test "x$cpu_base_type" != "xx86" && \
      test "x$cpu_base_type" != "xitanium" ; then
-    usage "Only x86 and Itanium CPUs supported for 32-bit Linux"
+    usage "Only x86 and Itanium CPUs supported for Linux"
     exit 1
   fi
-  base_configs="$base_configs --with-fast-mutexes"
+  if test "x$use_tcmalloc" = "xyes" ; then
+    base_configs="$base_configs --with-mysqld-libs=-ltcmalloc_minimal"
+  fi
   if test "x$cpu_base_type" = "xx86" ; then
     base_configs="$base_configs --enable-assembler"
   fi
   if test "x$compiler" = "xgcc" ; then
-    CC="gcc"
-    CXX="gcc"
+    set_cc_and_cxx_for_gcc
+    if test "x$fast_flag" != "xno" ; then
+      if test "x$fast_flag" = "xyes" ; then
+        compiler_flags="$compiler_flags -O3"
+        check_for_link_time_optimizer
+      else
+        compiler_flags="$compiler_flags -O2"
+      fi
+    else
+      compiler_flags="$compiler_flags -O0"
+    fi
+    check_64_bits
     if test "x$m64" = "xyes" ; then
       compiler_flags="$compiler_flags -m64"
+    else
+      compiler_flags="$compiler_flags -m32"
     fi
 # configure will set proper compiler flags for gcc on Linux
   elif test "x$compiler" = "xicc" ; then
     compiler_flags="$compiler_flags -mp -restrict"
-    CC="icc -static-intel"
-    CXX="icpc -static-intel"
+    set_cc_and_cxx_for_icc
     if test "x$cpu_base_type" = "xitanium" ; then
       compiler_flags="$compiler_flags -no-ftz"
     fi
     if test "x$fast_flag" != "xno" ; then
       compiler_flags="$compiler_flags -O3 -unroll2 -ip"
-      if test "x$fast_flag" = "xyes" ; then
+      if test "x$fast_flag" = "xyes" && \
+         test "x$with_link_time_optimizer" = "xyes" ; then
         compiler_flags="$compiler_flags -ipo"
+        LDFLAGS="$LDFLAGS -ipo"
       fi
     fi
   else
@@ -1216,53 +1445,111 @@ set_linux_configs()
 #
 set_solaris_configs()
 {
-  base_configs="$base_configs --with-mysqld-libs=-lmtmalloc"
+# Use mtmalloc as malloc, see Tim Cook blog
+# For information on optimal compiler settings, see article at
+# http://developers.sun.com/solaris/articles/mysql_perf_tune.html
+# by Luojia Chen at Sun.
+  base_configs="$base_configs --with-named-curses=-lcurses"
   case "`uname -a`" in
-    *5.10*|*5.11*)
+    *5.8* | *5.9* )
+      ;;
+
+    *5.10* | *5.11*)
+      base_configs="$base_configs --with-mysqld-libs=-lmtmalloc"
       ;;
     *)
-      die "Only versions 10 and 11 supported for Solaris"
+      usage "Only versions 8,9, 10 and 11 supported for Solaris"
+      exit 1
   esac
   if test "x$cpu_base_type" != "xx86" && \
      test "x$cpu_base_type" != "xsparc" ; then
     usage "Only x86 and Sparc CPUs supported for Solaris"
     exit 1
   fi
-  if test "x$compiler" = "xgcc" ; then
-    CC="gcc"
-    CXX="gcc"
-    if test "x$cpu_base_type" != "xx86" ; then
-      usage "Only gcc supported for Solaris 10/11 on SPARC"
-    fi
-    compiler_flags="$compiler_flags -m64 -DMY_ATOMIC_MODE_RWLOCKS"
-    LDFLAGS="-m64 -static-libgcc"
-    if test "x$fast_flag" != "xno" ; then
-      LDFLAGS="$LDFLAGS -O2"
-      compiler_flags="$compiler_flags -O2"
-    else
-      LDFLAGS="$LDFLAGS -O"
-      compiler_flags="$compiler_flags -O"
-    fi
-  elif test "x$compiler" = "xforte" ; then
-    if test "x$cpu_base_type" = "xx86" ; then
-      usage "Only gcc supported for Solaris/x86"
-    fi
-    if test "x$cpu_base_type" != "xsparc" ; then
-      usage "Forte compiler supported for Solaris 9/SPARC only"
-    fi
-    CC="cc-5.0"
-    CXX=CC
-    ASFLAGS="xarch=v9"
-    LDFLAGS="xarch=v9"
-    base_cflags="$base_cflags -Xa -xstrconst -xc99=none"
-    base_cxxflags="$base_cxxflags -noex"
-    compiler_flags="$compiler_flags -mt -D_FORTEC -xarch=v9"
-    if test "x$fast_flag" != "xno" ; then
-      compiler_flags="$compiler_flags -xO3"
-    fi
-  else
+  if test "x$compiler" != "xgcc" && \
+     test "x$compiler" != "xforte" ; then
     usage "Only gcc and Forte compilers supported for Solaris"
     exit 1
+  fi
+  if test "x$m64" = "xyes" ; then
+    compiler_flags="$compiler_flags -m64"
+    LDFLAGS="-m64"
+    ASFLAGS="$ASFLAGS -m64"
+  else
+    compiler_flags="$compiler_flags -m32"
+    LDFLAGS="-m32"
+    ASFLAGS="$ASFLAGS -m32"
+  fi
+  if test "x$compiler" = "xgcc" ; then
+    set_cc_and_cxx_for_gcc
+    if test "x$cpu_base_type" != "xx86" ; then
+      usage "gcc currently not supported for Solaris on SPARC"
+      exit 1
+    fi
+    if test "x$fast_flag" = "xyes" ; then
+      LDFLAGS="$LDFLAGS -O3"
+      compiler_flags="$compiler_flags -O3"
+      check_for_link_time_optimizer
+    else
+      if test "x$fast_flag" = "xgeneric" ; then
+        LDFLAGS="$LDFLAGS -O2"
+        compiler_flags="$compiler_flags -O2"
+      else
+        LDFLAGS="$LDFLAGS -O0"
+        compiler_flags="$compiler_flags -O0"
+      fi
+    fi
+  else
+#Using Forte compiler (SunStudio)
+    set_cc_and_cxx_for_forte
+    compiler_flags="$compiler_flags -mt"
+    LDFLAGS="$LDFLAGS -mt"
+    compiler_flags="$compiler_flags -fsimple=1"
+    compiler_flags="$compiler_flags -ftrap=%none"
+    compiler_flags="$compiler_flags -xbuiltin=%all"
+    compiler_flags="$compiler_flags -xlibmil"
+    compiler_flags="$compiler_flags -xlibmopt"
+    if test "x$fast_flag" = "xyes" ; then
+      compiler_flags="$compiler_flags -xtarget=native"
+      compiler_flags="$compiler_flags -xunroll=3"
+      if test "x$with_link_time_optimizer" = "xyes" ; then
+        compiler_flags="$compiler_flags -xipo"
+        LDFLAGS="$LDFLAGS -xipo"
+      fi
+    else
+      compiler_flags="$compiler_flags -xtarget=generic"
+    fi
+    if test "x$cpu_base_type" = "xx86" ; then
+      compiler_flags="$compiler_flags -nofstore"
+      base_cxx_flags="$base_cxx_flags -features=no%except"
+      if test "x$fast_flag" = "xyes" ; then
+        compiler_flags="$compiler_flags -xregs=frameptr"
+        compiler_flags="$compiler_flags -xO4"
+      else
+        compiler_flags="$compiler_flags -xregs=no%frameptr"
+        if test "x$fast_flag" = "xgeneric" ; then
+          compiler_flags="$compiler_flags -xO2"
+        else
+          compiler_flags="$compiler_flags -xO0"
+        fi
+      fi
+    else
+#Using SPARC cpu with SunStudio (Forte) compiler
+      ASFLAGS="$ASFLAGS -xarch=sparc"
+      LDFLAGS="$LDFLAGS -xarch=sparc"
+      base_cxxflags="$base_cxxflags -noex"
+      base_cflags="$base_cflags -xstrconst"
+      compiler_flags="$compiler_flags -xarch=sparc"
+      if test "x$fast_flag" = "xyes" ; then
+        compiler_flags="$compiler_flags -xbinopt=prepare"
+        LDFLAGS="$LDFLAGS -xbinopt=prepare"
+        compiler_flags="$compiler_flags -xO4"
+      elif test "x$fast_flag" = "xgeneric" ; then
+        compiler_flags="$compiler_flags -xO3"
+      else
+        compiler_flags="$compiler_flags -xO0"
+      fi
+    fi
   fi
 }
 
@@ -1271,10 +1558,7 @@ set_solaris_configs()
 #
 set_macosx_configs()
 {
-  base_cxxflags="$base_cxxflags -fno-common"
-  if test "x$cpu_base_type" = "xx86" && test "x$compiler" = "xgcc" ; then
-    compiler_flags="$compiler_flags -arch i386"
-  else
+  if test "x$cpu_base_type" != "xx86" || test "x$compiler" != "xgcc" ; then
     usage "Only gcc/x86 supported for Mac OS X"
     exit 1
   fi
@@ -1282,14 +1566,21 @@ set_macosx_configs()
 # Optimize for space as long as it doesn't affect performance, use some
 # optimisations also when not in fast mode.
 #
+  base_cxxflags="$base_cxxflags -felide-constructors"
+  compiler_flags="$compiler_flags -fno-common"
+  if test "x$m64" = "xyes" ; then
+    compiler_flags="$compiler_flags -m64"
+    compiler_flags="$compiler_flags -arch x86_64"
+  else
+    compiler_flags="$compiler_flags -m32"
+    compiler_flags="$compiler_flags -arch i386"
+  fi
   if test "x$fast_flag" != "xno" ; then
     compiler_flags="$compiler_flags -Os"
-    base_cxxflags="$base_cxxflags -felide-constructors"
   else
-    compiler_flags="$compiler_flags -O"
+    compiler_flags="$compiler_flags -O0"
   fi
-  CC="gcc"
-  CXX="gcc"
+  set_cc_and_cxx_for_gcc
 }
 
 #
@@ -1370,7 +1661,7 @@ fi
 cpu_type=
 package=
 prefix="/usr/local/mysql"
-parallelism="4"
+parallelism="8"
 fast_flag="generic"
 compiler="gcc"
 gpl="yes"
@@ -1398,11 +1689,19 @@ base_cxxflags=
 base_configs=
 debug_flags=
 cxxflags=
-m32=
 m64=
+explicit_size_set=
 datadir=
 commands=
 use_autotools=
+engine_configs=
+ASFLAGS=
+LDFLAGS=
+use_tcmalloc=
+without_comment="yes"
+with_fast_mutexes=
+with_link_time_optimizer=
+gcc_version="0"
 
 set_defaults_based_on_environment
 
@@ -1419,7 +1718,14 @@ set -e
 # This call sets the cpu_arg and check_cpu_args parameters
 #
 path=`dirname $0`
+if test "x$compiler" = "xgcc" ; then
+  compiler=
+fi
 . "$path/check-cpu"
+if test "x$compiler" = "x" ; then
+  compiler="gcc"
+fi
+check_os
 set_cpu_base
 if test "x$?" = "x1" ; then
   exit 1
@@ -1447,17 +1753,23 @@ set_icc_special_options
 # including all storage engines except InnoDB, and to use GPL libraries.
 #
 set_base_configs
-set_base_engines
 if test "x$gpl" = "xyes" ; then
   version_text="GPL version"
 else
   version_text="Commercial version"
 fi
 if test "x$package" = "xpro" ; then
+  set_base_engines
+  set_innodb_engine
   set_pro_package
 elif test "x$package" = "xextended" ; then
+  set_base_engines
+  set_ndb_engine
+  set_innodb_engine
   set_cge_extended_package
 elif test "x$package" = "xcge" ; then
+  set_base_engines
+  set_ndb_engine
   set_cge_package
 elif test "x$package" = "xclassic" ; then
   set_classic_package
@@ -1473,7 +1785,6 @@ set_error_inject_configs
 # operating systems, and processors.
 #
 
-check_os
 if test "x$os" = "xlinux" ; then
   set_linux_configs
 elif test "x$os" = "xSolaris" ; then
@@ -1485,13 +1796,13 @@ elif test "x$os" = "xbsd" ; then
 else
   die "Operating system not supported by this script"
 fi
-
+set_ssl
 #
 # Final step before setting up commands is to set up proper make and
 # proper libtoolize versions, and to determine whether to use ccache.
 #
 set_make_version
-set_up_ccache
+set_ccache_usage
 
 #
 # Set up commands variable from variables prepared for base 
