@@ -10754,11 +10754,35 @@ innodb_monitor_valid_byname(
 	const char*		name)	/*!< in: incoming monitor name */
 {
 	if (name) {
-		ulint	use;
+		ulint		use;
+		monitor_info_t*	monitor_info;
 
 		for (use = 0; use < NUM_MONITOR; use++) {
 			if (!innobase_strcasecmp(
 				name, srv_mon_get_name((monitor_id_t)use))) {
+				monitor_info = srv_mon_get_info(
+					(monitor_id_t)use);
+
+				/* If the monitor counter is marked with
+				MONITOR_GROUP_MODULE flag, then this counter
+				cannot be turned on/off individually, instead
+				it shall be turned on/off as a group using
+				its module name */
+				if ((monitor_info->monitor_type
+				     & MONITOR_GROUP_MODULE)
+				    && (!(monitor_info->monitor_type
+					  & MONITOR_MODULE))) {
+					sql_print_warning(
+						"Monitor counter '%s' cannot"
+						" be turned on/off individually"
+						" . Please use its module name"
+						" to turn on/off the counters"
+						" in the module as a group.\n",
+						name);
+
+					return(1);
+				}
+
 				*(ulint*) save = use;
 				return(0);
 			}
@@ -10858,6 +10882,11 @@ innodb_monitor_update(
 			err_monitor = srv_mon_set_module_control(monitor_id,
 								 set_option);
 		} else {
+			/* If module is marked with MONITOR_GROUP_MODULE
+			status, it cannot be turned on/off individually */
+			ut_a(!(monitor_info->monitor_type &
+			       MONITOR_GROUP_MODULE));
+
 			switch (set_option) {
 			case MONITOR_TURN_ON:
 				MONITOR_ON(monitor_id);

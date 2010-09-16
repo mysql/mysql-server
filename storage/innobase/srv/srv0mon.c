@@ -33,6 +33,20 @@ Created 12/9/2009 Jimmy Yang
 #include "srv0mon.ic"
 #endif
 
+/* Macro to standardize the counter names for counters in the
+"monitor_buf_page" module as they have very structured defines */
+#define	MONITOR_BUF_PAGE(name, description, code, op, op_code)	\
+	{"buf_page_"op"_"name, "Buffer Page I/O",		\
+	 "Number of "description" Pages "op,			\
+	 MONITOR_GROUP_MODULE, MONITOR_##code##_##op_code}
+
+#define MONITOR_BUF_PAGE_READ(name, description, code)		\
+	 MONITOR_BUF_PAGE(name, description, code, "read", PAGE_READ)
+
+#define MONITOR_BUF_PAGE_WRITTEN(name, description, code)	\
+	 MONITOR_BUF_PAGE(name, description, code, "written", PAGE_WRITTEN)
+
+
 /** This array defines basic static information of monitor counters,
 including each monitor's name, sub module it belongs to, a short
 description and its property/type and corresponding monitor_id. */
@@ -157,6 +171,89 @@ static monitor_info_t	innodb_counter_info[] =
 
 	{"buffer_byte_written", "Buffer", "Amount data written in bytes",
 	 MONITOR_EXISTING, MONITOR_OVLD_BYTE_WRITTEN},
+
+	/* ========== Counters for Buffer Page I/O ========== */
+	{"module_buf_page", "Buffer Page I/O", "Buffer Page I/O Module",
+	 MONITOR_MODULE | MONITOR_GROUP_MODULE, MONITOR_MODULE_BUF_PAGE},
+
+	MONITOR_BUF_PAGE_READ("index_leaf","Index Leaf", INDEX_LEAF),
+
+	MONITOR_BUF_PAGE_READ("index_non_leaf","Index Non-leaf",
+			      INDEX_NON_LEAF),
+
+	MONITOR_BUF_PAGE_READ("index_ibuf_leaf", "Insert Buffer Index Leaf",
+			      INDEX_IBUF_LEAF),
+
+	MONITOR_BUF_PAGE_READ("index_ibuf_non_leaf",
+			      "Insert Buffer Index Non-Leaf",
+			       INDEX_IBUF_NON_LEAF),
+
+	MONITOR_BUF_PAGE_READ("undo_log", "Undo Log", UNDO_LOG),
+
+	MONITOR_BUF_PAGE_READ("index_inode", "Index Inode", INODE),
+
+	MONITOR_BUF_PAGE_READ("ibuf_free_list", "Insert Buffer Free List",
+			      IBUF_FREELIST),
+
+	MONITOR_BUF_PAGE_READ("ibuf_bitmap", "Insert Buffer Bitmap",
+			      IBUF_BITMAP),
+
+	MONITOR_BUF_PAGE_READ("system_page", "System Pages", SYSTEM),
+
+	MONITOR_BUF_PAGE_READ("trx_system", "Transaction System", TRX_SYSTEM),
+
+	MONITOR_BUF_PAGE_READ("fsp_hdr", "File Space Header", FSP_HDR),
+
+	MONITOR_BUF_PAGE_READ("xdes", "Extent Descriptor", XDES),
+
+	MONITOR_BUF_PAGE_READ("blob", "Uncompressed Blob", BLOB),
+
+	MONITOR_BUF_PAGE_READ("zblob", "First Compressed Blob", ZBLOB),
+
+	MONITOR_BUF_PAGE_READ("zblob2", "Subsequent Compressed Blob", ZBLOB2),
+
+	MONITOR_BUF_PAGE_READ("other", "other/unknown (old version InnoDB)",
+			      OTHER),
+
+	MONITOR_BUF_PAGE_WRITTEN("index_leaf","Index Leaf", INDEX_LEAF),
+
+	MONITOR_BUF_PAGE_WRITTEN("index_non_leaf","Index Non-leaf",
+				 INDEX_NON_LEAF),
+
+	MONITOR_BUF_PAGE_WRITTEN("index_ibuf_leaf", "Insert Buffer Index Leaf",
+				 INDEX_IBUF_LEAF),
+
+	MONITOR_BUF_PAGE_WRITTEN("index_ibuf_non_leaf",
+				 "Insert Buffer Index Non-Leaf",
+				 INDEX_IBUF_NON_LEAF),
+
+	MONITOR_BUF_PAGE_WRITTEN("undo_log", "Undo Log", UNDO_LOG),
+
+	MONITOR_BUF_PAGE_WRITTEN("index_inode", "Index Inode", INODE),
+
+	MONITOR_BUF_PAGE_WRITTEN("ibuf_free_list", "Insert Buffer Free List",
+				 IBUF_FREELIST),
+
+	MONITOR_BUF_PAGE_WRITTEN("ibuf_bitmap", "Insert Buffer Bitmap",
+				 IBUF_BITMAP),
+
+	MONITOR_BUF_PAGE_WRITTEN("system_page", "System Pages", SYSTEM),
+
+	MONITOR_BUF_PAGE_WRITTEN("trx_system", "Transaction System",
+				 TRX_SYSTEM),
+	MONITOR_BUF_PAGE_WRITTEN("fsp_hdr", "File Space Header", FSP_HDR),
+
+	MONITOR_BUF_PAGE_WRITTEN("xdes", "Extent Descriptor", XDES),
+
+	MONITOR_BUF_PAGE_WRITTEN("blob", "Uncompressed Blob", BLOB),
+
+	MONITOR_BUF_PAGE_WRITTEN("zblob", "First Compressed Blob", ZBLOB),
+
+	MONITOR_BUF_PAGE_WRITTEN("zblob2", "Subsequent Compressed Blob",
+				 ZBLOB2),
+
+	MONITOR_BUF_PAGE_WRITTEN("other", "other/unknown (old version InnoDB)",
+			      OTHER),
 
 	/* ========== Counters for OS level operations ========== */
 	{"module_os", "OS", "OS Level Operation",
@@ -369,6 +466,8 @@ srv_mon_set_module_control(
 					counter */
 {
 	ulint	ix;
+	ulint	start_id;
+	ibool	set_current_module = FALSE;
 
 	ut_a(module_id <= NUM_MONITOR);
 	ut_a(UT_ARR_SIZE(innodb_counter_info) == NUM_MONITOR);
@@ -379,8 +478,21 @@ srv_mon_set_module_control(
 	/* start with the first monitor in the module. If module_id
 	is MONITOR_ALL_COUNTER, this means we need to turn on all
 	monitor counters. */
-	for (ix = (module_id == MONITOR_ALL_COUNTER) ? 1 : module_id + 1;
-	     ix < NUM_MONITOR; ix++) {
+	if (module_id == MONITOR_ALL_COUNTER) {
+		start_id = 1;
+	} else if (innodb_counter_info[module_id].monitor_type
+		   & MONITOR_GROUP_MODULE) {
+		/* Counters in this module are set as a group together
+		and cannot be turned on/off individually. Need to set
+		the on/off bit in the module counter */
+		start_id = module_id;
+		set_current_module = TRUE;
+
+	} else {
+		start_id = module_id + 1;
+	}
+
+	for (ix = start_id; ix < NUM_MONITOR; ix++) {
 		/* Cannot turn on a monitor already been turned on. User
 		should be aware some counters are already on before
 		turn them on again (which could reset counter value) */
@@ -393,9 +505,15 @@ srv_mon_set_module_control(
 		and break if just turn on the counters in the
 		current module. */
 		if (innodb_counter_info[ix].monitor_type & MONITOR_MODULE) {
-			if (module_id == MONITOR_ALL_COUNTER) {
+
+			if (set_current_module) {
+				/* Continue to set on/off bit on current
+				module */
+				set_current_module = FALSE;
+			} else if (module_id == MONITOR_ALL_COUNTER) {
 				continue;
 			} else {
+				/* Hitting the next module, stop */
 				break;
 			}
 		}
