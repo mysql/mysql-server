@@ -925,14 +925,10 @@ trx_commit_or_rollback_prepare(
 /*===========================*/
 	trx_t*		trx)		/*!< in: transaction */
 {
-	ut_ad(trx_mutex_own(trx));
-
 	if (trx->lock.conc_state == TRX_NOT_STARTED) {
 
 		/* This function will relase the mutex */
 		trx_start_low(trx);
-
-		trx_mutex_enter(trx);
 	}
 
 	/* If the trx is in a lock wait state, moves the waiting
@@ -994,8 +990,6 @@ trx_commit_step(
 
 		trx = thr_get_trx(thr);
 
-		trx_mutex_enter(trx);
-
 		ut_a(trx->lock.wait_thr == NULL);
 		ut_a(trx->lock.que_state != TRX_QUE_LOCK_WAIT);
 
@@ -1003,17 +997,11 @@ trx_commit_step(
 
 		trx->lock.que_state = TRX_QUE_COMMITTING;
 
-		trx_mutex_exit(trx);
-
 		trx_commit(trx);
-
-		trx_mutex_enter(trx);
 
 		ut_ad(trx->lock.wait_thr == NULL);
 
 		trx->lock.que_state = TRX_QUE_RUNNING;
-
-		trx_mutex_exit(trx);
 
 		thr = NULL;
 	} else {

@@ -326,11 +326,12 @@ que_fork_start_command(
 	state, finally we try to find a query thread in the QUE_THR_COMPLETED
 	state */
 
-	thr = UT_LIST_GET_FIRST(fork->thrs);
-
 	/* We make a single pass over the thr list within which we note which
 	threads are ready to run. */
-	while (thr) {
+	for (thr = UT_LIST_GET_FIRST(fork->thrs);
+	     thr != NULL;
+	     thr = UT_LIST_GET_NEXT(thrs, thr)) {
+
 		switch (thr->state) {
 		case QUE_THR_COMMAND_WAIT:
 
@@ -362,8 +363,6 @@ que_fork_start_command(
 			ut_error;
 
 		}
-
-		thr = UT_LIST_GET_NEXT(thrs, thr);
 	}
 
 	if (suspended_thr) {
@@ -395,15 +394,14 @@ que_fork_all_thrs_in_state(
 {
 	que_thr_t*	thr_node;
 
-	thr_node = UT_LIST_GET_FIRST(fork->thrs);
+	for (thr_node = UT_LIST_GET_FIRST(fork->thrs);
+	     thr_node != NULL;
+	     thr_node = UT_LIST_GET_NEXT(thrs, thr_node)) {
 
-	while (thr_node != NULL) {
 		if (thr_node->state != state) {
 
 			return(FALSE);
 		}
-
-		thr_node = UT_LIST_GET_NEXT(thrs, thr_node);
 	}
 
 	return(TRUE);
@@ -760,46 +758,50 @@ que_thr_dec_refer_count(
 					a new query thread */
 {
 	trx_t*		trx;
+	que_fork_t*	fork;
 
 	trx = thr_get_trx(thr);
 
+	ut_a(thr->is_active);
 	ut_ad(trx_mutex_own(trx));
 
-	ut_a(thr->is_active);
+	if (thr->state == QUE_THR_RUNNING) {
+	       
+		if (!que_thr_stop(thr)) {
 
-	if (thr->state == QUE_THR_RUNNING && !que_thr_stop(thr)) {
+			ut_a(next_thr != NULL && *next_thr == NULL);
 
-		/* The reason for the thr suspension or wait was
-		already canceled before we came here: continue
-		running the thread */
+			/* The reason for the thr suspension or wait was
+			already canceled before we came here: continue
+			running the thread.
 
-		// FIXME: This is now possible because we don't have the
-		// kernel mutex covering state transactions. The question
-		// is whether it is OK or not.
-		fprintf(stderr, "Wait already ended: trx: %p\n", trx);
+			This is also possible because in trx_commit_step() we
+			assume a single query thread. We set the query thread
+			state to QUE_THR_RUNNING. */
 
-		if (next_thr && *next_thr == NULL) {
+			/* fprintf(stderr,
+		       		"Wait already ended: trx: %p\n", trx); */
+
 			/* Normally srv_suspend_mysql_thread resets
 			the state to DB_SUCCESS before waiting, but
 			in this case we have to do it here,
 			otherwise nobody does it. */
+
 			trx->error_state = DB_SUCCESS;
 
 			*next_thr = thr;
-		} else {
-			ut_error;
+
+			return;
 		}
-	} else {
-		que_fork_t*	fork;
-
-		fork = thr->common.parent;
-
-		--trx->lock.n_active_thrs;
-
-		--fork->n_active_thrs;
-
-		thr->is_active = FALSE;
 	}
+
+	fork = thr->common.parent;
+
+	--trx->lock.n_active_thrs;
+
+	--fork->n_active_thrs;
+
+	thr->is_active = FALSE;
 }
 
 /**********************************************************************//**
@@ -1140,6 +1142,7 @@ que_run_threads_low(
 /*================*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
+	trx_t*		trx;
 	que_thr_t*	next_thr;
 	ulint		cumul_resource;
 	ulint		loop_count;
@@ -1153,49 +1156,51 @@ que_run_threads_low(
 
 	loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
 	cumul_resource = 0;
-loop:
-	/* Check that there is enough space in the log to accommodate
-	possible log entries by this query step; if the operation can touch
-	more than about 4 pages, checks must be made also within the query
-	step! */
 
-	log_free_check();
+	trx = thr_get_trx(thr);
 
-	/* Perform the actual query step: note that the query thread
-	may change if, e.g., a subprocedure call is made */
+	do {
+		/* Check that there is enough space in the log to accommodate
+		possible log entries by this query step; if the operation can
+	       	touch more than about 4 pages, checks must be made also within
+	       	the query step! */
 
-	/*-------------------------*/
-	next_thr = que_thr_step(thr);
-	/*-------------------------*/
+		log_free_check();
 
-	trx_mutex_enter(thr_get_trx(thr));
+		/* Perform the actual query step: note that the query thread
+		may change if, e.g., a subprocedure call is made */
 
-	ut_a(!next_thr || (thr_get_trx(next_thr)->error_state == DB_SUCCESS));
+		/*-------------------------*/
+		next_thr = que_thr_step(thr);
+		/*-------------------------*/
 
-	loop_count++;
+		++loop_count;
 
-	if (next_thr != thr) {
-		ut_a(next_thr == NULL);
+		trx_mutex_enter(trx);
 
-		/* This can change next_thr to a non-NULL value if there was
-		a lock wait that already completed. */
-		que_thr_dec_refer_count(thr, &next_thr);
+		ut_a(next_thr == NULL || trx->error_state == DB_SUCCESS);
 
-		if (next_thr == NULL) {
+		if (next_thr != thr) {
+			ut_a(next_thr == NULL);
 
-			trx_mutex_exit(thr_get_trx(thr));
+			/* This can change next_thr to a non-NULL value
+		       	if there was a lock wait that already completed. */
 
-			return;
+			que_thr_dec_refer_count(thr, &next_thr);
+
+			if (next_thr != NULL) {
+
+				loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
+
+				thr = next_thr;
+			}
 		}
 
-		loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
+		ut_ad(trx == thr_get_trx(thr));
 
-		thr = next_thr;
-	}
+		trx_mutex_exit(trx);
 
-	trx_mutex_exit(thr_get_trx(thr));
-
-	goto loop;
+	} while (next_thr != NULL);
 }
 
 /**********************************************************************//**
