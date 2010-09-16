@@ -3086,7 +3086,30 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     holding a write-lock on MDL_lock::m_rwlock.
   */
   if (gvisitor->m_lock_open_count++ == 0)
+  {
+    /*
+      To circumvent bug #56405 "Deadlock in the MDL deadlock detector"
+      we don't try to lock LOCK_open mutex if some thread doing
+      deadlock detection already owns it and current search depth is
+      greater than 0. Instead we report a deadlock.
+
+      TODO/FIXME: The proper fix for this bug is to use rwlocks for
+                  protection of table shares/instead of LOCK_open.
+                  Unfortunately it requires more effort/has significant
+                  performance effect.
+    */
+    mysql_mutex_lock(&LOCK_dd_owns_lock_open);
+    if (gvisitor->m_current_search_depth > 0 && dd_owns_lock_open > 0)
+    {
+      mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
+      --gvisitor->m_lock_open_count;
+      gvisitor->abort_traversal(src_ctx);
+      return TRUE;
+    }
+    ++dd_owns_lock_open;
+    mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
     mysql_mutex_lock(&LOCK_open);
+  }
 
   I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
 
@@ -3101,8 +3124,12 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     goto end;
   }
 
+  ++gvisitor->m_current_search_depth;
   if (gvisitor->enter_node(src_ctx))
+  {
+    --gvisitor->m_current_search_depth;
     goto end;
+  }
 
   while ((table= tables_it++))
   {
@@ -3125,10 +3152,16 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
 
 end_leave_node:
   gvisitor->leave_node(src_ctx);
+  --gvisitor->m_current_search_depth;
 
 end:
   if (gvisitor->m_lock_open_count-- == 1)
+  {
     mysql_mutex_unlock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_dd_owns_lock_open);
+    --dd_owns_lock_open;
+    mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
+  }
 
   return result;
 }
