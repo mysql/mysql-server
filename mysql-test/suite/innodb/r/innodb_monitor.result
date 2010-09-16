@@ -32,6 +32,38 @@ buffer_page_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disa
 buffer_page_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages read
 buffer_byte_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount data read in bytes
 buffer_byte_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount data written in bytes
+buf_page_read_index_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Leaf Pages read
+buf_page_read_index_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Non-leaf Pages read
+buf_page_read_index_ibuf_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Leaf Pages read
+buf_page_read_index_ibuf_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Non-Leaf Pages read
+buf_page_read_undo_log	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Undo Log Pages read
+buf_page_read_index_inode	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Inode Pages read
+buf_page_read_ibuf_free_list	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Free List Pages read
+buf_page_read_ibuf_bitmap	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Bitmap Pages read
+buf_page_read_system_page	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of System Pages Pages read
+buf_page_read_trx_system	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Transaction System Pages read
+buf_page_read_fsp_hdr	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of File Space Header Pages read
+buf_page_read_xdes	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Extent Descriptor Pages read
+buf_page_read_blob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Uncompressed Blob Pages read
+buf_page_read_zblob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of First Compressed Blob Pages read
+buf_page_read_zblob2	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Subsequent Compressed Blob Pages read
+buf_page_read_other	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of other/unknown (old version InnoDB) Pages read
+buf_page_written_index_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Leaf Pages written
+buf_page_written_index_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Non-leaf Pages written
+buf_page_written_index_ibuf_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Leaf Pages written
+buf_page_written_index_ibuf_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Non-Leaf Pages written
+buf_page_written_undo_log	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Undo Log Pages written
+buf_page_written_index_inode	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Inode Pages written
+buf_page_written_ibuf_free_list	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Free List Pages written
+buf_page_written_ibuf_bitmap	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Bitmap Pages written
+buf_page_written_system_page	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of System Pages Pages written
+buf_page_written_trx_system	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Transaction System Pages written
+buf_page_written_fsp_hdr	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of File Space Header Pages written
+buf_page_written_xdes	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Extent Descriptor Pages written
+buf_page_written_blob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Uncompressed Blob Pages written
+buf_page_written_zblob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of First Compressed Blob Pages written
+buf_page_written_zblob2	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Subsequent Compressed Blob Pages written
+buf_page_written_other	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of other/unknown (old version InnoDB) Pages written
 os_num_reads	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of reads initiated
 os_num_writes	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of writes inititated
 os_num_fsync	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of fsync() call
@@ -102,6 +134,38 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buf_page_read_index_leaf	disabled
+buf_page_read_index_non_leaf	disabled
+buf_page_read_index_ibuf_leaf	disabled
+buf_page_read_index_ibuf_non_leaf	disabled
+buf_page_read_undo_log	disabled
+buf_page_read_index_inode	disabled
+buf_page_read_ibuf_free_list	disabled
+buf_page_read_ibuf_bitmap	disabled
+buf_page_read_system_page	disabled
+buf_page_read_trx_system	disabled
+buf_page_read_fsp_hdr	disabled
+buf_page_read_xdes	disabled
+buf_page_read_blob	disabled
+buf_page_read_zblob	disabled
+buf_page_read_zblob2	disabled
+buf_page_read_other	disabled
+buf_page_written_index_leaf	disabled
+buf_page_written_index_non_leaf	disabled
+buf_page_written_index_ibuf_leaf	disabled
+buf_page_written_index_ibuf_non_leaf	disabled
+buf_page_written_undo_log	disabled
+buf_page_written_index_inode	disabled
+buf_page_written_ibuf_free_list	disabled
+buf_page_written_ibuf_bitmap	disabled
+buf_page_written_system_page	disabled
+buf_page_written_trx_system	disabled
+buf_page_written_fsp_hdr	disabled
+buf_page_written_xdes	disabled
+buf_page_written_blob	disabled
+buf_page_written_zblob	disabled
+buf_page_written_zblob2	disabled
+buf_page_written_other	disabled
 os_num_reads	disabled
 os_num_writes	disabled
 os_num_fsync	disabled
@@ -173,6 +237,38 @@ buffer_page_written	enabled
 buffer_page_read	enabled
 buffer_byte_read	enabled
 buffer_byte_written	enabled
+buf_page_read_index_leaf	enabled
+buf_page_read_index_non_leaf	enabled
+buf_page_read_index_ibuf_leaf	enabled
+buf_page_read_index_ibuf_non_leaf	enabled
+buf_page_read_undo_log	enabled
+buf_page_read_index_inode	enabled
+buf_page_read_ibuf_free_list	enabled
+buf_page_read_ibuf_bitmap	enabled
+buf_page_read_system_page	enabled
+buf_page_read_trx_system	enabled
+buf_page_read_fsp_hdr	enabled
+buf_page_read_xdes	enabled
+buf_page_read_blob	enabled
+buf_page_read_zblob	enabled
+buf_page_read_zblob2	enabled
+buf_page_read_other	enabled
+buf_page_written_index_leaf	enabled
+buf_page_written_index_non_leaf	enabled
+buf_page_written_index_ibuf_leaf	enabled
+buf_page_written_index_ibuf_non_leaf	enabled
+buf_page_written_undo_log	enabled
+buf_page_written_index_inode	enabled
+buf_page_written_ibuf_free_list	enabled
+buf_page_written_ibuf_bitmap	enabled
+buf_page_written_system_page	enabled
+buf_page_written_trx_system	enabled
+buf_page_written_fsp_hdr	enabled
+buf_page_written_xdes	enabled
+buf_page_written_blob	enabled
+buf_page_written_zblob	enabled
+buf_page_written_zblob2	enabled
+buf_page_written_other	enabled
 os_num_reads	enabled
 os_num_writes	enabled
 os_num_fsync	enabled
@@ -246,6 +342,38 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buf_page_read_index_leaf	disabled
+buf_page_read_index_non_leaf	disabled
+buf_page_read_index_ibuf_leaf	disabled
+buf_page_read_index_ibuf_non_leaf	disabled
+buf_page_read_undo_log	disabled
+buf_page_read_index_inode	disabled
+buf_page_read_ibuf_free_list	disabled
+buf_page_read_ibuf_bitmap	disabled
+buf_page_read_system_page	disabled
+buf_page_read_trx_system	disabled
+buf_page_read_fsp_hdr	disabled
+buf_page_read_xdes	disabled
+buf_page_read_blob	disabled
+buf_page_read_zblob	disabled
+buf_page_read_zblob2	disabled
+buf_page_read_other	disabled
+buf_page_written_index_leaf	disabled
+buf_page_written_index_non_leaf	disabled
+buf_page_written_index_ibuf_leaf	disabled
+buf_page_written_index_ibuf_non_leaf	disabled
+buf_page_written_undo_log	disabled
+buf_page_written_index_inode	disabled
+buf_page_written_ibuf_free_list	disabled
+buf_page_written_ibuf_bitmap	disabled
+buf_page_written_system_page	disabled
+buf_page_written_trx_system	disabled
+buf_page_written_fsp_hdr	disabled
+buf_page_written_xdes	disabled
+buf_page_written_blob	disabled
+buf_page_written_zblob	disabled
+buf_page_written_zblob2	disabled
+buf_page_written_other	disabled
 os_num_reads	disabled
 os_num_writes	disabled
 os_num_fsync	disabled
@@ -317,6 +445,38 @@ buffer_page_written	0	disabled
 buffer_page_read	0	disabled
 buffer_byte_read	0	disabled
 buffer_byte_written	0	disabled
+buf_page_read_index_leaf	0	disabled
+buf_page_read_index_non_leaf	0	disabled
+buf_page_read_index_ibuf_leaf	0	disabled
+buf_page_read_index_ibuf_non_leaf	0	disabled
+buf_page_read_undo_log	0	disabled
+buf_page_read_index_inode	0	disabled
+buf_page_read_ibuf_free_list	0	disabled
+buf_page_read_ibuf_bitmap	0	disabled
+buf_page_read_system_page	0	disabled
+buf_page_read_trx_system	0	disabled
+buf_page_read_fsp_hdr	0	disabled
+buf_page_read_xdes	0	disabled
+buf_page_read_blob	0	disabled
+buf_page_read_zblob	0	disabled
+buf_page_read_zblob2	0	disabled
+buf_page_read_other	0	disabled
+buf_page_written_index_leaf	0	disabled
+buf_page_written_index_non_leaf	0	disabled
+buf_page_written_index_ibuf_leaf	0	disabled
+buf_page_written_index_ibuf_non_leaf	0	disabled
+buf_page_written_undo_log	0	disabled
+buf_page_written_index_inode	0	disabled
+buf_page_written_ibuf_free_list	0	disabled
+buf_page_written_ibuf_bitmap	0	disabled
+buf_page_written_system_page	0	disabled
+buf_page_written_trx_system	0	disabled
+buf_page_written_fsp_hdr	0	disabled
+buf_page_written_xdes	0	disabled
+buf_page_written_blob	0	disabled
+buf_page_written_zblob	0	disabled
+buf_page_written_zblob2	0	disabled
+buf_page_written_other	0	disabled
 os_num_reads	0	disabled
 os_num_writes	0	disabled
 os_num_fsync	0	disabled
