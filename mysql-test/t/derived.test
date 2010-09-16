@@ -422,3 +422,31 @@ DROP TABLE CC;
 DROP TABLE C;
 --echo # End of test for bug#55950
 
+--echo #
+--echo # Bug#56592: Subquery with DISTINCT in FROM clause returns only partial
+--echo # result
+--echo #
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2, 9, NULL), (3, 3, '1900-01-01 00:00:00'),
+(8, 8, '1900-01-01 00:00:00'), (15, 0, '2007-12-15 12:39:34');
+
+SELECT * FROM ( 
+  SELECT DISTINCT tableB.col_datetime_key 
+  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+
+EXPLAIN SELECT * FROM ( 
+  SELECT DISTINCT tableB.col_datetime_key 
+  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+
+EXPLAIN SELECT * FROM ( 
+  SELECT DISTINCT tableA.col_datetime_key 
+  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+
+DROP TABLE t1;

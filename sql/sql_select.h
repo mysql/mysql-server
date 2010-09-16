@@ -477,6 +477,11 @@ public:
   TABLE *table_reexec[1];                       // make_simple_join()
   JOIN_TAB *join_tab_reexec;                    // make_simple_join()
   /* end of allocation caching storage */
+  /**
+    The set of those tables whose fields are referenced in the select list of
+    this select level.
+  */
+  table_map used_tables;
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
@@ -532,6 +537,7 @@ public:
     optimized= 0;
     cond_equal= 0;
     group_optimized_away= 0;
+    used_tables= 0;
 
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */

@@ -320,7 +320,6 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
   TABLE *table= derived->table;
   SELECT_LEX_UNIT *unit= derived->derived;
-  bool res= FALSE;
 
   /*check that table creation pass without problem and it is derived table */
   if (table && unit)

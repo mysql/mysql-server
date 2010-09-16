@@ -2028,8 +2028,9 @@ public:
   /*
     The set of those tables whose fields are referenced in all subqueries
     of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
+    Since this field is meaningless for quieries with subqueries (subqueries
+    has their own table numerations) this field is used only for non-SELECT
+    queries. For SELECT the JOIN::used_tables field is used instead.
   */
   table_map  used_tables;
   USER_CONN *user_connect;
