@@ -537,9 +537,9 @@ the rollback state	--	kill signal delivered to a process;
 kernel			--	kernel;
 
 query thread execution:
-(a) without kernel mutex
+(a) without lock mutex
 reserved		--	process executing in user mode;
-(b) with kernel mutex reserved
+(b) with lock mutex reserved
 			--	process executing in kernel mode;
 
 The server is controlled by a master thread which runs at
@@ -1438,7 +1438,8 @@ ibool
 srv_printf_innodb_monitor(
 /*======================*/
 	FILE*	file,		/*!< in: output stream */
-	ibool	nowait,		/*!< in: whether to wait for kernel mutex */
+	ibool	nowait,		/*!< in: whether to wait for the
+				lock_sys_t:: mutex */
 	ulint*	trx_start_pos,	/*!< out: file position of the start of
 				the list of active transactions */
 	ulint*	trx_end)	/*!< out: file position of the end of
@@ -2090,7 +2091,7 @@ and wakes up the purge thread if it is suspended (not sleeping).  Note
 that there is a small chance that the purge thread stays suspended
 (we do not protect our operation with the srv_sys_t:mutex, for
 performance reasons). */
-UNIV_INTERN
+static
 void
 srv_wake_purge_thread_if_not_active(void)
 /*=====================================*/

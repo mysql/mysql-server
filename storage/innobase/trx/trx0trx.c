@@ -634,8 +634,6 @@ trx_start_low(
 
 	trx_sys_mutex_enter();
 
-	trx_mutex_enter(trx);
-
 	trx->no = IB_ULONGLONG_MAX;
 
 	trx->start_time = ut_time();
@@ -648,8 +646,6 @@ trx_start_low(
 	trx->id = trx_sys_get_new_trx_id();
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
-
-	trx_mutex_exit(trx);
 
 	trx_sys_mutex_exit();
 
@@ -684,8 +680,7 @@ trx_commit(
 		mutex_enter(&rseg->mutex);
 
 		if (trx->insert_undo != NULL) {
-			trx_undo_set_state_at_finish(
-				rseg, trx->insert_undo, &mtr);
+			trx_undo_set_state_at_finish(trx->insert_undo, &mtr);
 		}
 
 		if (trx->update_undo != NULL) {
@@ -701,7 +696,7 @@ trx_commit(
 			transaction commit for this transaction. */
 
 			update_hdr_page = trx_undo_set_state_at_finish(
-				rseg, trx->update_undo, &mtr);
+				trx->update_undo, &mtr);
 
 			/* We have to do the cleanup for the update log while
 			holding the rseg mutex because update log headers
@@ -1541,13 +1536,9 @@ trx_start_if_not_started_xa(
 /*========================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	trx_mutex_enter(trx);
-
 	ut_ad(trx->lock.conc_state != TRX_COMMITTED_IN_MEMORY);
 
 	if (trx->lock.conc_state == TRX_NOT_STARTED) {
-
-		trx_mutex_exit(trx);
 
 		/* Update the info whether we should skip XA steps that eat
 	       	CPU time For the duration of the transaction trx->support_xa
@@ -1558,8 +1549,6 @@ trx_start_if_not_started_xa(
 		trx->support_xa = thd_supports_xa(trx->mysql_thd);
 
 		trx_start_low(trx);
-	} else {
-		trx_mutex_exit(trx);
 	}
 }
 
@@ -1571,17 +1560,11 @@ trx_start_if_not_started(
 /*=====================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	trx_mutex_enter(trx);
-
 	ut_ad(trx->lock.conc_state != TRX_COMMITTED_IN_MEMORY);
 
 	if (trx->lock.conc_state == TRX_NOT_STARTED) {
 
-		trx_mutex_exit(trx);
-
 		trx_start_low(trx);
-	} else {
-		trx_mutex_exit(trx);
 	}
 }
 

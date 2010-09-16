@@ -279,7 +279,7 @@ buf_page_get_known_nowait(
 /*******************************************************************//**
 Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
-Suitable for using when holding the kernel mutex. */
+Suitable for using when holding the lock_sys_t::mutex. */
 UNIV_INTERN
 const buf_block_t*
 buf_page_try_get_func(
@@ -291,7 +291,7 @@ buf_page_try_get_func(
 	mtr_t*		mtr);	/*!< in: mini-transaction */
 
 /** Tries to get a page. If the page is not in the buffer pool it is
-not loaded.  Suitable for using when holding the kernel mutex.
+not loaded.  Suitable for using when holding the lock_sys_t::mutex.
 @param space_id	in: tablespace id
 @param page_no	in: page number
 @param mtr	in: mini-transaction

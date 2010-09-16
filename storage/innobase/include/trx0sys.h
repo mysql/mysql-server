@@ -646,8 +646,7 @@ struct trx_doublewrite_struct{
 				blocks which have been cached to write_buf */
 };
 
-/** The transaction system central memory data structure; protected by the
-kernel mutex */
+/** The transaction system central memory data structure. */
 struct trx_sys_struct{
 	mutex_t		mutex;		/*!< mutex protecting all the fields
 					in this structure except rseg_list.

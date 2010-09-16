@@ -497,16 +497,6 @@ UNIV_INTERN
 void
 srv_wake_master_thread(void);
 /*========================*/
-/*******************************************************************//**
-Tells the purge thread that there has been activity in the database
-and wakes up the purge thread if it is suspended (not sleeping).  Note
-that there is a small chance that the purge thread stays suspended
-(we do not protect our operation with the kernel mutex, for
-performace reasons). */
-UNIV_INTERN
-void
-srv_wake_purge_thread_if_not_active(void);
-/*=====================================*/
 /*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
@@ -591,7 +581,8 @@ ibool
 srv_printf_innodb_monitor(
 /*======================*/
 	FILE*	file,		/*!< in: output stream */
-	ibool	nowait,		/*!< in: whether to wait for kernel mutex */
+	ibool	nowait,		/*!< in: whether to wait for the
+				lock_sys_t::mutex */
 	ulint*	trx_start,	/*!< out: file position of the start of
 				the list of active transactions */
 	ulint*	trx_end);	/*!< out: file position of the end of

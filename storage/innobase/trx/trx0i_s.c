@@ -176,7 +176,8 @@ struct trx_i_s_cache_struct {
 	ha_storage_t*	storage;	/*!< storage for external volatile
 					data that can possibly not be
 					available later, when we release
-					the kernel mutex */
+					the lock_sys_t::mutex or the
+					trx_sys_t::mutex */
 	ulint		mem_allocd;	/*!< the amount of memory
 					allocated with mem_alloc*() */
 	ibool		is_truncated;	/*!< this is TRUE if the memory

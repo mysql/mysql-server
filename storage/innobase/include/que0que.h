@@ -109,8 +109,8 @@ que_graph_free(
 			afterwards! */
 /**********************************************************************//**
 Stops a query thread if graph or trx is in a state requiring it. The
-conditions are tested in the order (1) graph, (2) trx. The kernel mutex has
-to be reserved.
+conditions are tested in the order (1) graph, (2) trx. The lock_sys_t::mutex
+has to be reserved.
 @return	TRUE if stopped */
 UNIV_INTERN
 ibool
@@ -276,7 +276,7 @@ que_node_list_get_len(
 Checks if graph, trx, or session is in a state where the query thread should
 be stopped.
 @return TRUE if should be stopped; NOTE that if the peek is made
-without reserving the kernel mutex, then another peek with the mutex
+without reserving the trx_t::mutex, then another peek with the mutex
 reserved is necessary before deciding the actual stopping */
 UNIV_INLINE
 ibool
@@ -355,7 +355,7 @@ struct que_thr_struct{
 					que_thr_dec_reference_count */
 	/*------------------------------*/
 	/* The following fields are private to the OS thread executing the
-	query thread, and are not protected by the kernel mutex: */
+	query thread, and are not protected by any mutex: */
 
 	que_node_t*	run_node;	/*!< pointer to the node where the
 					subgraph down from this node is

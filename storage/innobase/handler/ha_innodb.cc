@@ -1696,9 +1696,9 @@ read view to it if there is no read view yet.
 Why a deadlock of threads is not possible: the query cache calls this function
 at the start of a SELECT processing. Then the calling thread cannot be
 holding any InnoDB semaphores. The calling thread is holding the
-query cache mutex, and this function will reserver the InnoDB kernel mutex.
+query cache mutex, and this function will reserve the InnoDB trx_sys_t::mutex.
 Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
-the InnoDB kernel mutex.
+the InnoDB trx_sys_t::mutex.
 @return TRUE if permitted, FALSE if not; note that the value FALSE
 does not mean we should invalidate the query cache: invalidation is
 called explicitly */
@@ -1821,8 +1821,8 @@ innobase_invalidate_query_cache(
 					also the null chars count */
 {
 	/* Note that the sync0sync.h rank of the query cache mutex is just
-	above the InnoDB kernel mutex. The caller of this function must not
-	have latches of a lower rank. */
+	above the InnoDB trx_sys_t::mutex. The caller of this function must
+       	not have latches of a lower rank. */
 
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
@@ -2601,8 +2601,9 @@ innobase_start_trx_and_assign_read_view(
 	trx = check_trx_exists(thd);
 
 	/* This is just to play safe: release a possible FIFO ticket and
-	search latch. Since we will reserve the kernel mutex, we have to
-	release the search system latch first to obey the latching order. */
+	search latch. Since we can potentially reserve the trx_sys_t::mutex,
+       	we have to release the search system latch first to obey the latching
+       	order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -2646,7 +2647,7 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
-	/* Since we will reserve the kernel mutex, we have to release
+	/* Since we will reserve the trx_sys_t::mutex, we have to release
 	the search system latch first to obey the latching order. */
 
 	if (trx->has_search_latch) {
@@ -2793,8 +2794,8 @@ innobase_rollback(
 	trx = check_trx_exists(thd);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the kernel mutex, we have to release the search system latch
-	first to obey the latching order. */
+	reserve the trx_sys_t::mutex, we have to release the search system
+       	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -2833,8 +2834,8 @@ innobase_rollback_trx(
 	DBUG_PRINT("trans", ("aborting transaction"));
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the kernel mutex, we have to release the search system latch
-	first to obey the latching order. */
+	reserve the trx_sys_t::mutex, we have to release the search system
+       	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -2873,8 +2874,8 @@ innobase_rollback_to_savepoint(
 	trx = check_trx_exists(thd);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the kernel mutex, we have to release the search system latch
-	first to obey the latching order. */
+	reserve the trx_sys_t::mutex, we have to release the search system
+       	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -2948,8 +2949,8 @@ innobase_savepoint(
 	trx = check_trx_exists(thd);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the kernel mutex, we have to release the search system latch
-	first to obey the latching order. */
+	reserve the trx_sys_t::mutex, we have to release the search system
+       	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -8845,7 +8846,7 @@ ha_innobase::external_lock(
 	prebuilt->mysql_has_locked = FALSE;
 
 	/* Release a possible FIFO ticket and search latch. Since we
-	may reserve the kernel mutex, we have to release the search
+	may reserve the trx_sys_t::mutex, we have to release the search
 	system latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
@@ -9991,19 +9992,19 @@ innobase_xa_prepare(
 	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the kernel mutex, we have to release the search system latch
-	first to obey the latching order. */
+	reserve the trx_sys_t::mutex, we have to release the search system
+       	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
 	if (trx->active_trans == 0 && trx->lock.conc_state != TRX_NOT_STARTED) {
 
-	  sql_print_error("trx->active_trans == 0, but trx->conc_state != "
-			  "TRX_NOT_STARTED");
+		sql_print_error("trx->active_trans == 0, but "
+				"trx->conc_state != TRX_NOT_STARTED");
 	}
 
 	if (all
-		|| (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
 		/* We were instructed to prepare the whole transaction, or
 		this is an SQL statement end and autocommit is on */

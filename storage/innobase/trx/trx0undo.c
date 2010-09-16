@@ -78,7 +78,7 @@ can still remove old versions from the bottom of the stack. */
    -------------------------------------------------------------------
 latches?
 -------
-The contention of the kernel mutex should be minimized. When a transaction
+The contention of the trx_sys_t:::mutex should be minimized. When a transaction
 does its first insert or modify in an index, an undo log is assigned for it.
 Then we must have an x-latch to the rollback segment header.
 	When the transaction does more modifys or rolls back, the undo log is
@@ -1795,7 +1795,6 @@ UNIV_INTERN
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
-	trx_rseg_t*	rseg,	/*!< in: rollback segment memory object */
 	trx_undo_t*	undo,	/*!< in: undo log memory copy */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1804,9 +1803,8 @@ trx_undo_set_state_at_finish(
 	page_t*		undo_page;
 	ulint		state;
 
-	ut_ad(undo);
 	ut_ad(mtr);
-	ut_ad(mutex_own(&rseg->mutex));
+	ut_ad(undo);
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
