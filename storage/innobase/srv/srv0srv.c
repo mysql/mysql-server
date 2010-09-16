@@ -2821,6 +2821,7 @@ srv_purge_coordinator_thread(
 			do {
 				n_pages_purged = trx_purge(0, batch_size);
 
+				/* FIXME: Do some black magic. */
 				if (srv_check_activity(count)) {
 					sleep_ms = 1000000;
 					batch_size = srv_purge_batch_size;
