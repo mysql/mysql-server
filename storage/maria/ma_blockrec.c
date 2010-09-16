@@ -742,8 +742,8 @@ static my_bool enough_free_entries(uchar *buff, uint block_size,
    @return 1	There is room for more entries on the page
 */
 
-static my_bool enough_free_entries_on_page(MARIA_SHARE *share,
-                                           uchar *page_buff)
+my_bool enough_free_entries_on_page(MARIA_SHARE *share,
+                                    uchar *page_buff)
 {
   enum en_page_type page_type;
   page_type= (enum en_page_type) (page_buff[PAGE_TYPE_OFFSET] &

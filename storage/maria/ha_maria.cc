@@ -2044,14 +2044,16 @@ bool ha_maria::check_and_repair(THD *thd)
 
   check_opt.init();
 
-  if (file->s->state.changed & STATE_MOVED)
+  error= 1;
+  if ((file->s->state.changed &
+       (STATE_CRASHED | STATE_CRASHED_ON_REPAIR | STATE_MOVED)) ==
+      STATE_MOVED)
   {
-    sql_print_information("Zerofilling table:   '%s'", table->s->path.str);
+    sql_print_information("Zerofilling moved table:  '%s'",
+                          table->s->path.str);
     if (!(error= zerofill(thd, &check_opt)))
       DBUG_RETURN(0);
   }
-  else
-    error= 1;
 
   /*
     if we got this far - the table is crashed.

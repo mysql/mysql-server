@@ -6976,8 +6976,14 @@ view_err:
         Workaround InnoDB ending the transaction when the table instance
         is unlocked/closed (close_cached_table below), otherwise the trx
         state will differ between the server and storage engine layers.
+
+        We have to unlock LOCK_open here as otherwise we can get deadlock
+        in wait_if_global_readlock().  This is still safe as we have a
+        name lock on the table object.
       */
+      VOID(pthread_mutex_unlock(&LOCK_open));
       ha_autocommit_or_rollback(thd, 0);
+      VOID(pthread_mutex_lock(&LOCK_open));
 
       /*
         Then do a 'simple' rename of the table. First we need to close all

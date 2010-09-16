@@ -3040,7 +3040,7 @@ public:
                                             ulonglong max_in_memory_size)
   {
     register ulonglong max_elems_in_tree=
-      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
+      max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size);
     return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
   }
 
