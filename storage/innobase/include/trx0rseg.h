@@ -142,7 +142,7 @@ struct trx_rseg_struct{
 				its slot in the trx system file copy */
 	mutex_t		mutex;	/*!< mutex protecting the fields in this
 				struct except id; NOTE that the latching
-				order must always be kernel mutex ->
+				order must always be trx_sys_t::mutex ->
 				rseg mutex */
 	ulint		space;	/*!< space where the rollback segment is
 				header is placed */

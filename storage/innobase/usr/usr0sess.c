@@ -41,7 +41,7 @@ sess_open(void)
 {
 	sess_t*	sess;
 
-	sess = mem_alloc(sizeof(sess_t));
+	sess = mem_zalloc(sizeof(*sess));
 
 	sess->state = SESS_ACTIVE;
 

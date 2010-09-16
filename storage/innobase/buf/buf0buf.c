@@ -3473,7 +3473,7 @@ buf_page_get_known_nowait(
 /*******************************************************************//**
 Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
-Suitable for using when holding the kernel mutex.
+Suitable for using when holding the lock_sys_t::mutex.
 @return	pointer to a page or NULL */
 UNIV_INTERN
 const buf_block_t*
