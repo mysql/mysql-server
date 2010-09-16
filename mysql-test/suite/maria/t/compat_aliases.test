@@ -51,6 +51,7 @@ set session aria_sort_buffer_size=@old_sort_buffer_size;
 set @old_max_sort_file_size=@@global.maria_max_sort_file_size,
     @old_repair_threads=@@global.aria_repair_threads;
 set @@global.maria_max_sort_file_size=default, @@global.aria_repair_threads=default;
+--replace_result 4293918720 9223372036853727232
 select @@global.maria_max_sort_file_size, @@global.aria_repair_threads;
 set @@global.aria_max_sort_file_size=@old_max_sort_file_size,
     @@global.maria_repair_threads=@old_repair_threads;
