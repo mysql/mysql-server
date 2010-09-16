@@ -5918,7 +5918,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         *fn_ext(new_name)=0;
         if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias, 0))
           error= -1;
-        else if (Table_triggers_list::change_table_name(thd, db, table_name,
+        else if (Table_triggers_list::change_table_name(thd, db,
+                                                        alias, table_name,
                                                         new_db, new_alias))
         {
           (void) mysql_rename_table(old_db_type, new_db, new_alias, db,
@@ -6555,7 +6556,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
            (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
             mysql_rename_table(save_old_db_type, db, table_name, new_db,
                                new_alias, NO_FRM_RENAME)) &&
-           Table_triggers_list::change_table_name(thd, db, table_name,
+           Table_triggers_list::change_table_name(thd, db, alias, table_name,
                                                   new_db, new_alias)))
   {
     /* Try to get everything back. */
