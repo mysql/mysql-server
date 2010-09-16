@@ -3115,6 +3115,7 @@ bool st_select_lex::optimize_unflattened_subqueries()
         DBUG_ASSERT(!item_in || (item_in && !item_in->is_min_max_optimized));
         if (item_in && item_in->create_in_to_exists_cond(inner_join))
             return TRUE;
+        /* We need only 1 row to determine existence */
         un->set_limit(un->global_parameters);
         un->thd->lex->current_select= sl;
         res= inner_join->optimize();

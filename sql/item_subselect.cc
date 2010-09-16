@@ -2436,16 +2436,6 @@ bool Item_in_subselect::setup_mat_engine()
   if (mat_engine->init(&select_engine->join->fields_list))
     DBUG_RETURN(TRUE);
 
-  /*
-    Reset the "LIMIT 1" set in Item_exists_subselect::fix_length_and_dec.
-    TODO:
-    Currently we set the subquery LIMIT to infinity, and this is correct
-    because we forbid at parse time LIMIT inside IN subqueries (see
-    Item_in_subselect::test_limit). However, once we allow this, here
-    we should set the correct limit if given in the query.
-  */
-  unit->global_parameters->select_limit= NULL;
-
   engine= mat_engine;
   DBUG_RETURN(FALSE);
 }

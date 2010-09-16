@@ -3566,14 +3566,29 @@ bool JOIN::choose_subquery_plan()
   else
     in_subs->exec_method= Item_in_subselect::IN_TO_EXISTS;
 
-  if (in_subs->exec_method ==  Item_in_subselect::MATERIALIZATION)
+  if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION)
   {
+    /* TODO: should we set/unset this flag for both select_lex and its unit? */
+    in_subs->unit->uncacheable&= ~UNCACHEABLE_DEPENDENT;
+    select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT;
 
-    // TODO: should we unset the UNCACHEABLE_DEPENDENT flag fro
-    // select_lex->uncacheable; ?
-    // This affects how we execute JOIN::join_free - full or not.
-    // inner_join->restore_plan (keyuse, best_positions, best_read)
-    ;
+    /*
+      Reset the "LIMIT 1" set in Item_exists_subselect::fix_length_and_dec.
+      TODO:
+      Currently we set the subquery LIMIT to infinity, and this is correct
+      because we forbid at parse time LIMIT inside IN subqueries (see
+      Item_in_subselect::test_limit). However, once we allow this, here
+      we should set the correct limit if given in the query.
+    */
+    in_subs->unit->global_parameters->select_limit= NULL;
+    in_subs->unit->set_limit(unit->global_parameters);
+    /*
+      Set the limit of this JOIN object as well, because normally its being
+      set in the beginning of JOIN::optimize, which was already done.
+    */
+    select_limit= in_subs->unit->select_limit_cnt;
+
+    // TODO: inner_join->restore_plan (keyuse, best_positions, best_read)
   }
   else if (in_subs->exec_method == Item_in_subselect::IN_TO_EXISTS)
     res= in_subs->inject_in_to_exists_cond(this);
