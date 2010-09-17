@@ -132,7 +132,7 @@ static const ulint	FILE_FORMAT_NAME_N
 UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
 /* Key to register the trx_sys->mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	trx_sys_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	trx_sys_rw_lock_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifndef UNIV_HOTBACKUP
@@ -634,7 +634,7 @@ trx_in_trx_list(
 {
 	trx_t*	trx;
 
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL && trx != in_trx;
@@ -657,7 +657,7 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
 
 	mtr_start(&mtr);
 
@@ -1051,7 +1051,7 @@ trx_sys_create(void)
 		trx_rseg_compare_last_trx_no,
 	       	sizeof(rseg_queue_t), TRX_SYS_N_RSEGS * 128);
 
-	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
+	rw_lock_create(trx_sys_rw_lock_key, &trx_sys->lock, SYNC_TRX_SYS);
 }
 
 /*****************************************************************//**
@@ -1612,7 +1612,7 @@ trx_sys_close(void)
 	/* Check that all read views are closed except read view owned
 	by a purge. */
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
@@ -1622,7 +1622,7 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1641,7 +1641,7 @@ trx_sys_close(void)
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
 
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	/* There can't be any active transactions. */
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
@@ -1672,7 +1672,7 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	mem_free(trx_sys);
 
@@ -1689,7 +1689,7 @@ trx_sys_any_active_transactions(void)
 {
 	ibool	active;
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	if (trx_n_mysql_transactions > 0
 	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
@@ -1699,7 +1699,7 @@ trx_sys_any_active_transactions(void)
 		active = FALSE;
 	}
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(active);
 }

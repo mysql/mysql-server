@@ -364,8 +364,8 @@ ibool
 lock_rec_validate_page(
 /*===================*/
 	ibool	have_lock_trx_sys_mutex,	/*!< in: if the caller holds
-						both the lock and trx sys
-						mutexes. */
+						both the lock mutex and
+					       	trx_sys_t::lock. */
 	ulint	space,				/*!< in: space id */
 	ulint	zip_size,			/*!< in: compressed page size
 					       	in bytes or 0 for uncompressed
@@ -465,7 +465,7 @@ lock_check_trx_id_sanity(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	/* A sanity check: the trx_id in rec must be smaller than the global
 	trx id counter */
@@ -488,7 +488,7 @@ lock_check_trx_id_sanity(
 		is_ok = FALSE;
 	}
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(is_ok);
 }
@@ -3344,16 +3344,16 @@ retry:
 	transaction's state can't be changed. */
 	trx_mutex_exit(trx);
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
-	mark_trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (mark_trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     mark_trx != NULL;
+	     mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx)) {
 
-	while (mark_trx) {
 		mark_trx->lock.deadlock_mark = 0;
-		mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx);
 	}
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	trx_mutex_enter(trx);
 
@@ -3382,9 +3382,9 @@ retry:
 		/* To obey the latching order */
 		trx_mutex_exit(trx);
 
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(lock_latest_err_file, trx, 3000);
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		trx_mutex_enter(trx);
 
@@ -3523,9 +3523,9 @@ lock_deadlock_recursive(
 					trx_mutex_enter(wait_lock->trx);
 				}
 
-				trx_sys_mutex_enter();
+				rw_lock_s_lock(&trx_sys->lock);
 				trx_print(ef, wait_lock->trx, 3000);
-				trx_sys_mutex_exit();
+				rw_lock_s_unlock(&trx_sys->lock);
 
 				fputs("*** (1) WAITING FOR THIS LOCK"
 				      " TO BE GRANTED:\n", ef);
@@ -3538,9 +3538,9 @@ lock_deadlock_recursive(
 
 				fputs("*** (2) TRANSACTION:\n", ef);
 
-				trx_sys_mutex_enter();
+				rw_lock_s_lock(&trx_sys->lock);
 				trx_print(ef, lock->trx, 3000);
-				trx_sys_mutex_exit();
+				rw_lock_s_unlock(&trx_sys->lock);
 
 				fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
 
@@ -4524,7 +4524,7 @@ lock_print_info_all_transactions(
 
 	ut_ad(lock_mutex_own());
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	/* First print info on non-active transactions */
 
@@ -4560,7 +4560,7 @@ loop:
 
 	if (trx == NULL) {
 
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		lock_mutex_exit();
 
@@ -4645,7 +4645,7 @@ loop:
 				goto print_rec;
 			}
 
-			trx_sys_mutex_exit();
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			lock_mutex_exit();
 
@@ -4660,7 +4660,7 @@ loop:
 
 			lock_mutex_enter();
 
-			trx_sys_mutex_enter();
+			rw_lock_s_lock(&trx_sys->lock);
 
 			goto loop;
 		}
@@ -4704,7 +4704,7 @@ lock_table_queue_validate(
 	lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
@@ -4764,7 +4764,7 @@ lock_rec_queue_validate(
 		if (!have_lock_trx_sys_mutex) {
 			lock_mutex_enter();
 
-			trx_sys_mutex_enter();
+			rw_lock_s_lock(&trx_sys->lock);
 		}
 
 		for (lock = lock_rec_get_first(block, heap_no);
@@ -4796,7 +4796,7 @@ lock_rec_queue_validate(
 		}
 
 		if (!have_lock_trx_sys_mutex) {
-			trx_sys_mutex_exit();
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			lock_mutex_exit();
 		}
@@ -4807,7 +4807,7 @@ lock_rec_queue_validate(
 	if (!have_lock_trx_sys_mutex) {
 		lock_mutex_enter();
 
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 	}
 
 	if (!index);
@@ -4907,7 +4907,8 @@ lock_rec_queue_validate(
 	}
 
 	if (!have_lock_trx_sys_mutex) {
-		trx_sys_mutex_exit();
+
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		lock_mutex_exit();
 	}
@@ -4947,7 +4948,7 @@ lock_rec_validate_page(
 
 	/* This is to preserve latching order. */
 	if (have_lock_trx_sys_mutex) {
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		lock_mutex_exit();
 	}
@@ -4963,7 +4964,7 @@ lock_rec_validate_page(
 	/* Either way we need to (re)acquire the mutexes. */
 	lock_mutex_enter();
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 loop:
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
@@ -5036,7 +5037,7 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (!have_lock_trx_sys_mutex) {
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		lock_mutex_exit();
 	}
@@ -5063,7 +5064,7 @@ lock_validate(void)
 
 	lock_mutex_enter();
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
@@ -5113,7 +5114,7 @@ lock_validate(void)
 		}
 	}
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	lock_mutex_exit();
 

@@ -277,11 +277,11 @@ trx_get_on_id(
 {
 	trx_t*	trx;
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	trx = trx_get_on_id_low(trx_id);
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(trx);
 }
@@ -300,7 +300,7 @@ trx_list_get_min_trx_id_low(void)
 	trx_id_t	id;
 	trx_t*		trx;
 
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
 
@@ -322,11 +322,11 @@ trx_list_get_min_trx_id(void)
 {
 	trx_id_t	id;
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	id = trx_list_get_min_trx_id_low();
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(id);
 }
@@ -344,7 +344,7 @@ trx_is_active_low(
 {
 	trx_t*		trx;
 
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	*corrupt = FALSE;
 
@@ -384,11 +384,11 @@ trx_is_active(
 	trx_t*		trx;
 	ibool		corrupt;
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	trx = trx_is_active_low(trx_id, &corrupt);
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(trx);
 }
@@ -401,9 +401,7 @@ trx_id_t
 trx_sys_get_new_trx_id(void)
 /*========================*/
 {
-	trx_id_t	id;
-
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
@@ -417,9 +415,7 @@ trx_sys_get_new_trx_id(void)
 		trx_sys_flush_max_trx_id();
 	}
 
-	id = trx_sys->max_trx_id++;
-
-	return(id);
+	return(trx_sys->max_trx_id++);
 }
 
 /*****************************************************************//**
@@ -432,11 +428,11 @@ trx_sys_get_n_trx(void)
 {
 	ulint	n_trx;
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(n_trx);
 }

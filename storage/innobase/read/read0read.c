@@ -148,7 +148,7 @@ read_view_validate(
 {
 	ulint	i;
 
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (i = 1; i < view->n_trx_ids; ++i) {
@@ -172,88 +172,12 @@ read_view_create_low(
 {
 	read_view_t*	view;
 
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
+
 	view = mem_heap_alloc(heap, sizeof(*view) + n * sizeof(*view->trx_ids));
 
 	view->n_trx_ids = n;
 	view->trx_ids = (trx_id_t*) &view[1];
-
-	return(view);
-}
-
-/*********************************************************************//**
-Makes a copy of the oldest existing read view, with the exception that also
-the creating trx of the oldest view is set as not visible in the 'copied'
-view. Opens a new view if no views currently exist. The view must be closed
-with ..._close. This is used in purge.
-@return	own: read view struct */
-UNIV_INTERN
-read_view_t*
-read_view_purge_open(
-/*=================*/
-	mem_heap_t*	heap)		/*!< in: memory heap from which
-					allocated */
-{
-	ulint		i;
-	read_view_t*	view;
-	read_view_t*	oldest_view;
-	trx_id_t	creator_trx_id;
-	ulint		insert_done	= 0;
-
-	ut_ad(trx_sys_mutex_own());
-
-	oldest_view = UT_LIST_GET_LAST(trx_sys->view_list);
-
-	if (oldest_view == NULL) {
-
-		return(read_view_open_now(0, heap));
-	}
-
-	ut_ad(read_view_validate(oldest_view));
-
-	ut_a(oldest_view->creator_trx_id > 0);
-	creator_trx_id = oldest_view->creator_trx_id;
-
-	view = read_view_create_low(oldest_view->n_trx_ids + 1, heap);
-
-	/* Add the creator transaction id in the trx_ids array in the
-	correct slot. */
-
-	for (i = 0; i < oldest_view->n_trx_ids; ++i) {
-		trx_id_t	id;
-
-		id = oldest_view->trx_ids[i - insert_done];
-
-		if (insert_done == 0 && creator_trx_id > id) {
-			id = creator_trx_id;
-			insert_done = 1;
-		}
-
-		view->trx_ids[i] = id;
-	}
-
-	if (insert_done == 0) {
-		view->trx_ids[i] = creator_trx_id;
-	} else {
-		ut_a(i > 0);
-		view->trx_ids[i] = oldest_view->trx_ids[i - 1];
-	}
-
-	ut_ad(read_view_validate(view));
-
-	view->creator_trx_id = 0;
-
-	view->low_limit_no = oldest_view->low_limit_no;
-	view->low_limit_id = oldest_view->low_limit_id;
-
-	if (view->n_trx_ids > 0) {
-		/* The last active transaction has the smallest id: */
-
-		view->up_limit_id = view->trx_ids[view->n_trx_ids - 1];
-	} else {
-		view->up_limit_id = oldest_view->up_limit_id;
-	}
-
-	UT_LIST_ADD_LAST(view_list, trx_sys->view_list, view);
 
 	return(view);
 }
@@ -275,7 +199,7 @@ read_view_open_now(
 	read_view_t*	view;
 	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
 
 	view = read_view_create_low(n_trx, heap);
 
@@ -335,6 +259,84 @@ read_view_open_now(
 }
 
 /*********************************************************************//**
+Makes a copy of the oldest existing read view, with the exception that also
+the creating trx of the oldest view is set as not visible in the 'copied'
+view. Opens a new view if no views currently exist. The view must be closed
+with ..._close. This is used in purge.
+@return	own: read view struct */
+UNIV_INTERN
+read_view_t*
+read_view_purge_open(
+/*=================*/
+	mem_heap_t*	heap)		/*!< in: memory heap from which
+					allocated */
+{
+	ulint		i;
+	read_view_t*	view;
+	read_view_t*	oldest_view;
+	trx_id_t	creator_trx_id;
+	ulint		insert_done	= 0;
+
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
+
+	oldest_view = UT_LIST_GET_LAST(trx_sys->view_list);
+
+	if (oldest_view == NULL) {
+
+		return(read_view_open_now(0, heap));
+	}
+
+	ut_ad(read_view_validate(oldest_view));
+
+	ut_a(oldest_view->creator_trx_id > 0);
+	creator_trx_id = oldest_view->creator_trx_id;
+
+	view = read_view_create_low(oldest_view->n_trx_ids + 1, heap);
+
+	/* Add the creator transaction id in the trx_ids array in the
+	correct slot. */
+
+	for (i = 0; i < oldest_view->n_trx_ids; ++i) {
+		trx_id_t	id;
+
+		id = oldest_view->trx_ids[i - insert_done];
+
+		if (insert_done == 0 && creator_trx_id > id) {
+			id = creator_trx_id;
+			insert_done = 1;
+		}
+
+		view->trx_ids[i] = id;
+	}
+
+	if (insert_done == 0) {
+		view->trx_ids[i] = creator_trx_id;
+	} else {
+		ut_a(i > 0);
+		view->trx_ids[i] = oldest_view->trx_ids[i - 1];
+	}
+
+	ut_ad(read_view_validate(view));
+
+	view->creator_trx_id = 0;
+
+	view->low_limit_no = oldest_view->low_limit_no;
+	view->low_limit_id = oldest_view->low_limit_id;
+
+	if (view->n_trx_ids > 0) {
+		/* The last active transaction has the smallest id: */
+
+		view->up_limit_id = view->trx_ids[view->n_trx_ids - 1];
+	} else {
+		view->up_limit_id = oldest_view->up_limit_id;
+	}
+
+	UT_LIST_ADD_LAST(view_list, trx_sys->view_list, view);
+
+	return(view);
+}
+
+/*********************************************************************//**
 Remove a read view from the trx_sys->view_list. */
 UNIV_INTERN
 void
@@ -342,7 +344,7 @@ read_view_remove(
 /*============*/
 	read_view_t*	view)	/*!< in: read view */
 {
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
 
 	ut_ad(read_view_validate(view));
 
@@ -356,9 +358,9 @@ UNIV_INTERN
 void
 read_view_close_for_mysql(
 /*======================*/
-	trx_t*	trx)	/*!< in: trx which has a read view */
+	trx_t*		trx)	/*!< in: trx which has a read view */
 {
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	ut_a(trx->global_read_view);
 
@@ -369,7 +371,7 @@ read_view_close_for_mysql(
 	trx->read_view = NULL;
 	trx->global_read_view = NULL;
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 }
 
 /*********************************************************************//**
@@ -419,7 +421,7 @@ UNIV_INTERN
 cursor_view_t*
 read_cursor_view_create_for_mysql(
 /*==============================*/
-	trx_t*	cr_trx)	/*!< in: trx where cursor view is created */
+	trx_t*		cr_trx)	/*!< in: trx where cursor view is created */
 {
 	const trx_t*	trx;
 	read_view_t*	view;
@@ -443,7 +445,7 @@ read_cursor_view_create_for_mysql(
 
 	cr_trx->n_mysql_tables_in_use = 0;
 
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
@@ -501,7 +503,7 @@ read_cursor_view_create_for_mysql(
 
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	return(curview);
 }
@@ -524,13 +526,13 @@ read_cursor_view_close_for_mysql(
 	belong to this transaction */
 	trx->n_mysql_tables_in_use += curview->n_mysql_tables_in_use;
 
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	read_view_remove(curview->read_view);
 
 	trx->read_view = trx->global_read_view;
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	mem_heap_free(curview->heap);
 }
@@ -548,7 +550,7 @@ read_cursor_set_for_mysql(
 {
 	ut_a(trx);
 
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	if (UNIV_LIKELY(curview != NULL)) {
 		trx->read_view = curview->read_view;
@@ -558,5 +560,5 @@ read_cursor_set_for_mysql(
 
 	ut_ad(read_view_validate(trx->read_view));
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 }

@@ -2925,9 +2925,9 @@ row_sel_get_clust_rec_for_mysql(
 			      "InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
-			trx_sys_mutex_enter();
+			rw_lock_s_lock(&trx_sys->lock);
 			trx_print(stderr, trx, 600);
-			trx_sys_mutex_exit();
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
@@ -3408,9 +3408,9 @@ row_search_for_mysql(
 		      "InnoDB: but it has not locked"
 		      " any tables in ::external_lock()!\n",
 		      stderr);
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 		fputc('\n', stderr);
 	}
 #endif
@@ -3804,9 +3804,9 @@ release_search_latch_if_needed:
 			      " perform a consistent read\n"
 			      "InnoDB: but the read view is not assigned!\n",
 			      stderr);
-			trx_sys_mutex_enter();
+			rw_lock_s_lock(&trx_sys->lock);
 			trx_print(stderr, trx, 600);
-			trx_sys_mutex_exit();
+			rw_lock_s_unlock(&trx_sys->lock);
 			fputc('\n', stderr);
 			ut_a(0);
 		}
@@ -4701,14 +4701,14 @@ row_search_check_if_query_cache_permitted(
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
 		    && !trx->read_view) {
 
-			trx_sys_mutex_enter();
+			rw_lock_x_lock(&trx_sys->lock);
 
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);
 
 			trx->global_read_view = trx->read_view;
 
-			trx_sys_mutex_exit();
+			rw_lock_x_unlock(&trx_sys->lock);
 		}
 	}
 
