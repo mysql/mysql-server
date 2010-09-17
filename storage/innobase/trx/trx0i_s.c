@@ -1247,7 +1247,7 @@ fetch_data_into_cache(
 	to each transaction into innodb_locks' and innodb_lock_waits'
 	caches. */
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
@@ -1283,7 +1283,7 @@ fetch_data_into_cache(
 	cache->is_truncated = FALSE;
 
 func_exit:
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 }
 
 /*******************************************************************//**
