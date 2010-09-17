@@ -228,6 +228,7 @@ public:
   inline char* get_log_fname() { return log_file_name; }
   inline char* get_name() { return name; }
   inline mysql_mutex_t* get_log_lock() { return &LOCK_log; }
+  inline mysql_cond_t* get_log_cond() { return &update_cond; }
   inline IO_CACHE* get_log_file() { return &log_file; }
 
   inline void lock_index() { mysql_mutex_lock(&LOCK_index);}
