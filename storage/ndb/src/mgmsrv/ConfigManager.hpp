@@ -37,7 +37,6 @@ class ConfigManager : public MgmtThread {
 
   NdbMutex *m_config_mutex;
   const Config * m_config;
-  const Config * m_new_config;
   BaseString m_packed_config; // base64 packed
 
   ConfigRetriever m_config_retriever;
@@ -55,7 +54,7 @@ class ConfigManager : public MgmtThread {
       m_current_state(IDLE) {}
 
     operator int() const { return m_current_state; }
-  } m_config_change_state;
+  };
 
   void set_config_change_state(ConfigChangeState::States state);
 
@@ -71,10 +70,44 @@ class ConfigManager : public MgmtThread {
   ConfigState m_config_state;
   ConfigState m_previous_state;
 
-  /* The original error that caused config change to be aborted */
-  ConfigChangeRef::ErrorCode m_config_change_error;
+  struct ConfigChange
+  {
+    ConfigChange() :
+      m_client_ref(RNIL),
+      m_error(ConfigChangeRef::OK),
+      m_new_config(0),
+      m_loaded_config(0),
+      m_initial_config(0)
+      {}
 
-  BlockReference m_client_ref;
+    void release() {
+      if (m_new_config)
+        delete m_new_config;
+      if (m_loaded_config)
+        delete m_loaded_config;
+      if (m_initial_config)
+        delete m_initial_config;
+      m_new_config = 0;
+      m_loaded_config = 0;
+      m_initial_config = 0;
+    }
+
+    virtual ~ConfigChange() {
+      release();
+    }
+
+    ConfigChangeState m_state;
+    BlockReference m_client_ref;
+    /* The original error that caused config change to be aborted */
+    ConfigChangeRef::ErrorCode m_error;
+    const Config * m_new_config;
+
+    bool config_loaded(Config* config);
+    Config* m_loaded_config;
+    Config* m_initial_config;
+    NodeBitmask m_contacted_nodes;
+  } m_config_change;
+
   BaseString m_config_name;
   Config* m_prepared_config;
 
@@ -111,14 +144,17 @@ class ConfigManager : public MgmtThread {
   /* Check config is ok */
   bool config_ok(const Config* conf);
 
+  /* Prepare loaded config */
+  Config* prepareLoadedConfig(Config* config);
+
   /* Functions for writing config.bin to disk */
   bool prepareConfigChange(const Config* config);
   void commitConfigChange();
   void abortConfigChange();
 
   /* Functions for starting config change from ConfigManager */
-  void startInitConfigChange(SignalSender& ss);
-  void startNewConfigChange(SignalSender& ss);
+  void startConfigChange(SignalSender& ss);
+  void startAbortConfigChange(SignalSender&);
 
   /* CONFIG_CHANGE - controlling config change from other node */
   void execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig);
@@ -136,7 +172,7 @@ class ConfigManager : public MgmtThread {
   void execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig);
   void sendConfigChangeImplRef(SignalSender& ss, NodeId nodeId,
                                ConfigChangeRef::ErrorCode) const;
-  bool sendConfigChangeImplReq(SignalSender& ss, const Config* conf);
+  int sendConfigChangeImplReq(SignalSender& ss, const Config* conf);
 
   /*
     CONFIG_CHECK - protocol for exchanging and checking config state
