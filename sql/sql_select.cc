@@ -2618,34 +2618,6 @@ err:
 }
 
 
-/**
-  Setup for execution all subqueries of a query, for which the optimizer
-  chose hash semi-join.
-
-  @details Iterate over all immediate child subqueries of the query, and if
-  they are under an IN predicate, and the optimizer chose to compute it via
-  materialization:
-  - optimize each subquery,
-  - choose an optimial execution strategy for the IN predicate - either
-    materialization, or an IN=>EXISTS transformation with an approriate
-    engine.
-
-  This phase must be called after substitute_for_best_equal_field() because
-  that function may replace items with other items from a multiple equality,
-  and we need to reference the correct items in the index access method of the
-  IN predicate.
-
-  @return Operation status
-  @retval FALSE     success.
-  @retval TRUE      error occurred.
-*/
-
-bool JOIN::optimize_unflattened_subqueries()
-{
-  return select_lex->optimize_unflattened_subqueries();
-}
-
-
 /*****************************************************************************
   Create JOIN_TABS, make a guess about the table types,
   Approximate how many records will be used in each table

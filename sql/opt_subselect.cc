@@ -74,8 +74,6 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       1) this join is inside a subquery (of any type except FROM-clause 
          subquery) and
       2) we aren't just normalizing a VIEW
-      3) The join and its select_lex object do not represent the 'fake'
-         select used to compute the result of a UNION.
 
     Then perform early unconditional subquery transformations:
      - Convert subquery predicate into semi-join, or
@@ -87,9 +85,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
     TODO: for PS, make the whole block execute only on the first execution
   */
   Item_subselect *subselect;
-  if (!thd->lex->view_prepare_mode &&              // (1)
-      (subselect= parent_unit->item))// &&            // (2)
-//      select_lex == parent_unit->fake_select_lex)  // (3)
+  if (!thd->lex->view_prepare_mode &&            // (1)
+      (subselect= parent_unit->item))            // (2)
   {
     Item_in_subselect *in_subs= NULL;
     if (subselect->substype() == Item_subselect::IN_SUBS)
@@ -134,7 +131,13 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         DBUG_RETURN(-1); /* purecov: deadcode */
     }
     if (select_lex == parent_unit->fake_select_lex)
+    {
+      /*
+        The join and its select_lex object represent the 'fake' select used
+        to compute the result of a UNION.
+      */
       DBUG_RETURN(0);
+    }
 
     DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
     /*
@@ -528,6 +531,15 @@ skip_conversion:
                                      FALSE))
         DBUG_RETURN(TRUE);
     }
+    /*
+      Revert to the IN->EXISTS strategy in the rare case when the subquery could
+      be flattened.
+      TODO: This is a limitation done for simplicity. Such subqueries could also
+      be executed via materialization. In order to determine this, we should
+      re-run the test for materialization that was done in
+      check_and_do_in_subquery_rewrites.
+    */
+    (*in_subq)->exec_method= Item_in_subselect::IN_TO_EXISTS;
   }
 
   if (arena)
@@ -3524,6 +3536,34 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 }
 
 
+/**
+  Setup for execution all subqueries of a query, for which the optimizer
+  chose hash semi-join.
+
+  @details Iterate over all immediate child subqueries of the query, and if
+  they are under an IN predicate, and the optimizer chose to compute it via
+  materialization:
+  - optimize each subquery,
+  - choose an optimial execution strategy for the IN predicate - either
+    materialization, or an IN=>EXISTS transformation with an approriate
+    engine.
+
+  This phase must be called after substitute_for_best_equal_field() because
+  that function may replace items with other items from a multiple equality,
+  and we need to reference the correct items in the index access method of the
+  IN predicate.
+
+  @return Operation status
+  @retval FALSE     success.
+  @retval TRUE      error occurred.
+*/
+
+bool JOIN::optimize_unflattened_subqueries()
+{
+  return select_lex->optimize_unflattened_subqueries();
+}
+
+
 bool JOIN::choose_subquery_plan()
 {
   double mat_strategy_cost;    /* The cost to compute IN via materialization. */
@@ -3564,7 +3604,13 @@ bool JOIN::choose_subquery_plan()
     }
   }
   else
-    in_subs->exec_method= Item_in_subselect::IN_TO_EXISTS;
+  {
+    /*
+      Previous optimizer phases should have chosen either a materialization
+      or IN->EXISTS strategy.
+    */
+    DBUG_ASSERT(in_subs->exec_method == Item_in_subselect::IN_TO_EXISTS);
+  }
 
   if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION)
   {
