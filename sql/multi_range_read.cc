@@ -338,6 +338,7 @@ bool SimpleBuffer::have_space_for(size_t bytes)
     return (write_pos - bytes >= start);
 }
 
+
 size_t SimpleBuffer::used_size()
 {
   return (direction == 1)? write_pos - read_pos : read_pos - write_pos;
@@ -354,15 +355,17 @@ void SimpleBuffer::setup_reading(uchar **data1, size_t len1,
   read_size2= len2;
 }
 
+
 bool SimpleBuffer::read()
 {
   if (!have_data(read_size1 + (read_ptr2? read_size2 : 0)))
     return TRUE;
-  *read_ptr1 =read(read_size1);
+  *read_ptr1= read(read_size1);
   if (read_ptr2)
     *read_ptr2= read(read_size2);
   return FALSE;
 }
+
 
 uchar *SimpleBuffer::read(size_t bytes)
 {
@@ -381,11 +384,13 @@ uchar *SimpleBuffer::read(size_t bytes)
   }
 }
 
+
 bool SimpleBuffer::have_data(size_t bytes)
 {
   return (direction == 1)? (write_pos - read_pos >= (ptrdiff_t)bytes) : 
                            (read_pos - write_pos >= (ptrdiff_t)bytes);
 }
+
 
 void SimpleBuffer::reset_for_writing()
 {
@@ -493,7 +498,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   */
   full_buf= buf->buffer;
   full_buf_end= buf->buffer_end;
-  rowid_buffer.set_buffer_space(full_buf, full_buf_end, 1);
+  rowid_buffer.set_buffer_space(full_buf, full_buf_end, SimpleBuffer::FORWARD);
   
   if (do_sort_keys)
   {
@@ -819,10 +824,11 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
   if (!do_rowid_fetch)
   {
     /* Give all space to key buffer. */
-    key_buffer.set_buffer_space(full_buf, full_buf_end, 1);
+    key_buffer.set_buffer_space(full_buf, full_buf_end, SimpleBuffer::FORWARD);
 
     /* Just in case, tell rowid buffer that it has zero size: */
-    rowid_buffer.set_buffer_space(full_buf_end, full_buf_end, 1);
+    rowid_buffer.set_buffer_space(full_buf_end, full_buf_end, 
+                                  SimpleBuffer::FORWARD);
     return;
   }
   
@@ -865,8 +871,10 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
   }
 
   rowid_buffer_end= full_buf + bytes_for_rowids;
-  rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end, 1);
-  key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, -1); 
+  rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end, 
+                                SimpleBuffer::FORWARD);
+  key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, 
+                              SimpleBuffer::BACKWARD); 
 }
 
 
@@ -906,8 +914,10 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
         We're using two buffers and both of them are empty now. Restore the
         original sizes
       */
-      rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end, 1);
-      key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, -1);
+      rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end,
+                                    SimpleBuffer::FORWARD);
+      key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end,
+                                  SimpleBuffer::BACKWARD);
     }
     key_buffer.reset_for_writing();
     key_buffer.setup_writing(&key_ptr, key_size_in_keybuf,

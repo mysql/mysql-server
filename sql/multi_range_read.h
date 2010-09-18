@@ -6,9 +6,14 @@
 /**
   A Disk-Sweep implementation of MRR Interface (DS-MRR for short)
 
-  This is a "plugin"(*) for storage engines that allows make index scans 
-  read table rows in rowid order. For disk-based storage engines, this is
-  faster than reading table rows in whatever-SQL-layer-makes-calls-in order.
+  This is a "plugin"(*) for storage engines that allows to
+    1. When doing index scans, read table rows in rowid order;
+    2. when making many index lookups, do them in key order and don't
+       lookup the same key value multiple times;
+    3. Do both #1 and #2, when applicable.
+  These changes are expected to speed up query execution for disk-based 
+  storage engines running io-bound loads and "big" queries (ie. queries that
+  do joins and enumerate lots of records).
 
   (*) - only conceptually. No dynamic loading or binary compatibility of any
         kind.
@@ -17,20 +22,25 @@
    
       SQL Layer code
        |   |   |
-      -v---v---v---- handler->multi_range_read_XXX() function calls
+       v   v   v 
+      -|---|---|---- handler->multi_range_read_XXX() function calls
        |   |   |
-      ____________________________________
-     / DS-MRR module                      \
-     |  (scan indexes, order rowids, do    |
-     |   full record reads in rowid order) |
-     \____________________________________/
+      _____________________________________
+     / DS-MRR module                       \
+     | (order/de-duplicate lookup keys,    |
+     | scan indexes in key order,          |
+     | order/de-duplicate rowids,          |
+     | retrieve full record reads in rowid |
+     | order)                              |
+     \_____________________________________/
        |   |   |
       -|---|---|----- handler->read_range_first()/read_range_next(), 
        |   |   |      handler->index_read(), handler->rnd_pos() calls.
        |   |   |
        v   v   v
       Storage engine internals
-   
+
+
   Currently DS-MRR is used by MyISAM, InnoDB/XtraDB and Maria storage engines.
   Potentially it can be used with any table handler that has disk-based data
   storage and has better performance when reading data in rowid order.
@@ -38,77 +48,104 @@
 
 
 /*
-  A simple memory buffer for reading and writing.
+  An in-memory buffer used by DS-MRR implementation. 
+  - The buffer contains fixed-size elements. The elements are either atomic
+    byte sequences or pairs.
+  - The buffer resides in memory provided by the user. It is possible to
+     = dynamically (ie. between write operations) add ajacent memory space to
+       the buffer
+     = dynamically remove unused space from the buffer.
+  - Buffer can be set to be either "forward" or "backward". 
 
-  when writing, there is no user-visible "current" position, although
-  internally 'pos' points to just after the end of used area  (or at the 
-  start of it for reverse buffer).
+  The intent of the last two properties is to allow to have two buffers on
+  adjacent memory space, one is being read from (and so its space shrinks)
+  while the other is being written to (and so it needs more and more space).
 
-  When reading, there is current position pointing at start (for reverse
-  buffer, end) of the element that will be read next.
-   ^^ why end for reverse? it's more logical to point at start 
+  Illustration of forward buffer operation:
+
+                         +-- next read will read from here
+                         |
+                         |               +-- next write will write to here
+                         v               v
+        *--------------*===============*----------------*
+        |       ^      |          ^    |                |
+        |       |      read_pos   |    write_pos        |
+        start   |                 |                     end
+                |                 |            
+              usused space         user data
+
 */
 
 class SimpleBuffer
 {
-  uchar *start;
-  uchar *end;
-  uchar *read_pos;
-  uchar *write_pos;
-  
+public:
+
+  enum enum_direction {
+    BACKWARD=-1, /* buffer is filled/read from bigger to smaller memory addresses */
+    FORWARD=1  /* buffer is filled/read from smaller to bigger memory addresses */
+  };
+
+private:
+  enum_direction direction;
+
+  uchar *start; /* points to start of buffer space */
+  uchar *end;   /* points to just beyond the end of buffer space */
   /*
-     1 <=> buffer grows/is filled/is read from start to end
-    -1 <=> everthing is done from end to start instead.
+    Forward buffer: points to the start of the data that will be read next
+    Backward buffer: points to just beyond the end of the data that will be 
+    read next.
   */
-  int direction;
-  
-  /* Pointers to read data from */
+  uchar *read_pos;
+  /*
+    Forward buffer: points to just after the end of the used area.
+    Backward buffer: points to the start of used area.
+  */
+  uchar *write_pos;
+
+  /* 
+    Data to be written. write() call will assume that (*write_ptr1) points to 
+    write_size1 bytes of data to be written.
+    If write_ptr2!=NULL then the buffer stores pairs, and (*write_ptr2) points
+    to write_size2 bytes of data that form the second component.
+  */
   uchar **write_ptr1;
   size_t write_size1;
-  /* Same as above, but may be NULL */
   uchar **write_ptr2;
   size_t write_size2;
 
-  /* Pointers to write data to */
+  /*
+    read() will do reading by storing pointer to read data into *read_ptr1 (if
+    the buffer stores atomic elements), or into {*read_ptr1, *read_ptr2} (if
+    the buffer stores pairs).
+  */
+  //TODO if write_size1 == read_size1 why have two variables??
   uchar **read_ptr1;
   size_t read_size1;
-  /* Same as above, but may be NULL */
   uchar **read_ptr2;
   size_t read_size2;
 
-  bool have_space_for(size_t bytes);
-  uchar *used_area() { return (direction == 1)? read_pos : write_pos; }
-  size_t used_size();
-
-  void write(const uchar *data, size_t bytes);
-  uchar *read(size_t bytes);
-
 public:
-  /* Set up writing*/
+  /* Write-mode functions */
   void setup_writing(uchar **data1, size_t len1, 
                      uchar **data2, size_t len2);
-
-  void sort(qsort2_cmp cmp_func, void *cmp_func_arg);
-
-  /* Write-mode functions */
   void reset_for_writing();
-  void write();
   bool can_write();
-
-  bool is_empty() { return used_size() == 0; }
+  void write();
 
   /* Read-mode functions */
+  bool is_empty() { return used_size() == 0; }
   void reset_for_reading();
-  // todo: join with setup-writing? (but what for?)
   void setup_reading(uchar **data1, size_t len1, 
                      uchar **data2, size_t len2);
   bool read();
 
-  bool have_data(size_t bytes);
+  /* Misc functions */
+  void sort(qsort2_cmp cmp_func, void *cmp_func_arg);
+  bool is_reverse() { return direction == BACKWARD; }
   uchar *end_of_space();
 
-  /* Control functions */
-  void set_buffer_space(uchar *start_arg, uchar *end_arg, int direction_arg) 
+  /* Buffer space control functions */
+  void set_buffer_space(uchar *start_arg, uchar *end_arg, enum_direction direction_arg) 
   {
     start= start_arg;
     end= end_arg;
@@ -116,10 +153,10 @@ public:
     TRASH(start, end - start);
     reset_for_writing();
   }
-  
+
   /*
-    Stop/return the unneded space (the one that we have wrote to and have read
-    from.
+    Stop using/return the unneded space (the one that we have already wrote 
+    to read from).
   */
   void remove_unused_space(uchar **unused_start, uchar **unused_end)
   {
@@ -142,9 +179,8 @@ public:
     uchar *tmp= read_pos;
     read_pos= write_pos;
     write_pos= tmp;
-    direction= -direction;
+    direction= (direction == FORWARD)? BACKWARD: FORWARD;
   }
-  bool is_reverse() { return direction == -1; }
 
   void grow(uchar *unused_start, uchar *unused_end)
   {
@@ -173,10 +209,13 @@ public:
   */
   class PeekIterator
   {
-    // if direction==1 : pointer to what to return next
-    // if direction==-1: pointer to the end of what is to be returned next
+    /*
+      if sb->direction==1 : pointer to what to return next
+      if sb->direction==-1: pointer to the end of what is to be returned next
+    */
     uchar *pos;
     SimpleBuffer *sb;
+    
   public:
     void init(SimpleBuffer *sb_arg)
     {
@@ -190,8 +229,10 @@ public:
     */
     bool read_next()
     {
-      // Always read the first component first? (because we do inverted-writes
-      // if needed, so no measures need to be taken here).
+      /* 
+        Always read the first component first (if the buffer is backwards, we
+        have written the second component first).
+      */
       uchar *res;
       if ((res= get_next(sb->read_size1)))
       {
@@ -223,6 +264,16 @@ public:
       }
     }
   };
+
+private:
+  bool have_space_for(size_t bytes);
+  /* Return pointer to start of the memory area that is occupied by the data */
+  uchar *used_area() { return (direction == FORWARD)? read_pos : write_pos; }
+  size_t used_size();
+
+  void write(const uchar *data, size_t bytes);
+  uchar *read(size_t bytes);
+  bool have_data(size_t bytes);
 };
 
 
@@ -231,11 +282,11 @@ public:
   each ha_{myisam/innobase/etc} object. That object will be further referred to
   as "the handler"
 
-  There are actually three strategies
-   S1. Bypass DS-MRR, pass all calls to default implementation (i.e. to
+  DsMrr_impl has the following execution strategies:
+   S1. Bypass DS-MRR, pass all calls to default MRR implementation (i.e. to
       MRR-to-non-MRR calls converter)
-   S2. Regular DS-MRR 
-   S3. DS-MRR/CPK for doing scans on clustered primary keys.
+   S2. Sort Keys
+   S3. Sort Rowids
 
   S1 is used for cases which DS-MRR is unable to handle for some reason.
 
@@ -294,9 +345,13 @@ private:
   handler *h;
   TABLE *table; /* Always equal to h->table */
 
-  /* Secondary handler object.  It is used for scanning the index */
+  /*
+    Secondary handler object, if needed (we need it when we need to both scan
+    the index and return rows).
+  */
   handler *h2;
-
+  
+  /* Full buffer that we're using (the buffer is obtained from SQL layer) */
   uchar *full_buf;
   uchar *full_buf_end;
   
