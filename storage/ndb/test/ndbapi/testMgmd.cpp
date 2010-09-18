@@ -26,7 +26,7 @@
 #include <NDBT_Find.hpp>
 #include <NDBT_Workingdir.hpp>
 
-static bool file_exists(const char* path)
+static bool file_exists(const char* path, Uint32 timeout = 1)
 {
   g_info << "File '" << path << "' ";
   /**
@@ -35,7 +35,7 @@ static bool file_exists(const char* path)
    *   which means that it can be on disk, wo/ being visible
    *   remedy this by retrying some
    */
-  for (int i = 0; i<10; i++)
+  for (Uint32 i = 0; i < 10 * timeout; i++)
   {
     if (access(path, F_OK) == 0)
     {
@@ -548,12 +548,13 @@ int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
                          "ndb_2_config.bin.1",
                          NULL).c_str()));
 
+  Uint32 timeout = 30;
   CHECK(file_exists(path(wd.path(),
                          "ndb_1_config.bin.2",
-                         NULL).c_str()));
+                         NULL).c_str(), timeout));
   CHECK(file_exists(path(wd.path(),
                          "ndb_2_config.bin.2",
-                         NULL).c_str()));
+                         NULL).c_str(), timeout));
 
   g_err << "** Reload mgmd initial(from generation=2)" << endl;
   for (unsigned i = 0; i < mgmds.size(); i++)
@@ -578,7 +579,8 @@ int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
       tmp.assfmt("ndb_%d_config.bin.2", j+1);
       CHECK(file_exists(path(wd.path(),
                              tmp.c_str(),
-                             NULL).c_str()));
+                             NULL).c_str(),
+                        timeout));
     }
   }
 
@@ -910,20 +912,24 @@ runBug56844(NDBT_Context* ctx, NDBT_Step* step)
       CHECK(mgmds[i]->wait_confirmed_config());
     }
 
-    for (unsigned i = 0; i < mgmds.size(); i++)
-    {
-      CHECK(mgmds[i]->stop());
-    }
-
     /**
-     * Here i think it's ok if 1 or 2 or the reload have succeeded
+     * Since it will first be confirmed...
+     *   and then once connected to other ndb_nmgmd start a config
+     *   change, it can take a bit until new config exists...
+     *   allow 30s
      */
+    Uint32 timeout = 30;
     for (unsigned i = 0; i < mgmds.size(); i++)
     {
       BaseString p = path(wd.path(), "", NULL);
       p.appfmt("ndb_%u_config.bin.%u", i+1, no);
       g_err << "CHECK(" << p.c_str() << ")" << endl;
-      CHECK(file_exists(p.c_str()));
+      CHECK(file_exists(p.c_str(), timeout));
+    }
+
+    for (unsigned i = 0; i < mgmds.size(); i++)
+    {
+      CHECK(mgmds[i]->stop());
     }
   }
   return NDBT_OK;
