@@ -123,7 +123,7 @@ endif
 $(NEWBRT_O_FILES): VISIBILITY=
 $(NEWBRT): $(NEWBRT_O_FILES)
 $(NEWBRT_SO): newbrt.bundle
-	$(TOKULINKER) $(SHARED) $(SYMBOLS) newbrt.bundle/*.o -o$(NEWBRT_SO)
+	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(CILK_LINKER_FLAGS) newbrt.bundle/*.o -o$(NEWBRT_SO) $(CILKRTS_LIB)
 
 $(NEWBRT_BUNDLE): log_code.c log_header.h
 
