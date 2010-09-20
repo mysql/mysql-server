@@ -1482,7 +1482,6 @@ try_again:
 	int		create_flag;
 	ibool		retry;
 	const char*	mode_str	= NULL;
-	const char*	type_str	= NULL;
 
 try_again:
 	ut_a(name);
@@ -1502,14 +1501,7 @@ try_again:
 		ut_error;
 	}
 
-	if (type == OS_LOG_FILE) {
-		type_str = "LOG";
-	} else if (type == OS_DATA_FILE) {
-		type_str = "DATA";
-	} else {
-		ut_error;
-	}
-
+	ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE);
 	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 
 #ifdef O_SYNC
