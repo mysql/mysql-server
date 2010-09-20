@@ -1450,6 +1450,10 @@ max-time: 300
 cmd: testSystemRestart
 args: -n Bug46412 T1
 
+max-time: 300
+cmd: testSystemRestart
+args: -n BugXXX T1
+
 # Test clean ApiFailReq behaviour
 max-time: 300
 cmd: testNdbApi
