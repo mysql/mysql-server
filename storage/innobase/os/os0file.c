@@ -1483,7 +1483,6 @@ try_again:
 	ibool		retry;
 	const char*	mode_str	= NULL;
 	const char*	type_str	= NULL;
-	const char*	purpose_str	= NULL;
 
 try_again:
 	ut_a(name);
@@ -1511,18 +1510,8 @@ try_again:
 		ut_error;
 	}
 
-	if (purpose == OS_FILE_AIO) {
-		purpose_str = "AIO";
-	} else if (purpose == OS_FILE_NORMAL) {
-		purpose_str = "NORMAL";
-	} else {
-		ut_error;
-	}
+	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 
-#if 0
-	fprintf(stderr, "Opening file %s, mode %s, type %s, purpose %s\n",
-		name, mode_str, type_str, purpose_str);
-#endif
 #ifdef O_SYNC
 	/* We let O_SYNC only affect log files; note that we map O_DSYNC to
 	O_SYNC because the datasync options seemed to corrupt files in 2001
