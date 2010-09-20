@@ -288,35 +288,76 @@ private:
   each ha_{myisam/innobase/etc} object. That object will be further referred to
   as "the handler"
 
-  DsMrr_impl has the following execution strategies:
-   S1. Bypass DS-MRR, pass all calls to default MRR implementation (i.e. to
-      MRR-to-non-MRR calls converter)
-   S2. Sort Keys
-   S3. Sort Rowids
+  DsMrr_impl supports has the following execution strategies:
 
-  psergey-TODO.
+  - Bypass DS-MRR, pass all calls to default MRR implementation, which is 
+    an MRR-to-non-MRR call converter.
+  - Key-Ordered Retrieval
+  - Rowid-Ordered Retrieval
 
-  S1 is used for cases which DS-MRR is unable to handle for some reason.
+  DsMrr_impl will use one of the above strategies, or combination of them, 
+  according to the following diagram:
 
-  S2 is the actual DS-MRR. The basic algorithm is as follows:
+         (mrr function calls)
+                |
+                +----------------->-----------------+
+                |                                   |
+     ___________v______________      _______________v________________
+    / default: use lookup keys \    / KEY-ORDERED RETRIEVAL:         \
+    | (or ranges) in whatever  |    | sort lookup keys and then make | 
+    | order they are supplied  |    | index lookups in index order   |
+    \__________________________/    \________________________________/
+              | |  |                           |    |
+      +---<---+ |  +--------------->-----------|----+
+      |         |                              |    |
+      |         |              +---------------+    |
+      |   ______v___ ______    |     _______________v_______________
+      |  / default: read   \   |    / ROWID-ORDERED RETRIEVAL:      \
+      |  | table records   |   |    | Before reading table records, |
+      v  | in random order |   v    | sort their rowids and then    |
+      |  \_________________/   |    | read them in rowid order      |
+      |         |              |    \_______________________________/
+      |         |              |                    |
+      |         |              |                    |
+      +-->---+  |  +----<------+-----------<--------+
+             |  |  |                                
+             v  v  v
+      (table records and range_ids)
+
+  The choice of strategy depends on MRR scan properties, table properties
+  (whether we're scanning clustered primary key), and @@optimizer_flag
+  settings.
+  
+  Key-Ordered Retrieval
+  ---------------------
+  The idea is: if MRR scan is essentially a series of lookups on 
+   
+    tbl.key=value1 OR tbl.key=value2 OR ... OR tbl.key=valueN
+  
+  then it makes sense to collect and order the set of lookup values, i.e.
+   
+     sort(value1, value2, .. valueN)
+
+  and then do index lookups in index order. This results in fewer index page
+  fetch operations, and we also can avoid making multiple index lookups for the
+  same value. That is, if value1=valueN we can easily discover that after
+  sorting and make one index lookup for them instead of two.
+
+  Rowid-Ordered Retrieval
+  -----------------------
+  If we do a regular index scan or a series of index lookups, we'll be hitting
+  table records at random. For disk-based engines, this is much slower than 
+  reading the same records in disk order. We assume that disk ordering of
+  rows is the same as ordering of their rowids (which is provided by 
+  handler::cmp_ref())
+  In order to retrieve records in different order, we must separate index
+  scanning and record fetching, that is, MRR scan uses the following steps:
+
     1. Scan the index (and only index, that is, with HA_EXTRA_KEYREAD on) and 
-        fill the buffer with {rowid, range_id} pairs
-    2. Sort the buffer by rowid
+        fill a buffer with {rowid, range_id} pairs
+    2. Sort the buffer by rowid value
     3. for each {rowid, range_id} pair in the buffer
          get record by rowid and return the {record, range_id} pair
-    4. Repeat the above steps until we've exhausted the list of ranges we're
-       scanning.
-
-  S3 is the variant of DS-MRR for use with clustered primary keys (or any
-  clustered index). The idea is that in clustered index it is sufficient to 
-  access the index in index order, and we don't need an intermediate steps to
-  get rowid (like step #1 in S2).
-
-   DS-MRR/CPK's basic algorithm is as follows:
-    1. Collect a number of ranges (=lookup keys)
-    2. Sort them so that they follow in index order.
-    3. for each {lookup_key, range_id} pair in the buffer 
-       get record(s) matching the lookup key and return {record, range_id} pairs
     4. Repeat the above steps until we've exhausted the list of ranges we're
        scanning.
 */
