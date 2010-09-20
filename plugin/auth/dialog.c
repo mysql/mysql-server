@@ -78,10 +78,10 @@ static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
     return CR_ERROR;
 
-  info->password_used = 1;
+  info->password_used= PASSWORD_USED_YES;
 
   /* fail if the password is wrong */
-  if (strcmp((const char *)pkt, info->auth_string))
+  if (strcmp((const char *) pkt, info->auth_string))
     return CR_ERROR;
 
   /* send the last, ordinary, question */
@@ -93,7 +93,7 @@ static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
     return CR_ERROR;
 
   /* check the reply */
-  return strcmp((const char *)pkt, "yes, of course") ? CR_ERROR : CR_OK;
+  return strcmp((const char *) pkt, "yes, of course") ? CR_ERROR : CR_OK;
 }
 
 static struct st_mysql_auth two_handler=
@@ -120,7 +120,7 @@ static int three_attempts(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
     if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
       return CR_ERROR;
 
-    info->password_used = 1;
+    info->password_used= PASSWORD_USED_YES;
 
     /*
       finish, if the password is correct.
@@ -310,7 +310,7 @@ static int init_dialog(char *unused1   __attribute__((unused)),
                        va_list unused4 __attribute__((unused)))
 {
   void *sym= dlsym(RTLD_DEFAULT, "mysql_authentication_dialog_ask");
-  ask= sym ? (mysql_authentication_dialog_ask_t)sym : builtin_ask;
+  ask= sym ? (mysql_authentication_dialog_ask_t) sym : builtin_ask;
   return 0;
 }
 

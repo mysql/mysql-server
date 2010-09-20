@@ -30,6 +30,13 @@
 
 #include <mysql/plugin_auth_common.h>
 
+/* defines for MYSQL_SERVER_AUTH_INFO.password_used */
+
+#define PASSWORD_USED_NO         0
+#define PASSWORD_USED_YES        1
+#define PASSWORD_USED_NO_MENTION 2
+
+
 /**
   Provides server plugin access to authentication information
 */
