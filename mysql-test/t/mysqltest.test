@@ -494,6 +494,23 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 --error 1
 --exec echo "--disable_query_log;" | $MYSQL_TEST 2>&1
 
+#
+# Extra text after ``
+#
+--error 1
+-- exec echo "let \$x= \`select 1\` BOO ;" | $MYSQL_TEST 2>&1
+--error 1
+-- exec echo "--let \$x= \`select 1\`;" | $MYSQL_TEST 2>&1
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+# Missing ; in next line should be detected and cause failure
+let $x= `select 1`
+let $x= 2;
+echo $x;
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+
 
 # Allow trailing # comment
 --sleep 1 # Wait for insert delayed to be executed.
