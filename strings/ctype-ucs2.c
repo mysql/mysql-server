@@ -1470,7 +1470,7 @@ my_strnncoll_utf16_bin(CHARSET_INFO *cs,
     }
     if (s_wc != t_wc)
     {
-      return  s_wc > t_wc ? 1 : -1;
+      return  my_bincmp(s, s + s_res, t, t + t_res);
     }
     
     s+= s_res;
@@ -1512,7 +1512,7 @@ my_strnncollsp_utf16_bin(CHARSET_INFO *cs,
 
     if (s_wc != t_wc)
     {
-      return s_wc > t_wc ? 1 : -1;
+      return my_bincmp(s, s + s_res, t, t + t_res);
     }
 
     s+= s_res;
@@ -1695,8 +1695,8 @@ static MY_COLLATION_HANDLER my_collation_utf16_bin_handler =
   NULL,                /* init */
   my_strnncoll_utf16_bin,
   my_strnncollsp_utf16_bin,
-  my_strnxfrm_unicode,
-  my_strnxfrmlen_simple,
+  my_strnxfrm_unicode_full_bin,
+  my_strnxfrmlen_unicode_full_bin,
   my_like_range_utf16,
   my_wildcmp_utf16_bin,
   my_strcasecmp_mb2_or_mb4,
@@ -2724,8 +2724,8 @@ static MY_COLLATION_HANDLER my_collation_utf32_bin_handler =
   NULL, /* init */
   my_strnncoll_utf32_bin,
   my_strnncollsp_utf32_bin,
-  my_strnxfrm_unicode,
-  my_strnxfrmlen_utf32,
+  my_strnxfrm_unicode_full_bin,
+  my_strnxfrmlen_unicode_full_bin,
   my_like_range_utf32,
   my_wildcmp_utf32_bin,
   my_strcasecmp_mb2_or_mb4,
