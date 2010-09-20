@@ -9,17 +9,10 @@
 connection master;
 
 # Test 'flush error logs' statement.
---echo # Make sure the 'master_log.err-old' file does not
---echo # exist before execute 'flush error logs' statement.
---error 1
-file_exists $MYSQLTEST_VARDIR/tmp/master_log.err-old;
 
 --echo # Test if support 'flush error logs' statement.
 flush error logs;
 
---echo # Check the 'master_log.err-old' file is created
---echo # after executed 'flush error logs' statement.
-file_exists $MYSQLTEST_VARDIR/tmp/master_log.err-old;
 file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 
 --echo # Make sure binary logs was not be flushed
@@ -109,19 +102,10 @@ sync_slave_with_master;
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
 
 connection master;
-remove_file $MYSQLTEST_VARDIR/tmp/master_log.err-old;
-
---echo # Make sure the 'master_log.err-old' file does not exist
---echo # before execute 'flush error logs, relay logs' statement.
---error 1
-file_exists $MYSQLTEST_VARDIR/tmp/master_log.err-old;
 
 --echo # Test if support to combine all kinds of logs into one statement.
 flush error logs, relay logs;
 
---echo # Check the 'master_log.err-old' file is created
---echo # after executed 'flush error logs, relay logs' statement.
-file_exists $MYSQLTEST_VARDIR/tmp/master_log.err-old;
 file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 
 --echo # Make sure binary logs was not be flushed
@@ -145,19 +129,10 @@ file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000009;
 
 connection master;
-remove_file $MYSQLTEST_VARDIR/tmp/master_log.err-old;
-
---echo # Make sure the 'master_log.err-old' file does not exist
---echo # before execute 'flush logs' statement.
---error 1
-file_exists $MYSQLTEST_VARDIR/tmp/master_log.err-old;
 
 --echo # Test if 'flush logs' statement works fine and flush all the logs.
 flush logs;
 
---echo # Check the 'master_log.err-old' file is created
---echo # after executed 'flush logs' statement.
-file_exists $MYSQLTEST_VARDIR/tmp/master_log.err-old;
 file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 
 --echo # Check 'master-bin.000003' is created

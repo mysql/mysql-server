@@ -1815,6 +1815,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
+        mysql_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
           mysql_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
@@ -1822,16 +1823,15 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if (mysys_var)
           mysql_mutex_unlock(&mysys_var->mutex);
 
-        thd_info->start_time= tmp->start_time;
         thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
-        mysql_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query())
         {
           uint length= min(max_query_length, tmp->query_length());
           thd_info->query= (char*) thd->strmake(tmp->query(),length);
         }
         mysql_mutex_unlock(&tmp->LOCK_thd_data);
+        thd_info->start_time= tmp->start_time;
         thread_infos.append(thd_info);
       }
     }
@@ -1918,6 +1918,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         table->field[3]->set_notnull();
       }
 
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
       if ((mysys_var= tmp->mysys_var))
         mysql_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
@@ -1938,6 +1939,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
 
       if (mysys_var)
         mysql_mutex_unlock(&mysys_var->mutex);
+      mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
       /* INFO */
       /* Lock THD mutex that protects its data when looking at it. */
@@ -3273,8 +3275,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   /*
     TODO: investigate if in this particular situation we can get by
-          simply obtaining internal lock of data-dictionary (ATM it
-          is LOCK_open) instead of obtaning full-blown metadata lock.
+          simply obtaining internal lock of the data-dictionary
+          instead of obtaining full-blown metadata lock.
   */
   if (try_acquire_high_prio_shared_mdl_lock(thd, &table_list, can_deadlock))
   {
@@ -7490,13 +7492,16 @@ int finalize_schema_table(st_plugin_int *plugin)
   ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
   DBUG_ENTER("finalize_schema_table");
 
-  if (schema_table && plugin->plugin->deinit)
+  if (schema_table)
   {
-    DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-    if (plugin->plugin->deinit(NULL))
+    if (plugin->plugin->deinit)
     {
-      DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
-                             plugin->name.str));
+      DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+      if (plugin->plugin->deinit(NULL))
+      {
+        DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                               plugin->name.str));
+      }
     }
     my_free(schema_table);
   }
@@ -7657,7 +7662,7 @@ static bool show_create_trigger_impl(THD *thd,
 */
 
 static
-TABLE_LIST *get_trigger_table_impl(THD *thd, const sp_name *trg_name)
+TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
   char trn_path_buff[FN_REFLEN];
   LEX_STRING trn_path= { trn_path_buff, 0 };
@@ -7692,39 +7697,6 @@ TABLE_LIST *get_trigger_table_impl(THD *thd, const sp_name *trg_name)
                         tbl_name.str, TL_IGNORE);
 
   return table;
-}
-
-/**
-  Read TRN and TRG files to obtain base table name for the specified
-  trigger name and construct TABE_LIST object for the base table. Acquire
-  LOCK_open when doing this.
-
-  @param thd      Thread context.
-  @param trg_name Trigger name.
-
-  @return TABLE_LIST object corresponding to the base table.
-*/
-
-static
-TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
-{
-  /* Acquire LOCK_open (stop the server). */
-
-  mysql_mutex_lock(&LOCK_open);
-
-  /*
-    Load base table name from the TRN-file and create TABLE_LIST object.
-  */
-
-  TABLE_LIST *lst= get_trigger_table_impl(thd, trg_name);
-
-  /* Release LOCK_open (continue the server). */
-
-  mysql_mutex_unlock(&LOCK_open);
-
-  /* That's it. */
-
-  return lst;
 }
 
 

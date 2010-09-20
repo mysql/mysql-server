@@ -564,8 +564,9 @@ void Item_func::count_decimal_length()
     set_if_smaller(unsigned_flag, args[i]->unsigned_flag);
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
-  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
-                                                           unsigned_flag);
+  fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
+                                                               decimals,
+                                                               unsigned_flag));
 }
 
 
@@ -575,13 +576,14 @@ void Item_func::count_decimal_length()
 
 void Item_func::count_only_length()
 {
-  max_length= 0;
+  uint32 char_length= 0;
   unsigned_flag= 0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    set_if_bigger(max_length, args[i]->max_length);
+    set_if_bigger(char_length, args[i]->max_char_length());
     set_if_bigger(unsigned_flag, args[i]->unsigned_flag);
   }
+  fix_char_length(char_length);
 }
 
 
@@ -2531,6 +2533,8 @@ void Item_func_min_max::fix_length_and_dec()
                                                                  decimals,
                                                                  unsigned_flag));
   }
+  else if (cmp_type == REAL_RESULT)
+    fix_char_length(float_length(decimals));
   cached_field_type= agg_field_type(args, arg_count);
 }
 
