@@ -92,6 +92,15 @@ dict_mem_table_create(
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
 	table->n_waiting_or_granted_auto_inc_locks = 0;
+
+	/* If the table has an FTS index or we are in the process
+	of building one, create the table->fts */
+	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_ADD_DOC_ID)) {
+                table->fts = fts_create(table);
+        } else {
+                table->fts = NULL;
+        }
 #endif /* !UNIV_HOTBACKUP */
 
 	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);

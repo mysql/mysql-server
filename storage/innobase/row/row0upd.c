@@ -1282,6 +1282,89 @@ row_upd_changes_some_index_ord_field_binary(
 	return(FALSE);
 }
 
+/***************************************************************
+Checks if an FTS indexed column is affected by an UPDATE. */
+
+ulint
+row_upd_changes_fts_column(
+/*=======================*/
+					/* out: offset within fts_t::indexes
+					if FTS indexed column updated else
+					ULINT_UNDEFINED */
+	dict_table_t*	table,		/* in: table */
+	upd_field_t*	upd_field)	/* in: field to check */
+{
+	ulint		col_no;
+	dict_index_t*	clust_index;
+	fts_t*		fts = table->fts;
+
+	clust_index = dict_table_get_first_index(table);
+
+	/* Convert from index-specific column number to table-global
+	column number. */
+	col_no = dict_index_get_nth_col_no(clust_index, upd_field->field_no);
+
+	return(dict_table_is_fts_column(fts->indexes, col_no));
+}
+
+/***************************************************************
+Checks if an update vector changes the table's FTS-indexed columns.
+NOTE: must not be called for tables which do not have an FTS-index.
+Also, the vector returned must be explicitly freed as it's allocated
+using the ut_malloc() allocator. */
+
+ib_vector_t*
+row_upd_changes_fts_columns(
+/*========================*/
+					/* out,own: vector of FTS indexes that
+					were affected by the update */
+	dict_table_t*	table,		/* in: table */
+	upd_t*		update)		/* in: update vector for the row */
+{
+	ulint		i;
+	ulint		offset;
+	dict_index_t*	clust_index;
+	fts_t*		fts = table->fts;
+	ib_vector_t*	updated_fts_indexes = NULL;
+
+	clust_index = dict_table_get_first_index(table);
+
+	for (i = 0; i < upd_get_n_fields(update); ++i) {
+		upd_field_t*	upd_field = upd_get_nth_field(update, i);
+
+		offset = row_upd_changes_fts_column(table, upd_field);
+
+		if (offset != ULINT_UNDEFINED) {
+
+			dict_index_t*	index;
+
+			/* TODO: Investigate if we can check whether the
+			existing set of affected indexes matches the new
+			affected set. If matched then we don't need to
+			do the extra malloc()/free(). */
+
+			/* This vector is created from the ut_malloc()
+			allocator because we only want to keep one instance
+			around not matter how many times this row is
+			updated. The old entry should be deleted when
+			we update the FTS row info with this new vector. */
+			if (updated_fts_indexes == NULL) {
+				ib_alloc_t*	ut_alloc;
+
+				ut_alloc = ib_ut_allocator_create();
+
+				updated_fts_indexes = ib_vector_create(
+					ut_alloc, sizeof(dict_index_t*), 2);
+			}
+
+			index = ib_vector_getp(fts->indexes, offset);
+			ib_vector_push(updated_fts_indexes, &index);
+		}
+	}
+
+	return(updated_fts_indexes);
+}
+
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume

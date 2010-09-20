@@ -93,6 +93,9 @@ trx_create(
 	sess_t*	sess)	/*!< in: session */
 {
 	trx_t*	trx;
+	ib_alloc_t*	heap_alloc;
+        mem_heap_t*	heap = mem_heap_create(1024);
+
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(sess);
@@ -176,6 +179,9 @@ trx_create(
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 
+	trx->fts_trx = NULL;
+	trx->fts_next_doc_id = 0;
+
 	trx->global_read_view_heap = mem_heap_create(256);
 	trx->global_read_view = NULL;
 	trx->read_view = NULL;
@@ -186,9 +192,10 @@ trx_create(
 
 	trx->n_autoinc_rows = 0;
 
+	heap_alloc = ib_heap_allocator_create(heap);
+
 	/* Remember to free the vector explicitly. */
-	trx->autoinc_locks = ib_vector_create(
-		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
+	trx->autoinc_locks = ib_vector_create(heap_alloc, sizeof(void**), 4);
 
 	return(trx);
 }
@@ -336,6 +343,9 @@ trx_free(
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	/* We allocated a dedicated heap for the vector. */
 	ib_vector_free(trx->autoinc_locks);
+
+	/* fts_trx is always freed in trx_commit_off_kernel */
+	ut_a(trx->fts_trx == NULL);
 
 	mem_free(trx);
 }
@@ -719,6 +729,75 @@ trx_start(
 	return(ret);
 }
 
+/********************************************************************
+Finalize a transaction containing updates for a FTS table. */
+static
+void
+trx_finalize_for_fts_table(
+/*=======================*/
+        fts_trx_table_t*        ftt)            /* in: FTS trx table */
+{
+	fts_t*                  fts = ftt->table->fts;
+	fts_doc_ids_t*          doc_ids = ftt->added_doc_ids;
+
+	mutex_enter(&fts->bg_threads_mutex);
+
+	if (fts->fts_status & BG_THREAD_STOP) {
+		/* The table is about to be dropped, no use
+		adding anything to its work queue. */
+
+		mutex_exit(&fts->bg_threads_mutex);
+	} else {
+		mem_heap_t*     heap;
+		mutex_exit(&fts->bg_threads_mutex);
+
+		ut_a(fts->add_wq);
+
+		heap = doc_ids->self_heap->arg;
+
+		ib_wqueue_add(fts->add_wq, doc_ids, heap);
+
+		/* fts_trx_table_t no longer owns the list. */
+		ftt->added_doc_ids = NULL;
+	}
+}
+
+/********************************************************************
+Finalize a transaction containing updates to FTS tables. */
+static
+void
+trx_finalize_for_fts(
+/*=================*/
+        trx_t*  trx,            /* in: transaction */
+        ibool   is_commit)      /* in: TRUE if the transaction was
+                                committed, FALSE if it was rolled back. */
+{
+	if (is_commit) {
+		const ib_rbt_node_t*    node;
+		ib_rbt_t*               tables;
+		fts_savepoint_t*        savepoint;
+
+		savepoint = ib_vector_last(trx->fts_trx->savepoints);
+
+		tables = savepoint->tables;
+
+		for (node = rbt_first(tables);
+		     node;
+		     node = rbt_next(tables, node)) {
+			fts_trx_table_t*        ftt;
+
+			ftt = *rbt_value(fts_trx_table_t*, node);
+
+			if (ftt->added_doc_ids) {
+				trx_finalize_for_fts_table(ftt);
+			}
+		}
+	}
+
+	fts_trx_free(trx->fts_trx);
+	trx->fts_trx = NULL;
+}
+
 /****************************************************************//**
 Commits a transaction. */
 UNIV_INTERN
@@ -731,9 +810,31 @@ trx_commit_off_kernel(
 	ib_uint64_t	lsn		= 0;
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
+	ibool           doing_fts_commit = FALSE;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&kernel_mutex));
+
+	/* undo_no is non-zero if we're doing the final commit. */
+	if (trx->fts_trx && (trx->undo_no != 0)) {
+		ulint   error;
+
+		doing_fts_commit = TRUE;
+
+		mutex_exit(&kernel_mutex);
+
+		error = fts_commit(trx);
+
+		mutex_enter(&kernel_mutex);
+
+		if (error != DB_SUCCESS) {
+			/* FTS-FIXME: once we can return values from this
+			function, we should do so and signal an error
+			instead of just dying. */
+
+			ut_error;
+		}
+	}
 
 	trx->must_flush_log_later = FALSE;
 
@@ -943,6 +1044,10 @@ trx_commit_off_kernel(
 	trx->rseg = NULL;
 	trx->undo_no = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
+
+        if (trx->fts_trx) {
+                trx_finalize_for_fts(trx, doing_fts_commit);
+        }
 
 	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 	ut_ad(UT_LIST_GET_LEN(trx->trx_locks) == 0);

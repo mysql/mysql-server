@@ -51,6 +51,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
+#include "fts0fts.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -81,6 +82,7 @@ static const char S_innodb_lock_monitor[] = "innodb_lock_monitor";
 static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
+static const char S_innodb_sql[] = "innodb_sql";
 /* @} */
 
 /** Evaluates to true if str1 equals str2_onstack, used for comparing
@@ -357,7 +359,7 @@ row_mysql_store_col_in_innobase_format(
 		sign bit negated if the data is a signed integer. In MySQL,
 		integers are stored in a little-endian format. */
 
-		byte*	p = buf + col_len;
+		byte*   p = buf + col_len;
 
 		for (;;) {
 			p--;
@@ -374,7 +376,7 @@ row_mysql_store_col_in_innobase_format(
 		}
 
 		ptr = buf;
-		buf += col_len;
+                buf += col_len;
 	} else if ((type == DATA_VARCHAR
 		    || type == DATA_VARMYSQL
 		    || type == DATA_BINARY)) {
@@ -538,6 +540,14 @@ row_mysql_convert_row_to_innobase(
 			dict_table_is_comp(prebuilt->table));
 next_column:
 		;
+	}
+
+	/* If there is a FTS doc id column then assign it a new doc id.*/
+	if (prebuilt->table->fts) {
+
+		ut_a(prebuilt->table->fts->doc_col != ULINT_UNDEFINED);
+
+		fts_create_doc_id(prebuilt->table, row, prebuilt->heap);
 	}
 }
 
@@ -712,6 +722,9 @@ row_create_prebuilt(
 
 	prebuilt->autoinc_last_value = 0;
 
+	/* During UPDATE and DELETE we need the doc id. */
+	prebuilt->fts_doc_id = 0;
+
 	return(prebuilt);
 }
 
@@ -793,6 +806,12 @@ row_prebuilt_free(
 
 			mem_free((prebuilt->fetch_cache[i]) - 4);
 		}
+	}
+
+	if (prebuilt->result) {
+		ut_free(prebuilt->result);
+
+		prebuilt->result = NULL;
 	}
 
 	dict_table_decrement_handle_count(prebuilt->table, dict_locked);
@@ -1218,6 +1237,16 @@ run_again:
 		return((int) err);
 	}
 
+	if (dict_table_has_fts_index(prebuilt->table)) {
+		doc_id_t        doc_id;
+
+		/* Extract the doc id from the hidden FTS column */
+		doc_id = fts_get_doc_id_from_row(prebuilt->table, node->row);
+		/* Pass NULL for the colums affected, since an INSERT affects
+		all FTS indexes. */
+		fts_trx_add_op(trx, prebuilt->table, doc_id, FTS_INSERT, NULL);
+	}
+
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
 	prebuilt->table->stat_n_rows++;
@@ -1333,6 +1362,63 @@ row_get_prebuilt_update_vector(
 	return(prebuilt->upd_node->update);
 }
 
+/********************************************************************
+Handle an update of a column that has an FTS index. */
+static
+void
+row_fts_do_update(
+/*==============*/
+	trx_t*		trx,		/* in: transaction */
+	dict_table_t*	table,		/* in: Table with FTS index */
+	upd_node_t*	node,		/* in: update node */
+	doc_id_t	old_doc_id,	/* in: old document id */
+	doc_id_t	new_doc_id)	/* in: new document id */
+{
+	ib_vector_t*	updated_fts_indexes;
+
+	/* Now we know we're dealing with an update. Check which
+	FTS indexes need to be updated. */
+	updated_fts_indexes = row_upd_changes_fts_columns(table, node->update);
+
+	if (updated_fts_indexes) {
+		// FTS-FIXME: For now we rebuild all FTS indexes even if only
+		// one FTS indexed column is updated.
+		ib_vector_free(updated_fts_indexes);
+
+		fts_trx_add_op(trx, table, old_doc_id, FTS_DELETE, NULL);
+		fts_trx_add_op(trx, table, new_doc_id, FTS_INSERT, NULL);
+	}
+}
+
+/************************************************************************
+Handles FTS matters for an update or a delete.
+NOTE: should not be called if the table does not have an FTS index. .*/
+static
+void
+row_fts_update_or_delete(
+/*=====================*/
+	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in MySQL
+					handle */
+{
+	trx_t*		trx = prebuilt->trx;
+	dict_table_t*	table = prebuilt->table;
+	upd_node_t*	node = prebuilt->upd_node;
+	doc_id_t	old_doc_id = prebuilt->fts_doc_id;
+
+	ut_a(dict_table_has_fts_index(prebuilt->table));
+
+	/* Deletes are simple; get them out of the way first. */
+	if (node->is_delete) {
+		/* A delete affects all FTS indexes, so we pass NULL */
+		fts_trx_add_op(trx, table, old_doc_id, FTS_DELETE, NULL);
+	} else {
+		doc_id_t	new_doc_id;
+
+		new_doc_id = mach_read_from_4((byte*) &trx->fts_next_doc_id);
+
+		row_fts_do_update(trx, table, node, old_doc_id, new_doc_id);
+	}
+}
 /*********************************************************************//**
 Does an update or delete of a row for MySQL.
 @return	error code or DB_SUCCESS */
@@ -1470,6 +1556,10 @@ run_again:
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
+
+	if (dict_table_has_fts_index(table)) {
+		row_fts_update_or_delete(prebuilt);
+	}
 
 	if (node->is_delete) {
 		if (prebuilt->table->stat_n_rows > 0) {
@@ -1892,7 +1982,31 @@ err_exit:
 		fputs("Memory NOT validated (recompile with UNIV_MEM_DEBUG)\n",
 		      stderr);
 #endif /* UNIV_MEM_DEBUG */
-	}
+	} else if (table_name_len == sizeof S_innodb_sql
+		   && !memcmp(table_name, S_innodb_sql,
+			      sizeof S_innodb_sql)) {
+#ifdef UNIV_DIRECT_SQL_DEBUG
+		/* Check that the table contains exactly one column of type
+		TEXT NOT NULL in Latin-1 encoding. */
+		dtype_t type;
+
+		ut_a(dict_table_get_n_user_cols(table) == 1);
+
+		dict_col_copy_type(dict_table_get_nth_col(table, 0), &type);
+
+		ut_a(dtype_get_mtype(&type) == DATA_BLOB);
+		ut_a((dtype_get_prtype(&type) & DATA_BINARY_TYPE) == 0);
+		ut_a(dtype_get_prtype(&type) & DATA_NOT_NULL);
+		ut_a(dtype_get_charset_coll(dtype_get_prtype(&type))
+		     == DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL);
+
+#else
+		fputs("Created table 'innodb_sql' is not special since the\n"
+		      "program was compiled without UNIV_DIRECT_SQL_DEBUG.\n",
+                      stderr);
+#endif
+        }
+
 
 	heap = mem_heap_create(512);
 
@@ -2047,6 +2161,11 @@ row_create_index_for_mysql(
 	err = trx->error_state;
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
+
+	/* Create the index specific FTS auxiliary tables. */
+	if (err == DB_SUCCESS && index->type == DICT_FTS) {
+		err = fts_create_index_tables(trx, index);
+	}
 
 error_handling:
 	if (err != DB_SUCCESS) {
@@ -2804,6 +2923,7 @@ row_truncate_table_for_mysql(
 	}
 
 	/* Remove all locks except the table-level S and X locks. */
+
 	lock_remove_all_on_table(table, FALSE);
 
 	trx->table_id = table->id;
@@ -3009,6 +3129,7 @@ row_drop_table_for_mysql(
 	const char*	table_name;
 	ulint		namelen;
 	ibool		locked_dictionary	= FALSE;
+	ibool		fts_bg_thread_exited	= FALSE;
 	pars_info_t*    info			= NULL;
 
 	ut_a(name != NULL);
@@ -3032,8 +3153,14 @@ row_drop_table_for_mysql(
 	meaning regardless of the database name.  Thus, we need to
 	ignore the database name prefix in the comparisons. */
 	table_name = strchr(name, '/');
-	ut_a(table_name);
-	table_name++;
+
+	if (table_name) {
+		table_name++;
+	} else {
+		/* Ancillary FTS tables don't have '/' characters. */
+		table_name = name;
+	}
+
 	namelen = strlen(table_name) + 1;
 
 	if (namelen == sizeof S_innodb_monitor
@@ -3074,6 +3201,7 @@ row_drop_table_for_mysql(
 		locked_dictionary = TRUE;
 	}
 
+retry:
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -3098,6 +3226,36 @@ row_drop_table_for_mysql(
 		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
+	}
+
+	if (table->fts && (!fts_bg_thread_exited)) {
+		fts_t*          fts = table->fts;
+
+		/* It is possible that background 'Add' thread fts_add_thread()
+		just gets called and the fts_optimize_thread()
+		is processing deleted records. There could be undetected
+		deadlock between threads synchronization and dict_sys_mutex
+		since fts_parse_sql() requires dict_sys->mutex. Ask the
+		background thread to exit before proceeds to drop table to
+		avoid undetected deadlocks */
+		row_mysql_unlock_data_dictionary(trx);
+
+		/* Wait for any background threads accessing the table
+		to exit. */
+		mutex_enter(&fts->bg_threads_mutex);
+		fts->fts_status |= BG_THREAD_STOP;
+
+		if (fts->add_wq) {
+			dict_table_wakeup_bg_threads(table);
+		}
+
+		dict_table_wait_for_bg_threads_to_exit(table, 250000);
+
+		mutex_exit(&fts->bg_threads_mutex);
+
+		row_mysql_lock_data_dictionary(trx);
+		fts_bg_thread_exited = TRUE;
+		goto retry;
 	}
 
 	/* Check if the table is referenced by foreign key constraints from
@@ -3310,6 +3468,28 @@ check_next_foreign:
 			name_or_path = name;
 			is_temp = (table->flags >> DICT_TF2_SHIFT)
 				& DICT_TF2_TEMPORARY;
+		}
+
+		if (dict_table_has_fts_index(table)) {
+			fts_table_t     fts_table;
+
+			fts_table.suffix = NULL;
+			fts_table.table_id = table->id;
+			fts_table.parent = table->name;
+			fts_table.type = FTS_COMMON_TABLE;
+
+			err = fts_drop_tables(trx, table->fts, &fts_table);
+
+			if (err != DB_SUCCESS) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr," InnoDB: Error: (%lu) not "
+					"able to remove ancillary FTS tables "
+					"for table ", err);
+				ut_print_name(stderr, trx, TRUE, name);
+				fputs("\n", stderr);
+
+				goto funct_exit;
+			}
 		}
 
 		dict_table_remove_from_cache(table);
@@ -3812,6 +3992,7 @@ row_rename_table_for_mysql(
 	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "new_table_name", new_name);
+
 	pars_info_add_str_literal(info, "old_table_name", old_name);
 
 	err = que_eval_sql(info,

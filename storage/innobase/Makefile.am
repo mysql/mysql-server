@@ -77,6 +77,11 @@ noinst_HEADERS=		\
 			include/fsp0fsp.h	\
 			include/fsp0fsp.ic	\
 			include/fsp0types.h	\
+			include/fts0ast.h	\
+			include/fts0fts.h	\
+			include/fts0types.h	\
+			include/fts0types.ic	\
+			include/fts0vlc.ic	\
 			include/fut0fut.h	\
 			include/fut0fut.ic	\
 			include/fut0lst.h	\
@@ -255,6 +260,14 @@ libinnobase_a_SOURCES=	\
 			fsp/fsp0fsp.c			\
 			fut/fut0fut.c			\
 			fut/fut0lst.c			\
+			fut/fts0ast.c			\
+			fut/fts0blex.c			\
+			fut/fts0opt.c			\
+			fut/fts0pars.c			\
+			fut/fts0que.c			\
+			fut/fts0sql.c			\
+			fut/fts0tlex.c			\
+			fut/fts0config.c		\
 			ha/ha0ha.c			\
 			ha/ha0storage.c			\
 			ha/hash0hash.c			\

@@ -635,6 +635,10 @@ row_undo_mod_del_mark_sec(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		if (node->index->type == DICT_FTS) {
+			goto next;
+		}
+
 		index = node->index;
 
 		entry = row_build_index_entry(node->row, node->ext,
@@ -653,7 +657,7 @@ row_undo_mod_del_mark_sec(
 
 			return(err);
 		}
-
+next:
 		node->index = dict_table_get_next_index(node->index);
 	}
 
@@ -688,8 +692,9 @@ row_undo_mod_upd_exist_sec(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(node->row, node->index,
-						     node->update)) {
+		if ((index->type != DICT_FTS)
+		    && row_upd_changes_ord_field_binary(
+				node->row, node->index, node->update)) {
 
 			/* Build the newest version of the index entry */
 			entry = row_build_index_entry(node->row, node->ext,

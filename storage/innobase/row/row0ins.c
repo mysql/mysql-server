@@ -492,7 +492,7 @@ row_ins_cascade_calc_update_vec(
 
 				ufield->field_no
 					= dict_table_get_nth_col_pos(
-					table, dict_col_get_no(col));
+						table, dict_col_get_no(col));
 				ufield->exp = NULL;
 
 				ufield->new_val = parent_ufield->new_val;
@@ -2385,11 +2385,13 @@ row_ins(
 	ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 
 	while (node->index != NULL) {
-		err = row_ins_index_entry_step(node, thr);
+		if (node->index->type != DICT_FTS) {
+			err = row_ins_index_entry_step(node, thr);
 
-		if (err != DB_SUCCESS) {
+			if (err != DB_SUCCESS) {
 
-			return(err);
+				return(err);
+			}
 		}
 
 		node->index = dict_table_get_next_index(node->index);

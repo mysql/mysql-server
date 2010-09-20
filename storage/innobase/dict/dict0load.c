@@ -40,6 +40,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "ha_prototypes.h" /* innobase_strcasecmp() */
 
 
 /** Following are six InnoDB system tables */
@@ -953,14 +954,36 @@ dict_load_columns(
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
-		const char* err_msg;
+		const char*	err_msg;
+		const char*	name;
 
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		err_msg = dict_load_column_low(table, heap, NULL, NULL,
-					       NULL, rec);
+					       &name, rec);
+
+		/* Note: Currently we have one DOC_ID column that is
+		shared by all FTS indexes on a table. */
+		if (innobase_strcasecmp(name,
+					FTS_DOC_ID_COL_NAME) == 0) {
+			/* As part of normal loading of tables the
+			table->flag is not set for tables with FTS
+			till after the FTS indexes are loaded. So we
+			create the fts_t instance here if there isn't
+			one already created.
+
+			This case does not arise for table create as
+			the flag is set before the table is created. */
+			if (table->fts == NULL) {
+				table->fts = fts_create(table);
+			}
+
+			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
+
+			table->fts->doc_col = i;
+		}
 
 		if (err_msg) {
 			fprintf(stderr, "InnoDB: %s\n", err_msg);
@@ -1426,10 +1449,23 @@ corrupted:
 
 				goto func_exit;
 			}
+
+			if (index->type == DICT_FTS) {
+				/* This should have been created by now. */
+				ut_a(table->fts != NULL);
+				DICT_TF2_FLAG_SET(table, DICT_TF_FTS);
+			}
 		}
 
 next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+	}
+
+	/* If the table contains FTS indexes, populate table->fts->indexes */
+	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS)) {
+		/* table->fts->indexes should have been created. */
+		ut_a(table->fts->indexes != NULL);
+		dict_table_get_all_fts_indexes(table, table->fts->indexes);
 	}
 
 func_exit:

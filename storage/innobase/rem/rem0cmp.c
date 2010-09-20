@@ -396,6 +396,162 @@ next_byte:
 	return(0);		/* Not reached */
 }
 
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type to be VARCHAR */
+
+int
+cmp_data_data_slow_varchar(
+/*=======================*/
+				/* out: 1, 0, -1, if lhs is greater, equal,
+				less than rhs, respectively */
+	const byte*	lhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		lhs_len,/* in: data field length or UNIV_SQL_NULL */
+	const byte*	rhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		rhs_len)/* in: data field length or UNIV_SQL_NULL */
+{
+	ulint	i;
+
+	ut_a(rhs_len != UNIV_SQL_NULL);
+
+	if (lhs_len == UNIV_SQL_NULL) {
+
+		/* We define the SQL null to be the smallest possible
+		value of a field in the alphabetical order */
+
+		return(-1);
+	}
+
+	/* Compare the values.*/
+
+	for (i = 0; i < lhs_len && i < rhs_len; ++i, ++rhs, ++lhs) {
+		ulint	lhs_byte = *lhs;
+		ulint	rhs_byte = *rhs;
+
+		if (lhs_byte != rhs_byte) {
+			/* If the bytes are equal, they will remain such even
+			after the collation transformation below */
+
+			lhs_byte = cmp_collate(lhs_byte);
+			rhs_byte = cmp_collate(rhs_byte);
+
+			if (lhs_byte > rhs_byte) {
+
+				return(1);
+			} else if (lhs_byte < rhs_byte) {
+
+				return(-1);
+			}
+		}
+	}
+
+	return(i == lhs_len && i == rhs_len) ? 0 : rhs_len - lhs_len;
+}
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. The comparison is done for the LIKE operator.*/
+
+int
+cmp_data_data_slow_like_prefix(
+/*===========================*/
+				/* out: 1, 0, -1, if lhs is greater, equal,
+				less than rhs, respectively */
+	const byte*	lhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
+	const byte*	rhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
+{
+	ulint	i;
+
+	ut_a(len2 != UNIV_SQL_NULL);
+
+	if (len1 == UNIV_SQL_NULL) {
+
+		/* We define the SQL null to be the smallest possible
+		value of a field in the alphabetical order */
+
+		return(-1);
+	}
+
+	/* Compare the values.*/
+
+	for (i = 0; i < len1 && i < len2; ++i, ++rhs, ++lhs) {
+		ulint	lhs_byte = *lhs;
+		ulint	rhs_byte = *rhs;
+
+		if (lhs_byte != rhs_byte) {
+			/* If the bytes are equal, they will remain such even
+			after the collation transformation below */
+
+			lhs_byte = cmp_collate(lhs_byte);
+			rhs_byte = cmp_collate(rhs_byte);
+
+			if (lhs_byte > rhs_byte) {
+
+				return(1);
+			} else if (lhs_byte < rhs_byte) {
+
+				return(-1);
+			}
+		}
+	}
+
+	return(i == len2 ? 0 : 1);
+}
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. The comparison is done for the LIKE operator.*/
+
+int
+cmp_data_data_slow_like_suffix(
+/*===========================*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
+				less than data2, respectively */
+				/* in: data field (== a pointer to a
+				memory buffer) */
+	const byte*	data1 UNIV_UNUSED,
+				/* in: data field length or UNIV_SQL_NULL */
+	ulint		len1 UNIV_UNUSED,
+				/* in: data field (== a pointer to a memory
+				buffer) */
+	const byte*	data2 UNIV_UNUSED,
+				/* in: data field length or UNIV_SQL_NULL */
+	ulint		len2 UNIV_UNUSED)
+
+{
+	ut_error;	// FIXME:
+	return(1);
+}
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. The comparison is done for the LIKE operator.*/
+
+int
+cmp_data_data_slow_like_substr(
+/*===========================*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
+				less than data2, respectively */
+				/* in: data field (== a pointer to a
+				memory buffer) */
+	const byte*	data1 UNIV_UNUSED,
+				/* in: data field length or UNIV_SQL_NULL */
+	ulint		len1 UNIV_UNUSED,
+				/* in: data field (== a pointer to a memory
+				buffer) */
+	const byte*	data2 UNIV_UNUSED,
+				/* in: data field length or UNIV_SQL_NULL */
+	ulint		len2 UNIV_UNUSED)
+{
+	ut_error;	// FIXME:
+	return(1);
+}
 /*************************************************************//**
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for

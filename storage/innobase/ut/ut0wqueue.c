@@ -118,3 +118,58 @@ ib_wqueue_wait(
 
 	return(node->data);
 }
+
+
+/********************************************************************
+Wait for a work item to appear in the queue for specified time. */
+
+void*
+ib_wqueue_timedwait(
+/*================*/
+					/* out: work item or NULL on timeout*/
+	ib_wqueue_t*	wq,		/* in: work queue */
+	ib_time_t	wait_in_usecs)	/* in: wait time in micro seconds */
+{
+	ib_list_node_t*	node = NULL;
+
+	for (;;) {
+		ulint	error;
+		ulint	sig_count;
+
+		mutex_enter(&wq->mutex);
+
+		node = ib_list_get_first(wq->items);
+
+		if (node) {
+			ib_list_remove(wq->items, node);
+
+			mutex_exit(&wq->mutex);
+			break;
+		}
+
+		sig_count = os_event_reset(wq->event);
+
+		mutex_exit(&wq->mutex);
+
+		error = os_event_wait_time(wq->event, wait_in_usecs, sig_count);
+
+		if (error == OS_SYNC_TIME_EXCEEDED) {
+			break;
+		}
+	}
+
+	return(node ? node->data : NULL);
+}
+
+/********************************************************************
+Check if queue is empty. */
+
+ibool
+ib_wqueue_is_empty(
+/*===============*/
+					/* out: TRUE if queue empty
+					else FALSE */
+	const ib_wqueue_t*	wq)	/* in: work queue */
+{
+	return(ib_list_is_empty(wq->items));
+}

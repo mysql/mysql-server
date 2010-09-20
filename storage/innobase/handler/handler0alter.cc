@@ -417,6 +417,10 @@ innobase_create_index_def(
 		index->ind_type |= DICT_UNIQUE;
 	}
 
+	if (key->flags & HA_FULLTEXT) {
+		index->ind_type |= DICT_FTS;
+	}
+
 	if (key_primary) {
 		index->ind_type |= DICT_CLUSTERED;
 	}
@@ -487,6 +491,50 @@ innobase_copy_index_def(
 }
 
 /*******************************************************************//**
+Check whether the table has the FTS_DOC_ID column, and a unique
+index with FTS_DOC_ID_INDEX_NAME on the column.
+TODO: should support index named different with FTS_DOC_ID_INDEX_NAME,
+such as "primary" index.
+@return	TRUE if there exists the FTS_DOC_ID index */
+static
+ibool
+innobase_fts_check_doc_id_col(
+/*==========================*/
+	dict_table_t*	table,		/*!< in: table definition */
+	ulint*		fts_doc_col_no)	/*!< out: The column number for
+					Doc ID */
+{
+	dict_index_t*	index;
+	dict_field_t*	field;
+
+	for (index = dict_table_get_first_index(table);
+	     index; index = dict_table_get_next_index(index)) {
+
+		/* Check if there exists a unique index with the name of
+		FTS_DOC_ID_INDEX_NAME */
+		if (innobase_strcasecmp(index->name, FTS_DOC_ID_INDEX_NAME)
+		    || !dict_index_is_unique(index)) {
+			continue;
+		}
+
+		/* Check whether the index has FTS_DOC_ID as its
+		first column */
+		field = dict_index_get_nth_field(index, 0);
+
+		/* The column would be of a BIGINT data type */
+		if (innobase_strcasecmp(field->name, FTS_DOC_ID_COL_NAME) == 0
+		    && field->col->mtype == DATA_INT
+		    && field->col->len == 8
+		    && field->col->prtype & DATA_NOT_NULL) {
+			*fts_doc_col_no = dict_col_get_no(field->col);
+			return(TRUE);
+		}
+	}
+
+	/* Not found */
+	return(FALSE);
+}
+/*******************************************************************//**
 Create an index table where indexes are ordered as follows:
 
 IF a new primary key is defined for the table THEN
@@ -508,17 +556,19 @@ merge_index_def_t*
 innobase_create_key_def(
 /*====================*/
 	trx_t*		trx,		/*!< in: trx */
-	const dict_table_t*table,		/*!< in: table definition */
+	dict_table_t*	table,		/*!< in: table definition */
 	mem_heap_t*	heap,		/*!< in: heap where space for key
 					definitions are allocated */
 	KEY*		key_info,	/*!< in: Indexes to be created */
-	ulint&		n_keys)		/*!< in/out: Number of indexes to
+	ulint&		n_keys,		/*!< in/out: Number of indexes to
 					be created */
+	ulint*		num_fts_index)	/*!< out: Number of FTS indexes */
 {
 	ulint			i = 0;
 	merge_index_def_t*	indexdef;
 	merge_index_def_t*	indexdefs;
 	bool			new_primary;
+	ulint			fts_doc_col_no;
 
 	DBUG_ENTER("innobase_create_key_def");
 
@@ -553,12 +603,44 @@ innobase_create_key_def(
 		}
 	}
 
-	if (new_primary) {
+	/* Check whether any indexes in the create list are Full
+	Text Indexes*/
+	for (ulint j = 0; j < n_keys; j++) {
+		if (key_info[j].flags & HA_FULLTEXT) {
+			(*num_fts_index)++;
+		}
+	}
+
+	/* If we are to build an FTS index, check whether the table
+	already has a DOC ID column, if not, we will need to add a
+	Doc ID hidden column and rebuild the primary index */
+	if (*num_fts_index) {
+		if (!innobase_fts_check_doc_id_col(table, &fts_doc_col_no)) {
+			DICT_TF2_FLAG_SET(table, DICT_TF_FTS_ADD_DOC_ID);
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Rebuild table %s to add "
+					"DOC_ID column\n", table->name);
+		} else if (!table->fts) {
+			table->fts = fts_create(table);
+			table->fts->doc_col = fts_doc_col_no;
+		}
+	}
+
+	/* If DICT_TF_FTS_ADD_DOC_ID is set, we will need to rebuild
+	the table to add the unique Doc ID column for FTS index. And
+	thus the primary index would required to be rebuilt. Copy all
+	the index definitions */
+	if (new_primary
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_ADD_DOC_ID)) {
 		const dict_index_t*	index;
 
-		/* Create the PRIMARY key index definition */
-		innobase_create_index_def(&key_info[i++], TRUE, TRUE,
-					  indexdef++, heap);
+		if (new_primary) {
+			/* Create the PRIMARY key index definition */
+			innobase_create_index_def(&key_info[i++],
+						  TRUE, TRUE,
+						  indexdef++, heap);
+		}
 
 		row_mysql_lock_data_dictionary(trx);
 
@@ -569,15 +651,24 @@ innobase_create_key_def(
 		index or a PRIMARY KEY.  If the clustered index is a
 		UNIQUE INDEX, it must be converted to a secondary index. */
 
-		if (dict_index_get_nth_col(index, 0)->mtype == DATA_SYS
-		    || !my_strcasecmp(system_charset_info,
-				      index->name, "PRIMARY")) {
+		if (new_primary
+		    && (dict_index_get_nth_col(index, 0)->mtype
+			== DATA_SYS
+		        || !my_strcasecmp(system_charset_info,
+					  index->name, "PRIMARY"))) {
 			index = dict_table_get_next_index(index);
 		}
 
 		while (index) {
 			innobase_copy_index_def(index, indexdef++, heap);
 			index = dict_table_get_next_index(index);
+		}
+
+		/* The primary index would be rebuilt if a FTS Doc ID
+		column is to be added, and the primary index definition
+		is just copied from old table and stored in indexdefs[0] */
+		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_ADD_DOC_ID)) {
+			indexdefs[0].ind_type |= DICT_CLUSTERED;
 		}
 
 		row_mysql_unlock_data_dictionary(trx);
@@ -621,6 +712,44 @@ innobase_create_temporary_tablename(
 }
 
 /*******************************************************************//**
+This is to create FTS_DOC_ID_INDEX definition on the newly added Doc ID for
+the FTS indexes table
+@return	dict_index_t for the FTS_DOC_ID_INDEX */
+static
+dict_index_t*
+innobase_create_fts_doc_id_idx(
+/*===========================*/
+	dict_table_t*	indexed_table,	/*!< in: Table where indexes are
+					created */
+	trx_t*		trx,		/*!< in: Transaction */
+	mem_heap_t*     heap)		/*!< Heap for index definitions */
+{
+	dict_index_t*		index;
+	merge_index_def_t	fts_index_def;
+	char*			index_name;
+
+	/* Create the temp index name for FTS_DOC_ID_INDEX */
+	fts_index_def.name = index_name = (char*) mem_heap_alloc(
+		heap, FTS_DOC_ID_INDEX_NAME_LEN + 2);
+	*index_name++ = TEMP_INDEX_PREFIX;
+	memcpy(index_name, FTS_DOC_ID_INDEX_NAME,
+	       FTS_DOC_ID_INDEX_NAME_LEN);
+	index_name[FTS_DOC_ID_INDEX_NAME_LEN] = 0;
+
+	/* Only the Doc ID will be indexed */
+	fts_index_def.n_fields = 1;
+	fts_index_def.ind_type = DICT_UNIQUE;
+	fts_index_def.fields = (merge_index_field_t*) mem_heap_alloc(
+		heap, sizeof *fts_index_def.fields);
+	fts_index_def.fields[0].prefix_len = 0;
+	fts_index_def.fields[0].field_name = mem_heap_strdup(
+		heap, FTS_DOC_ID_COL_NAME);
+
+	index = row_merge_create_index(trx, indexed_table, &fts_index_def);
+	return(index);
+}
+
+/*******************************************************************//**
 Create indexes.
 @return	0 or error number */
 UNIV_INTERN
@@ -632,6 +761,7 @@ ha_innobase::add_index(
 	uint	num_of_keys)	/*!< in: Number of indexes to be created */
 {
 	dict_index_t**	index;		/*!< Index to be created */
+	dict_index_t*	fts_index = NULL;/*!< FTS Index to be created */
 	dict_table_t*	innodb_table;	/*!< InnoDB table in dictionary */
 	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
 	merge_index_def_t* index_defs;	/*!< Index definitions */
@@ -642,6 +772,10 @@ ha_innobase::add_index(
 	ibool		dict_locked	= FALSE;
 	ulint		new_primary;
 	int		error;
+	ulint		num_fts_index	= 0;
+	ulint		num_idx_create;
+	ibool		fts_add_doc_id	= FALSE;
+
 
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table);
@@ -699,14 +833,30 @@ err_exit:
 	num_of_idx = num_of_keys;
 
 	index_defs = innobase_create_key_def(
-		trx, innodb_table, heap, key_info, num_of_idx);
+		trx, innodb_table, heap, key_info, num_of_idx,
+		&num_fts_index);
+
+	/* We do not support create more than one FT index on the
+	table yet.
+	TODO: this restriction will be removed */
+	if ((dict_table_has_fts_index(innodb_table) && num_fts_index > 0)
+	    || num_fts_index > 1) {
+		error = -1;
+		goto err_exit;
+	}
 
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
 
-	/* Allocate memory for dictionary index definitions */
+	fts_add_doc_id = DICT_TF2_FLAG_IS_SET(innodb_table,
+					      DICT_TF_FTS_ADD_DOC_ID);
 
+	/* If a new FTS Doc ID column is to be added, there will be
+	one additional index to be built on the Doc ID column itself. */
+	num_idx_create = (fts_add_doc_id) ? num_of_idx + 1 : num_of_idx;
+
+	/* Allocate memory for dictionary index definitions */
 	index = (dict_index_t**) mem_heap_alloc(
-		heap, num_of_idx * sizeof *index);
+		heap, num_idx_create * sizeof *index);
 
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery. */
@@ -782,7 +932,30 @@ err_exit:
 			goto error_handling;
 		}
 
+		if (index[i]->type & DICT_FTS) {
+			fts_index = index[i];
+		}
+	
 		num_created++;
+	}
+
+	if (fts_add_doc_id) {
+		/* create FTS_DOC_ID_INDEX on the Doc ID column on
+		the table */
+		index[num_of_idx] = innobase_create_fts_doc_id_idx(
+					       indexed_table, trx, heap);
+
+		/* FTS_DOC_ID_INDEX is internal defined new index */
+		num_of_idx++;
+	}
+
+	if (num_fts_index) {
+		DICT_TF2_FLAG_SET(indexed_table, DICT_TF_FTS);
+
+		fts_create_index_tables(trx, fts_index);
+
+		fts_create_common_tables(trx, indexed_table,
+					 innodb_table->name, TRUE);
 	}
 
 	ut_ad(error == DB_SUCCESS);
@@ -839,7 +1012,10 @@ error_handling:
 
 		ut_d(dict_table_check_for_dup_indexes(prebuilt->table, TRUE));
 
-		if (!new_primary) {
+		/* If we are creating second index, or create full
+		text index, we will need to rename the temp
+		index name to their official index name. */
+		if (!new_primary || fts_add_doc_id) {
 			error = row_merge_rename_indexes(trx, indexed_table);
 
 			if (error != DB_SUCCESS) {
@@ -847,7 +1023,12 @@ error_handling:
 						       index, num_created);
 			}
 
-			goto convert_error;
+			/* If a new Doc ID is added when rebuilding FTS,
+			the primary index would be rebuilt, so do not
+			exit and continue to rename the temp table. */
+			if (!fts_add_doc_id) {
+				goto convert_error;
+			}
 		}
 
 		/* If a new primary key was defined for the table and
@@ -928,6 +1109,8 @@ convert_error:
 	if (prebuilt->trx) {
 		trx_commit_for_mysql(prebuilt->trx);
 	}
+
+	DICT_TF2_FLAG_UNSET(innodb_table, DICT_TF_FTS_ADD_DOC_ID);
 
 	if (dict_locked) {
 		ut_d(dict_table_check_for_dup_indexes(innodb_table, FALSE));
