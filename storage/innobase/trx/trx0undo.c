@@ -1072,13 +1072,10 @@ trx_undo_truncate_end(
 	ulint		last_page_no;
 	trx_undo_rec_t* rec;
 	trx_undo_rec_t* trunc_here;
-	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
-
-	rseg = trx->rseg;
 
 	for (;;) {
 		mtr_start(&mtr);
