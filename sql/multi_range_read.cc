@@ -400,17 +400,6 @@ void SimpleBuffer::reset_for_writing()
     write_pos= read_pos= end;
 }
 
-void SimpleBuffer::reset_for_reading()
-{
-/*
-Do we need this at all?
-  if (direction == 1)
-    pos= start;
-  else
-    pos= end;
-//end?
-*/
-}
 
 uchar *SimpleBuffer::end_of_space()
 {
@@ -478,15 +467,20 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     use_key_pointers= test(mode & HA_MRR_MATERIALIZED_KEYS);
   }
 
-  do_rowid_fetch= FALSE;
-  doing_cpk_scan= check_cpk_scan(thd, h->inited == handler::INDEX? 
+  do_rndpos_scan= FALSE;
+  bool doing_cpk_scan= check_cpk_scan(thd, h->inited == handler::INDEX? 
                                       h->active_index: h2->active_index, mode);
   if (!doing_cpk_scan /* && !index_only_read */)
   {
     /* Will use rowid buffer to store/sort rowids, etc */
-    do_rowid_fetch= TRUE;
+    do_rndpos_scan= TRUE;
   }
-  DBUG_ASSERT(do_sort_keys || do_rowid_fetch);
+
+  /* 
+    We should either sort keys, or do ordered rnd_pos scan, or both. If we
+    decide to do neither, we should have used default MRR implementation.
+  */
+  DBUG_ASSERT(do_sort_keys || do_rndpos_scan);
 
   
   if (is_mrr_assoc)
@@ -509,11 +503,11 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     keyno= (h->inited == handler::INDEX)? h->active_index : h2->active_index;
     dsmrr_fill_key_buffer();
     
-    if (dsmrr_eof && !do_rowid_fetch)
+    if (dsmrr_eof && !do_rndpos_scan)
       buf->end_of_used_area= key_buffer.end_of_space();
   }
 
-  if (!do_rowid_fetch)
+  if (!do_rndpos_scan)
   {
     /* 
       We have the keys and won't need to fetch rowids, as key lookup will be
@@ -523,11 +517,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   }
 
   rowid_buff_elem_size= h->ref_length + (is_mrr_assoc? sizeof(char*) : 0);
-  /*
-    psergey2: this is only needed when 
-      - doing a rowid-to-row scan
-      - the buffer wasn't exhausted on the first pass.
-  */
   /*
     There can be two cases:
     - This is the first call since index_init(), h2==NULL
@@ -821,7 +810,7 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
   index_ranges_unique= test(key_info->flags & HA_NOSAME && 
                             key_info->key_parts == 
                               my_count_bits(sample_key->keypart_map));
-  if (!do_rowid_fetch)
+  if (!do_rndpos_scan)
   {
     /* Give all space to key buffer. */
     key_buffer.set_buffer_space(full_buf, full_buf_end, SimpleBuffer::FORWARD);
@@ -908,7 +897,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
   uchar *key_ptr;
   if (know_key_tuple_params)
   {
-    if (do_rowid_fetch && rowid_buffer.is_empty())
+    if (do_rndpos_scan && rowid_buffer.is_empty())
     {
       /*
         We're using two buffers and both of them are empty now. Restore the
@@ -964,6 +953,18 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
 
 
 /*
+  Take unused space from key buffer and give it to rowid buffer.
+*/
+
+void DsMrr_impl::reallocate_buffer_space()
+{
+  uchar *unused_start, *unused_end;
+  key_buffer.remove_unused_space(&unused_start, &unused_end);
+  rowid_buffer.grow(unused_start, unused_end);
+}
+
+
+/*
   DS-MRR/CPK: multi_range_read_next() function
 
   DESCRIPTION
@@ -993,7 +994,7 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
 {
   int res;
   uchar *key_in_buf;
-  handler *file= do_rowid_fetch? h2: h;
+  handler *file= do_rndpos_scan? h2: h;
   bool res2;
 
   while (in_identical_keys_range)
@@ -1068,7 +1069,7 @@ check_record:
         When rowid fetching is used, it controls all buffer refills. When we're
         on our own, try refilling our buffer.
       */
-      if (!do_rowid_fetch)
+      if (!do_rndpos_scan)
         dsmrr_fill_key_buffer();
 
       if (key_buffer.is_empty())
@@ -1078,17 +1079,13 @@ check_record:
       }
     }
     
-    if (do_rowid_fetch)
-    {
-      /*
-        At this point we're not using anything what we've read from key
-        buffer. Cut off unused key buffer space and give it to the rowid
-        buffer.
-      */
-      uchar *unused_start, *unused_end;
-      key_buffer.remove_unused_space(&unused_start, &unused_end);
-      rowid_buffer.grow(unused_start, unused_end);
-    }
+    /*
+      At this point we're not using anything what we've read from key
+      buffer. Cut off unused key buffer space and give it to the rowid
+      buffer.
+    */
+    if (do_rndpos_scan)
+      reallocate_buffer_space();
 
     /* Get the next range to scan */
     key_buffer.read(); // reads to (cur_index_tuple, cur_range_info)
@@ -1147,7 +1144,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
   if (use_default_impl)
     return h->handler::multi_range_read_next(range_info);
 
-  if (!do_rowid_fetch)
+  if (!do_rndpos_scan)
     return dsmrr_next_from_index(range_info);
   
   while (last_identical_rowid)
@@ -1421,7 +1418,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   bool res;
   THD *thd= current_thd;
 
-  doing_cpk_scan= check_cpk_scan(thd, keyno, *flags); 
+  bool doing_cpk_scan= check_cpk_scan(thd, keyno, *flags); 
   bool using_cpk= test(keyno == table->s->primary_key &&
                        h->primary_key_is_clustered());
   if (thd->variables.optimizer_use_mrr == 2 || *flags & HA_MRR_INDEX_ONLY ||

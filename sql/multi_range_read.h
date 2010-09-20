@@ -73,7 +73,9 @@
         start   |                 |                     end
                 |                 |            
               usused space         user data
-
+  
+  For reverse buffer, start/end have the same meaning, but reading and 
+  writing is done from end to start.
 */
 
 class SimpleBuffer
@@ -134,7 +136,6 @@ public:
 
   /* Read-mode functions */
   bool is_empty() { return used_size() == 0; }
-  void reset_for_reading();
   void setup_reading(uchar **data1, size_t len1, 
                      uchar **data2, size_t len2);
   bool read();
@@ -209,23 +210,31 @@ public:
   */
   class PeekIterator
   {
+    SimpleBuffer *buf; /* The buffer we're iterating over*/
     /*
-      if sb->direction==1 : pointer to what to return next
-      if sb->direction==-1: pointer to the end of what is to be returned next
+      if buf->direction==FORWARD  : pointer to what to return next
+      if buf->direction==BACKWARD : pointer to the end of what is to be 
+                                   returned next
     */
     uchar *pos;
-    SimpleBuffer *sb;
-    
   public:
-    void init(SimpleBuffer *sb_arg)
+    /* 
+      Initialize the iterator. After intiialization, the first read_next() call
+      will read what buf_arg->read() would read.
+    */
+    void init(SimpleBuffer *buf_arg)
     {
-      sb= sb_arg;
-      pos= sb->read_pos;
+      buf= buf_arg;
+      pos= buf->read_pos;
     }
     
     /*
-      If the buffer stores tuples, this call will return pointer to the first
-      component.
+      Read the next value. The calling convention is the same as buf->read()
+      has.
+
+      RETURN
+        FALSE - Ok
+        TRUE  - EOF, reached the end of the buffer
     */
     bool read_next()
     {
@@ -234,11 +243,11 @@ public:
         have written the second component first).
       */
       uchar *res;
-      if ((res= get_next(sb->read_size1)))
+      if ((res= get_next(buf->read_size1)))
       {
-        *(sb->read_ptr1)= res;
-        if (sb->read_ptr2)
-          *sb->read_ptr2= get_next(sb->read_size2);
+        *(buf->read_ptr1)= res;
+        if (buf->read_ptr2)
+          *buf->read_ptr2= get_next(buf->read_size2);
         return FALSE;
       }
       return TRUE; /* EOF */
@@ -247,9 +256,9 @@ public:
     /* Return pointer to next chunk of nbytes bytes and avance over it */
     uchar *get_next(size_t nbytes)
     {
-      if (sb->direction == 1)
+      if (buf->direction == 1)
       {
-        if (pos + nbytes > sb->write_pos)
+        if (pos + nbytes > buf->write_pos)
           return NULL;
         uchar *res= pos;
         pos += nbytes;
@@ -257,7 +266,7 @@ public:
       }
       else
       {
-        if (pos - nbytes < sb->write_pos)
+        if (pos - nbytes < buf->write_pos)
           return NULL;
         pos -= nbytes;
         return pos;
@@ -287,6 +296,8 @@ private:
       MRR-to-non-MRR calls converter)
    S2. Sort Keys
    S3. Sort Rowids
+
+  psergey-TODO.
 
   S1 is used for cases which DS-MRR is unable to handle for some reason.
 
@@ -339,75 +350,78 @@ public:
                             uint *flags, COST_VECT *cost);
 private:
   /*
-    The "owner" handler object (the one that calls dsmrr_XXX functions.
-    It is used to retrieve full table rows by calling rnd_pos().
+    The "owner" handler object (the one that is expected to "own" this object
+    and call its functions).
   */
   handler *h;
   TABLE *table; /* Always equal to h->table */
 
   /*
-    Secondary handler object, if needed (we need it when we need to both scan
-    the index and return rows).
+    Secondary handler object. (created when needed, we need it when we need 
+    to run both index scan and rnd_pos() at the same time)
   */
   handler *h2;
   
-  /* Full buffer that we're using (the buffer is obtained from SQL layer) */
+  /** Properties of current MRR scan **/
+
+  uint keyno; /* index we're running the scan on */
+  bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
+  /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
+  bool is_mrr_assoc;
+  /* TRUE <=> sort the keys before making index lookups */
+  bool do_sort_keys;
+  /* TRUE <=> sort rowids and use rnd_pos() to get and return full records */
+  bool do_rndpos_scan;
+
+  /*
+    (if do_sort_keys==TRUE) don't copy key values, use pointers to them 
+    instead.
+  */
+  bool use_key_pointers;
+
+
+  /* The whole buffer space that we're using */
   uchar *full_buf;
   uchar *full_buf_end;
   
-  /* Valid when using both rowid and key buffer: the original bound between them */
-  uchar *rowid_buffer_end;
-
-  /* Buffer to store rowids, or (rowid, range_id) pairs */
-  SimpleBuffer rowid_buffer;
-  
-  /*  Reads from rowid buffer go to here: */
-  uchar *rowid;
-  uchar *rowids_range_id;
-  
-  /*
-    not-NULL: we're traversing a group of (rowid, range_id) pairs with
-              identical rowid values, and this is the pointer to the last one.
-    NULL: we're not in the group of indentical rowids.
-  */
-  uchar *last_identical_rowid;
-  
-  /* Identical keys */
-  bool in_identical_keys_range;
-  uchar *last_identical_key_ptr;
-  SimpleBuffer::PeekIterator identical_key_it;
-
-  SimpleBuffer key_buffer;
-  
-  uint keyno;
-
-  /* Execution control */
-  bool do_sort_keys;
-  bool use_key_pointers;
-  bool do_rowid_fetch;
-
-  bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
-  
   /* 
-    TRUE <=> key buffer is exhausted (we need this because we may have a situation
-    where we've read everything from the key buffer but haven't finished with
-    scanning the last range)
+    When using both rowid and key buffers: the bound between key and rowid
+    parts of the buffer. This is the "original" value, actual memory ranges 
+    used by key and rowid parts may be different because of dynamic space 
+    reallocation between them.
+  */
+  uchar *rowid_buffer_end;
+ 
+
+  /** Index scaning and key buffer-related members **/
+  
+  /* TRUE <=> We can get at most one index tuple for a lookup key */
+  bool index_ranges_unique;
+
+  /* TRUE<=> we're in a middle of enumerating records for a key range */
+  bool in_index_range;
+  
+  /* Buffer to store (key, range_id) pairs */
+  SimpleBuffer key_buffer;
+   
+  /* key_buffer.read() reads */
+  uchar *cur_index_tuple;
+
+  /* if in_index_range==TRUE: range_id of the range we're enumerating */
+  char *cur_range_info;
+
+  /* 
+    TRUE <=> we've got index tuples/rowids for all keys (need this flag because 
+    we may have a situation where we've read everything from the key buffer but 
+    haven't finished with getting index tuples for the last key)
   */
   bool key_eof;
 
-  /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
-  bool is_mrr_assoc;
-
-  bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
-
-  bool doing_cpk_scan; /* TRUE <=> DS-MRR/CPK variant is used */
-
-  
   /* Initially FALSE, becomes TRUE when we've set key_tuple_xxx members */
   bool know_key_tuple_params;
-  /* Length of lookup tuple being used, in bytes */
-  uint key_tuple_length;
-  key_part_map key_tuple_map; 
+  uint         key_tuple_length; /* Length of index lookup tuple, in bytes */
+  key_part_map key_tuple_map;    /* keyparts used in index lookup tuples */
+
   /*
     This is 
       = key_tuple_length   if we copy keys to buffer
@@ -418,23 +432,52 @@ private:
   /* = key_size_in_keybuf [ + sizeof(range_assoc_info) ] */
   uint key_buff_elem_size;
   
+  /* 
+    TRUE <=> we're doing key-ordered index scan and right now several
+    subsequent key values are the same as the one we've already retrieved and
+    returned index tuple for.
+  */
+  bool in_identical_keys_range;
+
+  /* range_id of the first of the identical keys */
+  char *first_identical_range_info;
+
+  /* Pointer to the last of the identical key values */
+  uchar *last_identical_key_ptr;
+
+  /* 
+    key_buffer iterator for walking the identical key range (we need to
+    enumerate the set of (identical_key, range_id) pairs multiple times,
+    and do that by walking from current buffer read position until we get
+    last_identical_key_ptr.
+  */
+  SimpleBuffer::PeekIterator identical_key_it;
+
+
+  /** rnd_pos() scan and rowid buffer-related members **/
+
+  /*
+    Buffer to store (rowid, range_id) pairs, or just rowids if 
+    is_mrr_assoc==FALSE
+  */
+  SimpleBuffer rowid_buffer;
+  
+  /* rowid_buffer.read() will set the following:  */
+  uchar *rowid;
+  uchar *rowids_range_id;
+  
+  /*
+    not-NULL: we're traversing a group of (rowid, range_id) pairs with
+              identical rowid values, and this is the pointer to the last one.
+    NULL: we're not in the group of indentical rowids.
+  */
+  uchar *last_identical_rowid;
+
+  bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
+  
   /* = h->ref_length  [ + sizeof(range_assoc_info) ] */
   uint rowid_buff_elem_size;
   
-  /*
-    TRUE <=> We're scanning on a full primary key (and not on prefix), and so 
-    can get max. one match for each key 
-  */
-  bool index_ranges_unique;
-  /* TRUE<=> we're in a middle of enumerating records from a range */ 
-  bool in_index_range;
-  uchar *cur_index_tuple;
-
-  /* if in_index_range==TRUE: range_id of the range we're enumerating */
-  char *cur_range_info;
-
-  char *first_identical_range_info;
-
   bool choose_mrr_impl(uint keyno, ha_rows rows, uint *flags, uint *bufsz, 
                        COST_VECT *cost);
   bool get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags, 
@@ -446,8 +489,10 @@ private:
   int dsmrr_next_from_index(char **range_info);
 
   void setup_buffer_sizes(key_range *sample_key);
+  void reallocate_buffer_space();
 
   static range_seq_t key_buf_seq_init(void *init_param, uint n_ranges, uint flags);
   static uint key_buf_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
 };
+
 
