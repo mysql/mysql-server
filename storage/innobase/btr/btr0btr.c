@@ -2563,7 +2563,6 @@ btr_compress(
 	ulint		n_recs;
 	ulint		max_ins_size;
 	ulint		max_ins_size_reorg;
-	ulint		level;
 
 	block = btr_cur_get_block(cursor);
 	page = btr_cur_get_page(cursor);
@@ -2573,7 +2572,6 @@ btr_compress(
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	level = btr_page_get_level(page, mtr);
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
 
