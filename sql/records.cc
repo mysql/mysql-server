@@ -196,7 +196,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     tempfile= &select->file;
   else
     tempfile= table->sort.io_cache;
-  if (tempfile && my_b_inited(tempfile)) // Test if ref-records was used
+  if (tempfile && my_b_inited(tempfile) &&
+      !(select && select->quick)) 
   {
     DBUG_PRINT("info",("using rr_from_tempfile"));
     info->read_record= (table->sort.addon_field ?
