@@ -4556,17 +4556,20 @@ btr_free_externally_stored_field(
 	}
 
 	for (;;) {
+#ifdef UNIV_SYNC_DEBUG
 		buf_block_t*	rec_block;
+#endif /* UNIV_SYNC_DEBUG */
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
 
-		rec_block = buf_page_get(page_get_space_id(
-						 page_align(field_ref)),
-					 rec_zip_size,
-					 page_get_page_no(
-						 page_align(field_ref)),
-					 RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+		rec_block =
+#endif /* UNIV_SYNC_DEBUG */
+		buf_page_get(page_get_space_id(page_align(field_ref)),
+			     rec_zip_size,
+			     page_get_page_no(page_align(field_ref)),
+			     RW_X_LATCH, &mtr);
 		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);
 		page_no = mach_read_from_4(field_ref + BTR_EXTERN_PAGE_NO);
 
