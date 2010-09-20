@@ -62,6 +62,7 @@ table_setup_timers::m_share=
   &table_setup_timers::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   COUNT_SETUP_TIMERS,
   sizeof(PFS_simple_index),
   &m_table_lock,

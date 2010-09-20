@@ -26,17 +26,17 @@ update performance_schema.SETUP_CONSUMERS set enabled='YES';
 connect (con1, localhost, root, , );
 
 let $con1_THREAD_ID=`select thread_id from performance_schema.THREADS
-  where ID in (select connection_id())`;
+  where PROCESSLIST_ID = connection_id()`;
 
 connect (con2, localhost, root, , );
 
 let $con2_THREAD_ID=`select thread_id from performance_schema.THREADS
-  where ID in (select connection_id())`;
+  where PROCESSLIST_ID = connection_id()`;
 
 connect (con3, localhost, root, , );
 
 let $con3_THREAD_ID=`select thread_id from performance_schema.THREADS
-  where ID in (select connection_id())`;
+  where PROCESSLIST_ID = connection_id()`;
 
 connection default;
 
