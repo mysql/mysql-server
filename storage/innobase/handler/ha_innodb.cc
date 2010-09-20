@@ -2609,7 +2609,7 @@ static
 int
 innobase_commit(
 /*============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD* 	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	bool	all)	/*!< in:	TRUE - commit transaction
