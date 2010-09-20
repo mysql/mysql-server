@@ -70,7 +70,7 @@ static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
     return CR_ERROR;
 
-  info->password_used = 1;
+  info->password_used= PASSWORD_USED_YES;
 
   /* fail if the password is wrong */
   if (strcmp((const char *) pkt, info->auth_string))
@@ -177,7 +177,8 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     if (!reply)
       return CR_ERROR;
     /* send the reply to the server */
-    res= vio->write_packet(vio, (const unsigned char *)reply, strlen(reply)+1);
+    res= vio->write_packet(vio, (const unsigned char *) reply, 
+                           strlen(reply) + 1);
 
     if (res)
       return CR_ERROR;
