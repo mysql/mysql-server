@@ -763,7 +763,10 @@ static void wait_query_thread_end(struct st_connection *con)
   }
   if (con->has_thread)
   {
+#ifndef __WIN__
+    /* May hang on Windows, but the problem it solves is not seen there */
     pthread_join(con->tid, NULL);
+#endif
     con->has_thread= FALSE;
   }
 }
