@@ -315,7 +315,6 @@ trx_purge_add_update_undo_to_history(
 	trx_rsegf_t*	rseg_header;
 	trx_usegf_t*	seg_header;
 	trx_ulogf_t*	undo_header;
-	trx_upagef_t*	page_header;
 	ulint		hist_size;
 
 	undo = trx->update_undo;
@@ -331,7 +330,6 @@ trx_purge_add_update_undo_to_history(
 
 	undo_header = undo_page + undo->hdr_offset;
 	seg_header  = undo_page + TRX_UNDO_SEG_HDR;
-	page_header = undo_page + TRX_UNDO_PAGE_HDR;
 
 	if (undo->state != TRX_UNDO_CACHED) {
 		/* The undo log segment will not be reused */
