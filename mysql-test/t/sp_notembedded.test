@@ -322,7 +322,7 @@ set session low_priority_updates=on;
 connection rl_wait;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and
+  where state = "Waiting for table level lock" and
   info = "update t1 set value='updated' where value='old'";
 --source include/wait_condition.inc
 

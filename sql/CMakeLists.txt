@@ -71,10 +71,11 @@ SET (SQL_SOURCE
                sql_tablespace.cc events.cc ../sql-common/my_user.c 
                partition_info.cc rpl_utility.cc rpl_injector.cc sql_locale.cc
                rpl_rli.cc rpl_mi.cc sql_servers.cc sql_audit.cc
-               sql_connect.cc scheduler.cc 
-               sql_profile.cc event_parse_data.cc
-               sql_signal.cc rpl_handler.cc mdl.cc
+               sql_connect.cc scheduler.cc sql_partition_admin.cc
+               sql_profile.cc event_parse_data.cc sql_alter.cc
+               sql_signal.cc rpl_handler.cc mdl.cc sql_admin.cc
                transaction.cc sys_vars.cc sql_truncate.cc datadict.cc
+               sql_reload.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
@@ -271,8 +272,7 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
      COMMAND ${CMAKE_COMMAND}
      ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-     COMMAND  ${CMAKE_COMMAND} -E touch initdb.dep
-     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+     COMMAND  ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/initdb.dep
      DEPENDS mysqld
   )
   ADD_CUSTOM_TARGET(initial_database  
