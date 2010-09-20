@@ -2347,6 +2347,52 @@ runBug54611(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBugXXX(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  Uint32 loops = ctx->getNumLoops();
+  Ndb* pNdb = GETNDB(step);
+  int rows = ctx->getNumRecords();
+
+  int node = res.getNode(NdbRestarter::NS_RANDOM);
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  for (Uint32 l = 0; l<loops; l++)
+  {
+    ndbout_c("Waiting for %d to restart (5058)", node);
+    res.dumpStateOneNode(node, val2, 2);
+    res.insertErrorInNode(node, 5058);
+
+    hugoTrans.clearTable(pNdb);
+    hugoTrans.loadTable(pNdb, rows);
+    while (hugoTrans.scanUpdateRecords(pNdb, rows) == NDBT_OK &&
+           res.getNodeStatus(node) != NDB_MGM_NODE_STATUS_NOT_STARTED &&
+           res.getNodeStatus(node) != NDB_MGM_NODE_STATUS_NO_CONTACT);
+    res.waitNodesNoStart(&node, 1);
+    res.startNodes(&node, 1);
+    ndbout_c("Waiting for %d to start", node);
+    res.waitClusterStarted();
+
+    ndbout_c("Waiting for %d to restart (5059)", node);
+    res.dumpStateOneNode(node, val2, 2);
+    res.insertErrorInNode(node, 5059);
+
+    hugoTrans.clearTable(pNdb);
+    hugoTrans.loadTable(pNdb, rows);
+    while (hugoTrans.scanUpdateRecords(pNdb, rows) == NDBT_OK &&
+           res.getNodeStatus(node) != NDB_MGM_NODE_STATUS_NOT_STARTED &&
+           res.getNodeStatus(node) != NDB_MGM_NODE_STATUS_NO_CONTACT);
+    res.waitNodesNoStart(&node, 1);
+    res.startNodes(&node, 1);
+    ndbout_c("Waiting for %d to start", node);
+    res.waitClusterStarted();
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -2694,6 +2740,11 @@ TESTCASE("Bug54611", "")
 {
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug54611);
+}
+TESTCASE("BugXXX", "")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBugXXX);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 

@@ -53,7 +53,7 @@ VoidFs::VoidFs(Block_context & ctx) :
   addRecSignal(GSN_FSSYNCREQ, &VoidFs::execFSSYNCREQ, true);
   addRecSignal(GSN_FSAPPENDREQ, &VoidFs::execFSAPPENDREQ, true);
   addRecSignal(GSN_FSREMOVEREQ, &VoidFs::execFSREMOVEREQ, true);
-
+  addRecSignal(GSN_FSSUSPENDORD, &VoidFs::execFSSUSPENDORD, true);
    // Set send signals
 }
 
@@ -211,6 +211,15 @@ VoidFs::execFSAPPENDREQ(Signal * signal)
   signal->theData[0] = userPointer;
   signal->theData[1] = size << 2;
   sendSignal(userRef, GSN_FSAPPENDCONF, signal, 2, JBB);
+}
+
+/*
+ * PR0: File Pointer DR0: User reference DR1: User Pointer
+ */
+void
+VoidFs::execFSSUSPENDORD(Signal * signal)
+{
+  jamEntry();
 }
 
 void
