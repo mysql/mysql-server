@@ -671,7 +671,6 @@ trx_purge_rseg_get_next_history_log(
 {
 	page_t*		undo_page;
 	trx_ulogf_t*	log_hdr;
-	trx_usegf_t*	seg_hdr;
 	fil_addr_t	prev_log_addr;
 	trx_id_t	trx_no;
 	ibool		del_marks;
@@ -692,7 +691,6 @@ trx_purge_rseg_get_next_history_log(
 	undo_page = trx_undo_page_get_s_latched(rseg->space, rseg->zip_size,
 						rseg->last_page_no, &mtr);
 	log_hdr = undo_page + rseg->last_offset;
-	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 
 	/* Increase the purge page count by one for every handled log */
 
