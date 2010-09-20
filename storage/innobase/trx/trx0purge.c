@@ -1079,11 +1079,7 @@ trx_purge_rec_release(
 /*==================*/
 	trx_undo_inf_t*	cell)	/*!< in: storage cell */
 {
-	trx_undo_arr_t*	arr;
-
 	mutex_enter(&(purge_sys->mutex));
-
-	arr = purge_sys->arr;
 
 	trx_purge_arr_remove_info(cell);
 
