@@ -1836,12 +1836,6 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
     of this Item's execution. The method creates a new engine for
     materialized execution, and initializes the engine.
 
-    If this initialization fails
-    - either because it wasn't possible to create the needed temporary table
-      and its index,
-    - or because of a memory allocation error,
-    then we revert back to execution via the IN=>EXISTS tranformation.
-
     The initialization of the new engine is divided in two parts - a permanent
     one that lives across prepared statements, and one that is repeated for each
     execution.
