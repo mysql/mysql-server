@@ -106,25 +106,22 @@ private:
 
   /* 
     Data to be written. write() call will assume that (*write_ptr1) points to 
-    write_size1 bytes of data to be written.
-    If write_ptr2!=NULL then the buffer stores pairs, and (*write_ptr2) points
-    to write_size2 bytes of data that form the second component.
+    size1 bytes of data to be written.
+    If write_ptr2 != NULL then the buffer stores pairs, and (*write_ptr2) 
+    points to size2 bytes of data that form the second component.
   */
   uchar **write_ptr1;
-  size_t write_size1;
+  size_t size1;
   uchar **write_ptr2;
-  size_t write_size2;
+  size_t size2;
 
   /*
     read() will do reading by storing pointer to read data into *read_ptr1 (if
     the buffer stores atomic elements), or into {*read_ptr1, *read_ptr2} (if
     the buffer stores pairs).
   */
-  //TODO if write_size1 == read_size1 why have two variables??
   uchar **read_ptr1;
-  size_t read_size1;
   uchar **read_ptr2;
-  size_t read_size2;
 
 public:
   /* Write-mode functions */
@@ -243,11 +240,11 @@ public:
         have written the second component first).
       */
       uchar *res;
-      if ((res= get_next(buf->read_size1)))
+      if ((res= get_next(buf->size1)))
       {
         *(buf->read_ptr1)= res;
         if (buf->read_ptr2)
-          *buf->read_ptr2= get_next(buf->read_size2);
+          *buf->read_ptr2= get_next(buf->size2);
         return FALSE;
       }
       return TRUE; /* EOF */

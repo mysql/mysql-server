@@ -291,22 +291,22 @@ void SimpleBuffer::setup_writing(uchar **data1, size_t len1,
                                  uchar **data2, size_t len2)
 {
   write_ptr1= data1;
-  write_size1= len1;
+  size1= len1;
 
   write_ptr2= data2;
-  write_size2= len2;
+  size2= len2;
 }
 
 
 void SimpleBuffer::write()
 {
   if (is_reverse() && write_ptr2)
-    write(*write_ptr2, write_size2);
+    write(*write_ptr2, size2);
 
-  write(*write_ptr1, write_size1);
+  write(*write_ptr1, size1);
 
   if (!is_reverse() && write_ptr2)
-    write(*write_ptr2, write_size2);
+    write(*write_ptr2, size2);
 }
 
 
@@ -326,7 +326,7 @@ void SimpleBuffer::write(const uchar *data, size_t bytes)
 
 bool SimpleBuffer::can_write()
 {
-  return have_space_for(write_size1 + (write_ptr2? write_size2:0));
+  return have_space_for(size1 + (write_ptr2 ? size2 : 0));
 }
 
 
@@ -349,20 +349,20 @@ void SimpleBuffer::setup_reading(uchar **data1, size_t len1,
                                  uchar **data2, size_t len2)
 {
   read_ptr1= data1;
-  read_size1= len1;
+  DBUG_ASSERT(len1 == size1);
 
   read_ptr2= data2;
-  read_size2= len2;
+  DBUG_ASSERT(len2 == size2);
 }
 
 
 bool SimpleBuffer::read()
 {
-  if (!have_data(read_size1 + (read_ptr2? read_size2 : 0)))
+  if (!have_data(size1 + (read_ptr2 ? size2 : 0)))
     return TRUE;
-  *read_ptr1= read(read_size1);
+  *read_ptr1= read(size1);
   if (read_ptr2)
-    *read_ptr2= read(read_size2);
+    *read_ptr2= read(size2);
   return FALSE;
 }
 
@@ -731,7 +731,7 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
 
 void SimpleBuffer::sort(qsort2_cmp cmp_func, void *cmp_func_arg)
 {
-  uint elem_size=write_size1 + (write_ptr2 ? write_size2 : 0);
+  uint elem_size= size1 + (write_ptr2 ? size2 : 0);
   uint n_elements= used_size() / elem_size;
   my_qsort2(used_area(), n_elements, elem_size, cmp_func, cmp_func_arg);
 }
