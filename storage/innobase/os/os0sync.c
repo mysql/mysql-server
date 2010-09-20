@@ -72,6 +72,9 @@ UNIV_INTERN ulint	os_event_count		= 0;
 UNIV_INTERN ulint	os_mutex_count		= 0;
 UNIV_INTERN ulint	os_fast_mutex_count	= 0;
 
+/* The number of microsecnds in a second. */
+static const ulint MICROSECS_IN_A_SECOND = 1000000;
+
 /* Because a mutex is embedded inside an event and there is an
 event embedded inside a mutex, on free, this generates a recursive call.
 This version of the free event function doesn't acquire the global lock */
@@ -572,6 +575,147 @@ os_event_wait_low(
 	}
 }
 
+/**************************************************************
+Waits for an event object until it is in the signaled state or
+a timeout is exceeded. In Unix the timeout is always infinite.
+
+Also, see comment regarding missing signals in: os_event_wait_low() */
+
+ulint
+os_event_wait_time(
+/*===============*/
+						/* out: 0 if success,
+						OS_SYNC_TIME_EXCEEDED if
+						timeout was exceeded */
+	os_event_t	event,			/* in: event to wait */
+	ulint		time,			/* in: timeout in
+						microseconds, or
+						OS_SYNC_INFINITE_TIME */
+	ib_int64_t	reset_sig_count)	/* in: zero or the value
+						returned by previous call of
+						os_event_reset(). */
+{
+#ifdef __WIN__
+	DWORD	err;
+
+	ut_a(event);
+
+	if (time != OS_SYNC_INFINITE_TIME) {
+		err = WaitForSingleObject(event->handle, (DWORD) time / 1000);
+	} else {
+		err = WaitForSingleObject(event->handle, INFINITE);
+	}
+
+	if (err == WAIT_OBJECT_0) {
+
+		return(0);
+	} else if (err == WAIT_TIMEOUT) {
+
+		return(OS_SYNC_TIME_EXCEEDED);
+	} else {
+		ut_error;
+		return(1000000); /* dummy value to eliminate compiler warn. */
+	}
+#else
+	struct timeval	tv;
+	struct timespec	abstime;
+	ib_int64_t	old_signal_count;
+
+	if (time == OS_SYNC_INFINITE_TIME) {
+		os_event_wait(event);
+
+		return(0);
+	}
+
+	gettimeofday(&tv, NULL);
+
+	tv.tv_usec += time;
+
+	if ((ulint) tv.tv_usec > MICROSECS_IN_A_SECOND) {
+		tv.tv_sec += time / MICROSECS_IN_A_SECOND;
+		tv.tv_usec %= MICROSECS_IN_A_SECOND;
+	}
+
+	/* We ignore overflow. */
+	abstime.tv_sec  = tv.tv_sec;
+	abstime.tv_nsec = tv.tv_usec * 1000;
+
+	os_fast_mutex_lock(&(event->os_mutex));
+
+	if (reset_sig_count) {
+		old_signal_count = reset_sig_count;
+	} else {
+		old_signal_count = event->signal_count;
+	}
+
+	for (;;) {
+		int	retval;
+
+		if (event->is_set == TRUE
+		    || event->signal_count != old_signal_count) {
+
+			os_fast_mutex_unlock(&(event->os_mutex));
+
+			if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+
+				os_thread_exit(NULL);
+			}
+			/* Ok, we may return */
+
+			return(0);
+		}
+
+		retval = pthread_cond_timedwait(
+			&event->cond_var, &event->os_mutex, &abstime);
+
+		if (retval == ETIMEDOUT) {
+			break;
+		}
+
+		/* Solaris manual said that spurious wakeups may occur: we
+		have to check if the event really has been signaled after
+		we came here to wait */
+	}
+
+	os_fast_mutex_unlock(&(event->os_mutex));
+
+	return(OS_SYNC_TIME_EXCEEDED);
+#endif
+}
+#ifdef __WIN__
+/**********************************************************//**
+Waits for any event in an OS native event array. Returns if even a single
+one is signaled or becomes signaled.
+@return	index of the event which was signaled */
+UNIV_INTERN
+ulint
+os_event_wait_multiple(
+/*===================*/
+	ulint			n,	/*!< in: number of events in the
+					array */
+	os_native_event_t*	native_event_array)
+					/*!< in: pointer to an array of event
+					handles */
+{
+	DWORD	index;
+
+	ut_a(native_event_array);
+	ut_a(n > 0);
+
+	index = WaitForMultipleObjects((DWORD) n, native_event_array,
+				       FALSE,	   /* Wait for any 1 event */
+				       INFINITE); /* Infinite wait time
+						  limit */
+	ut_a(index >= WAIT_OBJECT_0);	/* NOTE: Pointless comparison */
+	ut_a(index < WAIT_OBJECT_0 + n);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		os_thread_exit(NULL);
+	}
+
+	return(index - WAIT_OBJECT_0);
+}
+#endif
 /*********************************************************//**
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (mutex_t) should be used where possible.

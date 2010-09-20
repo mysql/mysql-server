@@ -123,9 +123,19 @@ Place, Suite 330, Boston, MA 02111-1307 USA
      PARS_LOCK_TOKEN = 347,
      PARS_SHARE_TOKEN = 348,
      PARS_MODE_TOKEN = 349,
-     NEG = 350
+     PARS_LIKE_TOKEN = 350,
+     PARS_LIKE_TOKEN_EXACT = 351,
+     PARS_LIKE_TOKEN_PREFIX = 352,
+     PARS_LIKE_TOKEN_SUFFIX = 353,
+     PARS_LIKE_TOKEN_SUBSTR = 354,
+     PARS_TABLE_NAME_TOKEN = 355,
+     PARS_COMPACT_TOKEN = 356,
+     PARS_BLOCK_SIZE_TOKEN = 357,
+     PARS_BIGINT_TOKEN = 358,
+     NEG = 359
    };
 #endif
+/* Tokens.  */
 #define PARS_INT_LIT 258
 #define PARS_FLOAT_LIT 259
 #define PARS_STR_LIT 260
@@ -218,12 +228,21 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #define PARS_LOCK_TOKEN 347
 #define PARS_SHARE_TOKEN 348
 #define PARS_MODE_TOKEN 349
-#define NEG 350
+#define PARS_LIKE_TOKEN 350
+#define PARS_LIKE_TOKEN_EXACT 351
+#define PARS_LIKE_TOKEN_PREFIX 352
+#define PARS_LIKE_TOKEN_SUFFIX 353
+#define PARS_LIKE_TOKEN_SUBSTR 354
+#define PARS_TABLE_NAME_TOKEN 355
+#define PARS_COMPACT_TOKEN 356
+#define PARS_BLOCK_SIZE_TOKEN 357
+#define PARS_BIGINT_TOKEN 358
+#define NEG 359
 
 
 
 
-#if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
+#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef int YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -231,6 +250,4 @@ typedef int YYSTYPE;
 #endif
 
 extern YYSTYPE yylval;
-
-
 

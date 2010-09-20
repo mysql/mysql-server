@@ -46,6 +46,7 @@ extern "C" {
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
 #include "srv0mon.h"
+#include "fut0fut.h"
 }
 
 static const char plugin_author[] = "Innobase Oy";
@@ -2183,6 +2184,119 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_metrics_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_stopwords */
+static ST_FIELD_INFO	i_s_stopword_fields_info[] =
+{
+#define STOPWORD_VALUE	0
+	{STRUCT_FLD(field_name,		"value"),
+	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/*******************************************************************//**
+Fill the dynamic table information_schema.innodb_default_stopword.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_stopword_fill(
+/*==============*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	COND*		cond)	/*!< in: condition (ignored) */
+{
+	Field**	fields;
+	ulint	i = 0;
+	TABLE*	table = (TABLE *) tables->table;
+
+	DBUG_ENTER("i_s_stopword_fill");
+
+	fields = table->field;
+
+	/* Fill with server default stopword list in array
+	fts_default_stopword */
+	while (fts_default_stopword[i]) {
+		OK(field_store_string(fields[STOPWORD_VALUE],
+				      fts_default_stopword[i]));
+
+		OK(schema_table_store_record(thd, table));
+		i++;
+	}
+
+	DBUG_RETURN(0);
+}
+
+/*******************************************************************//**
+Bind the dynamic table information_schema.innodb_default_stopword.
+@return	0 on success */
+static
+int
+i_s_stopword_init(
+/*==============*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	DBUG_ENTER("i_s_stopword_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_stopword_fields_info;
+	schema->fill_table = i_s_stopword_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_stopword =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_stopword_fields_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_DEFAULT_STOPWORD"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "Default stopword list for InnDB Full Text Search"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_stopword_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */

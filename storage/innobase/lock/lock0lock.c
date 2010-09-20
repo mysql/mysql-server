@@ -2191,7 +2191,7 @@ lock_grant(
 		} else {
 			table->autoinc_trx = trx;
 
-			ib_vector_push(trx->autoinc_locks, lock);
+			ib_vector_push(trx->autoinc_locks, &lock);
 		}
 	}
 
@@ -3612,7 +3612,7 @@ lock_table_create(
 
 		table->autoinc_trx = trx;
 
-		ib_vector_push(trx->autoinc_locks, lock);
+		ib_vector_push(trx->autoinc_locks, &lock);
 	} else {
 		lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t));
 	}
@@ -3678,7 +3678,7 @@ lock_table_remove_low(
 		    && !ib_vector_is_empty(trx->autoinc_locks)) {
 			lock_t*	autoinc_lock;
 
-			autoinc_lock = ib_vector_pop(trx->autoinc_locks);
+			autoinc_lock = *(lock_t**)ib_vector_pop(trx->autoinc_locks);
 			ut_a(autoinc_lock == lock);
 		}
 
@@ -5517,7 +5517,7 @@ lock_release_autoinc_last_lock(
 
 	/* The lock to be release must be the last lock acquired. */
 	last = ib_vector_size(autoinc_locks) - 1;
-	lock = ib_vector_get(autoinc_locks, last);
+	lock = *(lock_t**)ib_vector_get(autoinc_locks, last);
 
 	/* Should have only AUTOINC locks in the vector. */
 	ut_a(lock_get_mode(lock) == LOCK_AUTO_INC);

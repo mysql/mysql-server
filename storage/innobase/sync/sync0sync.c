@@ -893,6 +893,11 @@ sync_thread_levels_g(
 					return(FALSE);
 				}
 
+				if (!warn) {
+
+					return(FALSE);
+				}
+
 				lock = slot->latch;
 				mutex = slot->latch;
 
@@ -1165,7 +1170,10 @@ sync_thread_add_level(
 	case SYNC_MEM_POOL:
 	case SYNC_MEM_HASH:
 	case SYNC_RECV:
+	case SYNC_DICT_BG_THREADS_MUTEX;
 	case SYNC_WORK_QUEUE:
+	case SYNC_FTS_OPTIMIZE:
+	case SYNC_FTS_CACHE:
 	case SYNC_LOG:
 	case SYNC_LOG_FLUSH_ORDER:
 	case SYNC_THR_LOCAL:

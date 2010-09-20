@@ -46,3 +46,15 @@ ib_list_get_last(
 {
 	return(list->last);
 }
+
+/********************************************************************
+Check if list is empty. */
+UNIV_INLINE
+ibool
+ib_list_is_empty(
+/*=============*/
+					/* out: TRUE if empty else FALSE */
+	const ib_list_t*	list)	/* in: list */
+{
+	return(!(list->first || list->last));
+}

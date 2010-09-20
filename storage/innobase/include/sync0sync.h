@@ -81,6 +81,9 @@ extern mysql_pfs_key_t	dict_sys_mutex_key;
 extern mysql_pfs_key_t	file_format_max_mutex_key;
 extern mysql_pfs_key_t	fil_system_mutex_key;
 extern mysql_pfs_key_t	flush_list_mutex_key;
+extern mysql_pfs_key_t	fts_bg_threads_mutex_key;
+extern mysql_pfs_key_t	fts_delete_mutex_key;
+extern mysql_pfs_key_t	fts_optimize_mutex_key;
 extern mysql_pfs_key_t	hash_table_mutex_key;
 extern mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 extern mysql_pfs_key_t	ibuf_mutex_key;
@@ -600,7 +603,8 @@ Any other latch
 V
 Memory pool mutex */
 
-/* Latching order levels */
+/* Latching order levels. If you modify these, you have to also update
+sync_thread_add_level(). */
 
 /* User transaction locks are higher than any of the latch levels below:
 no latches are allowed when a thread goes to wait for a normal table
@@ -663,6 +667,8 @@ or row lock! */
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168
+#define SYNC_FTS_CACHE          163     // FIXME: is this correct number, test
+#define SYNC_FTS_OPTIMIZE       164     // FIXME: is this correct number, test
 #define	SYNC_WORK_QUEUE		162
 #define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory

@@ -43,6 +43,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "hash0hash.h"
 #include "trx0types.h"
+#include "fts0fts.h"
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -51,7 +52,9 @@ combination of types */
 #define DICT_UNIQUE	2	/*!< unique index */
 #define	DICT_UNIVERSAL	4	/*!< index which can contain records from any
 				other index */
-#define	DICT_IBUF 	8	/*!< insert buffer tree */
+#define	DICT_IBUF	8	/*!< insert buffer tree */
+#define	DICT_FTS	16	/* FTS index; can't be combined with the
+				other flags */
 /* @} */
 
 /** Types for a table object */
@@ -111,11 +114,22 @@ ROW_FORMAT=REDUNDANT. */
 						table->flags. */
 #define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
 						CREATE TEMPORARY TABLE. */
-#define DICT_TF2_BITS			(DICT_TF2_SHIFT + 1)
+#define DICT_TF_FTS_ADD_DOC_ID		2	/* Need to add Doc ID column
+						for FTS index build */
+#define DICT_TF_FTS			4	/* has an FTS index */
+#define DICT_TF2_BITS			(DICT_TF2_SHIFT + 3)
 						/*!< Total number of bits
 						in table->flags. */
 /* @} */
 
+#define DICT_TF2_FLAG_SET(table, flag)				\
+	(table->flags |= (flag) << DICT_TF2_SHIFT)
+
+#define DICT_TF2_FLAG_IS_SET(table, flag)			\
+	((table->flags >> DICT_TF2_SHIFT) & (flag))
+
+#define DICT_TF2_FLAG_UNSET(table, flag)			\
+	(table->flags &= ~((flag) << DICT_TF2_SHIFT))
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -296,6 +310,7 @@ initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_struct{
 	index_id_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
+	ulint		type;	/* index type */
 	const char*	name;	/*!< index name */
 	const char*	table_name;/*!< table name */
 	dict_table_t*	table;	/*!< back pointer to table */
@@ -304,8 +319,6 @@ struct dict_index_struct{
 				/*!< space where the index tree is placed */
 	unsigned	page:32;/*!< index tree root page number */
 #endif /* !UNIV_HOTBACKUP */
-	unsigned	type:4;	/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
-				DICT_UNIVERSAL, DICT_IBUF) */
 	unsigned	trx_id_offset:10;/*!< position of the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
@@ -569,9 +582,10 @@ struct dict_table_struct{
 				acquired the AUTOINC lock or not. Of course
 				only one transaction can be granted the
 				lock but there can be multiple waiters. */
-	const trx_t*		autoinc_trx;
+	const trx_t*	autoinc_trx;
 				/*!< The transaction that currently holds the
 				the AUTOINC lock on this table. */
+	fts_t*		fts;	/* FTS specific state variables */
 				/* @} */
 	/*----------------------*/
 #endif /* !UNIV_HOTBACKUP */

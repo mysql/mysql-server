@@ -287,6 +287,31 @@ row_upd_changes_ord_field_binary(
 	const upd_t*	update);/*!< in: update vector for the row; NOTE: the
 				field numbers in this MUST be clustered index
 				positions! */
+/***************************************************************
+Checks if an FTS indexed column is affected by an UPDATE. */
+
+ulint
+row_upd_changes_fts_column(
+/*=======================*/
+					/* out: offset within fts_t::indexes
+					if FTS indexed column updated else
+					ULINT_UNDEFINED */
+	dict_table_t*   table,          /* in: table */
+	upd_field_t*    upd_field);     /* in: field to check */
+/***************************************************************
+Checks if an update vector changes the table's FTS-indexed columns.
+NOTE: must not be called for tables which do not have an FTS-index.
+Also, the vector returned must be explicitly freed as it's allocated
+using the ut_malloc() allocator. */
+
+ib_vector_t*
+row_upd_changes_fts_columns(
+/*========================*/
+					/* out: vector of FTS indexes that were
+					affected by the update else NULL */
+	dict_table_t*   table,          /* in: table */
+	upd_t*          update);        /* in: update vector for the row */
+
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
