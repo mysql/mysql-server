@@ -1870,7 +1870,6 @@ trx_undo_set_state_at_prepare(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	trx_usegf_t*	seg_hdr;
-	trx_upagef_t*	page_hdr;
 	trx_ulogf_t*	undo_header;
 	page_t*		undo_page;
 	ulint		offset;
@@ -1888,7 +1887,6 @@ trx_undo_set_state_at_prepare(
 				      undo->hdr_page_no, mtr);
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
-	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
 
 	/*------------------------------*/
 	undo->state = TRX_UNDO_PREPARED;
