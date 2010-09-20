@@ -46,7 +46,7 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
       return CR_ERROR;
   }
 
-  info->password_used = 2;
+  info->password_used= PASSWORD_USED_NO_MENTION;
 
   vio->info(vio, &vio_info);
   if (vio_info.protocol != MYSQL_VIO_SOCKET)
