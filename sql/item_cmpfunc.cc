@@ -2560,27 +2560,30 @@ Item_func_if::fix_length_and_dec()
     cached_result_type= arg2_type;
     collation.set(args[2]->collation.collation);
     cached_field_type= args[2]->field_type();
+    max_length= args[2]->max_length;
+    return;
   }
-  else if (null2)
+
+  if (null2)
   {
     cached_result_type= arg1_type;
     collation.set(args[1]->collation.collation);
     cached_field_type= args[1]->field_type();
+    max_length= args[1]->max_length;
+    return;
+  }
+
+  agg_result_type(&cached_result_type, args + 1, 2);
+  if (cached_result_type == STRING_RESULT)
+  {
+    if (agg_arg_charsets_for_string_result(collation, args + 1, 2))
+      return;
   }
   else
   {
-    agg_result_type(&cached_result_type, args+1, 2);
-    if (cached_result_type == STRING_RESULT)
-    {
-      if (agg_arg_charsets_for_string_result(collation, args + 1, 2))
-        return;
-    }
-    else
-    {
-      collation.set_numeric(); // Number
-    }
-    cached_field_type= agg_field_type(args + 1, 2);
+    collation.set_numeric(); // Number
   }
+  cached_field_type= agg_field_type(args + 1, 2);
 
   uint32 char_length;
   if ((cached_result_type == DECIMAL_RESULT )
