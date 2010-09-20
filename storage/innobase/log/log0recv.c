@@ -569,10 +569,8 @@ recv_synchronize_groups(
 	ib_uint64_t	start_lsn;
 	ib_uint64_t	end_lsn;
 	ib_uint64_t	recovered_lsn;
-	ib_uint64_t	limit_lsn;
 
 	recovered_lsn = recv_sys->recovered_lsn;
-	limit_lsn = recv_sys->limit_lsn;
 
 	/* Read the last recovered log block to the recovery system buffer:
 	the block is always incomplete */
