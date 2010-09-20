@@ -172,13 +172,13 @@ USE `#mysql50#../blablabla`;
 #
 # Test of Bug #56441: mysql_upgrade 5.0->5.1 fails for tables with long names
 #
-copy_file $MYSQL_TEST_DIR/std_data/long_table_name.MYI $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com.MYI;
-copy_file $MYSQL_TEST_DIR/std_data/long_table_name.MYD $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com.MYD;
-copy_file $MYSQL_TEST_DIR/std_data/long_table_name.frm $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com.frm;
+copy_file $MYSQL_TEST_DIR/std_data/long_table_name.MYI $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com.MYI;
+copy_file $MYSQL_TEST_DIR/std_data/long_table_name.MYD $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com.MYD;
+copy_file $MYSQL_TEST_DIR/std_data/long_table_name.frm $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com.frm;
 show full tables;
-rename table `#mysql50#ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com` to `ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com`;
+rename table `#mysql50#ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com` to `ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com`;
 show full tables;
-drop table `ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com`;
+drop table `ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com`;
 
 --echo # End of 5.1 tests
 
