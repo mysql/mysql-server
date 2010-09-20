@@ -603,7 +603,6 @@ btr_page_get_father_node_ptr_func(
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	page_t*		page;
 	dtuple_t*	tuple;
 	rec_t*		user_rec;
 	rec_t*		node_ptr;
@@ -621,7 +620,6 @@ btr_page_get_father_node_ptr_func(
 
 	level = btr_page_get_level(btr_cur_get_page(cursor), mtr);
 
-	page = btr_cur_get_page(cursor);
 	user_rec = btr_cur_get_rec(cursor);
 	ut_a(page_rec_is_user_rec(user_rec));
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap, level);
