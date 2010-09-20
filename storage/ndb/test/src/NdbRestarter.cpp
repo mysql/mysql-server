@@ -953,4 +953,18 @@ NdbRestarter::getNodeTypeVersionRange(ndb_mgm_node_type type,
   return 0;
 }
 
+int
+NdbRestarter::getNodeStatus(int nodeid)
+{
+  if (getStatus() != 0)
+    return -1;
+
+  for (size_t n = 0; n < ndbNodes.size(); n++)
+  {
+    if (ndbNodes[n].node_id == nodeid)
+      return ndbNodes[n].node_status;
+  }
+  return -1;
+}
+
 template class Vector<ndb_mgm_node_state>;

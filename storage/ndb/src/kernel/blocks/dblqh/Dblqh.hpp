@@ -1432,10 +1432,13 @@ public:
       OPEN_SR_READ_INVALIDATE_PAGES = 21,
       CLOSE_SR_READ_INVALIDATE_PAGES = 22,
       OPEN_SR_WRITE_INVALIDATE_PAGES = 23,
-      CLOSE_SR_WRITE_INVALIDATE_PAGES = 24
+      CLOSE_SR_WRITE_INVALIDATE_PAGES = 24,
+      OPEN_SR_READ_INVALIDATE_SEARCH_FILES = 25,
+      CLOSE_SR_READ_INVALIDATE_SEARCH_FILES = 26,
+      CLOSE_SR_READ_INVALIDATE_SEARCH_LAST_FILE = 27
 #ifndef NO_REDO_OPEN_FILE_CACHE
-      ,OPEN_EXEC_LOG_CACHED = 25
-      ,CLOSING_EXEC_LOG_CACHED = 26
+      ,OPEN_EXEC_LOG_CACHED = 28
+      ,CLOSING_EXEC_LOG_CACHED = 29
 #endif
     };
     
@@ -1609,6 +1612,7 @@ public:
       READ_SR_INVALIDATE_PAGES = 18,
       WRITE_SR_INVALIDATE_PAGES = 19,
       WRITE_SR_INVALIDATE_PAGES_UPDATE_PAGE0 = 20
+      ,READ_SR_INVALIDATE_SEARCH_FILES = 21
     };
     /**
      * We have to remember the log pages read. 
@@ -2410,6 +2414,8 @@ private:
   Uint32 nextLogFilePtr(Uint32 logFilePtrI);
   void readFileInInvalidate(Signal *signal, int stepNext);
   void writeFileInInvalidate(Signal *signal, int stepPrev);
+  bool invalidateCloseFile(Signal*, Ptr<LogPartRecord>, Ptr<LogFileRecord>,
+                           LogFileRecord::LogFileStatus status);
   void exitFromInvalidate(Signal* signal);
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
   Uint32 handleLongTupKey(Signal* signal, Uint32* dataPtr, Uint32 len);
@@ -3101,6 +3107,9 @@ public:
 
   Uint32 get_node_status(Uint32 nodeId) const;
   bool check_ndb_versions() const;
+
+  void suspendFile(Signal* signal, Uint32 filePtrI, Uint32 millis);
+  void suspendFile(Signal* signal, Ptr<LogFileRecord> logFile, Uint32 millis);
 };
 
 inline
