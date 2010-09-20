@@ -3307,3 +3307,22 @@ eval explain $query;
 eval $query;
 
 drop table t1,t2,t3;
+
+--echo #
+--echo # Bug#55955: crash in MEMORY engine with IN(LEFT JOIN (JOIN))
+--echo #
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES(1),(1);
+INSERT INTO t2 VALUES(1),(1);
+INSERT INTO t3 VALUES(2),(2);
+
+let $query=
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+eval explain $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
