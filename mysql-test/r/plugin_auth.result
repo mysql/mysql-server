@@ -210,3 +210,28 @@ SELECT @@LOCAL.external_user;
 DROP USER plug;
 DROP USER plug_dest;
 ## END @@external_user tests
+#
+#  Bug #56798 : Wrong credentials assigned when using a proxy user.
+#
+GRANT ALL PRIVILEGES ON *.* TO power_user;
+GRANT USAGE ON anonymous_db.* TO ''@''
+  IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
+GRANT PROXY ON power_user TO ''@'';
+CREATE DATABASE confidential_db;
+SELECT user(),current_user(),@@proxy_user;
+user()	current_user()	@@proxy_user
+test_login_user@localhost	power_user@%	''@''
+DROP USER power_user;
+DROP USER ''@'';
+DROP DATABASE confidential_db;
+# Test case #2 (crash with double grant proxy)
+CREATE USER ''@'' IDENTIFIED WITH 'test_plugin_server' AS 'standard_user';
+CREATE USER standard_user;
+CREATE DATABASE shared;
+GRANT ALL PRIVILEGES ON shared.* TO standard_user;
+GRANT PROXY ON standard_user TO ''@'';
+#should not crash
+GRANT PROXY ON standard_user TO ''@'';
+DROP USER ''@'';
+DROP USER standard_user;
+DROP DATABASE shared;

@@ -318,6 +318,8 @@ public:
   bool get_with_grant() { return with_grant; }
   const char *get_user() { return user; }
   const char *get_host() { return host.hostname; }
+  const char *get_proxied_user() { return proxied_user; }
+  const char *get_proxied_host() { return proxied_host.hostname; }
   void set_user(MEM_ROOT *mem, const char *user_arg) 
   { 
     user= user_arg && *user_arg ?  strdup_root (mem, user_arg) : NULL; 
@@ -373,6 +375,13 @@ public:
                                                   proxied_user, TRUE))));
   }
 
+
+  inline static bool auth_element_equals(const char *a, const char *b)
+  {
+    return (a == b || (a != NULL && b != NULL && !strcmp(a,b)));
+  }
+
+
   bool pk_equals (ACL_PROXY_USER *grant)
   {
     DBUG_ENTER ("pk_equals");
@@ -389,14 +398,14 @@ public:
                           proxied_host.hostname ? proxied_host.hostname : "<NULL>",
                           grant->proxied_host.hostname ? 
                             grant->proxied_host.hostname : "<NULL>"));
-    DBUG_RETURN(((!user && !grant->user) || !strcmp (user, grant->user)) &&
-                ((!proxied_user && !grant->proxied_user) ||
-                 !strcmp (proxied_user, grant->proxied_user)) &&
-                ((!host.hostname && !grant->host.hostname) || 
-                 !strcmp (host.hostname, grant->host.hostname)) &&
-                ((!proxied_host.hostname && !grant->proxied_host.hostname) || 
-                 !strcmp (proxied_host.hostname, grant->proxied_host.hostname)));
+
+    DBUG_RETURN(auth_element_equals(user, grant->user) &&
+                auth_element_equals(proxied_user, grant->proxied_user) &&
+                auth_element_equals(host.hostname, grant->host.hostname) &&
+                auth_element_equals(proxied_host.hostname, 
+                                    grant->proxied_host.hostname));
   }
+
 
   bool granted_on (const char *host_arg, const char *user_arg)
   {
@@ -405,6 +414,7 @@ public:
             ((!host.hostname && (!host_arg || !host_arg[0])) ||
              (host.hostname && host_arg && !strcmp (host.hostname, host_arg))));
   }
+
 
   void print_grant (String *str)
   {
@@ -7044,12 +7054,12 @@ template class List<LEX_USER>;
   @param user              the logged in user (proxy user)
   @param authenticated_as  the effective user a plugin is trying to 
                            impersonate as (proxied user)
-  @return                  status
-    @retval FALSE          OK
-    @retval TRUE           user can't impersonate proxied user
+  @return                  proxy user definition
+    @retval NULL           proxy user definition not found or not applicable
+    @retval non-null       the proxy user data
 */
 
-static bool 
+static ACL_PROXY_USER *
 acl_find_proxy_user(const char *user, const char *host, const char *ip, 
                     const char *authenticated_as, bool *proxy_used)
 {
@@ -7061,7 +7071,7 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
   if (!strcmp (authenticated_as, user))
   {
     DBUG_PRINT ("info", ("user is the same as authenticated_as"));
-    DBUG_RETURN (FALSE);
+    DBUG_RETURN (NULL);
   }
 
   *proxy_used= TRUE; 
@@ -7070,10 +7080,10 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
     ACL_PROXY_USER *proxy= dynamic_element (&acl_proxy_users, i, 
                                             ACL_PROXY_USER *);
     if (proxy->matches (host, user, ip, authenticated_as))
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(proxy);
   }
 
-  DBUG_RETURN (TRUE);
+  DBUG_RETURN (NULL);
 }
 
 
@@ -8676,6 +8686,7 @@ static void server_mpvio_info(MYSQL_PLUGIN_VIO *vio,
   mpvio_info(mpvio->net->vio, info);
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
 {
 #if defined(HAVE_OPENSSL)
@@ -8780,6 +8791,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
   }
   return 1;
 }
+#endif
 
 
 static int do_auth_once(THD *thd, const LEX_STRING *auth_plugin_name,
@@ -9006,25 +9018,51 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     bool is_proxy_user= FALSE;
-    const char *auth_user = mpvio.acl_user->user ? mpvio.acl_user->user : "";
+    const char *auth_user = acl_user->user ? acl_user->user : "";
+    ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    if (acl_find_proxy_user(auth_user, sctx->host, sctx->ip, 
-                            mpvio.auth_info.authenticated_as,
-                            &is_proxy_user))
-    {
-      if (!thd->is_error())
-        login_failed_error(&mpvio, mpvio.auth_info.password_used);
-      DBUG_RETURN(1);
-    }
-
+    proxy_user= acl_find_proxy_user(auth_user, sctx->host, sctx->ip,
+                                    mpvio.auth_info.authenticated_as,
+                                          &is_proxy_user);
     if (is_proxy_user)
+    {
+      ACL_USER *acl_proxy_user;
+
+      /* we need to find the proxy user, but there was none */
+      if (!proxy_user)
+      {
+        if (!thd->is_error())
+          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        DBUG_RETURN(1);
+      }
+
       my_snprintf(sctx->proxy_user, sizeof (sctx->proxy_user) - 1,
                   "'%s'@'%s'", auth_user,
                   acl_user->host.hostname ? acl_user->host.hostname : "");
+
+      /* we're proxying : find the proxy user definition */
+      mysql_mutex_lock(&acl_cache->lock);
+      acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ? 
+                                    proxy_user->get_proxied_host() : "",
+                                    mpvio.auth_info.authenticated_as, TRUE);
+      if (!acl_proxy_user)
+      {
+        if (!thd->is_error())
+          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        mysql_mutex_unlock(&acl_cache->lock);
+        DBUG_RETURN(1);
+      }
+      acl_user= acl_proxy_user->copy(thd->mem_root);
+      mysql_mutex_unlock(&acl_cache->lock);
+    }
 #endif
 
     sctx->master_access= acl_user->access;
-    strmake(sctx->priv_user, mpvio.auth_info.authenticated_as, USERNAME_LENGTH - 1);
+    if (acl_user->user)
+      strmake(sctx->priv_user, acl_user->user, USERNAME_LENGTH - 1);
+    else
+      *sctx->priv_user= 0;
+
     if (acl_user->host.hostname)
       strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME - 1);
     else
