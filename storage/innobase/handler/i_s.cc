@@ -1193,6 +1193,7 @@ trx_i_s_common_fill_table(
 	see http://bugs.mysql.com/29900 ; when that bug is resolved
 	we can enable the DBUG_RETURN(ret) above */
 	DBUG_RETURN(0);
+	ret++;  // silence a gcc46 warning
 #endif
 }
 
