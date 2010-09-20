@@ -384,16 +384,13 @@ eval_notfound(
 /*==========*/
 	func_node_t*	func_node)	/*!< in: function node */
 {
-	que_node_t*	arg1;
 	sym_node_t*	cursor;
 	sel_node_t*	sel_node;
 	ibool		ibool_val;
 
-	arg1 = func_node->args;
-
 	ut_ad(func_node->func == PARS_NOTFOUND_TOKEN);
 
-	cursor = arg1;
+	cursor = func_node->args;
 
 	ut_ad(que_node_get_type(cursor) == QUE_NODE_SYMBOL);
 
