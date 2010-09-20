@@ -229,7 +229,8 @@ sub mtr_report_stats ($$;$) {
   # Find out how we where doing
   # ----------------------------------------------------------------------
 
-  my $tot_skiped= 0;
+  my $tot_skipped= 0;
+  my $tot_skipdetect= 0;
   my $tot_passed= 0;
   my $tot_failed= 0;
   my $tot_tests=  0;
@@ -246,8 +247,9 @@ sub mtr_report_stats ($$;$) {
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
     {
-      # Test was skipped
-      $tot_skiped++;
+      # Test was skipped (disabled not counted)
+      $tot_skipped++ unless $tinfo->{'disable'};
+      $tot_skipdetect++ if $tinfo->{'skip_detected_by_test'};
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_PASSED' )
     {
@@ -375,6 +377,9 @@ sub mtr_report_stats ($$;$) {
   {
     print "All $tot_tests tests were successful.\n\n";
   }
+
+  print "$tot_skipped tests were skipped, ".
+    "$tot_skipdetect by the test itself.\n\n" if $tot_skipped;
 
   if ( $tot_failed != 0 || $found_problems)
   {
