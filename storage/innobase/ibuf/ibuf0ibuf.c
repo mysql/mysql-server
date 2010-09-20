@@ -1297,12 +1297,11 @@ ibuf_rec_get_op_type(
 	const rec_t*	rec)	/*!< in: ibuf record */
 {
 	ulint		len;
-	const byte*	field;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-	field = rec_get_nth_field_old(rec, 1, &len);
+	(void) rec_get_nth_field_old(rec, 1, &len);
 
 	if (len > 1) {
 		/* This is a < 4.1.x format record */
