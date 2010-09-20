@@ -770,9 +770,9 @@ count(*)
 68
 drop view a2, a1;
 drop table t_crashme;
-select table_schema,table_name, column_name from
-information_schema.columns
-where data_type = 'longtext';
+select table_schema, table_name, column_name from information_schema.columns
+where table_schema not like 'performance_schema'
+  and data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
@@ -790,7 +790,9 @@ information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
-where data_type = 'datetime' and table_name not like 'innodb_%';
+where table_schema not like 'performance_schema'
+  and data_type = 'datetime'
+  and table_name not like 'innodb_%';
 table_name	column_name	data_type
 EVENTS	EXECUTE_AT	datetime
 EVENTS	STARTS	datetime

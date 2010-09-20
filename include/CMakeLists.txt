@@ -54,6 +54,7 @@ SET(HEADERS
   keycache.h
   m_ctype.h
   my_attribute.h 
+  my_compiler.h
   ${HEADERS_GEN_CONFIGURE}
 )
 

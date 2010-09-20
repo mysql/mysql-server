@@ -43,6 +43,7 @@ void test_no_instruments()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 0, "zero init");
@@ -83,6 +84,7 @@ void test_no_instances()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 0, "no instances init");
@@ -196,6 +198,7 @@ void test_with_instances()
   param.m_file_handle_sizing= 100;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 10000;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 0, "instances init");
@@ -355,6 +358,7 @@ void test_per_thread_wait()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 10000;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 0, "instances init");

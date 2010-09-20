@@ -1636,7 +1636,7 @@ void execute_ddl_log_recovery()
   THD *thd;
   DDL_LOG_ENTRY ddl_log_entry;
   char file_name[FN_REFLEN];
-  char recover_query_string[]= "INTERNAL DDL LOG RECOVER IN PROGRESS";
+  static char recover_query_string[]= "INTERNAL DDL LOG RECOVER IN PROGRESS";
   DBUG_ENTER("execute_ddl_log_recovery");
 
   /*
