@@ -433,8 +433,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
 
   lex->link_first_table_back(view, link_to_local);
-  view->open_strategy= TABLE_LIST::OPEN_STUB;
-  view->lock_strategy= TABLE_LIST::OTLS_NONE;
   view->open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
@@ -658,7 +656,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-  mysql_mutex_lock(&LOCK_open);
   res= mysql_register_view(thd, view, mode);
 
   if (mysql_bin_log.is_open())
@@ -705,7 +702,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       res= TRUE;
   }
 
-  mysql_mutex_unlock(&LOCK_open);
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
   thd->global_read_lock.start_waiting_global_read_lock(thd);
@@ -1656,10 +1652,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
                        MYSQL_OPEN_SKIP_TEMPORARY))
     DBUG_RETURN(TRUE);
 
-  mysql_mutex_lock(&LOCK_open);
   for (view= views; view; view= view->next_local)
   {
-    TABLE_SHARE *share;
     frm_type_enum type= FRMTYPE_ERROR;
     build_table_filename(path, sizeof(path) - 1,
                          view->db, view->table_name, reg_ext, 0);
@@ -1698,16 +1692,12 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     some_views_deleted= TRUE;
 
     /*
-      For a view, there is only one table_share object which should never
-      be used outside of LOCK_open
+      For a view, there is a TABLE_SHARE object, but its
+      ref_count never goes above 1. Remove it from the table
+      definition cache, in case the view was cached.
     */
-    if ((share= get_cached_table_share(view->db, view->table_name)))
-    {
-      DBUG_ASSERT(share->ref_count == 0);
-      share->ref_count++;
-      share->version= 0;
-      release_table_share(share);
-    }
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
+                     FALSE);
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
   }
@@ -1732,8 +1722,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       something_wrong= 1;
   }
 
-  mysql_mutex_unlock(&LOCK_open);
-  
   if (something_wrong)
   {
     DBUG_RETURN(TRUE);

@@ -24,6 +24,7 @@ reset master;
 begin; 
 insert into ti values (1); 
 insert into ti values (2) ; 
+# This is SAFE because --binlog-direct-non-transactional-updates=FALSE
 insert into tt select * from ti;
 rollback;
 

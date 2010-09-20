@@ -242,26 +242,6 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE EVENTS_WAITS_SUMMARY_BY_EVENT_NAME
---
-
-SET @l1="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME(";
-SET @l2="EVENT_NAME VARCHAR(128) not null,";
-SET @l3="COUNT_STAR BIGINT unsigned not null,";
-SET @l4="SUM_TIMER_WAIT BIGINT unsigned not null,";
-SET @l5="MIN_TIMER_WAIT BIGINT unsigned not null,";
-SET @l6="AVG_TIMER_WAIT BIGINT unsigned not null,";
-SET @l7="MAX_TIMER_WAIT BIGINT unsigned not null";
-SET @l8=")ENGINE=PERFORMANCE_SCHEMA;";
-
-SET @cmd=concat(@l1,@l2,@l3,@l4,@l5,@l6,@l7,@l8);
-
-SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
---
 -- TABLE EVENTS_WAITS_SUMMARY_BY_INSTANCE
 --
 
@@ -297,6 +277,26 @@ SET @l8="MAX_TIMER_WAIT BIGINT unsigned not null";
 SET @l9=")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @cmd=concat(@l1,@l2,@l3,@l4,@l5,@l6,@l7,@l8,@l9);
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
+--
+
+SET @l1="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME(";
+SET @l2="EVENT_NAME VARCHAR(128) not null,";
+SET @l3="COUNT_STAR BIGINT unsigned not null,";
+SET @l4="SUM_TIMER_WAIT BIGINT unsigned not null,";
+SET @l5="MIN_TIMER_WAIT BIGINT unsigned not null,";
+SET @l6="AVG_TIMER_WAIT BIGINT unsigned not null,";
+SET @l7="MAX_TIMER_WAIT BIGINT unsigned not null";
+SET @l8=")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @cmd=concat(@l1,@l2,@l3,@l4,@l5,@l6,@l7,@l8);
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -395,23 +395,6 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE PROCESSLIST
---
-
-SET @l1="CREATE TABLE performance_schema.PROCESSLIST(";
-SET @l2="THREAD_ID INTEGER not null,";
-SET @l3="ID INTEGER not null,";
-SET @l4="NAME VARCHAR(64) not null";
-SET @l5=")ENGINE=PERFORMANCE_SCHEMA;";
-
-SET @cmd=concat(@l1,@l2,@l3,@l4,@l5);
-
-SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
---
 -- TABLE RWLOCK_INSTANCES
 --
 
@@ -463,26 +446,6 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE SETUP_OBJECTS
---
-
-SET @l1="CREATE TABLE performance_schema.SETUP_OBJECTS(";
-SET @l2="OBJECT_TYPE VARCHAR(64),";
-SET @l3="OBJECT_SCHEMA VARCHAR(64),";
-SET @l4="OBJECT_NAME VARCHAR(64),";
-SET @l5="ENABLED ENUM ('YES', 'NO') not null,";
-SET @l6="TIMED ENUM ('YES', 'NO') not null,";
-SET @l7="AGGREGATED ENUM ('YES', 'NO') not null";
-SET @l8=")ENGINE=PERFORMANCE_SCHEMA;";
-
-SET @cmd=concat(@l1,@l2,@l3,@l4,@l5,@l6,@l7,@l8);
-
-SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
---
 -- TABLE SETUP_TIMERS
 --
 
@@ -492,6 +455,23 @@ SET @l3="TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', '
 SET @l4=")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @cmd=concat(@l1,@l2,@l3,@l4);
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE THREADS
+--
+
+SET @l1="CREATE TABLE performance_schema.THREADS(";
+SET @l2="THREAD_ID INTEGER not null,";
+SET @l3="ID INTEGER not null,";
+SET @l4="NAME VARCHAR(64) not null";
+SET @l5=")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @cmd=concat(@l1,@l2,@l3,@l4,@l5);
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
