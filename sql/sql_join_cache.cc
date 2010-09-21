@@ -3391,8 +3391,12 @@ int JOIN_TAB_SCAN_MRR::next()
   uint rc= join_tab->table->file->multi_range_read_next(ptr) ? -1 : 0;
   if (!rc)
   {
+    /* 
+      If a record in in an incremental cache contains no fields then the
+      association for the last record in cache will be equal to cache->end_pos
+    */ 
     DBUG_ASSERT(cache->buff <= (uchar *) (*ptr) &&
-                (uchar *) (*ptr) < cache->end_pos);
+                (uchar *) (*ptr) <= cache->end_pos);
     update_virtual_fields(join_tab->table);
   }
   return rc;
@@ -3728,12 +3732,12 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
   uchar *init_pos;
   JOIN_CACHE *cache;
   
-  if (pos > last_rec_pos || !records)
-    return 0;
-
   /* Any record in a BKA cache is prepended with its length */
   DBUG_ASSERT(with_length);
    
+  if ((pos+size_of_rec_len) > last_rec_pos || !records)
+    return 0;
+
   /* Read the length of the record */
   rec_len= get_rec_length(pos);
   pos+= size_of_rec_len; 
