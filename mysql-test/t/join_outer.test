@@ -996,4 +996,42 @@ select * from t1 left join t2 on t1.b=t2.b where 1=1;
 
 drop table t1,t2;
 
+--echo #
+--echo # Bug#53161: outer join in the derived table is erroneously converted
+--echo #            into an inner join for a query with a group by clause
+--echo # 
+
+create table t1 (pk int not null primary key, a int not null);
+create table t2 like t1;
+create table t3 like t1;
+create table t4 (pk int not null primary key);
+insert into t1 values (1000, 1), (1001, 1);
+insert into t2 values (2000, 2), (2001, 2);
+insert into t3 values (3000, 3), (3001, 2);
+insert into t4 values (4000), (4001);
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='table_elimination=off';
+
+explain extended
+select t2.pk, 
+      (select t3.pk 
+         from t3 left join t4 on t4.pk=t3.pk 
+           where t3.pk=t2.pk+1000 limit 1 ) as t
+  from t1,t2 
+    where t2.pk=t1.pk+1000 and t1.pk>1000
+  group by t2.pk;
+
+select t2.pk, 
+      (select t3.pk 
+         from t3 left join t4 on t4.pk=t3.pk 
+           where t3.pk=t2.pk+1000 limit 1 ) as t
+  from t1,t2 
+    where t2.pk=t1.pk+1000 and t1.pk>1000
+  group by t2.pk;
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+drop table t1,t2,t3,t4;
+
 --echo End of 5.1 tests
