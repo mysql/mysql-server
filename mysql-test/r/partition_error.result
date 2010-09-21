@@ -14,7 +14,7 @@ ERROR HY000: Failed to read from the .par file
 # Note that it is currently impossible to drop a partitioned table
 # without the .par file
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 #
 # Bug#49477: Assertion `0' failed in ha_partition.cc:5530
 # with temporary table and partitions

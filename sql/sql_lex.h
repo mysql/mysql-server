@@ -759,6 +759,14 @@ public:
   }
   st_select_lex* outer_select();
   st_select_lex* next_select() { return (st_select_lex*) next; }
+
+  inline st_select_lex* last_select() 
+  { 
+    st_select_lex* mylast= this;
+    for (; mylast->next_select(); mylast= mylast->next_select());
+    return mylast; 
+  }
+
   st_select_lex* next_select_in_list() 
   {
     return (st_select_lex*) link_next;
@@ -2232,8 +2240,14 @@ struct LEX: public Query_tables_list
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
+
+    keyword_delayed_begin points to the begin of the DELAYED keyword in
+    INSERT DELAYED statement.
   */
-  const char *stmt_definition_begin;
+  union {
+    const char *stmt_definition_begin;
+    const char *keyword_delayed_begin;
+  };
 
   const char *stmt_definition_end;
 

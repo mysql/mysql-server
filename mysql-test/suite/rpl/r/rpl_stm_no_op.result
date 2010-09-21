@@ -13,7 +13,7 @@ ERROR 42000: Unknown database 'mysqltest'
 create table t1 (a int);
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 create table t1 (a int, b int);

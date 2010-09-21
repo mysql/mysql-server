@@ -2155,9 +2155,8 @@ sub environment_setup {
   # mysqlhotcopy
   # ----------------------------------------------------
   my $mysqlhotcopy=
-    mtr_pl_maybe_exists("$bindir/scripts/mysqlhotcopy");
-  # Since mysqltest interprets the real path as "false" in an if,
-  # use 1 ("true") to indicate "not exists" so it can be tested for
+    mtr_pl_maybe_exists("$bindir/scripts/mysqlhotcopy") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqlhotcopy");
   if ($mysqlhotcopy)
   {
     $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy;
@@ -5244,7 +5243,7 @@ sub ddd_arguments {
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "file ../sql/.libs/mysqld\n" .
+	       "file ../sql/mysqld\n" .
 	       "set args $str\n" .
 	       "break mysql_parse\n" .
 	       "commands 1\n" .

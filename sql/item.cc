@@ -1081,6 +1081,16 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
 }
 
 
+bool Item::is_blob_field() const
+{
+  DBUG_ASSERT(fixed);
+
+  enum_field_types type= field_type();
+  return (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_GEOMETRY ||
+          max_length > CONVERT_IF_BIGGER_TO_BLOB);
+}
+
+
 /*****************************************************************************
   Item_sp_variable methods
 *****************************************************************************/
@@ -7582,9 +7592,14 @@ String *Item_cache_datetime::val_str(String *str)
         return NULL;
       if (cached_field_type == MYSQL_TYPE_TIME)
       {
-        ulonglong time= int_value;
-        DBUG_ASSERT(time <= TIME_MAX_VALUE);
+        longlong time= int_value;
         set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
+        if (time < 0)
+        {
+          time= -time;
+          ltime.neg= TRUE;
+        }
+        DBUG_ASSERT(time <= TIME_MAX_VALUE);
         ltime.second= time % 100;
         time/= 100;
         ltime.minute= time % 100;
