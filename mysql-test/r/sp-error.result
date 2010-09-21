@@ -466,7 +466,7 @@ drop table t5;
 end|
 create table t5 (x int)|
 call bug3294()|
-ERROR 42S02: Unknown table 't5'
+ERROR 42S02: Unknown table 'test.t5'
 drop procedure bug3294|
 drop procedure if exists bug8776_1|
 drop procedure if exists bug8776_2|
@@ -1567,7 +1567,7 @@ f2()
 1
 drop function f2;
 drop table t2;
-ERROR 42S02: Unknown table 't2'
+ERROR 42S02: Unknown table 'test.t2'
 End of 5.1 tests
 drop procedure if exists proc_33983_a;
 drop procedure if exists proc_33983_b;

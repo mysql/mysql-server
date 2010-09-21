@@ -59,8 +59,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
-1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using index; Start temporary; End temporary
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using index; End temporary
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -69,8 +69,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
-1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; Start temporary; End temporary
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; End temporary
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
@@ -96,8 +96,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
-1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; Start temporary; End temporary
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; End temporary
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 drop table t0, t1, t2, t3;
@@ -1690,8 +1690,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1731,8 +1731,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1837,8 +1837,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2179,8 +2179,8 @@ create table t3 (a int);
 insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using index; Start temporary; End temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using index; End temporary
 select * from t3 where a in (select kp1 from t1 where kp1<20);
 a
 0
@@ -2208,8 +2208,8 @@ insert into t4 select a from t3;
 explain select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using where; Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using where
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; End temporary
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -2370,12 +2370,12 @@ insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
 create table t2 as select * from t1;
 explain select * from t2 where a in (select b from t1 where a=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	a	a	10	const,test.t2.a	1	Using index; Start temporary; End temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	PRIMARY	t1	ref	a	a	10	const,test.t2.a	1	Using index; End temporary
 explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	a	a	10	const,test.t2.a	1	Using index; Start temporary; End temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	PRIMARY	t1	ref	a	a	10	const,test.t2.a	1	Using index; End temporary
 drop table t1,t2;
 create table t1 (a int, b int);
 insert into t1 select a,a from t0;
@@ -2580,11 +2580,506 @@ explain select *
 from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	
-1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Start temporary; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Start temporary
+1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Using join buffer (BNL, incremental buffers)
 1	PRIMARY	t2	ref	a	a	5	test.t1.a	1	Using index
 1	PRIMARY	t3	ref	a	a	5	test.t1.a	1	Using where; Using index; End temporary
 drop table t0, t1,t2,t3;
+
+Test that MaterializeLookup strategy for semijoin,
+nor subquery materialization is used when BLOBs are involved 
+(except when arguments of some functions).
+Note: Due to Bug#52068, wrong may occur below if MaterializeScan 
+strategy is used instead, 
+
+set @prefix_len = 6;
+set @blob_len = 16;
+set @suffix_len = @blob_len - @prefix_len;
+create table t1_16 (a1 blob(16), a2 blob(16));
+create table t2_16 (b1 blob(16), b2 blob(16));
+create table t3_16 (c1 blob(16), c2 blob(16));
+insert into t1_16 values
+(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_16 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_16 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_16 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_16 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_16 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_16 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_16 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_16 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_16 values
+(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select b1 from t2_16 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` semi join (`test`.`t2_16`) where ((`test`.`t2_16`.`b1` = `test`.`t1_16`.`a1`) and (`test`.`t1_16`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select b1 from t2_16 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` semi join (`test`.`t2_16`) where ((`test`.`t2_16`.`b2` = `test`.`t1_16`.`a2`) and (`test`.`t2_16`.`b1` = `test`.`t1_16`.`a1`) and (`test`.`t1_16`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_16
+where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	PRIMARY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` semi join (`test`.`t2_16`) where ((`test`.`t2_16`.`b1` > '0') and (`test`.`t1_16`.`a1` = substr(`test`.`t2_16`.`b1`,1,16)))
+select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select group_concat(b1) from t2_16 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select group_concat(b1) from t2_16 group by b2);
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+set @@group_concat_max_len = 256;
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select group_concat(b1) from t2_16 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select group_concat(b1) from t2_16 group by b2);
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8), b2 char(8));
+create table t3 (c1 char(8), c2 char(8));
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t1 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 03', '2 - 03');
+insert into t3 values ('1 - 01', '2 - 01');
+insert into t3 values ('1 - 02', '2 - 02');
+insert into t3 values ('1 - 03', '2 - 03');
+insert into t3 values ('1 - 04', '2 - 04');
+explain extended
+select * from t1
+where concat(a1,'x') IN
+(select left(a1,8) from t1_16
+where (a1, a2) IN
+(select t2_16.b1, t2_16.b2 from t2_16, t2
+where t2.b2 = substring(t2_16.b2,1,6) and
+t2.b1 IN (select c1 from t3 where c2 > '0')));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2_16` join `test`.`t2` join `test`.`t1_16`) where ((`test`.`t2_16`.`b2` = `test`.`t1_16`.`a2`) and (`test`.`t2_16`.`b1` = `test`.`t1_16`.`a1`) and (`test`.`t2`.`b1` = `test`.`t3`.`c1`) and (`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and (`test`.`t3`.`c2` > '0') and (concat(`test`.`t1`.`a1`,'x') = left(`test`.`t1_16`.`a1`,8)))
+drop table t1_16, t2_16, t3_16, t1, t2, t3;
+set @blob_len = 512;
+set @suffix_len = @blob_len - @prefix_len;
+create table t1_512 (a1 blob(512), a2 blob(512));
+create table t2_512 (b1 blob(512), b2 blob(512));
+create table t3_512 (c1 blob(512), c2 blob(512));
+insert into t1_512 values
+(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_512 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_512 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_512 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_512 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_512 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_512 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_512 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_512 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_512 values
+(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select b1 from t2_512 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` semi join (`test`.`t2_512`) where ((`test`.`t2_512`.`b1` = `test`.`t1_512`.`a1`) and (`test`.`t1_512`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select b1 from t2_512 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` semi join (`test`.`t2_512`) where ((`test`.`t2_512`.`b2` = `test`.`t1_512`.`a2`) and (`test`.`t2_512`.`b1` = `test`.`t1_512`.`a1`) and (`test`.`t1_512`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_512
+where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	PRIMARY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` semi join (`test`.`t2_512`) where ((`test`.`t2_512`.`b1` > '0') and (`test`.`t1_512`.`a1` = substr(`test`.`t2_512`.`b1`,1,512)))
+select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select group_concat(b1) from t2_512 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select group_concat(b1) from t2_512 group by b2);
+left(a1,7)	left(a2,7)
+set @@group_concat_max_len = 256;
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select group_concat(b1) from t2_512 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select group_concat(b1) from t2_512 group by b2);
+left(a1,7)	left(a2,7)
+drop table t1_512, t2_512, t3_512;
+set @blob_len = 513;
+set @suffix_len = @blob_len - @prefix_len;
+create table t1_513 (a1 blob(513), a2 blob(513));
+create table t2_513 (b1 blob(513), b2 blob(513));
+create table t3_513 (c1 blob(513), c2 blob(513));
+insert into t1_513 values
+(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_513 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_513 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_513 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_513 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_513 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_513 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_513 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_513 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_513 values
+(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+explain extended select left(a1,7), left(a2,7)
+from t1_513
+where a1 in (select b1 from t2_513 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` semi join (`test`.`t2_513`) where ((`test`.`t2_513`.`b1` = `test`.`t1_513`.`a1`) and (`test`.`t1_513`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_513
+where a1 in (select b1 from t2_513 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_513
+where (a1,a2) in (select b1, b2 from t2_513 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` semi join (`test`.`t2_513`) where ((`test`.`t2_513`.`b2` = `test`.`t1_513`.`a2`) and (`test`.`t2_513`.`b1` = `test`.`t1_513`.`a1`) and (`test`.`t1_513`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_513
+where (a1,a2) in (select b1, b2 from t2_513 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_513
+where a1 in (select substring(b1,1,513) from t2_513 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	PRIMARY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` semi join (`test`.`t2_513`) where ((`test`.`t2_513`.`b1` > '0') and (`test`.`t1_513`.`a1` = substr(`test`.`t2_513`.`b1`,1,513)))
+select left(a1,7), left(a2,7)
+from t1_513
+where a1 in (select substring(b1,1,513) from t2_513 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_513
+where a1 in (select group_concat(b1) from t2_513 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(select group_concat(`test`.`t2_513`.`b1` separator ',') from `test`.`t2_513` group by `test`.`t2_513`.`b2` having (<cache>(`test`.`t1_513`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_513`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_513
+where a1 in (select group_concat(b1) from t2_513 group by b2);
+left(a1,7)	left(a2,7)
+drop table t1_513, t2_513, t3_513;
+set @blob_len = 1024;
+set @suffix_len = @blob_len - @prefix_len;
+create table t1_1024 (a1 blob(1024), a2 blob(1024));
+create table t2_1024 (b1 blob(1024), b2 blob(1024));
+create table t3_1024 (c1 blob(1024), c2 blob(1024));
+insert into t1_1024 values
+(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_1024 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_1024 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_1024 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_1024 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_1024 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_1024 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_1024 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_1024 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_1024 values
+(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select b1 from t2_1024 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` semi join (`test`.`t2_1024`) where ((`test`.`t2_1024`.`b1` = `test`.`t1_1024`.`a1`) and (`test`.`t1_1024`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select b1 from t2_1024 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` semi join (`test`.`t2_1024`) where ((`test`.`t2_1024`.`b2` = `test`.`t1_1024`.`a2`) and (`test`.`t2_1024`.`b1` = `test`.`t1_1024`.`a1`) and (`test`.`t1_1024`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_1024
+where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	PRIMARY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` semi join (`test`.`t2_1024`) where ((`test`.`t2_1024`.`b1` > '0') and (`test`.`t1_1024`.`a1` = substr(`test`.`t2_1024`.`b1`,1,1024)))
+select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select group_concat(b1) from t2_1024 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select group_concat(b1) from t2_1024 group by b2);
+left(a1,7)	left(a2,7)
+set @@group_concat_max_len = 256;
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select group_concat(b1) from t2_1024 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select group_concat(b1) from t2_1024 group by b2);
+left(a1,7)	left(a2,7)
+drop table t1_1024, t2_1024, t3_1024;
+set @blob_len = 1025;
+set @suffix_len = @blob_len - @prefix_len;
+create table t1_1025 (a1 blob(1025), a2 blob(1025));
+create table t2_1025 (b1 blob(1025), b2 blob(1025));
+create table t3_1025 (c1 blob(1025), c2 blob(1025));
+insert into t1_1025 values
+(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_1025 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_1025 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_1025 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_1025 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_1025 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_1025 values
+(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_1025 values
+(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_1025 values
+(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_1025 values
+(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select b1 from t2_1025 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` semi join (`test`.`t2_1025`) where ((`test`.`t2_1025`.`b1` = `test`.`t1_1025`.`a1`) and (`test`.`t1_1025`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select b1 from t2_1025 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` semi join (`test`.`t2_1025`) where ((`test`.`t2_1025`.`b2` = `test`.`t1_1025`.`a2`) and (`test`.`t2_1025`.`b1` = `test`.`t1_1025`.`a1`) and (`test`.`t1_1025`.`a1` > '0'))
+select left(a1,7), left(a2,7)
+from t1_1025
+where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	PRIMARY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` semi join (`test`.`t2_1025`) where ((`test`.`t2_1025`.`b1` > '0') and (`test`.`t1_1025`.`a1` = substr(`test`.`t2_1025`.`b1`,1,1025)))
+select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
+left(a1,7)	left(a2,7)
+1 - 01x	2 - 01x
+1 - 02x	2 - 02x
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select group_concat(b1) from t2_1025 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select group_concat(b1) from t2_1025 group by b2);
+left(a1,7)	left(a2,7)
+set @@group_concat_max_len = 256;
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select group_concat(b1) from t2_1025 group by b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+Warnings:
+Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
+select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select group_concat(b1) from t2_1025 group by b2);
+left(a1,7)	left(a2,7)
+drop table t1_1025, t2_1025, t3_1025;
 #
 # Bug#48868: Left outer join in subquery causes segmentation fault in
 #            make_join_select.
@@ -4029,8 +4524,8 @@ EXPLAIN SELECT Name FROM t1
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	31	
-1	PRIMARY	t2	ref	CountryCode	CountryCode	3	test.t1.Code	18	Using where; Start temporary; End temporary
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	31	Start temporary
+1	PRIMARY	t2	ref	CountryCode	CountryCode	3	test.t1.Code	18	Using where; End temporary
 SELECT Name FROM t1 
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
@@ -4051,8 +4546,8 @@ explain extended select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Start temporary
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	
 1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where; End temporary
 Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
@@ -4307,8 +4802,8 @@ alter table t3 add primary key(id), add key(a);
 The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	1000	Using where; Using index
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	30	Using index; Start temporary; End temporary
+1	PRIMARY	t2	index	a	a	5	NULL	1000	Using where; Using index; Start temporary
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	30	Using index; End temporary
 select count(a) from t2 where a in ( SELECT  a FROM t3);
 count(a)
 1000
@@ -4371,6 +4866,127 @@ DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 DROP PROCEDURE p4;
+# 
+# Bug#48213 Materialized subselect crashes if using GEOMETRY type
+# 
+CREATE TABLE t1 (
+pk int,
+a varchar(1),
+b varchar(4),
+c tinyblob,
+d blob,
+e mediumblob,
+f longblob,
+g tinytext,
+h text,
+i mediumtext,
+j longtext,
+k geometry,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo','ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff', 'ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
+pk
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`d` = `test`.`t1`.`d`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
+pk
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`e` = `test`.`t1`.`e`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`f` = `test`.`t1`.`f`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`g` = `test`.`t1`.`g`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`h` = `test`.`t1`.`h`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`j` = `test`.`t1`.`j`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`k` = `test`.`t1`.`k`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
+pk
+1
+2
+DROP TABLE t1, t2;
+# End of Bug#48213
 # 
 # BUG#53060: LooseScan semijoin strategy does not return all rows
 # 
@@ -4457,6 +5073,83 @@ i
 1
 2
 drop table t1,t2,t3;
+#
+# BUG#49453: re-execution of prepared statement with view 
+#            and semijoin crashes
+#
+CREATE TABLE t1 (city VARCHAR(50), country_id INT);
+CREATE TABLE t2 (country_id INT, country VARCHAR(50));
+INSERT INTO t1 VALUES 
+('Batna',2),('Bchar',2),('Skikda',2),('Tafuna',3),('Algeria',2) ;
+INSERT INTO t2 VALUES (2,'Algeria'),(2,'AlgeriaDup'),(3,'XAmerican Samoa');
+CREATE VIEW v1 AS 
+SELECT country_id as vf_country_id
+FROM t2
+WHERE LEFT(country,1) = "A";
+PREPARE stmt FROM "
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (SELECT vf_country_id FROM v1);
+";
+
+EXECUTE stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+EXECUTE stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+DROP TABLE t1,t2;
+DROP VIEW v1;
+#
+# Bug#54437 Extra rows with LEFT JOIN + semijoin (firstmatch
+# and duplicates weedout)
+#
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+insert into t1 values(1),(1);
+insert into t2 values(1),(1),(1),(1);
+insert into t3 values(2),(2);
+explain select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+a
+1
+1
+drop table t1,t2,t3;
+#
+# Bug#55955: crash in MEMORY engine with IN(LEFT JOIN (JOIN))
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES(1),(1);
+INSERT INTO t2 VALUES(1),(1);
+INSERT INTO t3 VALUES(2),(2);
+explain SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t2inner	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+a
+1
+1
+DROP TABLE t1,t2,t3;
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
 show variables like 'optimizer_join_cache_level';
