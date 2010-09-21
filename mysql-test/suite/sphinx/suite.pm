@@ -24,7 +24,8 @@ my $exe_sphinx_indexer = &locate_sphinx_binary('indexer');
 my $exe_sphinx_searchd = &locate_sphinx_binary('searchd');
 
 return "No Sphinx" unless $exe_sphinx_indexer and $exe_sphinx_searchd;
-return "No SphinxSE" unless $ENV{HA_SPHINX_SO};
+return "No SphinxSE" unless $ENV{HA_SPHINX_SO} or
+                            $::mysqld_variables{'sphinx'} eq "ON";
 
 {
   local $_ = `"$exe_sphinx_searchd" --help`;
