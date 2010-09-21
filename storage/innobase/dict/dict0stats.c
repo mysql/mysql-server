@@ -131,6 +131,8 @@ srv_stats_persistent_sample_pages records from that level */
 Calculates new estimates for table and index statistics. This function
 is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
+This was the only wat to calculate statistics before the
+Persistent Statistics feature was introduced.
 dict_stats_update_transient() @{ */
 static
 void
