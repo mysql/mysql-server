@@ -367,7 +367,7 @@ AC_DEFUN([_MYSQL_EMIT_CHECK_PLUGIN],[
 
 AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
  m4_ifdef([$5],[
-  AH_TEMPLATE($5, [Include ]$4[ into mysqld])
+  AH_TEMPLATE($5, [Include ]$3[ into mysqld])
  ])
  AC_MSG_CHECKING([whether to use ]$3)
  mysql_use_plugin_dir=""
@@ -375,10 +375,10 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
   if test "X[$mysql_plugin_]$2" = Xyes -a \
           "X[$with_plugin_]$2" != Xno -o \
           "X[$with_plugin_]$2" = Xyes; then
-    AC_MSG_RESULT([error])
+    __MYSQL_EMIT_CHECK_RESULT($3,[error])
     AC_MSG_ERROR([disabled])
   fi
-  AC_MSG_RESULT([no])
+  __MYSQL_EMIT_CHECK_RESULT($3,[no])
  ],[
 
   # Plugin is not disabled, determine if it should be built,
@@ -389,7 +389,7 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
       # Plugin directory was removed after autoconf was run; treat
       # this as a disabled plugin
       if test "X[$with_plugin_]$2" = Xyes; then
-        AC_MSG_RESULT([error])
+        __MYSQL_EMIT_CHECK_RESULT($3,[error])
         AC_MSG_ERROR([disabled])
       fi
 
@@ -400,7 +400,7 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
 
   m4_ifdef([$9],[
    if test "X[$with_plugin_]$2" = Xno; then
-     AC_MSG_RESULT([error])
+     __MYSQL_EMIT_CHECK_RESULT($3,[error])
      AC_MSG_ERROR([cannot disable mandatory plugin])
    fi
    [mysql_plugin_]$2=yes
@@ -427,7 +427,7 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
 
 
   if test "X[$with_plugin_]$2" = Xno; then
-    AC_MSG_RESULT([no])
+    __MYSQL_EMIT_CHECK_RESULT($3,[no])
   else
     m4_ifdef([$8],m4_ifdef([$7],[],[[with_plugin_]$2='']))
     if test "X[$mysql_plugin_]$2" != Xyes -a \
@@ -440,16 +440,16 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
        AC_SUBST([plugin_]$2[_shared_target], "$8")
        AC_SUBST([plugin_]$2[_static_target], [""])
        [with_plugin_]$2=yes
-       AC_MSG_RESULT([plugin])
+       __MYSQL_EMIT_CHECK_RESULT($3,[plugin])
        m4_ifdef([$6],[
          else
            [mysql_plugin_]$2=no
-           AC_MSG_RESULT([no])
+           __MYSQL_EMIT_CHECK_RESULT($3,[no])
          fi
        ])
       ],[
        [with_plugin_]$2=no
-       AC_MSG_RESULT([no])
+       __MYSQL_EMIT_CHECK_RESULT($3,[no])
       ])
     else
       m4_ifdef([$7],[
@@ -482,7 +482,7 @@ dnl Although this is "pretty", it breaks libmysqld build
        AC_SUBST([plugin_]$2[_shared_target], [""])
       ],[
        m4_ifdef([$6],[
-        AC_MSG_RESULT([error])
+        __MYSQL_EMIT_CHECK_RESULT($3,[error])
         AC_MSG_ERROR([Plugin $1 does not support static linking])
        ],[
         m4_ifdef([$5],[
@@ -494,7 +494,7 @@ dnl Although this is "pretty", it breaks libmysqld build
       ])
       maria_plugin_defs="$maria_plugin_defs, [builtin_maria_]$2[_plugin]"
       [with_plugin_]$2=yes
-      AC_MSG_RESULT([yes])
+      __MYSQL_EMIT_CHECK_RESULT($3,[yes])
       m4_ifdef([$11], [
         m4_foreach([plugin], [$11], [
            condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp(plugin, [[^/]+$], [\&])"
@@ -548,6 +548,12 @@ dnl
     fi
   ])
  ])
+])
+
+AC_DEFUN([__MYSQL_EMIT_CHECK_RESULT],[
+  AC_MSG_RESULT($2)
+  plugin_report="[$plugin_report]
+m4_format([  * %-32s $2],$1:)"
 ])
 
 AC_DEFUN([_MYSQL_EMIT_PLUGIN_ACTIONS],[

@@ -2960,30 +2960,29 @@ AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' C
 
 AC_OUTPUT
 
-echo
+echo "---"
+echo "Configuration summary for $PACKAGE_NAME version $VERSION"
+echo "$plugin_report" | sort
+echo ""
+echo "  * Installation prefix:             $prefix"
+echo "  * System type:                     $SYSTEM_TYPE"
+echo "  * Host CPU:                        $host_cpu"
+echo "  * C Compiler:                      $CC_VERSION"
+echo "  * C++ Compiler:                    $CXX_VERSION"
+echo "  * Debug enabled:                   $with_debug"
+echo "  * Community Features:              $ENABLE_COMMUNITY_FEATURES"
+echo ""
+echo "---"
+echo ""
 echo "You can find information about MariaDB at"
-echo http://askmonty.org/wiki/index.php/MariaDB
-echo
+echo "http://kb.askmonty.org/"
+echo ""
 echo "Remember to check the platform specific part of the reference manual for"
 echo "hints about installing MariaDB on your platform. Also have a look at the"
 echo "files in the Docs directory."
-echo
-
-echo "---"
-echo "Configuration summary for $PACKAGE_NAME version $VERSION"
-echo ""
-echo "   * Installation prefix:       $prefix"
-echo "   * System type:               $SYSTEM_TYPE"
-echo "   * Host CPU:                  $host_cpu"
-echo "   * C Compiler:                $CC_VERSION"
-echo "   * C++ Compiler:              $CXX_VERSION"
-echo "   * Debug enabled:             $with_debug"
-echo "   * Community Features:        $ENABLE_COMMUNITY_FEATURES"
-echo ""
-echo "---"
 
 # The first line "Thank you ..." is checked in ./Do-compile to verify that configure
 # ended sucessfully - don't remove it.
-echo
+echo ""
 echo "Thank you for choosing MariaDB!"
-echo
+echo ""
