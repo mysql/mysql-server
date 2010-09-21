@@ -26,7 +26,7 @@ AC_DEFUN([MYSQL_PLUGIN],[
   [__MYSQL_PLUGIN_]AS_TR_CPP([$1])[__],
   m4_default([$2], [$1 plugin]),
   m4_default([$3], [plugin for $1]),
-  m4_default([$4], []),
+  m4_default([[$4]], []),
  )
 ])
 
@@ -61,7 +61,7 @@ dnl
 dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_STORAGE_ENGINE],[
- MYSQL_PLUGIN([$1], [$3], [$4], [[$5]])
+ MYSQL_PLUGIN([$1], [$3], [$4], [$5])
  MYSQL_PLUGIN_DEFINE([$1], [WITH_]AS_TR_CPP([$1])[_STORAGE_ENGINE])
  ifelse([$2],[no],[],[
   _MYSQL_LEGACY_STORAGE_ENGINE(
