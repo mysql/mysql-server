@@ -78,19 +78,6 @@ the virtual method table (vtable) in GCC 3. */
 # define ha_innobase ha_innodb
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 
-/* if any of the following macros is defined at this point this means
-that the code from the "right" plug.in was executed and we do not
-need to include ut0auxconf.h which would either define the same macros
-or will be empty */
-#if !defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_GCC) \
- && !defined(HAVE_IB_SOLARIS_ATOMICS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS) \
- && !defined(SIZEOF_PTHREAD_T) \
- && !defined(HAVE_IB_PAUSE_INSTRUCTION)
-# include "ut0auxconf.h"
-#endif
-
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
 # undef __WIN__
 # define __WIN__
