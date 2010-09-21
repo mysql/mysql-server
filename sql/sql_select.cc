@@ -1278,8 +1278,8 @@ bool might_do_join_buffering(uint join_cache_level,
   */
   return (sj_tab-sj_tab->join->join_tab != sj_tab->join->const_tables && // (1)
           sj_tab->use_quick != QS_DYNAMIC_RANGE && 
-          ((join_cache_level != 0 && sj_tab->type == JT_ALL) ||
-           (join_cache_level > 4 && 
+          ((join_cache_level != 0U && sj_tab->type == JT_ALL) ||
+           (join_cache_level > 4U && 
             (sj_tab->type == JT_REF || 
              sj_tab->type == JT_EQ_REF || 
              sj_tab->type == JT_CONST))));
@@ -4219,9 +4219,6 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
      - It is accessed via eq_ref(outer_tables)
 
     POSTCONDITIONS
-     * Tables that were pulled out have JOIN_TAB::emb_sj_nest == NULL
-     * Tables that were not pulled out have JOIN_TAB::emb_sj_nest pointing 
-       to semi-join nest they are in.
      * Semi-join nests' TABLE_LIST::sj_inner_tables is updated accordingly
 
     This operation is (and should be) performed at each PS execution since
@@ -4263,7 +4260,6 @@ int pull_out_semijoin_tables(JOIN *join)
     {
       if (tbl->table)
       {
-        tbl->table->reginfo.join_tab->emb_sj_nest= sj_nest;
         if (tbl->table->map & join->const_table_map)
         {
           pulled_tables |= tbl->table->map;
@@ -4323,27 +4319,18 @@ int pull_out_semijoin_tables(JOIN *join)
       arena= join->thd->activate_stmt_arena_if_needed(&backup);
       while ((tbl= child_li++))
       {
-        if (tbl->table)
+        if (tbl->table &&
+            !(inner_tables & tbl->table->map))
         {
-          if (inner_tables & tbl->table->map)
-          {
-            /* This table is not pulled out */
-            tbl->table->reginfo.join_tab->emb_sj_nest= sj_nest;
-          }
-          else
-          {
-            /* This table has been pulled out of the semi-join nest */
-            tbl->table->reginfo.join_tab->emb_sj_nest= NULL;
-            /*
-              Pull the table up in the same way as simplify_joins() does:
-              update join_list and embedding pointers but keep next[_local]
-              pointers.
-            */
-            child_li.remove();
-            upper_join_list->push_back(tbl);
-            tbl->join_list= upper_join_list;
-            tbl->embedding= sj_nest->embedding;
-          }
+          /*
+            Pull the table up in the same way as simplify_joins() does:
+            update join_list and embedding pointers but keep next[_local]
+            pointers.
+          */
+          child_li.remove();
+          upper_join_list->push_back(tbl);
+          tbl->join_list= upper_join_list;
+          tbl->embedding= sj_nest->embedding;
         }
       }
 
@@ -4920,6 +4907,29 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   if (pull_out_semijoin_tables(join))
     DBUG_RETURN(TRUE);
 
+  /*
+    Set pointer to embedding semijoin nest for all semijoined tables.
+    Note that this must be done for every table inside all semijoin nests,
+    even for tables within outer join nests embedded in semijoin nests.
+    A table can never be part of multiple semijoin nests, hence no
+    ambiguities can ever occur.
+    Note also that the pointer is not set for TABLE_LIST objects that
+    are outer join nests within semijoin nests.
+  */
+  for (s= stat; s < stat_end; s++)
+  {
+    for (TABLE_LIST *tables= s->table->pos_in_table_list;
+         tables->embedding;
+         tables= tables->embedding)
+    {
+      if (tables->embedding->sj_on_expr)
+      {
+        s->emb_sj_nest= tables->embedding;
+        break;
+      }
+    }
+  }
+
   join->join_tab=stat;
   join->map2table=stat_ref;
   join->all_tables= table_vector;
@@ -5289,9 +5299,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 
 static uint get_semi_join_select_list_index(Field *field)
 {
-  TABLE_LIST *emb_sj_nest;
-  if ((emb_sj_nest= field->table->pos_in_table_list->embedding) &&
-      emb_sj_nest->sj_on_expr)
+  TABLE_LIST *emb_sj_nest= field->table->pos_in_table_list->embedding;
+  if (emb_sj_nest && emb_sj_nest->sj_on_expr)
   {
     List<Item> &items= emb_sj_nest->nested_join->sj_inner_exprs;
     List_iterator<Item> it(items);
@@ -6560,7 +6569,7 @@ public:
         join->cur_sj_inner_tables == 0 &&                               // (3)
         !(remaining_tables & 
           s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (4)
-        remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on &&// (5)
+        (remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on) &&// (5)
         join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN))
     {
       /* This table is an LooseScan scan candidate */
@@ -13585,9 +13594,9 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     advance_sj_state()
       join                        The join we're optimizing
       remaining_tables            Tables not in the join prefix
-      new_join_tab                Join tab we've just added to the join prefix
+      new_join_tab                Join tab that we are adding to the join prefix
       idx                         Index of this join tab (i.e. number of tables
-                                  in the prefix minus one)
+                                  in the prefix)
       current_record_count INOUT  Estimate of #records in join prefix's output
       current_read_time    INOUT  Cost to execute the join prefix
       loose_scan_pos       IN     A POSITION with LooseScan plan to access 
@@ -13634,6 +13643,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
 {
   TABLE_LIST *emb_sj_nest= new_join_tab->emb_sj_nest;
   POSITION *pos= join->positions + idx;
+
+  /* Add this table to the join prefix */
   remaining_tables &= ~new_join_tab->table->map;
 
   DBUG_ENTER("advance_sj_state");
@@ -13871,8 +13882,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
     */
     pos->sjm_scan_need_tables=
       emb_sj_nest->sj_inner_tables | 
-      emb_sj_nest->nested_join->sj_depends_on |
-      emb_sj_nest->nested_join->sj_corr_tables;
+      emb_sj_nest->nested_join->sj_depends_on;
     pos->sjm_scan_last_inner= idx;
   }
   else if (sjm_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
@@ -14171,8 +14181,8 @@ static void backout_nj_sj_state(const table_map remaining_tables,
   }
 
   /* Restore the semijoin state */
-  TABLE_LIST *emb_sj_nest;
-  if ((emb_sj_nest= tab->emb_sj_nest))
+  TABLE_LIST *emb_sj_nest= tab->emb_sj_nest;
+  if (emb_sj_nest)
   {
     /* If we're removing the last SJ-inner table, remove the sj-nest */
     if ((remaining_tables & emb_sj_nest->sj_inner_tables) ==
