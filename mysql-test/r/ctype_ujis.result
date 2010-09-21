@@ -94,7 +94,7 @@ select @ujis4 = CONVERT(@utf84 USING ujis);
 1
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 create table t1 (c1 varchar(8)) default character set 'ujis';
 insert into t1 values (0xA4A2),(0xA2A2),(0xA4A2);
 select c1 as 'no index' from t1 where c1 like cast(concat(0xA4A2, '%') as char character set ujis);
@@ -168,7 +168,7 @@ a	b
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(c char(1)) character set ujis;
 INSERT INTO t1 VALUES(0xA2AF);
 INSERT INTO t1 VALUES(0xA2B0);

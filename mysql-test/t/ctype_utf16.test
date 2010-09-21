@@ -327,6 +327,7 @@ SET collation_connection='utf16_general_ci';
 SET NAMES latin1;
 SET collation_connection='utf16_bin';
 -- source include/ctype_filesort.inc
+-- source include/ctype_filesort2.inc
 -- source include/ctype_like_escape.inc
 
 #

@@ -73,7 +73,8 @@ static int check_event_type(int type, Relay_log_info *rli)
 
     /* It is always allowed to execute FD events. */
     return 0;
-    
+
+  case ROWS_QUERY_LOG_EVENT:
   case TABLE_MAP_EVENT:
   case WRITE_ROWS_EVENT:
   case UPDATE_ROWS_EVENT:
@@ -146,7 +147,7 @@ void mysql_client_binlog_statement(THD* thd)
     Allocation
   */
 
-  int err;
+  int err= 0;
   Relay_log_info *rli;
   rli= thd->rli_fake;
   if (!rli && (rli= thd->rli_fake= new Relay_log_info(FALSE)))
@@ -263,8 +264,6 @@ void mysql_client_binlog_statement(THD* thd)
       */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
       err= ev->apply_event(rli);
-#else
-      err= 0;
 #endif
       /*
         Format_description_log_event should not be deleted because it
@@ -273,8 +272,15 @@ void mysql_client_binlog_statement(THD* thd)
         i.e. when this thread terminates.
       */
       if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
-        delete ev; 
-      ev= 0;
+      {
+        if (thd->variables.binlog_rows_query_log_events)
+          handle_rows_query_log_event(ev, rli);
+        if (ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+        {
+          delete ev;
+          ev= NULL;
+        }
+      }
       if (err)
       {
         /*
@@ -292,6 +298,11 @@ void mysql_client_binlog_statement(THD* thd)
   my_ok(thd);
 
 end:
+  if ((error || err) && rli->rows_query_ev)
+  {
+    delete rli->rows_query_ev;
+    rli->rows_query_ev= NULL;
+  }
   rli->slave_close_thread_tables(thd);
   my_free(buf);
   DBUG_VOID_RETURN;
