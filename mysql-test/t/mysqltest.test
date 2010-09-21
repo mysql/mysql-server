@@ -497,10 +497,19 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 #
 # Extra text after ``
 #
+# Cannot use exec echo here as ` may or may not need to be escaped
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+let $x= `select 1` BOO ;
+EOF
 --error 1
--- exec echo "let \$x= \`select 1\` BOO ;" | $MYSQL_TEST 2>&1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--let $x= `select 1`;
+EOF
 --error 1
--- exec echo "--let \$x= \`select 1\`;" | $MYSQL_TEST 2>&1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 # Missing ; in next line should be detected and cause failure
 let $x= `select 1`
