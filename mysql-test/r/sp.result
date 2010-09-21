@@ -3272,9 +3272,9 @@ Warnings:
 Note	1051	Unknown table 'test.tv'
 DROP TABLE IF EXISTS tt1,tt2,tt3|
 Warnings:
-Note	1051	Unknown table 'tt1'
-Note	1051	Unknown table 'tt2'
-Note	1051	Unknown table 'tt3'
+Note	1051	Unknown table 'test.tt1'
+Note	1051	Unknown table 'test.tt2'
+Note	1051	Unknown table 'test.tt3'
 CREATE TABLE tt1 (a1 int, a2 int, a3 int, data varchar(10))|
 CREATE TABLE tt2 (a2 int, data2 varchar(10))|
 CREATE TABLE tt3 (a3 int, data3 varchar(10))|

@@ -179,6 +179,11 @@ inline bool sj_is_materialize_strategy(uint strategy)
   return strategy >= SJ_OPT_MATERIALIZE_LOOKUP;
 }
 
+/** 
+    Bits describing quick select type
+*/
+enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
+
 typedef struct st_join_table : public Sql_alloc
 {
   st_join_table();
@@ -244,12 +249,13 @@ typedef struct st_join_table : public Sql_alloc
   ha_rows       read_time;
   
   table_map	dependent,key_dependent;
-  uint		use_quick,index;
+  uint		index;
   uint		status;				///< Save status for cache
   uint		used_fields,used_fieldlength,used_blobs;
   uint          used_null_fields;
   uint          used_rowid_fields;
   uint          used_uneven_bit_fields;
+  enum quick_type use_quick;
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
   /* TRUE <=> index-based access method must return records in order */
@@ -417,7 +423,6 @@ st_join_table::st_join_table()
 
     dependent(0),
     key_dependent(0),
-    use_quick(0),
     index(0),
     status(0),
     used_fields(0),
@@ -426,6 +431,7 @@ st_join_table::st_join_table()
     used_null_fields(0),
     used_rowid_fields(0),
     used_uneven_bit_fields(0),
+    use_quick(QS_NONE),
     type(JT_UNKNOWN),
     cached_eq_ref_table(FALSE),
     eq_ref_table(FALSE),
@@ -1775,7 +1781,7 @@ public:
 
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
-  List<SJ_MATERIALIZATION_INFO> sjm_info_list;
+  List<Semijoin_mat_exec> sjm_exec_list;
 
   /* 
     storage for caching buffers allocated during query execution. 
@@ -1923,7 +1929,7 @@ public:
   */
   JOIN_TAB *get_sort_by_join_tab()
   {
-    return (need_tmp || !sort_by_table || skip_sort_order ||
+    return (!sort_by_table || skip_sort_order ||
             ((group || tmp_table_param.sum_func_count) && !group_list)) ?
               NULL : join_tab+const_tables;
   }
@@ -1957,7 +1963,7 @@ bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		       List<Item> &new_list1, List<Item> &new_list2,
 		       uint elements, List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
-void copy_funcs(Item **func_ptr);
+bool copy_funcs(Item **func_ptr, const THD *thd);
 bool create_myisam_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 
