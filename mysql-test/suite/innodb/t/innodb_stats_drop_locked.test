@@ -52,7 +52,7 @@ COMMIT;
 
 # the stats should be there
 
-SELECT table_name FROM innodb.table_stats 
+SELECT table_name FROM innodb.table_stats
 WHERE table_name='innodb_stats_drop_locked';
 
 SELECT table_name FROM innodb.index_stats
