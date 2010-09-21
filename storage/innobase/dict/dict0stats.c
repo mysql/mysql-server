@@ -116,11 +116,11 @@ In the implementation below A is srv_stats_persistent_sample_pages.
 #define INDEX_STATS_NAME	"innodb/index_stats"
 #define INDEX_STATS_NAME_PRINT	"innodb.index_stats"
 
-#if 1
+#ifdef UNIV_STATS_DEBUG
 #define DEBUG_PRINTF(fmt, ...)	printf(fmt, ## __VA_ARGS__)
-#else
+#else /* UNIV_STATS_DEBUG */
 #define DEBUG_PRINTF(fmt, ...)	/* noop */
-#endif
+#endif /* UNIV_STATS_DEBUG */
 
 /* number of distinct records on a given level that are required to stop
 descending to lower levels and fetch
