@@ -159,12 +159,10 @@ static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
-static int join_read_linked_key(JOIN_TAB *tab);
 static void join_read_key_unlock_row(st_join_table *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
-static int join_read_next(READ_RECORD *info);
 static int join_init_quick_read_record(JOIN_TAB *tab);
 static int test_if_quick_select(JOIN_TAB *tab);
 static int join_init_read_record(JOIN_TAB *tab);
@@ -178,6 +176,8 @@ static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
+static int join_read_linked_first(JOIN_TAB *tab);
+static int join_read_linked_next(READ_RECORD *info);
 static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table);
 static Item* part_of_refkey(TABLE *form,Field *field);
@@ -1680,9 +1680,10 @@ make_pushed_join(THD *thd, JOIN *join)
         // Is child of a pushed join operation:
         // Replace 'read_key' access with its linked counterpart 
         // ... Which is effectively a NOOP as the row is read as part of the linked operation
-        tab->read_first_record= join_read_linked_key;
-        tab->read_record.read_record= join_no_more_records;
-        tab->read_record.unlock_row= rr_unlock_row;
+        tab->read_first_record= join_read_linked_first;
+        DBUG_ASSERT(tab->read_record.read_record != join_read_next_same_or_null);
+        tab->read_record.read_record= join_read_linked_next;
+        tab->read_record.unlock_row= rr_unlock_row;  // FIXME: likely incorrect
       }
       active_pushed_joins--;
     }
@@ -12138,10 +12139,10 @@ join_read_key_unlock_row(st_join_table *tab)
     1   Got an error (other than row not found) during read
 */
 static int
-join_read_linked_key(JOIN_TAB *tab)
+join_read_linked_first(JOIN_TAB *tab)
 {
   TABLE *table= tab->table;
-  DBUG_ENTER("join_read_linked_key");
+  DBUG_ENTER("join_read_linked_first");
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, tab->sorted);
@@ -12157,12 +12158,30 @@ join_read_linked_key(JOIN_TAB *tab)
   int error=table->file->index_read_pushed(table->record[0],
                                       tab->ref.key_buff,
                                       make_prev_keypart_map(tab->ref.key_parts));
-  if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+  if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
     DBUG_RETURN(report_error(table, error));
 
   table->null_row=0;
-  int rc = table->status ? -1 : 0;
+  int rc= table->status ? -1 : 0;
   DBUG_RETURN(rc);
+}
+
+
+static int
+join_read_linked_next(READ_RECORD *info)
+{
+  TABLE *table= info->table;
+  DBUG_ENTER("join_read_linked_next");
+
+  int error=info->file->index_next_pushed(table->record[0]);
+  if (error)
+  {
+    if (unlikely(error != HA_ERR_END_OF_FILE))
+      DBUG_RETURN(report_error(table, error));
+    table->status= STATUS_GARBAGE;
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(error);
 }
 
 

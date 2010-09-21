@@ -1888,7 +1888,10 @@ public:
 
   virtual int index_read_pushed(uchar * buf, const uchar * key,
                              key_part_map keypart_map)
-  { return index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT); }
+  { return  HA_ERR_WRONG_COMMAND; }
+
+  virtual int index_next_pushed(uchar * buf)
+  { return  HA_ERR_WRONG_COMMAND; }
 
 
  /*
