@@ -535,7 +535,13 @@ BaseString::getPrettyTextShort(unsigned size, const Uint32 data[])
   return to;
 }
 
-
+const void*
+BaseString_get_key(const void* key, size_t* key_length)
+{
+  const BaseString* str = (const BaseString*)key;
+  *key_length = str->length();
+  return str->c_str();
+}
 
 #ifdef TEST_BASE_STRING
 
