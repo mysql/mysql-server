@@ -663,6 +663,7 @@ static const char* get_referred_table_access_name(const Item_field* field_item)
 static bool is_lookup_operation(AQP::enum_access_type accessType)
 {
   return (accessType == AQP::AT_PRIMARY_KEY ||
+          accessType == AQP::AT_MULTI_PRIMARY_KEY ||
           accessType == AQP::AT_UNIQUE_KEY);
 }
 
@@ -1287,9 +1288,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
      */
     if (push_cnt == 0)
     {
-      if (access_type == AQP::AT_PRIMARY_KEY ||
-          access_type == AQP::AT_MULTI_PRIMARY_KEY ||
-          access_type == AQP::AT_UNIQUE_KEY)
+      if (is_lookup_operation(access_type))
       {
         const KEY *key= &table->key_info[join_root->get_index_no()];
         const NdbQueryOperand* root_key[ndb_pushed_join::MAX_KEY_PART+1]= {NULL};

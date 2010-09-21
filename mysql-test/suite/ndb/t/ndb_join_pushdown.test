@@ -2461,6 +2461,21 @@ left join t1 as x4 on x3.u=x4.pk
 left join t1 as x5 on x4.a=x5.b;
 set ndb_join_pushdown=on;
 
+
+############################
+# Testcase for 'Got error 20002 'Unknown error code' from NDBCLUSTER'
+# Caused by failure to identify AT_MULTI_PRIMARY_KEY as a lookup operation.
+# This in turn caused a pushed 'lookup-scan' query to be produced - which we don't support
+
+# Should not be pushed (lookup-scan query)
+explain select count(*) from t1 as x1
+ join t1 as x2 on x1.a=x2.b
+ where x1.pk = 1 or x1.u=1;
+
+select count(*) from t1 as x1
+ join t1 as x2 on x1.a=x2.b
+ where x1.pk = 1 or x1.u=1;
+
 ############################
 # Testcase which forced us to ditch using the 'global cursor'
 # on the NdbQuery result set from mysqld.
