@@ -285,131 +285,6 @@ scan_it_again:
 
 
 /****************************************************************************
- * SimpleBuffer class implementation (used by DS-MRR code)
- ***************************************************************************/
-void SimpleBuffer::setup_writing(uchar **data1, size_t len1, 
-                                 uchar **data2, size_t len2)
-{
-  write_ptr1= data1;
-  size1= len1;
-
-  write_ptr2= data2;
-  size2= len2;
-}
-
-
-void SimpleBuffer::write()
-{
-  if (is_reverse() && write_ptr2)
-    write(*write_ptr2, size2);
-
-  write(*write_ptr1, size1);
-
-  if (!is_reverse() && write_ptr2)
-    write(*write_ptr2, size2);
-}
-
-
-void SimpleBuffer::write(const uchar *data, size_t bytes)
-{
-  DBUG_ASSERT(have_space_for(bytes));
-
-  if (direction == -1)
-    write_pos -= bytes;
-
-  memcpy(write_pos, data, bytes);
-
-  if (direction == 1)
-    write_pos += bytes;
-}
-
-
-bool SimpleBuffer::can_write()
-{
-  return have_space_for(size1 + (write_ptr2 ? size2 : 0));
-}
-
-
-bool SimpleBuffer::have_space_for(size_t bytes)
-{
-  if (direction == 1)
-    return (write_pos + bytes < end);
-  else
-    return (write_pos - bytes >= start);
-}
-
-
-size_t SimpleBuffer::used_size()
-{
-  return (direction == 1)? write_pos - read_pos : read_pos - write_pos;
-}
-
-
-void SimpleBuffer::setup_reading(uchar **data1, size_t len1, 
-                                 uchar **data2, size_t len2)
-{
-  read_ptr1= data1;
-  DBUG_ASSERT(len1 == size1);
-
-  read_ptr2= data2;
-  DBUG_ASSERT(len2 == size2);
-}
-
-
-bool SimpleBuffer::read()
-{
-  if (!have_data(size1 + (read_ptr2 ? size2 : 0)))
-    return TRUE;
-  *read_ptr1= read(size1);
-  if (read_ptr2)
-    *read_ptr2= read(size2);
-  return FALSE;
-}
-
-
-uchar *SimpleBuffer::read(size_t bytes)
-{
-  DBUG_ASSERT(have_data(bytes));
-  uchar *res;
-  if (direction == 1)
-  {
-    res= read_pos;
-    read_pos += bytes;
-    return res;
-  }
-  else
-  {
-    read_pos= read_pos - bytes;
-    return read_pos;
-  }
-}
-
-
-bool SimpleBuffer::have_data(size_t bytes)
-{
-  return (direction == 1)? (write_pos - read_pos >= (ptrdiff_t)bytes) : 
-                           (read_pos - write_pos >= (ptrdiff_t)bytes);
-}
-
-
-void SimpleBuffer::reset_for_writing()
-{
-  if (direction == 1)
-    write_pos= read_pos= start;
-  else
-    write_pos= read_pos= end;
-}
-
-
-uchar *SimpleBuffer::end_of_space()
-{
-  if (direction == 1)
-    return start;
-  else
-    return end;
-}
-
-/****************************************************************************
  * DS-MRR implementation 
  ***************************************************************************/
 
@@ -492,7 +367,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   */
   full_buf= buf->buffer;
   full_buf_end= buf->buffer_end;
-  rowid_buffer.set_buffer_space(full_buf, full_buf_end, SimpleBuffer::FORWARD);
+  rowid_buffer.set_buffer_space(full_buf, full_buf_end);
   
   if (do_sort_keys)
   {
@@ -504,7 +379,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     dsmrr_fill_key_buffer();
     
     if (dsmrr_eof && !do_rndpos_scan)
-      buf->end_of_used_area= key_buffer.end_of_space();
+      buf->end_of_used_area= key_buffer->end_of_space();
   }
 
   if (!do_rndpos_scan)
@@ -646,9 +521,9 @@ void DsMrr_impl::dsmrr_close()
 }
 
 
-static int rowid_cmp(void *h, uchar *a, uchar *b)
+static int rowid_cmp_reverse(void *h, uchar *a, uchar *b)
 {
-  return ((handler*)h)->cmp_ref(a, b);
+  return - ((handler*)h)->cmp_ref(a, b);
 }
 
 
@@ -666,8 +541,6 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
 
   post-condition:
    rowid buffer is not empty, or key source is exhausted.
-
-  @param h  Table handler
 
   @retval 0      OK, the next portion of rowids is in the buffer,
                  properly ordered
@@ -689,8 +562,8 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
 
   last_identical_rowid= NULL;
 
-  if (do_sort_keys && key_buffer.is_reverse())
-    key_buffer.flip();
+  //if (do_sort_keys && key_buffer.is_reverse())
+  //  key_buffer.flip();
 
   while (rowid_buffer.can_write())
   {
@@ -721,19 +594,11 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
     dsmrr_eof= test(res == HA_ERR_END_OF_FILE);
 
   /* Sort the buffer contents by rowid */
-  rowid_buffer.sort((qsort2_cmp)rowid_cmp, (void*)h);
+  rowid_buffer.sort((qsort2_cmp)rowid_cmp_reverse, (void*)h);
 
   rowid_buffer.setup_reading(&rowid, h->ref_length,
                              is_mrr_assoc? (uchar**)&rowids_range_id: NULL, sizeof(void*));
   DBUG_RETURN(0);
-}
-
-
-void SimpleBuffer::sort(qsort2_cmp cmp_func, void *cmp_func_arg)
-{
-  uint elem_size= size1 + (write_ptr2 ? size2 : 0);
-  uint n_elements= used_size() / elem_size;
-  my_qsort2(used_area(), n_elements, elem_size, cmp_func, cmp_func_arg);
 }
 
 
@@ -787,6 +652,10 @@ equals:
   return 0;
 }
 
+int DsMrr_impl::key_tuple_cmp_reverse(void* arg, uchar* key1, uchar* key2)
+{
+  return -key_tuple_cmp(arg, key1, key2);
+}
 
 /*
   Setup key/rowid buffer sizes based on sample_key
@@ -812,12 +681,13 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
                               my_count_bits(sample_key->keypart_map));
   if (!do_rndpos_scan)
   {
-    /* Give all space to key buffer. */
-    key_buffer.set_buffer_space(full_buf, full_buf_end, SimpleBuffer::FORWARD);
+    /* Give all space to forward key buffer. */
+    key_buffer= &forward_key_buf;
+    identical_key_it= &forward_key_it;
+    key_buffer->set_buffer_space(full_buf, full_buf_end);
 
     /* Just in case, tell rowid buffer that it has zero size: */
-    rowid_buffer.set_buffer_space(full_buf_end, full_buf_end, 
-                                  SimpleBuffer::FORWARD);
+    rowid_buffer.set_buffer_space(full_buf_end, full_buf_end);
     return;
   }
   
@@ -860,10 +730,10 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
   }
 
   rowid_buffer_end= full_buf + bytes_for_rowids;
-  rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end, 
-                                SimpleBuffer::FORWARD);
-  key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, 
-                              SimpleBuffer::BACKWARD); 
+  rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
+  key_buffer= &backward_key_buf;
+  identical_key_it= &backward_key_it;
+  key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end); 
 }
 
 
@@ -892,7 +762,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
   uchar **range_info_ptr= (uchar**)&cur_range.ptr;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_key_buffer");
 
-  DBUG_ASSERT(!know_key_tuple_params || key_buffer.is_empty());
+  DBUG_ASSERT(!know_key_tuple_params || key_buffer->is_empty());
 
   uchar *key_ptr;
   if (know_key_tuple_params)
@@ -903,18 +773,18 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
         We're using two buffers and both of them are empty now. Restore the
         original sizes
       */
-      rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end,
-                                    SimpleBuffer::FORWARD);
-      key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end,
-                                  SimpleBuffer::BACKWARD);
+      rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
+      key_buffer= &backward_key_buf;
+      identical_key_it= &backward_key_it;
+      key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end);
     }
-    key_buffer.reset_for_writing();
-    key_buffer.setup_writing(&key_ptr, key_size_in_keybuf,
-                             is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
-                             sizeof(uchar*));
+    key_buffer->reset_for_writing();
+    key_buffer->setup_writing(&key_ptr, key_size_in_keybuf,
+                              is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
+                              sizeof(uchar*));
   }
 
-  while ((!know_key_tuple_params || key_buffer.can_write()) && 
+  while ((!know_key_tuple_params || key_buffer->can_write()) && 
          !(res= h->mrr_funcs.next(h->mrr_iter, &cur_range)))
   {
     DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
@@ -923,10 +793,10 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
       /* This only happens when we've just started filling the buffer */
       setup_buffer_sizes(&cur_range.start_key);
       know_key_tuple_params= TRUE;
-      key_buffer.setup_writing(&key_ptr, key_size_in_keybuf,
+      key_buffer->setup_writing(&key_ptr, key_size_in_keybuf,
                                is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
                                sizeof(uchar*));
-      DBUG_ASSERT(key_buffer.can_write());
+      DBUG_ASSERT(key_buffer->can_write());
     }
     
     /* Put key, or {key, range_id} pair into the buffer */
@@ -935,16 +805,19 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
     else
       key_ptr=(uchar*) cur_range.start_key.key;
 
-    key_buffer.write();
+    key_buffer->write();
   }
 
   dsmrr_eof= test(res);
 
-  key_buffer.sort((qsort2_cmp)DsMrr_impl::key_tuple_cmp, (void*)this);
+  key_buffer->sort((key_buffer->type() == Lifo_buffer::FORWARD)? 
+                     (qsort2_cmp)DsMrr_impl::key_tuple_cmp_reverse : 
+                     (qsort2_cmp)DsMrr_impl::key_tuple_cmp, 
+                   (void*)this);
   
-  key_buffer.setup_reading(&cur_index_tuple, key_size_in_keybuf,
-                           is_mrr_assoc? (uchar**)&cur_range_info: NULL,
-                           sizeof(void*));
+  key_buffer->setup_reading(&cur_index_tuple, key_size_in_keybuf,
+                            is_mrr_assoc? (uchar**)&cur_range_info: NULL,
+                            sizeof(void*));
 
   last_identical_key_ptr= NULL;
   in_identical_keys_range= FALSE;
@@ -959,7 +832,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
 void DsMrr_impl::reallocate_buffer_space()
 {
   uchar *unused_start, *unused_end;
-  key_buffer.remove_unused_space(&unused_start, &unused_end);
+  key_buffer->remove_unused_space(&unused_start, &unused_end);
   rowid_buffer.grow(unused_start, unused_end);
 }
 
@@ -1000,7 +873,7 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
   while (in_identical_keys_range)
   {
     /* This will read to (cur_index_tuple, cur_range_info): */
-    res2= identical_key_it.read_next();
+    res2= identical_key_it->read_next();
     DBUG_ASSERT(!res2);
 
     if (cur_index_tuple == last_identical_key_ptr)
@@ -1038,7 +911,7 @@ check_record:
     if (last_identical_key_ptr)
     {
       in_identical_keys_range= TRUE;
-      identical_key_it.init(&key_buffer);
+      identical_key_it->init(key_buffer);
       cur_range_info= first_identical_range_info;
     }
 
@@ -1053,12 +926,12 @@ check_record:
     if (last_identical_key_ptr)
     {
       /* key_buffer.read() reads to (cur_index_tuple, cur_range_info) */
-      while (!key_buffer.read() && (cur_index_tuple != last_identical_key_ptr)) {}
+      while (!key_buffer->read() && (cur_index_tuple != last_identical_key_ptr)) {}
       last_identical_key_ptr= NULL;
     }
 
     /* First, make sure we have a range at start of the buffer */
-    if (key_buffer.is_empty())
+    if (key_buffer->is_empty())
     {
       if (dsmrr_eof)
       {
@@ -1072,7 +945,7 @@ check_record:
       if (!do_rndpos_scan)
         dsmrr_fill_key_buffer();
 
-      if (key_buffer.is_empty())
+      if (key_buffer->is_empty())
       {
         res= HA_ERR_END_OF_FILE;
         goto end;
@@ -1088,7 +961,7 @@ check_record:
       reallocate_buffer_space();
 
     /* Get the next range to scan */
-    key_buffer.read(); // reads to (cur_index_tuple, cur_range_info)
+    key_buffer->read(); // reads to (cur_index_tuple, cur_range_info)
     key_in_buf= cur_index_tuple;
 
     if (use_key_pointers)
@@ -1106,9 +979,9 @@ check_record:
     /* Check if subsequent keys in the key buffer are the same as this one */
     {
       char *save_cur_range_info= cur_range_info;
-      identical_key_it.init(&key_buffer);
+      identical_key_it->init(key_buffer);
       last_identical_key_ptr= NULL;
-      while (!identical_key_it.read_next())
+      while (!identical_key_it->read_next())
       {
         if (key_tuple_cmp(this, key_in_buf, cur_index_tuple))
           break;
@@ -1119,7 +992,7 @@ check_record:
       if (last_identical_key_ptr)
       {
         in_identical_keys_range= TRUE;
-        identical_key_it.init(&key_buffer);
+        identical_key_it->init(key_buffer);
         first_identical_range_info= cur_range_info;
       }
     }
@@ -1178,7 +1051,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     {
       if (do_sort_keys)
       {
-        if (!key_buffer.is_empty() || in_index_range) 
+        if (!key_buffer->is_empty() || in_index_range) 
         {
           /* There are some sorted keys left. Use them to get rowids */
           if ((res= dsmrr_fill_rowid_buffer()))
@@ -1239,9 +1112,9 @@ int DsMrr_impl::dsmrr_next(char **range_info)
         Note: this implies that SQL layer doesn't touch table->record[0]
         between calls.
       */
-      SimpleBuffer::PeekIterator identical_rowid_it;
-      identical_rowid_it.init(&rowid_buffer);
-      while (!identical_rowid_it.read_next()) // reads to (rowid, ...)
+      Forward_iterator it;
+      it.init(&rowid_buffer);
+      while (!it.read_next()) // reads to (rowid, ...)
       {
         if (h2->cmp_ref(rowid, cur_rowid))
           break;

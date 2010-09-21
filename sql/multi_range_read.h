@@ -46,6 +46,356 @@
   storage and has better performance when reading data in rowid order.
 */
 
+class Forward_lifo_buffer;
+class Backward_lifo_buffer;
+
+class Lifo_buffer 
+{
+protected:
+  /* 
+    Data to be written. write() call will assume that (*write_ptr1) points to 
+    size1 bytes of data to be written.
+    If write_ptr2 != NULL then the buffer stores pairs, and (*write_ptr2) 
+    points to size2 bytes of data that form the second component.
+  */
+  uchar **write_ptr1;
+  size_t size1;
+  uchar **write_ptr2;
+  size_t size2;
+
+  /*
+    read() will do reading by storing pointer to read data into *read_ptr1 (if
+    the buffer stores atomic elements), or into {*read_ptr1, *read_ptr2} (if
+    the buffer stores pairs).
+  */
+  uchar **read_ptr1;
+  uchar **read_ptr2;
+
+  uchar *start; /* points to start of buffer space */
+  uchar *end;   /* points to just beyond the end of buffer space */
+public:
+
+  enum enum_direction {
+    BACKWARD=-1, /* buffer is filled/read from bigger to smaller memory addresses */
+    FORWARD=1  /* buffer is filled/read from smaller to bigger memory addresses */
+  };
+
+  virtual enum_direction type() = 0;
+
+  /* Buffer space control functions */
+  void set_buffer_space(uchar *start_arg, uchar *end_arg) 
+  {
+    start= start_arg;
+    end= end_arg;
+    TRASH(start, end - start);
+    reset_for_writing();
+  }
+
+  void setup_writing(uchar **data1, size_t len1, uchar **data2, size_t len2)
+  {
+    write_ptr1= data1;
+    size1= len1;
+    write_ptr2= data2;
+    size2= len2;
+  }
+
+  void setup_reading(uchar **data1, size_t len1, uchar **data2, size_t len2)
+  {
+    read_ptr1= data1;
+    DBUG_ASSERT(len1 == size1);
+    read_ptr2= data2;
+    DBUG_ASSERT(len2 == size2);
+  }
+  
+  //virtual void write_bytes(const uchar *data, size_t bytes)=0;
+
+  virtual bool read() = 0;
+  virtual void write() = 0;
+  bool can_write()
+  {
+    return have_space_for(size1 + (write_ptr2 ? size2 : 0));
+  }
+  
+  bool is_empty() { return used_size() == 0; }
+  virtual size_t used_size() = 0;
+
+  void sort(qsort2_cmp cmp_func, void *cmp_func_arg)
+  {
+    uint elem_size= size1 + (write_ptr2 ? size2 : 0);
+    uint n_elements= used_size() / elem_size;
+    my_qsort2(used_area(), n_elements, elem_size, cmp_func, cmp_func_arg);
+  }
+
+
+  virtual void reset_for_writing() = 0;
+  virtual uchar *end_of_space() = 0;
+  bool have_data(size_t bytes)
+  {
+    return (used_size() >= bytes);
+  }
+  virtual bool have_space_for(size_t bytes) = 0;
+  //virtual uchar *read_bytes(size_t bytes) = 0;
+
+  virtual void remove_unused_space(uchar **unused_start, uchar **unused_end)=0;
+  virtual uchar *used_area() = 0;
+
+  class Iterator
+  {
+  public:
+    virtual void init(Lifo_buffer *buf) = 0;
+    /*
+      Read the next value. The calling convention is the same as buf->read()
+      has.
+
+      RETURN
+        FALSE - Ok
+        TRUE  - EOF, reached the end of the buffer
+    */
+    virtual bool read_next()= 0;
+    virtual ~Iterator() {}
+  protected:
+    Lifo_buffer *buf;
+    virtual uchar *get_next(size_t nbytes)=0;
+  };
+  virtual ~Lifo_buffer() {};
+
+  friend class Forward_iterator;
+  friend class Backward_iterator;
+};
+
+
+class Forward_lifo_buffer: public Lifo_buffer
+{
+  uchar *pos;
+public:
+  enum_direction type() { return FORWARD; }
+  size_t used_size()
+  {
+    return pos - start;
+  }
+  void reset_for_writing()
+  {
+    pos= start;
+  }
+  uchar *end_of_space() { return pos; }
+  bool have_space_for(size_t bytes)
+  {
+    return (pos + bytes < end);
+  }
+
+  void write()
+  {
+    write_bytes(*write_ptr1, size1);
+    if (write_ptr2)
+      write_bytes(*write_ptr2, size2);
+  }
+  void write_bytes(const uchar *data, size_t bytes)
+  {
+    DBUG_ASSERT(have_space_for(bytes));
+    memcpy(pos, data, bytes);
+    pos += bytes;
+  }
+  uchar *read_bytes(size_t bytes)
+  {
+    DBUG_ASSERT(have_data(bytes));
+    pos= pos - bytes;
+    return pos;
+  }
+  bool read()
+  {
+    if (!have_data(size1 + (read_ptr2 ? size2 : 0)))
+      return TRUE;
+    if (read_ptr2)
+      *read_ptr2= read_bytes(size2);
+    *read_ptr1= read_bytes(size1);
+    return FALSE;
+  }
+  /*
+    Stop using/return the unneded space (the one that we have already wrote 
+    to read from).
+  */
+  void remove_unused_space(uchar **unused_start, uchar **unused_end)
+  {
+    DBUG_ASSERT(0); /* Don't need this yet */
+  }
+  void grow(uchar *unused_start, uchar *unused_end)
+  {
+    /*
+      Passed memory area can be meaningfully used for growing the buffer if:
+      - it is adjacent to buffer space we're using
+      - it is on the end towards which we grow.
+    */
+    DBUG_ASSERT(unused_end >= unused_start);
+    TRASH(unused_start, unused_end - unused_start);
+    DBUG_ASSERT(end == unused_start);
+    end= unused_end;
+  }
+  /* Return pointer to start of the memory area that is occupied by the data */
+  uchar *used_area() { return start; }
+  friend class Forward_iterator;
+};
+
+
+class Forward_iterator : public Lifo_buffer::Iterator
+{
+  uchar *pos;
+
+  /* Return pointer to next chunk of nbytes bytes and avance over it */
+  uchar *get_next(size_t nbytes)
+  {
+    if (pos - nbytes < ((Forward_lifo_buffer*)buf)->start)
+      return NULL;
+    pos -= nbytes;
+    return pos;
+  }
+public:
+  bool read_next()
+  {
+    uchar *res;
+    if (buf->read_ptr2)
+    {
+      if ((res= get_next(buf->size2)))
+      {
+        *(buf->read_ptr2)= res;
+        *buf->read_ptr1= get_next(buf->size1);
+        return FALSE;
+      }
+    }
+    else
+    {
+      if ((res= get_next(buf->size1)))
+      {
+        *(buf->read_ptr1)= res;
+        return FALSE;
+      }
+    }
+    return TRUE; /* EOF */
+  }
+
+  void init(Lifo_buffer *buf_arg)
+  {
+    DBUG_ASSERT(buf_arg->type() == Lifo_buffer::FORWARD);
+    buf= buf_arg;
+    pos= ((Forward_lifo_buffer*)buf)->pos;
+  }
+};
+
+
+class Backward_lifo_buffer: public Lifo_buffer
+{
+  uchar *pos;
+public:
+  enum_direction type() { return BACKWARD; }
+ 
+  size_t used_size()
+  {
+    return end - pos;
+  }
+  void reset_for_writing()
+  {
+    pos= end;
+  }
+  uchar *end_of_space() { return end; }
+  bool have_space_for(size_t bytes)
+  {
+    return (pos - bytes >= start);
+  }
+  void write()
+  {
+    if (write_ptr2)
+      write_bytes(*write_ptr2, size2);
+    write_bytes(*write_ptr1, size1);
+  }
+  void write_bytes(const uchar *data, size_t bytes)
+  {
+    DBUG_ASSERT(have_space_for(bytes));
+    pos -= bytes;
+    memcpy(pos, data, bytes);
+  }
+  bool read()
+  {
+    if (!have_data(size1 + (read_ptr2 ? size2 : 0)))
+      return TRUE;
+    *read_ptr1= read_bytes(size1);
+    if (read_ptr2)
+      *read_ptr2= read_bytes(size2);
+    return FALSE;
+  }
+  uchar *read_bytes(size_t bytes)
+  {
+    DBUG_ASSERT(have_data(bytes));
+    uchar *ret= pos;
+    pos= pos + bytes;
+    return ret;
+  }
+  /*
+    Stop using/return the unneded space (the one that we have already wrote 
+    to and have read from).
+  */
+  void remove_unused_space(uchar **unused_start, uchar **unused_end)
+  {
+    *unused_start= start;
+    *unused_end= pos;
+    start= pos;
+  }
+  void grow(uchar *unused_start, uchar *unused_end)
+  {
+    /*
+      Passed memory area can be meaningfully used for growing the buffer if:
+      - it is adjacent to buffer space we're using
+      - it is on the end towards which we grow.
+    */
+    /*
+    DBUG_ASSERT(unused_end >= unused_start);
+    TRASH(unused_start, unused_end - unused_start);
+    DBUG_ASSERT(start == unused_end);
+    start= unused_start;
+    */
+    DBUG_ASSERT(0); //Not used
+  }
+  /* Return pointer to start of the memory area that is occupied by the data */
+  uchar *used_area() { return pos; }
+  friend class Backward_iterator;
+};
+
+
+class Backward_iterator : public Lifo_buffer::Iterator
+{
+  uchar *pos;
+  /* Return pointer to next chunk of nbytes bytes and advance over it */
+  uchar *get_next(size_t nbytes)
+  {
+    if (pos + nbytes > ((Backward_lifo_buffer*)buf)->end)
+      return NULL;
+    uchar *res= pos;
+    pos += nbytes;
+    return res;
+  }
+public:
+  bool read_next()
+  {
+    /*
+      Always read the first component first (if the buffer is backwards, we
+      have written the second component first).
+    */
+    uchar *res;
+    if ((res= get_next(buf->size1)))
+    {
+      *(buf->read_ptr1)= res;
+      if (buf->read_ptr2)
+        *buf->read_ptr2= get_next(buf->size2);
+      return FALSE;
+    }
+    return TRUE; /* EOF */
+  }
+  void init(Lifo_buffer *buf_arg)
+  {
+    DBUG_ASSERT(buf_arg->type() == Lifo_buffer::BACKWARD);
+    buf= buf_arg;
+    pos= ((Backward_lifo_buffer*)buf)->pos;
+  }
+};
+
 
 /*
   An in-memory buffer used by DS-MRR implementation. 
@@ -77,211 +427,6 @@
   For reverse buffer, start/end have the same meaning, but reading and 
   writing is done from end to start.
 */
-
-class SimpleBuffer
-{
-public:
-
-  enum enum_direction {
-    BACKWARD=-1, /* buffer is filled/read from bigger to smaller memory addresses */
-    FORWARD=1  /* buffer is filled/read from smaller to bigger memory addresses */
-  };
-
-private:
-  enum_direction direction;
-
-  uchar *start; /* points to start of buffer space */
-  uchar *end;   /* points to just beyond the end of buffer space */
-  /*
-    Forward buffer: points to the start of the data that will be read next
-    Backward buffer: points to just beyond the end of the data that will be 
-    read next.
-  */
-  uchar *read_pos;
-  /*
-    Forward buffer: points to just after the end of the used area.
-    Backward buffer: points to the start of used area.
-  */
-  uchar *write_pos;
-
-  /* 
-    Data to be written. write() call will assume that (*write_ptr1) points to 
-    size1 bytes of data to be written.
-    If write_ptr2 != NULL then the buffer stores pairs, and (*write_ptr2) 
-    points to size2 bytes of data that form the second component.
-  */
-  uchar **write_ptr1;
-  size_t size1;
-  uchar **write_ptr2;
-  size_t size2;
-
-  /*
-    read() will do reading by storing pointer to read data into *read_ptr1 (if
-    the buffer stores atomic elements), or into {*read_ptr1, *read_ptr2} (if
-    the buffer stores pairs).
-  */
-  uchar **read_ptr1;
-  uchar **read_ptr2;
-
-public:
-  /* Write-mode functions */
-  void setup_writing(uchar **data1, size_t len1, 
-                     uchar **data2, size_t len2);
-  void reset_for_writing();
-  bool can_write();
-  void write();
-
-  /* Read-mode functions */
-  bool is_empty() { return used_size() == 0; }
-  void setup_reading(uchar **data1, size_t len1, 
-                     uchar **data2, size_t len2);
-  bool read();
-
-  /* Misc functions */
-  void sort(qsort2_cmp cmp_func, void *cmp_func_arg);
-  bool is_reverse() { return direction == BACKWARD; }
-  uchar *end_of_space();
-
-  /* Buffer space control functions */
-  void set_buffer_space(uchar *start_arg, uchar *end_arg, enum_direction direction_arg) 
-  {
-    start= start_arg;
-    end= end_arg;
-    direction= direction_arg;
-    TRASH(start, end - start);
-    reset_for_writing();
-  }
-
-  /*
-    Stop using/return the unneded space (the one that we have already wrote 
-    to read from).
-  */
-  void remove_unused_space(uchar **unused_start, uchar **unused_end)
-  {
-    if (direction == 1)
-    {
-      *unused_start= start;
-      *unused_end= read_pos;
-      start= read_pos;
-    }
-    else
-    {
-      *unused_start= read_pos;
-      *unused_end= end;
-      end= read_pos;
-    }
-  }
-
-  void flip()
-  {
-    uchar *tmp= read_pos;
-    read_pos= write_pos;
-    write_pos= tmp;
-    direction= (direction == FORWARD)? BACKWARD: FORWARD;
-  }
-
-  void grow(uchar *unused_start, uchar *unused_end)
-  {
-    /*
-      Passed memory area can be meaningfully used for growing the buffer if:
-      - it is adjacent to buffer space we're using
-      - it is on the end towards which we grow.
-    */
-    DBUG_ASSERT(unused_end >= unused_start);
-    TRASH(unused_start, unused_end - unused_start);
-    if (direction == 1 && end == unused_start)
-    {
-      end= unused_end;
-    }
-    else if (direction == -1 && start == unused_end)
-    {
-      start= unused_start;
-    }
-    else
-      DBUG_ASSERT(0); /* Attempt to grow buffer in wrong direction */
-  }
-  
-  /*
-    An iterator to do look at what we're about to read from the buffer without
-    actually reading it.
-  */
-  class PeekIterator
-  {
-    SimpleBuffer *buf; /* The buffer we're iterating over*/
-    /*
-      if buf->direction==FORWARD  : pointer to what to return next
-      if buf->direction==BACKWARD : pointer to the end of what is to be 
-                                   returned next
-    */
-    uchar *pos;
-  public:
-    /* 
-      Initialize the iterator. After intiialization, the first read_next() call
-      will read what buf_arg->read() would read.
-    */
-    void init(SimpleBuffer *buf_arg)
-    {
-      buf= buf_arg;
-      pos= buf->read_pos;
-    }
-    
-    /*
-      Read the next value. The calling convention is the same as buf->read()
-      has.
-
-      RETURN
-        FALSE - Ok
-        TRUE  - EOF, reached the end of the buffer
-    */
-    bool read_next()
-    {
-      /* 
-        Always read the first component first (if the buffer is backwards, we
-        have written the second component first).
-      */
-      uchar *res;
-      if ((res= get_next(buf->size1)))
-      {
-        *(buf->read_ptr1)= res;
-        if (buf->read_ptr2)
-          *buf->read_ptr2= get_next(buf->size2);
-        return FALSE;
-      }
-      return TRUE; /* EOF */
-    }
-  private:
-    /* Return pointer to next chunk of nbytes bytes and avance over it */
-    uchar *get_next(size_t nbytes)
-    {
-      if (buf->direction == 1)
-      {
-        if (pos + nbytes > buf->write_pos)
-          return NULL;
-        uchar *res= pos;
-        pos += nbytes;
-        return res;
-      }
-      else
-      {
-        if (pos - nbytes < buf->write_pos)
-          return NULL;
-        pos -= nbytes;
-        return pos;
-      }
-    }
-  };
-
-private:
-  bool have_space_for(size_t bytes);
-  /* Return pointer to start of the memory area that is occupied by the data */
-  uchar *used_area() { return (direction == FORWARD)? read_pos : write_pos; }
-  size_t used_size();
-
-  void write(const uchar *data, size_t bytes);
-  uchar *read(size_t bytes);
-  bool have_data(size_t bytes);
-};
-
 
 /*
   DS-MRR implementation for one table. Create/use one object of this class for
@@ -439,8 +584,18 @@ private:
   /* TRUE<=> we're in a middle of enumerating records for a key range */
   bool in_index_range;
   
+  /*
+    One of the following two is used for key buffer: forward is used when 
+    we only need key buffer, backward is used when we need both key and rowid
+    buffers.
+  */
+  Forward_lifo_buffer forward_key_buf;
+  Forward_iterator forward_key_it;
+  Backward_lifo_buffer backward_key_buf;
+  Backward_iterator backward_key_it;
+
   /* Buffer to store (key, range_id) pairs */
-  SimpleBuffer key_buffer;
+  Lifo_buffer *key_buffer;
    
   /* key_buffer.read() reads */
   uchar *cur_index_tuple;
@@ -489,7 +644,7 @@ private:
     and do that by walking from current buffer read position until we get
     last_identical_key_ptr.
   */
-  SimpleBuffer::PeekIterator identical_key_it;
+  Lifo_buffer::Iterator *identical_key_it;
 
 
   /** rnd_pos() scan and rowid buffer-related members **/
@@ -498,7 +653,7 @@ private:
     Buffer to store (rowid, range_id) pairs, or just rowids if 
     is_mrr_assoc==FALSE
   */
-  SimpleBuffer rowid_buffer;
+  Forward_lifo_buffer rowid_buffer;
   
   /* rowid_buffer.read() will set the following:  */
   uchar *rowid;
@@ -522,6 +677,7 @@ private:
                                uint *buffer_size, COST_VECT *cost);
   bool check_cpk_scan(THD *thd, uint keyno, uint mrr_flags);
   static int key_tuple_cmp(void* arg, uchar* key1, uchar* key2);
+  static int key_tuple_cmp_reverse(void* arg, uchar* key1, uchar* key2);
   int dsmrr_fill_rowid_buffer();
   void dsmrr_fill_key_buffer();
   int dsmrr_next_from_index(char **range_info);
