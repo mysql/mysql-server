@@ -18696,7 +18696,7 @@ void Dbdict::check_takeover_replies(Signal* signal)
       jam();
       c_nodes.getPtr(nodePtr, i);
       {
-	DictTakeoverConf* conf = conf = &nodePtr.p->takeOverConf;
+	DictTakeoverConf* conf = &nodePtr.p->takeOverConf;
         Uint32 clientRef = conf->clientRef;
 	Uint32 rollforward_op = conf->rollforward_op;
 	Uint32 rollforward_op_state = conf->rollforward_op_state;
@@ -27260,7 +27260,7 @@ Dbdict::get_default_fragments(Uint32 extranodegroups)
   bzero(&signalT, sizeof(signalT));
   Signal* signal = new (&signalT) Signal(0); // placement new
 
-  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
+  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, &signal->theData[0]);
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,

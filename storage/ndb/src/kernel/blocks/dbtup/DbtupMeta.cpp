@@ -676,8 +676,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     goto sendref;
   }
 
-  if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
-      ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId ||
+  if ((ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId) ||
+      (ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) ||
       ERROR_INSERTED(4050))
   {
     jam();
