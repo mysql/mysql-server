@@ -72,6 +72,7 @@ page will have number of distinct records == 1.
 
 For each n-prefix start from the root level and full scan subsequent lower
 levels until a level that contains at least A*10 distinct records is found.
+Lets call this level LA.
 As an optimization the search is canceled if it has reached level 1 (never
 descend to the level 0 (leaf)) and also if the next level to be scanned
 would contain more than A pages. The latter is because the user has asked
@@ -79,7 +80,7 @@ to analyze A leaf pages and it does not make sense to scan much more than
 A non-leaf pages with the sole purpose of finding a good sample of A leaf
 pages.
 
-After finding the appropriate level with >A*10 distinct records (or less in
+After finding the appropriate level LA with >A*10 distinct records (or less in
 the exceptions described above), divide it into groups of equal records and
 pick A such groups. Then pick the last record from each group. For example,
 let the level be:
@@ -98,7 +99,7 @@ each page and diving below it.
 This way, a total of A leaf pages are analyzed for the given n-prefix.
 
 Let the number of different key values found in page i be Pi (i=1..A)
-Let the number of different key values in the whole level A be V.
+Let the number of different key values in the whole level LA be V.
 Then the total number of different key values in the whole tree is:
 V * (P1 + P2 + ... PA) / A.
 
