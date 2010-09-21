@@ -18,7 +18,8 @@
 
 #include "SignalData.hpp"
 
-class ConfigChangeReq {
+struct ConfigChangeReq
+{
   /**
    * Sender
    */
@@ -29,15 +30,14 @@ class ConfigChangeReq {
    */
   friend class ConfigManager;
 
-public:
   STATIC_CONST( SignalLength = 1 );
 
-private:
   Uint32 length; // Length of the config data in long signal
 };
 
 
-class ConfigChangeConf {
+struct ConfigChangeConf 
+{
   /**
    * Sender
    */
@@ -48,16 +48,14 @@ class ConfigChangeConf {
    */
   friend class MgmtSrvr;
 
-public:
   STATIC_CONST( SignalLength = 1 );
-
-private:
 
   Uint32 unused;
 };
 
 
-class ConfigChangeRef {
+struct ConfigChangeRef 
+{
   /**
    * Sender
    */
@@ -89,7 +87,6 @@ class ConfigChangeRef {
     SendFailed              = 16
   };
 
-public:
   STATIC_CONST( SignalLength = 1 );
 
   static const char* errorMessage(Uint32 error) {
@@ -132,13 +129,12 @@ public:
     }
   }
 
-private:
-
   Uint32 errorCode;
 };
 
 
-class ConfigChangeImplReq {
+struct ConfigChangeImplReq
+{
   /**
    * Receiver and sender
    */
@@ -150,10 +146,7 @@ class ConfigChangeImplReq {
     Abort
   };
 
-public:
   STATIC_CONST( SignalLength = 3 );
-
-private:
 
   Uint32 requestType;
   Uint32 initial; // Valid when requestType = Prepare
@@ -162,37 +155,34 @@ private:
 };
 
 
-class ConfigChangeImplConf  {
+struct ConfigChangeImplConf
+{
   /**
    * Receiver and sender
    */
   friend class ConfigManager;
 
-public:
   STATIC_CONST( SignalLength = 1 );
-
-private:
 
   Uint32 requestType;
 };
 
 
-class ConfigChangeImplRef  {
+struct ConfigChangeImplRef
+{
   /**
    * Receiver and sender
    */
   friend class ConfigManager;
 
-public:
   STATIC_CONST( SignalLength = 1 );
-
-private:
 
   Uint32 errorCode;
 };
 
 
-class ConfigCheckReq  {
+struct ConfigCheckReq
+{
   /**
    * Sender
    */
@@ -203,18 +193,17 @@ class ConfigCheckReq  {
    */
   friend class ConfigManager;
 
-public:
   STATIC_CONST( SignalLengthBeforeChecksum = 2 );
   STATIC_CONST( SignalLength = 3 );
 
-private:
   Uint32 state;
   Uint32 generation;
   Uint32 checksum;
 };
 
 
-class ConfigCheckConf {
+struct ConfigCheckConf
+{
   /**
    * Sender
    */
@@ -225,17 +214,15 @@ class ConfigCheckConf {
    */
   friend class MgmtSrvr;
 
-public:
   STATIC_CONST( SignalLength = 2 );
-
-private:
 
   Uint32 state;
   Uint32 generation;
 };
 
 
-class ConfigCheckRef  {
+struct ConfigCheckRef
+{
   /**
    * Sender
    */
@@ -266,10 +253,9 @@ class ConfigCheckRef  {
     }
   }
 
-public:
   STATIC_CONST( SignalLength = 5 );
   STATIC_CONST( SignalLengthWithConfig = 6 );
-private:
+
   Uint32 error;
   Uint32 generation;
   Uint32 expected_generation;
@@ -277,6 +263,5 @@ private:
   Uint32 expected_state;
   Uint32 length; // Length of the config data in long signal
 };
-
 
 #endif
