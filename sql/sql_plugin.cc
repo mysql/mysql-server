@@ -3446,8 +3446,7 @@ void my_print_help_inc_plugins(my_option *main_options, uint size)
     {
       p= *dynamic_element(&plugin_array, idx, struct st_plugin_int **);
 
-      if (!p->plugin->system_vars ||
-          !(opt= construct_help_options(&mem_root, p)))
+      if (!(opt= construct_help_options(&mem_root, p)))
         continue;
 
       /* Only options with a non-NULL comment are displayed in help text */
