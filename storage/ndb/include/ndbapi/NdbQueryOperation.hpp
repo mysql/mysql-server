@@ -43,14 +43,59 @@ class NdbInterpretedCode;
 class NdbQueryImpl;
 class NdbQueryOperationImpl;
 
-/**
- * NdbQuery are create when a NdbQueryDefinition is submitted for
- * execution.
+
+/**********************  OVERVIEW    ***********************
  *
- * It is associated with a collection of NdbQueryOperation which 
+ * a NdbQuery is created when a NdbQueryDefinition is added to a
+ * NdbTransaction for execution with NdbTransaction::creatQuery().
+ *
+ * A NdbQuery is associated with a collection of NdbQueryOperation which 
  * are instantiated (1::1) to reflect the NdbQueryOperationDef objects
- * which the NdbQueryDef consists of.
- */
+ * which the NdbQueryDef consists of. The same NdbQueryDef may be used to
+ * instantiate multiple NdbQuery obejects.
+ *
+ * When we have an instantiated NdbQuery, we should either bind result buffers
+ * for retrieving entire rows from each operation, 
+ * (aka NdbRecord interface,::setResultRowRef(), ::setResultRowBuf())
+ * or set up retrieval operations for each attribute values, (::getValue()).
+ * 
+ * Optionally we may also:
+ *  - Specify a scan ordering for the result set (parent only)
+ *  - Add multiple bounds to a range scan, (::setBound()) (parent only)
+ *  - Append a filter condition for each operation (aka mysqlds pushed condition)  
+ *
+ * The NdbQuery is then executed together with other pending operations 
+ * in the next NdbTransaction::execute().
+ * The resultset available from a NdbQuery is natively a 'left outer join'
+ * between the parent / child operations. If an application is not interested
+ * in the 'outer part' of the resultset, it is its own responsibility to
+ * filter these rows. Same is valid for any filter condition which has
+ * not been appended to the NdbQuery.
+ *
+ *
+ * We provide two different interfaces for iterating the result set:
+ *
+ * The 'local cursor' (NdbQueryOperation::firstResult(), ::nextResult())
+ *   Will navigate the resultset, and fetch results, from this specific operation.
+ *   It will only be possible to navigate within those rows which depends
+ *   on the current row(s) from any ancestor of the operation.
+ *   The local cursor will only retrieve the results, or a NULL row, 
+ *   resulting from its own operation. -> All child operations of a 
+ *   renavigated local cursor should be navigated to ::firstResult() 
+ *   to ensure that they contain results related to the renavigated parent. 
+ *   
+ * The 'global cursor' (NdbQuery::nextResult())
+ *   Will present the result set as a scan on the root operation
+ *   with rows from its child operations appearing in an unpredictable 
+ *   order. A new set of results, or NULL rows, from *all* operations 
+ *   in the query tree are retrieved for each ::nextResult().
+ *   NULL rows resulting from the outer joins may appear anywhere 
+ *   inside the resultset.
+ *
+ * As the global cursor is implemented on top of the local cursors, it is
+ * possible to mix the usage of global and local cursors.
+ *
+ ************************************************************************/
 class NdbQuery
 {
 protected:
@@ -113,10 +158,11 @@ public:
    *    result set.)
    *
    * @return 
-   * -  -1: if unsuccessful,<br>
-   * -   0: if another tuple was received, and<br> 
-   * -   1: if there are no more tuples to scan.
-   * -   2: if there are no more cached records in NdbApi
+   * -  NextResult_error (-1):       if unsuccessful,<br>
+   * -  NextResult_gotRow (0):       if another tuple was received, and<br> 
+   * -  NextResult_scanComplete (1): if there are no more tuples to scan.
+   * -  NextResult_bufferEmpty (2):  if there are no more cached records
+   *                                 in NdbApi
    */
   NextResultOutcome nextResult(bool fetchAllowed = true, 
                                bool forceSend = false);
@@ -257,13 +303,6 @@ public:
   // TODO: define how BLOB/CLOB should be retrieved.
   // ... Replicate ::getBlobHandle() from NdbOperation class?
 
-
-  // Result handling for this NdbQueryOperation
-  bool isRowNULL() const;    // Row associated with Operation is NULL value?
-
-  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
-                             // value for this NdbQueryOperation
-
   /** Get object implementing NdbQueryOperation interface.*/
   NdbQueryOperationImpl& getImpl() const
   { return m_impl; }
@@ -300,6 +339,56 @@ public:
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
   int setInterpretedCode(const NdbInterpretedCode& code) const;
+
+  /**  
+   * Local cursor:
+   *
+   * Navigate to first result row in this batch of results which 
+   * depends on the current row(s) from all its ancestors.
+   * @return 
+   * -  NextResult_error (-1):       if unsuccessful,<br>
+   * -  NextResult_gotRow (0):       if another tuple was received, and<br> 
+   * -  NextResult_scanComplete (1): if there are no more tuples to scan.
+   * -  NextResult_bufferEmpty (2):  if there are no more cached records
+   *                                 in NdbApi
+   */
+  NdbQuery::NextResultOutcome firstResult();
+
+  /**  
+   * Local cursor:
+   *
+   * Get the next tuple(s) from this operation (and all its descendants?)
+   * which depends on the current row(s) from all its ancestors.
+   *
+   * Result row / columns will be updated in the respective result handlers
+   * as previously specified on each NdbQueryOperation either by assigning a
+   * NdbRecord/rowBuffer or assigning NdbRecAttr to each column to be retrieved.
+   *
+   * If the set of cached records in the NdbApi has been consumed, more will be
+   * requested from the datanodes only iff:
+   *    - This NdbOperation is the root of the entire pushed NdbQuery.
+   *    - 'fetchAllowed==true'
+   *
+   * The arguments fetchAllowed and forceSend are ignored if this operation is 
+   * not the root of the pushed query.
+   *
+   * @return 
+   * -  NextResult_error (-1):       if unsuccessful,<br>
+   * -  NextResult_gotRow (0):       if another tuple was received, and<br> 
+   * -  NextResult_scanComplete (1): if there are no more tuples to scan.
+   * -  NextResult_bufferEmpty (2):  if there are no more cached records
+   *                                 in NdbApi
+   */
+  NdbQuery::NextResultOutcome nextResult(
+                               bool fetchAllowed = true, 
+                               bool forceSend = false);
+
+  // Result handling for this NdbQueryOperation
+  bool isRowNULL() const;    // Row associated with Operation is NULL value?
+
+  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
+                             // value for this NdbQueryOperation
+
 
 private:
   // Opaque implementation class instance.

@@ -1713,11 +1713,15 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
   if (unlikely(query==NULL))
     ERR_RETURN(m_thd_ndb->trans->getNdbError());
 
+  // Bind to instantiated NdbQueryOperations.
   // Append filters for for pushed conditions where available
   for (uint i= 0; i < m_pushed_join->get_operation_count(); i++)
   {
     const TABLE* const tab= m_pushed_join->get_table(i);
     ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
+
+    NdbQueryOperation* const op= query->getQueryOperation(i);
+    handler->m_pushed_operation= op;
 
     if (handler->m_cond)
     {
@@ -1725,27 +1729,20 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
       if (handler->m_cond->generate_scan_filter(&code, NULL) != 0)
         ERR_RETURN(code.getNdbError());
 
-      if (query->getQueryOperation(i)->setInterpretedCode(code) != 0)
+      if (op->setInterpretedCode(code) != 0)
         ERR_RETURN(query->getNdbError());
     }
-  }
 
-  // Bind to result buffers
-  for (uint i = 0; i < m_pushed_join->get_operation_count(); i++)
-  {
-    const TABLE* const tab= m_pushed_join->get_table(i);
-    DBUG_ASSERT(tab->file->ht == ht);
-    ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
-
+    // Bind to result buffers
     const NdbRecord* const resultRec= handler->m_ndb_record;
-    int res= query->getQueryOperation(i)
-      ->setResultRowRef(resultRec,
+    int res= op->setResultRowRef(
+                        resultRec,
                         handler->_m_next_row,
                         (uchar *)(tab->read_set->bitmap));
     if (unlikely(res))
       ERR_RETURN(query->getNdbError());
-
-    // We set m_next_row=0 to say that no row was fetched from the query yet.
+    
+    // We clear 'm_next_row' to say that no row was fetched from the query yet.
     handler->_m_next_row= 0;
   }
 
@@ -4129,7 +4126,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
       DBUG_RETURN(ndb_err(trans));
     }
 
-    int result= fetch_next(m_active_query);
+    int result= fetch_next_pushed();
     if (result == NdbQuery::NextResult_gotRow)
     {
       DBUG_RETURN(0);
@@ -4543,7 +4540,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
       DBUG_RETURN(ndb_err(trans));
     }
 
-    int result= fetch_next(m_active_query);
+    int result= fetch_next_pushed();
     if (result == NdbQuery::NextResult_gotRow)
     {
       DBUG_RETURN(0);
@@ -4688,37 +4685,51 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
   DBUG_RETURN(1);
 }
 
-
-int ha_ndbcluster::fetch_next(NdbQuery* query)
+int ha_ndbcluster::fetch_next_pushed()
 {
-  DBUG_ENTER("fetch_next (from pushed join)");
+  DBUG_ENTER("fetch_next_pushed (from pushed operation)");
 
-  NdbQuery::NextResultOutcome result = query->nextResult(true, m_thd_ndb->m_force_send);
+  DBUG_ASSERT(m_pushed_operation);
+  NdbQuery::NextResultOutcome result= m_pushed_operation->nextResult(true, m_thd_ndb->m_force_send);
 
   /**
-   * Only prepare result & status from first operation in pushed join
-   * which is the one related to 'this' handlers table.
-   * Consecutive rows are prepared through ::index_read_pushed() which unpack
-   * and set correct status for each row.
+   * Only prepare result & status from this operation in pushed join.
+   * Consecutive rows are prepared through ::index_read_pushed() and
+   * ::index_next_pushed() which unpack and set correct status for each row.
    */
   if (result == NdbQuery::NextResult_gotRow)
   {
+    DBUG_ASSERT(m_next_row!=NULL);
+    DBUG_PRINT("info", ("One more record found"));    
     table->status= 0;
     unpack_record(table->record[0], m_next_row);
+//  m_thd_ndb->m_pushed_reads++;
+//  DBUG_RETURN(0)
   }
   else if (result == NdbQuery::NextResult_scanComplete)
   {
-    table->status= STATUS_NOT_FOUND;
     DBUG_ASSERT(m_next_row==NULL);
+    DBUG_PRINT("info", ("No more records"));
+    table->status= STATUS_NOT_FOUND;
+//  m_thd_ndb->m_pushed_reads++;
+//  DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   else
   {
+    DBUG_PRINT("info", ("Error from 'nextResult()'"));
     table->status= STATUS_GARBAGE;
 //  DBUG_ASSERT(false);
+//  DBUG_RETURN(ndb_err(m_thd_ndb->trans));
   }
   DBUG_RETURN(result);
 }
 
+/**
+  Get the first record from an indexed table access being a child 
+  operation in a pushed join. Fetch will be from prefetched
+  cached records which are materialized into the bound buffer 
+  areas as result of this call. 
+*/
 
 int 
 ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
@@ -4733,20 +4744,63 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
     DBUG_RETURN(index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT));
   }
 
+  // Might need to re-establish first result row (wrt. its parents which may have been navigated)
+  NdbQuery::NextResultOutcome result= m_pushed_operation->firstResult();
+
   // Result from pushed operation will be referred by 'm_next_row' if non-NULL
-  else if (m_next_row)
+  if (result == NdbQuery::NextResult_gotRow)
   {
+    DBUG_ASSERT(m_next_row!=NULL);
     unpack_record(buf, m_next_row);
     table->status= 0;
     m_thd_ndb->m_pushed_reads++;
   }
   else
   {
+    DBUG_ASSERT(result!=NdbQuery::NextResult_gotRow);
     table->status= STATUS_NOT_FOUND;
     DBUG_PRINT("info", ("No record found"));
-    m_thd_ndb->m_pushed_reads++;
+//  m_thd_ndb->m_pushed_reads++;
+//  DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   DBUG_RETURN(0);
+}
+
+
+/**
+  Get the next record from an indexes table access being a child 
+  operation in a pushed join. Fetch will be from prefetched
+  cached records which are materialized into the bound buffer 
+  areas as result of this call. 
+*/
+int ha_ndbcluster::index_next_pushed(uchar *buf)
+{
+  DBUG_ENTER("index_next_pushed");
+
+  // Handler might have decided to not execute the pushed joins which has been prepared
+  // In this case we do an unpushed index_read based on 'Plain old' NdbOperations
+  if (unlikely(!check_is_pushed()))
+  {
+    DBUG_RETURN(index_next(buf));
+  }
+
+  DBUG_ASSERT(m_pushed_join_member && m_active_query==NULL);  // Child of a pushed join
+  DBUG_ASSERT(m_pushed_join_member->m_pushed_join);
+  DBUG_ASSERT(m_pushed_join_member->m_active_query);
+
+  int res = fetch_next_pushed();
+  if (res == NdbQuery::NextResult_gotRow)
+  {
+    DBUG_RETURN(0);
+  }
+  else if (res == NdbQuery::NextResult_scanComplete)
+  {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  else
+  {
+    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+  }
 }
 
 
@@ -4790,20 +4844,17 @@ inline int ha_ndbcluster::next_result(uchar *buf)
   }
   else if (m_active_query)
   {
-    res= fetch_next(m_active_query);
+    res= fetch_next_pushed();
     if (res == NdbQuery::NextResult_gotRow)
     {
-      DBUG_PRINT("info", ("One more record found"));    
       DBUG_RETURN(0);
     }
     else if (res == NdbQuery::NextResult_scanComplete)
     {
-      DBUG_PRINT("info", ("No more records"));
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
     else
     {
-      DBUG_PRINT("info", ("Error when 'next_result'"));
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
   }
@@ -10589,6 +10640,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_thd_ndb(NULL),
   m_active_cursor(NULL),
   m_active_query(NULL),
+  m_pushed_operation(NULL),
   m_table(NULL),
   m_ndb_record(0),
   m_ndb_hidden_key_record(0),
@@ -13593,7 +13645,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     r->range_flag&= ~(uint)SKIP_RANGE;
 
-    if ((m_pushed_join && m_pushed_join->get_query_def().isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
+    if ((m_pushed_join && m_pushed_join->get_query_def().isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan in mrr
         read_multi_needs_scan(cur_index_type, key_info, r))
     {
       if (!trans)
@@ -14091,16 +14143,14 @@ ha_ndbcluster::read_multi_range_fetch_next()
     DBUG_PRINT("info", ("read_multi_range_fetch_next from pushed join, m_next_row:%p", m_next_row));
     if (!m_next_row)
     {
-      int res= fetch_next(m_active_query);
+      int res= fetch_next_pushed();
       if (res == NdbQuery::NextResult_gotRow)
       {
-        DBUG_PRINT("info", ("One more record found"));
         m_current_range_no= 0;
 //      m_current_range_no= cursor->get_range_no();  // FIXME SPJ, need rangeNo from index scan
       }
       else if (res == NdbQuery::NextResult_scanComplete)
       {
-        DBUG_PRINT("info", ("No more records"));
         /* We have fetched the last row from the scan. */
         m_active_query->close(FALSE);
         m_active_query= 0;

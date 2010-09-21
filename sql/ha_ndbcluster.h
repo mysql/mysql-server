@@ -49,7 +49,9 @@ class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
 class NdbQuery;
+class NdbQueryOperation;
 class NdbQueryOperationTypeWrapper;
+class NdbQueryParamValue;
 class ndb_query_def_list;
 
 namespace AQP{
@@ -368,7 +370,7 @@ class Thd_ndb
   uint m_pushed_queries_defined;
   /** 
     This is the number of cases where the handler decided not to use an 
-    NdbQueryObject that it previously created for executing a particular 
+    NdbQuery object that it previously created for executing a particular 
     instance of a query fragment. This may happen if for examle the optimizer
     decides to use another type of access operation than originally assumed.
   */
@@ -595,6 +597,8 @@ static void set_tabname(const char *pathname, char *tabname);
   int index_read_pushed(uchar *buf, const uchar *key,
                         key_part_map keypart_map);
 
+  int index_next_pushed(uchar * buf);
+
   uint8 table_cache_type();
 
   /*
@@ -730,7 +734,7 @@ private:
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
-  int fetch_next(NdbQuery* query);
+  int fetch_next_pushed();
   int set_auto_inc(THD *thd, Field *field);
   int set_auto_inc_val(THD *thd, Uint64 value);
   int next_result(uchar *buf); 
@@ -839,6 +843,7 @@ private:
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
   NdbQuery* m_active_query;
+  NdbQueryOperation* m_pushed_operation;
 
   const NdbDictionary::Table *m_table;
   /*

@@ -77,15 +77,16 @@ public:
   const NdbParamOperand* getParameter(Uint32 num) const;
 
   /** Get the next tuple(s) from the global cursor on the query.
-   * @param fetchAllowed If treu, the method may block while waiting for more
+   * @param fetchAllowed If true, the method may block while waiting for more
    * results to arrive. Otherwise, the method will return immediately if no more
    * results are buffered in the API.
-   * @param forceSend FIXME: Describe this this.
+   * @param forceSend FIXME: Describe this.
    * @return 
-   * -  -1: if unsuccessful,<br>
-   * -   0: if another tuple was received, and<br> 
-   * -   1: if there are no more tuples to scan.
-   * -   2: if there are no more cached records in NdbApi
+   * -  NextResult_error (-1):       if unsuccessful,<br>
+   * -  NextResult_gotRow (0):       if another tuple was received, and<br> 
+   * -  NextResult_scanComplete (1): if there are no more tuples to scan.
+   * -  NextResult_bufferEmpty (2):  if there are no more cached records 
+   *                                 in NdbApi
    * @see NdbQueryOperation::nextResult()
    */ 
   NdbQuery::NextResultOutcome nextResult(bool fetchAllowed, bool forceSend);
@@ -264,20 +265,18 @@ private:
 
     NdbRootFragment* getCurrent();
 
-    void reorder();
+    NdbRootFragment* reorganize();
 
     void add(NdbRootFragment& frag);
 
     void clear() 
     { m_size = 0; }
 
-
     /** When doing an ordered scan, get the fragment that needs a new batch.*/
     NdbRootFragment* getEmpty() const;
 
-    bool verifySortOrder() const;
-
   private:
+
     /** Max no of fragments.*/
     int m_capacity;
     /** Current number of fragments.*/
@@ -295,12 +294,14 @@ private:
     // No copying.
     OrderedFragSet(const OrderedFragSet&);
     OrderedFragSet& operator=(const OrderedFragSet&);
+
     /** For sorting fragment reads according to index value of first record. 
      * Also f1<f2 if f2 has reached end of data and f1 has not.
      * @return 1 if f1>f2, 0 if f1==f2, -1 if f1<f2.*/
     int compare(const NdbRootFragment& frag1,
                 const NdbRootFragment& frag2) const;
 
+    bool verifySortOrder() const;
   }; // class OrderedFragSet
 
   /** The interface that is visible to the application developer.*/
@@ -341,6 +342,11 @@ private:
   /** The operations constituting this query.*/
   NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
   Uint32 m_countOperations;             // #elements in above array
+
+  /** Current global cursor position. Refers the current NdbQueryOperation which
+   *  should be advanced to 'next' position for producing a new global set of results.
+   */
+  Uint32 m_globalCursor;
 
   /** Number of root fragments not yet completed within the current batch.*/
   Uint32 m_pendingFrags;
@@ -421,7 +427,10 @@ private:
   /** Release resources after scan has returned last available result */
   void postFetchRelease();
 
-  /** Get more scan results, ask for the next batch if necessary.*/
+  /** Navigate to the next result from the root operation. */
+  NdbQuery::NextResultOutcome nextRootResult(bool fetchAllowed, bool forceSend);
+
+  /** Get more scan results, ask datanodes for the next batch if necessary.*/
   FetchResult fetchMoreResults(bool forceSend);
 
   /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
@@ -510,6 +519,10 @@ public:
                        const char* & bufRef,
                        const unsigned char* result_mask);
 
+  NdbQuery::NextResultOutcome firstResult();
+
+  NdbQuery::NextResultOutcome nextResult(bool fetchAllowed, bool forceSend);
+
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
 
   bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrieved a new
@@ -560,14 +573,6 @@ public:
   /** Verify magic number.*/
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
-
-  /** Copy NdbRecAttr and/or NdbRecord results into appl. buffers */
-  void fetchRow(Uint32 rootFragNo);
-
-  /** Set result for this operation and all its descendand child 
-   *  operations to NULL.
-   */
-  void nullifyResult();
 
   /** Get the maximal number of rows that may be returned in a single 
    *  SCANREQ to the SPJ block.
@@ -637,20 +642,26 @@ private:
   /** True if this operation reads from any disk column. */
   bool m_diskInUserProjection;
 
+private:
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
   ~NdbQueryOperationImpl();
 
+  /** A complete batch has been received for a given root fragment
+   *  Update whatever required before the appl. is allowed to navigate the result.
+   */ 
+  void handleBatchComplete(Uint32 rootFragNo);
+
+  /** Copy NdbRecAttr and/or NdbRecord results from stream into appl. buffers */
+  void fetchRow(const NdbResultStream& resultStream);
+
+  /** Set result for this operation and all its descendand child 
+   *  operations to NULL.
+   */
+  void nullifyResult();
+
   /** Release resources after scan has returned last available result */
   void postFetchRelease();
-
-  /** 
-   *  Make results available to application, recursively fetchRow() for 'this' operation and all 
-   *  its descendant child operations. 
-   *  Return true if a row was fetched, or false if a NULL row was
-   *  produced.
-   */
-  bool passResultsToApp(Uint32 rootFragNo);
 
   /** Count number of descendant operations (excluding the operation itself) */
   Int32 getNoOfDescendantOperations() const;
