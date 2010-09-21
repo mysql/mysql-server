@@ -378,19 +378,6 @@ dict_stats_table_check(
 			& req_schema->columns[i].prtype_mask)
 		       != req_schema->columns[i].prtype_mask) {
 
-			char	req_type[64];
-			char	actual_type[64];
-
-			dtype_sql_name(req_schema->columns[i].mtype,
-				       req_schema->columns[i].prtype_mask,
-				       req_schema->columns[i].len,
-				       req_type, sizeof(req_type));
-
-			dtype_sql_name(table->cols[j].mtype,
-				       table->cols[j].prtype,
-				       table->cols[j].len,
-				       actual_type, sizeof(actual_type));
-
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Column %s.%s is %s "
