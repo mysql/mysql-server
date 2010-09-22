@@ -17,10 +17,8 @@
 */
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
 #include <LocalConfig.hpp>
-#include <NdbAutoPtr.hpp>
 
 #include <NdbSleep.h>
 #include <NdbTCP.h>
@@ -169,8 +167,10 @@ NdbMgmHandle
 ndb_mgm_create_handle()
 {
   DBUG_ENTER("ndb_mgm_create_handle");
-  NdbMgmHandle h     =
-    (NdbMgmHandle)my_malloc(sizeof(ndb_mgm_handle),MYF(MY_WME));
+  NdbMgmHandle h = (NdbMgmHandle)malloc(sizeof(ndb_mgm_handle));
+  if (!h)
+    return NULL;
+
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
@@ -178,7 +178,7 @@ ndb_mgm_create_handle()
   h->timeout         = 60000;
   h->cfg_i           = -1;
   h->errstream       = stdout;
-  h->m_name          = 0;
+  h->m_name          = NULL;
   h->m_bindaddress   = 0;
   h->m_bindaddress_port = 0;
   h->ignore_sigpipe  = true;
@@ -204,8 +204,8 @@ extern "C"
 void
 ndb_mgm_set_name(NdbMgmHandle handle, const char *name)
 {
-  my_free(handle->m_name, MYF(MY_ALLOW_ZERO_PTR));
-  handle->m_name= my_strdup(name, MYF(MY_WME));
+  free(handle->m_name);
+  handle->m_name= strdup(name);
 }
 
 extern "C"
@@ -237,8 +237,7 @@ int
 ndb_mgm_set_bindaddress(NdbMgmHandle handle, const char * arg)
 {
   DBUG_ENTER("ndb_mgm_set_bindaddress");
-  if (handle->m_bindaddress)
-    free(handle->m_bindaddress);
+  free(handle->m_bindaddress);
 
   if (arg)
   {
@@ -304,10 +303,9 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   }
 #endif
   (*handle)->cfg.~LocalConfig();
-  my_free((*handle)->m_name, MYF(MY_ALLOW_ZERO_PTR));
-  if ((*handle)->m_bindaddress)
-    free((*handle)->m_bindaddress);
-  my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
+  free((*handle)->m_name);
+  free((*handle)->m_bindaddress);
+  free(*handle);
   * handle = 0;
   DBUG_VOID_RETURN;
 }
@@ -3358,7 +3356,7 @@ ndb_mgm_create_logevent_handle_same_socket(NdbMgmHandle mh);
 static void
 free_log_handle(NdbLogEventHandle log_handle)
 {
-  my_free(log_handle, 0);
+  free(log_handle);
 }
 
 

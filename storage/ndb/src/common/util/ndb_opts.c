@@ -1,8 +1,6 @@
-#include <my_global.h>
 #define OPTEXPORT
 #include <ndb_opts.h>
 
-#include <mysql_version.h>
 #include <ndb_version.h>
 
 static const char* g_ndb_opt_progname= "ndbapi_program";
