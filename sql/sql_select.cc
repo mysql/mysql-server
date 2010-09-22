@@ -4491,6 +4491,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
 
+  if (!(join->positions=
+        new (join->thd->mem_root) POSITION[table_count+1]))
+    DBUG_RETURN(TRUE);
+
+  if (!(join->best_positions=
+        new (join->thd->mem_root) POSITION[table_count+1]))
+    DBUG_RETURN(TRUE);
+
   join->best_ref=stat_vector;
 
   stat_end=stat+table_count;
