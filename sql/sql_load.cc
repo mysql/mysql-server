@@ -1116,6 +1116,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      MYF(MY_WME)))
     {
       my_free((uchar*) buffer,MYF(0)); /* purecov: inspected */
+      buffer= NULL;
       error=1;
     }
     else
@@ -1142,13 +1143,10 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error)
-  {
-    if (need_end_io_cache)
-      ::end_io_cache(&cache);
-    my_free((uchar*) buffer,MYF(0));
-    error=1;
-  }
+  if (!error && need_end_io_cache)
+    ::end_io_cache(&cache);
+
+  my_free(buffer, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 
