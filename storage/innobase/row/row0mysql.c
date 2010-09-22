@@ -359,7 +359,7 @@ row_mysql_store_col_in_innobase_format(
 		sign bit negated if the data is a signed integer. In MySQL,
 		integers are stored in a little-endian format. */
 
-		byte*   p = buf + col_len;
+		byte*	p = buf + col_len;
 
 		for (;;) {
 			p--;
@@ -376,7 +376,7 @@ row_mysql_store_col_in_innobase_format(
 		}
 
 		ptr = buf;
-                buf += col_len;
+		buf += col_len;
 	} else if ((type == DATA_VARCHAR
 		    || type == DATA_VARMYSQL
 		    || type == DATA_BINARY)) {
