@@ -1282,7 +1282,8 @@ bool might_do_join_buffering(uint join_cache_level,
           ((join_cache_level != 0 && sj_tab->type == JT_ALL) ||
            (join_cache_level > 4 && 
             (sj_tab->type == JT_REF || 
-             sj_tab->type == JT_EQ_REF))));
+             sj_tab->type == JT_EQ_REF ||
+             sj_tab->type == JT_CONST))));
 }
 
 /**
