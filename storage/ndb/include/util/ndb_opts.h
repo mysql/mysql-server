@@ -19,12 +19,14 @@
 #ifndef _NDB_OPTS_H
 #define _NDB_OPTS_H
 
+#include <ndb_global.h>
+
+#include <my_sys.h> /* loglevel needed by my_getopt.h */
+#include <my_getopt.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <ndb_global.h>
-#include <my_sys.h>
-#include <my_getopt.h>
 
 #ifdef OPTEXPORT
 #define OPT_EXTERN(T,V,I) T V I
