@@ -455,13 +455,8 @@ static void DbugParse(CODE_STATE *cs, const char *control)
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
-    /*
-      We need to free what's already in init_settings, because unlike
-      the thread related stack frames there's a chance that something
-      is in these variables already.
-    */
-    if (stack == &init_settings)
-      FreeState(cs, stack, 0);
+    /* Free memory associated with the state before resetting its members */
+    FreeState(cs, stack, 0);
     stack->flags= 0;
     stack->delay= 0;
     stack->maxdepth= 0;
@@ -1447,8 +1442,8 @@ static void PushState(CODE_STATE *cs)
   struct settings *new_malloc;
 
   new_malloc= (struct settings *) DbugMalloc(sizeof(struct settings));
+  bzero(new_malloc, sizeof(struct settings));
   new_malloc->next= cs->stack;
-  new_malloc->out_file= NULL;
   cs->stack= new_malloc;
 }
 
@@ -1957,7 +1952,7 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
 
 static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
 {
-  if (fp != stderr && fp != stdout && fclose(fp) == EOF)
+  if (fp != NULL && fp != stderr && fp != stdout && fclose(fp) == EOF)
   {
     pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
