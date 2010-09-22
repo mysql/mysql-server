@@ -583,6 +583,25 @@ extern "C" {
    */
   const char *ndb_mgm_get_connected_bind_address(NdbMgmHandle handle);
 
+  /**
+   * Get the version of the mgm server we're talking to.
+   *
+   * @param   handle         Management handle
+   * @param   major          Returns the major version number for NDB
+   * @param   minor          Returns the minor version number for NDB
+   * @param   build          Returns the build version number for NDB
+   * @param   len            Specifies the max size of the buffer
+   *                         available to return version string in
+   * @param   str            Pointer to buffer where to return the
+   *                         version string which is in the
+   *                         form "mysql-X.X.X ndb-Y.Y.Y-status"
+   *
+   * @return  0 for error and 1 for success
+   */
+  int ndb_mgm_get_version(NdbMgmHandle handle,
+                          int *major, int *minor, int* build,
+                          int len, char* str);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /**
@@ -1181,16 +1200,6 @@ extern "C" {
    * Get the node id of the mgm server we're connected to
    */
   Uint32 ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle);
-
-  /**
-   * Get the version of the mgm server we're talking to.
-   * Designed to allow switching of protocol depending on version
-   * so that new clients can speak to old servers in a compat mode
-   */
-  int ndb_mgm_get_version(NdbMgmHandle handle,
-                          int *major, int *minor, int* build,
-                          int len, char* str);
-
 
   /**
    * Config iterator
