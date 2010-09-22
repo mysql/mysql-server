@@ -9511,7 +9511,9 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
     }
     pthread_mutex_unlock(&LOCK_open);
   }
-  DBUG_RETURN(ret);      
+
+  dict->invalidateDbGlobal(dbname);
+  DBUG_RETURN(ret);
 }
 
 static void ndbcluster_drop_database(handlerton *hton, char *path)
