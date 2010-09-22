@@ -228,6 +228,7 @@ public:
   inline char* get_log_fname() { return log_file_name; }
   inline char* get_name() { return name; }
   inline mysql_mutex_t* get_log_lock() { return &LOCK_log; }
+  inline mysql_cond_t* get_log_cond() { return &update_cond; }
   inline IO_CACHE* get_log_file() { return &log_file; }
 
   inline void lock_index() { mysql_mutex_lock(&LOCK_index);}
@@ -260,5 +261,6 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
+void check_binlog_cache_size(THD *thd);
 
 #endif /* BINLOG_H_INCLUDED */
