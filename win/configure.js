@@ -52,6 +52,7 @@ try
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
             case "WITH_CLASSPATH":
+                    parts[1] = parts[1].replace(/\\/g, "/");
             case "MYSQL_SERVER_SUFFIX":
             case "MYSQLD_EXE_SUFFIX":
                     configfile.WriteLine("SET (" + parts[0] + " \""
