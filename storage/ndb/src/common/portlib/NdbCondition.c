@@ -20,17 +20,8 @@
 #include <ndb_global.h>
 
 #include <NdbCondition.h>
-#include <NdbThread.h>
 #include <NdbMutex.h>
 #include <NdbMem.h>
-#ifdef NDB_WIN
-#include <my_pthread.h>
-#endif
-struct NdbCondition
-{
-  pthread_cond_t cond;
-};
-
 
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
@@ -38,7 +29,7 @@ static int clock_id = CLOCK_REALTIME;
 #endif
 
 void
-NdbCondition_Init(int need_monotonic)
+NdbCondition_initialize(int need_monotonic)
 {
   init = 1;
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
@@ -84,18 +75,13 @@ nogo:
 #endif
 }
 
-struct NdbCondition* 
-NdbCondition_Create(void)
+int
+NdbCondition_Init(struct NdbCondition* ndb_cond)
 {
-  struct NdbCondition* tmpCond;
   int result;
-  
-  assert(init);
-  tmpCond = (struct NdbCondition*)NdbMem_Allocate(sizeof(struct NdbCondition));
-  
-  if (tmpCond == NULL)
-    return NULL;
- 
+
+  assert(init); // Make sure library has been initialized
+
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
     defined CLOCK_MONOTONIC
   if (clock_id == CLOCK_MONOTONIC)
@@ -103,22 +89,34 @@ NdbCondition_Create(void)
     pthread_condattr_t attr;
     pthread_condattr_init(&attr);
     pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
-    result = pthread_cond_init(&tmpCond->cond, &attr);
+    result = pthread_cond_init(&ndb_cond->cond, &attr);
     pthread_condattr_destroy(&attr);
   }
   else
   {
-    result = pthread_cond_init(&tmpCond->cond, NULL);
+    result = pthread_cond_init(&ndb_cond->cond, NULL);
   }
 #else
-  result = pthread_cond_init(&tmpCond->cond, NULL);
+  result = pthread_cond_init(&ndb_cond->cond, NULL);
 #endif
-  
   assert(result==0);
-  return tmpCond;
+  return result;
 }
 
 
+struct NdbCondition*
+NdbCondition_Create(void)
+{
+  struct NdbCondition* tmpCond;
+
+  tmpCond = (struct NdbCondition*)NdbMem_Allocate(sizeof(struct NdbCondition));
+
+  if (tmpCond == NULL)
+    return NULL;
+
+  (void)NdbCondition_Init(tmpCond);
+  return tmpCond;
+}
 
 int 
 NdbCondition_Wait(struct NdbCondition* p_cond,
