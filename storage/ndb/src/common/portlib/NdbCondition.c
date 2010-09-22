@@ -80,7 +80,7 @@ NdbCondition_Init(struct NdbCondition* ndb_cond)
 {
   int result;
 
-  assert(init); // Make sure library has been initialized
+  assert(init); /* Make sure library has been initialized */
 
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
     defined CLOCK_MONOTONIC
