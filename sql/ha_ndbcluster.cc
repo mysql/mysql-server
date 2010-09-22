@@ -1007,22 +1007,20 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
      *        As a longer term solution bushy scans should be nativily supported by SPJ.
      */
 
+    // 'm_last_scan_descendant' is the candidate to be added as an artificial grandparent.
     if (m_tables[parent_no].m_last_scan_descendant < MAX_TABLES)
     {
       uint descendant_no= m_tables[parent_no].m_last_scan_descendant;
-      while (descendant_no != MAX_TABLES && descendant_no != parent_no)
-      {
-        const AQP::Table_access* const descendant= m_plan.get_table_access(descendant_no);
-        if (descendant->get_join_type() != AQP::JT_INNER_JOIN)
-        {
-          DBUG_PRINT("info", ("  There are outer joins between parent and artificial parent -> can't append"));
-          DBUG_RETURN(false);
-        }
-        descendant_no= m_tables[descendant_no].m_parent;
-      } // while
 
-      parent_no= m_tables[parent_no].m_last_scan_descendant;
+      const AQP::Table_access* const scan_descendant = m_plan.get_table_access(descendant_no);
       parent= m_plan.get_table_access(parent_no);
+      if (scan_descendant->get_join_type(parent) != AQP::JT_INNER_JOIN)
+      {
+        DBUG_PRINT("info", ("  There are outer joins between parent and artificial parent -> can't append"));
+        DBUG_RETURN(false);
+      }
+      parent_no= descendant_no;
+//    parent= scan_descendant;
       DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s", parent->get_table()->alias));
     }
     else
@@ -1459,11 +1457,12 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     const NdbDictionary::Table* const table= handler->m_table;
  
     NdbQueryOptions options;
-    if (join_tab->get_join_type() == AQP::JT_INNER_JOIN)
+    DBUG_ASSERT(join_parent!=NULL);
+    if (join_tab->get_join_type(join_parent) == AQP::JT_INNER_JOIN)
     {
       options.setMatchType(NdbQueryOptions::MatchNonNull);
     }
-    if (need_explicit_parent && join_parent!=NULL)
+    if (need_explicit_parent)
     {
       const NdbQueryOperationDef* parent_op= context.get_query_operation(join_parent);
       DBUG_ASSERT(parent_op != NULL);

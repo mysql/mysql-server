@@ -144,13 +144,38 @@ namespace AQP
     return (m_order_by_filesort_is_skippable == true);
   }
 
-
-  enum_join_type Table_access::get_join_type() const
+  /**
+   Determine join type between this table and its parent table.
+  */
+  enum_join_type Table_access::get_join_type(const Table_access* parent) const
   {
-    if (get_join_tab()->table->maybe_null)
-      return JT_OUTER_JOIN;
-    else
-      return JT_INNER_JOIN;
+    const TABLE_LIST *this_table=   this->get_join_tab()->table->pos_in_table_list;
+    const TABLE_LIST *parent_table= parent->get_join_tab()->table->pos_in_table_list;
+
+    /**
+     Itterate the join-nest until we reach the same join level as the parent.
+     If we find 'outer_join' inbetween, the join of this table wrt. parent
+     is reported as JT_OUTER_JOIN.
+    */
+    const TABLE_LIST *join_item = this_table;
+    for (join_item = this_table; join_item!=NULL; join_item = join_item->embedding)
+    {
+      if (join_item->outer_join)
+      {
+        DBUG_PRINT("info", ("JT_OUTER_JOIN"));
+        return JT_OUTER_JOIN;
+      }
+      else if (join_item->embedding == parent_table->embedding)
+      {
+        DBUG_PRINT("info", ("at parent -> JT_INNER_JOIN"));
+        return JT_INNER_JOIN;
+      }
+    }
+
+    /* Unable to determine jointype, default to OUTER which is the 'most covering' */
+    DBUG_PRINT("info", ("fall through -> JT_OUTER_JOIN"));
+    DBUG_ASSERT(false);
+    return JT_OUTER_JOIN;
   }
 
   /**
