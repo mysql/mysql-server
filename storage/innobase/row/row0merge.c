@@ -594,7 +594,7 @@ row_merge_buf_add(
 		dfield_dup(field++, buf->heap);
 	} while (--n_fields);
 
-	return(TRUE);
+	return(n_row_added);
 }
 
 /** Structure for reporting duplicate records. */
@@ -1644,7 +1644,7 @@ err_exit:
 					ut_error;
 				}
 
-				file->n_rec++;
+				file->n_rec += rows_added;
 			}
 		}
 
