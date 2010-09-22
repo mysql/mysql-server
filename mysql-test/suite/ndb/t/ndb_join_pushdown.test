@@ -4,6 +4,44 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 --enable_warnings
 
+#######################################
+# Enable ndb$info counters for SPJ block.
+
+--source have_ndbinfo.inc
+
+if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
+{
+  # Run the ndbinfo.sql script that creates ndbinfo database, tables and views
+  --disable_warnings
+  --disable_query_log
+  --disable_result_log
+  set @ndbinfo_skip_version_check=1;
+  source $NDBINFO_SQL;
+  --enable_result_log
+  --enable_query_log
+  --enable_warnings
+}
+
+# Remember all SPJ conters when test started.
+# Will report and compare the diff. at end of entire test
+create temporary table spj_counts_at_startup 
+       select counter_name, sum(val) AS val 
+       from ndbinfo.counters 
+       where block_name='DBSPJ' 
+       group by counter_name;
+
+# Save old counter values.
+let $scan_count_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_scan_count', Value, 1);
+let $pruned_scan_count_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $sorted_scan_count_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_sorted_scan_count', Value, 1);
+let $pushed_queries_defined_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_defined', Value, 1);
+let $pushed_queries_dropped_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_dropped', Value, 1);
+let $pushed_queries_executed_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_executed', Value, 1);
+let $pushed_reads_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Value, 1);
+
+##############
+# Test start
+
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
 
@@ -1965,23 +2003,6 @@ engine ndb;
 drop logfile group lg1
 engine ndb;
 
-# Test ndb$info counters for SPJ block.
-
---source have_ndbinfo.inc
-
-if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
-{
-  # Run the ndbinfo.sql script that creates ndbinfo database, tables and views
-  --disable_warnings
-  --disable_query_log
-  --disable_result_log
-  set @ndbinfo_skip_version_check=1;
-  source $NDBINFO_SQL;
-  --enable_result_log
-  --enable_query_log
-  --enable_warnings
-}
-
 # Store old counter values.
 create temporary table old_count 
        select counter_name, sum(val) AS val 
@@ -2672,6 +2693,69 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 --enable_query_log
 
 drop table t1;
+
+
+########################################
+# Verify DBSPJ counters for entire test:
+
+# Get new counter values.
+create temporary table spj_counts_at_end
+       select counter_name, sum(val) AS val 
+       from ndbinfo.counters 
+       where block_name='DBSPJ' 
+       group by counter_name;
+
+# Compute & report the difference.
+# Any change in SPJ counters will indicate a change in pushability which
+# should be verifyed.
+# - LOCAL/REMOTE counts can not be directly compared as they depends on 
+#    data distribution, and which TC used for the test.
+# - SCAN_BATCHES_RETURNED also seems to vary with a small delta - also assumed to be due to data distribution
+--sorted_result
+select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
+       from spj_counts_at_end, spj_counts_at_startup 
+       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
+       and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
+       and spj_counts_at_end.counter_name <> 'REMOTE_READS_SENT'
+       and spj_counts_at_end.counter_name <> 'LOCAL_RANGE_SCANS_SENT'
+       and spj_counts_at_end.counter_name <> 'REMOTE_RANGE_SCANS_SENT'
+       and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
+
+# The sum of LOCAL+REMOTE should be constant
+select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
+       from spj_counts_at_end, spj_counts_at_startup 
+       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
+       and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
+       or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
+
+select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE RANGE_SCANS_SENT'
+       from spj_counts_at_end, spj_counts_at_startup 
+       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
+       and (spj_counts_at_end.counter_name = 'LOCAL_RANGE_SCANS_SENT'
+       or spj_counts_at_end.counter_name = 'REMOTE_RANGE_SCANS_SENT');
+
+drop table spj_counts_at_startup;
+drop table spj_counts_at_end;
+
+# Similar for the SPJ specific 'STATUS' counters
+let $scan_count_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_scan_count', Value, 1);
+let $pruned_scan_count_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $sorted_scan_count_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_sorted_scan_count', Value, 1);
+let $pushed_queries_defined_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_defined', Value, 1);
+let $pushed_queries_dropped_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_dropped', Value, 1);
+let $pushed_queries_executed_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_executed', Value, 1);
+let $pushed_reads_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Value, 1);
+
+# Calculate the change.
+--disable_query_log
+--eval SELECT $scan_count_at_end - $scan_count_at_startup AS scan_count
+--eval SELECT $pruned_scan_count_at_end - $pruned_scan_count_at_startup AS pruned_scan_count
+--eval SELECT $sorted_scan_count_at_end - $sorted_scan_count_at_startup AS sorted_scan_count
+--eval SELECT $pushed_queries_defined_at_end - $pushed_queries_defined_at_startup AS pushed_queries_defined
+--eval SELECT $pushed_queries_dropped_at_end - $pushed_queries_dropped_at_startup AS pushed_queries_dropped
+--eval SELECT $pushed_queries_executed_at_end - $pushed_queries_executed_at_startup AS pushed_queries_executed
+#--eval SELECT $pushed_reads_at_end - $pushed_reads_at_startup AS pushed_reads
+--enable_query_log
 
 
 if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
