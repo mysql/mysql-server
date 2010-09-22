@@ -461,7 +461,8 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
 bool stop_child = false;
 
 void
-angel_run(const BaseString& original_args,
+angel_run(const char* progname,
+          const BaseString& original_args,
           const char* connect_str,
           int force_nodeid,
           const char* bind_address,
@@ -573,7 +574,7 @@ angel_run(const BaseString& original_args,
     args.appfmt(" --initial=%d", initial);
     args.appfmt(" --nostart=%d", no_start);
 
-    pid_t child = spawn_process(my_progname, args);
+    pid_t child = spawn_process(progname, args);
     if (child == -1)
       angel_exit(1);
 
