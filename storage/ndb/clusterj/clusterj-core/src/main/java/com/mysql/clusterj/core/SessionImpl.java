@@ -274,7 +274,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             op = clusterTransaction.getInsertOperation(storeTable);
             // set all values in the operation, keys first
             domainTypeHandler.operationSetKeys(valueHandler, op);
-            domainTypeHandler.operationSetValuesExcept(valueHandler, op, "PRIMARY");
+            domainTypeHandler.operationSetNonPKValues(valueHandler, op);
             // reset modified bits in instance
             domainTypeHandler.objectResetModified(valueHandler);
         } catch (ClusterJUserException cjuex) {
@@ -462,7 +462,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             Operation op = null;
             op = clusterTransaction.getUpdateOperation(storeTable);
             domainTypeHandler.operationSetKeys(valueHandler, op);
-            domainTypeHandler.operationSetModifiedValuesExcept(valueHandler, op, "PRIMARY");
+            domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
             if (logger.isDetailEnabled()) logger.detail("Updated object " +
                     valueHandler);
         } catch (ClusterJException ex) {
@@ -499,7 +499,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             Operation op = null;
             op = clusterTransaction.getWriteOperation(storeTable);
             domainTypeHandler.operationSetKeys(valueHandler, op);
-            domainTypeHandler.operationSetModifiedValuesExcept(valueHandler, op, "PRIMARY");
+            domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
             if (logger.isDetailEnabled()) logger.detail("Wrote object " +
                     valueHandler);
         } catch (ClusterJException ex) {

@@ -94,6 +94,9 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
     /** Persistent fields. */
     protected List<DomainFieldHandler> persistentFieldHandlers = new ArrayList<DomainFieldHandler>();
 
+    /** Non PK fields. */
+    protected List<DomainFieldHandler> nonPKFieldHandlers = new ArrayList<DomainFieldHandler>();
+
     /** Primitive fields. */
     protected List<DomainFieldHandler> primitiveFieldHandlers = new ArrayList<DomainFieldHandler>();
 
@@ -250,12 +253,9 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
         return fieldNumber.intValue();
     }
 
-    public void operationSetValuesExcept(ValueHandler handler, Operation op, String index) {
-        for (DomainFieldHandler fmd: persistentFieldHandlers) {
-            if (!fmd.includedInIndex(index)) {
-                if (logger.isDetailEnabled()) logger.detail("operationSetValuesExcept field: " + fmd.getName() + " is not included in index: " + index);
-                fmd.operationSetValue(handler, op);
-            }
+    public void operationSetNonPKValues(ValueHandler handler, Operation op) {
+        for (DomainFieldHandler fmd: nonPKFieldHandlers) {
+            fmd.operationSetValue(handler, op);
         }
     }
 
@@ -266,13 +266,10 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
         }
     }
 
-    public void operationSetModifiedValuesExcept(ValueHandler handler, Operation op, String index) {
-                for (DomainFieldHandler fmd: persistentFieldHandlers) {
-                    if (!fmd.includedInIndex(index)) {
-                        if (logger.isDetailEnabled()) logger.detail("operationSetModifiedValuesExcept index: " + index);
-                        fmd.operationSetModifiedValue(handler, op);
-                    }
-                }
+    public void operationSetModifiedNonPKValues(ValueHandler handler, Operation op) {
+        for (DomainFieldHandler fmd: nonPKFieldHandlers) {
+            fmd.operationSetModifiedValue(handler, op);
+        }
             }
 
     public void operationSetModifiedValues(ValueHandler handler, Operation op) {

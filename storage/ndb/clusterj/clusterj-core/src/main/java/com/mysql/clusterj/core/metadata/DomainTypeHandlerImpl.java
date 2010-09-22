@@ -185,6 +185,9 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 // put field into either persistent or not persistent list
                 if (domainFieldHandler.isPersistent()) {
                     persistentFieldHandlers.add(domainFieldHandler);
+                    if (!domainFieldHandler.isPrimaryKey()) {
+                        nonPKFieldHandlers.add(domainFieldHandler);
+                    }
                 }
                 if (domainFieldHandler.isPrimitive()) {
                     primitiveFieldHandlers.add(domainFieldHandler);

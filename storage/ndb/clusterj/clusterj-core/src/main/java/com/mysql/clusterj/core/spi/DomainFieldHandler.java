@@ -72,4 +72,6 @@ public interface DomainFieldHandler {
     void objectSetValueExceptIndex(ResultData rs, ValueHandler handler,
             String indexName);
 
+    boolean isPrimaryKey();
+
 }

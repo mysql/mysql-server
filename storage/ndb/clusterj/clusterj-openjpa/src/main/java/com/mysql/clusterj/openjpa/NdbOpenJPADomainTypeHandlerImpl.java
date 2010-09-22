@@ -343,10 +343,10 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         }
     }
 
-    public void operationSetModifiedValuesExcept(ValueHandler handler, Operation op, String index) {
+    public void operationSetModifiedNonPKValues(ValueHandler handler, Operation op) {
         try {
             for (NdbOpenJPADomainFieldHandlerImpl fmd : fields) {
-                if (!fmd.includedInIndex(index)) {
+                if (!fmd.isPrimaryKey()) {
                     fmd.operationSetModifiedValue(handler, op);
                 }
             }
@@ -691,8 +691,27 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
     }
 
     public void operationSetValues(ValueHandler valueHandler, Operation op) {
-        throw new ClusterJFatalInternalException(
-                local.message("ERR_Implementation_Should_Not_Occur"));
+        try {
+            for (NdbOpenJPADomainFieldHandlerImpl fmd : fields) {
+                fmd.operationSetValue(valueHandler, op);
+            }
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            throw new RuntimeException("NdbOpenJPADomainTypeHandlerImpl.operationSetValues caught exception", exception);
+        }
+    }
+
+    public void operationSetNonPKValues(ValueHandler valueHandler, Operation op) {
+        try {
+            for (NdbOpenJPADomainFieldHandlerImpl fmd : fields) {
+                if (!fmd.isPrimaryKey()) {
+                    fmd.operationSetValue(valueHandler, op);
+                }
+            }
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            throw new RuntimeException("NdbOpenJPADomainTypeHandlerImpl.operationSetNonPKValues caught exception", exception);
+        }
     }
 
 }
