@@ -380,7 +380,7 @@ static bool analyse_nodegroup_map(const char *ng_map_str,
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(my_progname,"[<path to backup files>]");
+  ndb_short_usage_sub("[<path to backup files>]");
 }
 static void usage()
 {
@@ -512,7 +512,7 @@ readArguments(int *pargc, char*** pargv)
   load_defaults("my",load_default_groups,pargc,pargv);
   debug << "handle_options" << endl;
 
-  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
   if (handle_options(pargc, pargv, my_long_options, get_one_option))
   {

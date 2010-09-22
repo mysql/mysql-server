@@ -113,13 +113,8 @@ public:
   int  executeLogLevel(int processId, const char* parameters, bool all);
   int  executeError(int processId, const char* parameters, bool all);
   int  executeLog(int processId, const char* parameters, bool all);
-  int  executeLogIn(int processId, const char* parameters, bool all);
-  int  executeLogOut(int processId, const char* parameters, bool all);
-  int  executeLogOff(int processId, const char* parameters, bool all);
   int  executeTestOn(int processId, const char* parameters, bool all);
   int  executeTestOff(int processId, const char* parameters, bool all);
-  int  executeSet(int processId, const char* parameters, bool all);
-  int  executeGetStat(int processId, const char* parameters, bool all);
   int  executeStatus(int processId, const char* parameters, bool all);
   int  executeEventReporting(int processId, const char* parameters, bool all);
   int  executeDumpState(int processId, const char* parameters, bool all);
@@ -220,10 +215,6 @@ static const char* helpText =
 "HELP DEBUG                             Help for debug compiled version\n"
 #endif
 "SHOW                                   Print information about cluster\n"
-#if 0
-"SHOW CONFIG                            Print configuration\n"
-"SHOW PARAMETERS                        Print configuration parameters\n"
-#endif
 "CREATE NODEGROUP <id>,<id>...          Add a Nodegroup containing nodes\n"
 "DROP NODEGROUP <NG>                    Drop nodegroup with id NG\n"
 "START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
@@ -256,11 +247,7 @@ static const char* helpTextShow =
 "SHOW Print information about cluster\n\n"
 "SHOW               Print information about cluster.The status reported is from\n"
 "                   the perspective of the data nodes. API and Management Server nodes\n"
-"                   are only reported as connected once the data nodes have started.\n" 
-#if 0
-"SHOW CONFIG        Print configuration (in initial config file format)\n" 
-"SHOW PARAMETERS    Print information about configuration parameters\n\n"
-#endif
+"                   are only reported as connected once the data nodes have started.\n"
 ;
 
 static const char* helpTextHelp =
@@ -572,14 +559,9 @@ static const char* helpTextDebug =
 "<id> ERROR <errorNo>                  Inject error into NDB node\n"
 #endif
 "<id> LOG [BLOCK = {ALL|<block>+}]     Set logging on in & out signals\n"
-"<id> LOGIN [BLOCK = {ALL|<block>+}]   Set logging on in signals\n"
-"<id> LOGOUT [BLOCK = {ALL|<block>+}]  Set logging on out signals\n"
-"<id> LOGOFF [BLOCK = {ALL|<block>+}]  Unset signal logging\n"
 "<id> TESTON                           Start signal logging\n"
 "<id> TESTOFF                          Stop signal logging\n"
-"<id> SET <configParamName> <value>    Update configuration variable\n"
 "<id> DUMP <arg>                       Dump system state to cluster.log\n"
-"<id> GETSTAT                          Print statistics\n"
 "\n"
 "<id>       = ALL | Any database node id\n"
 ;
@@ -1336,13 +1318,8 @@ static const CommandInterpreter::CommandFunctionPair commands[] = {
   ,{ "ERROR", &CommandInterpreter::executeError }
 #endif
   ,{ "LOG", &CommandInterpreter::executeLog }
-  ,{ "LOGIN", &CommandInterpreter::executeLogIn }
-  ,{ "LOGOUT", &CommandInterpreter::executeLogOut }
-  ,{ "LOGOFF", &CommandInterpreter::executeLogOff }
   ,{ "TESTON", &CommandInterpreter::executeTestOn }
   ,{ "TESTOFF", &CommandInterpreter::executeTestOff }
-  ,{ "SET", &CommandInterpreter::executeSet }
-  ,{ "GETSTAT", &CommandInterpreter::executeGetStat }
   ,{ "DUMP", &CommandInterpreter::executeDumpState }
   ,{ "REPORT", &CommandInterpreter::executeReport }
 };
@@ -1838,25 +1815,10 @@ CommandInterpreter::executeShow(char* parameters)
     print_nodes(state, it, "ndbd",     ndb_nodes, NDB_MGM_NODE_TYPE_NDB, master_id);
     print_nodes(state, it, "ndb_mgmd", mgm_nodes, NDB_MGM_NODE_TYPE_MGM, 0);
     print_nodes(state, it, "mysqld",   api_nodes, NDB_MGM_NODE_TYPE_API, 0);
-    //    ndbout << helpTextShow;
     ndb_mgm_destroy_configuration(conf);
     return 0;
-  } else if (strcasecmp(parameters, "PROPERTIES") == 0 ||
-	     strcasecmp(parameters, "PROP") == 0) {
-    ndbout << "SHOW PROPERTIES is not yet implemented." << endl;
-    //  ndbout << "_mgmtSrvr.getConfig()->print();" << endl; /* XXX */
-  } else if (strcasecmp(parameters, "CONFIGURATION") == 0 ||
-	     strcasecmp(parameters, "CONFIG") == 0){
-    ndbout << "SHOW CONFIGURATION is not yet implemented." << endl;
-    //nbout << "_mgmtSrvr.getConfig()->printConfigFile();" << endl; /* XXX */
-  } else if (strcasecmp(parameters, "PARAMETERS") == 0 ||
-	     strcasecmp(parameters, "PARAMS") == 0 ||
-	     strcasecmp(parameters, "PARAM") == 0) {
-    ndbout << "SHOW PARAMETERS is not yet implemented." << endl;
-    //    ndbout << "_mgmtSrvr.getConfig()->getConfigInfo()->print();" 
-    //           << endl; /* XXX */
   } else {
-    ndbout << "Invalid argument." << endl;
+    ndbout << "Invalid argument: '" << parameters << "'" << endl;
     return -1;
   }
   return 0;
@@ -2731,35 +2693,6 @@ CommandInterpreter::executeLog(int processId,
   return 0;
 }
 
-//*****************************************************************************
-//*****************************************************************************
-int
-CommandInterpreter::executeLogIn(int /* processId */,
-				 const char* parameters, bool /* all */) 
-{
-  ndbout << "Command LOGIN not implemented." << endl;
-  return 0;
-}
-
-//*****************************************************************************
-//*****************************************************************************
-int
-CommandInterpreter::executeLogOut(int /*processId*/, 
-				  const char* parameters, bool /*all*/) 
-{
-  ndbout << "Command LOGOUT not implemented." << endl;
-  return 0;
-}
-
-//*****************************************************************************
-//*****************************************************************************
-int
-CommandInterpreter::executeLogOff(int /*processId*/,
-				  const char* parameters, bool /*all*/) 
-{
-  ndbout << "Command LOGOFF not implemented." << endl;
-  return 0;
-}
 
 //*****************************************************************************
 //*****************************************************************************
@@ -2804,109 +2737,7 @@ CommandInterpreter::executeTestOff(int processId,
 
 //*****************************************************************************
 //*****************************************************************************
-int 
-CommandInterpreter::executeSet(int /*processId*/, 
-			       const char* parameters, bool /*all*/) 
-{
-  if (emptyString(parameters)) {
-    ndbout << "Missing parameter name." << endl;
-    return -1;
-  }
-#if 0
-  // Copy parameters since strtok will modify it
-  char* newpar = my_strdup(parameters,MYF(MY_WME));
-  My_auto_ptr<char> ap1(newpar);
-  char* configParameterName = strtok(newpar, " ");
 
-  char* allAfterParameterName = strtok(NULL, "\0");
-  if (emptyString(allAfterParameterName)) {
-    ndbout << "Missing parameter value." << endl;
-    return;
-  }
-
-  char* value = strtok(allAfterParameterName, " ");
-
-  char* allAfterValue = strtok(NULL, "\0");
-  if (! emptyString(allAfterValue)) {
-    ndbout << "Nothing expected after parameter value." << endl;
-    return;
-  }
-
-  bool configBackupFileUpdated;
-  bool configPrimaryFileUpdated;
-  
-  // TODO The handling of the primary and backup config files should be 
-  // analysed further.
-  // How it should be handled if only the backup is possible to write.
-
-  int result = _mgmtSrvr.updateConfigParam(processId, configParameterName, 
-					   value, configBackupFileUpdated, 
-					   configPrimaryFileUpdated);
-  if (result == 0) {
-    if (configBackupFileUpdated && configPrimaryFileUpdated) {
-      ndbout << "The configuration is updated." << endl;
-    }
-    else if (configBackupFileUpdated && !configPrimaryFileUpdated) {
-      ndbout << "The configuration is updated but it was only possible " 
-	     << "to update the backup configuration file, not the primary." 
-	     << endl;
-    }
-    else {
-      assert(false);
-    }
-  }
-  else {
-    ndbout << get_error_text(result) << endl;
-    if (configBackupFileUpdated && configPrimaryFileUpdated) {
-      ndbout << "The configuration files are however updated and "
-	     << "the value will be used next time the process is restarted." 
-	     << endl;
-    }
-    else if (configBackupFileUpdated && !configPrimaryFileUpdated) {
-      ndbout << "It was only possible to update the backup "
-	     << "configuration file, not the primary." << endl;
-    }
-    else if (!configBackupFileUpdated && !configPrimaryFileUpdated) {
-      ndbout << "The configuration files are not updated." << endl;
-    }
-    else {
-      // The primary is not tried to write if the write of backup file fails
-      abort();
-    }
-  }
-#endif 
-  return 0;
-}
-
-//*****************************************************************************
-//*****************************************************************************
-int CommandInterpreter::executeGetStat(int /*processId*/,
-					const char* parameters, bool /*all*/) 
-{
-  if (! emptyString(parameters)) {
-    ndbout << "No parameters expected to this command." << endl;
-    return -1;
-  }
-
-#if 0
-  MgmtSrvr::Statistics statistics;
-  int result = _mgmtSrvr.getStatistics(processId, statistics);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-    return;
-  }
-#endif
-  // Print statistic...
-  /*
-  ndbout << "Number of GETSTAT commands: " 
-  << statistics._test1 << endl;
-  */
-  return 0;
-}
-
-//*****************************************************************************
-//*****************************************************************************
-				 
 int
 CommandInterpreter::executeEventReporting(int processId,
 					  const char* parameters, 
