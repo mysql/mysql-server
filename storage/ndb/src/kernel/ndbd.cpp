@@ -404,9 +404,11 @@ extern "C"
 void
 handler_error(int signum){
   // only let one thread run shutdown
-  static long thread_id= 0;
+  static bool handling_error = false;
+  static pthread_t thread_id; // Valid when handling_error is true
 
-  if (thread_id != 0 && thread_id == my_thread_id())
+  if (handling_error &&
+      pthread_equal(thread_id, pthread_self()))
   {
     // Shutdown thread received signal
 #ifndef NDB_WIN32
@@ -419,7 +421,10 @@ handler_error(int signum){
   if(theShutdownMutex && NdbMutex_Trylock(theShutdownMutex) != 0)
     while(true)
       NdbSleep_MilliSleep(10);
-  thread_id= my_thread_id();
+
+  thread_id = pthread_self();
+  handling_error = true;
+
   g_eventLogger->info("Received signal %d. Running error handler.", signum);
   childReportSignal(signum);
   // restart the system
