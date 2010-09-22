@@ -45,9 +45,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   last_event_start_time(0),
+   rows_query_ev(NULL), last_event_start_time(0),
    sql_delay(0), sql_delay_end(0),
-   m_flags(0), rows_query_ev(NULL)
+   m_flags(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
