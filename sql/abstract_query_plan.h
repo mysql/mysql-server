@@ -189,7 +189,7 @@ namespace AQP
 
     enum_access_type get_access_type() const;
 
-    enum_join_type get_join_type() const;
+    enum_join_type get_join_type(const Table_access* parent) const;
 
     uint get_no_of_key_fields() const;
 
