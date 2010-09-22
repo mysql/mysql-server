@@ -71,15 +71,16 @@ public class Utility {
     static final long ooffoooooooooooo = 0x00ff000000000000L;
     static final long ffoooooooooooooo = 0xff00000000000000L;
     static final long ooooooooffffffff = 0x00000000ffffffffL;
+    static final int ooooooff = 0x000000ff;
+    static final int ooooffff = 0x0000ffff;
+    static final int ooooffoo = 0x0000ff00;
+    static final int ooffoooo = 0x00ff0000;
 
     // TODO: change this to a weak reference so we can call delete on it when not needed
     static CharsetMap charsetMap = CharsetMap.create();
 
     static protected final int charsetUTF16 = charsetMap.getUTF16CharsetNumber();
     
-    /** Maximum size in bytes of a UCS-16 string plus 2 byte length field */
-    static protected final int MAX_STRING_SIZE = 16300;
-
     public static CharsetMap getCharsetMap() {
         return charsetMap;
     }
@@ -169,21 +170,18 @@ public class Utility {
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
             }
         }
-        // the three bytes are packed as little endian
-        // low-byte, middle-byte, high-byte
-        // do not flip the buffer, as the caller will do that
+        /** Put the low order three bytes of the input value into the ByteBuffer as a medium_value.
+         * The format for medium value is always little-endian even on big-endian architectures.
+         * Do not flip the buffer, as the caller will do that if needed.
+         * @param byteBuffer the byte buffer
+         * @param value the input value
+         */
         public void put3byteInt(ByteBuffer byteBuffer, int value) {
             byteBuffer.put((byte)(value));            
             byteBuffer.put((byte)(value >> 8));
             byteBuffer.put((byte)(value >> 16));
         }
 
-        public int convertShortToInt(Short value) {
-            return value << 16;
-        }
-        public int convertByteToInt(byte value) {
-            return value << 24;
-        }
         public ByteBuffer convertValue(Column storeColumn, byte value) {
             ByteBuffer result;
             switch (storeColumn.getType()) {
@@ -245,11 +243,14 @@ public class Utility {
         }
 
         public ByteBuffer convertValue(Column storeColumn, long value) {
-            ByteBuffer result = null;
+            ByteBuffer result = ByteBuffer.allocateDirect(8);
+            return convertValue(storeColumn, value, result);
+        }
+
+        public ByteBuffer convertValue(Column storeColumn, long value, ByteBuffer result) {
             switch (storeColumn.getType()) {
                 case Bit:
                     // bit fields are stored in two int32 fields
-                    result = ByteBuffer.allocateDirect(8);
                     result.order(ByteOrder.BIG_ENDIAN);
                     result.putInt((int)((value)));
                     result.putInt((int)((value >>> 32)));
@@ -257,31 +258,26 @@ public class Utility {
                     return result;
                 case Bigint:
                 case Bigunsigned:
-                    result = ByteBuffer.allocateDirect(8);
                     result.order(ByteOrder.BIG_ENDIAN);
                     result.putLong(value);
                     result.flip();
                     return result;
                 case Date:
-                    result = ByteBuffer.allocateDirect(4);
                     result.order(ByteOrder.LITTLE_ENDIAN);
                     put3byteInt(result, packDate(value));
                     result.flip();
                     return result;
                 case Datetime:
-                    result = ByteBuffer.allocateDirect(8);
                     result.order(ByteOrder.BIG_ENDIAN);
                     result.putLong(packDatetime(value));
                     result.flip();
                     return result;
                 case Time:
-                    result = ByteBuffer.allocateDirect(4);
                     result.order(ByteOrder.LITTLE_ENDIAN);
                     put3byteInt(result, packTime(value));
                     result.flip();
                     return result;
                 case Timestamp:
-                    result = ByteBuffer.allocateDirect(4);
                     result.order(ByteOrder.BIG_ENDIAN);
                     result.putInt((int)(value/1000L));
                     result.flip();
@@ -289,6 +285,72 @@ public class Utility {
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
+            }
+        }
+
+        public long convertLongValueForStorage(Column storeColumn, long value) {
+            long result = 0L;
+            switch (storeColumn.getType()) {
+                case Bit:
+                    // bit fields are stored in two int32 fields
+                    result |= (value >> 32);
+                    result |= (value << 32);
+                    return result;
+                case Bigint:
+                case Bigunsigned:
+                    return value;
+                case Date:
+                    // the high order bytes are the little endian representation
+                    // the original is 0000000000xxyyzz and the result is zzyyxx0000000000
+                    int packDate = packDate(value);
+                    result |= (packDate & ooooooff) << 56;
+                    result |= (packDate & ooooffoo) << 40;
+                    result |= (packDate & ooffoooo) << 24;
+                    return result;
+                case Datetime:
+                    return packDatetime(value);
+                case Time:
+                    // the high order bytes are the little endian representation
+                    // the original is 0000000000xxyyzz and the result is zzyyxx0000000000
+                    int packTime = packDate(value);
+                    result |= (packTime & ooooooff) << 56;
+                    result |= (packTime & ooooffoo) << 40;
+                    result |= (packTime & ooffoooo) << 24;
+                    return result;
+                case Timestamp:
+                    // timestamp is an int so put the value into the high bytes
+                    // the original is 00000000tttttttt and the result is tttttttt00000000
+                    return (value/1000L) << 32;
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
+            }
+        }
+
+        public int convertByteValueForStorage(Column storeColumn, byte value) {
+            switch (storeColumn.getType()) {
+                case Bit:
+                    // bit fields are always stored in an int32
+                case Tinyint:
+                case Year:
+                    return value & ooooooff;
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "byte"));
+            }
+        }
+
+        public int convertShortValueForStorage(Column storeColumn, short value) {
+            switch (storeColumn.getType()) {
+                case Bit:
+                    // bit fields are always stored in an int32
+                    return value & ooooffff;
+                case Smallint:
+                    // short values are in the top 16 bits of an int
+                    return value << 16;
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "short"));
             }
         }
 
@@ -365,19 +427,16 @@ public class Utility {
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
             }
         }
-        // the first three bytes in the buffer are significant, and the last byte is zero
-        // do not flip the buffer, as the caller will do that
+
+        /** Put the low order three bytes of the input value into the ByteBuffer as a medium_value.
+         * The format for medium value is always little-endian even on big-endian architectures.
+         * Do not flip the buffer, as the caller will do that if needed.
+         * @param byteBuffer the byte buffer
+         * @param value the input value
+         */
         public void put3byteInt(ByteBuffer byteBuffer, int value) {
             byteBuffer.putInt(value);
             byteBuffer.limit(3);
-        }
-
-
-        public int convertShortToInt(Short value) {
-            return (int)value;
-        }
-        public int convertByteToInt(byte value) {
-            return (int)value;
         }
 
         public ByteBuffer convertValue(Column storeColumn, byte value) {
@@ -432,37 +491,37 @@ public class Utility {
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "short"));
             }
         }
+
         public ByteBuffer convertValue(Column storeColumn, long value) {
-            ByteBuffer result = null;
+            ByteBuffer result = ByteBuffer.allocateDirect(8);
+            return convertValue(storeColumn, value, result);
+        }
+
+        public ByteBuffer convertValue(Column storeColumn, long value, ByteBuffer result) {
             switch (storeColumn.getType()) {
                 case Bit:
                 case Bigint:
                 case Bigunsigned:
-                    result = ByteBuffer.allocateDirect(8);
                     result.order(ByteOrder.LITTLE_ENDIAN);
                     result.putLong(value);
                     result.flip();
                     return result;
                 case Datetime:
-                    result = ByteBuffer.allocateDirect(8);
                     result.order(ByteOrder.LITTLE_ENDIAN);
                     result.putLong(packDatetime(value));
                     result.flip();
                     return result;
                 case Timestamp:
-                    result = ByteBuffer.allocateDirect(4);
                     result.order(ByteOrder.LITTLE_ENDIAN);
                     result.putInt((int)(value/1000L));
                     result.flip();
                     return result;
                 case Date:
-                    result = ByteBuffer.allocateDirect(4);
                     result.order(ByteOrder.LITTLE_ENDIAN);
                     put3byteInt(result, packDate(value));
                     result.flip();
                     return result;
                 case Time:
-                    result = ByteBuffer.allocateDirect(4);
                     result.order(ByteOrder.LITTLE_ENDIAN);
                     put3byteInt(result, packTime(value));
                     result.flip();
@@ -470,6 +529,51 @@ public class Utility {
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
+            }
+        }
+
+        public long convertLongValueForStorage(Column storeColumn, long value) {
+            switch (storeColumn.getType()) {
+                case Bit:
+                case Bigint:
+                case Bigunsigned:
+                    return value;
+                case Datetime:
+                    return packDatetime(value);
+               case Timestamp:
+                    return value/1000L;
+                case Date:
+                    return packDate(value);
+                case Time:
+                    return packTime(value);
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
+            }
+        }
+
+        public int convertByteValueForStorage(Column storeColumn, byte value) {
+            switch (storeColumn.getType()) {
+                case Bit:
+                    // bit fields are always stored as int32
+                case Tinyint:
+                case Year:
+                    return  value & ooooooff;
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "byte"));
+            }
+        }
+
+        public int convertShortValueForStorage(Column storeColumn, short value) {
+            switch (storeColumn.getType()) {
+                case Bit:
+                    // bit fields are always stored as int32
+                case Smallint:
+                    return value & ooooffff;
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "short"));
             }
         }
 
@@ -489,13 +593,14 @@ public class Utility {
         public short getShort(Column storeColumn, NdbRecAttr ndbRecAttr);
         public long getLong(Column storeColumn, NdbRecAttr ndbRecAttr);
         public byte getByte(Column storeColumn, NdbRecAttr ndbRecAttr);
-        public int convertShortToInt(Short value);
-        public int convertByteToInt(byte value);
         public ByteBuffer convertValue(Column storeColumn, byte value);
         public ByteBuffer convertValue(Column storeColumn, short value);
         public ByteBuffer convertValue(Column storeColumn, int value);
         public ByteBuffer convertValue(Column storeColumn, long value);
         public boolean getBoolean(Column storeColumn, NdbRecAttr ndbRecAttr);
+        public long convertLongValueForStorage(Column storeColumn, long value);
+        public int convertByteValueForStorage(Column storeColumn, byte value);
+        public int convertShortValueForStorage(Column storeColumn, short value);
     }
 
     /** Swap the bytes in the value, thereby converting a big-endian value
@@ -728,16 +833,16 @@ public class Utility {
         return endianManager.convertValue(storeColumn, value);
     }
 
-    /** Encode a String (as a ByteBuffer) to a ByteBuffer that can be passed to ndbjtie.
+    /** Encode a String (as a ByteBuffer) into an existing ByteBuffer that can be passed to ndbjtie.
      * Put the length information in the beginning of the buffer.
      * @param storeColumn the column definition
      * @param value the value to be converted
      * @return the ByteBuffer
      */
-    public static ByteBuffer convertValue(Column storeColumn, ByteBuffer value) {
+    public static ByteBuffer xconvertValue(Column storeColumn, ByteBuffer inputValue, ByteBuffer outputValue) {
 
         int offset = storeColumn.getPrefixLength();
-        ByteBuffer byteBuffer = encodeToByteBuffer(value, storeColumn.getCharsetNumber(), offset);
+        ByteBuffer byteBuffer = encodeToByteBuffer(inputValue, storeColumn.getCharsetNumber(), outputValue, offset);
         fixBufferPrefixLength(byteBuffer, offset);
         if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
         return byteBuffer;
@@ -765,7 +870,7 @@ public class Utility {
      * @param byteBuffer the byte buffer to fix
      * @param offset the size of the length prefix
      */
-    private static void fixBufferPrefixLength(ByteBuffer byteBuffer, int offset) {
+    public static void fixBufferPrefixLength(ByteBuffer byteBuffer, int offset) {
         int limit = byteBuffer.limit();
         // go back and fill in the length field(s)
         // size of the output char* is current limit minus offset
@@ -1135,10 +1240,10 @@ public class Utility {
         ByteBuffer inputByteBuffer = ByteBuffer.allocateDirect(inputLength);
         CharBuffer charBuffer = inputByteBuffer.asCharBuffer();
         charBuffer.append(string);
-        return recode(charsetNumber, prefixLength, inputLength, inputByteBuffer);
+        return encode(charsetNumber, prefixLength, inputLength, inputByteBuffer);
     }
 
-    /** Encode a String (copied into a ByteBuffer) into a ByteBuffer
+    /** Encode a String (copied into a ByteBuffer) into an existing ByteBuffer
      * using the mysql native encoding method.
      * @param string the String to encode
      * @param charsetNumber the charset number
@@ -1146,14 +1251,14 @@ public class Utility {
      * @return the encoded ByteBuffer with position set to prefixLength
      * and limit one past the last converted byte
      */
-    private static ByteBuffer encodeToByteBuffer(ByteBuffer value,
-            int charsetNumber, int prefixLength) {
-        if (value == null) return null;
-        int inputLength = (value.limit());
-        return recode(charsetNumber, prefixLength, inputLength, value);
+    private static ByteBuffer encodeToByteBuffer(ByteBuffer inputValue,
+            int charsetNumber, ByteBuffer outputValue, int prefixLength) {
+        if (inputValue == null) return null;
+        int inputLength = (inputValue.limit());
+        return encode(charsetNumber, prefixLength, inputLength, inputValue);
     }
 
-    private static ByteBuffer recode(int charsetNumber, int prefixLength,
+    private static ByteBuffer encode(int charsetNumber, int prefixLength,
             int inputLength, ByteBuffer inputByteBuffer) {
         // TODO make this more reasonable
         int outputLength = (2 * inputLength) + prefixLength;
@@ -1176,6 +1281,34 @@ public class Utility {
             case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
                 throw new ClusterJFatalInternalException(local.message("ERR_Encode_Buffer_Too_Small",
                         charsetNumber, inputLength, outputLength, lengths[0], lengths[1]));
+            default:
+                throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Return_Code",
+                        returnCode));
+        }
+    }
+
+    public static int encode(int charsetNumber, int prefixLength,
+            int inputLength, ByteBuffer inputByteBuffer, ByteBuffer outputByteBuffer) {
+        int outputLength = outputByteBuffer.limit();
+        outputByteBuffer.position(prefixLength);
+        int[] lengths = new int[] {inputLength, outputLength - prefixLength};
+        int returnCode = charsetMap.recode(lengths, charsetUTF16, charsetNumber, 
+                inputByteBuffer, outputByteBuffer);
+        
+        switch (returnCode) {
+            case CharsetMapConst.RecodeStatus.RECODE_OK:
+                outputByteBuffer.limit(prefixLength + lengths[1]);
+                outputByteBuffer.position(0);
+                fixBufferPrefixLength(outputByteBuffer, prefixLength);
+                return CharsetMapConst.RecodeStatus.RECODE_OK;
+            case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
+                throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Charset",
+                        charsetNumber));
+            case CharsetMapConst.RecodeStatus.RECODE_BAD_SRC:
+                throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Source",
+                        charsetNumber, lengths[0]));
+            case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
+                return returnCode;
             default:
                 throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Return_Code",
                         returnCode));
@@ -1271,22 +1404,41 @@ public class Utility {
         return endianManager.getLong(storeColumn, ndbRecAttr);
     }
 
-    /**
-     * Convert a short value into an int for the purpose of storing into a value buffer.
-     * @param value a short
-     * @return the int which when stored will have the short in the right place
+    /** Convert a long value into a long for storage. The value parameter
+     * may be a date (milliseconds since the epoch), a bit array, or simply a long value.
+     * The storage format depends on the type of the column and the endian-ness of 
+     * the host.
+     * @param storeColumn the column
+     * @param value the java value
+     * @return the storage value
      */
-    public static int convertShortToInt(Short value) {
-        return endianManager.convertShortToInt(value);
+    public static long convertLongValueForStorage(Column storeColumn, long value) {
+        return endianManager.convertLongValueForStorage(storeColumn, value);
     }
 
-    /**
-     * Convert a byte value into an int for the purpose of storing into a value buffer.
-     * @param value a byte
-     * @return the int which when stored will have the byte in the right place
+    /** Convert a byte value into an int for storage. The value parameter
+     * may be a bit, a bit array (BIT(1..8) needs to be stored as an int) or a byte value.
+     * The storage format depends on the type of the column and the endian-ness of 
+     * the host.
+     * @param storeColumn the column
+     * @param value the java value
+     * @return the storage value
      */
-    public static int convertByteToInt(byte value) {
-        return endianManager.convertByteToInt(value);
+    public static int convertByteValueForStorage(Column storeColumn, byte value) {
+        return endianManager.convertByteValueForStorage(storeColumn, value);
+    }
+
+    /** Convert a short value into an int for storage. The value parameter
+     * may be a bit array (BIT(1..16) needs to be stored as an int) or a short value.
+     * The storage format depends on the type of the column and the endian-ness of 
+     * the host.
+     * @param storeColumn the column
+     * @param value the java value
+     * @return the storage value
+     */
+    public static int convertShortValueForStorage(Column storeColumn,
+            short value) {
+        return endianManager.convertShortValueForStorage(storeColumn, value);
     }
 
 }

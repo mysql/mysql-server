@@ -51,6 +51,9 @@ public class MultithreadedFindTest extends AbstractClusterJModelTest {
         List<Finder> finders = new ArrayList<Finder>();
         // create thread group
         threadGroup = new ThreadGroup("Finder");
+        // create uncaught exception handler
+        MyUncaughtExceptionHandler uncaughtExceptionHandler = new MyUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler(uncaughtExceptionHandler);
         // create all threads
         for (int i = 0; i < numberOfThreads ; ++i) {
             Finder finder = new Finder();
@@ -68,6 +71,14 @@ public class MultithreadedFindTest extends AbstractClusterJModelTest {
                 throw new RuntimeException("Interrupted while joining threads.");
             }
         }
+        for (Throwable thrown: uncaughtExceptionHandler.getUncaughtExceptions()) {
+            error("Caught exception: " + thrown.getClass().getName() + ": " + thrown.getMessage());
+            StackTraceElement[] elements = thrown.getStackTrace();
+            for (StackTraceElement element: elements) {
+                error("        at " + element.toString());
+            }
+        }
+        failOnError();
     }
 
     /** This class implements the logic per thread. For each thread created,

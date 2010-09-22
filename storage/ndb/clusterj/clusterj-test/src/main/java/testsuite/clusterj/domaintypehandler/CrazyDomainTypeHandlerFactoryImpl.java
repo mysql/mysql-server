@@ -152,11 +152,11 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public void operationSetModifiedValuesExcept(ValueHandler valueHandler, Operation op, String index) {
+                public void operationSetModifiedNonPKValues(ValueHandler valueHandler, Operation op) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public void operationSetValuesExcept(ValueHandler handler, Operation op, String index) {
+                public void operationSetNonPKValues(ValueHandler handler, Operation op) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 

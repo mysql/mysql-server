@@ -18,7 +18,6 @@
 
 package testsuite.clusterj;
 
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -180,18 +179,6 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
                     expectedTotal, actualTotal);
         }
         failOnError();
-    }
-
-    public static class  MyUncaughtExceptionHandler implements UncaughtExceptionHandler {
-        private static List<Throwable> uncaughtExceptions = new ArrayList<Throwable>();
-        public List<Throwable> getUncaughtExceptions() {
-            return uncaughtExceptions;
-        }
-        public synchronized void uncaughtException(Thread t, Throwable e) {
-            {
-                uncaughtExceptions.add(e);
-            }
-        }
     }
 
     /** This class implements the logic per thread. For each thread created,

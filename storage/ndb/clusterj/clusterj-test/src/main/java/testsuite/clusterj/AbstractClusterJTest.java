@@ -32,6 +32,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.Thread.UncaughtExceptionHandler;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -528,6 +529,21 @@ public abstract class AbstractClusterJTest extends TestCase {
             result.append('\n');
         }
         return result.toString();
+    }
+
+    /** Catch otherwise uncaught exceptions and maintain a list of them.
+     * When needed, they can be obtained via the getUncaughtExceptions method.
+     */
+    public static class MyUncaughtExceptionHandler implements UncaughtExceptionHandler {
+        private static List<Throwable> uncaughtExceptions = new ArrayList<Throwable>();
+        public List<Throwable> getUncaughtExceptions() {
+            return uncaughtExceptions;
+        }
+        public synchronized void uncaughtException(Thread t, Throwable e) {
+            {
+                uncaughtExceptions.add(e);
+            }
+        }
     }
 
 }

@@ -59,8 +59,6 @@ public interface DomainTypeHandler<T> {
 
     public void objectSetValues(ResultData rs, ValueHandler handler);
 
-    public void objectSetValuesExcept(ResultData rs, ValueHandler handler, String indexName);
-
     public void objectSetCacheManager(CacheManager cm, Object instance);
 
     public void objectResetModified(ValueHandler handler);
@@ -71,11 +69,11 @@ public interface DomainTypeHandler<T> {
 
     public void operationSetKeys(ValueHandler handler, Operation op);
 
+    public void operationSetNonPKValues(ValueHandler handler, Operation op);
+
     public void operationSetModifiedValues(ValueHandler handler, Operation op);
 
-    public void operationSetModifiedValuesExcept(ValueHandler valueHandler, Operation op, String index);
-
-    public void operationSetValuesExcept(ValueHandler handler, Operation op, String index);
+    public void operationSetModifiedNonPKValues(ValueHandler valueHandler, Operation op);
 
     public ValueHandler createKeyValueHandler(Object keys);
 

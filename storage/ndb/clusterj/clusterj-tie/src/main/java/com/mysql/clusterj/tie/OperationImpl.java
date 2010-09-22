@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.core.store.Blob;
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Operation;
@@ -36,6 +37,7 @@ import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
+import com.mysql.ndbjtie.mysql.CharsetMapConst;
 import com.mysql.ndbjtie.ndbapi.NdbBlob;
 import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
@@ -53,12 +55,20 @@ class OperationImpl implements Operation {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(OperationImpl.class);
 
-    /** Scratch buffers for String encoding; reused for each String column in the operation */
-    ByteBuffer scratchByteBuffer = null;
-    CharBuffer scratchCharBuffer = null;
+    /** String storage buffer initial size (used for non-primitive output data) 
+     * including two byte length field to be sent directly to ndb api.*/
+    public static final int STRING_STORAGE_BUFFER_INITIAL_SIZE = 502;
 
-    /** Current scratch buffer size */
-    int scratchBufferSize = Utility.MAX_STRING_SIZE;
+    /** String byte buffer initial size */
+    public static final int STRING_BYTE_BUFFER_INITIAL_SIZE = 1000;
+
+    /** String byte buffer current size */
+    private int stringByteBufferCurrentSize = STRING_BYTE_BUFFER_INITIAL_SIZE;
+
+    /** Scratch buffers for String encoding; reused for each String column in the operation.
+     * These buffers share common data but have their own position and limit. */
+    ByteBuffer stringByteBuffer = null;
+    CharBuffer stringCharBuffer = null;
 
     private NdbOperation ndbOperation;
 
@@ -77,6 +87,9 @@ class OperationImpl implements Operation {
 
     /** The lengths of fields in the buffer for each column (may be null for non-read operations) */
     protected int[] lengths;
+
+    /** Shared buffer for output operations, with a minimum size of 8 */
+    protected ByteBuffer stringStorageBuffer = ByteBuffer.allocateDirect(STRING_STORAGE_BUFFER_INITIAL_SIZE);
 
     /** Constructor used for insert and delete operations that do not need to read data.
      * 
@@ -117,8 +130,8 @@ class OperationImpl implements Operation {
     }
 
     public void equalByte(Column storeColumn, byte value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
-        int returnCode = ndbOperation.equal(storeColumn.getName(), buffer);
+        int storeValue = Utility.convertByteValueForStorage(storeColumn, value);
+        int returnCode = ndbOperation.equal(storeColumn.getName(), storeValue);
         handleError(returnCode, ndbOperation);
     }
 
@@ -153,14 +166,14 @@ class OperationImpl implements Operation {
     }
 
     public void equalShort(Column storeColumn, short value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
-        int returnCode = ndbOperation.equal(storeColumn.getName(), buffer);
+        int storeValue = Utility.convertShortValueForStorage(storeColumn, value);
+        int returnCode = ndbOperation.equal(storeColumn.getName(), storeValue);
         handleError(returnCode, ndbOperation);
     }
 
     public void equalLong(Column storeColumn, long value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
-        int returnCode = ndbOperation.equal(storeColumn.getName(), buffer);
+        long storeValue = Utility.convertLongValueForStorage(storeColumn, value);
+        int returnCode = ndbOperation.equal(storeColumn.getName(), storeValue);
         handleError(returnCode, ndbOperation);
     }
 
@@ -221,12 +234,13 @@ class OperationImpl implements Operation {
     }
 
     public void setByte(Column storeColumn, byte value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
-        int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), buffer);
+        int storeValue = Utility.convertByteValueForStorage(storeColumn, value);
+        int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), storeValue);
         handleError(returnCode, ndbOperation);
     }
 
     public void setBytes(Column storeColumn, byte[] value) {
+        // TODO use the string storage buffer instead of allocating a new buffer for each value
         ByteBuffer buffer = Utility.convertValue(storeColumn, value);
         int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), buffer);
         handleError(returnCode, ndbOperation);
@@ -254,8 +268,8 @@ class OperationImpl implements Operation {
     }
 
     public void setLong(Column storeColumn, long value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
-        int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), buffer);
+        long storeValue = Utility.convertLongValueForStorage(storeColumn, value);
+        int returnCode = ndbOperation.setValue(storeColumn.getName(), storeValue);
         handleError(returnCode, ndbOperation);
     }
 
@@ -265,15 +279,37 @@ class OperationImpl implements Operation {
     }
 
     public void setShort(Column storeColumn, Short value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
-        int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), buffer);
+        int storeValue = Utility.convertShortValueForStorage(storeColumn, value);
+        int returnCode = ndbOperation.setValue(storeColumn.getName(), storeValue);
         handleError(returnCode, ndbOperation);
     }
 
     public void setString(Column storeColumn, String value) {
-        ByteBuffer byteBuffer = convertStringToByteBuffer(value);
-        ByteBuffer buffer = Utility.convertValue(storeColumn, byteBuffer);
-        int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), buffer);
+        ByteBuffer inputByteBuffer = copyStringToByteBuffer(value);
+        // assume output size is not larger than input size
+        int sizeNeeded = inputByteBuffer.limit() - inputByteBuffer.position();
+        boolean done = false;
+        int offset = storeColumn.getPrefixLength();
+        while (!done) {
+            guaranteeStringStorageBufferSize(sizeNeeded);
+            int returnCode = Utility.encode(storeColumn.getCharsetNumber(), offset,
+                    sizeNeeded, inputByteBuffer, stringStorageBuffer);
+            switch (returnCode) {
+                case CharsetMapConst.RecodeStatus.RECODE_OK:
+                    done = true;
+                    break;
+                case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
+                    logger.warn(local.message("WARN_Recode_Buffer_Too_Small", sizeNeeded));
+                    // double output size and try again
+                    sizeNeeded *= 2;
+                    break;
+                default:
+                    throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Return_Code",
+                        returnCode));
+            }
+        }
+        int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), stringStorageBuffer);
+        resetStringStorageBuffer();
         handleError(returnCode, ndbOperation);
     }
 
@@ -293,30 +329,50 @@ class OperationImpl implements Operation {
         }
     }
 
-    /** Copy the contents of the parameter String into a reused scratch buffer.
+    /** Guarantee the size of the string storage buffer to be a minimum size. If the current
+     * string storage buffer is not big enough, allocate a bigger one. The current buffer
+     * will be garbage collected.
+     * @param size the minimum size required
+     */
+    protected void guaranteeStringStorageBufferSize(int sizeNeeded) {
+        if (sizeNeeded > stringStorageBuffer.capacity()) {
+            // the existing shared buffer will be garbage collected
+            stringStorageBuffer = ByteBuffer.allocateDirect(sizeNeeded);
+        }
+    }
+
+    /** Reset the string storage buffer so it can be used for another operation.
      * 
+     */
+    private void resetStringStorageBuffer() {
+        int capacity = stringStorageBuffer.capacity();
+        stringStorageBuffer.position(0);
+        stringStorageBuffer.limit(capacity);
+    }
+
+    /** Copy the contents of the parameter String into a reused string buffer.
+     * The ByteBuffer can subsequently be encoded into a ByteBuffer.
      * @param value the string
      * @return the byte buffer with the String in it
      */
-    protected ByteBuffer convertStringToByteBuffer(String value) {
-        int sizeNeeded = value.length() * 2 + 2;
-        if (sizeNeeded > scratchBufferSize) {
-            scratchBufferSize = sizeNeeded;
-            scratchByteBuffer = ByteBuffer.allocateDirect(sizeNeeded);
-            scratchCharBuffer = scratchByteBuffer.asCharBuffer();
-//   why did this ever work         scratchByteBuffer = null;
+    private ByteBuffer copyStringToByteBuffer(String value) {
+        int sizeNeeded = value.length() * 2;
+        if (sizeNeeded > stringByteBufferCurrentSize) {
+            stringByteBufferCurrentSize = sizeNeeded;
+            stringByteBuffer = ByteBuffer.allocateDirect(sizeNeeded);
+            stringCharBuffer = stringByteBuffer.asCharBuffer();
         }
-        if (scratchByteBuffer == null) {
-            scratchByteBuffer = ByteBuffer.allocateDirect(scratchBufferSize);
-            scratchCharBuffer = scratchByteBuffer.asCharBuffer();
+        if (stringByteBuffer == null) {
+            stringByteBuffer = ByteBuffer.allocateDirect(STRING_BYTE_BUFFER_INITIAL_SIZE);
+            stringCharBuffer = stringByteBuffer.asCharBuffer();
         } else {
-            scratchByteBuffer.clear();
-            scratchCharBuffer.clear();
+            stringByteBuffer.clear();
+            stringCharBuffer.clear();
         }
-        scratchCharBuffer.append(value);
+        stringCharBuffer.append(value);
         // characters in java are always two bytes (UCS-16)
-        scratchByteBuffer.limit(scratchCharBuffer.position() * 2);
-        return scratchByteBuffer;
+        stringByteBuffer.limit(stringCharBuffer.position() * 2);
+        return stringByteBuffer;
     }
 
 }
