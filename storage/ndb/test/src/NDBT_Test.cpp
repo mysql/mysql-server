@@ -1328,7 +1328,7 @@ const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(my_progname, "[tabname1 tabname2 ... tabnameN]");
+  ndb_short_usage_sub("[tabname1 tabname2 ... tabnameN]");
 }
 static void usage()
 {
@@ -1362,7 +1362,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   if (!my_progname)
     my_progname= _argv[0];
 
-  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
   load_defaults("my",load_default_groups,&argc,&_argv);
 
