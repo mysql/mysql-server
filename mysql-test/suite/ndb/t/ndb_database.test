@@ -103,4 +103,5 @@ show tables;
 # Check that we can reuse the table name etc.
 create table newdb.t1(a int primary key) engine=ndb;
 show tables;
+drop table t1;
 drop database newdb;

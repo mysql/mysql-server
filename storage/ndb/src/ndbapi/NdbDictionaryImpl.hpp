@@ -189,6 +189,8 @@ public:
   const char * getMysqlName() const;
   int updateMysqlName();
 
+  bool matchDb(const char * name, size_t len) const;
+
   int aggregate(NdbError& error);
   int validate(NdbError& error);
 
@@ -1062,6 +1064,15 @@ const char *
 NdbTableImpl::getMysqlName() const
 {
   return m_mysqlName.c_str();
+}
+
+inline
+bool
+NdbTableImpl::matchDb(const char * name, size_t len) const
+{
+  return 
+    len < m_internalName.length() &&
+    memcmp(name, m_internalName.c_str(), len) == 0;
 }
 
 inline
