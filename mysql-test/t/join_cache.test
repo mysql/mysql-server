@@ -1956,3 +1956,31 @@ set join_cache_level=default;
 drop table t1,t2,t3;
 
 set @@optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # Bug #52394:  using join buffer for 3 table join with ref access 
+--echo # LP #623209: and no references to the columns of the middle table
+--echo #
+
+
+set join_cache_level=6;
+
+CREATE TABLE t1 (a int(11), b varchar(1));
+INSERT INTO t1 VALUES (6,'r'),(27,'o');
+
+CREATE TABLE t2(a int);
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5);
+
+CREATE TABLE t3 (a int(11) primary key, b varchar(1));
+INSERT INTO t3 VALUES
+(14,'d'),(15,'z'),(16,'e'),(17,'h'),(18,'b'),(19,'s'),(20,'e'),
+(21,'j'),(22,'e'),(23,'f'),(24,'v'),(25,'x'),(26,'m'),(27,'o');
+
+EXPLAIN
+SELECT t3.a FROM t1,t2,t3 WHERE t1.a = t3.a AND t1.b = t3.b;
+SELECT t3.a FROM t1,t2,t3 WHERE t1.a = t3.a AND t1.b = t3.b;
+
+DROP TABLE t1,t2,t3;
+
+set join_cache_level=default;
+
