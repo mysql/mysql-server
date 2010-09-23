@@ -34,9 +34,9 @@ insert into t1 values (1,10,1),(2,9,1),(3,8,1),(4,7,1),(5,6,1),(6,5,2),(7,4,2),(
 --echo # 0 - update the row (deferred to commit)
 --echo # 1 - update + commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set c = 111, b = 20 where a = 1;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where a = 1 order by a;
 
@@ -47,9 +47,9 @@ select * from t1 where a = 1 order by a;
 --echo # 0 - delete the row (deferred to commit)
 --echo # 1 - delete + commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 delete from t1 where a = 1;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where a = 1 order by a;
 
@@ -60,9 +60,9 @@ select * from t1 where a = 1 order by a;
 --echo # 0 - update the row (deferred to commit)
 --echo # 1 - update + commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set c = 1111 where b = 2;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where b = 2 order by a;
 
@@ -73,9 +73,9 @@ select * from t1 where b = 2 order by a;
 --echo # 0 - update the row (deferred to commit)
 --echo # 1 - update + commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set c = 12, b = 19 where b = 2;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where b = 2 order by a;
 
@@ -86,9 +86,9 @@ select * from t1 where b = 2 order by a;
 --echo # 0 - delete the row (deferred to commit)
 --echo # 1 - delete and commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 delete from t1 where b = 19;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where b = 19 order by a;
 
@@ -99,9 +99,9 @@ select * from t1 where b = 19 order by a;
 --echo # 0 - update the rows (deferred to commit)
 --echo # 1 - update + commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set c = 22 where a = 10 or a >= 10;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 order by a;
 
@@ -112,9 +112,9 @@ select * from t1 order by a;
 --echo # 0 - update the rows (2 if no bulk update + 1 deferred to commit)
 --echo # 1 - update + commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set c = 23 where a in (8,10);
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 order by a;
 
@@ -125,9 +125,9 @@ select * from t1 order by a;
 --echo # 0 - update the rows (executed during read)
 --echo # 1 - commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set c = 23 where a in (7,8) or a >= 10;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 order by a;
 
@@ -141,11 +141,11 @@ select * from t1 order by a;
 --echo # 0 - update the rows (deferred to commit)
 --echo # 1 - update + commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set c = 11 where a = 3 or b = 7;
 ### Disable this test, as it's unpredictable...
 ### cause scan can get one or two batches...
-#--source include/ndb_execute_count.inc
+#--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where a = 3 or b = 7 order by a;
 
@@ -158,9 +158,9 @@ select * from t1 where a = 3 or b = 7 order by a;
 --echo # 1 - insert the row (pk update)
 --echo # 1 - commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set a = 13, b = 20 where a = 3;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where a = 13 order by a;
 
@@ -173,9 +173,9 @@ select * from t1 where a = 13 order by a;
 --echo # 1 - insert the row (pk update)
 --echo # 1 - commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set a = 12, b = 19 where b = 7;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where b = 19 order by a;
 
@@ -188,9 +188,9 @@ select * from t1 where b = 7 order by a;
 --echo # 0 - update the rows (deferred to commit)
 --echo # 1 - update + commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set c = 12, b = 29 where a = 5 and b = 6;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where b = 19 order by a;
 
@@ -201,9 +201,9 @@ select * from t1 where b = 19 order by a;
 --echo # 0 - delete the rows (no row found)
 --echo # 1 - commit the transaction
 --echo
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 delete from t1 where b = 6 and c = 12;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 select * from t1 where b = 6 order by a;
 
@@ -227,9 +227,9 @@ insert into t1 values (1, '1'), (2, '2'), (3, '3');
 --echo # 1 - update+commit the row
 --echo # Rows matched=changed=affected=1
 --echo 
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set b='two' where a=2;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 
 # Autocommit, unsuccessful update
@@ -241,9 +241,9 @@ update t1 set b='two' where a=2;
 --echo # 1 - update+commit the row
 --echo # Rows matched=changed=affected=0
 --echo 
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set b='lots' where a=2000;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 # Autocommit, successful update + warning
 --echo
@@ -255,9 +255,9 @@ update t1 set b='lots' where a=2000;
 --echo # Rows matched=changed=affected=1
 --echo # 1 warning
 --echo 
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set b='one plus one' where a=2;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 
 # Autocommit, unsuccessful update + warning
@@ -271,10 +271,10 @@ update t1 set b='one plus one' where a=2;
 --echo # 1 warning
 --echo 
 --disable_warnings # Workaround to bug#39663
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 update t1 set b='two thousand' where a=2000;
 show warnings; # Workaround to bug#39663
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 --enable_warnings # Workaround to bug#39663
 
 
@@ -287,11 +287,11 @@ show warnings; # Workaround to bug#39663
 --echo # 1 - commit
 --echo # Rows matched=changed=affected=1
 --echo 
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 begin;
 update t1 set b='two' where a=2;
 commit;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 
 # No autocommit, unsuccessful update
@@ -303,11 +303,11 @@ commit;
 --echo # 1 - commit
 --echo # Rows matched=changed=affected=0
 --echo 
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 begin;
 update t1 set b='lots' where a=2000;
 commit;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 
 # No autocommit, successful update + warning
@@ -320,11 +320,11 @@ commit;
 --echo # Rows matched=changed=affected=1
 --echo 1 warning
 --echo 
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 begin;
 update t1 set b='one plus one' where a=2;
 commit;
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 
 
 # No autocommit, unsuccessful update + warning
@@ -338,12 +338,12 @@ commit;
 --echo # 1 warning
 --echo 
 --disable_warnings # Workaround to bug#39663
---source include/ndb_init_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
 begin;
 update t1 set b='two thousand' where a=2000;
 commit;
 show warnings; # Workaround to bug#39663
---source include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_execute_count.inc
 --enable_warnings # Workaround to bug#39663
 
 drop table t1;
