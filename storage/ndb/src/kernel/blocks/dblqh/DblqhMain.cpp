@@ -15706,7 +15706,7 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
   if (DEBUG_REDO)
   {
     ndbout_c("writeSingle 1 page at part: %u file: %u pos: %u",
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logFilePtr.p->fileNo,
              pageNo);
   }
@@ -15778,7 +15778,7 @@ void Dblqh::readSrLastFileLab(Signal* signal)
   if (DEBUG_REDO)
   {
     ndbout_c("readSrLastFileLab part: %u logExecState: %u logPartState: %u logLap: %u",
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logPartPtr.p->logExecState,
              logPartPtr.p->logPartState,
              logPartPtr.p->logLap);
@@ -17471,7 +17471,7 @@ void Dblqh::execSr(Signal* signal)
       {
         ndbout_c("found gci: %u part: %u file: %u page: %u",
                  logWord,
-                 logPartPtr.i,
+                 logPartPtr.p->logPartNo,
                  logFilePtr.p->fileNo,
                  logFilePtr.p->currentFilepage);
       }
@@ -17495,7 +17495,7 @@ void Dblqh::execSr(Signal* signal)
           if (DEBUG_REDO)
           {
             ndbout_c("execSr part: %u logLap: %u",
-                     logPartPtr.i, logPartPtr.p->logLap);
+                     logPartPtr.p->logPartNo, logPartPtr.p->logLap);
           }
         }//if
 /*---------------------------------------------------------------------------*/
@@ -17543,7 +17543,7 @@ crash:
 		       "Error while reading REDO log. from %d\n"
 		       "part: %u D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d : %s gci: %u",
 		       signal->theData[8],
-                       logPartPtr.i,
+                       logPartPtr.p->logPartNo,
 		       signal->theData[2], 
 		       signal->theData[3], 
 		       signal->theData[4],
@@ -17780,7 +17780,7 @@ Dblqh::invalidateLogAfterLastGCI(Signal* signal)
         if (DEBUG_REDO)
         {
           ndbout_c("invalidateLogAfterLastGCI part: %u wrap from file 0 -> logLap: %u",
-                   logPartPtr.i, logPartPtr.p->logLap);
+                   logPartPtr.p->logPartNo, logPartPtr.p->logLap);
         }
       }
       
@@ -17839,7 +17839,7 @@ Dblqh::writeFileInInvalidate(Signal* signal, int stepPrev)
     if (DEBUG_REDO)
     {
       ndbout_c("invalidate part: %u open for write %u",
-               logPartPtr.i, logFilePtr.p->fileNo);
+               logPartPtr.p->logPartNo, logFilePtr.p->fileNo);
     }
     logFilePtr.p->logFileStatus =LogFileRecord::OPEN_SR_WRITE_INVALIDATE_PAGES;
     openFileRw(signal, logFilePtr);
@@ -17874,7 +17874,7 @@ Dblqh::invalidateCloseFile(Signal* signal,
     if (DEBUG_REDO)
     {
       ndbout_c("invalidate part: %u close %u(%u) state: %u (%u)",
-               logPartPtr.i,
+               logPartPtr.p->logPartNo,
                logFilePtr.p->fileNo,
                logFilePtr.i,
                (Uint32)status,
@@ -17894,7 +17894,7 @@ void Dblqh::readFileInInvalidate(Signal* signal, int stepNext)
   if (DEBUG_REDO)
   {
     ndbout_c("readFileInInvalidate part: %u file: %u stepNext: %u",
-             logPartPtr.i, logFilePtr.p->fileNo, stepNext);
+             logPartPtr.p->logPartNo, logFilePtr.p->fileNo, stepNext);
   }
 
   if (stepNext == 1)
@@ -17944,7 +17944,7 @@ void Dblqh::readFileInInvalidate(Signal* signal, int stepNext)
       if (DEBUG_REDO)
       {
         ndbout_c("readFileInInvalidate part: %u step: %u wrap to file 0 -> logLap: %u",
-                 logPartPtr.i, stepNext, logPartPtr.p->logLap);
+                 logPartPtr.p->logPartNo, stepNext, logPartPtr.p->logLap);
       }
     }
 
@@ -17955,7 +17955,7 @@ stepNext_2:
       if (DEBUG_REDO)
       {
         ndbout_c("invalidate part: %u step: %u open for read %u",
-                 logPartPtr.i, stepNext, logFilePtr.p->fileNo);
+                 logPartPtr.p->logPartNo, stepNext, logFilePtr.p->fileNo);
       }
       logFilePtr.p->logFileStatus =LogFileRecord::OPEN_SR_READ_INVALIDATE_PAGES;
       openFileRw(signal, logFilePtr);
@@ -18000,7 +18000,7 @@ stepNext_2:
       if (DEBUG_REDO)
       {
         ndbout_c("readFileInInvalidate part: %u step: %u wrap to file 0 -> logLap: %u",
-                 logPartPtr.i, stepNext, logPartPtr.p->logLap);
+                 logPartPtr.p->logPartNo, stepNext, logPartPtr.p->logLap);
       }
     }
 
@@ -18010,7 +18010,7 @@ stepNext_2:
       if (DEBUG_REDO)
       {
         ndbout_c("invalidate part: %u step: %u open for read %u",
-                 logPartPtr.i, stepNext, logFilePtr.p->fileNo);
+                 logPartPtr.p->logPartNo, stepNext, logFilePtr.p->fileNo);
       }
       logFilePtr.p->logFileStatus =
         LogFileRecord::OPEN_SR_READ_INVALIDATE_SEARCH_FILES;
@@ -18059,7 +18059,7 @@ stepNext_2:
       if (DEBUG_REDO)
       {
         ndbout_c("invalidateLogAfterLastGCI part: %u step: %u wrap from file 0 -> logLap: %u",
-                 logPartPtr.i, stepNext, logPartPtr.p->logLap);
+                 logPartPtr.p->logPartNo, stepNext, logPartPtr.p->logLap);
       }
     }
 
@@ -18091,7 +18091,7 @@ void Dblqh::exitFromInvalidate(Signal* signal)
   {
     jam();
     printf("exitFromInvalidate part: %u head file: %u page: %u open: ",
-           logPartPtr.i,
+           logPartPtr.p->logPartNo,
            logPartPtr.p->headFileNo,
            logPartPtr.p->headPageNo);
 
@@ -19085,7 +19085,7 @@ void Dblqh::completedLogPage(Signal* signal, Uint32 clpType, Uint32 place)
   {
     ndbout_c("writing %d pages at part: %u file: %u pos: %u",
              twlpNoPages,
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logFilePtr.p->fileNo,
              logFilePtr.p->filePosition);
   }
@@ -20278,7 +20278,7 @@ void Dblqh::readExecLog(Signal* signal)
   {
     ndbout_c("readExecLog %u page at part: %u file: %u pos: %u",
              lfoPtr.p->noPagesRw,
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logFilePtr.p->fileNo,
              logPartPtr.p->execSrStartPageNo);
   }
@@ -20349,7 +20349,7 @@ void Dblqh::readExecSr(Signal* signal)
   {
     ndbout_c("readExecSr %u page at part: %u file: %u pos: %u",
              8,
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logFilePtr.p->fileNo,
              tresPageid);
   }
@@ -20510,7 +20510,7 @@ void Dblqh::readSinglePage(Signal* signal, Uint32 pageNo)
   if (DEBUG_REDO)
   {
     ndbout_c("readSinglePage 1 page at part: %u file: %u pos: %u",
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logFilePtr.p->fileNo,
              pageNo);
   }
@@ -21043,7 +21043,7 @@ void Dblqh::writeCompletedGciLog(Signal* signal)
   {
     ndbout_c("writeCompletedGciLog gci: %u part: %u file: %u page: %u",
              cnewestCompletedGci,
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logFilePtr.p->fileNo,
              logFilePtr.p->currentFilepage);
   }
@@ -21090,7 +21090,7 @@ void Dblqh::writeDirty(Signal* signal, Uint32 place)
   if (DEBUG_REDO)
   {
     ndbout_c("writeDirty 1 page at part: %u file: %u pos: %u",
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logFilePtr.p->fileNo,
              logPartPtr.p->prevFilepage);
   }
@@ -21290,7 +21290,7 @@ void Dblqh::writeNextLog(Signal* signal)
       BaseString::snprintf(buf, sizeof(buf), 
                            "Head/Tail met in REDO log, logpart: %u"
                            " file: %u mbyte: %u state: %u tail-problem: %u",
-                           logPartPtr.i,
+                           logPartPtr.p->logPartNo,
                            logFilePtr.p->fileNo,
                            logFilePtr.p->currentMbyte,
                            logPartPtr.p->logPartState,
@@ -22327,7 +22327,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    for(Uint32 i = 0; i<4; i++)
+    for(Uint32 i = 0; i<clogPartFileSize; i++)
     {
       logPartPtr.i = i;
       ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
@@ -22341,7 +22341,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
       Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
       ndbout_c("REDO part: %u HEAD: file: %u mbyte: %u TAIL: file: %u mbyte: %u total: %llu free: %llu (mb)",
-               i, 
+               logPartPtr.p->logPartNo, 
                head.m_file_no, head.m_mbyte,
                tail.m_file_no, tail.m_mbyte,
                total, mb);
