@@ -38,7 +38,17 @@ int main(int argc, const char** argv){          \
 int name##_test()
 
 /* tap.c needs my_print_stacktrace */
-#undef DONT_DEFINE_VOID // stacktrace.c turns off VOID redefinition if needed
+#ifdef DONT_DEFINE_VOID
+// stacktrace.c turns off VOID redefinition if needed
+#undef DONT_DEFINE_VOID
+#endif
+
+#ifdef HAVE_gcov
+// __gcov_flush need C linkage
+extern "C" void __gcov_flush(void);
+#endif
+
 #include <../../../mysys/stacktrace.c>
+
 
 #endif
