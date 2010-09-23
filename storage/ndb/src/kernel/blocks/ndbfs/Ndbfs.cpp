@@ -27,8 +27,6 @@
 #include "PosixAsyncFile.hpp"
 #endif
 
-#include "Filename.hpp"
-
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
@@ -42,7 +40,6 @@
 
 #include <RefConvert.hpp>
 #include <portlib/NdbDir.hpp>
-#include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <Configuration.hpp>
 

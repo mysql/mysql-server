@@ -16,11 +16,7 @@
  *
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
-#include <NdbMem.h>
+#include <ndb_global.h>
 
 /**
  * This is a casual hack to do static memory allocation
@@ -32,7 +28,9 @@
 #include "../../../../zlib/inflate.h"
 #include "../../../../zlib/deflate.h"
 
-#include "azlib.h"
+#include <util/azlib.h>
+
+#include <my_sys.h>
 
 #ifdef HAVE_VALGRIND
 #include <valgrind/memcheck.h>
@@ -109,6 +107,34 @@ void az_free(voidpf opaque, voidpf address)
     VALGRIND_MAKE_MEM_NOACCESS(r->mem,r->size);
 }
 
+#ifdef _WIN32
+/* Windows doesn't define ENOTSUP, define it same as Solaris */
+#define ENOTSUP 48
+#endif
+
+#ifndef HAVE_POSIX_MEMALIGN
+static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
+{
+#ifdef HAVE_MEMALIGN
+  /* Solaris 10 has memalign but not posix_memalign */
+  *memptr = memalign(alignment,size);
+  if(!*memptr)
+    return ENOMEM;
+  return 0;
+#else
+  /* But Darwin 7.9.0 doesn't have posix_memalign OR memalign */
+  (void)memptr;
+  (void)alignment;
+  (void)size;
+  return ENOTSUP; /* POSIX says we can return EINVAL or ENOMEM...
+                     but we cheat here and do ENOTSUP so that code
+                     elsewhere can work out if it can fall back to
+                     plain malloc() or not as we cannot reasonably do aligned
+                     memory allocation and free without leaking memory
+                  */
+#endif
+}
+#endif
 
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
