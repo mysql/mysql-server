@@ -24,6 +24,7 @@
 #include <NdbAutoPtr.hpp>
 #include <portlib/ndb_daemon.h>
 #include <portlib/NdbSleep.h>
+#include <portlib/NdbDir.hpp>
 
 #include <ConfigRetriever.hpp>
 
@@ -453,7 +454,12 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
 
   NdbConfig_SetPath(datadir);
 
-  my_setwd(NdbConfig_get_path(0), MYF(0));
+  if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
+  {
+    g_eventLogger->warning("Cannot change directory to '%s', error: %d",
+                           NdbConfig_get_path(NULL), errno);
+    // Ignore error
+  }
 
   return true;
 }
