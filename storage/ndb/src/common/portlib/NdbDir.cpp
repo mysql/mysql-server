@@ -199,11 +199,15 @@ mode_t NdbDir::o_x(void) { return IF_WIN(0, S_IXOTH); };
 
 
 bool
-NdbDir::create(const char *dir, mode_t mode)
+NdbDir::create(const char *dir, mode_t mode, bool ignore_existing)
 {
 #ifdef _WIN32
   if (CreateDirectory(dir, NULL) == 0)
   {
+    if (ignore_existing &&
+        GetLastError() == ERROR_ALREADY_EXISTS)
+      return true;
+
     fprintf(stderr,
             "Failed to create directory '%s', error: %d",
             dir, GetLastError());
@@ -212,6 +216,9 @@ NdbDir::create(const char *dir, mode_t mode)
 #else
   if (mkdir(dir, mode) != 0)
   {
+    if (ignore_existing && errno == EEXIST)
+      return true;
+
     fprintf(stderr,
             "Failed to create directory '%s', error: %d",
             dir, errno);
@@ -438,7 +445,7 @@ TAPTEST(DirIterator)
   CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
-  // Remove non exisiting directory
+  // Remove non existing directory
   fprintf(stderr, "Checking that proper error is returned when "
                   "opening non existing directory\n");
   CHECK(!NdbDir::remove_recursive(path));
@@ -460,6 +467,14 @@ TAPTEST(DirIterator)
   // Create directory with non default mode
   CHECK(NdbDir::create(path,
                        NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::o_r()));
+  CHECK(!gone(path));
+  CHECK(NdbDir::remove_recursive(path));
+  CHECK(gone(path));
+
+  // Create already existing directory
+  CHECK(NdbDir::create(path, NdbDir::u_rwx()));
+  CHECK(!gone(path));
+  CHECK(NdbDir::create(path, NdbDir::u_rwx(), true /* ignore existing!! */));
   CHECK(!gone(path));
   CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));

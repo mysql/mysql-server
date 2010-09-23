@@ -25,7 +25,6 @@
 extern "C" {
 #endif
 
-#define THREAD_CONTAINER_SIZE 128
 typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_HIGHEST,
   NDB_THREAD_PRIO_HIGH,
