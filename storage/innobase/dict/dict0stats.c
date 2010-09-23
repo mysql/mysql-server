@@ -831,13 +831,6 @@ dict_stats_analyze_index_below_pcur(
 
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
-#if 0
-	DEBUG_PRINTF("      %s(table=%s, index=%s, rec=%p, n_prefix=%lu)\n",
-		     __func__, index->table->name, index->name,
-		     btr_pcur_get_rec(pcur),
-		     n_prefix);
-#endif
-
 	heap = mem_heap_create(256);
 
 	root_height = btr_page_get_level(btr_root_get(index, mtr), mtr);
