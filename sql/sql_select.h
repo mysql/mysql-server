@@ -39,6 +39,7 @@
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
 #define KEY_OPTIMIZE_REF_OR_NULL	2
+#define KEY_OPTIMIZE_EQ	                4
 
 typedef struct keyuse_t {
   TABLE *table;
@@ -298,6 +299,8 @@ typedef struct st_join_table {
   */
   uint sj_strategy;
 
+  bool preread_init_done;
+
   void cleanup();
   inline bool is_using_loose_index_scan()
   {
@@ -369,6 +372,22 @@ typedef struct st_join_table {
       select->cond= new_cond;
     return tmp_select_cond;
   }
+  double scan_time()
+  {
+    double res;
+    if (table->created)
+    {
+      res= table->file->scan_time();
+      read_time=(ha_rows) res;
+    }
+    else
+    {
+      read_time= found_records ? found_records: 10;// TODO:fix this stub
+      res= (double)read_time;
+    }
+    return res;
+  }
+  bool preread_init();
 } JOIN_TAB;
 
 
@@ -1574,6 +1593,7 @@ public:
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
 
+
   Array<Item_in_subselect> sj_subselects;
 
   /* Temporary tables used to weed-out semi-join duplicates */
@@ -1724,6 +1744,7 @@ public:
   {
     return (table_map(1) << tables) - 1;
   }
+  void drop_unused_derived_keys();
   /* 
     Return the table for which an index scan can be used to satisfy 
     the sort order needed by the ORDER BY/(implicit) GROUP BY clause 
@@ -1769,7 +1790,7 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                                                       
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
-int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
+int opt_sum_query(List<TABLE_LIST> &tables, List<Item> &all_fields,COND *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
@@ -1999,7 +2020,7 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
 			ulonglong select_options, ha_rows rows_limit,
-			char* alias);
+                        char* alias, bool do_not_open=FALSE);
 void free_tmp_table(THD *thd, TABLE *entry);
 bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
                                          ENGINE_COLUMNDEF *start_recinfo,

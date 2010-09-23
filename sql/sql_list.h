@@ -168,6 +168,11 @@ public:
   {
     if (!list->is_empty())
     {
+      if (is_empty())
+      {
+        *this= *list;
+        return;
+      }
       *last= list->first;
       last= list->last;
       elements+= list->elements;
@@ -188,11 +193,13 @@ public:
     list_node *node= first;
     list_node *list_first= list->first;
     elements=0;
-    while (node && node != list_first)
+    while (node != list_first)
     {
       prev= &node->next;
       node= node->next;
       elements++;
+      if (node == &end_of_list)
+        return;
     }
     *prev= *last;
     last= prev;
