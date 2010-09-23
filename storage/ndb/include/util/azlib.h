@@ -35,9 +35,6 @@
 
 #include <zlib.h>
 
-#include "../../../../mysys/mysys_priv.h"
-#include <my_dir.h>
-
 #ifdef  __cplusplus
 extern "C" {
 #endif
