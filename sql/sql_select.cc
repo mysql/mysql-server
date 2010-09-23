@@ -7202,6 +7202,19 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
 {
   if (join_tab->cache)
   {
+    /* 
+      If there is a previous cache linked to this cache through the
+      next_cache pointer: remove the link. 
+    */
+    if (join_tab->cache->prev_cache)
+      join_tab->cache->prev_cache->next_cache= 0;
+    /*
+      No need to do the same for next_cache since cache denial is done
+      backwards starting from the latest cache in the linked list (see
+      revise_cache_usage()).
+    */
+    DBUG_ASSERT(!join_tab->cache->next_cache);
+
     join_tab->cache->free();
     join_tab->cache= 0;
   }
