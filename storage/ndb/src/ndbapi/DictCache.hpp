@@ -88,6 +88,8 @@ public:
     return chg_ref_count(impl, -1);
   }
 
+  void invalidateDb(const char * name, size_t len);
+
 public:
   enum Status {
     OK = 0,
