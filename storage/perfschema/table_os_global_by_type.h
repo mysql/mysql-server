@@ -13,12 +13,12 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef TABLE_EWS_GLOBAL_BY_EVENT_NAME_H
-#define TABLE_EWS_GLOBAL_BY_EVENT_NAME_H
+#ifndef TABLE_OBJECTS_SUMMARY_GLOBAL_BY_TYPE_H
+#define TABLE_OBJECTS_SUMMARY_GLOBAL_BY_TYPE_H
 
 /**
-  @file storage/perfschema/table_ews_global_by_event_name.h
-  Table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (declarations).
+  @file storage/perfschema/table_os_global_by_type.h
+  Table OBJECTS_SUMMARY_GLOBAL_BY_TYPE (declarations).
 */
 
 #include "pfs_column_types.h"
@@ -34,35 +34,41 @@
 
 /**
   A row of table
-  PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.
+  PERFORMANCE_SCHEMA.OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
 */
-struct row_ews_global_by_event_name
+struct row_os_global_by_type
 {
-  /** Column EVENT_NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column SCHEMA_NAME. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
+  /** Column OBJECT_NAME. */
+  char m_object_name[NAME_LEN];
+  /** Length in bytes of @c m_object_name. */
+  uint m_object_name_length;
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
   PFS_stat_row m_stat;
 };
 
 /**
   Position of a cursor on
-  PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.
-  Index 1 on instrument view
-  Index 2 on instrument class (1 based)
+  PERFORMANCE_SCHEMA.OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
+  Index 1 on object type
+  Index 2 on object instance (0 based)
 */
-struct pos_ews_global_by_event_name
-: public PFS_double_index, public PFS_instrument_view_constants
+struct pos_os_global_by_type : public PFS_double_index,
+                               public PFS_object_view_constants
 {
-  pos_ews_global_by_event_name()
-    : PFS_double_index(FIRST_VIEW, 1)
+  pos_os_global_by_type()
+    : PFS_double_index(FIRST_VIEW, 0)
   {}
 
   inline void reset(void)
   {
     m_index_1= FIRST_VIEW;
-    m_index_2= 1;
+    m_index_2= 0;
   }
 
   inline bool has_more_view(void)
@@ -71,17 +77,12 @@ struct pos_ews_global_by_event_name
   inline void next_view(void)
   {
     m_index_1++;
-    m_index_2= 1;
-  }
-
-  inline void next_instrument(void)
-  {
-    m_index_2++;
+    m_index_2= 0;
   }
 };
 
-/** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME. */
-class table_ews_global_by_event_name : public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.OBJECTS_SUMMARY_GLOBAL_BY_TYPE. */
+class table_os_global_by_type : public PFS_engine_table
 {
 public:
   /** Table share */
@@ -99,18 +100,14 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_ews_global_by_event_name();
+  table_os_global_by_type();
 
 public:
-  ~table_ews_global_by_event_name()
+  ~table_os_global_by_type()
   {}
 
 protected:
-  void make_mutex_row(PFS_mutex_class *klass);
-  void make_rwlock_row(PFS_rwlock_class *klass);
-  void make_cond_row(PFS_cond_class *klass);
-  void make_file_row(PFS_file_class *klass);
-  void make_table_io_row(PFS_instr_class *klass);
+  void make_row(PFS_table_share *table_share);
 
 private:
   /** Table share lock. */
@@ -119,14 +116,15 @@ private:
   static TABLE_FIELD_DEF m_field_def;
 
   /** Current row. */
-  row_ews_global_by_event_name m_row;
+  row_os_global_by_type m_row;
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
-  pos_ews_global_by_event_name m_pos;
+  pos_os_global_by_type m_pos;
   /** Next position. */
-  pos_ews_global_by_event_name m_next_pos;
+  pos_os_global_by_type m_next_pos;
 };
+
 
 /** @} */
 #endif

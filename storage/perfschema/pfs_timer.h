@@ -23,12 +23,40 @@
 #include <my_rdtsc.h>
 #include "pfs_column_types.h"
 
+struct time_normalizer
+{
+  static time_normalizer* get(enum_timer_name timer_name);
+
+  ulonglong m_v0;
+  ulonglong m_factor;
+
+  inline ulonglong wait_to_pico(ulonglong wait)
+  {
+    return wait * m_factor;
+  }
+
+  inline ulonglong time_to_pico(ulonglong t)
+  {
+    return (t == 0 ? 0 : (t - m_v0) * m_factor);
+  }
+
+  void to_pico(ulonglong start, ulonglong end,
+               ulonglong *pico_start, ulonglong *pico_end, ulonglong *pico_wait);
+};
+
 extern enum_timer_name wait_timer;
 extern MY_TIMER_INFO pfs_timer_info;
 
 void init_timers();
 
-ulonglong get_timer_value(enum_timer_name timer_name);
+extern "C"
+{
+  typedef ulonglong (*timer_fct_t)(void);
+}
+
+ulonglong get_timer_pico_value(enum_timer_name timer_name);
+ulonglong get_timer_raw_value_and_function(enum_timer_name timer_name, timer_fct_t *fct);
+
 
 #endif
 

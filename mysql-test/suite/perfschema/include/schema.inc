@@ -34,11 +34,13 @@ show create table FILE_INSTANCES;
 show create table FILE_SUMMARY_BY_EVENT_NAME;
 show create table FILE_SUMMARY_BY_INSTANCE;
 show create table MUTEX_INSTANCES;
+show create table OBJECTS_SUMMARY_GLOBAL_BY_TYPE;
 show create table PERFORMANCE_TIMERS;
 show create table RWLOCK_INSTANCES;
 show create table SETUP_ACTORS;
 show create table SETUP_CONSUMERS;
 show create table SETUP_INSTRUMENTS;
+show create table SETUP_OBJECTS;
 show create table SETUP_TIMERS;
 show create table THREADS;
 
