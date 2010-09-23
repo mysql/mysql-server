@@ -1517,7 +1517,7 @@ class Item_func_get_system_var :public Item_func
   longlong cached_llval;
   double cached_dval;
   String cached_strval;
-  my_bool cached_null_value;
+  bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
 

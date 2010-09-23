@@ -151,7 +151,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
-               show_warnings= 0, executing_query= 0, interrupted_query= 0,
+               show_warnings= 0, executing_query= 0,
                ignore_spaces= 0;
 static my_bool debug_info_flag, debug_check_flag, batch_abort_on_error;
 static my_bool column_types_flag;
@@ -162,6 +162,7 @@ static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
+static int interrupted_query= 0;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
@@ -3982,7 +3983,7 @@ static int
 com_connect(String *buffer, char *line)
 {
   char *tmp, buff[256];
-  bool save_rehash= opt_rehash;
+  my_bool save_rehash= opt_rehash;
   int error;
 
   bzero(buff, sizeof(buff));

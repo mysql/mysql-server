@@ -281,7 +281,7 @@ public:
   int
   close(THD *thd);
 
-  inline my_bool
+  inline bool
   is_open()
   {
     return test(server_side_cursor);

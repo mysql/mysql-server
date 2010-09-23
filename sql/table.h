@@ -793,7 +793,7 @@ struct st_table {
   /* number of select if it is derived table */
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
-  my_bool copy_blobs;			/* copy_blobs when storing */
+  bool copy_blobs;			/* copy_blobs when storing */
 
   /*
     0 or JOIN_TYPE_{LEFT|RIGHT}. Currently this is only compared to 0.
@@ -805,34 +805,34 @@ struct st_table {
     If true, the current table row is considered to have all columns set to 
     NULL, including columns declared as "not null" (see maybe_null).
   */
-  my_bool null_row;
+  bool null_row;
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily
     be put into one single unsigned long and instead of taking up 18
     bytes, it would take up 4.
   */
-  my_bool force_index;
+  bool force_index;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR ORDER BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_order;
+  bool force_index_order;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR GROUP BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_group;
-  my_bool distinct,const_table,no_rows;
+  bool force_index_group;
+  bool distinct,const_table,no_rows;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
      tree only.
    */
-  my_bool key_read;
-  my_bool no_keyread;
+  bool key_read;
+  bool no_keyread;
   /*
     Placeholder for an open table which prevents other connections
     from taking name-locks on this table. Typically used with
@@ -850,25 +850,25 @@ struct st_table {
     object associated with it (db_stat is always 0), but please do
     not rely on that.
   */
-  my_bool open_placeholder;
-  my_bool locked_by_logger;
-  my_bool no_replicate;
-  my_bool locked_by_name;
-  my_bool fulltext_searched;
-  my_bool no_cache;
+  bool open_placeholder;
+  bool locked_by_logger;
+  bool no_replicate;
+  bool locked_by_name;
+  bool fulltext_searched;
+  bool no_cache;
   /* To signal that the table is associated with a HANDLER statement */
-  my_bool open_by_handler;
+  bool open_by_handler;
   /*
     To indicate that a non-null value of the auto_increment field
     was provided by the user or retrieved from the current record.
     Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
   */
-  my_bool auto_increment_field_not_null;
-  my_bool insert_or_update;             /* Can be used by the handler */
-  my_bool alias_name_used;		/* true if table_name is alias */
-  my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  bool auto_increment_field_not_null;
+  bool insert_or_update;             /* Can be used by the handler */
+  bool alias_name_used;		/* true if table_name is alias */
+  bool get_fields_in_item_tree;      /* Signal to fix_field */
   /* If MERGE children attached to parent. See top comment in ha_myisammrg.cc */
-  my_bool children_attached;
+  bool children_attached;
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;

@@ -1284,7 +1284,7 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
   This is used for printing bit_fields as numbers while debugging.
 */
 
-String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
+String *Field::val_int_as_str(String *val_buffer, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   CHARSET_INFO *cs= &my_charset_bin;
@@ -6855,7 +6855,7 @@ int Field_string::do_save_field_metadata(uchar *metadata_ptr)
 */
 
 int Field_string::pack_cmp(const uchar *a, const uchar *b, uint length,
-                           my_bool insert_or_update)
+                           bool insert_or_update)
 {
   uint a_length, b_length;
   if (length > 255)
@@ -6893,7 +6893,7 @@ int Field_string::pack_cmp(const uchar *a, const uchar *b, uint length,
 */
 
 int Field_string::pack_cmp(const uchar *key, uint length,
-                           my_bool insert_or_update)
+                           bool insert_or_update)
 {
   uint row_length, local_key_length;
   uchar *end;
@@ -7372,7 +7372,7 @@ Field_varstring::unpack(uchar *to, const uchar *from,
 
 int Field_varstring::pack_cmp(const uchar *a, const uchar *b,
                               uint key_length_arg,
-                              my_bool insert_or_update)
+                              bool insert_or_update)
 {
   uint a_length, b_length;
   if (key_length_arg > 255)
@@ -7393,7 +7393,7 @@ int Field_varstring::pack_cmp(const uchar *a, const uchar *b,
 
 
 int Field_varstring::pack_cmp(const uchar *b, uint key_length_arg,
-                              my_bool insert_or_update)
+                              bool insert_or_update)
 {
   uchar *a= ptr+ length_bytes;
   uint a_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
@@ -8124,7 +8124,7 @@ const uchar *Field_blob::unpack(uchar *to,
 /* Keys for blobs are like keys on varchars */
 
 int Field_blob::pack_cmp(const uchar *a, const uchar *b, uint key_length_arg,
-                         my_bool insert_or_update)
+                         bool insert_or_update)
 {
   uint a_length, b_length;
   if (key_length_arg > 255)
@@ -8145,7 +8145,7 @@ int Field_blob::pack_cmp(const uchar *a, const uchar *b, uint key_length_arg,
 
 
 int Field_blob::pack_cmp(const uchar *b, uint key_length_arg,
-                         my_bool insert_or_update)
+                         bool insert_or_update)
 {
   uchar *a;
   uint a_length, b_length;
