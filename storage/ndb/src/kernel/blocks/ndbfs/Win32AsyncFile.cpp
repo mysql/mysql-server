@@ -17,15 +17,9 @@
 */
 
 #include <ndb_global.h>
-#include <my_sys.h>
-#include <my_pthread.h>
 
 #include "Win32AsyncFile.hpp"
 
-#include <ErrorHandlingMacros.hpp>
-#include <kernel_types.h>
-#include <ndbd_malloc.hpp>
-#include <NdbThread.h>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
