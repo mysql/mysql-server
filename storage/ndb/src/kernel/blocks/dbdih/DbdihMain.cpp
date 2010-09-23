@@ -17455,6 +17455,20 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     SET_ERROR_INSERT_VALUE2(7216, signal->theData[1]);
     return;
   }
+  DECLARE_DUMP0(DBDIH, 6099, "Start microgcp")
+  {
+    if (isMaster())
+    {
+      jam();
+      m_micro_gcp.m_master.m_start_time = 0;
+    }
+    else
+    {
+      jam();
+      sendSignal(cmasterdihref, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+    }
+    return;
+  }
 }//Dbdih::execDUMP_STATE_ORD()
 
 void

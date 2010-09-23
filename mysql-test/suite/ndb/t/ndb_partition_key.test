@@ -262,25 +262,25 @@ insert into nott1 values (1,2,6);
 insert into nott1 values (2,22,7);
 
 --echo All partitions scan
---source include/ndb_init_scan_counts.inc
+--source suite/ndb/include/ndb_init_scan_counts.inc
 select * from nott1 order by c;
---source include/ndb_scan_counts.inc
+--source suite/ndb/include/ndb_scan_counts.inc
 
 --echo Single partition scan
---source include/ndb_init_scan_counts.inc
+--source suite/ndb/include/ndb_init_scan_counts.inc
 select * from nott1 where a=0 order by c;
---source include/ndb_scan_counts.inc
+--source suite/ndb/include/ndb_scan_counts.inc
 
 --echo Single partition scan
---source include/ndb_init_scan_counts.inc
+--source suite/ndb/include/ndb_init_scan_counts.inc
 select * from nott1 where a=4 order by c;
---source include/ndb_scan_counts.inc
+--source suite/ndb/include/ndb_scan_counts.inc
 
 --echo MRR scan on one partition
---source include/ndb_init_scan_counts.inc
+--source suite/ndb/include/ndb_init_scan_counts.inc
 select * from nott1 where a=0 and (( b > 0 and b < 3) or 
                                    ( b > 5 and b < 10) or 
                                    ( b > 22 and b < 50)) order by c;
---source include/ndb_scan_counts.inc
+--source suite/ndb/include/ndb_scan_counts.inc
 
 drop table nott1;

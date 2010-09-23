@@ -19,12 +19,14 @@
 #ifndef _NDB_OPTS_H
 #define _NDB_OPTS_H
 
+#include <ndb_global.h>
+
+#include <my_sys.h> /* loglevel needed by my_getopt.h */
+#include <my_getopt.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <ndb_global.h>
-#include <my_sys.h>
-#include <my_getopt.h>
 
 #ifdef OPTEXPORT
 #define OPT_EXTERN(T,V,I) T V I
@@ -118,8 +120,7 @@ enum ndb_std_options {
   NDB_STD_OPTIONS_LAST
 };
 
-void ndb_opt_set_usage_funcs(const char* my_progname,
-                             void (*short_usage)(void),
+void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void));
 my_bool
 ndb_std_get_one_option(int optid,
@@ -128,7 +129,8 @@ ndb_std_get_one_option(int optid,
 
 void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
                struct my_option *my_long_options);
-void ndb_short_usage_sub(const char* my_progname, const char* extra);
+void ndb_short_usage_sub(const char* extra);
+
 
 
 #ifdef __cplusplus

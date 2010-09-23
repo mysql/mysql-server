@@ -1757,6 +1757,7 @@ Ndbcntr::wait_sp_rep(Signal* signal)
    * Check if we should allow someone to start...
    */
   Uint32 node = c_start.m_starting.find(0);
+  ndbrequire(node < NDB_ARRAY_SIZE(c_start.m_wait_sp));
   Uint32 min = c_start.m_wait_sp[node];
   for (; node != NdbNodeBitmask::NotFound;
        node = c_start.m_starting.find(node + 1))
@@ -2258,7 +2259,7 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
 
     DictFilegroupInfo::Filegroup fg; fg.init();
     BaseString::snprintf(fg.FilegroupName, sizeof(fg.FilegroupName),
-                         entry->name);
+                         "%s", entry->name);
     fg.FilegroupType = entry->type;
     if (entry->type == DictTabInfo::LogfileGroup)
     {
@@ -2303,7 +2304,7 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
     Uint32 propPage[256];
     LinearWriter w(propPage, 256);
     DictFilegroupInfo::File f; f.init();
-    BaseString::snprintf(f.FileName, sizeof(f.FileName), entry->name);
+    BaseString::snprintf(f.FileName, sizeof(f.FileName), "%s", entry->name);
     f.FileType = entry->type;
     f.FilegroupId = RNIL;
     f.FilegroupVersion = RNIL;
