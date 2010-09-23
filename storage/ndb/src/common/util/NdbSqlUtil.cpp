@@ -17,8 +17,8 @@
 */
 
 #include <NdbSqlUtil.hpp>
-#include <NdbOut.hpp>
 #include <my_sys.h>
+#include <ndb_version.h>
 
 /*
  * Data types.  The entries must be in the numerical order.
@@ -1139,6 +1139,25 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
   return false;
 }
 
+
+size_t
+NdbSqlUtil::ndb_strnxfrm(struct charset_info_st * cs,
+                         uchar *dst, size_t dstlen,
+                         const uchar *src, size_t srclen)
+{
+#if NDB_MYSQL_VERSION_D < NDB_MAKE_VERSION(5,6,0)
+  return (*cs->coll->strnxfrm)(cs, dst, dstlen, src, srclen);
+#else
+  /*
+    strnxfrm has got two new parameters in 5.6, we are using the
+    defaults for those and can thus easily calculate them from
+    existing params
+  */
+  return  (*cs->coll->strnxfrm)(cs, dst, dstlen, dstlen,
+                                src, srclen, MY_STRXFRM_PAD_WITH_SPACE);
+#endif
+}
+
 // workaround
 
 int
@@ -1155,13 +1174,13 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   if (n1 <= 0)
     return -1;
   // strxfrm to binary
-  int n2 = (*cs->coll->strnxfrm)(cs, xsp, sizeof(xsp), nsp, n1);
+  int n2 = ndb_strnxfrm(cs, xsp, sizeof(xsp), nsp, n1);
   if (n2 <= 0)
     return -1;
   // XXX bug workaround - strnxfrm may not write full string
   memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
-  int n3 = (*cs->coll->strnxfrm)(cs, dst, dstLen, src, srcLen);
+  int n3 = ndb_strnxfrm(cs, dst, dstLen, src, srcLen);
   // pad with strxfrm-ed space chars
   int n4 = n3;
   while (n4 < (int)dstLen) {

@@ -1831,8 +1831,9 @@ ConfigManager::run()
       }
 
       // Send CHECK_CONFIG to all nodes not yet checked
-      if (m_waiting_for.isclear() &&    // Nothing else ongoing
-          !m_checked.equal(m_started))  // Some nodes have not been checked
+      if (m_waiting_for.isclear() &&   // Nothing outstanding
+          m_prepared_config == 0 &&    //   and no config change ongoing
+          !m_checked.equal(m_started)) // Some nodes have not been checked
       {
         NodeBitmask not_checked;
         not_checked.assign(m_started);

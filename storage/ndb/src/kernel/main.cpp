@@ -95,7 +95,7 @@ const char *load_default_groups[]= { "mysql_cluster", "ndbd", 0 };
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(my_progname, NULL);
+  ndb_short_usage_sub(NULL);
   ndb_service_print_options("ndbd");
 }
 
@@ -133,14 +133,15 @@ real_main(int argc, char** argv)
   // Turn on max loglevel for startup messages
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
-  ndb_opt_set_usage_funcs("ndbd", short_usage_sub, usage);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndbd.trace";
 #endif
 
-  // Save the original arguments for angel
+  // Save the original program name and arguments for angel
+  const char* progname = argv[0];
   BaseString original_args;
   for (int i = 0; i < argc; i++)
     original_args.appfmt("%s ", argv[i]);
@@ -186,7 +187,8 @@ real_main(int argc, char** argv)
              opt_allocated_nodeid);
   }
 
-  angel_run(original_args,
+  angel_run(progname,
+            original_args,
             opt_ndb_connectstring,
             opt_ndb_nodeid,
             opt_bind_address,

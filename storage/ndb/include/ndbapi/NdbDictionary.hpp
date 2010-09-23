@@ -2508,6 +2508,7 @@ public:
     int dropIndexGlobal(const Index &index);
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
+    void invalidateDbGlobal(const char * dbname);
 #endif
 
     /*

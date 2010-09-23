@@ -17,7 +17,6 @@
 */
 
 #include <ndb_global.h>
-#include <my_sys.h>
 #include <mgmapi.h>
 #include <mgmapi_internal.h>
 
@@ -63,7 +62,9 @@ NdbLogEventHandle
 ndb_mgm_create_logevent_handle_same_socket(NdbMgmHandle mh)
 {
   NdbLogEventHandle h=
-    (NdbLogEventHandle)my_malloc(sizeof(ndb_logevent_handle),MYF(MY_WME));
+    (NdbLogEventHandle)malloc(sizeof(ndb_logevent_handle));
+  if (!h)
+    return NULL;
 
   h->socket= _ndb_mgm_get_socket(mh);
 
@@ -75,12 +76,17 @@ NdbLogEventHandle
 ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 			       const int filter[])
 {
+  NdbLogEventHandle h=
+    (NdbLogEventHandle)malloc(sizeof(ndb_logevent_handle));
+  if (!h)
+    return NULL;
+
   NDB_SOCKET_TYPE sock;
   if(ndb_mgm_listen_event_internal(mh, filter, 1, &sock) < 0)
+  {
+    free(h);
     return 0;
-
-  NdbLogEventHandle h=
-    (NdbLogEventHandle)my_malloc(sizeof(ndb_logevent_handle),MYF(MY_WME));
+  }
 
   h->socket= sock;
 
@@ -111,7 +117,7 @@ void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
   if ( *h )
     my_socket_close((*h)->socket);
 
-  my_free((char*)* h,MYF(MY_ALLOW_ZERO_PTR));
+  free(*h);
   * h = 0;
 }
 

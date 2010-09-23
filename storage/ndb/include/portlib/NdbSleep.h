@@ -19,25 +19,27 @@
 #ifndef NDBSLEEP_H
 #define NDBSLEEP_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #include <ndb_global.h>
-#include <my_sys.h>
 
-static inline void NdbSleep_MilliSleep(int milliseconds)
+static inline
+void NdbSleep_MilliSleep(int milliseconds)
 {
-  my_sleep(ulong(milliseconds)*1000UL);
+#ifdef _WIN32
+  Sleep(milliseconds);
+#elif defined(HAVE_SELECT)
+  struct timeval t;
+  t.tv_sec =  milliseconds / 1000L;
+  t.tv_usec = (milliseconds % 1000L) * 1000L;
+  select(0,0,0,0,&t);
+#else
+#error No suitable function found to implement millisecond sleep.
+#endif
 }
-static inline void NdbSleep_SecSleep(int seconds)
+
+static inline
+void NdbSleep_SecSleep(int seconds)
 {
   NdbSleep_MilliSleep(seconds*1000);
 }
-
-#ifdef	__cplusplus
-}
-#endif
-
 
 #endif

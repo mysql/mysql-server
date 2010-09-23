@@ -361,6 +361,36 @@ GlobalDictCache::invalidate_all()
 }
 
 void
+GlobalDictCache::invalidateDb(const char * name, size_t len)
+{
+  DBUG_ENTER("GlobalDictCache::invalidateDb");
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
+  while(curr != 0)
+  {
+    Vector<TableVersion> * vers = curr->theData;
+    if (vers->size())
+    {
+      TableVersion * ver = & vers->back();
+      if (ver->m_status != RETREIVING)
+      {
+        if (ver->m_impl->matchDb(name, len))
+        {
+          ver->m_impl->m_status = NdbDictionary::Object::Invalid;
+          ver->m_status = DROPPED;
+          if (ver->m_refCount == 0)
+          {
+            delete ver->m_impl;
+            vers->erase(vers->size() - 1);
+          }
+        }
+      }
+    }
+    curr = m_tableHash.getNext(curr);
+  }
+  DBUG_VOID_RETURN;
+}
+
+void
 GlobalDictCache::release(const NdbTableImpl * tab, int invalidate)
 {
   DBUG_ENTER("GlobalDictCache::release");

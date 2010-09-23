@@ -156,7 +156,7 @@ static struct my_option my_long_options[] =
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(my_progname, NULL);
+  ndb_short_usage_sub(NULL);
   ndb_service_print_options("ndb_mgmd");
 }
 
@@ -187,7 +187,7 @@ static int mgmd_main(int argc, char** argv)
 
   printf("MySQL Cluster Management Server %s\n", NDB_VERSION_STRING);
 
-  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
   load_defaults("my",load_default_groups,&argc,&argv);
   defaults_argv= argv; /* Must be freed by 'free_defaults' */

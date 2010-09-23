@@ -67,8 +67,8 @@ class HashMap {
   */
   static uchar* _get_key(const uchar* ptr,
                          size_t* key_length, my_bool first) {
-    Entry* entry = (Entry*)ptr;
-    const void* key_ptr = G((const void*)&entry->m_key, key_length);
+    const Entry * entry = reinterpret_cast<const Entry*>(ptr);
+    const void* key_ptr = G(&entry->m_key, key_length);
     return (uchar*)key_ptr;
   }
 
