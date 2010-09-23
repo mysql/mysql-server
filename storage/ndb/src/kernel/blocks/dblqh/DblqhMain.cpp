@@ -20288,7 +20288,7 @@ void Dblqh::writeNextLog(Signal* signal)
       logFilePtr.p->nextLogFile != logPartPtr.p->firstLogfile)
   {
     jam();
-    srand(time(0));
+    srand((int)time(0));
     Uint32 wait = 3 + (rand() % 5);
 
     suspendFile(signal, logFilePtr, /* forever */ 0);
