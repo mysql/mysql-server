@@ -1279,7 +1279,12 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
       continue;
     }
-
+    if (!is_lookup_operation(child_type) && !is_lookup_operation(access_type) && 
+         join_tab->get_join_type(join_parent) == AQP::JT_OUTER_JOIN )
+    {
+      DBUG_PRINT("info", ("Table %d is outer joined Scan-scan, not pushable (yet)", join_cnt));
+      continue;
+    }
     /**
      * If this is the first child in pushed join we need to define the 
      * parent operation first.
