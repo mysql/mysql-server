@@ -10680,7 +10680,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       temptable.
     */
     TABLE_REF *tab_ref;
-    if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
+    if (!(tab_ref= new (thd->mem_root) TABLE_REF))
       DBUG_RETURN(TRUE); /* purecov: inspected */
     tab_ref->key= 0; /* The only temp table index. */
     tab_ref->key_length= tmp_key->key_length;
@@ -10693,10 +10693,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
           (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
 
-    tab_ref->key_buff2=tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
-    tab_ref->key_err=1;
+    tab_ref->key_buff2= tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
     tab_ref->null_rejecting= 1;
-    tab_ref->disable_cache= FALSE;
 
     KEY_PART_INFO *cur_key_part= tmp_key->key_part;
     store_key **ref_key= tab_ref->key_copy;
@@ -10887,7 +10885,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     {
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
                                                          loosescan_key_len)))
-        return TRUE; /* purecov: inspected */
+        DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
@@ -10900,7 +10898,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
        tab[-1].next_select= sub_select_sjm;
 
       if (setup_sj_materialization(tab))
-        return TRUE;
+        DBUG_RETURN(TRUE);
     }
     switch (tab->type) {
     case JT_EQ_REF:

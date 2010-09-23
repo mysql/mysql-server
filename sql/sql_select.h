@@ -72,7 +72,7 @@ typedef struct keyuse_t {
 
 class store_key;
 
-typedef struct st_table_ref
+typedef struct st_table_ref : public Sql_alloc
 {
   bool		key_err;
   /** True if something was read into buffer in join_read_key.  */
@@ -115,6 +115,25 @@ typedef struct st_table_ref
     produce different results (because of Index Condition Pushdown)
   */
   bool          disable_cache;
+
+  st_table_ref()
+    : key_err(TRUE),
+      has_record(FALSE),
+      key_parts(0),
+      key_length(0),
+      key(-1),
+      key_buff(NULL),
+      key_buff2(NULL),
+      key_copy(NULL),
+      items(NULL),
+      cond_guards(NULL),
+      null_rejecting(0),
+      depend_map(0),
+      null_ref_key(NULL),
+      use_count(0),
+      disable_cache(FALSE)
+  {
+  }
 
   /**
     @returns whether the reference contains NULL values which could never give
