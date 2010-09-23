@@ -5828,7 +5828,7 @@ error:
 
 enum options_mysqld
 {
-  OPT_ISAM_LOG=256,            OPT_SKIP_NEW,
+  OPT_ISAM_LOG=256,
   OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
   OPT_SOCKET,                  OPT_UPDATE_LOG,
@@ -6799,8 +6799,6 @@ thread is in the relay logs.",
   {"skip-networking", OPT_SKIP_NETWORKING,
    "Don't allow connection with TCP/IP.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
 #ifdef SAFEMALLOC
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
@@ -8722,19 +8720,14 @@ mysqld_get_one_option(int optid,
       return 1;
 #endif
     break;
-  case (int) OPT_SKIP_NEW:
-    opt_specialflag|= SPECIAL_NO_NEW_FUNC;
+  case (int) OPT_SAFE:
+    opt_specialflag|= SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
+    myisam_recover_options= HA_RECOVER_DEFAULT;
     ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
 #ifdef HAVE_QUERY_CACHE
     query_cache_size=0;
 #endif
-    break;
-  case (int) OPT_SAFE:
-    opt_specialflag|= SPECIAL_SAFE_MODE;
-    delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
-    myisam_recover_options= HA_RECOVER_DEFAULT;
-    ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
