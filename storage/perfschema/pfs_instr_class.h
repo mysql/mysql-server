@@ -44,6 +44,8 @@
 #include "pfs_stat.h"
 #include "pfs_column_types.h"
 
+struct PFS_global_param;
+
 /**
   @addtogroup Performance_schema_buffers
   @{
@@ -60,6 +62,13 @@ typedef unsigned int PFS_file_key;
 
 struct PFS_thread;
 
+extern uint mutex_class_start;
+extern uint rwlock_class_start;
+extern uint cond_class_start;
+extern uint file_class_start;
+extern uint table_class_start;
+extern uint max_instrument_class;
+
 /** Information for all instrumentation. */
 struct PFS_instr_class
 {
@@ -73,18 +82,22 @@ struct PFS_instr_class
   bool m_enabled;
   /** True if this instrument is timed. */
   bool m_timed;
-  /** Wait statistics chain. */
-  PFS_single_stat_chain m_wait_stat;
+  /**
+    Instrument name index.
+    Self index in:
+    - EVENTS_WAITS_SUMMARY_*_BY_EVENT_NAME
+  */
+  uint m_event_name_index;
 };
 
 /** Instrumentation metadata for a MUTEX. */
 struct PFS_mutex_class : public PFS_instr_class
 {
   /**
-    Lock statistics chain.
+    Lock statistics.
     This statistic is not exposed in user visible tables yet.
   */
-  PFS_single_stat_chain m_lock_stat;
+  PFS_single_stat m_lock_stat;
   /** Self index in @c mutex_class_array. */
   uint m_index;
 };
@@ -93,15 +106,15 @@ struct PFS_mutex_class : public PFS_instr_class
 struct PFS_rwlock_class : public PFS_instr_class
 {
   /**
-    Read lock statistics chain.
+    Read lock statistics.
     This statistic is not exposed in user visible tables yet.
   */
-  PFS_single_stat_chain m_read_lock_stat;
+  PFS_single_stat m_read_lock_stat;
   /**
-    Write lock statistics chain.
+    Write lock statistics.
     This statistic is not exposed in user visible tables yet.
   */
-  PFS_single_stat_chain m_write_lock_stat;
+  PFS_single_stat m_write_lock_stat;
   /** Self index in @c rwlock_class_array. */
   uint m_index;
 };
@@ -143,6 +156,15 @@ struct PFS_table_share_key
   uint m_key_length;
 };
 
+/** Table index or 'key' */
+struct PFS_table_key
+{
+  /** Index name */
+  char m_name[NAME_LEN];
+  /** Length in bytes of @c m_name. */
+  uint m_name_length;
+};
+
 /** Instrumentation metadata for a table share. */
 struct PFS_table_share
 {
@@ -151,6 +173,8 @@ struct PFS_table_share
     return (enum_object_type) m_key.m_hash_key[0];
   }
 
+  /** Setup object refresh version. */
+  uint m_setup_objects_version;
   /** Internal lock. */
   pfs_lock m_lock;
   /** Search key. */
@@ -163,8 +187,6 @@ struct PFS_table_share
   const char *m_table_name;
   /** Length in bytes of @c m_table_name. */
   uint m_table_name_length;
-  /** Wait statistics chain. */
-  PFS_single_stat_chain m_wait_stat;
   /** True if this table instrument is enabled. */
   bool m_enabled;
   /** True if this table instrument is timed. */
@@ -172,14 +194,19 @@ struct PFS_table_share
   bool m_purge;
   /** Number of opened table handles. */
   uint m_refcount;
+  /** Table io statistics. */
+  PFS_table_stat m_table_stat;
+  /** Number of indexes. */
+  uint m_key_count;
+  /** Index names. */
+  PFS_table_key m_keys[MAX_KEY];
 };
 
 /**
-  Instrument controlling all tables.
-  This instrument is used as a default when there is no
-  entry present in SETUP_OBJECTS.
+  Instrument controlling all table io.
+  This instrument is used with table SETUP_OBJECTS.
 */
-extern PFS_instr_class global_table_class;
+extern PFS_instr_class global_table_io_class;
 
 /** Instrumentation metadata for a file. */
 struct PFS_file_class : public PFS_instr_class
@@ -189,6 +216,8 @@ struct PFS_file_class : public PFS_instr_class
   /** Self index in @c file_class_array. */
   uint m_index;
 };
+
+void init_event_name_sizing(const PFS_global_param *param);
 
 int init_sync_class(uint mutex_class_sizing,
                     uint rwlock_class_sizing,
@@ -229,10 +258,13 @@ PFS_thread_class *find_thread_class(PSI_thread_key key);
 PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe);
 PFS_file_class *find_file_class(PSI_file_key key);
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe);
+PFS_instr_class *find_table_class(uint index);
+PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
                                             const TABLE_SHARE *share);
+void release_table_share(PFS_table_share *pfs);
 void purge_table_share(PFS_thread *thread, PFS_table_share *pfs);
 void drop_table_share(PFS_thread *thread,
                       bool temporary,
@@ -255,7 +287,6 @@ extern ulong table_share_max;
 extern ulong table_share_lost;
 extern PFS_table_share *table_share_array;
 
-void reset_instrument_class_waits();
 void reset_file_class_io();
 
 /** @} */

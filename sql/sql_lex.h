@@ -763,7 +763,8 @@ public:
   inline st_select_lex* last_select() 
   { 
     st_select_lex* mylast= this;
-    for (; mylast->next_select(); mylast= mylast->next_select());
+    for (; mylast->next_select(); mylast= mylast->next_select())
+    {}
     return mylast; 
   }
 

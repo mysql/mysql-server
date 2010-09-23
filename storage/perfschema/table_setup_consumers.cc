@@ -24,7 +24,7 @@
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
 
-#define COUNT_SETUP_CONSUMERS 8
+#define COUNT_SETUP_CONSUMERS 5
 static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
 {
   {
@@ -40,24 +40,12 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
     &flag_events_waits_history_long
   },
   {
-    { C_STRING_WITH_LEN("events_waits_summary_by_thread_by_event_name") },
-    &flag_events_waits_summary_by_thread_by_event_name
+    { C_STRING_WITH_LEN("global_instrumentation") },
+    &flag_global_instrumentation
   },
   {
-    { C_STRING_WITH_LEN("events_waits_summary_by_event_name") },
-    &flag_events_waits_summary_by_event_name
-  },
-  {
-    { C_STRING_WITH_LEN("events_waits_summary_by_instance") },
-    &flag_events_waits_summary_by_instance
-  },
-  {
-    { C_STRING_WITH_LEN("file_summary_by_event_name") },
-    &flag_file_summary_by_event_name
-  },
-  {
-    { C_STRING_WITH_LEN("file_summary_by_instance") },
-    &flag_file_summary_by_instance
+    { C_STRING_WITH_LEN("thread_instrumentation") },
+    &flag_thread_instrumentation
   }
 };
 

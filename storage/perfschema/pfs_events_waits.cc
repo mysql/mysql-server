@@ -33,18 +33,10 @@ bool flag_events_waits_current= true;
 bool flag_events_waits_history= true;
 /** Consumer flag for table EVENTS_WAITS_HISTORY_LONG. */
 bool flag_events_waits_history_long= true;
-/** Consumer flag for table EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME. */
-bool flag_events_waits_summary_by_thread_by_event_name= true;
-/** Consumer flag for table EVENTS_WAITS_SUMMARY_BY_EVENT_NAME. */
-bool flag_events_waits_summary_by_event_name= true;
-/** Consumer flag for table EVENTS_WAITS_SUMMARY_BY_INSTANCE. */
-bool flag_events_waits_summary_by_instance= true;
-bool flag_events_locks_summary_by_event_name= true;
-bool flag_events_locks_summary_by_instance= true;
-/** Consumer flag for table FILE_SUMMARY_BY_EVENT_NAME. */
-bool flag_file_summary_by_event_name= true;
-/** Consumer flag for table FILE_SUMMARY_BY_INSTANCE. */
-bool flag_file_summary_by_instance= true;
+/** Consumer flag for the global instrumentation. */
+bool flag_global_instrumentation= true;
+/** Consumer flag for the per thread instrumentation. */
+bool flag_thread_instrumentation= true;
 
 /** True if EVENTS_WAITS_HISTORY_LONG circular buffer is full. */
 bool events_waits_history_long_full= false;
@@ -138,11 +130,11 @@ void reset_events_waits_current(void)
 
   for ( ; pfs_thread < pfs_thread_last; pfs_thread++)
   {
-    PFS_wait_locker *locker= pfs_thread->m_wait_locker_stack;
-    PFS_wait_locker *locker_last= locker + LOCKER_STACK_SIZE;
+    PFS_events_waits *pfs_wait= pfs_thread->m_events_waits_stack;
+    PFS_events_waits *pfs_wait_last= pfs_wait + WAIT_STACK_SIZE;
 
-    for ( ; locker < locker_last; locker++)
-      locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
+    for ( ; pfs_wait < pfs_wait_last; pfs_wait++)
+      pfs_wait->m_wait_class= NO_WAIT_CLASS;
   }
 }
 
