@@ -319,9 +319,9 @@ public:
   bool isSubScanComplete() const
   { return m_subScanComplete; }
 
-  /** Variant of isSubScanComplete() above which check that all descendant if 
-   * this resultstream has consumed all batches of rows instantiated from its
-   * parent operation(s). */
+  /** Variant of isSubScanComplete() above which check that this resultstream
+   * and all its descendants has consumed all batches of rows instantiated 
+   * from its parent operation(s). */
   bool isAllSubScansComplete() const;
 
   /** For debugging.*/
@@ -518,12 +518,13 @@ NdbResultStream::clearTupleSet()
 bool
 NdbResultStream::isAllSubScansComplete() const
 { 
+  if (!m_subScanComplete)
+    return false;
+
   for (Uint32 childNo = 0; childNo < m_operation.getNoOfChildOperations(); childNo++)
   {
     const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
     const NdbResultStream& childStream = child.getResultStream(getRootFragNo());
-    if (!childStream.m_subScanComplete)
-      return false;
     if (!childStream.isAllSubScansComplete())
       return false;
   }
@@ -746,7 +747,7 @@ NdbResultStream::handleBatchComplete()
     NdbResultStream& childStream = child.getResultStream(m_rootFragNo);
 
     const bool isInnerJoin = child.getQueryOperationDef().getMatchType() != NdbQueryOptions::MatchAll;
-    const bool allSubScansComplete = isAllSubScansComplete();
+    const bool allSubScansComplete = childStream.isAllSubScansComplete();
 
     for (Uint32 tupleNo=0; tupleNo<getRowCount(); tupleNo++)
     {
