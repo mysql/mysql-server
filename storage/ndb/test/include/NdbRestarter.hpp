@@ -94,6 +94,8 @@ public:
   int getMasterNodeVersion(int& version);
   int getNodeTypeVersionRange(ndb_mgm_node_type type, int& minVer, int& maxVer);
   
+  int getNodeStatus(int nodeId); // return NDB_MGM_NODE_STATUS_*
+
   NdbMgmHandle handle;  
 
   enum NodeSelector
