@@ -2736,6 +2736,10 @@ commit_and_return:
 /* tests @{ */
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
+/* The following unit tests test some of the functions in this file
+individually, such testing cannot be performed by the mysql-test framework
+via SQL. */
+
 /* test_dict_stats_table_check() @{ */
 void
 test_dict_stats_table_check()
