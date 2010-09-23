@@ -172,5 +172,12 @@ FsReadWriteReq::getPartialReadFlag(UintR opFlag){
   return (opFlag >> PARTIAL_READ_SHIFT) & 1;
 }
 
+struct FsSuspendOrd
+{
+  UintR filePointer;          // DATA 0
+  Uint32 milliseconds;
+
+  STATIC_CONST(SignalLength = 2);
+};
 
 #endif

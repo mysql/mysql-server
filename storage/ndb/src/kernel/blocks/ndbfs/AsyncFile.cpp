@@ -31,6 +31,10 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <Configuration.hpp>
+#include <NdbSleep.h>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 const char *actionName[] = {
   "open",
@@ -220,6 +224,23 @@ AsyncFile::run()
     case Request::buildindx:
       buildIndxReq(request);
       break;
+    case Request::suspend:
+    {
+      if (request->par.suspend.milliseconds)
+      {
+        g_eventLogger->debug("%s suspend: %u milliseconds",
+                             theFileName.c_str(),
+                             request->par.suspend.milliseconds);
+        NdbSleep_MilliSleep(request->par.suspend.milliseconds);
+      }
+      else
+      {
+        g_eventLogger->debug("%s suspend", theFileName.c_str());
+        endReq();
+        return;
+      }
+      continue;
+    }
     case Request:: end:
       if (isOpen())
         closeReq(request);
