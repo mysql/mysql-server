@@ -83,6 +83,7 @@ Ndbfs::Ndbfs(Block_context& ctx) :
   addRecSignal(GSN_SEND_PACKED, &Ndbfs::execSEND_PACKED, true);
   addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Ndbfs::execBUILD_INDX_IMPL_REQ);
    // Set send signals
+  addRecSignal(GSN_FSSUSPENDORD, &Ndbfs::execFSSUSPENDORD);
 
   theRequestPool = new Pool<Request>;
 }
@@ -790,6 +791,34 @@ Ndbfs::execFSSYNCREQ(Signal * signal)
   ndbrequire(forward(openFile,request));
 }
 
+/*
+ * PR0: File Pointer DR0: User reference DR1: User Pointer
+ */
+void
+Ndbfs::execFSSUSPENDORD(Signal * signal)
+{
+  jamEntry();
+  Uint16 filePointer =  (Uint16)signal->theData[0];
+  Uint32 millis = signal->theData[1];
+  AsyncFile* openFile = theOpenFiles.find(filePointer);
+
+  if (openFile == NULL)
+  {
+    jam(); //file not open
+    return;
+  }
+
+  Request *request = theRequestPool->get();
+  request->error = 0;
+  request->action = Request::suspend;
+  request->set(0, 0, filePointer);
+  request->file = openFile;
+  request->theTrace = signal->getTrace();
+  request->par.suspend.milliseconds = millis;
+
+  ndbrequire(forward(openFile,request));
+}
+
 void 
 Ndbfs::execFSAPPENDREQ(Signal * signal)
 {
@@ -1133,6 +1162,7 @@ Ndbfs::report(Request * request, Signal* signal)
     }
     
     case Request:: end: {
+    case Request:: suspend:
       // Report nothing
       break;
     }
@@ -1227,6 +1257,7 @@ Ndbfs::report(Request * request, Signal* signal)
       break;
     }
     case Request:: end: {
+    case Request:: suspend:
       // Report nothing
       break;
     }
