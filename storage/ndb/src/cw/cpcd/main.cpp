@@ -140,10 +140,10 @@ int main(int argc, char** argv){
   }
 
   if(strlen(work_dir) > 0){
-    int err;
     logger.debug("Changing dir to '%s'", work_dir);
-    if((err = my_setwd(work_dir, MYF(0))) != 0){
-      logger.error("Cannot change directory to '%s', terminating!", work_dir);
+    if(NdbDir::chdir(work_dir) != 0){
+      logger.error("Cannot change directory to '%s', error: %d, terminating!",
+                   work_dir, errno);
       exit(1);
     }
   }
