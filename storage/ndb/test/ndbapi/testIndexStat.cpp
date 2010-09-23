@@ -478,9 +478,9 @@ static void
 freekeys()
 {
   if (g_keys != 0)
-    my_free((char*)g_keys, MYF(0));
+    free(g_keys);
   if (g_sortkeys != 0)
-    my_free((char*)g_sortkeys, MYF(0));
+    free(g_sortkeys);
   g_keys = 0;
   g_sortkeys = 0;
 }
@@ -490,8 +490,8 @@ allockeys()
 {
   freekeys();
   size_t sz = sizeof(Key) * g_opts.rows;
-  g_keys = (Key*)my_malloc(sz, MYF(0));
-  g_sortkeys = (Key*)my_malloc(sz, MYF(0));
+  g_keys = (Key*)malloc(sz);
+  g_sortkeys = (Key*)malloc(sz);
   chkrc(g_keys != 0 && g_sortkeys != 0);
   memset(g_keys, 0x1f, sz);
   memset(g_sortkeys, 0x1f, sz);
@@ -979,7 +979,7 @@ static void
 freeranges()
 {
   if (g_ranges != 0)
-    my_free((char*)g_ranges, MYF(0));
+    free(g_ranges);
   g_ranges = 0;
 }
 
@@ -988,7 +988,7 @@ allocranges()
 {
   freeranges();
   size_t sz = sizeof(Range) * g_opts.ops;
-  g_ranges = (Range*)my_malloc(sz, MYF(0));
+  g_ranges = (Range*)malloc(sz);
   chkrc(g_ranges != 0);
   memset(g_ranges, 0x1f, sz);
   return 0;

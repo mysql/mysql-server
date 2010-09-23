@@ -25,8 +25,6 @@
 
 #include <kernel_types.h>
 #include "AsyncFile.hpp"
-#include "MemoryChannel.hpp"
-#include "Filename.hpp"
 
 class Win32AsyncFile : public AsyncFile
 {

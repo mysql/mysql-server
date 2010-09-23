@@ -433,11 +433,6 @@ inline ulonglong double2ulonglong(double d)
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1
 
-/* Windows doesn't define ENOTSUP, define it as the same as Solaris */
-#ifndef ENOTSUP
-#define ENOTSUP 48
-#endif
-
 #if _MSC_VER >= 1400   /* strtok_s is like strtok_r, but is new */
 #define HAVE_STRTOK_R
 #define strtok_r(A, B, C) strtok_s((A), (B), (C))
