@@ -39,7 +39,6 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
   m_ss(NULL),
   m_config_mutex(NULL),
   m_config(NULL),
-  m_new_config(NULL),
   m_config_retriever(opt_ndb_connectstring,
                      opt_ndb_nodeid,
                      NDB_VERSION,
@@ -47,8 +46,6 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
                      opts.bind_address),
   m_config_state(CS_UNINITIALIZED),
   m_previous_state(CS_UNINITIALIZED),
-  m_config_change_error(ConfigChangeRef::OK),
-  m_client_ref(RNIL),
   m_prepared_config(NULL),
   m_node_id(0),
   m_configdir(configdir)
@@ -59,7 +56,6 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
 ConfigManager::~ConfigManager()
 {
   delete m_config;
-  delete m_new_config;
   delete m_prepared_config;
   if (m_ss)
     delete m_ss;
@@ -361,44 +357,13 @@ ConfigManager::init(void)
       if (new_conf == NULL)
         DBUG_RETURN(false);
 
-
-      /* Copy the necessary values from old to new config */
-      if (!new_conf->setGeneration(m_config->getGeneration()))
-      {
-        g_eventLogger->error("Failed to copy generation from old config");
-        DBUG_RETURN(false);
-      }
-
-      if (!new_conf->setName(m_config->getName()))
-      {
-        g_eventLogger->error("Failed to copy name from old config");
-        DBUG_RETURN(false);
-      }
-
-      if (!new_conf->setPrimaryMgmNode(m_config->getPrimaryMgmNode()))
-      {
-        g_eventLogger->error("Failed to copy primary mgm node from old config");
-        DBUG_RETURN(false);
-      }
-
-      /* Check if config has changed */
-      if (!m_config->equal(new_conf))
-      {
-        /* Loaded config is different */
-        BaseString buf;
-        g_eventLogger->info("Detected change of %s on disk, will try to " \
-                            "set it when all ndb_mgmd(s) started. "     \
-                            "This is the actual diff:\n%s",
-                            m_opts.mycnf ? "my.cnf" : m_opts.config_filename,
-                            m_config->diff2str(new_conf, buf));
-        m_new_config= new_conf;
-      }
-      else
-      {
-        /* Loaded config was equal to current */
-        g_eventLogger->info("Config equal!");
-        delete new_conf;
-      }
+      /**
+       * Add config to set once ConfigManager is fully started
+       */
+      m_config_change.config_loaded(new_conf);
+      g_eventLogger->info("Loaded configuration from '%s', will try "   \
+                          "to set it once started",
+                          m_opts.mycnf ? "my.cnf" : m_opts.config_filename);
     }
   }
   else
@@ -429,10 +394,10 @@ ConfigManager::init(void)
       g_eventLogger->info("Got initial configuration from '%s', will try " \
                           "to set it when all ndb_mgmd(s) started",
                           m_opts.mycnf ? "my.cnf" : m_opts.config_filename);
-      m_new_config = new Config(conf); // Copy config
+      m_config_change.m_initial_config = new Config(conf); // Copy config
       m_config_state = CS_INITIAL;
 
-      if (!init_checkers(m_new_config))
+      if (!init_checkers(m_config_change.m_initial_config))
         DBUG_RETURN(false);
     }
     else
@@ -464,9 +429,9 @@ ConfigManager::init(void)
                             "Will try to set it when all ndb_mgmd(s) started",
                             m_config->getGeneration(), m_config->getName());
         m_config_state= CS_INITIAL;
-        m_new_config = new Config(conf); // Copy config
+        m_config_change.m_initial_config = new Config(conf); // Copy config
 
-        if (!init_checkers(m_new_config))
+        if (!init_checkers(m_config_change.m_initial_config))
           DBUG_RETURN(false);
       }
       else
@@ -802,31 +767,33 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
       new_generation = 1;
 
       // Check config is equal to our initial config
+      // but skip check if message is from self...
+      if (nodeId != refToNode(ss.getOwnRef()))
       {
         Config new_config_copy(&new_config);
         require(new_config_copy.setName(new_name));
         unsigned exclude[]= {CFG_SECTION_SYSTEM, 0};
-        if (!new_config_copy.equal(m_new_config, exclude))
+        if (!new_config_copy.equal(m_config_change.m_initial_config, exclude))
         {
           BaseString buf;
-          g_eventLogger->warning("Refusing to start initial config "    \
-                                 "change when nodes have different "    \
-                                 "config\n"                             \
-                                 "This is the actual diff:\n%s",
-                                 new_config_copy.diff2str(m_new_config, buf));
+          g_eventLogger->warning
+            ("Refusing to start initial config "                        \
+             "change when nodes have different "                        \
+             "config\n"                                                 \
+             "This is the actual diff:\n%s",
+             new_config_copy.diff2str(m_config_change.m_initial_config, buf));
           sendConfigChangeImplRef(ss, nodeId,
                                   ConfigChangeRef::DifferentInitial);
           return;
         }
+
+        /*
+          Scrap the new_config, it's been used to check that other node
+          started from equal initial config, now it's not needed anymore
+        */
+        delete m_config_change.m_initial_config;
+        m_config_change.m_initial_config = NULL;
       }
-
-      /*
-         Scrap the m_new_config, it's been used to check that other node
-         started from equal initial config, now it's not needed anymore
-      */
-      delete m_new_config;
-      m_new_config = NULL;
-
     }
     else
     {
@@ -936,7 +903,7 @@ void ConfigManager::set_config_change_state(ConfigChangeState::States state)
     m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
   }
 
-  m_config_change_state.m_current_state = state;
+  m_config_change.m_state.m_current_state = state;
 }
 
 
@@ -952,68 +919,27 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
                          nodeId, ref->errorCode);
 
   /* Remember the original error code */
-  if (m_config_change_error == 0)
-    m_config_change_error = (ConfigChangeRef::ErrorCode)ref->errorCode;
+  if (m_config_change.m_error == 0)
+    m_config_change.m_error = (ConfigChangeRef::ErrorCode)ref->errorCode;
 
-  switch(m_config_change_state){
-
+  switch(m_config_change.m_state){
+  case ConfigChangeState::ABORT:
   case ConfigChangeState::PREPARING:{
-    /* Got ref while preparing */
+    /* Got ref while preparing (or already decided to abort) */
+    m_config_change.m_contacted_nodes.clear(nodeId);
     set_config_change_state(ConfigChangeState::ABORT);
+
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
       return;
 
-    /* Abort all other nodes */
-    SimpleSignal ssig;
-    ConfigChangeImplReq* const req =
-      CAST_PTR(ConfigChangeImplReq, ssig.getDataPtrSend());
-    req->requestType = ConfigChangeImplReq::Abort;
-
-    g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(abort) to node %d",
-                         nodeId);
-    require(m_waiting_for.isclear());
-    m_waiting_for = ss.broadcastSignal(m_all_mgm, ssig,
-                                  MGM_CONFIG_MAN,
-                                  GSN_CONFIG_CHANGE_IMPL_REQ,
-                                  ConfigChangeImplReq::SignalLength);
-    if (m_waiting_for.isclear())
-      set_config_change_state(ConfigChangeState::IDLE);
-    else
-      set_config_change_state(ConfigChangeState::ABORTING);
+    startAbortConfigChange(ss);
     break;
   }
-
   case ConfigChangeState::COMITTING:
     /* Got ref while comitting, impossible */
     abort();
     break;
-
-  case ConfigChangeState::ABORT:{
-    /* Got ref(another) while already decided to abort */
-    m_waiting_for.clear(nodeId);
-    if (!m_waiting_for.isclear())
-      return;
-
-    /* Abort all other nodes */
-    SimpleSignal ssig;
-    ConfigChangeImplReq* const req =
-      CAST_PTR(ConfigChangeImplReq, ssig.getDataPtrSend());
-    req->requestType = ConfigChangeImplReq::Abort;
-
-    g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(abort) to node %d",
-                         nodeId);
-    require(m_waiting_for.isclear());
-    m_waiting_for = ss.broadcastSignal(m_all_mgm, ssig,
-                                  MGM_CONFIG_MAN,
-                                  GSN_CONFIG_CHANGE_IMPL_REQ,
-                                  ConfigChangeImplReq::SignalLength);
-    if (m_waiting_for.isclear())
-      set_config_change_state(ConfigChangeState::IDLE);
-    else
-      set_config_change_state(ConfigChangeState::ABORTING);
-    break;
-  }
 
   case ConfigChangeState::ABORTING:
     /* Got ref while aborting, impossible */
@@ -1036,12 +962,33 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     CAST_CONSTPTR(ConfigChangeImplConf, sig->getDataPtr());
   g_eventLogger->debug("Got CONFIG_CHANGE_IMPL_CONF from node %d", nodeId);
 
-  switch(m_config_change_state){
+  switch(m_config_change.m_state){
   case ConfigChangeState::PREPARING:{
     require(conf->requestType == ConfigChangeImplReq::Prepare);
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
       return;
+
+    // send to next
+    int res = sendConfigChangeImplReq(ss, m_config_change.m_new_config);
+    if (res > 0)
+    {
+      // sent to new node...
+      return;
+    }
+    else if (res < 0)
+    {
+      // send failed, start abort
+      startAbortConfigChange(ss);
+      return;
+    }
+
+    /**
+     * All node has received new config..
+     *   ok to delete it...
+     */
+    delete m_config_change.m_new_config;
+    m_config_change.m_new_config = 0;
 
     /* Send commit to all nodes */
     SimpleSignal ssig;
@@ -1052,10 +999,10 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
 
     g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(commit)");
     require(m_waiting_for.isclear());
-    m_waiting_for = ss.broadcastSignal(m_all_mgm, ssig,
-                                  MGM_CONFIG_MAN,
-                                  GSN_CONFIG_CHANGE_IMPL_REQ,
-                                  ConfigChangeImplReq::SignalLength);
+    m_waiting_for = ss.broadcastSignal(m_config_change.m_contacted_nodes, ssig,
+                                       MGM_CONFIG_MAN,
+                                       GSN_CONFIG_CHANGE_IMPL_REQ,
+                                       ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
       set_config_change_state(ConfigChangeState::IDLE);
     else
@@ -1070,9 +1017,9 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     if (!m_waiting_for.isclear())
       return;
 
-    require(m_client_ref != RNIL);
-    require(m_config_change_error == 0);
-    if (m_client_ref == ss.getOwnRef())
+    require(m_config_change.m_client_ref != RNIL);
+    require(m_config_change.m_error == 0);
+    if (m_config_change.m_client_ref == ss.getOwnRef())
     {
       g_eventLogger->info("Config change completed! New generation: %d",
                           m_config->getGeneration());
@@ -1080,9 +1027,9 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     else
     {
       /* Send CONF to requestor */
-      sendConfigChangeConf(ss, m_client_ref);
+      sendConfigChangeConf(ss, m_config_change.m_client_ref);
     }
-    m_client_ref = RNIL;
+    m_config_change.m_client_ref = RNIL;
     set_config_change_state(ConfigChangeState::IDLE);
     break;
   }
@@ -1092,22 +1039,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     if (!m_waiting_for.isclear())
       return;
 
-    /* Abort all other nodes */
-    SimpleSignal ssig;
-    ConfigChangeImplReq* const req =
-      CAST_PTR(ConfigChangeImplReq, ssig.getDataPtrSend());
-    req->requestType = ConfigChangeImplReq::Abort;
-
-    g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(abort)");
-    require(m_waiting_for.isclear());
-    m_waiting_for = ss.broadcastSignal(m_all_mgm, ssig,
-                                  MGM_CONFIG_MAN,
-                                  GSN_CONFIG_CHANGE_IMPL_REQ,
-                                  ConfigChangeImplReq::SignalLength);
-    if (m_waiting_for.isclear())
-      set_config_change_state(ConfigChangeState::IDLE);
-    else
-      set_config_change_state(ConfigChangeState::ABORTING);
+    startAbortConfigChange(ss);
     break;
   }
 
@@ -1116,24 +1048,24 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     if (!m_waiting_for.isclear())
       return;
 
-    require(m_client_ref != RNIL);
-    require(m_config_change_error);
-    if (m_client_ref == ss.getOwnRef())
+    require(m_config_change.m_client_ref != RNIL);
+    require(m_config_change.m_error);
+    if (m_config_change.m_client_ref == ss.getOwnRef())
     {
       g_eventLogger->
         error("Configuration change failed! error: %d '%s'",
-              m_config_change_error,
-              ConfigChangeRef::errorMessage(m_config_change_error));
+              m_config_change.m_error,
+              ConfigChangeRef::errorMessage(m_config_change.m_error));
       exit(1);
     }
     else
     {
       /* Send ref to the requestor */
-      sendConfigChangeRef(ss, m_client_ref,
-                          m_config_change_error);
+      sendConfigChangeRef(ss, m_config_change.m_client_ref,
+                          m_config_change.m_error);
     }
-    m_config_change_error= ConfigChangeRef::OK;
-    m_client_ref = RNIL;
+    m_config_change.m_error= ConfigChangeRef::OK;
+    m_config_change.m_client_ref = RNIL;
     set_config_change_state(ConfigChangeState::IDLE);
     break;
   }
@@ -1178,44 +1110,85 @@ ConfigManager::sendConfigChangeConf(SignalSender& ss, BlockReference to) const
 
 
 void
-ConfigManager::startInitConfigChange(SignalSender& ss)
+ConfigManager::startConfigChange(SignalSender& ss)
 {
-  require(m_config_state == CS_INITIAL);
-  g_eventLogger->info("Starting initial configuration change");
-  m_client_ref = ss.getOwnRef();
-  if (!sendConfigChangeImplReq(ss, m_new_config))
+  if (m_config_state == CS_INITIAL)
   {
-    g_eventLogger->error("Failed to start initial configuration change!");
-    exit(1);
+    g_eventLogger->info("Starting initial configuration change");
   }
-}
-
-
-void
-ConfigManager::startNewConfigChange(SignalSender& ss)
-{
-  require(m_config_state == CS_CONFIRMED);
-  g_eventLogger->info("Starting configuration change, generation: %d",
-                      m_new_config->getGeneration());
-  m_client_ref = ss.getOwnRef();
-  if (!sendConfigChangeImplReq(ss, m_new_config))
+  else
+  {
+    require(m_config_state == CS_CONFIRMED);
+    g_eventLogger->info("Starting configuration change, generation: %d",
+                        m_config_change.m_new_config->getGeneration());
+  }
+  m_config_change.m_contacted_nodes.clear();
+  m_config_change.m_client_ref = ss.getOwnRef();
+  if (sendConfigChangeImplReq(ss, m_config_change.m_new_config) <= 0)
   {
     g_eventLogger->error("Failed to start configuration change!");
     exit(1);
   }
-
-  /* The new config has been sent and can now be discarded */
-  delete m_new_config;
-  m_new_config = NULL;
 }
 
+void
+ConfigManager::startAbortConfigChange(SignalSender& ss)
+{
+  /* Abort all other nodes */
+  SimpleSignal ssig;
+  ConfigChangeImplReq* const req =
+    CAST_PTR(ConfigChangeImplReq, ssig.getDataPtrSend());
+  req->requestType = ConfigChangeImplReq::Abort;
 
-bool
+  g_eventLogger->debug
+    ("Sending CONFIG_CHANGE_IMPL_REQ(abort) to %s",
+     BaseString::getPrettyText(m_config_change.m_contacted_nodes).c_str());
+
+  require(m_waiting_for.isclear());
+  m_waiting_for = ss.broadcastSignal(m_config_change.m_contacted_nodes, ssig,
+                                     MGM_CONFIG_MAN,
+                                     GSN_CONFIG_CHANGE_IMPL_REQ,
+                                     ConfigChangeImplReq::SignalLength);
+  if (m_waiting_for.isclear())
+    set_config_change_state(ConfigChangeState::IDLE);
+  else
+    set_config_change_state(ConfigChangeState::ABORTING);
+
+  if (m_config_change.m_new_config)
+  {
+    delete m_config_change.m_new_config;
+    m_config_change.m_new_config = 0;
+  }
+}
+
+int
 ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
 {
-  require(m_client_ref != RNIL);
+  require(m_waiting_for.isclear());
+  require(m_config_change.m_client_ref != RNIL);
 
-  /* Send prepare to all MGM nodes */
+  if (m_config_change.m_contacted_nodes.isclear())
+  {
+    require(m_config_change.m_state == ConfigChangeState::IDLE);
+  }
+  else
+  {
+    require(m_config_change.m_state == ConfigChangeState::PREPARING);
+  }
+
+  set_config_change_state(ConfigChangeState::PREPARING);
+
+  NodeBitmask nodes = m_all_mgm;
+  nodes.bitANDC(m_config_change.m_contacted_nodes);
+  if (nodes.isclear())
+  {
+    return 0; // all done
+  }
+
+  /**
+   * Send prepare to all MGM nodes 1 by 1
+   *   keep track of which I sent to in m_contacted_nodes
+   */
   SimpleSignal ssig;
 
   UtilBuffer buf;
@@ -1230,54 +1203,24 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
   req->initial = (m_config_state == CS_INITIAL);
   req->length = buf.length();
 
-  require(m_waiting_for.isclear());
-  require(m_config_change_state == ConfigChangeState::IDLE);
-
-  g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare)");
-  unsigned i = 0;
-  while((i = m_all_mgm.find(i+1)) != NodeBitmask::NotFound)
+  Uint32 i = nodes.find(0);
+  g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare) to %u", i);
+  int result = ss.sendFragmentedSignal(i, ssig, MGM_CONFIG_MAN,
+                                       GSN_CONFIG_CHANGE_IMPL_REQ,
+                                       ConfigChangeImplReq::SignalLength);
+  if (result != 0)
   {
-    g_eventLogger->debug(" - to node %d", i);
-    int result =
-      ss.sendFragmentedSignal(i, ssig, MGM_CONFIG_MAN,
-                              GSN_CONFIG_CHANGE_IMPL_REQ,
-                              ConfigChangeImplReq::SignalLength);
-    if (result != 0)
-    {
-      g_eventLogger->warning("Failed to send configuration change "
-                             "prepare to node: %d, result: %d",
-                             i, result);
-      break;
-    }
-    ssig.header.m_noOfSections = 1; // reset by sendFragmentedSignal
-
-    m_waiting_for.set(i);
+    g_eventLogger->warning("Failed to send configuration change "
+                           "prepare to node: %d, result: %d",
+                           i, result);
+    return -1;
   }
 
-  if (!m_all_mgm.equal(m_waiting_for))
-  {
-    // Could not send prepare to all nodes
-    m_config_change_error = ConfigChangeRef::SendFailed;
-    if (!m_waiting_for.isclear())
-    {
-      // Some nodes got prepare, set state to
-      // abort and continue abort when result
-      // of prepare arrives
-      set_config_change_state(ConfigChangeState::ABORT);
-      return false;
-    }
+  m_waiting_for.set(i);
+  m_config_change.m_contacted_nodes.set(i);
 
-    // No node has got prepare
-    return false;
-  }
-
-  // Prepare has been sent to all mgm nodes
-  // continue and wait for prepare conf(s)
-  set_config_change_state(ConfigChangeState::PREPARING);
-  return true;
-
+  return 1;
 }
-
 
 void
 ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
@@ -1301,12 +1244,12 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
     return;
   }
 
-  if (m_config_change_state != ConfigChangeState::IDLE)
+  if (m_config_change.m_state != ConfigChangeState::IDLE)
   {
     sendConfigChangeRef(ss, from, ConfigChangeRef::ConfigChangeOnGoing);
     return;
   }
-  require(m_config_change_error == ConfigChangeRef::OK);
+  require(m_config_change.m_error == ConfigChangeRef::OK);
 
   if (sig->header.m_noOfSections != 1)
   {
@@ -1321,23 +1264,19 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
     return;
   }
 
-  Config new_config(cf.getConfigValues());
-  if (!config_ok(&new_config))
+  Config * new_config = new Config(cf.getConfigValues());
+  if (!config_ok(new_config))
   {
     g_eventLogger->warning("Refusing to start config change, the config "\
                            "is not ok");
     sendConfigChangeRef(ss, from, ConfigChangeRef::ConfigNotOk);
+    delete new_config;
     return;
   }
 
-  m_client_ref = from;
-  if (!sendConfigChangeImplReq(ss, &new_config))
-  {
-    assert(m_config_change_error);
-    sendConfigChangeRef(ss, from,
-                        m_config_change_error);
-    return;
-  }
+  m_config_change.m_client_ref = from;
+  m_config_change.m_new_config = new_config;
+  startConfigChange(ss);
 
   return;
 }
@@ -1691,8 +1630,8 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
       g_eventLogger->info("The fetched configuration has been saved!");
       m_waiting_for.clear(nodeId);
       m_checked.set(nodeId);
-      delete m_new_config;
-      m_new_config = NULL;
+      delete m_config_change.m_initial_config;
+      m_config_change.m_initial_config = NULL;
       return;
     }
     break;
@@ -1728,6 +1667,62 @@ ConfigManager::set_facade(TransporterFacade * f)
   require(m_ss != 0);
 }
 
+bool
+ConfigManager::ConfigChange::config_loaded(Config* config)
+{
+  if (m_loaded_config != 0)
+    return false;
+  m_loaded_config = config;
+  return true;
+}
+
+Config*
+ConfigManager::prepareLoadedConfig(Config * new_conf)
+{
+  /* Copy the necessary values from old to new config */
+  if (!new_conf->setGeneration(m_config->getGeneration()))
+  {
+    g_eventLogger->error("Failed to copy generation from old config");
+    delete new_conf;
+    return 0;
+  }
+
+  if (!new_conf->setName(m_config->getName()))
+  {
+    g_eventLogger->error("Failed to copy name from old config");
+    delete new_conf;
+    return 0;
+  }
+
+  if (!new_conf->setPrimaryMgmNode(m_config->getPrimaryMgmNode()))
+  {
+    g_eventLogger->error("Failed to copy primary mgm node from old config");
+    delete new_conf;
+    return 0;
+  }
+
+  /* Check if config has changed */
+  if (!m_config->equal(new_conf))
+  {
+    /* Loaded config is different */
+    BaseString buf;
+    g_eventLogger->info("Detected change of %s on disk, will try to "
+                        "set it. "
+                        "This is the actual diff:\n%s",
+                        m_opts.mycnf ? "my.cnf" : m_opts.config_filename,
+                        m_config->diff2str(new_conf, buf));
+
+    return new_conf;
+  }
+  else
+  {
+    /* Loaded config was equal to current */
+    g_eventLogger->info("Config equal!");
+    delete new_conf;
+  }
+  return 0;
+}
+
 void
 ConfigManager::run()
 {
@@ -1743,7 +1738,7 @@ ConfigManager::run()
 
     /* Confirm the present config, free the space that was allocated for a
        new one, and terminate the manager thread */
-    delete m_new_config; 
+    m_config_change.release();
     m_config_state = CS_CONFIRMED;
     ndbout_c("== ConfigManager disabled -- manager thread will exit ==");
     return;
@@ -1765,7 +1760,7 @@ ConfigManager::run()
   while (!is_stopped())
   {
 
-    if (m_config_change_state == ConfigChangeState::IDLE)
+    if (m_config_change.m_state == ConfigChangeState::IDLE)
     {
       bool print_state = false;
       if (m_previous_state != m_config_state)
@@ -1796,12 +1791,15 @@ ConfigManager::run()
         if (print_state)
           ndbout_c("==INITIAL==");
 
-        if (m_new_config &&                     // Updated config.ini was found
+        if (m_config_change.m_initial_config && // Updated config.ini was found
             m_started.equal(m_all_mgm) &&       // All mgmd started
             m_checked.equal(m_started) &&       // All nodes checked
             m_all_mgm.find(0) == m_facade->ownId()) // Lowest nodeid
         {
-            startInitConfigChange(ss);
+          Config* new_conf = m_config_change.m_initial_config;
+          m_config_change.m_initial_config = 0;
+          m_config_change.m_new_config = new_conf;
+          startConfigChange(ss);
         }
         break;
 
@@ -1809,11 +1807,21 @@ ConfigManager::run()
         if (print_state)
           ndbout_c("==CONFIRMED==");
 
-        if (m_new_config &&                 // Updated config.ini was found
+        if (m_config_change.m_loaded_config != 0 &&
+            m_config_change.m_new_config == 0    &&
+            m_started.equal(m_all_mgm)           &&
+            m_checked.equal(m_started))
+        {
+          Config* new_conf = m_config_change.m_loaded_config;
+          m_config_change.m_loaded_config = 0;
+          m_config_change.m_new_config = prepareLoadedConfig(new_conf);
+        }
+
+        if (m_config_change.m_new_config && // Updated config.ini was found
             m_started.equal(m_all_mgm) &&   // All mgmd started
             m_checked.equal(m_started))     // All nodes checked
         {
-          startNewConfigChange(ss);
+          startConfigChange(ss);
         }
 
         break;
@@ -1823,8 +1831,9 @@ ConfigManager::run()
       }
 
       // Send CHECK_CONFIG to all nodes not yet checked
-      if (m_waiting_for.isclear() &&    // Nothing else ongoing
-          !m_checked.equal(m_started))  // Some nodes have not been checked
+      if (m_waiting_for.isclear() &&   // Nothing outstanding
+          m_prepared_config == 0 &&    //   and no config change ongoing
+          !m_checked.equal(m_started)) // Some nodes have not been checked
       {
         NodeBitmask not_checked;
         not_checked.assign(m_started);
@@ -1870,7 +1879,7 @@ ConfigManager::run()
       m_checked.clear(nodeId);
       m_defragger.node_failed(nodeId);
 
-      if (m_config_change_state != ConfigChangeState::IDLE)
+      if (m_config_change.m_state != ConfigChangeState::IDLE)
       {
         g_eventLogger->info("Node %d failed during config change!!",
                             nodeId);
@@ -2205,7 +2214,7 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
     {
       error.assign("The cluster configuration is not yet confirmed "
                    "by all defined management servers. ");
-      if (m_config_change_state != ConfigChangeState::IDLE)
+      if (m_config_change.m_state != ConfigChangeState::IDLE)
       {
         error.append("Initial configuration change is in progress.");
       }

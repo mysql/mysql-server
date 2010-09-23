@@ -82,7 +82,7 @@ public:
   void * getPtr(Uint32 i);
 
 private:
-  void handle_invalid_release(Ptr<void>);
+  void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
 
   Record_info m_record_info;
   ArenaAllocator * m_allocator;

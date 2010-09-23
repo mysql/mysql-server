@@ -45,6 +45,7 @@
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/DbinfoScan.hpp>
 #include <NdbSleep.h>
+#include <portlib/NdbDir.hpp>
 #include <EventLogger.hpp>
 #include <DebuggerNames.hpp>
 #include <ndb_version.h>
@@ -594,8 +595,6 @@ MgmtSrvr::start()
 void
 MgmtSrvr::setClusterLog(const Config* config)
 {
-  g_eventLogger->close();
-
   DBUG_ASSERT(_ownNodeId);
 
   ConfigIter iter(config, CFG_SECTION_NODE);
@@ -605,7 +604,13 @@ MgmtSrvr::setClusterLog(const Config* config)
   const char *datadir;
   require(iter.get(CFG_NODE_DATADIR, &datadir) == 0);
   NdbConfig_SetPath(datadir);
-  my_setwd(NdbConfig_get_path(0), MYF(0));
+
+  if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
+  {
+    g_eventLogger->warning("Cannot change directory to '%s', error: %d",
+                           NdbConfig_get_path(NULL), errno);
+    // Ignore error
+  }
 
   // Get log destination from config
   BaseString logdest;
@@ -623,6 +628,8 @@ MgmtSrvr::setClusterLog(const Config* config)
     free(clusterLog);
     logdest_configured = false;
   }
+
+  g_eventLogger->close();
 
   int err= 0;
   char errStr[100]= {0};

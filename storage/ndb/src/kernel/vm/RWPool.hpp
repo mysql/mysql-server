@@ -59,8 +59,8 @@ public:
   STATIC_CONST( WORDS_PER_PAGE = RWPage::RWPAGE_WORDS );
 
 private:  
-  void handle_invalid_release(Ptr<void>);
-  void handle_invalid_get_ptr(Uint32 i);
+  void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
+  void handle_invalid_get_ptr(Uint32 i) ATTRIBUTE_NORETURN;
 };
 
 inline

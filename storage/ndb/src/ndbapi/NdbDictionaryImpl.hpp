@@ -181,6 +181,8 @@ public:
   const char * getMysqlName() const;
   int updateMysqlName();
 
+  bool matchDb(const char * name, size_t len) const;
+
   int aggregate(NdbError& error);
   int validate(NdbError& error);
 
@@ -658,7 +660,7 @@ public:
 			  LinearSectionPtr ptr[3],
 			  Uint32 noOfSections, bool fullyQualifiedNames);
 
-  int forceGCPWait();
+  int forceGCPWait(int type);
 
   static int parseTableInfo(NdbTableImpl ** dst, 
 			    const Uint32 * data, Uint32 len,
@@ -833,7 +835,7 @@ public:
   int executeSubscribeEvent(NdbEventOperationImpl &, Uint32 & buckets);
   int stopSubscribeEvent(NdbEventOperationImpl &);
 
-  int forceGCPWait();
+  int forceGCPWait(int type);
 
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);
@@ -1086,6 +1088,15 @@ const char *
 NdbTableImpl::getMysqlName() const
 {
   return m_mysqlName.c_str();
+}
+
+inline
+bool
+NdbTableImpl::matchDb(const char * name, size_t len) const
+{
+  return 
+    len < m_internalName.length() &&
+    memcmp(name, m_internalName.c_str(), len) == 0;
 }
 
 inline

@@ -19,11 +19,11 @@
 #ifndef MGMAPI_INTERNAL_H
 #define MGMAPI_INTERNAL_H
 
+#include <portlib/NdbTCP.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <NdbTCP.h>
 
   /**
    * Set an integer parameter for a connection

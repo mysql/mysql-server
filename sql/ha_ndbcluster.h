@@ -109,13 +109,17 @@ public:
 		 const NdbDictionary::Table *table) :
     dictionary(dict),
     old_table(table),
-    new_table(new NdbDictionary::Table(*table))
+    new_table(new NdbDictionary::Table(*table)),
+      table_id(table->getObjectId()),
+      old_table_version(table->getObjectVersion())
   {}
   ~NDB_ALTER_DATA()
   { delete new_table; }
   NdbDictionary::Dictionary *dictionary;
   const  NdbDictionary::Table *old_table;
   NdbDictionary::Table *new_table;
+  Uint32 table_id;
+  Uint32 old_table_version;
 };
 
 typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
@@ -541,7 +545,7 @@ static void set_tabname(const char *pathname, char *tabname);
     static member function as it needs to access private
     NdbTransaction methods
   */
-  static void release_completed_operations(Thd_ndb*, NdbTransaction*);
+  static void release_completed_operations(NdbTransaction*);
 
   /*
     Condition pushdown
@@ -624,7 +628,10 @@ static void set_tabname(const char *pathname, char *tabname);
                          HA_ALTER_INFO *alter_info,
                          HA_ALTER_FLAGS *alter_flags);
 
-  int alter_table_phase3(THD *thd, TABLE *table);
+  int alter_table_phase3(THD *thd, TABLE *table,
+                         HA_CREATE_INFO *create_info,
+                         HA_ALTER_INFO *alter_info,
+                         HA_ALTER_FLAGS *alter_flags);
 
 private:
 #ifdef HAVE_NDB_BINLOG

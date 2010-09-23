@@ -89,6 +89,11 @@ public:
   */
   static bool remove(const char* path);
 
+  /*
+    Change working directory
+  */
+  static int chdir(const char* path);
+
 };
 
 #endif

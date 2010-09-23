@@ -255,6 +255,11 @@ struct Tup_varsize_page
   Uint32 get_entry_chain(Uint32 page_idx) const {
     return get_index_word(page_idx) & CHAIN;
   }
+
+  bool is_free(Uint32 page_idx) const
+  {
+    return ((get_index_word(page_idx) & FREE) != 0) ? true : false;
+  }
 };
 
 NdbOut& operator<< (NdbOut& out, const Tup_varsize_page& page);

@@ -28,6 +28,7 @@
 #include <portlib/ndb_daemon.h>
 #include <NdbConfig.h>
 #include <NdbSleep.h>
+#include <portlib/NdbDir.hpp>
 #include <ndb_version.h>
 #include <mgmapi_config_parameters.h>
 #include <NdbAutoPtr.hpp>
@@ -156,7 +157,7 @@ static struct my_option my_long_options[] =
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(my_progname, NULL);
+  ndb_short_usage_sub(NULL);
   ndb_service_print_options("ndb_mgmd");
 }
 
@@ -187,7 +188,7 @@ static int mgmd_main(int argc, char** argv)
 
   printf("MySQL Cluster Management Server %s\n", NDB_VERSION_STRING);
 
-  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
   load_defaults("my",load_default_groups,&argc,&argv);
   defaults_argv= argv; /* Must be freed by 'free_defaults' */
@@ -267,7 +268,12 @@ static int mgmd_main(int argc, char** argv)
       mgmd_exit(1);
     }
 
-    my_setwd(NdbConfig_get_path(0), MYF(0));
+    if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
+    {
+      g_eventLogger->warning("Cannot change directory to '%s', error: %d",
+                             NdbConfig_get_path(NULL), errno);
+      // Ignore error
+    }
 
     if (opts.daemon)
     {
