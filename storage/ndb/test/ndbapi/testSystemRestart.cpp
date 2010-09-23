@@ -2348,7 +2348,7 @@ runBug54611(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
-runBugXXX(NDBT_Context* ctx, NDBT_Step* step)
+runBug56961(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
   Uint32 loops = ctx->getNumLoops();
@@ -2741,10 +2741,10 @@ TESTCASE("Bug54611", "")
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug54611);
 }
-TESTCASE("BugXXX", "")
+TESTCASE("Bug56961", "")
 {
   INITIALIZER(runLoadTable);
-  INITIALIZER(runBugXXX);
+  INITIALIZER(runBug56961);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 
