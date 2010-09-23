@@ -2639,7 +2639,9 @@ loop:
 	when there is database activity */
 
 	srv_last_log_flush_time = time(NULL);
-	next_itr_time = ut_time_ms();
+
+	/* Sleep for 1 second on entrying the for loop below the first time. */
+	next_itr_time = ut_time_ms() + 1000;
 
 	for (i = 0; i < 10; i++) {
 		ulint	cur_time = ut_time_ms();
