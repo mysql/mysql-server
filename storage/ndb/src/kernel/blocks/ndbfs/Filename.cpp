@@ -18,8 +18,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbOut.hpp>
-
 #include "Filename.hpp"
 #include "ErrorHandlingMacros.hpp"
 #include "RefConvert.hpp"

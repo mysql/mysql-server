@@ -67,8 +67,6 @@
 //                      T : item from the channel or zero if channel is empty.
 //
 
-#include "ErrorHandlingMacros.hpp"
-#include "CircularIndex.hpp"
 #include "NdbMutex.h"
 #include "NdbCondition.h"
 #include <NdbOut.hpp>
