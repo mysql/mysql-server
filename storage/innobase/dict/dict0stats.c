@@ -804,12 +804,12 @@ static
 ib_uint64_t
 dict_stats_analyze_index_below_pcur(
 /*================================*/
-	dict_index_t*	index,		/*!< in: index */
 	btr_pcur_t*	pcur,		/*!< in: cursor, not modified */
 	ulint		n_prefix,	/*!< in: look at the first n_prefix
 					columns when comparing records */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
+	dict_index_t*	index;
 	ulint		space;
 	ulint		zip_size;
 	buf_block_t*	block;
@@ -828,6 +828,8 @@ dict_stats_analyze_index_below_pcur(
 
 	rec_offs_init(offsets_onstack1);
 	rec_offs_init(offsets_onstack2);
+
+	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 #if 0
 	DEBUG_PRINTF("      %s(table=%s, index=%s, rec=%p, n_prefix=%lu)\n",
@@ -1210,7 +1212,7 @@ dict_stats_analyze_index_for_n_prefix(
 
 		n_diff_sum_of_all_analyzed_pages
 			+= dict_stats_analyze_index_below_pcur(
-				index, &pcur, n_prefix, &mtr);
+				&pcur, n_prefix, &mtr);
 	}
 
 	dict_index_stat_mutex_enter(index);
