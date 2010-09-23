@@ -147,7 +147,7 @@ void mysql_client_binlog_statement(THD* thd)
     Allocation
   */
 
-  int err;
+  int err= 0;
   Relay_log_info *rli;
   rli= thd->rli_fake;
   if (!rli && (rli= thd->rli_fake= new Relay_log_info(FALSE)))
@@ -264,8 +264,6 @@ void mysql_client_binlog_statement(THD* thd)
       */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
       err= ev->apply_event(rli);
-#else
-      err= 0;
 #endif
       /*
         Format_description_log_event should not be deleted because it

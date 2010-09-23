@@ -235,6 +235,12 @@ static Sys_var_charptr Sys_basedir(
        READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
        IN_FS_CHARSET, DEFAULT(0));
 
+static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
+{
+  check_binlog_cache_size(thd);
+  return false;
+}
+
 static Sys_var_ulong Sys_binlog_cache_size(
        "binlog_cache_size", "The size of the cache to "
        "hold the SQL statements for the binary log during a "
@@ -242,7 +248,9 @@ static Sys_var_ulong Sys_binlog_cache_size(
        "transactions you can increase this to get more performance",
        GLOBAL_VAR(binlog_cache_size),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
+       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_cache_size));
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
@@ -1055,7 +1063,9 @@ static Sys_var_ulonglong Sys_max_binlog_cache_size(
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
        DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
-       BLOCK_SIZE(IO_SIZE));
+       BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_cache_size));
 
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {

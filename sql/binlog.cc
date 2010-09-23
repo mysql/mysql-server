@@ -242,6 +242,32 @@ private:
   binlog_cache_mngr(const binlog_cache_mngr& info);
 };
 
+/**
+  Checks if the BINLOG_CACHE_SIZE's value is greater than MAX_BINLOG_CACHE_SIZE.
+  If this happens, the BINLOG_CACHE_SIZE is set to MAX_BINLOG_CACHE_SIZE.
+*/
+void check_binlog_cache_size(THD *thd)
+{
+  if (binlog_cache_size > max_binlog_cache_size)
+  {
+    if (thd)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
+                          ER(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
+                          (ulong) binlog_cache_size,
+                          (ulong) max_binlog_cache_size);
+    }
+    else
+    {
+      sql_print_warning(ER_DEFAULT(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
+                        (ulong) binlog_cache_size,
+                        (ulong) max_binlog_cache_size);
+    }
+    binlog_cache_size= max_binlog_cache_size;
+  }
+}
+
  /*
   Save position of binary log transaction cache.
 
@@ -3542,11 +3568,8 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
                                            const struct timespec *timeout)
 {
   int ret= 0;
-  const char* old_msg = thd->proc_info;
   DBUG_ENTER("wait_for_update_bin_log");
-  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           "Master has sent all binlog to slave; "
-                           "waiting for binlog to be updated");
+
   if (!timeout)
     mysql_cond_wait(&update_cond, &LOCK_log);
   else
