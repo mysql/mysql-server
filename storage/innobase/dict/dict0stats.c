@@ -798,17 +798,16 @@ dict_stats_analyze_index_level(
 Dive below the current position of a cursor and calculate the number of
 distinct records on the leaf page, when looking at the fist n_prefix
 columns. The result is returned in n_diff.
-dict_stats_analyze_index_below_pcur() @{ */
+dict_stats_analyze_index_below_pcur() @{
+@return number of distinct records on the leaf page */
 static
-void
+ib_uint64_t
 dict_stats_analyze_index_below_pcur(
 /*================================*/
 	dict_index_t*	index,		/*!< in: index */
 	btr_pcur_t*	pcur,		/*!< in: cursor, not modified */
 	ulint		n_prefix,	/*!< in: look at the first n_prefix
 					columns when comparing records */
-	ib_uint64_t*	n_diff,		/*!< out: number of distinct records
-					on the leaf page */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	ulint		space;
@@ -825,6 +824,7 @@ dict_stats_analyze_index_below_pcur(
 	ulint*		offsets_rec = offsets_onstack1;
 	ulint*		offsets_next_rec = offsets_onstack2;
 	ulint		root_height;
+	ib_uint64_t	n_diff; /* the result */
 
 	rec_offs_init(offsets_onstack1);
 	rec_offs_init(offsets_onstack2);
@@ -877,7 +877,7 @@ dict_stats_analyze_index_below_pcur(
 			ut_a(rec != supremum);
 		} else if (rec == supremum) {
 			/* the whole B-tree consists of a single empty page */
-			*n_diff = 0;
+			n_diff = 0;
 			goto end;
 		}
 
@@ -893,7 +893,7 @@ dict_stats_analyze_index_below_pcur(
 			if (next_rec == supremum) {
 				/* page has all boring keys, no need to
 				descend to the leaf level */
-				*n_diff = 1;
+				n_diff = 1;
 				goto end;
 			}
 			/* else */
@@ -958,14 +958,14 @@ dict_stats_analyze_index_below_pcur(
 		ut_a(rec != supremum);
 
 		/* start with 1 */
-		*n_diff = 1;
+		n_diff = 1;
 	} else if (rec == supremum) {
 		/* the whole B-tree consists of a single empty page */
-		*n_diff = 0;
+		n_diff = 0;
 		goto end;
 	} else {
 		/* the whole B-tree consists of a single non-empty page */
-		*n_diff = 1;
+		n_diff = 1;
 	}
 
 	offsets_rec = rec_get_offsets(rec, index, offsets_rec,
@@ -991,7 +991,7 @@ dict_stats_analyze_index_below_pcur(
 				       &matched_bytes);
 
 		if (matched_fields < n_prefix) {
-			(*n_diff)++;
+			n_diff++;
 		}
 
 		rec = next_rec;
@@ -1018,10 +1018,12 @@ dict_stats_analyze_index_below_pcur(
 end:
 #if 0
 	DEBUG_PRINTF("      %s(): n_diff below page_no=%lu: %llu\n",
-		     __func__, page_no, *n_diff);
+		     __func__, page_no, n_diff);
 #endif
 
 	mem_heap_free(heap);
+
+	return(n_diff);
 }
 /* @} */
 
@@ -1137,7 +1139,6 @@ dict_stats_analyze_index_for_n_prefix(
 		ib_uint64_t	right;
 		ulint		rnd;
 		ib_uint64_t	dive_below_idx;
-		ib_uint64_t	n_diff_on_leaf;
 
 		/* there are n_diff_for_this_prefix elements
 		in the array boundaries[] and we divide those elements
@@ -1207,10 +1208,9 @@ dict_stats_analyze_index_for_n_prefix(
 
 		ut_a(rec_idx == dive_below_idx);
 
-		dict_stats_analyze_index_below_pcur(index, &pcur, n_prefix,
-						    &n_diff_on_leaf, &mtr);
-
-		n_diff_sum_of_all_analyzed_pages += n_diff_on_leaf;
+		n_diff_sum_of_all_analyzed_pages
+			+= dict_stats_analyze_index_below_pcur(
+				index, &pcur, n_prefix, &mtr);
 	}
 
 	dict_index_stat_mutex_enter(index);
