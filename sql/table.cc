@@ -5169,13 +5169,13 @@ void st_table::mark_virtual_columns_for_write(void)
   @brief
   Allocate space for keys
 
-  @param key_count  number of keys to allocate.
+  @param key_count  number of keys to allocate
 
   @details
-  Allocate space enough to fit 'key_count' keys for this table.
+  The function allocates memory  to fit 'key_count' keys for this table.
 
-  @return FALSE space was successfully allocated.
-  @return TRUE an error occur.
+  @return FALSE   space was successfully allocated
+  @return TRUE    an error occur
 */
 
 bool TABLE::alloc_keys(uint key_count)
@@ -5196,12 +5196,12 @@ bool TABLE::alloc_keys(uint key_count)
   @param next_field_no  the call-back function that returns the number of
                         the field used as the next component of the key
   @param arg            the argument for the above function
-  @param unique         Is it unique index
+  @param unique         TRUE <=> it is a unique index
 
   @details
-  The function adds a new key to the table that is assumed to be
-  temprary table. The call-back function must at each call must return
-  the number of the field that used as next component of this key
+  The function adds a new key to the table that is assumed to be a temporary
+  table. At each its invocation the call-back function must return
+  the number of the field that is used as the next component of this key.
 
   @return FALSE is a success
   @return TRUE if a failure
