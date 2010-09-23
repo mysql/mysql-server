@@ -424,6 +424,7 @@ UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
 UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
 UNIV_INTERN ulint		srv_n_lock_max_wait_time	= 0;
 
+UNIV_INTERN ulint		srv_truncated_status_writes	= 0;
 
 /*
   Set the following to 0 if you want InnoDB to write messages on
@@ -2032,6 +2033,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
