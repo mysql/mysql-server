@@ -3613,6 +3613,22 @@ left join t1 as x3 on x3.b = x1.a
 join t1 as x2 on x2.pk = x1.a;
 count(*)
 12
+update t1 set b=b-10;
+update t1 set u=u+100;
+set ndb_join_pushdown=on;
+explain select count(*) from 
+(t1 as x join t1 as y on y.b = x.a)
+left outer join t1 as z on z.u = x.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	13	Parent of 3 pushed join@1
+1	SIMPLE	y	ref	ix1	ix1	5	test.x.a	1	Child of pushed join@1; Using where
+1	SIMPLE	z	eq_ref	ix2	ix2	4	test.y.b	1	Child of pushed join@1
+select count(*) from 
+(t1 as x join t1 as y on y.b = x.a)
+left outer join t1 as z on z.u = x.a;
+count(*)
+156
+update t1 set u=u-100;
 drop table t1;
 create table t1(
 d int not null,
@@ -3810,39 +3826,32 @@ and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
-LOCAL_TABLE_SCANS_SENT	192
+LOCAL_TABLE_SCANS_SENT	194
 PRUNED_RANGE_SCANS_RECEIVED	12
 RANGE_SCANS_RECEIVED	137
-READS_NOT_FOUND	385
+READS_NOT_FOUND	398
 READS_RECEIVED	48
-SCAN_ROWS_RETURNED	46714
-TABLE_SCANS_RECEIVED	192
+SCAN_ROWS_RETURNED	46883
+TABLE_SCANS_RECEIVED	194
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
 where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
 and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 LOCAL+REMOTE READS_SENT
-20075
-select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE RANGE_SCANS_SENT'
-       from spj_counts_at_end, spj_counts_at_startup 
-where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-and (spj_counts_at_end.counter_name = 'LOCAL_RANGE_SCANS_SENT'
-       or spj_counts_at_end.counter_name = 'REMOTE_RANGE_SCANS_SENT');
-LOCAL+REMOTE RANGE_SCANS_SENT
-361
+20088
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-1691
+1696
 pruned_scan_count
 7
 sorted_scan_count
 42
 pushed_queries_defined
-323
+325
 pushed_queries_dropped
 11
 pushed_queries_executed
-216
+217
 set ndb_join_pushdown = @save_ndb_join_pushdown;

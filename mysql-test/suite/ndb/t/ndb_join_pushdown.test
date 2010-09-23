@@ -2616,7 +2616,36 @@ select straight_join count(*) from t1 as x1
   left join t1 as x3 on x3.b = x1.a
   join t1 as x2 on x2.pk = x1.a;
 
+#Undo update
+update t1 set b=b-10;
+
+##############
+# Testcase for: http://lists.mysql.com/commits/118917
+# There used to be a bug in SPJ API resulthandling of incomplete
+# child batches where we tested for incomplete fetch for any 
+# childs (in a bushy scan) instead if this particular child batch
+# being incomplete.
+#
+# In this testcase (x inner join y) will have incomplete
+# childbatches, while (x left join z) will be complete. 
+
+# Modify rows to force NULL rows from lookup(z) below
+update t1 set u=u+100;
+
+set ndb_join_pushdown=on;
+explain select count(*) from 
+  (t1 as x join t1 as y on y.b = x.a)
+ left outer join t1 as z on z.u = x.a;
+select count(*) from 
+  (t1 as x join t1 as y on y.b = x.a)
+ left outer join t1 as z on z.u = x.a;
+
+#Undo update
+update t1 set u=u-100;
+
+##############
 drop table t1;
+
 
 #############################################
 # Test pruned index scan:
@@ -2728,11 +2757,11 @@ select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE R
        and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 
-select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE RANGE_SCANS_SENT'
-       from spj_counts_at_end, spj_counts_at_startup 
-       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-       and (spj_counts_at_end.counter_name = 'LOCAL_RANGE_SCANS_SENT'
-       or spj_counts_at_end.counter_name = 'REMOTE_RANGE_SCANS_SENT');
+#select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE RANGE_SCANS_SENT'
+#       from spj_counts_at_end, spj_counts_at_startup 
+#       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
+#       and (spj_counts_at_end.counter_name = 'LOCAL_RANGE_SCANS_SENT'
+#       or spj_counts_at_end.counter_name = 'REMOTE_RANGE_SCANS_SENT');
 
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
