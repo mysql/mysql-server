@@ -963,6 +963,9 @@ dict_stats_analyze_index_below_pcur(
 		/* the whole B-tree consists of a single empty page */
 		*n_diff = 0;
 		goto end;
+	} else {
+		/* the whole B-tree consists of a single non-empty page */
+		*n_diff = 1;
 	}
 
 	offsets_rec = rec_get_offsets(rec, index, offsets_rec,
