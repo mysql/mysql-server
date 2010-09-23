@@ -64,7 +64,8 @@ public:
     rmrf,
     readPartial,
     allocmem,
-    buildindx
+    buildindx,
+    suspend
   };
   Action action;
   union {
@@ -97,6 +98,9 @@ public:
     struct {
       struct mt_BuildIndxReq m_req;
     } build;
+    struct {
+      Uint32 milliseconds;
+    } suspend;
   } par;
   int error;
 
