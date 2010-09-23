@@ -8725,11 +8725,7 @@ mysqld_get_one_option(int optid,
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
-    myisam_concurrent_insert=0;
-    myisam_recover_options= HA_RECOVER_NONE;
-    sp_automatic_privileges=0;
-    my_use_symdir=0;
-    ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
+    ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
 #ifdef HAVE_QUERY_CACHE
     query_cache_size=0;
 #endif

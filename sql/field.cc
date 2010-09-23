@@ -6703,8 +6703,7 @@ void Field_string::sql_type(String &res) const
 
   length= cs->cset->snprintf(cs,(char*) res.ptr(),
                              res.alloced_length(), "%s(%d)",
-                             ((type() == MYSQL_TYPE_VAR_STRING &&
-                               !thd->variables.new_mode) ?
+                             (type() == MYSQL_TYPE_VAR_STRING ?
                               (has_charset() ? "varchar" : "varbinary") :
 			      (has_charset() ? "char" : "binary")),
                              (int) field_length / charset()->mbmaxlen);

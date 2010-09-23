@@ -6757,8 +6757,6 @@ cache_keys_spec:
           {
             Lex->select_lex.alloc_index_hints(YYTHD);
             Select->set_index_hint_type(INDEX_HINT_USE, 
-                                        global_system_variables.old_mode ? 
-                                        INDEX_HINT_MASK_JOIN : 
                                         INDEX_HINT_MASK_ALL);
           }
           cache_key_list_or_empty

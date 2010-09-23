@@ -4683,8 +4683,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       We could also do boyer-more for non-const items, but as we would have to
       recompute the tables for each row it's not worth it.
     */
-    if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
-       !(specialflag & SPECIAL_NO_NEW_FUNC))
+    if (args[1]->const_item() && !use_strnxfrm(collation.collation))
     {
       String* res2 = args[1]->val_str(&cmp.value2);
       if (!res2)
