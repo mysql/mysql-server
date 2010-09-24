@@ -468,6 +468,7 @@ public:
       m_ref = 0; 
       m_fragId = fid; 
       m_state = SFH_NOT_STARTED;
+      m_rangePtrI = RNIL;
       reset_ranges();
     }
 
@@ -478,7 +479,7 @@ public:
     Uint32 m_ref;
 
     void reset_ranges() {
-      m_rangePtrI = RNIL;
+      // m_rangePtrI is explicitly managed...in code
       m_range_builder.m_range_cnt = m_range_builder.m_range_size = 0;
     }
     struct RangeBuilder 
@@ -531,7 +532,8 @@ public:
     TreeNode()
     : m_magic(MAGIC), m_state(TN_END),
       m_parentPtrI(RNIL), m_requestPtrI(0)
-    {}
+    {
+    }
 
     TreeNode(Uint32 request)
     : m_magic(MAGIC),
@@ -543,7 +545,7 @@ public:
       m_send.m_correlation = 0;
       m_send.m_keyInfoPtrI = RNIL;
       m_send.m_attrInfoPtrI = RNIL;
-    };
+    }
 
     const Uint32 m_magic;
     const struct OpInfo* m_info;
@@ -1075,6 +1077,7 @@ private:
                              const struct KeyDescriptor* desc);
 
   Uint32 computeHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
+  Uint32 computePartitionHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
   Uint32 getNodes(Signal*, BuildKeyReq&, Uint32 tableId);
 
   /**
