@@ -634,14 +634,12 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 static int
 create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
 {
-  /* Append the part of thd->query before "DELAYED" keyword */
-  if (buf->append(thd->query(),
-                  thd->lex->keyword_delayed_begin - thd->query()))
+  /* Make a copy of thd->query() and then remove the "DELAYED" keyword */
+  if (buf->append(thd->query()) ||
+      buf->replace(thd->lex->keyword_delayed_begin_offset,
+                   thd->lex->keyword_delayed_end_offset -
+                   thd->lex->keyword_delayed_begin_offset, 0))
     return 1;
-  /* Append the part of thd->query after "DELAYED" keyword */
-  if (buf->append(thd->lex->keyword_delayed_begin + 7))
-    return 1;
-
   return 0;
 }
 
