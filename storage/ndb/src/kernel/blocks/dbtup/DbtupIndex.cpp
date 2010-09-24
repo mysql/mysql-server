@@ -75,10 +75,8 @@ Dbtup::tuxAllocNode(Uint8* jambase, Uint32 * jamidx,
   return 0;
 }
 
-#if 0
 void
-Dbtup::tuxFreeNode(Signal* signal,
-                   Uint32 fragPtrI,
+Dbtup::tuxFreeNode(Uint32 fragPtrI,
                    Uint32 pageId,
                    Uint32 pageOffset,
                    Uint32* node)
@@ -90,15 +88,19 @@ Dbtup::tuxFreeNode(Signal* signal,
   TablerecPtr tablePtr;
   tablePtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
+  Local_key key;
+  key.m_page_no = pageId;
+  key.m_page_idx = pageOffset;
   PagePtr pagePtr;
-  pagePtr.i= pageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+  Tuple_header* ptr = (Tuple_header*)get_ptr(&pagePtr, &key, tablePtr.p);
+
   Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
   Uint32 attrDataOffset= AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
-  ndbrequire(node == &pagePtr.p->pageWord[pageOffset] + attrDataOffset);
-  freeTh(fragPtr.p, tablePtr.p, signal, pagePtr.p, pageOffset);
+  ndbrequire(node == (Uint32*)ptr + attrDataOffset);
+
+  free_fix_rec(fragPtr.p, tablePtr.p, &key, (Fix_page*)pagePtr.p);
 }
-#endif
 
 void
 Dbtup::tuxGetNode(Uint32 fragPtrI,
