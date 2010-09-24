@@ -31,9 +31,12 @@
 ** String functions
 *****************************************************************************/
 
-bool String::real_alloc(uint32 arg_length)
+bool String::real_alloc(uint32 length)
 {
-  arg_length=ALIGN_SIZE(arg_length+1);
+  uint32 arg_length= ALIGN_SIZE(length + 1);
+  DBUG_ASSERT(arg_length > length);
+  if (arg_length <= length)
+    return TRUE;                                 /* Overflow */
   str_length=0;
   if (Alloced_length < arg_length)
   {
@@ -56,6 +59,9 @@ bool String::real_alloc(uint32 arg_length)
 bool String::realloc(uint32 alloc_length)
 {
   uint32 len=ALIGN_SIZE(alloc_length+1);
+  DBUG_ASSERT(len > alloc_length);
+  if (len <= alloc_length)
+    return TRUE;                                 /* Overflow */
   if (Alloced_length < len)
   {
     char *new_ptr;

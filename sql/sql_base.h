@@ -71,6 +71,8 @@ enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
 
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 extern mysql_mutex_t LOCK_open;
+extern mysql_mutex_t LOCK_dd_owns_lock_open;
+extern uint dd_owns_lock_open;
 bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
