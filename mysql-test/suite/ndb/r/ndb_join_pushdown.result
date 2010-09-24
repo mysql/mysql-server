@@ -2967,6 +2967,13 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c;
 count(*)
 8988
+alter table t1 partition by key(a);
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
+count(*)
+8990
 drop table t1;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -3928,32 +3935,32 @@ and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
-LOCAL_TABLE_SCANS_SENT	190
-PRUNED_RANGE_SCANS_RECEIVED	12
+LOCAL_TABLE_SCANS_SENT	192
+PRUNED_RANGE_SCANS_RECEIVED	14
 RANGE_SCANS_RECEIVED	195
-READS_NOT_FOUND	398
+READS_NOT_FOUND	402
 READS_RECEIVED	48
-SCAN_ROWS_RETURNED	42579
-TABLE_SCANS_RECEIVED	190
+SCAN_ROWS_RETURNED	63563
+TABLE_SCANS_RECEIVED	192
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
 where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
 and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 LOCAL+REMOTE READS_SENT
-20088
+29082
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-1955
+1961
 pruned_scan_count
 7
 sorted_scan_count
 44
 pushed_queries_defined
-327
+328
 pushed_queries_dropped
 11
 pushed_queries_executed
-244
+245
 set ndb_join_pushdown = @save_ndb_join_pushdown;

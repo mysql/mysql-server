@@ -27,6 +27,7 @@
 #include <signaldata/AttrInfo.hpp>
 #include <Interpreter.hpp>
 #include <AttributeHeader.hpp>
+#include <AttributeDescriptor.hpp>
 #include <KeyDescriptor.hpp>
 #include <md5_hash.hpp>
 #include <signaldata/TcKeyConf.hpp>
@@ -3456,6 +3457,57 @@ Dbspj::computeHash(Signal* signal,
   }
 }
 
+/**
+ * This function differs from computeHash in that *ptrI*
+ * only contains partition key (packed) and not full primary key
+ */
+Uint32
+Dbspj::computePartitionHash(Signal* signal,
+                            BuildKeyReq& dst, Uint32 tableId, Uint32 ptrI)
+{
+  SegmentedSectionPtr ptr;
+  getSection(ptr, ptrI);
+
+  /* NOTE:  md5_hash below require 64-bit alignment
+   */
+  const Uint32 MAX_KEY_SIZE_IN_LONG_WORDS=
+    (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
+  Uint64 _space[MAX_KEY_SIZE_IN_LONG_WORDS];
+  Uint64 *tmp64 = _space;
+  Uint32 *tmp32 = (Uint32*)tmp64;
+  copy(tmp32, ptr);
+
+  const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
+  ndbrequire(desc != NULL);
+
+  bool need_xfrm = desc->hasCharAttr || desc->noOfVarKeys;
+  if (need_xfrm)
+  {
+    jam();
+    /**
+     * xfrm distribution key
+     */
+    Uint32 srcPos = 0;
+    Uint32 dstPos = 0;
+    Uint32 * src = tmp32;
+    Uint32 * dst = signal->theData+24;
+    for (Uint32 i = 0; i < desc->noOfKeyAttr; i++)
+    {
+      const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
+      if (AttributeDescriptor::getDKey(keyAttr.attributeDescriptor))
+      {
+        xfrm_attr(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
+                  src, srcPos, dst, dstPos,
+                  NDB_ARRAY_SIZE(signal->theData) - 24);
+      }
+    }
+    tmp64 = (Uint64*)dst;
+  }
+
+  md5_hash(dst.hashInfo, tmp64, ptr.sz);
+  return 0;
+}
+
 Uint32
 Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 {
@@ -4373,8 +4425,9 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     // but only parts in distribution key
 
     BuildKeyReq tmp;
-    Uint32 tableId = dst->tableId;
-    Uint32 err = computeHash(signal, tmp, tableId, data.m_constPrunePtrI);
+    Uint32 indexId = dst->tableId;
+    Uint32 tableId = g_key_descriptor_pool.getPtr(indexId)->primaryTableId;
+    Uint32 err = computePartitionHash(signal, tmp, tableId, data.m_constPrunePtrI);
     if (unlikely(err != 0))
       goto error;
 
@@ -4574,8 +4627,9 @@ Dbspj::scanIndex_parent_row(Signal* signal,
 
       BuildKeyReq tmp;
       ScanFragReq * dst = (ScanFragReq*)data.m_scanFragReq;
-      Uint32 tableId = dst->tableId;
-      err = computeHash(signal, tmp, tableId, pruneKeyPtrI);
+      Uint32 indexId = dst->tableId;
+      Uint32 tableId = g_key_descriptor_pool.getPtr(indexId)->primaryTableId;
+      err = computePartitionHash(signal, tmp, tableId, pruneKeyPtrI);
       releaseSection(pruneKeyPtrI); // see ^ TODO
       if (unlikely(err != 0))
       {
@@ -4601,7 +4655,6 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       {
         jam();
         fragPtr.p->m_ref = tmp.receiverRef;
-        data.m_frags_not_complete++;
       }
       else
       {
@@ -4621,10 +4674,15 @@ Dbspj::scanIndex_parent_row(Signal* signal,
        * and send to 1 or all resp.
        */
       list.first(fragPtr);
-      data.m_frags_not_complete++;
     }
     
     Uint32 ptrI = fragPtr.p->m_rangePtrI;
+    if (ptrI == RNIL)
+    {
+      jam();
+      data.m_frags_not_complete++;
+    }
+
     bool hasNull;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
@@ -4784,6 +4842,7 @@ Dbspj::scanIndex_send(Signal* signal,
     list.first(fragPtr);
     keyInfoPtrI = fragPtr.p->m_rangePtrI;
     ndbrequire(keyInfoPtrI != RNIL);
+    fragPtr.p->m_rangePtrI = RNIL;
   }
 
   Uint32 batchRange = 0;
@@ -4813,6 +4872,7 @@ Dbspj::scanIndex_send(Signal* signal,
         fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
         continue;
       }
+      fragPtr.p->m_rangePtrI = RNIL;
 
       /**
        * If we'll use sendSignal() and we need to send the attrInfo several
