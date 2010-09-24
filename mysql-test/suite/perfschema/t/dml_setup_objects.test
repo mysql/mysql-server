@@ -1,0 +1,109 @@
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_warnings
+drop table if exists test.SETUP_OBJECTS;
+--enable_warnings
+
+# Save the setup
+create table test.SETUP_OBJECTS as
+  select * from performance_schema.SETUP_OBJECTS;
+truncate table performance_schema.SETUP_OBJECTS;
+
+# Test
+
+select * from performance_schema.SETUP_OBJECTS;
+
+select * from performance_schema.SETUP_OBJECTS
+  order by object_type, object_schema, object_name;
+
+select * from performance_schema.SETUP_OBJECTS
+  where object_type = 'TABLE'
+  order by object_type, object_schema, object_name;
+
+select * from performance_schema.SETUP_OBJECTS
+  order by object_type, object_schema, object_name;
+
+--error ER_NO_REFERENCED_ROW_2
+insert into performance_schema.SETUP_OBJECTS
+  set object_type='ILLEGAL', object_schema='FOO', object_name='BAR',
+  timed='YES';
+
+insert into performance_schema.SETUP_OBJECTS
+  set object_type='TABLE', object_schema='FOO', object_name='BAR',
+  timed='YES';
+
+--replace_result '\'setup_objects' '\'SETUP_OBJECTS'
+--error ER_DUP_KEY
+insert into performance_schema.SETUP_OBJECTS
+  set object_type='TABLE', object_schema='FOO', object_name='BAR',
+  timed='NO';
+
+delete from performance_schema.SETUP_OBJECTS
+  where object_type='TABLE' and object_schema='FOO';
+
+select * from performance_schema.SETUP_OBJECTS
+  order by object_type, object_schema, object_name;
+
+insert into performance_schema.SETUP_OBJECTS
+  set object_type='TABLE', object_schema='FOO', object_name='BAR',
+  timed='YES';
+
+select * from performance_schema.SETUP_OBJECTS
+  order by object_type, object_schema, object_name;
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.SETUP_OBJECTS
+  set object_type='ILLEGAL';
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.SETUP_OBJECTS
+  set object_schema='ILLEGAL';
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.SETUP_OBJECTS
+  set object_name='ILLEGAL';
+
+update performance_schema.SETUP_OBJECTS
+  set timed='NO';
+
+select * from performance_schema.SETUP_OBJECTS
+  order by object_type, object_schema, object_name;
+
+update performance_schema.SETUP_OBJECTS
+  set timed='YES';
+
+delete from performance_schema.SETUP_OBJECTS
+  where object_type = 'TABLE';
+
+delete from performance_schema.SETUP_OBJECTS;
+
+LOCK TABLES performance_schema.SETUP_OBJECTS READ;
+UNLOCK TABLES;
+
+LOCK TABLES performance_schema.SETUP_OBJECTS WRITE;
+UNLOCK TABLES;
+
+# Restore the setup
+truncate table performance_schema.SETUP_OBJECTS;
+insert into performance_schema.SETUP_OBJECTS
+  select * from test.SETUP_OBJECTS;
+drop table test.SETUP_OBJECTS;
+

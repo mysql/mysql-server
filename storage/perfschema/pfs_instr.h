@@ -275,7 +275,11 @@ struct PFS_thread
 
 extern PFS_single_stat *global_instr_class_waits_array;
 
+PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
+PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
+PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
+PFS_file *sanitize_file(PFS_file *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();

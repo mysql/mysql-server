@@ -124,7 +124,6 @@ struct PFS_table_io_stat_row
   }
 };
 
-int object_type_to_enum(String *in, enum_object_type *out);
 void set_field_object_type(Field *f, enum_object_type object_type);
 
 /** @} */

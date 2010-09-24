@@ -243,19 +243,32 @@ void table_ews_global_by_event_name
   uint index= klass->m_event_name_index;
   PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
 
-  /* FIXME: improve singletons */
-  /* For all the mutex instances ... */
-  PFS_mutex *pfs= mutex_array;
-  PFS_mutex *pfs_last= mutex_array + mutex_max;
-  for ( ; pfs < pfs_last; pfs++)
+  if (klass->is_singleton())
   {
-    if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+    PFS_mutex *pfs= sanitize_mutex(klass->m_singleton);
+    if (likely(pfs != NULL))
     {
-      /*
-        If the instance belongs to this class,
-        aggregate the instance statistics.
-      */
-      cumulated_stat.aggregate(& pfs->m_wait_stat);
+      if (likely(pfs->m_lock.is_populated()))
+      {
+        cumulated_stat.aggregate(& pfs->m_wait_stat);
+      }
+    }
+  }
+  else
+  {
+    /* For all the mutex instances ... */
+    PFS_mutex *pfs= mutex_array;
+    PFS_mutex *pfs_last= mutex_array + mutex_max;
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      {
+        /*
+          If the instance belongs to this class,
+          aggregate the instance statistics.
+        */
+        cumulated_stat.aggregate(& pfs->m_wait_stat);
+      }
     }
   }
 
@@ -272,19 +285,32 @@ void table_ews_global_by_event_name
   uint index= klass->m_event_name_index;
   PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
 
-  /* FIXME: improve singletons */
-  /* For all the rwlock instances ... */
-  PFS_rwlock *pfs= rwlock_array;
-  PFS_rwlock *pfs_last= rwlock_array + rwlock_max;
-  for ( ; pfs < pfs_last; pfs++)
+  if (klass->is_singleton())
   {
-    if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+    PFS_rwlock *pfs= sanitize_rwlock(klass->m_singleton);
+    if (likely(pfs != NULL))
     {
-      /*
-        If the instance belongs to this class,
-        aggregate the instance statistics.
-      */
-      cumulated_stat.aggregate(& pfs->m_wait_stat);
+      if (likely(pfs->m_lock.is_populated()))
+      {
+        cumulated_stat.aggregate(& pfs->m_wait_stat);
+      }
+    }
+  }
+  else
+  {
+    /* For all the rwlock instances ... */
+    PFS_rwlock *pfs= rwlock_array;
+    PFS_rwlock *pfs_last= rwlock_array + rwlock_max;
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      {
+        /*
+          If the instance belongs to this class,
+          aggregate the instance statistics.
+        */
+        cumulated_stat.aggregate(& pfs->m_wait_stat);
+      }
     }
   }
 
@@ -301,19 +327,32 @@ void table_ews_global_by_event_name
   uint index= klass->m_event_name_index;
   PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
 
-  /* FIXME: improve singletons */
-  /* For all the cond instances ... */
-  PFS_cond *pfs= cond_array;
-  PFS_cond *pfs_last= cond_array + cond_max;
-  for ( ; pfs < pfs_last; pfs++)
+  if (klass->is_singleton())
   {
-    if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+    PFS_cond *pfs= sanitize_cond(klass->m_singleton);
+    if (likely(pfs != NULL))
     {
-      /*
-        If the instance belongs to this class,
-        aggregate the instance statistics.
-      */
-      cumulated_stat.aggregate(& pfs->m_wait_stat);
+      if (likely(pfs->m_lock.is_populated()))
+      {
+        cumulated_stat.aggregate(& pfs->m_wait_stat);
+      }
+    }
+  }
+  else
+  {
+    /* For all the cond instances ... */
+    PFS_cond *pfs= cond_array;
+    PFS_cond *pfs_last= cond_array + cond_max;
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      {
+        /*
+          If the instance belongs to this class,
+          aggregate the instance statistics.
+        */
+        cumulated_stat.aggregate(& pfs->m_wait_stat);
+      }
     }
   }
 
@@ -330,19 +369,32 @@ void table_ews_global_by_event_name
   uint index= klass->m_event_name_index;
   PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
 
-  /* FIXME: improve singletons */
-  /* For all the file instances ... */
-  PFS_file *pfs= file_array;
-  PFS_file *pfs_last= file_array + file_max;
-  for ( ; pfs < pfs_last; pfs++)
+  if (klass->is_singleton())
   {
-    if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+    PFS_file *pfs= sanitize_file(klass->m_singleton);
+    if (likely(pfs != NULL))
     {
-      /*
-        If the instance belongs to this class,
-        aggregate the instance statistics.
-      */
-      cumulated_stat.aggregate(& pfs->m_wait_stat);
+      if (likely(pfs->m_lock.is_populated()))
+      {
+        cumulated_stat.aggregate(& pfs->m_wait_stat);
+      }
+    }
+  }
+  else
+  {
+    /* For all the file instances ... */
+    PFS_file *pfs= file_array;
+    PFS_file *pfs_last= file_array + file_max;
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      {
+        /*
+          If the instance belongs to this class,
+          aggregate the instance statistics.
+        */
+        cumulated_stat.aggregate(& pfs->m_wait_stat);
+      }
     }
   }
 
@@ -374,7 +426,7 @@ void table_ews_global_by_event_name
       for (index= 0; index <= share->m_key_count; index++)
         cumulated_io_stat.aggregate(& share->m_table_stat.m_index_stat[index]);
 
-      /** Aggregate global stats */
+      /* Aggregate global stats */
       cumulated_io_stat.aggregate(& share->m_table_stat.m_index_stat[MAX_KEY]);
     }
   }
@@ -394,7 +446,7 @@ void table_ews_global_by_event_name
         for (index= 0; index <= safe_share->m_key_count; index++)
           cumulated_io_stat.aggregate(& table->m_table_stat.m_index_stat[index]);
 
-        /** Aggregate global stats */
+        /* Aggregate global stats */
         cumulated_io_stat.aggregate(& table->m_table_stat.m_index_stat[MAX_KEY]);
       }
     }

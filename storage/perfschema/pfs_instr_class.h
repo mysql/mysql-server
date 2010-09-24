@@ -88,7 +88,14 @@ struct PFS_instr_class
     - EVENTS_WAITS_SUMMARY_*_BY_EVENT_NAME
   */
   uint m_event_name_index;
+
+  bool is_singleton() const
+  {
+    return m_flags & PSI_FLAG_GLOBAL;
+  }
 };
+
+struct PFS_mutex;
 
 /** Instrumentation metadata for a MUTEX. */
 struct PFS_mutex_class : public PFS_instr_class
@@ -100,7 +107,11 @@ struct PFS_mutex_class : public PFS_instr_class
   PFS_single_stat m_lock_stat;
   /** Self index in @c mutex_class_array. */
   uint m_index;
+  /** Singleton instance. */
+  PFS_mutex *m_singleton;
 };
+
+struct PFS_rwlock;
 
 /** Instrumentation metadata for a RWLOCK. */
 struct PFS_rwlock_class : public PFS_instr_class
@@ -117,7 +128,11 @@ struct PFS_rwlock_class : public PFS_instr_class
   PFS_single_stat m_write_lock_stat;
   /** Self index in @c rwlock_class_array. */
   uint m_index;
+  /** Singleton instance. */
+  PFS_rwlock *m_singleton;
 };
+
+struct PFS_cond;
 
 /** Instrumentation metadata for a COND. */
 struct PFS_cond_class : public PFS_instr_class
@@ -129,6 +144,8 @@ struct PFS_cond_class : public PFS_instr_class
   PFS_cond_stat m_cond_stat;
   /** Self index in @c cond_class_array. */
   uint m_index;
+  /** Singleton instance. */
+  PFS_cond *m_singleton;
 };
 
 /** Instrumentation metadata of a thread. */
@@ -140,6 +157,8 @@ struct PFS_thread_class
   uint m_name_length;
   /** True if this thread instrument is enabled. */
   bool m_enabled;
+  /** Singleton instance. */
+  PFS_thread *m_singleton;
 };
 
 /** Key identifying a table share. */
@@ -208,6 +227,8 @@ struct PFS_table_share
 */
 extern PFS_instr_class global_table_io_class;
 
+struct PFS_file;
+
 /** Instrumentation metadata for a file. */
 struct PFS_file_class : public PFS_instr_class
 {
@@ -215,6 +236,8 @@ struct PFS_file_class : public PFS_instr_class
   PFS_file_stat m_file_stat;
   /** Self index in @c file_class_array. */
   uint m_index;
+  /** Singleton instance. */
+  PFS_file *m_singleton;
 };
 
 void init_event_name_sizing(const PFS_global_param *param);
