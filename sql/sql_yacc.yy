@@ -13245,6 +13245,13 @@ handler:
           handler_read_or_scan where_clause opt_limit_clause
           {
             Lex->expr_allows_subselect= TRUE;
+            /* Stored functions are not supported for HANDLER READ. */
+            if (Lex->uses_stored_routines())
+            {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                       "stored functions in HANDLER ... READ");
+              MYSQL_YYABORT;
+            }
           }
         ;
 
