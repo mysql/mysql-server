@@ -877,7 +877,7 @@ search:
   {
     version= setup_objects_version;
     lookup_setup_object(thread,
-                        (temporary ? OBJECT_TYPE_TEMPORARY_TABLE : OBJECT_TYPE_TABLE),
+                        OBJECT_TYPE_TABLE,
                         schema_name, schema_name_length,
                         table_name, table_name_length,
                         &enabled, &timed);
