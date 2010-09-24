@@ -980,6 +980,25 @@ NdbQueryBuilderImpl::contains(const NdbQueryOperationDefImpl* opDef)
 const NdbQueryDefImpl*
 NdbQueryBuilderImpl::prepare()
 {
+  /* Check if query is sorted and has multiple scan operations. This 
+   * combination is not implemented.
+   */
+  if (m_operations.size() > 0 && 
+      m_operations[0]->isScanOperation() &&
+      m_operations[0]->getOrdering() 
+        != NdbQueryOptions::ScanOrdering_unordered &&
+      m_operations[0]->getOrdering() != NdbQueryOptions::ScanOrdering_void)
+  {
+    for (Uint32 i = 1; i<m_operations.size(); i++)
+    {
+      if (m_operations[i]->isScanOperation())
+      {
+        setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
+        return NULL;
+      } 
+    }
+  }
+
   int error;
   NdbQueryDefImpl* def = new NdbQueryDefImpl(m_operations, m_operands, error);
   m_operations.clear();
@@ -2186,9 +2205,6 @@ NdbQueryIndexScanOperationDefImpl::appendBoundValue(
       appendedPattern |= DABits::NI_KEY_CONSTS;
       const NdbConstOperandImpl& constOp = *static_cast<const NdbConstOperandImpl*>(value);
      
-      // No of words needed for storing the constant data.
-      const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getSizeInBytes());
-
       // Build the AttributeHeader for const value
       // (AttributeId is later filled in by SPJ in Dbspj::scanIndex_fixupBound())
       AttributeHeader ah(0, constOp.getSizeInBytes());

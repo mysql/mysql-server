@@ -4505,6 +4505,22 @@ NdbQueryOperationImpl::setOrdering(NdbQueryOptions::ScanOrdering ordering)
     return -1;
   }
   
+  /* Check if query is sorted and has multiple scan operations. This 
+   * combination is not implemented.
+   */
+  if (ordering != NdbQueryOptions::ScanOrdering_unordered)
+  {
+    for (Uint32 i = 1; i < getQuery().getNoOfOperations(); i++)
+    {
+      if (getQuery().getQueryOperation(i).getQueryOperationDef()
+          .isScanOperation())
+      {
+        getQuery().setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
+        return -1;
+      }
+    }
+  }
+  
   m_ordering = ordering;
   return 0;
 } // NdbQueryOperationImpl::setOrdering()
