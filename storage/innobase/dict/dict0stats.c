@@ -239,6 +239,8 @@ typedef struct dict_stats_chk_table_struct	dict_stats_chk_table_t;
 
 /*********************************************************************//**
 Checks whether a table exists and whether it has the given structure.
+The table must have the same number of columns with the same names and
+types. The order of the columns does not matter.
 The caller must own the dictionary mutex.
 dict_stats_table_check() @{
 @return DB_SUCCESS if the table exists and contains the necessary columns */
