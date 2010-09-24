@@ -11,9 +11,12 @@ extern "C" {
 #endif
 
 int toku_set_checkpoint_period(CACHETABLE ct, u_int32_t new_period);
-u_int32_t toku_get_checkpoint_period(CACHETABLE ct);
 //Effect: Change [end checkpoint (n) - begin checkpoint (n+1)] delay to
 //        new_period seconds.  0 means disable.
+
+u_int32_t toku_get_checkpoint_period(CACHETABLE ct);
+u_int32_t toku_get_checkpoint_period_unlocked(CACHETABLE ct);
+
 
 /******
  *

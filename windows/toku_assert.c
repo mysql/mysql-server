@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
@@ -18,9 +19,9 @@ static void *backtrace_pointers[N_POINTERS];
 
 void (*do_assert_hook)(void) = NULL;
 
-void toku_do_assert_fail (const char* expr_as_string,const char *function,const char*file,int line)
+void toku_do_assert_fail (const char* expr_as_string,const char *function,const char*file,int line, int caller_errno)
 {
-	fprintf(stderr, "%s:%d %s: Assertion `%s' failed\n", file,line,function,expr_as_string);
+        fprintf(stderr, "%s:%d %s: Assertion `%s' failed (errno=%d)\n", file,line,function,expr_as_string, caller_errno);
 
 	// backtrace
 #if !TOKU_WINDOWS
@@ -52,8 +53,8 @@ void toku_do_assert_fail (const char* expr_as_string,const char *function,const 
 	abort();
 }
 
-void toku_do_assert(int expr,const char* expr_as_string,const char *function,const char*file,int line) {
+void toku_do_assert(int expr,const char* expr_as_string,const char *function,const char*file,int line, int caller_errno) {
     if (expr==0) {
-	toku_do_assert_fail(expr_as_string, function, file, line);
+      toku_do_assert_fail(expr_as_string, function, file, line, caller_errno);
     }
 }

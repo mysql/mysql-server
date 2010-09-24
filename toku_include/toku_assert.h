@@ -5,6 +5,7 @@
 /* It evaluates the argument and then calls a function  toku_do_assert() which takes all the hits for the branches not taken. */
 
 #include "c_dialects.h"
+#include "errno.h"
 
 C_BEGIN
 
@@ -12,8 +13,8 @@ C_BEGIN
 #error NDEBUG should not be set
 #endif
 
-void toku_do_assert_fail(const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
-void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/) __attribute__((__visibility__("default")));
+void toku_do_assert_fail(const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
+void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default")));
 
 // Define GCOV if you want to get test-coverage information that ignores the assert statements.
 // #define GCOV
@@ -21,9 +22,9 @@ void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const 
 extern void (*do_assert_hook)(void); // Set this to a function you want called after printing the assertion failure message but before calling abort().  By default this is NULL.
 
 #if defined(GCOV) || TOKU_WINDOWS
-#define assert(expr) toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__)
+#define assert(expr) toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__, errno)
 #else
-#define assert(expr) ((expr) ? (void)0 : toku_do_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__))
+#define assert(expr) ((expr) ? (void)0 : toku_do_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, errno))
 #endif
 
 #ifdef GCOV
