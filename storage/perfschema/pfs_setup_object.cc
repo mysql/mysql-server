@@ -279,6 +279,15 @@ void lookup_setup_object(PFS_thread *thread,
   PFS_setup_object *pfs;
   int i;
 
+  /*
+    The table io instrumentation uses "TABLE" and "TEMPORARY TABLE".
+    SETUP_OBJECT uses "TABLE" for both concepts.
+    There is no way to provide a different setup for:
+    - TABLE foo.bar
+    - TEMPORARY TABLE foo.bar
+  */
+  DBUG_ASSERT(object_type != OBJECT_TYPE_TEMPORARY_TABLE);
+
   LF_PINS* pins= get_setup_object_hash_pins(thread);
   if (unlikely(pins == NULL))
   {
@@ -305,7 +314,7 @@ void lookup_setup_object(PFS_thread *thread,
                            schema_name, schema_name_length, "%", 1);
       break;
     case 3:
-      /* Lookup OBJECT_TYPE + NULL + NULL in SETUP_OBJECTS */
+      /* Lookup OBJECT_TYPE + "%" + "%" in SETUP_OBJECTS */
       set_setup_object_key(&key, object_type, "%", 1, "%", 1);
       break;
     }

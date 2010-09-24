@@ -1196,9 +1196,6 @@ static void destroy_cond_v1(PSI_cond* cond)
 static PSI_table_share*
 get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
-  /* SETUP_OBJECTS does not allow to enable temporary tables. */
-  if (temporary)
-    return NULL;
   /* Do not instrument this table is all table instruments are disabled. */
   if (! global_table_io_class.m_enabled)
     return NULL;
@@ -1953,7 +1950,7 @@ get_thread_table_locker_v1(PSI_table_locker_state *state,
     /* Refresh the enabled and timed flags from SETUP_OBJECTS */
     share->m_setup_objects_version= setup_objects_version;
     lookup_setup_object(pfs_thread,
-                        share->get_object_type(),
+                        OBJECT_TYPE_TABLE, /* even for temporary tables */
                         share->m_schema_name,
                         share->m_schema_name_length,
                         share->m_table_name,
