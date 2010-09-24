@@ -4805,6 +4805,159 @@ dict_table_check_for_dup_indexes(
 }
 #endif /* UNIV_DEBUG */
 
+/*********************************************************************//**
+Checks whether a table exists and whether it has the given structure.
+The table must have the same number of columns with the same names and
+types. The order of the columns does not matter.
+The caller must own the dictionary mutex.
+dict_table_schema_check() @{
+@return DB_SUCCESS if the table exists and contains the necessary columns */
+UNIV_INTERN
+enum db_err
+dict_table_schema_check(
+/*====================*/
+	dict_table_schema_t*	req_schema,	/*!< in/out: required table
+						schema */
+	char*			errstr,		/*!< out: human readable error
+						text if FALSE is returned */
+	size_t			errstr_sz)	/*!< in: errstr size */
+{
+	dict_table_t*	table;
+	ulint		i;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	table = dict_table_get_low(req_schema->table_name);
+
+	if (table == NULL || table->ibd_file_missing) {
+		/* no such table or missing tablespace */
+
+		ut_snprintf(errstr, errstr_sz,
+			    "%s does not exist or its tablespace is missing.",
+			    req_schema->table_name);
+
+		return(DB_TABLE_NOT_FOUND);
+	}
+
+	if (table->n_def - DATA_N_SYS_COLS != req_schema->n_cols) {
+		/* the table has a different number of columns than
+		required */
+
+		ut_snprintf(errstr, errstr_sz,
+			    "%s has %d columns but should have %lu.",
+			    req_schema->table_name,
+			    table->n_def - DATA_N_SYS_COLS,
+			    req_schema->n_cols);
+
+		return(DB_ERROR);
+	}
+
+	/* For each column from req_schema->columns[] search
+	whether it is present in table->cols[].
+	The following algorithm is O(n_cols^2), but is optimized to
+	be O(n_cols) if the columns are in the same order in both arrays. */
+
+	for (i = 0; i < req_schema->n_cols; i++) {
+		ulint	j;
+
+		char	req_type[64];
+		char	actual_type[64];
+
+		/* check if i'th column is the same in both arrays */
+		if (innobase_strcasecmp(req_schema->columns[i].name,
+			       dict_table_get_col_name(table, i)) == 0) {
+
+			/* we found the column in table->cols[] quickly */
+			j = i;
+		} else {
+
+			/* columns in both arrays are not in the same order,
+			do a full scan of the second array */
+			for (j = 0; j < table->n_def; j++) {
+				const char*	name;
+
+				name = dict_table_get_col_name(table, j);
+
+				if (innobase_strcasecmp(name,
+					req_schema->columns[i].name) == 0) {
+
+					/* found the column on j'th
+					position */
+					break;
+				}
+			}
+
+			if (j == table->n_def) {
+
+				ut_snprintf(errstr, errstr_sz,
+					    "required column %s.%s not found.",
+					    req_schema->table_name,
+					    req_schema->columns[i].name);
+
+				return(DB_ERROR);
+			}
+		}
+
+		/* we found a column with the same name on j'th position,
+		compare column types and flags */
+
+		dtype_sql_name(req_schema->columns[i].mtype,
+			       req_schema->columns[i].prtype_mask,
+			       req_schema->columns[i].len,
+			       req_type, sizeof(req_type));
+
+		dtype_sql_name(table->cols[j].mtype,
+			       table->cols[j].prtype,
+			       table->cols[j].len,
+			       actual_type, sizeof(actual_type));
+
+		/* check length for exact match */
+		if (req_schema->columns[i].len != table->cols[j].len) {
+
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(length mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
+
+			return(DB_ERROR);
+		}
+
+		/* check mtype for exact match */
+		if (req_schema->columns[i].mtype != table->cols[j].mtype) {
+
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(type mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
+
+			return(DB_ERROR);
+		}
+
+		/* check whether required prtype mask is set */
+		if (req_schema->columns[i].prtype_mask != 0
+		    && (table->cols[j].prtype
+			& req_schema->columns[i].prtype_mask)
+		       != req_schema->columns[i].prtype_mask) {
+
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(flags mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
+
+			return(DB_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+/* @} */
+
 /**************************************************************************
 Closes the data dictionary module. */
 UNIV_INTERN
