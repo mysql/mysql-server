@@ -45,6 +45,7 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 1, "oom (mutex)");
@@ -65,6 +66,7 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 1, "oom (rwlock)");
@@ -85,6 +87,7 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 1, "oom (cond)");
@@ -105,6 +108,7 @@ void test_oom()
   param.m_file_handle_sizing= 1000;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 1, "oom (file)");
@@ -125,6 +129,7 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 1, "oom (table)");
@@ -145,6 +150,7 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 1, "oom (thread)");
@@ -167,6 +173,7 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   rc= init_instruments(& param);
@@ -188,6 +195,7 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   rc= init_instruments(& param);
