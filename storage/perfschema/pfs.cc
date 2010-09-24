@@ -301,8 +301,7 @@
 */
 
 /**
-  @page PAGE_INSTRUMENTATION_INTERFACE
-  Performance schema: instrumentation interface page.
+  @page PAGE_INSTRUMENTATION_INTERFACE Performance schema: instrumentation interface page.
   MySQL performance schema instrumentation interface.
 
   @section INTRO Introduction
@@ -584,27 +583,17 @@ static inline int mysql_mutex_lock(...)
 
   What has all this to do with the code ?
 
-  Function composition such as F_2_to_3 o F_1_to_2 o F1 is implemented
-  as PFS_single_stat_chain, where each link in the chain represents
-  an individual F_{i}_to_{i+1} aggregation step.
+  Functions (or aggregates) such as F_3 are not implemented as is.
+  Instead, they are decomposed into F_2_to_3 o F_1_to_2 o F1,
+  and each intermediate aggregate is stored into an internal buffer.
+  This allows to support every F1, F2, F3 aggregates from shared
+  internal buffers, where computation already performed to compute F2
+  is reused when computing F3.
 
-  A single call to aggregate_single_stat_chain() updates all the tables
-  described in the statistics chain.
+  @section OBJECT_GRAPH Object graph
 
-  @section STAT_CHAIN Statistics chains
-
-  Statistics chains are only used for on the fly aggregates,
-  and are therefore all based initially on the '_CURRENT' base table that
-  contains the data recorded.
-  The following table aggregates are implemented with a statistics chain:
-
-  EVENTS_WAITS_CURRENT --> EVENTS_WAITS_SUMMARY_BY_INSTANCE
-  --> EVENTS_WAITS_SUMMARY_BY_EVENT_NAME
-
-  This relationship is between classes.
-
-  In terms of object instances, or records, this chain is implemented
-  as a flyweight.
+  In terms of object instances, or records, pointers between
+  different buffers define an object instance graph.
 
   For example, assuming the following scenario:
   - A mutex class "M" is instrumented, the instrument name
@@ -684,6 +673,215 @@ static inline int mysql_mutex_lock(...)
   With mixed aggregates:
   - the reader thread does a lot of complex computation,
   - the writer thread has minimal overhead, on destroy events.
+
+  @section IMPL_WAIT Implementation for waits aggregates
+
+  For waits, the tables that contains aggregated wait data are:
+  - EVENTS_WAITS_SUMMARY_BY_INSTANCE
+  - EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
+  - FILE_SUMMARY_BY_EVENT_NAME
+  - FILE_SUMMARY_BY_INSTANCE
+  - OBJECTS_SUMMARY_GLOBAL_BY_TYPE
+
+  The instrumented code that generates waits events consist of:
+  - mutexes (mysql_mutex_t)
+  - rwlocks (mysql_rwlock_t)
+  - conditions (mysql_cond_t)
+  - file io (MYSQL_FILE)
+  - table io
+
+  The flow of data between aggregates tables varies for each instrumentation.
+
+  @subsection IMPL_WAIT_MUTEX Mutex waits
+
+@verbatim
+  mutex_locker(T, M)
+   |
+   | [1]
+   |
+   |-> pfs_mutex(M)                           =====>> [B], [C]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_mutex_class(M.class)          =====>> [C]
+   |
+   |-> pfs_thread(T).event_name(M)            =====>> [A], [D], [E], [F]
+        |
+        | [3]
+        |
+        |-> pfs_user_host(U, H).event_name(M) =====>> [D], [E], [F]
+        |    |
+        |    | [4]
+        |    |
+        |----+-> pfs_user(U).event_name(M)    =====>> [E]
+        |    |
+        |----+-> pfs_host(H).event_name(M)    =====>> [F]
+@endverbatim
+
+  How to read this diagram:
+  - events that occur during the instrumented code execution are noted with numbers,
+  as in [1]. Code executed by these events has an impact on overhead.
+  - events that occur when a reader extracts data from a performance schema table
+  are noted with letters, as in [A]. The name of the table involved,
+  and the method that builds a row are documented. Code executed by these events
+  has no impact on the instrumentation overhead. Note that the table
+  implementation may pull data from different buffers.
+  - placeholders for aggregates tables that are not implemented yet are
+  documented, to illustrate the overall architecture principles.
+
+  Implemented as:
+  - [1] @c get_thread_mutex_locker_v1(), @c start_mutex_wait_v1(), @c end_mutex_wait_v1()
+  - [2] @c destroy_mutex_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_mutex_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_mutex_row()
+
+  Not implemented:
+  - [3] thread disconnect
+  - [4] user host disconnect
+  - [D] EVENTS_WAITS_SUMMARY_BY_USER_HOST_BY_EVENT_NAME,
+        table_ews_by_user_host_by_event_name::make_row()
+  - [E] EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME,
+        table_ews_by_user_by_event_name::make_row()
+  - [F] EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+        table_ews_by_host_by_event_name::make_row()
+
+  Table EVENTS_WAITS_SUMMARY_BY_INSTANCE is a 'on the fly' aggregate,
+  because the data is collected on the fly by (1) and stored into a buffer,
+  pfs_mutex. The table implementation [B] simply reads the results directly
+  from this buffer.
+
+  Table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME is a 'mixed' aggregate,
+  because some data is collected on the fly (1),
+  some data is preserved with (2) at a later time in the life cycle,
+  and two different buffers pfs_mutex and pfs_mutex_class are used to store the
+  statistics collected. The table implementation [C] is more complex, since
+  it reads from two buffers pfs_mutex and pfs_mutex_class.
+
+  @subsection IMPL_WAIT_RWLOCK Rwlock waits
+
+@verbatim
+  rwlock_locker(T, R)
+   |
+   | [1]
+   |
+   |-> pfs_rwlock(R)                          =====>> [B], [C]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_rwlock_class(R.class)         =====>> [C]
+   |
+   |-> pfs_thread(T).event_name(R)            =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_rwlock_locker_v1(), @c start_rwlock_rdwait_v1(),
+        @c end_rwlock_rdwait_v1(), ...
+  - [2] @c destroy_rwlock_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_rwlock_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_rwlock_row()
+
+  @subsection IMPL_WAIT_COND Cond waits
+
+@verbatim
+  cond_locker(T, C)
+   |
+   | [1]
+   |
+   |-> pfs_cond(C)                            =====>> [B], [C]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_cond_class(C.class)           =====>> [C]
+   |
+   |-> pfs_thread(T).event_name(C)            =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_cond_locker_v1(), @c start_cond_wait_v1(), @c end_cond_wait_v1()
+  - [2] @c destroy_cond_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_cond_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_cond_row()
+
+  @subsection IMPL_WAIT_FILE File waits
+
+@verbatim
+  file_locker(T, F)
+   |
+   | [1]
+   |
+   |-> pfs_file(F)                            =====>> [B], [C], [D], [E]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_file_class(F.class)           =====>> [C], [D]
+   |
+   |-> pfs_thread(T).event_name(F)            =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_file_name_locker_v1(), @c start_file_wait_v1(),
+        @c end_file_wait_v1(), ...
+  - [2] @c close_file_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_file_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_file_row()
+  - [D] FILE_SUMMARY_BY_EVENT_NAME,
+        @c table_file_summary_by_event_name::make_row()
+  - [E] FILE_SUMMARY_BY_INSTANCE,
+        @c table_file_summary_by_instance::make_row()
+
+  @subsection IMPL_WAIT_TABLE Table waits
+
+@verbatim
+  table_locker(T, Tb)
+   |
+   | [1]
+   |
+   |-> pfs_table(Tb)                          =====>> [B], [C], [D]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_table_share(Tb.share)         =====>> [C], [D]
+   |
+   |-> pfs_thread(T).event_name(Tb)           =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_table_locker_v1(), @c start_table_wait_v1(), @c end_table_wait_v1()
+  - [2] @c close_table_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_table_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_table_io_row()
+  - [D] OBJECTS_SUMMARY_GLOBAL_BY_TYPE,
+        @c table_os_global_by_type::make_row()
+
 */
 
 /**
@@ -931,36 +1129,60 @@ static void register_file_v1(const char *category,
   pfs= create_##T(klass, ID);                                               \
   return reinterpret_cast<PSI_##T *> (pfs)
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::init_mutex.
+*/
 static PSI_mutex*
 init_mutex_v1(PSI_mutex_key key, const void *identity)
 {
   INIT_BODY_V1(mutex, key, identity);
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::destroy_mutex.
+*/
 static void destroy_mutex_v1(PSI_mutex* mutex)
 {
   PFS_mutex *pfs= reinterpret_cast<PFS_mutex*> (mutex);
   destroy_mutex(pfs);
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::init_rwlock.
+*/
 static PSI_rwlock*
 init_rwlock_v1(PSI_rwlock_key key, const void *identity)
 {
   INIT_BODY_V1(rwlock, key, identity);
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::destroy_rwlock.
+*/
 static void destroy_rwlock_v1(PSI_rwlock* rwlock)
 {
   PFS_rwlock *pfs= reinterpret_cast<PFS_rwlock*> (rwlock);
   destroy_rwlock(pfs);
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::init_cond.
+*/
 static PSI_cond*
 init_cond_v1(PSI_cond_key key, const void *identity)
 {
   INIT_BODY_V1(cond, key, identity);
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::destroy_cond.
+*/
 static void destroy_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs= reinterpret_cast<PFS_cond*> (cond);
@@ -1045,6 +1267,10 @@ static void close_table_v1(PSI_table *table)
   destroy_table(pfs);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::create_file.
+*/
 static void create_file_v1(PSI_file_key key, const char *name, File file)
 {
   if (! flag_global_instrumentation)
@@ -1139,6 +1365,10 @@ void* pfs_spawn_thread(void *arg)
   return NULL;
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::spawn_thread.
+*/
 static int spawn_thread_v1(PSI_thread_key key,
                            pthread_t *thread, const pthread_attr_t *attr,
                            void *(*start_routine)(void*), void *arg)
@@ -1163,6 +1393,10 @@ static int spawn_thread_v1(PSI_thread_key key,
   return result;
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::new_thread.
+*/
 static PSI_thread*
 new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
 {
@@ -1177,6 +1411,10 @@ new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
   return reinterpret_cast<PSI_thread*> (pfs);
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_id.
+*/
 static void set_thread_id_v1(PSI_thread *thread, unsigned long id)
 {
   DBUG_ASSERT(thread);
@@ -1184,6 +1422,10 @@ static void set_thread_id_v1(PSI_thread *thread, unsigned long id)
   pfs->m_thread_id= id;
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::get_thread_id.
+*/
 static PSI_thread*
 get_thread_v1(void)
 {
@@ -1409,6 +1651,10 @@ static void delete_thread_v1(PSI_thread *thread)
   }
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::get_thread_mutex_locker.
+*/
 static PSI_mutex_locker*
 get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
                            PSI_mutex *mutex, PSI_mutex_operation op)
@@ -1492,6 +1738,10 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
   return reinterpret_cast<PSI_mutex_locker*> (state);
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::get_thread_rwlock_locker.
+*/
 static PSI_rwlock_locker*
 get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
                             PSI_rwlock *rwlock, PSI_rwlock_operation op)
@@ -1575,6 +1825,10 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
   return reinterpret_cast<PSI_rwlock_locker*> (state);
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::get_thread_cond_locker.
+*/
 static PSI_cond_locker*
 get_thread_cond_locker_v1(PSI_cond_locker_state *state,
                           PSI_cond *cond, PSI_mutex *mutex,
@@ -1803,6 +2057,10 @@ get_thread_table_locker_v1(PSI_table_locker_state *state,
   return reinterpret_cast<PSI_table_locker*> (state);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::get_thread_file_name_locker.
+*/
 static PSI_file_locker*
 get_thread_file_name_locker_v1(PSI_file_locker_state *state,
                                PSI_file_key key,
@@ -1877,6 +2135,10 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
   return reinterpret_cast<PSI_file_locker*> (state);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::get_thread_file_stream_locker.
+*/
 static PSI_file_locker*
 get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
                                  PSI_file *file, PSI_file_operation op)
@@ -1959,6 +2221,10 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   return reinterpret_cast<PSI_file_locker*> (state);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::get_thread_file_descriptor_locker.
+*/
 static PSI_file_locker*
 get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
                                      File file, PSI_file_operation op)
@@ -2189,6 +2455,10 @@ static void broadcast_cond_v1(PSI_cond* cond)
   pfs_cond->m_cond_stat.m_broadcast_count++;
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::start_mutex_wait.
+*/
 static void start_mutex_wait_v1(PSI_mutex_locker* locker,
                                 const char *src_file, uint src_line)
 {
@@ -2211,6 +2481,10 @@ static void start_mutex_wait_v1(PSI_mutex_locker* locker,
   }
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::end_mutex_wait.
+*/
 static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
 {
   PSI_mutex_locker_state *state= reinterpret_cast<PSI_mutex_locker_state*> (locker);
@@ -2275,6 +2549,10 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
   }
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::start_rwlock_rdwait.
+*/
 static void start_rwlock_rdwait_v1(PSI_rwlock_locker* locker,
                                    const char *src_file, uint src_line)
 {
@@ -2295,6 +2573,10 @@ static void start_rwlock_rdwait_v1(PSI_rwlock_locker* locker,
   }
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::end_rwlock_rdwait.
+*/
 static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
 {
   PSI_rwlock_locker_state *state= reinterpret_cast<PSI_rwlock_locker_state*> (locker);
@@ -2367,6 +2649,10 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
   }
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::start_rwlock_wrwait.
+*/
 static void start_rwlock_wrwait_v1(PSI_rwlock_locker* locker,
                                    const char *src_file, uint src_line)
 {
@@ -2387,6 +2673,10 @@ static void start_rwlock_wrwait_v1(PSI_rwlock_locker* locker,
   }
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::end_rwlock_wrwait.
+*/
 static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
 {
   PSI_rwlock_locker_state *state= reinterpret_cast<PSI_rwlock_locker_state*> (locker);
@@ -2452,6 +2742,10 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
   }
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::start_cond_wait.
+*/
 static void start_cond_wait_v1(PSI_cond_locker* locker,
                                const char *src_file, uint src_line)
 {
@@ -2472,6 +2766,10 @@ static void start_cond_wait_v1(PSI_cond_locker* locker,
   }
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::end_cond_wait.
+*/
 static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
 {
   PSI_cond_locker_state *state= reinterpret_cast<PSI_cond_locker_state*> (locker);
@@ -2530,6 +2828,10 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
   }
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::start_table_wait.
+*/
 static void start_table_wait_v1(PSI_table_locker* locker, uint index,
                                 const char *src_file, uint src_line)
 {
@@ -2554,6 +2856,10 @@ static void start_table_wait_v1(PSI_table_locker* locker, uint index,
   state->m_index= index;
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::end_table_wait.
+*/
 static void end_table_wait_v1(PSI_table_locker* locker)
 {
   PSI_table_locker_state *state= reinterpret_cast<PSI_table_locker_state*> (locker);
@@ -2654,6 +2960,10 @@ static void start_file_wait_v1(PSI_file_locker *locker,
 static void end_file_wait_v1(PSI_file_locker *locker,
                              size_t count);
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::start_file_open_wait.
+*/
 static PSI_file* start_file_open_wait_v1(PSI_file_locker *locker,
                                          const char *src_file,
                                          uint src_line)
@@ -2666,11 +2976,19 @@ static PSI_file* start_file_open_wait_v1(PSI_file_locker *locker,
   return state->m_file;
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_open_wait.
+*/
 static void end_file_open_wait_v1(PSI_file_locker *locker)
 {
   end_file_wait_v1(locker, 0);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_open_wait_and_bind_to_descriptor.
+*/
 static void end_file_open_wait_and_bind_to_descriptor_v1
   (PSI_file_locker *locker, File file)
 {
@@ -2696,6 +3014,10 @@ static void end_file_open_wait_and_bind_to_descriptor_v1
   }
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::start_file_wait.
+*/
 static void start_file_wait_v1(PSI_file_locker *locker,
                                size_t count,
                                const char *src_file,
@@ -2721,6 +3043,10 @@ static void start_file_wait_v1(PSI_file_locker *locker,
   }
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_wait.
+*/
 static void end_file_wait_v1(PSI_file_locker *locker,
                              size_t count)
 {
@@ -2805,6 +3131,10 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   }
 }
 
+/**
+  Implementation of the instrumentation interface.
+  @sa PSI_v1.
+*/
 PSI_v1 PFS_v1=
 {
   register_mutex_v1,
