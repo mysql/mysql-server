@@ -697,18 +697,43 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_set");
-
-  binlog_trans_log_savepos(thd, (my_off_t*) sv);
-  /* Write it to the binary log */
+  int error= 1;
 
   String log_query;
   if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
       log_query.append(thd->lex->ident.str, thd->lex->ident.length))
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
+
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
                         TRUE, FALSE, TRUE, errcode);
-  DBUG_RETURN(mysql_bin_log.write(&qinfo));
+
+  /* 
+    We cannnot record the position before writing the statement because a
+    rollback to a savepoint (.e.g. consider it "S") will remove the
+    savepoint statement (i.e. "SAVEPOINT S") from the binary log although
+    the server could issue rollback statements to the same savepoint (i.e. 
+    "S"). This scenario happens because the savepoint is valid for the
+    server until the transaction completes or the savepoint is released.
+    However, the release statement (i.e. "RELEASE SAVEPOINT S") has no
+    impact on the binary log. Thus, one could see an invalid sequence in 
+    the binary log as follows:
+       BEGIN
+          UPDATE...
+          ...
+          ROLLBACK TO S
+       COMMIT/ROLLBACK
+    which would cause the slave to break because "S" is not defined.
+    
+    So we write the savepoint statement to the binary log and record the
+    savepoint position if there is no error.
+    Note also that taking the realse statement into account requires
+    deep rooted changes that can be considered only after BUG#54562.
+  */
+  if (!(error= mysql_bin_log.write(&qinfo)))
+    binlog_trans_log_savepos(thd, (my_off_t*) sv);
+
+  DBUG_RETURN(error);
 }
 
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
