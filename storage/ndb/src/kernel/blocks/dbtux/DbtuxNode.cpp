@@ -54,6 +54,24 @@ Dbtux::allocNode(TuxCtx& ctx, NodeHandle& node)
 }
 
 /*
+ * Free index node in TUP
+ */
+void
+Dbtux::freeNode(NodeHandle& node)
+{
+  Frag& frag = node.m_frag;
+  Uint32 pageId = node.m_loc.getPageId();
+  Uint32 pageOffset = node.m_loc.getPageOffset();
+  Uint32* node32 = reinterpret_cast<Uint32*>(node.m_node);
+  c_tup->tuxFreeNode(frag.m_tupIndexFragPtrI,
+                     pageId, pageOffset, node32);
+  jamEntry();
+  // invalidate the handle
+  node.m_loc = NullTupLoc;
+  node.m_node = 0;
+}
+
+/*
  * Set handle to point to existing node.
  */
 void
@@ -77,9 +95,9 @@ void
 Dbtux::insertNode(NodeHandle& node)
 {
   Frag& frag = node.m_frag;
-  // unlink from freelist
+  // use up pre-allocated node
   selectNode(node, frag.m_freeLoc);
-  frag.m_freeLoc = node.getLink(0);
+  frag.m_freeLoc = NullTupLoc;
   new (node.m_node) TreeNode();
 #ifdef VM_TRACE
   TreeHead& tree = frag.m_tree;
@@ -90,19 +108,44 @@ Dbtux::insertNode(NodeHandle& node)
 }
 
 /*
- * Delete existing node.  Simply put it on the freelist.
+ * Delete existing node.  Make it the pre-allocated free node if there
+ * is none.  Otherwise return it to fragment's free list.
  */
 void
 Dbtux::deleteNode(NodeHandle& node)
 {
   Frag& frag = node.m_frag;
   ndbrequire(node.getOccup() == 0);
-  // link to freelist
-  node.setLink(0, frag.m_freeLoc);
-  frag.m_freeLoc = node.m_loc;
-  // invalidate the handle
-  node.m_loc = NullTupLoc;
-  node.m_node = 0;
+  if (frag.m_freeLoc == NullTupLoc)
+  {
+    jam();
+    frag.m_freeLoc = node.m_loc;
+    // invalidate the handle
+    node.m_loc = NullTupLoc;
+    node.m_node = 0;
+  }
+  else
+  {
+    jam();
+    freeNode(node);
+  }
+}
+
+/*
+ * Free the pre-allocated node, called when tree is empty.  This avoids
+ * leaving any used pages in DataMemory.
+ */
+void
+Dbtux::freePreallocatedNode(Frag& frag)
+{
+  if (frag.m_freeLoc != NullTupLoc)
+  {
+    jam();
+    NodeHandle node(frag);
+    selectNode(node, frag.m_freeLoc);
+    freeNode(node);
+    frag.m_freeLoc = NullTupLoc;
+  }
 }
 
 /*
