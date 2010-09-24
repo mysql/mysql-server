@@ -241,13 +241,16 @@ typedef struct dict_stats_chk_table_struct	dict_stats_chk_table_t;
 Checks whether a table exists and whether it has the given structure.
 The caller must own the dictionary mutex.
 dict_stats_table_check() @{
-@return TRUE if the table exists and contains the necessary columns */
+@return DB_SUCCESS if the table exists and contains the necessary columns */
 static
-ibool
+enum db_err
 dict_stats_table_check(
 /*===================*/
-	dict_stats_chk_table_t*	req_schema)/*!< in/out: required table
-					   schema */
+	dict_stats_chk_table_t*	req_schema,	/*!< in/out: required table
+						schema */
+	char*			errstr,		/*!< out: human readable error
+						text if FALSE is returned */
+	size_t			errstr_sz)	/*!< in: errstr size */
 {
 	dict_table_t*	table;
 	ulint		i;
@@ -259,28 +262,24 @@ dict_stats_table_check(
 	if (table == NULL || table->ibd_file_missing) {
 		/* no such table or missing tablespace */
 
-		/* We return silently here because this code is
-		executed during open table. By design we check if the
-		persistent statistics storage is present and whether there
-		are stats for the table being opened and if so, then
-		we use them, otherwise we silently switch back to using
-		the transient stats. */
+		ut_snprintf(errstr, errstr_sz,
+			    "%s does not exist or its tablespace is missing.",
+			    req_schema->table_name);
 
-		return(FALSE);
+		return(DB_TABLE_NOT_FOUND);
 	}
 
 	if (table->n_def - DATA_N_SYS_COLS != req_schema->n_cols) {
-
 		/* the table has a different number of columns than
 		required */
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: %s has %d columns but should have %lu.\n",
-			req_schema->table_name,
-			table->n_def - DATA_N_SYS_COLS,
-			req_schema->n_cols);
 
-		goto err_exit;
+		ut_snprintf(errstr, errstr_sz,
+			    "%s has %d columns but should have %lu.",
+			    req_schema->table_name,
+			    table->n_def - DATA_N_SYS_COLS,
+			    req_schema->n_cols);
+
+		return(DB_ERROR);
 	}
 
 	/* For each column from req_schema->columns[] search
@@ -320,14 +319,12 @@ dict_stats_table_check(
 
 			if (j == table->n_def) {
 
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: required column %s.%s "
-					"not found.\n",
-					req_schema->table_name,
-					req_schema->columns[i].name);
+				ut_snprintf(errstr, errstr_sz,
+					    "required column %s.%s not found.",
+					    req_schema->table_name,
+					    req_schema->columns[i].name);
 
-				goto err_exit;
+				return(DB_ERROR);
 			}
 		}
 
@@ -347,29 +344,27 @@ dict_stats_table_check(
 		/* check length for exact match */
 		if (req_schema->columns[i].len != table->cols[j].len) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Column %s.%s is %s "
-				"but should be %s (length mismatch).\n",
-				req_schema->table_name,
-				req_schema->columns[i].name,
-				actual_type, req_type);
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(length mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
 
-			goto err_exit;
+			return(DB_ERROR);
 		}
 
 		/* check mtype for exact match */
 		if (req_schema->columns[i].mtype != table->cols[j].mtype) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Column %s.%s is %s "
-				"but should be %s (type mismatch).\n",
-				req_schema->table_name,
-				req_schema->columns[i].name,
-				actual_type, req_type);
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(type mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
 
-			goto err_exit;
+			return(DB_ERROR);
 		}
 
 		/* check whether required prtype mask is set */
@@ -378,29 +373,18 @@ dict_stats_table_check(
 			& req_schema->columns[i].prtype_mask)
 		       != req_schema->columns[i].prtype_mask) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Column %s.%s is %s "
-				"but should be %s (flags mismatch).\n",
-				req_schema->table_name,
-				req_schema->columns[i].name,
-				actual_type, req_type);
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(flags mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
 
-			goto err_exit;
+			return(DB_ERROR);
 		}
 	}
 
-	return(TRUE);
-
-err_exit:
-
-	/* XXX add pointer to the doc */
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: Try to recreate %s with the required structure.\n",
-		req_schema->table_name);
-
-	return(FALSE);
+	return(DB_SUCCESS);
 }
 /* @} */
 
@@ -474,7 +458,8 @@ dict_stats_persistent_storage_check(
 		index_stats_columns
 	};
 
-	ibool	ret;
+	char		errstr[512];
+	enum db_err	ret;
 
 	if (!caller_has_dict_sys_mutex) {
 		mutex_enter(&(dict_sys->mutex));
@@ -482,14 +467,31 @@ dict_stats_persistent_storage_check(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	ret = dict_stats_table_check(&table_stats_schema)
-	   && dict_stats_table_check(&index_stats_schema);
+	/* first check table_stats */
+	ret = dict_stats_table_check(&table_stats_schema, errstr,
+				     sizeof(errstr));
+	if (ret == DB_SUCCESS) {
+		/* if it is ok, then check index_stats */
+		ret = dict_stats_table_check(&index_stats_schema, errstr,
+					     sizeof(errstr));
+	}
 
 	if (!caller_has_dict_sys_mutex) {
 		mutex_exit(&(dict_sys->mutex));
 	}
 
-	return(ret);
+	if (ret != DB_SUCCESS && ret != DB_TABLE_NOT_FOUND) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: %s\n", errstr);
+	}
+	/* We return silently if some of the tables is not present because
+	this code is executed during open table. By design we check if the
+	persistent statistics storage is present and whether there are stats
+	for the table being opened and if so, then we use them, otherwise we
+	silently switch back to using the transient stats. */
+
+	return(ret == DB_SUCCESS);
 }
 /* @} */
 
@@ -2771,6 +2773,7 @@ test_dict_stats_table_check()
 		0 /* will be set individually for each test below */,
 		columns
 	};
+	char	errstr[512];
 
 	/* prevent any data dictionary modifications while we are checking
 	the tables' structure */
@@ -2779,16 +2782,19 @@ test_dict_stats_table_check()
 
 	/* check that a valid table is reported as valid */
 	schema.n_cols = 7;
-	if (dict_stats_table_check(&schema)) {
+	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	    == DB_SUCCESS) {
 		printf("OK: test.tcheck ok\n");
 	} else {
+		printf("ERROR: %s\n", errstr);
 		printf("ERROR: test.tcheck not present or corrupted\n");
 		goto test_dict_stats_table_check_end;
 	}
 
 	/* check columns with wrong length */
 	schema.columns[1].len = 8;
-	if (!dict_stats_table_check(&schema)) {
+	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	    != DB_SUCCESS) {
 		printf("OK: test.tcheck.c02 has different length and is "
 		       "reported as corrupted\n");
 	} else {
@@ -2801,7 +2807,8 @@ test_dict_stats_table_check()
 	/* request that c02 is NOT NULL while actually it does not have
 	this flag set */
 	schema.columns[1].prtype_mask |= DATA_NOT_NULL;
-	if (!dict_stats_table_check(&schema)) {
+	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	    != DB_SUCCESS) {
 		printf("OK: test.tcheck.c02 does not have NOT NULL while "
 		       "it should and is reported as corrupted\n");
 	} else {
@@ -2813,8 +2820,10 @@ test_dict_stats_table_check()
 
 	/* check a table that contains some extra columns */
 	schema.n_cols = 6;
-	if (dict_stats_table_check(&schema)) {
-		printf("ERROR: test.tcheck has more columns which is ok\n");
+	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	    == DB_SUCCESS) {
+		printf("ERROR: test.tcheck has more columns but is not "
+		       "reported as corrupted\n");
 		goto test_dict_stats_table_check_end;
 	} else {
 		printf("OK: test.tcheck has more columns and is "
@@ -2823,7 +2832,8 @@ test_dict_stats_table_check()
 
 	/* check a table that has some columns missing */
 	schema.n_cols = 8;
-	if (!dict_stats_table_check(&schema)) {
+	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	    != DB_SUCCESS) {
 		printf("OK: test.tcheck has missing columns and is "
 		       "reported as corrupted\n");
 	} else {
@@ -2834,7 +2844,8 @@ test_dict_stats_table_check()
 
 	/* check non-existent table */
 	schema.table_name = "test/tcheck_nonexistent";
-	if (!dict_stats_table_check(&schema)) {
+	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	    != DB_SUCCESS) {
 		printf("OK: test.tcheck_nonexistent is not present\n");
 	} else {
 		printf("ERROR: test.tcheck_nonexistent is present!?\n");
