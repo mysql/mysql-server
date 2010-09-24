@@ -463,6 +463,8 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
           pfs->m_owner= NULL;
           pfs->m_last_locked= 0;
           pfs->m_lock.dirty_to_allocated();
+          if (klass->is_singleton())
+            klass->m_singleton= pfs;
           return pfs;
         }
       }
@@ -480,10 +482,13 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
 void destroy_mutex(PFS_mutex *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
+  PFS_mutex_class *klass= pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
-  uint index= pfs->m_class->m_event_name_index;
+  uint index= klass->m_event_name_index;
   global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
   pfs->m_wait_stat.reset();
+  if (klass->is_singleton())
+    klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
 }
 
@@ -520,6 +525,8 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
           pfs->m_readers= 0;
           pfs->m_last_written= 0;
           pfs->m_last_read= 0;
+          if (klass->is_singleton())
+            klass->m_singleton= pfs;
           return pfs;
         }
       }
@@ -537,10 +544,13 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
 void destroy_rwlock(PFS_rwlock *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
+  PFS_rwlock_class *klass= pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
-  uint index= pfs->m_class->m_event_name_index;
+  uint index= klass->m_event_name_index;
   global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
   pfs->m_wait_stat.reset();
+  if (klass->is_singleton())
+    klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
 }
 
@@ -573,6 +583,8 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
           pfs->m_cond_stat.m_broadcast_count= 0;
           pfs->m_wait_stat.reset();
           pfs->m_lock.dirty_to_allocated();
+          if (klass->is_singleton())
+            klass->m_singleton= pfs;
           return pfs;
         }
       }
@@ -590,10 +602,13 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
 void destroy_cond(PFS_cond *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
+  PFS_cond_class *klass= pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
-  uint index= pfs->m_class->m_event_name_index;
+  uint index= klass->m_event_name_index;
   global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
   pfs->m_wait_stat.reset();
+  if (klass->is_singleton())
+    klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
 }
 
@@ -669,6 +684,30 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
   return NULL;
 }
 
+PFS_mutex *sanitize_mutex(PFS_mutex *unsafe)
+{
+  if ((&mutex_array[0] <= unsafe) &&
+      (unsafe < &mutex_array[mutex_max]))
+    return unsafe;
+  return NULL;
+}
+
+PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe)
+{
+  if ((&rwlock_array[0] <= unsafe) &&
+      (unsafe < &rwlock_array[rwlock_max]))
+    return unsafe;
+  return NULL;
+}
+
+PFS_cond *sanitize_cond(PFS_cond *unsafe)
+{
+  if ((&cond_array[0] <= unsafe) &&
+      (unsafe < &cond_array[cond_max]))
+    return unsafe;
+  return NULL;
+}
+
 /**
   Sanitize a PFS_thread pointer.
   Validate that the PFS_thread is part of thread_array.
@@ -682,6 +721,14 @@ PFS_thread *sanitize_thread(PFS_thread *unsafe)
 {
   if ((&thread_array[0] <= unsafe) &&
       (unsafe < &thread_array[thread_max]))
+    return unsafe;
+  return NULL;
+}
+
+PFS_file *sanitize_file(PFS_file *unsafe)
+{
+  if ((&file_array[0] <= unsafe) &&
+      (unsafe < &file_array[file_max]))
     return unsafe;
   return NULL;
 }
@@ -872,6 +919,8 @@ search:
           if (likely(res == 0))
           {
             pfs->m_lock.dirty_to_allocated();
+            if (klass->is_singleton())
+              klass->m_singleton= pfs;
             return pfs;
           }
 
@@ -921,18 +970,21 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
   DBUG_ASSERT(thread != NULL);
   DBUG_ASSERT(thread->m_filename_hash_pins != NULL);
   DBUG_ASSERT(pfs != NULL);
+  PFS_file_class *klass= pfs->m_class;
 
   /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
-  uint index= pfs->m_class->m_event_name_index;
+  uint index= klass->m_event_name_index;
   global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
   pfs->m_wait_stat.reset();
 
   /* Aggregate to FILE_SUMMARY_BY_EVENT_NAME */
-  pfs->m_class->m_file_stat.m_io_stat.aggregate(& pfs->m_file_stat.m_io_stat);
+  klass->m_file_stat.m_io_stat.aggregate(& pfs->m_file_stat.m_io_stat);
   pfs->m_file_stat.m_io_stat.reset();
-  
+
   lf_hash_delete(&filename_hash, thread->m_filename_hash_pins,
                  pfs->m_filename, pfs->m_filename_length);
+  if (klass->is_singleton())
+    klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
 }
 

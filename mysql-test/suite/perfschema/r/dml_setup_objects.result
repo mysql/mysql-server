@@ -1,0 +1,67 @@
+drop table if exists test.SETUP_OBJECTS;
+create table test.SETUP_OBJECTS as
+select * from performance_schema.SETUP_OBJECTS;
+truncate table performance_schema.SETUP_OBJECTS;
+select * from performance_schema.SETUP_OBJECTS;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
+select * from performance_schema.SETUP_OBJECTS
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
+select * from performance_schema.SETUP_OBJECTS
+where object_type = 'TABLE'
+  order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
+select * from performance_schema.SETUP_OBJECTS
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
+insert into performance_schema.SETUP_OBJECTS
+set object_type='ILLEGAL', object_schema='FOO', object_name='BAR',
+timed='YES';
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+insert into performance_schema.SETUP_OBJECTS
+set object_type='TABLE', object_schema='FOO', object_name='BAR',
+timed='YES';
+insert into performance_schema.SETUP_OBJECTS
+set object_type='TABLE', object_schema='FOO', object_name='BAR',
+timed='NO';
+ERROR 23000: Can't write; duplicate key in table 'SETUP_OBJECTS'
+delete from performance_schema.SETUP_OBJECTS
+where object_type='TABLE' and object_schema='FOO';
+select * from performance_schema.SETUP_OBJECTS
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
+insert into performance_schema.SETUP_OBJECTS
+set object_type='TABLE', object_schema='FOO', object_name='BAR',
+timed='YES';
+select * from performance_schema.SETUP_OBJECTS
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
+TABLE	FOO	BAR	YES
+update performance_schema.SETUP_OBJECTS
+set object_type='ILLEGAL';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.SETUP_OBJECTS
+set object_schema='ILLEGAL';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.SETUP_OBJECTS
+set object_name='ILLEGAL';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.SETUP_OBJECTS
+set timed='NO';
+select * from performance_schema.SETUP_OBJECTS
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
+TABLE	FOO	BAR	NO
+update performance_schema.SETUP_OBJECTS
+set timed='YES';
+delete from performance_schema.SETUP_OBJECTS
+where object_type = 'TABLE';
+delete from performance_schema.SETUP_OBJECTS;
+LOCK TABLES performance_schema.SETUP_OBJECTS READ;
+UNLOCK TABLES;
+LOCK TABLES performance_schema.SETUP_OBJECTS WRITE;
+UNLOCK TABLES;
+truncate table performance_schema.SETUP_OBJECTS;
+insert into performance_schema.SETUP_OBJECTS
+select * from test.SETUP_OBJECTS;
+drop table test.SETUP_OBJECTS;

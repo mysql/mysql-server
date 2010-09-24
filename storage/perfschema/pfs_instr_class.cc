@@ -495,6 +495,7 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
     entry->m_lock_stat.reset();
     entry->m_index= index;
     entry->m_event_name_index= mutex_class_start + index;
+    entry->m_singleton= NULL;
     /*
       Now that this entry is populated, advertise it
 
@@ -556,6 +557,7 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
     entry->m_write_lock_stat.reset();
     entry->m_index= index;
     entry->m_event_name_index= rwlock_class_start + index;
+    entry->m_singleton= NULL;
     PFS_atomic::add_u32(&rwlock_class_allocated_count, 1);
     return (index + 1);
   }
@@ -589,6 +591,7 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags);
     entry->m_index= index;
     entry->m_event_name_index= cond_class_start + index;
+    entry->m_singleton= NULL;
     PFS_atomic::add_u32(&cond_class_allocated_count, 1);
     return (index + 1);
   }
@@ -733,6 +736,7 @@ PFS_file_key register_file_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags);
     entry->m_index= index;
     entry->m_event_name_index= file_class_start + index;
+    entry->m_singleton= NULL;
     PFS_atomic::add_u32(&file_class_allocated_count, 1);
     return (index + 1);
   }
