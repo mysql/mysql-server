@@ -519,7 +519,12 @@ private:
 
   struct pushed_tables
   {
-    pushed_tables() : m_parent(MAX_TABLES), m_last_scan_descendant(MAX_TABLES), m_ancestors(), op(NULL) {}
+    pushed_tables() : 
+      m_parent(MAX_TABLES), 
+      m_ancestors(), 
+      m_last_scan_descendant(MAX_TABLES), 
+      op(NULL) 
+    {}
 
     uint m_parent;
     ndb_table_access_map m_ancestors;
