@@ -482,7 +482,13 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
   bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
-
+#ifdef SPJ_TRACE_TIME
+  requestP->m_cnt_batches = 0;
+  requestP->m_sum_rows = 0;
+  requestP->m_sum_running = 0;
+  requestP->m_sum_waiting = 0;
+  requestP->m_save_time = spj_now();
+#endif
   const Uint32 reqInfo = req->requestInfo;
   Uint32 tmp = req->clientConnectPtr;
   if (LqhKeyReq::getDirtyFlag(reqInfo) &&
@@ -771,6 +777,13 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_transId[1] = req->transId2;
   requestP->m_rootResultData = req->resultData;
   bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
+#ifdef SPJ_TRACE_TIME
+  requestP->m_cnt_batches = 0;
+  requestP->m_sum_rows = 0;
+  requestP->m_sum_running = 0;
+  requestP->m_sum_waiting = 0;
+  requestP->m_save_time = spj_now();
+#endif
 }
 
 void
@@ -1174,6 +1187,26 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
 
       c_Counters.incr_counter(CI_SCAN_BATCHES_RETURNED, 1);
       c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, requestPtr.p->m_rows);
+
+#ifdef SPJ_TRACE_TIME
+      Uint64 now = spj_now();
+      Uint64 then = requestPtr.p->m_save_time;
+
+      requestPtr.p->m_sum_rows += requestPtr.p->m_rows;
+      requestPtr.p->m_sum_running += Uint32(now - then);
+      requestPtr.p->m_cnt_batches++;
+      requestPtr.p->m_save_time = now;
+
+      if (is_complete)
+      {
+        Uint32 cnt = requestPtr.p->m_cnt_batches;
+        ndbout_c("batches: %u avg_rows: %u avg_running: %u avg_wait: %u",
+                 cnt,
+                 (requestPtr.p->m_sum_rows / cnt),
+                 (requestPtr.p->m_sum_running / cnt),
+                 cnt == 1 ? 0 : requestPtr.p->m_sum_waiting / (cnt - 1));
+      }
+#endif
 
       /**
        * reset for next batch
@@ -1876,6 +1909,13 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     ndbrequire(req->closeFlag == ZTRUE);
     return;
   }
+
+#ifdef SPJ_TRACE_TIME
+  Uint64 now = spj_now();
+  Uint64 then = requestPtr.p->m_save_time;
+  requestPtr.p->m_sum_waiting += Uint32(now - then);
+  requestPtr.p->m_save_time = now;
+#endif
 
   Uint32 state = requestPtr.p->m_state;
   requestPtr.p->m_state = state & ~Uint32(Request::RS_WAITING);
