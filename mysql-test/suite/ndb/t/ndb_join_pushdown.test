@@ -2723,6 +2723,40 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 
 drop table t1;
 
+###
+# Test that sorted scan with sub scan is *not* pushed.
+###
+create table t1 (pk int primary key, a int, b int) engine=ndb;
+create index ix1 on t1(b,a);
+
+insert into t1 values (0,10,10);
+insert into t1 values (1,10,20);
+insert into t1 values (2,20,20);
+insert into t1 values (3,10,10);
+insert into t1 values (4,10,20);
+insert into t1 values (5,10,20);
+insert into t1 values (6,10,10);
+insert into t1 values (7,10,10);
+insert into t1 values (8,10,20);
+insert into t1 values (9,10,10);
+
+
+# Results would be sorted wrongly if pushed.
+explain select x1.pk,x1.a,x1.b from t1 as x1 
+   join t1 as x2 on x1.a=x2.b 
+   join t1 as x3 on x2.a=x3.b 
+   order by x1.pk limit 70;
+select x1.pk,x1.a,x1.b from t1 as x1 
+   join t1 as x2 on x1.a=x2.b 
+   join t1 as x3 on x2.a=x3.b 
+   order by x1.pk limit 70;
+
+# This query should not be pushed, since mysqld requires sorted
+# results for the root scan.
+explain select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
+select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
+
+drop table t1;
 
 ########################################
 # Verify DBSPJ counters for entire test:

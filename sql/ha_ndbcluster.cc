@@ -1274,6 +1274,13 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_PRINT("info", ("Table %d not a pushable access type", join_cnt));
       continue;
     }
+    if (join_root->is_sorted() && !is_lookup_operation(child_type))  
+    {
+      // Sorted scan cannot have scan descendant.
+      DBUG_PRINT("info", ("Table %d is scanned. Therefore it cannot be pushed"
+                          " as a descendant of a sorted scan", join_cnt));
+      continue;
+    }
     if (!context.field_ref_is_join_pushable(join_tab, join_items, join_parent))
     {
       DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
@@ -1596,82 +1603,119 @@ private:
  *
  * @param type This is the operation type that the server want to execute.
  * @param idx  Index used whenever relevant for operation type
+ * @param rootSorted True if the root operation is an ordered index scan 
+ * with sorted results.
  * @return True if the operation may be pushed.
  */
 bool 
-ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, uint idx) const
+ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, 
+                                 uint idx,
+                                 bool rootSorted) const
 {
-  bool pushable= FALSE;
-
-  if (m_pushed_join != NULL)
+  if (m_pushed_join == NULL)
   {
-    const NdbQueryOperationDef* const root_operation= 
-      m_pushed_join->get_query_def().getQueryOperation(0U);
+    return FALSE;
+  }
 
-    const NdbQueryOperationTypeWrapper& query_def_type=  root_operation->getType();
+  const NdbQueryOperationDef* const root_operation= 
+    m_pushed_join->get_query_def().getQueryOperation(0U);
 
-    if (query_def_type == type)
+  const NdbQueryOperationTypeWrapper& query_def_type=  
+    root_operation->getType();
+
+  if (query_def_type != type)
+  {
+    DBUG_PRINT("info", 
+               ("Cannot execute push join. Root operation prepared as %s "
+                "not executable as %s w/ index %d",
+                NdbQueryOperationDef::getTypeName(query_def_type),
+                NdbQueryOperationDef::getTypeName(type), idx));
+    return FALSE;
+  }
+
+  if (m_disable_pushed_join)
+  {
+    DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
+    return FALSE;
+  }
+
+  const NdbDictionary::Index* const expected_index= root_operation->getIndex();
+
+  // Check that we still use the same index as when the query was prepared.
+  switch (type)
+  {
+  case NdbQueryOperationDef::PrimaryKeyAccess:
+    DBUG_ASSERT(idx==table->s->primary_key);
+    break;
+
+  case NdbQueryOperationDef::UniqueIndexAccess:
+    DBUG_ASSERT(idx<MAX_KEY);
+    //          DBUG_ASSERT(m_index[idx].unique_index == expected_index);
+    if (m_index[idx].unique_index != expected_index)
     {
-      if (m_disable_pushed_join)
-      {
-        DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
-      }
-      else
-      {
-        const NdbDictionary::Index* const expected_index= root_operation->getIndex();
-        pushable= TRUE;
+      DBUG_PRINT("info", ("Actual index %s differs from expected index %s."
+                          "Therefore, join cannot be pushed.", 
+                          m_index[idx].unique_index->getName(),
+                          expected_index->getName()));
+      return FALSE;
+    }
+    break;
 
-        switch (type)
-        {
-          case NdbQueryOperationDef::PrimaryKeyAccess:
-            DBUG_ASSERT(idx==table->s->primary_key);
-            break;
-          case NdbQueryOperationDef::UniqueIndexAccess:
-            DBUG_ASSERT(idx<MAX_KEY);
-//          DBUG_ASSERT(m_index[idx].unique_index == expected_index);
-            pushable= (m_index[idx].unique_index == expected_index);
-            break;
-          case NdbQueryOperationDef::TableScan:
-            DBUG_ASSERT (idx==MAX_KEY);
-            break;
-          case NdbQueryOperationDef::OrderedIndexScan:
-            DBUG_ASSERT(idx<MAX_KEY);
-//          DBUG_ASSERT(m_index[idx].index == expected_index);
-            pushable= (m_index[idx].index == expected_index);
-            break;
-          default:
-            DBUG_ASSERT(false);
-            break;
-        }
+  case NdbQueryOperationDef::TableScan:
+    DBUG_ASSERT (idx==MAX_KEY);
+    break;
 
-        if (likely(pushable))
+  case NdbQueryOperationDef::OrderedIndexScan:
+    DBUG_ASSERT(idx<MAX_KEY);
+    //          DBUG_ASSERT(m_index[idx].index == expected_index);
+    if (m_index[idx].index != expected_index)
+    {
+      DBUG_PRINT("info", ("Actual index %s differs from expected index %s."
+                          "Therefore, join cannot be pushed.", 
+                          m_index[idx].index->getName(),
+                          expected_index->getName()));
+      return FALSE;
+    }
+    // Check that we do not have a sorted scan with sub scans.
+    if (rootSorted)
+    {
+      const NdbQueryDef& query_def = m_pushed_join->get_query_def();
+      for (uint i= 1; i < query_def.getNoOfOperations(); i++)
+      {
+        const NdbQueryOperationTypeWrapper& child_type= 
+          query_def.getQueryOperation(i)->getType();
+        if (child_type == NdbQueryOperationDef::TableScan ||
+            child_type == NdbQueryOperationDef::OrderedIndexScan)
         {
-          // There may be referrences to Field values from tables outside the scope of
-          // our pushed join which are supplied as paramValues().
-          // If any of these are NULL values, join can't be pushed
-          for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
-          {
-            Field* field= m_pushed_join->get_field_ref(i);
-            if (field->is_real_null())
-            {
-              DBUG_PRINT("info", ("paramValue is NULL, can not execute as pushed join"));
-              pushable= false;
-              break;
-            }
-          }
+          DBUG_PRINT("info", ("If the root operation is a sorted scan, then "
+                              "there may not be scan children. This join "
+                              "cannot be pushed.")); 
+          return FALSE;
         }
       }
     }
-    else
+    break;
+
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  // There may be referrences to Field values from tables outside the scope of
+  // our pushed join which are supplied as paramValues().
+  // If any of these are NULL values, join can't be pushed
+  for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
+  {
+    Field* field= m_pushed_join->get_field_ref(i);
+    if (field->is_real_null())
     {
       DBUG_PRINT("info", 
-                 ("Cannot execute push join. Root operation prepared as %s "
-                  "not executable as %s w/ index %d",
-                  NdbQueryOperationDef::getTypeName(query_def_type),
-                  NdbQueryOperationDef::getTypeName(type), idx));
+                 ("paramValue is NULL, can not execute as pushed join"));
+      return FALSE;
     }
   }
-  return pushable;
+
+  return TRUE;
 }
 
 
@@ -5112,7 +5156,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     pbound = &bound;
   }
 
-  if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index))
+  if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index,
+                        sorted))
   {
     NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
     const int error= create_pushed_join(paramValues);
@@ -13686,7 +13731,9 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
 
       /* Create the scan operation for the first scan range. */
-      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index))
+      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, 
+                            active_index,
+                            !m_active_query && sorted))
       {
         if (!m_active_query)
         {

@@ -799,6 +799,8 @@ ErrorBundle ErrorCodes[] = {
     "Character Parameter was right truncated" },
   { QRY_MULTIPLE_SCAN_BRANCHES, DMEC, AE, 
     "Query has scans that are not descendants/ancestors of each other." },
+  { QRY_MULTIPLE_SCAN_SORTED, DMEC, AE, 
+    "Query with multiple scans may not be sorted." },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},
