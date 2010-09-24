@@ -1330,6 +1330,7 @@ end:
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 /**
   Send a single memory block from the query cache.
 
@@ -1377,6 +1378,7 @@ send_data_in_chunks(NET *net, const uchar *packet, ulong len)
 
   return FALSE;
 }
+#endif
 
 
 /*
