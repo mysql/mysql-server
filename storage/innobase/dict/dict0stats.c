@@ -218,23 +218,32 @@ dict_stats_update_transient(
 }
 /* @} */
 
-/* auxiliary structs for checking a table definition @{ */
-struct dict_stats_chk_column_struct {
-	const char*	name;
-	ulint		mtype;
-	ulint		prtype_mask;
-	ulint		len;
-};
+/* Auxiliary structs for checking a table definition @{ */
 
-typedef struct dict_stats_chk_column_struct	dict_stats_chk_column_t;
+/* This struct is used to specify the name and type that a column must
+have when checking a table's schema. */
+typedef struct dict_col_meta_struct {
+	const char*	name;		/* column name */
+	ulint		mtype;		/* required column main type */
+	ulint		prtype_mask;	/* required column precise type mask;
+					if this is non-zero then all the
+					bits it has set must also be set
+					in the column's prtype */
+	ulint		len;		/* required column length */
+} dict_col_meta_t;
 
-struct dict_stats_chk_table_struct {
-	const char*			table_name;
-	ulint				n_cols;
-	dict_stats_chk_column_t*	columns;
-};
-
-typedef struct dict_stats_chk_table_struct	dict_stats_chk_table_t;
+/* This struct is used for checking whether a given table exists and
+whether it has a predefined schema (number of columns and columns names
+and types) */
+typedef struct dict_table_schema_struct {
+	const char*		table_name;	/* the name of the table whose
+						structure we are checking */
+	ulint			n_cols;		/* the number of columns the
+						table must have */
+	dict_col_meta_t*	columns;	/* metadata for the columns;
+						this array has n_cols
+						elements */
+} dict_table_schema_t;
 /* @} */
 
 /*********************************************************************//**
@@ -242,13 +251,13 @@ Checks whether a table exists and whether it has the given structure.
 The table must have the same number of columns with the same names and
 types. The order of the columns does not matter.
 The caller must own the dictionary mutex.
-dict_stats_table_check() @{
+dict_table_schema_check() @{
 @return DB_SUCCESS if the table exists and contains the necessary columns */
 static
 enum db_err
-dict_stats_table_check(
-/*===================*/
-	dict_stats_chk_table_t*	req_schema,	/*!< in/out: required table
+dict_table_schema_check(
+/*====================*/
+	dict_table_schema_t*	req_schema,	/*!< in/out: required table
 						schema */
 	char*			errstr,		/*!< out: human readable error
 						text if FALSE is returned */
@@ -403,7 +412,7 @@ dict_stats_persistent_storage_check(
 						owns dict_sys->mutex */
 {
 	/* definition for the table TABLE_STATS_NAME */
-	dict_stats_chk_column_t	table_stats_columns[] = {
+	dict_col_meta_t	table_stats_columns[] = {
 		{"database_name", DATA_VARCHAR,
 			DATA_NOT_NULL, 512},
 
@@ -422,14 +431,14 @@ dict_stats_persistent_storage_check(
 		{"sum_of_other_index_sizes", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 8}
 	};
-	dict_stats_chk_table_t	table_stats_schema = {
+	dict_table_schema_t	table_stats_schema = {
 		TABLE_STATS_NAME,
 		UT_ARR_SIZE(table_stats_columns),
 		table_stats_columns
 	};
 
 	/* definition for the table INDEX_STATS_NAME */
-	dict_stats_chk_column_t	index_stats_columns[] = {
+	dict_col_meta_t	index_stats_columns[] = {
 		{"database_name", DATA_VARCHAR,
 			DATA_NOT_NULL, 512},
 
@@ -454,7 +463,7 @@ dict_stats_persistent_storage_check(
 		{"stat_description", DATA_VARCHAR,
 			DATA_NOT_NULL, 1024}
 	};
-	dict_stats_chk_table_t	index_stats_schema = {
+	dict_table_schema_t	index_stats_schema = {
 		INDEX_STATS_NAME,
 		UT_ARR_SIZE(index_stats_columns),
 		index_stats_columns
@@ -470,12 +479,12 @@ dict_stats_persistent_storage_check(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* first check table_stats */
-	ret = dict_stats_table_check(&table_stats_schema, errstr,
-				     sizeof(errstr));
+	ret = dict_table_schema_check(&table_stats_schema, errstr,
+				      sizeof(errstr));
 	if (ret == DB_SUCCESS) {
 		/* if it is ok, then check index_stats */
-		ret = dict_stats_table_check(&index_stats_schema, errstr,
-					     sizeof(errstr));
+		ret = dict_table_schema_check(&index_stats_schema, errstr,
+					      sizeof(errstr));
 	}
 
 	if (!caller_has_dict_sys_mutex) {
@@ -2744,9 +2753,9 @@ commit_and_return:
 individually, such testing cannot be performed by the mysql-test framework
 via SQL. */
 
-/* test_dict_stats_table_check() @{ */
+/* test_dict_table_schema_check() @{ */
 void
-test_dict_stats_table_check()
+test_dict_table_schema_check()
 {
 	/*
 	CREATE TABLE tcheck (
@@ -2760,7 +2769,7 @@ test_dict_stats_table_check()
 	) ENGINE=INNODB;
 	*/
 	/* definition for the table 'test/tcheck' */
-	dict_stats_chk_column_t	columns[] = {
+	dict_col_meta_t	columns[] = {
 		{"c01", DATA_VARCHAR, 0, 123},
 		{"c02", DATA_INT, 0, 4},
 		{"c03", DATA_INT, DATA_NOT_NULL, 4},
@@ -2770,7 +2779,7 @@ test_dict_stats_table_check()
 		{"c07", DATA_INT, 0, 4},
 		{"c_extra", DATA_INT, 0, 4}
 	};
-	dict_stats_chk_table_t	schema = {
+	dict_table_schema_t	schema = {
 		"test/tcheck",
 		0 /* will be set individually for each test below */,
 		columns
@@ -2784,49 +2793,49 @@ test_dict_stats_table_check()
 
 	/* check that a valid table is reported as valid */
 	schema.n_cols = 7;
-	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    == DB_SUCCESS) {
 		printf("OK: test.tcheck ok\n");
 	} else {
 		printf("ERROR: %s\n", errstr);
 		printf("ERROR: test.tcheck not present or corrupted\n");
-		goto test_dict_stats_table_check_end;
+		goto test_dict_table_schema_check_end;
 	}
 
 	/* check columns with wrong length */
 	schema.columns[1].len = 8;
-	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    != DB_SUCCESS) {
 		printf("OK: test.tcheck.c02 has different length and is "
 		       "reported as corrupted\n");
 	} else {
 		printf("OK: test.tcheck.c02 has different length but is "
 		       "reported as ok\n");
-		goto test_dict_stats_table_check_end;
+		goto test_dict_table_schema_check_end;
 	}
 	schema.columns[1].len = 4;
 
 	/* request that c02 is NOT NULL while actually it does not have
 	this flag set */
 	schema.columns[1].prtype_mask |= DATA_NOT_NULL;
-	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    != DB_SUCCESS) {
 		printf("OK: test.tcheck.c02 does not have NOT NULL while "
 		       "it should and is reported as corrupted\n");
 	} else {
 		printf("ERROR: test.tcheck.c02 does not have NOT NULL while "
 		       "it should and is not reported as corrupted\n");
-		goto test_dict_stats_table_check_end;
+		goto test_dict_table_schema_check_end;
 	}
 	schema.columns[1].prtype_mask &= ~DATA_NOT_NULL;
 
 	/* check a table that contains some extra columns */
 	schema.n_cols = 6;
-	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    == DB_SUCCESS) {
 		printf("ERROR: test.tcheck has more columns but is not "
 		       "reported as corrupted\n");
-		goto test_dict_stats_table_check_end;
+		goto test_dict_table_schema_check_end;
 	} else {
 		printf("OK: test.tcheck has more columns and is "
 		       "reported as corrupted\n");
@@ -2834,27 +2843,27 @@ test_dict_stats_table_check()
 
 	/* check a table that has some columns missing */
 	schema.n_cols = 8;
-	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    != DB_SUCCESS) {
 		printf("OK: test.tcheck has missing columns and is "
 		       "reported as corrupted\n");
 	} else {
 		printf("ERROR: test.tcheck has missing columns but is "
 		       "reported as ok\n");
-		goto test_dict_stats_table_check_end;
+		goto test_dict_table_schema_check_end;
 	}
 
 	/* check non-existent table */
 	schema.table_name = "test/tcheck_nonexistent";
-	if (dict_stats_table_check(&schema, errstr, sizeof(errstr))
+	if (dict_table_schema_check(&schema, errstr, sizeof(errstr))
 	    != DB_SUCCESS) {
 		printf("OK: test.tcheck_nonexistent is not present\n");
 	} else {
 		printf("ERROR: test.tcheck_nonexistent is present!?\n");
-		goto test_dict_stats_table_check_end;
+		goto test_dict_table_schema_check_end;
 	}
 
-test_dict_stats_table_check_end:
+test_dict_table_schema_check_end:
 
 	mutex_exit(&(dict_sys->mutex));
 }
@@ -3126,7 +3135,7 @@ test_dict_stats_fetch_from_ps()
 void
 test_dict_stats_all()
 {
-	test_dict_stats_table_check();
+	test_dict_table_schema_check();
 
 	test_dict_stats_save();
 
