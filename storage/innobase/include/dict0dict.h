@@ -27,6 +27,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
+#include "db0err.h"
 #include "dict0types.h"
 #include "dict0mem.h"
 #include "data0type.h"
@@ -1177,6 +1178,52 @@ UNIV_INTERN
 void
 dict_ind_init(void);
 /*===============*/
+
+/* Auxiliary structs for checking a table definition @{ */
+
+/* This struct is used to specify the name and type that a column must
+have when checking a table's schema. */
+typedef struct dict_col_meta_struct {
+	const char*	name;		/* column name */
+	ulint		mtype;		/* required column main type */
+	ulint		prtype_mask;	/* required column precise type mask;
+					if this is non-zero then all the
+					bits it has set must also be set
+					in the column's prtype */
+	ulint		len;		/* required column length */
+} dict_col_meta_t;
+
+/* This struct is used for checking whether a given table exists and
+whether it has a predefined schema (number of columns and columns names
+and types) */
+typedef struct dict_table_schema_struct {
+	const char*		table_name;	/* the name of the table whose
+						structure we are checking */
+	ulint			n_cols;		/* the number of columns the
+						table must have */
+	dict_col_meta_t*	columns;	/* metadata for the columns;
+						this array has n_cols
+						elements */
+} dict_table_schema_t;
+/* @} */
+
+/*********************************************************************//**
+Checks whether a table exists and whether it has the given structure.
+The table must have the same number of columns with the same names and
+types. The order of the columns does not matter.
+The caller must own the dictionary mutex.
+dict_table_schema_check() @{
+@return DB_SUCCESS if the table exists and contains the necessary columns */
+UNIV_INTERN
+enum db_err
+dict_table_schema_check(
+/*====================*/
+	dict_table_schema_t*	req_schema,	/*!< in/out: required table
+						schema */
+	char*			errstr,		/*!< out: human readable error
+						text if FALSE is returned */
+	size_t			errstr_sz);	/*!< in: errstr size */
+/* @} */
 
 /**********************************************************************//**
 Closes the data dictionary module. */
