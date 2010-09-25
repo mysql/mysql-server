@@ -3,7 +3,7 @@
 #endif
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "toku_mysql_priv.h"
 #include "hatoku_cmp.h"
 extern "C" {
 #include "stdint.h"
