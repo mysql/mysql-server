@@ -1010,12 +1010,9 @@ insert into t2 values (2000, 2), (2001, 2);
 insert into t3 values (3000, 3), (3001, 2);
 insert into t4 values (4000), (4001);
 
-set @save_optimizer_switch=@@optimizer_switch;
-set @@optimizer_switch='table_elimination=off';
-
 explain extended
 select t2.pk, 
-      (select t3.pk 
+      (select t3.pk+if(isnull(t4.pk),0,t4.pk) 
          from t3 left join t4 on t4.pk=t3.pk 
            where t3.pk=t2.pk+1000 limit 1 ) as t
   from t1,t2 
@@ -1023,14 +1020,12 @@ select t2.pk,
   group by t2.pk;
 
 select t2.pk, 
-      (select t3.pk 
+      (select t3.pk+if(isnull(t4.pk),0,t4.pk)
          from t3 left join t4 on t4.pk=t3.pk 
            where t3.pk=t2.pk+1000 limit 1 ) as t
   from t1,t2 
     where t2.pk=t1.pk+1000 and t1.pk>1000
   group by t2.pk;
-
-set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1,t2,t3,t4;
 
