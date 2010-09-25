@@ -516,7 +516,6 @@ toku_cmd_leafval_heaviside (OMTVALUE lev, void *extra) {
                                 be);
 }
 
-// If you pass in data==0 then it only compares the key, not the data (even if is a DUPSORT database)
 static int
 brt_compare_pivot(BRT brt, DBT *key, bytevec ck)
 {
@@ -2844,8 +2843,8 @@ int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, 
     r = toku_brt_create(&brt);
     if (r != 0)
         return r;
-    toku_brt_set_nodesize(brt, nodesize);
-    toku_brt_set_bt_compare(brt, compare_fun);
+    r = toku_brt_set_nodesize(brt, nodesize); assert(r==0);
+    r = toku_brt_set_bt_compare(brt, compare_fun); assert(r==0);
 
     r = toku_brt_open(brt, fname, is_create, only_create, cachetable, txn, db);
     if (r != 0) {
@@ -3619,7 +3618,7 @@ int toku_brt_set_flags(BRT brt, unsigned int flags) {
 
 int toku_brt_get_flags(BRT brt, unsigned int *flags) {
     *flags = brt->flags;
-    assert(brt->flags==(brt->flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extranious flags
+    assert(brt->flags==(brt->flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extraneous flags
     return 0;
 }
 
@@ -3636,6 +3635,12 @@ int toku_brt_get_nodesize(BRT brt, unsigned int *nodesize) {
 
 int toku_brt_set_bt_compare(BRT brt, int (*bt_compare)(DB *, const DBT*, const DBT*)) {
     brt->compare_fun = bt_compare;
+    return 0;
+}
+
+int toku_brt_set_upsert(BRT brt, int (*upsert)(DB *, const DBT *key, const DBT *upserted_val, const DBT *upserted_extra, const DBT *prev_val,
+					       void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra)) {
+    brt->upsert_fun = upsert;
     return 0;
 }
 

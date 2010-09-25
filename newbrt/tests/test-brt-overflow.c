@@ -28,7 +28,8 @@ test_overflow (void) {
     int i;
     for (i=0; i<8; i++) {
 	char key[]={(char)('a'+i), 0};
-	toku_brt_insert(t, toku_fill_dbt(&k, key, 2), toku_fill_dbt(&v,buf,sizeof(buf)), null_txn);
+	r = toku_brt_insert(t, toku_fill_dbt(&k, key, 2), toku_fill_dbt(&v,buf,sizeof(buf)), null_txn);
+	assert(r=0);
     }
     r = toku_close_brt(t, 0);        assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);

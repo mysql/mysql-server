@@ -26,11 +26,13 @@ static void test2 (int memcheck, int limit) {
 	char key[100],val[100];
 	snprintf(key,100,"hello%d",i);
 	snprintf(val,100,"there%d",i);
-	toku_brt_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
+	r = toku_brt_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
+	assert(r==0);
 	r = toku_verify_brt(t); assert(r==0);
 	//printf("%s:%d did insert %d\n", __FILE__, __LINE__, i);
 	if (0) {
-	    toku_brt_flush(t);
+	    r = toku_brt_flush(t);
+	    assert(r==0);
 	    {
 		int n = toku_get_n_items_malloced();
 		if (verbose) printf("%s:%d i=%d n_items_malloced=%d\n", __FILE__, __LINE__, i, n);

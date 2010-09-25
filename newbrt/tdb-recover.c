@@ -18,9 +18,15 @@ static void dummy_set_brt(DB *db UU(), BRT brt UU()) {}
 
 int
 main(int argc, const char *const argv[]) {
-    toku_brt_init(dummy, dummy, dummy_set_brt);
+    {
+	int rr = toku_brt_init(dummy, dummy, dummy_set_brt);
+	assert(rr==0);
+    }
     int r = recovery_main(argc, argv);
-    toku_brt_destroy();
+    {
+	int rr = toku_brt_destroy();
+	assert(rr=0);
+    }
     return r;
 }
 

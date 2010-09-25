@@ -19,7 +19,7 @@ static void test_dump_empty_db (void) {
     unlink(fname);
     r = toku_open_brt(fname, 1, &t, 1024, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
-    if (verbose) toku_dump_brt(stdout, t);
+    if (verbose) { r=toku_dump_brt(stdout, t); assert(r==0); }
     r = toku_close_brt(t, 0);          assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
     
@@ -44,15 +44,15 @@ static void test_multiple_files_of_size (int size) {
 	DBT k,v;
 	snprintf(key, 100, "key%d", i);
 	snprintf(val, 100, "val%d", i);
-	toku_brt_insert(t0, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
+	r = toku_brt_insert(t0, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn); assert(r==0);
 	snprintf(val, 100, "Val%d", i);
-	toku_brt_insert(t1, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
+	r = toku_brt_insert(t1, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn); assert(r==0);
     }
     //toku_verify_brt(t0);
     //dump_brt(t0);
     //dump_brt(t1);
-    toku_verify_brt(t0);
-    toku_verify_brt(t1);
+    r = toku_verify_brt(t0); assert(r==0);
+    r = toku_verify_brt(t1); assert(r==0);
 
     r = toku_close_brt(t0, 0); assert(r==0);
     r = toku_close_brt(t1, 0); assert(r==0);
@@ -105,7 +105,8 @@ static void test_multiple_brts_one_db_one_file (void) {
 	DBT kb, vb;
 	snprintf(k, 20, "key%d", i);
 	snprintf(v, 20, "val%d", i);
-	toku_brt_insert(trees[i], toku_fill_dbt(&kb, k, strlen(k)+1), toku_fill_dbt(&vb, v, strlen(v)+1), null_txn);
+	r = toku_brt_insert(trees[i], toku_fill_dbt(&kb, k, strlen(k)+1), toku_fill_dbt(&vb, v, strlen(v)+1), null_txn);
+	assert(r==0);
     }
     for (i=0; i<MANYN; i++) {
 	char k[20],vexpect[20];
@@ -148,7 +149,8 @@ static void  test_read_what_was_written (void) {
     /* See if we can put something in it. */
     {
 	DBT k,v;
-	toku_brt_insert(brt, toku_fill_dbt(&k, "hello", 6), toku_fill_dbt(&v, "there", 6), null_txn);
+	r = toku_brt_insert(brt, toku_fill_dbt(&k, "hello", 6), toku_fill_dbt(&v, "there", 6), null_txn);
+	assert(r==0);
     }
 
     r = toku_close_brt(brt, 0); assert(r==0);
@@ -176,11 +178,13 @@ static void  test_read_what_was_written (void) {
 		int verify_result=toku_verify_brt(brt);;
 		assert(verify_result==0);
 	    }
-	    toku_brt_insert(brt, toku_fill_dbt(&k, key, strlen(key)+1), toku_fill_dbt(&v, val, strlen(val)+1), null_txn);
+	    r = toku_brt_insert(brt, toku_fill_dbt(&k, key, strlen(key)+1), toku_fill_dbt(&v, val, strlen(val)+1), null_txn);
+	    assert(r==0);
 	    if (i<600) {
 		int verify_result=toku_verify_brt(brt);
 		if (verify_result) {
-		    toku_dump_brt(stdout, brt);
+		    r = toku_dump_brt(stdout, brt);
+		    assert(r==0);
 		    assert(0);
 		}
 		{
@@ -198,7 +202,8 @@ static void  test_read_what_was_written (void) {
     if (verbose) printf("Now read them out\n");
 
     //show_brt_blocknumbers(brt);
-    toku_verify_brt(brt);
+    r = toku_verify_brt(brt);
+    assert(r==0);
     //dump_brt(brt);
 
     /* See if we can read them all out again. */
