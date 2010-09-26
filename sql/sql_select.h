@@ -154,7 +154,9 @@ typedef struct st_join_table {
   TABLE		*table;
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
-  COND		*select_cond;
+  COND          *select_cond;
+  COND          *on_precond;    /**< part of on condition to check before
+				     accessing the first inner table           */  
   QUICK_SELECT_I *quick;
   Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
