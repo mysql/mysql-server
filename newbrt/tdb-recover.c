@@ -25,7 +25,7 @@ main(int argc, const char *const argv[]) {
     int r = recovery_main(argc, argv);
     {
 	int rr = toku_brt_destroy();
-	assert(rr=0);
+	assert(rr==0);
     }
     return r;
 }
