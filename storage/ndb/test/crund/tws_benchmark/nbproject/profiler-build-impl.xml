@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+*** GENERATED FROM project.xml - DO NOT EDIT  ***
+***         EDIT ../build.xml INSTEAD         ***
+
+For the purpose of easier reading the script
+is divided into following sections:
+
+  - initialization
+  - profiling
+  - applet profiling
+
+-->
+<project name="-profiler-impl" default="profile" basedir="..">
+    <target name="default" depends="profile" description="Build and profile the project."/>
+    <!--
+    ======================
+    INITIALIZATION SECTION
+    ======================
+    -->
+    <target name="profile-init" depends="-profile-pre-init, init, -profile-post-init, -profile-init-macrodef-profile, -profile-init-check"/>
+    <target name="-profile-pre-init">
+        <!-- Empty placeholder for easier customization. -->
+        <!-- You can override this target in the ../build.xml file. -->
+    </target>
+    <target name="-profile-post-init">
+        <!-- Empty placeholder for easier customization. -->
+        <!-- You can override this target in the ../build.xml file. -->
+    </target>
+    <target name="-profile-init-macrodef-profile">
+        <macrodef name="resolve">
+            <attribute name="name"/>
+            <attribute name="value"/>
+            <sequential>
+                <property name="@{name}" value="${env.@{value}}"/>
+            </sequential>
+        </macrodef>
+        <macrodef name="profile">
+            <attribute name="classname" default="${main.class}"/>
+            <element name="customize" optional="true"/>
+            <sequential>
+                <property environment="env"/>
+                <resolve name="profiler.current.path" value="${profiler.info.pathvar}"/>
+                <java fork="true" classname="@{classname}" dir="${profiler.info.dir}" jvm="${profiler.info.jvm}">
+                    <jvmarg value="${profiler.info.jvmargs.agent}"/>
+                    <jvmarg line="${profiler.info.jvmargs}"/>
+                    <env key="${profiler.info.pathvar}" path="${profiler.info.agentpath}:${profiler.current.path}"/>
+                    <arg line="${application.args}"/>
+                    <classpath>
+                        <path path="${run.classpath}"/>
+                    </classpath>
+                    <syspropertyset>
+                        <propertyref prefix="run-sys-prop."/>
+                        <mapper type="glob" from="run-sys-prop.*" to="*"/>
+                    </syspropertyset>
+                    <customize/>
+                </java>
+            </sequential>
+        </macrodef>
+    </target>
+    <target name="-profile-init-check" depends="-profile-pre-init, init, -profile-post-init, -profile-init-macrodef-profile">
+        <fail unless="profiler.info.jvm">Must set JVM to use for profiling in profiler.info.jvm</fail>
+        <fail unless="profiler.info.jvmargs.agent">Must set profiler agent JVM arguments in profiler.info.jvmargs.agent</fail>
+    </target>
+    <!--
+    =================
+    PROFILING SECTION
+    =================
+    -->
+    <target name="profile" if="netbeans.home" depends="profile-init,compile" description="Profile a project in the IDE.">
+        <nbprofiledirect>
+            <classpath>
+                <path path="${run.classpath}"/>
+            </classpath>
+        </nbprofiledirect>
+        <profile/>
+    </target>
+    <target name="profile-single" if="netbeans.home" depends="profile-init,compile-single" description="Profile a selected class in the IDE.">
+        <fail unless="profile.class">Must select one file in the IDE or set profile.class</fail>
+        <nbprofiledirect>
+            <classpath>
+                <path path="${run.classpath}"/>
+            </classpath>
+        </nbprofiledirect>
+        <profile classname="${profile.class}"/>
+    </target>
+    <!--
+    =========================
+    APPLET PROFILING  SECTION
+    =========================
+    -->
+    <target name="profile-applet" if="netbeans.home" depends="profile-init,compile-single">
+        <nbprofiledirect>
+            <classpath>
+                <path path="${run.classpath}"/>
+            </classpath>
+        </nbprofiledirect>
+        <profile classname="sun.applet.AppletViewer">
+            <customize>
+                <arg value="${applet.url}"/>
+            </customize>
+        </profile>
+    </target>
+    <!--
+    =========================
+    TESTS PROFILING  SECTION
+    =========================
+    -->
+    <target name="profile-test-single" if="netbeans.home" depends="profile-init,compile-test-single">
+        <nbprofiledirect>
+            <classpath>
+                <path path="${run.test.classpath}"/>
+            </classpath>
+        </nbprofiledirect>
+        <junit showoutput="true" fork="true" dir="${profiler.info.dir}" jvm="${profiler.info.jvm}" failureproperty="tests.failed" errorproperty="tests.failed">
+            <env key="${profiler.info.pathvar}" path="${profiler.info.agentpath}:${profiler.current.path}"/>
+            <jvmarg value="${profiler.info.jvmargs.agent}"/>
+            <jvmarg line="${profiler.info.jvmargs}"/>
+            <test name="${profile.class}"/>
+            <classpath>
+                <path path="${run.test.classpath}"/>
+            </classpath>
+            <syspropertyset>
+                <propertyref prefix="test-sys-prop."/>
+                <mapper type="glob" from="test-sys-prop.*" to="*"/>
+            </syspropertyset>
+            <formatter type="brief" usefile="false"/>
+            <formatter type="xml"/>
+        </junit>
+    </target>
+</project>

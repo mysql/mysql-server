@@ -14,17 +14,6 @@ DROP TABLE IF EXISTS b1;
 DROP TABLE IF EXISTS b0;
 DROP TABLE IF EXISTS a;
 
--- SHOW TABLES;
-
--- MySQL does not support wildcards in user names, only anonymous users
--- specified by the empty user name ''; any user who connects from the
--- local host with the correct password for the anonymous user will be
--- allowed access then. 
-GRANT ALL ON *.* TO ''@localhost ;
-GRANT ALL ON *.* TO md@localhost ;
-GRANT ALL ON *.* TO mz@localhost ;
-GRANT ALL ON *.* TO clr@localhost ;
-
 CREATE TABLE a (
         id              INT             NOT NULL,
         cint            INT,

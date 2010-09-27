@@ -13,11 +13,12 @@ iostat 5 > iostat5.txt 2>&1 &
 #vmstat 5 > vmstat5.txt 2>&1 &
 pid=$!
 echo "" >> out.txt 2>&1
-$1 $2 >> out.txt 2>&1
+( cd .. ; $1 $2 ) >> out.txt 2>&1
 mkdir -p results/xxx
 mv -v [a-z]*.txt results/xxx
-cp -v *.properties results/xxx
-cp -v build.xml results/xxx
-cp -v config.ini my.cnf results/xxx
+cp -v ../*.properties results/xxx
+cp -v ../build.xml results/xxx
+cp -v ../config.ini results/xxx
+cp -v ../my.cnf results/xxx
 sleep 6
 kill -9 $pid
