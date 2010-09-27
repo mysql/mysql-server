@@ -22,9 +22,6 @@
 #include "ma_checkpoint.h"
 #include <hash.h>
 
-static my_bool maria_upgrade();
-
-
 void history_state_free(MARIA_STATE_HISTORY_CLOSED *closed_history)
 {
   MARIA_STATE_HISTORY *history, *next;
@@ -68,8 +65,6 @@ int maria_init(void)
               maria_block_size % MARIA_MIN_KEY_BLOCK_LENGTH == 0);
   if (!maria_inited)
   {
-    if (maria_upgrade())
-      return 1;
     maria_inited= TRUE;
     pthread_mutex_init(&THR_LOCK_maria,MY_MUTEX_INIT_SLOW);
     _ma_init_block_record_data();
@@ -130,7 +125,7 @@ void maria_end(void)
 
 */
 
-static my_bool maria_upgrade()
+my_bool maria_upgrade()
 {
   char name[FN_REFLEN], new_name[FN_REFLEN];
   DBUG_ENTER("maria_upgrade");

@@ -283,6 +283,7 @@ extern int (*maria_test_invalid_symlink)(const char *filename);
 
 extern int maria_init(void);
 extern void maria_end(void);
+extern my_bool maria_upgrade(void);
 extern int maria_close(MARIA_HA *file);
 extern int maria_delete(MARIA_HA *file, const uchar *buff);
 extern MARIA_HA *maria_open(const char *name, int mode,
