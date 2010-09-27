@@ -626,6 +626,122 @@ dict_stats_analyze_index_level(
 }
 /* @} */
 
+/* aux enum for controlling the behavior of dict_stats_scan_page() @{ */
+typedef enum page_scan_method_enum {
+	COUNT_ALL_NON_BORING,	/* scan all records on the given page
+				and count the number of distinct ones */
+	QUIT_ON_FIRST_NON_BORING/* quit when the first record that differs
+				from its right neighbor is found */
+} page_scan_method_t;
+/* @} */
+
+/*********************************************************************//**
+Scan a page, reading records from left to right and counting the number
+of distinct records on that page (looking only at the first n_prefix
+columns). If scan_method is QUIT_ON_FIRST_NON_BORING then the function
+will return as soon as it finds a record that does not match its neighbor
+to the right, which means that in the case of QUIT_ON_FIRST_NON_BORING the
+returned n_diff can either be 0 (empty page), 1 (the whole page has all keys
+equal) or 2 (the function found a non-boring record and returned).
+@return the last user record which was read or NULL if the page is empty and
+does not contain user records.
+dict_stats_scan_page() @{ */
+static
+inline
+rec_t*
+dict_stats_scan_page(
+/*=================*/
+	dict_index_t*		index,		/*!< in: index of the page */
+	page_t*			page,		/*!< in: the page to scan */
+	ulint			n_prefix,	/*!< in: look at the first
+						n_prefix columns */
+	mem_heap_t*		heap,		/*!< in: aux memory heap to
+						use from the caller */
+	page_scan_method_t	scan_method,	/*!< in: scan to the end of
+						the page or not */
+	ib_uint64_t*		n_diff)		/*!< out: number of distinct
+						records encountered */
+{
+	ulint	offsets_onstack1[REC_OFFS_NORMAL_SIZE];
+	ulint	offsets_onstack2[REC_OFFS_NORMAL_SIZE];
+	ulint*	offsets_rec = offsets_onstack1;
+	ulint*	offsets_next_rec = offsets_onstack2;
+	rec_t*	rec;
+	rec_t*	next_rec;
+	rec_t*	supremum;
+
+	rec_offs_init(offsets_onstack1);
+	rec_offs_init(offsets_onstack2);
+
+	supremum = page_get_supremum_rec(page);
+	rec = page_rec_get_next(page_get_infimum_rec(page));
+
+	if (rec == supremum) {
+		/* the page is empty */
+		*n_diff = 0;
+		return(NULL);
+	}
+
+	offsets_rec = rec_get_offsets(rec, index, offsets_rec,
+				      ULINT_UNDEFINED, &heap);
+
+	next_rec = page_rec_get_next(rec);
+
+	*n_diff = 1;
+
+	while (next_rec != supremum) {
+
+		ulint	matched_fields = 0;
+		ulint	matched_bytes = 0;
+
+		offsets_next_rec = rec_get_offsets(next_rec, index,
+						   offsets_next_rec,
+						   ULINT_UNDEFINED,
+						   &heap);
+
+		/* check whether rec != next_rec when looking at
+		the first n_prefix fields */
+		cmp_rec_rec_with_match(rec, next_rec,
+				       offsets_rec, offsets_next_rec,
+				       index, &matched_fields,
+				       &matched_bytes);
+
+
+		if (matched_fields < n_prefix) {
+			/* rec != next_rec, => rec is non-boring */
+
+			(*n_diff)++;
+
+			if (scan_method == QUIT_ON_FIRST_NON_BORING) {
+				return(rec);
+			}
+		}
+
+		rec = next_rec;
+		{
+			/* Assign offsets_rec = offsets_next_rec
+			so that offsets_rec matches with rec which
+			was just assigned rec = next_rec above.
+			Also need to point offsets_next_rec to the
+			place where offsets_rec was pointing before
+			because we have just 2 placeholders where
+			data is actually stored:
+			offsets_onstack1 and offsets_onstack2 and we
+			are using them in circular fashion
+			(offsets[_next]_rec are just pointers to
+			those placeholders). */
+			ulint*	offsets_tmp;
+			offsets_tmp = offsets_rec;
+			offsets_rec = offsets_next_rec;
+			offsets_next_rec = offsets_tmp;
+		}
+		next_rec = page_rec_get_next(next_rec);
+	}
+
+	return(rec);
+}
+/* @} */
+
 /*********************************************************************//**
 Dive below the current position of a cursor and calculate the number of
 distinct records on the leaf page, when looking at the fist n_prefix
@@ -648,18 +764,13 @@ dict_stats_analyze_index_below_pcur(
 	ulint		page_no;
 	page_t*		page;
 	mem_heap_t*	heap;
-	rec_t*		supremum;
 	rec_t*		rec;
-	rec_t*		next_rec;
-	ulint		offsets_onstack1[REC_OFFS_NORMAL_SIZE];
-	ulint		offsets_onstack2[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets_rec = offsets_onstack1;
-	ulint*		offsets_next_rec = offsets_onstack2;
+	ulint		offsets_onstack[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets_rec = offsets_onstack;
 	ulint		root_height;
 	ib_uint64_t	n_diff; /* the result */
 
-	rec_offs_init(offsets_onstack1);
-	rec_offs_init(offsets_onstack2);
+	rec_offs_init(offsets_onstack);
 
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
@@ -692,79 +803,33 @@ dict_stats_analyze_index_below_pcur(
 		}
 		/* else */
 
-		/* search for a non-boring record on the page */
+		/* search for the first non-boring record on the page */
+		rec = dict_stats_scan_page(index, page, n_prefix, heap,
+					   QUIT_ON_FIRST_NON_BORING,
+					   &n_diff);
 
-		supremum = page_get_supremum_rec(page);
-		rec = page_rec_get_next(page_get_infimum_rec(page));
+		/* pages on level > 0 are not allowed to be empty */
+		ut_a(rec != NULL);
+		/* if page is not empty (rec != NULL) then n_diff must
+		be > 0, otherwise there is a bug in dict_stats_scan_page() */
+		ut_a(n_diff > 0);
 
-		/* empty pages are allowed only if the whole B-tree is empty
-		and contains a signle empty page */
-		if (root_height > 0) {
-
-			ut_a(rec != supremum);
-		} else if (rec == supremum) {
-			/* the whole B-tree consists of a single empty page */
-			n_diff = 0;
-			goto end;
+		if (n_diff == 1) {
+			/* page has all keys equal and the end of the page
+			was reached by dict_stats_scan_page(), no need to
+			descend to the leaf level */
+			mem_heap_free(heap);
+			return(1);
 		}
+		/* else */
 
-		offsets_rec = rec_get_offsets(rec, index, offsets_rec,
-					      ULINT_UNDEFINED, &heap);
+		/* when we instruct dict_stats_scan_page() to quit on the
+		first non-boring record it finds, then the returned n_diff
+		can either be 0 (empty page), 1 (page has all keys equal) or
+		2 (non-boring record was found) */
+		ut_a(n_diff == 2);
 
-		next_rec = page_rec_get_next(rec);
-
-		for (;;) {
-			ulint	matched_fields = 0;
-			ulint	matched_bytes = 0;
-
-			if (next_rec == supremum) {
-				/* page has all boring keys, no need to
-				descend to the leaf level */
-				n_diff = 1;
-				goto end;
-			}
-			/* else */
-
-			offsets_next_rec = rec_get_offsets(next_rec, index,
-							   offsets_next_rec,
-							   ULINT_UNDEFINED,
-							   &heap);
-
-			/* check whether rec != next_rec when looking at
-			the first n_prefix fields */
-			cmp_rec_rec_with_match(rec, next_rec,
-                                               offsets_rec, offsets_next_rec,
-                                               index, &matched_fields,
-                                               &matched_bytes);
-
-
-			if (matched_fields < n_prefix) {
-				/* rec != next_rec, => rec is non-boring */
-				break;
-			}
-
-			rec = next_rec;
-			{
-				/* Assign offsets_rec = offsets_next_rec
-				so that offsets_rec matches with rec which
-				was just assigned rec = next_rec above.
-				Also need to point offsets_next_rec to the
-				place where offsets_rec was pointing before
-				because we have just 2 placeholders where
-				data is actually stored:
-				offsets_onstack1 and offsets_onstack2 and we
-				are using them in circular fashion
-				(offsets[_next]_rec are just pointers to
-				those placeholders). */
-				ulint*	offsets_tmp;
-				offsets_tmp = offsets_rec;
-				offsets_rec = offsets_next_rec;
-				offsets_next_rec = offsets_tmp;
-			}
-			next_rec = page_rec_get_next(next_rec);
-		}
-
-		/* now we got a non-boring record in rec, descend below it */
+		/* we have a non-boring record in rec, descend below it */
 
 		page_no = btr_node_ptr_get_child_page_no(rec, offsets_rec);
 	}
@@ -775,74 +840,17 @@ dict_stats_analyze_index_below_pcur(
 	/* scan the leaf page and find the number of distinct keys,
 	when looking only at the first n_prefix columns */
 
-	supremum = page_get_supremum_rec(page);
-	rec = page_rec_get_next(page_get_infimum_rec(page));
+	rec = dict_stats_scan_page(index, page, n_prefix, heap,
+				   COUNT_ALL_NON_BORING,
+				   &n_diff);
 
 	if (root_height > 0) {
 
 		/* empty pages are allowed only if the whole B-tree is empty
 		and contains a signle empty page */
-		ut_a(rec != supremum);
-
-		/* start with 1 */
-		n_diff = 1;
-	} else if (rec == supremum) {
-		/* the whole B-tree consists of a single empty page */
-		n_diff = 0;
-		goto end;
-	} else {
-		/* the whole B-tree consists of a single non-empty page */
-		n_diff = 1;
+		ut_a(rec != NULL);
 	}
 
-	offsets_rec = rec_get_offsets(rec, index, offsets_rec,
-				      ULINT_UNDEFINED, &heap);
-
-	next_rec = page_rec_get_next(rec);
-
-	/* iterate over the records on the page */
-	while (next_rec != supremum) {
-
-		ulint	matched_fields = 0;
-		ulint	matched_bytes = 0;
-
-		offsets_next_rec = rec_get_offsets(next_rec, index,
-						   offsets_next_rec,
-						   ULINT_UNDEFINED, &heap);
-
-		/* check whether rec != next_rec when looking at
-		the first n_prefix columns */
-		cmp_rec_rec_with_match(rec, next_rec,
-				       offsets_rec, offsets_next_rec,
-				       index, &matched_fields,
-				       &matched_bytes);
-
-		if (matched_fields < n_prefix) {
-			n_diff++;
-		}
-
-		rec = next_rec;
-		{
-			/* Assign offsets_rec = offsets_next_rec
-			so that offsets_rec matches with rec which
-			was just assigned rec = next_rec above.
-			Also need to point offsets_next_rec to the
-			place where offsets_rec was pointing before
-			because we have just 2 placeholders where
-			data is actually stored:
-			offsets_onstack1 and offsets_onstack2 and we
-			are using them in circular fashion
-			(offsets[_next]_rec are just pointers to
-			those placeholders). */
-			ulint*	offsets_tmp;
-			offsets_tmp = offsets_rec;
-			offsets_rec = offsets_next_rec;
-			offsets_next_rec = offsets_tmp;
-		}
-		next_rec = page_rec_get_next(next_rec);
-	}
-
-end:
 #if 0
 	DEBUG_PRINTF("      %s(): n_diff below page_no=%lu: %llu\n",
 		     __func__, page_no, n_diff);
