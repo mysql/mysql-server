@@ -16,12 +16,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <limits.h>
-#include <errno.h>
-
 #include "Ndbfs.hpp"
+
 #include "AsyncFile.hpp"
-#include "Filename.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
@@ -34,8 +31,6 @@
 #include <signaldata/DumpStateOrd.hpp>
 
 #include <RefConvert.hpp>
-#include <NdbSleep.h>
-#include <NdbOut.hpp>
 #include <Configuration.hpp>
 
 VoidFs::VoidFs(Block_context & ctx) :
@@ -53,7 +48,7 @@ VoidFs::VoidFs(Block_context & ctx) :
   addRecSignal(GSN_FSSYNCREQ, &VoidFs::execFSSYNCREQ, true);
   addRecSignal(GSN_FSAPPENDREQ, &VoidFs::execFSAPPENDREQ, true);
   addRecSignal(GSN_FSREMOVEREQ, &VoidFs::execFSREMOVEREQ, true);
-
+  addRecSignal(GSN_FSSUSPENDORD, &VoidFs::execFSSUSPENDORD, true);
    // Set send signals
 }
 
@@ -211,6 +206,15 @@ VoidFs::execFSAPPENDREQ(Signal * signal)
   signal->theData[0] = userPointer;
   signal->theData[1] = size << 2;
   sendSignal(userRef, GSN_FSAPPENDCONF, signal, 2, JBB);
+}
+
+/*
+ * PR0: File Pointer DR0: User reference DR1: User Pointer
+ */
+void
+VoidFs::execFSSUSPENDORD(Signal * signal)
+{
+  jamEntry();
 }
 
 void

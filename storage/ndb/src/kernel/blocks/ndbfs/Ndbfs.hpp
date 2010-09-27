@@ -59,6 +59,7 @@ protected:
   void execALLOC_MEM_REQ(Signal* signal);
   void execSEND_PACKED(Signal*);
   void execBUILD_INDX_IMPL_REQ(Signal* signal);
+  void execFSSUSPENDORD(Signal*);
 
   bool scanningInProgress;
   Uint16 newId();
@@ -129,6 +130,7 @@ protected:
   void execSTTOR(Signal* signal);
   void execALLOC_MEM_REQ(Signal*);
   void execSEND_PACKED(Signal*);
+  void execFSSUSPENDORD(Signal*);
 
 private:
   // Declared but not defined

@@ -625,11 +625,15 @@ Dbtup::readFixedSizeTHZeroWordNULLable(Uint8* outBuffer,
 bool
 Dbtup::nullFlagCheck(KeyReqStruct *req_struct, Uint32  attrDes2)
 {
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
   Tablerec* const regTabPtr = req_struct->tablePtrP;
-  Uint32 *bits= req_struct->m_tuple_ptr->get_null_bits(regTabPtr);
+  Uint32 *bits= (ind) ? req_struct->m_disk_ptr->get_null_bits(regTabPtr, DD) :
+                        req_struct->m_tuple_ptr->get_null_bits(regTabPtr);
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
   
-  return BitmaskImpl::get(regTabPtr->m_offsets[MM].m_null_words, bits, pos);
+  return BitmaskImpl::get(regTabPtr->m_offsets[ind].m_null_words, bits, pos);
 }
 
 bool
@@ -856,12 +860,17 @@ Dbtup::readDynFixedSizeExpandedNotNULL(Uint8* outBuffer,
     using different data base pointer and offset/lenght arrays.
   */
   thrjam(req_struct->jamBuffer);
-  char *src_ptr= req_struct->m_var_data[MM].m_dyn_data_ptr;
+  Uint32 attr_descriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  char *src_ptr= req_struct->m_var_data[ind].m_dyn_data_ptr;
   Uint32 var_index= AttributeOffset::getOffset(attrDes2);
-  Uint16* off_arr= req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
+  Uint16* off_arr= req_struct->m_var_data[ind].m_dyn_offset_arr_ptr;
   Uint32 var_attr_pos= off_arr[var_index];
   Uint32 vsize_in_bytes=
-    AttributeDescriptor::getSizeInBytes(req_struct->attr_descriptor);
+    AttributeDescriptor::getSizeInBytes(attr_descriptor);
   return varsize_reader(outBuffer, req_struct, ahOut, attrDes2,
                         src_ptr + var_attr_pos, vsize_in_bytes);
 }
@@ -876,7 +885,12 @@ Dbtup::readDynFixedSizeExpandedNULLable(Uint8* outBuffer,
     Check for NULL. In the expanded format, the bitmap is guaranteed
     to be stored in full length.
   */
-  Uint32 *src_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
+
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *src_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   if(!BitmaskImpl::get((* src_ptr) & DYN_BM_LEN_MASK, src_ptr, pos))
   {
@@ -895,8 +909,13 @@ Dbtup::readDynFixedSizeShrunkenNotNULL(Uint8* outBuffer,
                                        AttributeHeader* ahOut,
                                        Uint32  attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
+  Uint32 attr_descriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 dyn_len= req_struct->m_var_data[ind].m_dyn_part_len;
   ndbrequire(dyn_len != 0);
   Uint32 bm_len= (* bm_ptr) & DYN_BM_LEN_MASK; // In 32-bit words
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
@@ -916,7 +935,7 @@ Dbtup::readDynFixedSizeShrunkenNotNULL(Uint8* outBuffer,
   */
   thrjam(req_struct->jamBuffer);
   Tablerec * regTabPtr = req_struct->tablePtrP;
-  Uint32 *bm_mask_ptr= regTabPtr->dynFixSizeMask;
+  Uint32 *bm_mask_ptr= regTabPtr->dynFixSizeMask[ind];
   Uint32 bm_pos= AttributeOffset::getNullFlagOffset(attrDes2);
   Uint32 prevMask= (1 << (pos & 31)) - 1;
   Uint32 bit_count= BitmaskImpl::count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
@@ -924,7 +943,6 @@ Dbtup::readDynFixedSizeShrunkenNotNULL(Uint8* outBuffer,
     bit_count+= BitmaskImpl::count_bits(bm_mask_ptr[i] & bm_ptr[i]);
 
   /* Now compute the data pointer from the row length. */
-  Uint32 attr_descriptor= req_struct->attr_descriptor;
   Uint32 vsize_in_bytes= AttributeDescriptor::getSizeInBytes(attr_descriptor);
   Uint32 vsize_in_words= (vsize_in_bytes+3)>>2;
   Uint32 *data_ptr= bm_ptr + dyn_len - bit_count - vsize_in_words;
@@ -948,8 +966,12 @@ Dbtup::readDynFixedSizeShrunkenNULLable(Uint8* outBuffer,
                                         AttributeHeader* ahOut,
                                         Uint32  attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 dyn_len= req_struct->m_var_data[ind].m_dyn_part_len;
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   /* Check for NULL (including the case of an empty bitmap). */
   if(dyn_len == 0 || dynCheckNull(dyn_len, (* bm_ptr) & DYN_BM_LEN_MASK,
@@ -1005,13 +1027,18 @@ Dbtup::readDynBigFixedSizeExpandedNotNULL(Uint8* outBuffer,
     using different data base pointer and offset/lenght arrays.
   */
   thrjam(req_struct->jamBuffer);
-  char *src_ptr= req_struct->m_var_data[MM].m_dyn_data_ptr;
+  Uint32 attr_descriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  char *src_ptr= req_struct->m_var_data[ind].m_dyn_data_ptr;
   Uint32 var_index= AttributeOffset::getOffset(attrDes2);
-  Uint16* off_arr= req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
+  Uint16* off_arr= req_struct->m_var_data[ind].m_dyn_offset_arr_ptr;
   Uint32 var_attr_pos= off_arr[var_index];
   Uint32 vsize_in_bytes=
-    AttributeDescriptor::getSizeInBytes(req_struct->attr_descriptor);
-  Uint32 idx= req_struct->m_var_data[MM].m_dyn_len_offset;
+    AttributeDescriptor::getSizeInBytes(attr_descriptor);
+  Uint32 idx= req_struct->m_var_data[ind].m_dyn_len_offset;
   ndbrequire(vsize_in_bytes <= off_arr[var_index+idx] - var_attr_pos);
   return varsize_reader(outBuffer, req_struct, ahOut, attrDes2,
                         src_ptr + var_attr_pos, vsize_in_bytes);
@@ -1027,7 +1054,12 @@ Dbtup::readDynBigFixedSizeExpandedNULLable(Uint8* outBuffer,
     Check for NULL. In the expanded format, the bitmap is guaranteed
     to be stored in full length.
   */
-  Uint32 *src_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
+
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *src_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   if(!BitmaskImpl::get((* src_ptr) & DYN_BM_LEN_MASK, src_ptr, pos))
   {
@@ -1046,8 +1078,13 @@ Dbtup::readDynBigFixedSizeShrunkenNotNULL(Uint8* outBuffer,
                                           AttributeHeader* ahOut,
                                           Uint32  attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
+  Uint32 attr_descriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 dyn_len= req_struct->m_var_data[ind].m_dyn_part_len;
   ndbrequire(dyn_len!=0);
   Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
@@ -1062,7 +1099,7 @@ Dbtup::readDynBigFixedSizeShrunkenNotNULL(Uint8* outBuffer,
     any trailing non-bitmap bytes to save a few conditionals.
   */
   Tablerec * regTabPtr = req_struct->tablePtrP;
-  Uint32 *bm_mask_ptr= regTabPtr->dynVarSizeMask;
+  Uint32 *bm_mask_ptr= regTabPtr->dynVarSizeMask[ind];
   Uint32 bm_pos= AttributeOffset::getNullFlagOffset(attrDes2);
   Uint32 prevMask= (1 << (pos & 31)) - 1;
   Uint32 bit_count= BitmaskImpl::count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
@@ -1070,7 +1107,6 @@ Dbtup::readDynBigFixedSizeShrunkenNotNULL(Uint8* outBuffer,
     bit_count+= BitmaskImpl::count_bits(bm_mask_ptr[i] & bm_ptr[i]);
 
   /* Now find the data pointer and length from the offset array. */
-  Uint32 attr_descriptor= req_struct->attr_descriptor;
   Uint32 vsize_in_bytes= AttributeDescriptor::getSizeInBytes(attr_descriptor);
   //Uint16 *offset_array= req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
   Uint16* offset_array = (Uint16*)(bm_ptr + bm_len);
@@ -1092,8 +1128,12 @@ Dbtup::readDynBigFixedSizeShrunkenNULLable(Uint8* outBuffer,
                                            AttributeHeader* ahOut,
                                            Uint32  attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 dyn_len= req_struct->m_var_data[ind].m_dyn_part_len;
   /* Check for NULL (including the case of an empty bitmap). */
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   if(dyn_len == 0 || dynCheckNull(dyn_len, (* bm_ptr) & DYN_BM_LEN_MASK,
@@ -1140,12 +1180,17 @@ Dbtup::readDynBitsShrunkenNotNULL(Uint8* outBuffer,
                                   AttributeHeader* ahOut,
                                   Uint32 attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
+  Uint32 attr_descriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 dyn_len= req_struct->m_var_data[ind].m_dyn_part_len;
   ndbrequire(dyn_len != 0);
   Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   Uint32 bitCount =
-    AttributeDescriptor::getArraySize(req_struct->attr_descriptor);
+    AttributeDescriptor::getArraySize(attr_descriptor);
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   /* Make sure we have sufficient data in the row. */
   ndbrequire((pos>>5)<bm_len);
@@ -1164,8 +1209,12 @@ Dbtup::readDynBitsShrunkenNULLable(Uint8* outBuffer,
                                    AttributeHeader* ahOut,
                                    Uint32 attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 dyn_len= req_struct->m_var_data[ind].m_dyn_part_len;
   /* Check for NULL (including the case of an empty bitmap). */
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   if(dyn_len == 0 || dynCheckNull(dyn_len, (* bm_ptr) & DYN_BM_LEN_MASK,
@@ -1185,10 +1234,15 @@ Dbtup::readDynBitsExpandedNotNULL(Uint8* outBuffer,
                                   AttributeHeader* ahOut,
                                   Uint32 attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
+  Uint32 attr_descriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
   Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   Uint32 bitCount =
-    AttributeDescriptor::getArraySize(req_struct->attr_descriptor);
+    AttributeDescriptor::getArraySize(attr_descriptor);
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   /* The bit data is stored just before the NULL bit. */
   ndbassert(pos>bitCount);
@@ -1205,7 +1259,12 @@ Dbtup::readDynBitsExpandedNULLable(Uint8* outBuffer,
                                    AttributeHeader* ahOut,
                                    Uint32 attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
+
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   if(!BitmaskImpl::get((* bm_ptr) & DYN_BM_LEN_MASK, bm_ptr, pos))
   {
@@ -1258,11 +1317,15 @@ Dbtup::readDynVarSizeExpandedNotNULL(Uint8* outBuffer,
     using different data base pointer and offset/lenght arrays.
   */
   thrjam(req_struct->jamBuffer);
-  char *src_ptr= req_struct->m_var_data[MM].m_dyn_data_ptr;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  char *src_ptr= req_struct->m_var_data[ind].m_dyn_data_ptr;
   Uint32 var_index= AttributeOffset::getOffset(attrDes2);
-  Uint16* off_arr= req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
+  Uint16* off_arr= req_struct->m_var_data[ind].m_dyn_offset_arr_ptr;
   Uint32 var_attr_pos= off_arr[var_index];
-  Uint32 idx= req_struct->m_var_data[MM].m_dyn_len_offset;
+  Uint32 idx= req_struct->m_var_data[ind].m_dyn_len_offset;
   Uint32 vsize_in_bytes= off_arr[var_index+idx] - var_attr_pos;
   return varsize_reader(outBuffer, req_struct, ahOut, attrDes2,
                         src_ptr + var_attr_pos, vsize_in_bytes);
@@ -1278,7 +1341,12 @@ Dbtup::readDynVarSizeExpandedNULLable(Uint8* outBuffer,
     Check for NULL. In the expanded format, the bitmap is guaranteed
     to be stored in full length.
   */
-  Uint32 *src_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
+
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *src_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   if(!BitmaskImpl::get((* src_ptr) & DYN_BM_LEN_MASK, src_ptr, pos))
   {
@@ -1297,8 +1365,12 @@ Dbtup::readDynVarSizeShrunkenNotNULL(Uint8* outBuffer,
                                      AttributeHeader* ahOut,
                                      Uint32  attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 dyn_len= req_struct->m_var_data[ind].m_dyn_part_len;
   ndbrequire(dyn_len!=0);
   Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
@@ -1313,7 +1385,7 @@ Dbtup::readDynVarSizeShrunkenNotNULL(Uint8* outBuffer,
     any trailing non-bitmap bytes to save a few conditionals.
   */
   Tablerec * regTabPtr = req_struct->tablePtrP;
-  Uint32 *bm_mask_ptr= regTabPtr->dynVarSizeMask;
+  Uint32 *bm_mask_ptr= regTabPtr->dynVarSizeMask[ind];
   Uint32 bm_pos= AttributeOffset::getNullFlagOffset(attrDes2);
   Uint32 prevMask= (1 << (pos & 31)) - 1;
   Uint32 bit_count= BitmaskImpl::count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
@@ -1341,8 +1413,12 @@ Dbtup::readDynVarSizeShrunkenNULLable(Uint8* outBuffer,
                                       AttributeHeader* ahOut,
                                       Uint32  attrDes2)
 {
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 dyn_len= req_struct->m_var_data[ind].m_dyn_part_len;
   /* Check for NULL (including the case of an empty bitmap). */
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   if(dyn_len == 0 || dynCheckNull(dyn_len, (* bm_ptr) & DYN_BM_LEN_MASK,
@@ -2033,10 +2109,14 @@ Dbtup::updateDynFixedSizeNotNULL(Uint32* inBuffer,
                                  Uint32  attrDes2)
 {
   Uint32 attrDescriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 nullbits= AttributeDescriptor::getSizeInWords(attrDescriptor);
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
 
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
   ndbassert(nullbits && nullbits <= 16);
 
   /*
@@ -2064,10 +2144,10 @@ Dbtup::updateDynFixedSizeNotNULL(Uint32* inBuffer,
 
   /* Compute the data and offset location and write the actual data. */
   Uint32 off_index= AttributeOffset::getOffset(attrDes2);
-  Uint16* off_arr= req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
+  Uint16* off_arr= req_struct->m_var_data[ind].m_dyn_offset_arr_ptr;
   Uint32 offset= off_arr[off_index];
-  Uint32 *dst_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
-  Uint32 check_offset= req_struct->m_var_data[MM].m_max_dyn_offset;
+  Uint32 *dst_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
+  Uint32 check_offset= req_struct->m_var_data[ind].m_max_dyn_offset;
 
   ndbassert((offset&3)==0);
   ndbassert((check_offset&3)==0);
@@ -2088,9 +2168,13 @@ Dbtup::updateDynFixedSizeNULLable(Uint32* inBuffer,
     return updateDynFixedSizeNotNULL(inBuffer, req_struct, attrDes2);
 
   Uint32 attrDescriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 nullbits= AttributeDescriptor::getSizeInWords(attrDescriptor);
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
 
   ndbassert(nullbits && nullbits <= 16);
 
@@ -2129,17 +2213,21 @@ Dbtup::updateDynBigFixedSizeNotNULL(Uint32* inBuffer,
                                   Uint32  attrDes2)
 {
   Uint32 attrDescriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
   
   jam();
   BitmaskImpl::set((* bm_ptr) & DYN_BM_LEN_MASK, bm_ptr, pos);
   /* Compute the data and offset location and write the actual data. */
   Uint32 off_index= AttributeOffset::getOffset(attrDes2);
   Uint32 noOfWords= AttributeDescriptor::getSizeInWords(attrDescriptor);
-  Uint16* off_arr= req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
+  Uint16* off_arr= req_struct->m_var_data[ind].m_dyn_offset_arr_ptr;
   Uint32 offset= off_arr[off_index];
-  Uint32 idx= req_struct->m_var_data[MM].m_dyn_len_offset;
+  Uint32 idx= req_struct->m_var_data[ind].m_dyn_len_offset;
 
   ndbassert((offset&3)==0);
   bool res= fixsize_updater(inBuffer,
@@ -2147,7 +2235,7 @@ Dbtup::updateDynBigFixedSizeNotNULL(Uint32* inBuffer,
                             attrDes2,
                             bm_ptr,
                             offset>>2,
-                            req_struct->m_var_data[MM].m_max_dyn_offset);
+                            req_struct->m_var_data[ind].m_max_dyn_offset);
   /* Set the correct size for fixsize data. */
   off_arr[off_index+idx]= offset+(noOfWords<<2);
   return res;
@@ -2158,10 +2246,14 @@ Dbtup::updateDynBigFixedSizeNULLable(Uint32* inBuffer,
                                    KeyReqStruct *req_struct,
                                    Uint32  attrDes2)
 {
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
   AttributeHeader ahIn(inBuffer[req_struct->in_buf_index]);
   Uint32 nullIndicator= ahIn.isNULL();
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
-  Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[MM].m_dyn_data_ptr;
+  Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[ind].m_dyn_data_ptr;
   
   if (!nullIndicator)
     return updateDynBigFixedSizeNotNULL(inBuffer, req_struct, attrDes2);
@@ -2185,9 +2277,13 @@ Dbtup::updateDynBitsNotNULL(Uint32* inBuffer,
                             Uint32  attrDes2)
 {
   Uint32 attrDescriptor= req_struct->attr_descriptor;
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
-  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
+  Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[ind].m_dyn_data_ptr);
   Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   jam();
   BitmaskImpl::set(bm_len, bm_ptr, pos);
@@ -2223,6 +2319,10 @@ Dbtup::updateDynBitsNULLable(Uint32* inBuffer,
                              KeyReqStruct *req_struct,
                              Uint32  attrDes2)
 {
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
   AttributeHeader ahIn(inBuffer[req_struct->in_buf_index]);
   Uint32 nullIndicator= ahIn.isNULL();
 
@@ -2230,7 +2330,7 @@ Dbtup::updateDynBitsNULLable(Uint32* inBuffer,
     return updateDynBitsNotNULL(inBuffer, req_struct, attrDes2);
 
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
-  Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[MM].m_dyn_data_ptr;
+  Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[ind].m_dyn_data_ptr;
 
   Uint32 newIndex= req_struct->in_buf_index + 1;
   if (newIndex <= req_struct->in_buf_len) {
@@ -2250,23 +2350,27 @@ Dbtup::updateDynVarSizeNotNULL(Uint32* inBuffer,
                                KeyReqStruct *req_struct,
                                Uint32  attrDes2)
 {
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
-  Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[MM].m_dyn_data_ptr;
+  Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[ind].m_dyn_data_ptr;
   
   jam();
   BitmaskImpl::set((* bm_ptr) & DYN_BM_LEN_MASK, bm_ptr, pos);
   /* Compute the data and offset location and write the actual data. */
   Uint32 off_index= AttributeOffset::getOffset(attrDes2);
-  Uint16* off_arr= req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
+  Uint16* off_arr= req_struct->m_var_data[ind].m_dyn_offset_arr_ptr;
   Uint32 offset= off_arr[off_index];
-  Uint32 idx= req_struct->m_var_data[MM].m_dyn_len_offset;
+  Uint32 idx= req_struct->m_var_data[ind].m_dyn_len_offset;
 
   bool res= varsize_updater(inBuffer,
                             req_struct,
                             (char*)bm_ptr,
                             offset,
                             &(off_arr[off_index+idx]),
-                            req_struct->m_var_data[MM].m_max_dyn_offset);
+                            req_struct->m_var_data[ind].m_max_dyn_offset);
   return res;
 }
 
@@ -2275,10 +2379,14 @@ Dbtup::updateDynVarSizeNULLable(Uint32* inBuffer,
                                 KeyReqStruct *req_struct,
                                 Uint32  attrDes2)
 {
+  Uint32 ind =
+    (AttributeDescriptor::getDiskBased(req_struct->attr_descriptor)) ?
+    Uint32(DD) : Uint32(MM);
+
   AttributeHeader ahIn(inBuffer[req_struct->in_buf_index]);
   Uint32 nullIndicator= ahIn.isNULL();
   Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
-  Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[MM].m_dyn_data_ptr;
+  Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[ind].m_dyn_data_ptr;
   
   if (!nullIndicator)
     return updateDynVarSizeNotNULL(inBuffer, req_struct, attrDes2);

@@ -676,8 +676,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     goto sendref;
   }
 
-  if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
-      ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId ||
+  if ((ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId) ||
+      (ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) ||
       ERROR_INSERTED(4050))
   {
     jam();
@@ -1414,8 +1414,8 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   Uint32 dynamic_count= 0;
   regTabPtr->blobAttributeMask.clear();
   regTabPtr->notNullAttributeMask.clear();
-  bzero(regTabPtr->dynVarSizeMask, dyn_null_words<<2);
-  bzero(regTabPtr->dynFixSizeMask, dyn_null_words<<2);
+  bzero(regTabPtr->dynVarSizeMask[MM], dyn_null_words<<2);
+  bzero(regTabPtr->dynFixSizeMask[MM], dyn_null_words<<2);
 
   for(Uint32 i= 0; i<regTabPtr->m_no_of_attributes; i++)
   {
@@ -1477,7 +1477,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
           while(size_in_words-- > 0)
 	  {
 	    BitmaskImpl::set(dyn_null_words, 
-			     regTabPtr->dynFixSizeMask, null_pos++);
+			     regTabPtr->dynFixSizeMask[ind], null_pos++);
 	  }
         }
         else
@@ -1488,7 +1488,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
       treat_as_varsize:
         jam();
         off= dynvar_count++;
-	BitmaskImpl::set(dyn_null_words, regTabPtr->dynVarSizeMask, null_pos);
+	BitmaskImpl::set(dyn_null_words, regTabPtr->dynVarSizeMask[ind], null_pos);
       }
     }
     AttributeOffset::setOffset(attrDes2, off);
@@ -1651,8 +1651,8 @@ void Dbtup::setupDynDescriptorReferences(Uint32 dynDescr,
 {
   regTabPtr->dynTabDescriptor= dynDescr;
   Uint32* desc= &tableDescriptor[dynDescr].tabDescr;
-  regTabPtr->dynVarSizeMask= desc+offset[0];
-  regTabPtr->dynFixSizeMask= desc+offset[1];
+  regTabPtr->dynVarSizeMask[MM] = desc+offset[0];
+  regTabPtr->dynFixSizeMask[MM] = desc+offset[1];
 }
 
 Uint32
@@ -1838,8 +1838,8 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
   {
     jam();
     regTabPtr->dynTabDescriptor= RNIL;
-    regTabPtr->dynVarSizeMask= NULL;
-    regTabPtr->dynFixSizeMask= NULL;
+    regTabPtr->dynVarSizeMask[MM]= NULL;
+    regTabPtr->dynFixSizeMask[MM]= NULL;
     releaseTabDescr(descriptor);
   }
 }
@@ -2438,8 +2438,15 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   
-  tabPtr.p->m_dropTable.tabUserPtr= tabPtr.p->m_attributes[DD].m_no_of_fixsize;
-  tabPtr.p->m_dropTable.tabUserRef= tabPtr.p->m_attributes[DD].m_no_of_varsize;
+  ndbassert(tabPtr.p->m_attributes[DD].m_no_of_fixsize < (1 << 16));
+  ndbassert(tabPtr.p->m_attributes[DD].m_no_of_varsize < (1 << 16));
+  
+  Uint32 saveAttrCounts = 
+    (tabPtr.p->m_attributes[DD].m_no_of_fixsize << 16) |
+    (tabPtr.p->m_attributes[DD].m_no_of_varsize << 0);
+  
+  tabPtr.p->m_dropTable.tabUserPtr= saveAttrCounts;
+  tabPtr.p->m_dropTable.tabUserRef= (tabPtr.p->m_bits & Tablerec::TR_RowGCI)? 1 : 0;
   tabPtr.p->m_createTable.defValLocation = tabPtr.p->m_default_value_location;
   
   Uint32 *tabDesc = (Uint32*)(tableDescriptor+tabPtr.p->tabDescriptor);
@@ -2457,6 +2464,8 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.p->m_no_of_disk_attributes = 0;
   tabPtr.p->m_attributes[DD].m_no_of_fixsize = 0;
   tabPtr.p->m_attributes[DD].m_no_of_varsize = 0;
+  /* Avoid LQH trampling GCI restored in raw format */
+  tabPtr.p->m_bits &= ~((Uint16) Tablerec::TR_RowGCI);
   tabPtr.p->m_default_value_location.setNull();
 }
 void
@@ -2468,9 +2477,12 @@ Dbtup::complete_restore_lcp(Signal* signal,
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   
-  tabPtr.p->m_attributes[DD].m_no_of_fixsize= tabPtr.p->m_dropTable.tabUserPtr;
-  tabPtr.p->m_attributes[DD].m_no_of_varsize= tabPtr.p->m_dropTable.tabUserRef;
-  
+  Uint32 restoreAttrCounts = tabPtr.p->m_dropTable.tabUserPtr;
+
+  tabPtr.p->m_attributes[DD].m_no_of_fixsize= restoreAttrCounts >> 16;
+  tabPtr.p->m_attributes[DD].m_no_of_varsize= restoreAttrCounts & 0xffff;
+  tabPtr.p->m_bits |= ((tabPtr.p->m_dropTable.tabUserRef & 1) ? Tablerec::TR_RowGCI : 0);
+
   tabPtr.p->m_no_of_disk_attributes = 
     tabPtr.p->m_attributes[DD].m_no_of_fixsize + 
     tabPtr.p->m_attributes[DD].m_no_of_varsize;

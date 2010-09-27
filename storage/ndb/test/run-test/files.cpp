@@ -350,7 +350,8 @@ create_directory(const char * path)
     cwd.append(list[i].c_str());
     cwd.append("/");
     NdbDir::create(cwd.c_str(),
-                   NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x());
+                   NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x(),
+                   true);
   }
 
   struct stat sbuf;

@@ -26,7 +26,7 @@
 #include <NDBT_Find.hpp>
 #include <NDBT_Workingdir.hpp>
 
-static bool file_exists(const char* path)
+static bool file_exists(const char* path, Uint32 timeout = 1)
 {
   g_info << "File '" << path << "' ";
   /**
@@ -35,7 +35,7 @@ static bool file_exists(const char* path)
    *   which means that it can be on disk, wo/ being visible
    *   remedy this by retrying some
    */
-  for (int i = 0; i<10; i++)
+  for (Uint32 i = 0; i < 10 * timeout; i++)
   {
     if (access(path, F_OK) == 0)
     {
@@ -548,12 +548,13 @@ int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
                          "ndb_2_config.bin.1",
                          NULL).c_str()));
 
+  Uint32 timeout = 30;
   CHECK(file_exists(path(wd.path(),
                          "ndb_1_config.bin.2",
-                         NULL).c_str()));
+                         NULL).c_str(), timeout));
   CHECK(file_exists(path(wd.path(),
                          "ndb_2_config.bin.2",
-                         NULL).c_str()));
+                         NULL).c_str(), timeout));
 
   g_err << "** Reload mgmd initial(from generation=2)" << endl;
   for (unsigned i = 0; i < mgmds.size(); i++)
@@ -578,13 +579,15 @@ int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
       tmp.assfmt("ndb_%d_config.bin.2", j+1);
       CHECK(file_exists(path(wd.path(),
                              tmp.c_str(),
-                             NULL).c_str()));
+                             NULL).c_str(),
+                        timeout));
     }
   }
 
   return NDBT_OK;
-
 }
+
+
 
 int runTestBug42015(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -838,6 +841,100 @@ int runTestNowaitNodes2(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug56844(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+
+  g_err << "** Create config.ini" << endl;
+  Properties config = ConfigFactory::create(2);
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+  // Start ndb_mgmd(s)
+  MgmdProcessList mgmds;
+  for (int i = 1; i <= 2; i++)
+  {
+    Mgmd* mgmd = new Mgmd(i);
+    mgmds.push_back(mgmd);
+    CHECK(mgmd->start_from_config_ini(wd.path()));
+  }
+
+  // Connect the ndb_mgmd(s)
+  for (unsigned i = 0; i < mgmds.size(); i++)
+  {
+    CHECK(mgmds[i]->connect(config));
+  }
+
+  // wait for confirmed config
+  for (unsigned i = 0; i < mgmds.size(); i++)
+  {
+    CHECK(mgmds[i]->wait_confirmed_config());
+  }
+
+  // stop them
+  for (unsigned i = 0; i < mgmds.size(); i++)
+  {
+    CHECK(mgmds[i]->stop());
+  }
+
+  // Check binary config files created
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_1_config.bin.1",
+                         NULL).c_str()));
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_2_config.bin.1",
+                         NULL).c_str()));
+
+  CHECK(ConfigFactory::put(config, "ndb_mgmd", 1, "ArbitrationDelay", 100));
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config2.ini",
+                                             NULL).c_str()));
+  Uint32 no = 2;
+  int loops = ctx->getNumLoops();
+  for (int l = 0; l < loops; l++, no++)
+  {
+    g_err << l << ": *** Reload from config.ini" << endl;
+    for (unsigned i = 0; i < mgmds.size(); i++)
+    {
+      // Start from config2.ini
+      CHECK(mgmds[i]->start_from_config_ini(wd.path(),
+                                            (l & 1) == 1 ?
+                                            "-f config.ini" :
+                                            "-f config2.ini",
+                                            "--reload", NULL));
+    }
+    for (unsigned i = 0; i < mgmds.size(); i++)
+    {
+      CHECK(mgmds[i]->connect(config));
+      CHECK(mgmds[i]->wait_confirmed_config());
+    }
+
+    /**
+     * Since it will first be confirmed...
+     *   and then once connected to other ndb_nmgmd start a config
+     *   change, it can take a bit until new config exists...
+     *   allow 30s
+     */
+    Uint32 timeout = 30;
+    for (unsigned i = 0; i < mgmds.size(); i++)
+    {
+      BaseString p = path(wd.path(), "", NULL);
+      p.appfmt("ndb_%u_config.bin.%u", i+1, no);
+      g_err << "CHECK(" << p.c_str() << ")" << endl;
+      CHECK(file_exists(p.c_str(), timeout));
+    }
+
+    for (unsigned i = 0; i < mgmds.size(); i++)
+    {
+      CHECK(mgmds[i]->stop());
+    }
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -845,12 +942,6 @@ TESTCASE("Basic2Mgm",
          "Basic test with two mgmd")
 {
   INITIALIZER(runTestBasic2Mgm);
-}
-
-TESTCASE("Bug45495",
-         "Test that mgmd can be restarted in any order")
-{
-  INITIALIZER(runTestBug45495);
 }
 
 TESTCASE("Bug42015",
@@ -880,6 +971,17 @@ TESTCASE("NoCfgCache",
   INITIALIZER(runTestNoConfigCache);
 }
 
+TESTCASE("Bug56844",
+         "Test that mgmd can be restarted in any order")
+{
+  INITIALIZER(runBug56844);
+}
+
+TESTCASE("Bug45495",
+         "Test that mgmd can be restarted in any order")
+{
+  INITIALIZER(runTestBug45495);
+}
 
 NDBT_TESTSUITE_END(testMgmd);
 

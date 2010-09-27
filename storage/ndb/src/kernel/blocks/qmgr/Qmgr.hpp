@@ -33,7 +33,6 @@
 #include <signaldata/FailRep.hpp>
 #include <signaldata/AllocNodeId.hpp>
 
-#include <SafeCounter.hpp>
 #include <RequestTracker.hpp>
 #include <signaldata/StopReq.hpp>
 

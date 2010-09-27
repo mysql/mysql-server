@@ -15667,22 +15667,32 @@ void Dbdict::completeSubStartReq(Signal* signal,
     ndbout_c("SUB_START_REF");
 #endif
 
-    NodeReceiverGroup rg(DBDICT, subbPtr.p->m_reqTracker.m_confs);
-    RequestTracker & p = subbPtr.p->m_reqTracker;
-    ndbrequire(p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF,
-                                  subbPtr.i));
+    if (subbPtr.p->m_reqTracker.hasConf())
+    {
+      jam();
+      NodeReceiverGroup rg(DBDICT, subbPtr.p->m_reqTracker.m_confs);
+      RequestTracker & p = subbPtr.p->m_reqTracker;
+      ndbrequire(p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF,
+                                    subbPtr.i));
 
-    SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
+      SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
 
-    req->senderRef  = reference();
-    req->senderData = subbPtr.i;
-    req->subscriptionId = subbPtr.p->m_subscriptionId;
-    req->subscriptionKey = subbPtr.p->m_subscriptionKey;
-    req->subscriberRef = subbPtr.p->m_subscriberRef;
-    req->subscriberData = subbPtr.p->m_subscriberData;
-    req->requestInfo = SubStopReq::RI_ABORT_START;
-    sendSignal(rg, GSN_SUB_STOP_REQ, signal, SubStopReq::SignalLength, JBB);
-    return;
+      req->senderRef  = reference();
+      req->senderData = subbPtr.i;
+      req->subscriptionId = subbPtr.p->m_subscriptionId;
+      req->subscriptionKey = subbPtr.p->m_subscriptionKey;
+      req->subscriberRef = subbPtr.p->m_subscriberRef;
+      req->subscriberData = subbPtr.p->m_subscriberData;
+      req->requestInfo = SubStopReq::RI_ABORT_START;
+      sendSignal(rg, GSN_SUB_STOP_REQ, signal, SubStopReq::SignalLength, JBB);
+      return;
+    }
+    else
+    {
+      jam();
+      completeSubStopReq(signal, subbPtr.i, 0);
+      return;
+    }
   }
 #ifdef EVENT_DEBUG
   ndbout_c("SUB_START_CONF");
@@ -18697,7 +18707,7 @@ void Dbdict::check_takeover_replies(Signal* signal)
       jam();
       c_nodes.getPtr(nodePtr, i);
       {
-	DictTakeoverConf* conf = conf = &nodePtr.p->takeOverConf;
+	DictTakeoverConf* conf = &nodePtr.p->takeOverConf;
         Uint32 clientRef = conf->clientRef;
 	Uint32 rollforward_op = conf->rollforward_op;
 	Uint32 rollforward_op_state = conf->rollforward_op_state;
@@ -25079,6 +25089,9 @@ Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
     signal->theData[2] = gci_hi;
     signal->theData[3] = gci_lo;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+
+    signal->theData[0] = 6099;
+    sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
   }
   else
   {
@@ -27258,7 +27271,7 @@ Dbdict::get_default_fragments(Uint32 extranodegroups)
   bzero(&signalT, sizeof(signalT));
   Signal* signal = new (&signalT) Signal(0); // placement new
 
-  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
+  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, &signal->theData[0]);
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,

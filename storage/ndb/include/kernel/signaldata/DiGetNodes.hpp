@@ -43,7 +43,7 @@ struct DiGetNodesConf {
   Uint32 zero;
   Uint32 fragId;
   Uint32 reqinfo;
-  Uint32 nodes[MAX_REPLICAS]; //+1
+  Uint32 nodes[MAX_REPLICAS + (2 + MAX_REPLICAS)]; //+1
 };
 /**
  * 

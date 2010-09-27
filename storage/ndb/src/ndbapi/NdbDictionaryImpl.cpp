@@ -2280,7 +2280,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     }    
     
     m_error.code= 0;
-    int ret_val= poll_guard.wait_n_unlock(timeout, node, wst);
+    int ret_val= poll_guard.wait_n_unlock(timeout, node, wst, true);
     // End of Protected area  
     
     if(ret_val == 0 && m_error.code == 0){
@@ -5654,7 +5654,8 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
     }
     m_error.code= 0;
     int ret_val= poll_guard.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
-                                          aNodeId, WAIT_LIST_TABLES_CONF);
+                                          aNodeId, WAIT_LIST_TABLES_CONF,
+                                          true);
     // end protected
     if (ret_val == 0 && m_error.code == 0)
       return 0;
@@ -5760,42 +5761,74 @@ NdbDictInterface::execOLD_LIST_TABLES_CONF(NdbApiSignal* signal,
 }
 
 int
-NdbDictionaryImpl::forceGCPWait()
+NdbDictionaryImpl::forceGCPWait(int type)
 {
-  return m_receiver.forceGCPWait();
+  return m_receiver.forceGCPWait(type);
 }
 
 int
-NdbDictInterface::forceGCPWait()
+NdbDictInterface::forceGCPWait(int type)
 {
   NdbApiSignal tSignal(m_reference);
-  WaitGCPReq* const req = CAST_PTR(WaitGCPReq, tSignal.getDataPtrSend());
-  req->senderRef = m_reference;
-  req->senderData = 0;
-  req->requestType = WaitGCPReq::CompleteForceStart;
-  tSignal.theReceiversBlockNumber = DBDIH;
-  tSignal.theVerId_signalNumber = GSN_WAIT_GCP_REQ;
-  tSignal.theLength = WaitGCPReq::SignalLength;
-
-  const Uint32 RETRIES = 100;
-  for (Uint32 i = 0; i < RETRIES; i++)
+  if (type == 0)
   {
-    m_transporter->lock_mutex();
-    Uint16 aNodeId = m_transporter->get_an_alive_node();
-    if (aNodeId == 0) {
-      m_error.code= 4009;
+    WaitGCPReq* const req = CAST_PTR(WaitGCPReq, tSignal.getDataPtrSend());
+    req->senderRef = m_reference;
+    req->senderData = 0;
+    req->requestType = WaitGCPReq::CompleteForceStart;
+    tSignal.theReceiversBlockNumber = DBDIH;
+    tSignal.theVerId_signalNumber = GSN_WAIT_GCP_REQ;
+    tSignal.theLength = WaitGCPReq::SignalLength;
+
+    const Uint32 RETRIES = 100;
+    for (Uint32 i = 0; i < RETRIES; i++)
+    {
+      m_transporter->lock_mutex();
+      Uint16 aNodeId = m_transporter->get_an_alive_node();
+      if (aNodeId == 0) {
+        m_error.code= 4009;
+        m_transporter->unlock_mutex();
+        return -1;
+      }
+      if (m_transporter->sendSignal(&tSignal, aNodeId) != 0) {
+        m_transporter->unlock_mutex();
+        continue;
+      }
+
+      m_error.code= 0;
+      m_waiter.m_node = aNodeId;
+      m_waiter.m_state = WAIT_LIST_TABLES_CONF;
+      m_waiter.wait(DICT_WAITFOR_TIMEOUT);
       m_transporter->unlock_mutex();
-      return -1;
+      return 0;
     }
-    if (m_transporter->sendSignal(&tSignal, aNodeId) != 0) {
+    return -1;
+  }
+  else if (type == 1)
+  {
+    tSignal.getDataPtrSend()[0] = 6099;
+    tSignal.theReceiversBlockNumber = DBDIH;
+    tSignal.theVerId_signalNumber = GSN_DUMP_STATE_ORD;
+    tSignal.theLength = 1;
+
+    const Uint32 RETRIES = 100;
+    for (Uint32 i = 0; i < RETRIES; i++)
+    {
+      m_transporter->lock_mutex();
+      Uint16 aNodeId = m_transporter->get_an_alive_node();
+      if (aNodeId == 0) {
+        m_error.code= 4009;
+        m_transporter->unlock_mutex();
+        return -1;
+      }
+      if (m_transporter->sendSignal(&tSignal, aNodeId) != 0) {
+        m_transporter->unlock_mutex();
+        continue;
+      }
+
+      m_transporter->forceSend(refToBlock(m_reference));
       m_transporter->unlock_mutex();
-      continue;
     }
-    m_error.code= 0;
-    m_waiter.m_node = aNodeId;
-    m_waiter.m_state = WAIT_LIST_TABLES_CONF;
-    m_waiter.wait(DICT_WAITFOR_TIMEOUT);
-    m_transporter->unlock_mutex();    
     return 0;
   }
   return -1;

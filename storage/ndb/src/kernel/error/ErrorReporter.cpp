@@ -111,6 +111,8 @@ ErrorReporter::get_trace_no(){
   return traceFileNo;
 }
 
+// Using my_progname without including all of mysys
+extern "C" const char* my_progname;
 
 void
 ErrorReporter::formatMessage(int thr_no,

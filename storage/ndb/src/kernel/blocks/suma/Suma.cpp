@@ -2764,6 +2764,15 @@ Suma::execSUB_START_REQ(Signal* signal){
                     senderRef, senderData, SubStartRef::NoSuchSubscription);
     return;
   }
+
+  if (ERROR_INSERTED(13046))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSubStartRef(signal,
+                    senderRef, senderData, SubStartRef::NoSuchSubscription);
+    return;
+  }
   
   switch(subPtr.p->m_state){
   case Subscription::UNDEFINED:

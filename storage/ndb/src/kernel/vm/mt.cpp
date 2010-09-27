@@ -851,6 +851,9 @@ struct trp_callback : public TransporterCallbackKernel
 extern trp_callback g_trp_callback;             // Forward declaration
 extern struct thr_repository g_thr_repository;
 
+#include <NdbMutex.h>
+#include <NdbCondition.h>
+
 struct thr_repository
 {
   thr_repository()
@@ -919,10 +922,9 @@ struct thr_repository
   /*
    * These are used to synchronize during crash / trace dumps.
    *
-   * ToDo: Replace pthread stuff with portable wrappers in portlib.
    */
-  pthread_mutex_t stop_for_crash_mutex;
-  pthread_cond_t stop_for_crash_cond;
+  NdbMutex stop_for_crash_mutex;
+  NdbCondition stop_for_crash_cond;
   Uint32 stopped_threads;
 };
 
@@ -3343,8 +3345,8 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
   }
 
   rep->stopped_threads = 0;
-  pthread_mutex_init(&rep->stop_for_crash_mutex, NULL);
-  pthread_cond_init(&rep->stop_for_crash_cond, NULL);
+  NdbMutex_Init(&rep->stop_for_crash_mutex);
+  NdbCondition_Init(&rep->stop_for_crash_cond);
 
   for (int i = 0 ; i < MAX_NTRANSPORTERS; i++)
   {
@@ -3685,7 +3687,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   /* The selfptr might be NULL, or pointer to thread that crashed. */
 
   Uint32 waitFor_count = 0;
-  pthread_mutex_lock(&g_thr_repository.stop_for_crash_mutex);
+  NdbMutex_Lock(&g_thr_repository.stop_for_crash_mutex);
   g_thr_repository.stopped_threads = 0;
 
   for (Uint32 thr_no = 0; thr_no < num_threads; thr_no++)
@@ -3703,13 +3705,11 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
 
   static const Uint32 max_wait_seconds = 2;
   NDB_TICKS start = NdbTick_CurrentMillisecond();
-  struct timespec waittime;
-  set_timespec_nsec(waittime, 10*1000*1000);
   while (g_thr_repository.stopped_threads < waitFor_count)
   {
-    pthread_cond_timedwait(&g_thr_repository.stop_for_crash_cond,
-                           &g_thr_repository.stop_for_crash_mutex,
-                           &waittime);
+    NdbCondition_WaitTimeout(&g_thr_repository.stop_for_crash_cond,
+                             &g_thr_repository.stop_for_crash_mutex,
+                             10);
     NDB_TICKS now = NdbTick_CurrentMillisecond();
     if (now > start + max_wait_seconds * 1000)
       break;                    // Give up
@@ -3723,7 +3723,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
     ndbout_c("Warning: %d thread(s) did not stop before starting crash dump.",
              waitFor_count - g_thr_repository.stopped_threads);
   }
-  pthread_mutex_unlock(&g_thr_repository.stop_for_crash_mutex);
+  NdbMutex_Unlock(&g_thr_repository.stop_for_crash_mutex);
 
   /* Now we are ready (or as ready as can be) for doing crash dump. */
 }
@@ -3734,10 +3734,10 @@ void mt_execSTOP_FOR_CRASH()
   const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
   require(selfptr != NULL);
 
-  pthread_mutex_lock(&g_thr_repository.stop_for_crash_mutex);
+  NdbMutex_Lock(&g_thr_repository.stop_for_crash_mutex);
   g_thr_repository.stopped_threads++;
-  pthread_cond_signal(&g_thr_repository.stop_for_crash_cond);
-  pthread_mutex_unlock(&g_thr_repository.stop_for_crash_mutex);
+  NdbCondition_Signal(&g_thr_repository.stop_for_crash_cond);
+  NdbMutex_Unlock(&g_thr_repository.stop_for_crash_mutex);
 
   /* ToDo: is this correct? */
   globalEmulatorData.theWatchDog->unregisterWatchedThread(selfptr->m_thr_no);

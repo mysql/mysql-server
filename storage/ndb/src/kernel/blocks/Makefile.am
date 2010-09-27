@@ -47,7 +47,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   ndbfs/PosixAsyncFile.cpp ndbfs/AsyncFile.cpp \
   ndbfs/Ndbfs.cpp \
   ndbfs/VoidFs.cpp \
-  ndbfs/Filename.cpp ndbfs/CircularIndex.cpp \
+  ndbfs/Filename.cpp \
   ndbcntr/NdbcntrInit.cpp ndbcntr/NdbcntrSysTable.cpp ndbcntr/NdbcntrMain.cpp \
   qmgr/QmgrInit.cpp qmgr/QmgrMain.cpp \
   trix/Trix.cpp \

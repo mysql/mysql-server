@@ -143,6 +143,13 @@ public:
   static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
 
   /**
+   * Wrapper for 'strnxfrm' who change prototype in 5.6
+   */
+  static size_t ndb_strnxfrm(struct charset_info_st * cs,
+                             uchar *dst, size_t dstlen,
+                             const uchar *src, size_t srclen);
+
+  /**
    * Compare decimal numbers.
    */
   static int cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n);

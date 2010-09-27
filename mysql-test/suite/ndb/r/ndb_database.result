@@ -59,4 +59,5 @@ create table newdb.t1(a int primary key) engine=ndb;
 show tables;
 Tables_in_newdb
 t1
+drop table t1;
 drop database newdb;
