@@ -1,0 +1,2 @@
+UNINSTALL PLUGIN example;
+ERROR HY000: Plugin 'example' is force_plus_permanent and can not be unloaded
