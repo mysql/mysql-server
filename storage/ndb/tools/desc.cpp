@@ -66,7 +66,7 @@ static struct my_option my_long_options[] =
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(my_progname, NULL);
+  ndb_short_usage_sub(NULL);
 }
 
 static void usage()
@@ -79,7 +79,7 @@ static void print_part_info(Ndb* pNdb, NDBT_Table* pTab);
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
 
-  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF

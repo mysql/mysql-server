@@ -17,7 +17,6 @@
 #define AsyncIoThread_H
 
 #include <kernel_types.h>
-#include <Pool.hpp>
 #include "MemoryChannel.hpp"
 #include <signaldata/BuildIndxImpl.hpp>
 
@@ -64,7 +63,8 @@ public:
     rmrf,
     readPartial,
     allocmem,
-    buildindx
+    buildindx,
+    suspend
   };
   Action action;
   union {
@@ -97,6 +97,9 @@ public:
     struct {
       struct mt_BuildIndxReq m_req;
     } build;
+    struct {
+      Uint32 milliseconds;
+    } suspend;
   } par;
   int error;
 

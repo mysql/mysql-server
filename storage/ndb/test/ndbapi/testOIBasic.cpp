@@ -550,7 +550,7 @@ Chs::Chs(CHARSET_INFO* cs) :
     // normalize
     memset(xbytes, 0, sizeof(xbytes));
     // currently returns buffer size always
-    int xlen = (*cs->coll->strnxfrm)(cs, xbytes, m_xmul * size, bytes, size);
+    int xlen = NdbSqlUtil::ndb_strnxfrm(cs, xbytes, m_xmul * size, bytes, size);
     // check we got something
     ok = false;
     for (uint j = 0; j < (uint)xlen; j++) {

@@ -25,8 +25,10 @@
 extern "C" {
 #endif
 
-struct NdbCondition;
-
+struct NdbCondition
+{
+  pthread_cond_t cond;
+};
 
 /**
  * Create a condition
@@ -34,6 +36,13 @@ struct NdbCondition;
  * returnvalue: pointer to the condition structure
  */
 struct NdbCondition* NdbCondition_Create(void);
+
+/**
+ * Initialize a condition created with file-storage or on the stack
+ *
+ * returnvalue: 0 = success
+ */
+int NdbCondition_Init(struct NdbCondition* p_cond);
 
 /**
  * Wait for a condition, allows a thread to wait for

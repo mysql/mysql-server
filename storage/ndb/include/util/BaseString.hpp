@@ -325,12 +325,6 @@ BaseString::assign(const Vector<BaseString> &vector,
  * Return pointer and length for key to use when BaseString is
  * used as Key in HashMap
  */
-inline
-const void* BaseString_get_key(const void* key, size_t* key_length)
-{
-  const BaseString* str = (const BaseString*)key;
-  *key_length = str->length();
-  return str->c_str();
-}
+const void * BaseString_get_key(const void* key, size_t* key_length);
 
 #endif /* !__UTIL_BASESTRING_HPP_INCLUDED__ */

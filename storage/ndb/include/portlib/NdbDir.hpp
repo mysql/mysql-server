@@ -72,13 +72,18 @@ public:
 
   /*
     Create directory
+     path - path to directory to create
+     mode - mode for the directory to create
+     ignore_existing - don't print or return error if directory
+                       already exist
   */
   static bool create(const char *path,
-                     mode_t mode = u_rwx());
+                     mode_t mode = u_rwx(),
+                     bool ignore_existing = false);
 
   /*
     Remove directory recursively
-      dir - path to directory that should be removed
+      path - path to directory that should be removed
       only_contents - only remove the contents of the directory
 
   */
@@ -88,6 +93,11 @@ public:
     Remove empty directory
   */
   static bool remove(const char* path);
+
+  /*
+    Change working directory
+  */
+  static int chdir(const char* path);
 
 };
 

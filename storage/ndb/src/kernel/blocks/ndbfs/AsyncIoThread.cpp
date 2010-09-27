@@ -14,20 +14,20 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <my_sys.h>
-#include <my_pthread.h>
 
 #include "AsyncIoThread.hpp"
 #include "AsyncFile.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include <kernel_types.h>
-#include <ndbd_malloc.hpp>
 #include <NdbThread.h>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
-#include <Configuration.hpp>
 #include "Ndbfs.hpp"
+#include <NdbSleep.h>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 AsyncIoThread::AsyncIoThread(class Ndbfs& fs, AsyncFile* file)
   : m_fs(fs)
@@ -202,6 +202,22 @@ AsyncIoThread::run()
     case Request::buildindx:
       buildIndxReq(request);
       break;
+    case Request::suspend:
+      if (request->par.suspend.milliseconds)
+      {
+        g_eventLogger->debug("Suspend %s %u ms",
+                             file->theFileName.c_str(),
+                             request->par.suspend.milliseconds);
+        NdbSleep_MilliSleep(request->par.suspend.milliseconds);
+        continue;
+      }
+      else
+      {
+        g_eventLogger->debug("Suspend %s",
+                             file->theFileName.c_str());
+        theStartFlag = false;
+        return;
+      }
     default:
       DEBUG(ndbout_c("Invalid Request"));
       abort();
