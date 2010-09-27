@@ -227,8 +227,9 @@ typedef struct
   int str_val_len;
   int int_val;
   int alloced_len;
-  int int_dirty; /* do not update string if int is updated until first read */
-  int alloced;
+  bool int_dirty; /* do not update string if int is updated until first read */
+  bool is_int;
+  bool alloced;
 } VAR;
 
 /*Perl/shell-like variable registers */
@@ -1954,6 +1955,21 @@ static void var_free(void *v)
 
 C_MODE_END
 
+void var_set_int(VAR *v, const char *str)
+{
+  char *endptr;
+  /* Initially assume not a number */
+  v->int_val= 0;
+  v->is_int= false;
+  v->int_dirty= false;
+  if (!str) return;
+  
+  v->int_val = (int) strtol(str, &endptr, 10);
+  /* It is an int if strtol consumed something up to end/space/tab */
+  if (endptr > str && (!*endptr || *endptr == ' ' || *endptr == '\t'))
+    v->is_int= true;
+}
+
 
 VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
               int val_len)
@@ -1988,11 +2004,10 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     memcpy(tmp_var->str_val, val, val_len);
     tmp_var->str_val[val_len]= 0;
   }
+  var_set_int(tmp_var, val);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
-  tmp_var->int_val = (val) ? atoi(val) : 0;
-  tmp_var->int_dirty = 0;
   return tmp_var;
 }
 
@@ -2053,7 +2068,7 @@ VAR* var_get(const char *var_name, const char **var_name_end, my_bool raw,
   if (!raw && v->int_dirty)
   {
     sprintf(v->str_val, "%d", v->int_val);
-    v->int_dirty = 0;
+    v->int_dirty= false;
     v->str_val_len = strlen(v->str_val);
   }
   if (var_name_end)
@@ -2115,7 +2130,7 @@ void var_set(const char *var_name, const char *var_name_end,
     if (v->int_dirty)
     {
       sprintf(v->str_val, "%d", v->int_val);
-      v->int_dirty= 0;
+      v->int_dirty=false;
       v->str_val_len= strlen(v->str_val);
     }
     /* setenv() expects \0-terminated strings */
@@ -2421,6 +2436,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
 void var_copy(VAR *dest, VAR *src)
 {
   dest->int_val= src->int_val;
+  dest->is_int= src->is_int;
   dest->int_dirty= src->int_dirty;
 
   /* Alloc/realloc data for str_val in dest */
@@ -2504,9 +2520,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     v->str_val_len = new_val_len;
     memcpy(v->str_val, p, new_val_len);
     v->str_val[new_val_len] = 0;
-    v->int_val=atoi(p);
-    DBUG_PRINT("info", ("atoi on '%s', returns: %d", p, v->int_val));
-    v->int_dirty=0;
+    var_set_int(v, p);
   }
   DBUG_VOID_RETURN;
 }
@@ -2853,6 +2867,8 @@ int do_modify_var(struct st_command *command,
     die("The argument to %.*s must be a variable (start with $)",
         command->first_word_len, command->query);
   v= var_get(p, &p, 1, 0);
+  if (! v->is_int)
+    die("Cannot perform inc/dec on a non-numeric value");
   switch (op) {
   case DO_DEC:
     v->int_val--;
@@ -2864,7 +2880,7 @@ int do_modify_var(struct st_command *command,
     die("Invalid operator to do_modify_var");
     break;
   }
-  v->int_dirty= 1;
+  v->int_dirty= true;
   command->last_argument= (char*)++p;
   return 0;
 }
