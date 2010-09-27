@@ -21,10 +21,7 @@ dep dbg opt prf clean mostlyclean check:
 	@cd $(SRC)/crundndb && $(MAKE) $(MFLAGS) $@
 
 distclean:
-	rm -rf ndblog
-	mkdir ndblog
-	touch mysqld.log.err
-	rm mysqld.log.err
+	rm -rf scripts/ndblog
 	rm -f *~
 	ant $@
 	rm -f ./.ant-targets-build.xml

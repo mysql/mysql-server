@@ -691,7 +691,7 @@ public class NdbJTieLoad extends NdbBase {
                            boolean batch) {
         beginTransaction1();
         for (int i = from; i <= to; i++) {
-            // get an insert operation for the table
+            // get an update operation for the table
             NdbOperation op = tx.getNdbOperation(table);
             if (op == null)
                 throw new RuntimeException(toStr(tx.getNdbError()));
