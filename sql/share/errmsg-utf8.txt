@@ -6346,3 +6346,5 @@ ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
 ER_FAILED_READ_FROM_PAR_FILE
   eng "Failed to read from the .par file"
   swe "Misslyckades läsa från .par filen"
+ER_PLUGIN_IS_PERMANENT
+  eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
