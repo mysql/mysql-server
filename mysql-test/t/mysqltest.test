@@ -1006,16 +1006,13 @@ EOF
 # ----------------------------------------------------------------------------
 # Test inc
 # ----------------------------------------------------------------------------
-inc $i;
-echo $i;
+let $i= 0;
 inc $i;
 echo $i;
 let $i=100;
 inc $i;
 echo $i;
-
-let $i=hej;
-echo $i;
+let $i= -100;
 inc $i;
 echo $i;
 
@@ -1024,7 +1021,13 @@ echo $i;
 --error 1
 --exec echo "inc i;" | $MYSQL_TEST 2>&1
 --error 1
+--exec echo "inc \$i;" | $MYSQL_TEST 2>&1
+--error 1
 --exec echo "let \$i=100; inc \$i 1000; echo \$i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "let \$i=text; inc \$i; echo \$i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "let \$i=10cc; inc \$i; echo \$i;" | $MYSQL_TEST 2>&1
 
 inc $i; inc $i; inc $i; --echo $i
 echo $i;
@@ -1034,16 +1037,10 @@ echo $i;
 # Test dec
 # ----------------------------------------------------------------------------
 
-dec $d;
-echo $d;
+let $d= 0;
 dec $d;
 echo $d;
 let $d=100;
-dec $d;
-echo $d;
-
-let $d=hej;
-echo $d;
 dec $d;
 echo $d;
 
@@ -1052,7 +1049,13 @@ echo $d;
 --error 1
 --exec echo "dec i;" | $MYSQL_TEST 2>&1
 --error 1
+--exec echo "dec \$i;" | $MYSQL_TEST 2>&1
+--error 1
 --exec echo "let \$i=100; dec \$i 1000; echo \$i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "let \$i=text; dec \$i; echo \$i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "let \$i=10cc; dec \$i; echo \$i;" | $MYSQL_TEST 2>&1
 
 
 # ----------------------------------------------------------------------------
