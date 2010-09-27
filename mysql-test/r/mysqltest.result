@@ -369,23 +369,24 @@ mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'real_s
 mysqltest: At line 1: Invalid argument to sleep "abc"
 mysqltest: At line 1: Invalid argument to real_sleep "abc"
 1
-2
 101
-hej
-1
+-99
 mysqltest: At line 1: Missing argument to inc
 mysqltest: At line 1: The argument to inc must be a variable (start with $)
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: End of line junk detected: "1000"
-4
-4
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+-96
+-96
 -1
--2
 99
-hej
--1
 mysqltest: At line 1: Missing argument to dec
 mysqltest: At line 1: The argument to dec must be a variable (start with $)
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: End of line junk detected: "1000"
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 system command 'NonExistsinfComamdn 2> /dev/null' failed
