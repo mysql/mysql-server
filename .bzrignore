@@ -3130,5 +3130,8 @@ storage/ndb/test/crund/martins_little_helpers/src/utils/utils_JniInstrumentation
 storage/ndb/test/crund/scripts/ndblog
 storage/ndb/test/crund/scripts/results
 storage/ndb/test/crund/src/crundndb/Driver
+storage/ndb/test/crund/tws_benchmark/build/
+storage/ndb/test/crund/tws_benchmark/nbproject/configs/
+storage/ndb/test/crund/tws_benchmark/nbproject/private/
 libmysqld/examples/mysqltest.cc
 libmysqld/debug_sync.cc
