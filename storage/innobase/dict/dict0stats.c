@@ -2331,9 +2331,8 @@ dict_stats_delete_index_stats(
 	the internal parser will crash. */
 	if (!dict_stats_persistent_storage_check(FALSE)) {
 
-		dict_table_decrement_handle_count(table_stats, FALSE);
-		dict_table_decrement_handle_count(index_stats, FALSE);
-		return(DB_SUCCESS);
+		ret = DB_SUCCESS;
+		goto end;
 	}
 
 	ut_snprintf(database_name, sizeof(database_name), "%.*s",
@@ -2396,6 +2395,8 @@ dict_stats_delete_index_stats(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
+
+end:
 
 	dict_table_decrement_handle_count(table_stats, FALSE);
 	dict_table_decrement_handle_count(index_stats, FALSE);
