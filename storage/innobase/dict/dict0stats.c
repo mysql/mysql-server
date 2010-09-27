@@ -1663,17 +1663,13 @@ dict_stats_save(
 		}
 	}
 
-	goto end_commit;
+	trx_commit_for_mysql(trx);
+	ret = DB_SUCCESS;
+	goto end_free;
 
 end_rollback:
 
 	trx_rollback_for_mysql(trx);
-	goto end_free;
-
-end_commit:
-
-	trx_commit_for_mysql(trx);
-	ret = DB_SUCCESS;
 
 end_free:
 
