@@ -181,11 +181,10 @@ public class ClusterjLoad extends Driver {
             new ClusterjOp("setAByPK") {
                 public void run(int countA, int countB) {
                     for (int i = 0; i < countA; i++) {
-                        // XXX blind update not working
-                        final IA o = session.find(IA.class, i);
-                        //final IA o = session.newInstance(IA.class);
-                        assert o != null;
+                        // blind update
+                        final IA o = session.newInstance(IA.class);
                         o.setId(i);
+                        assert o != null;
                         o.setCint(i);
                         o.setClong((long)i);
                         o.setCfloat((float)i);
@@ -199,11 +198,10 @@ public class ClusterjLoad extends Driver {
             new ClusterjOp("setB0ByPK") {
                 public void run(int countA, int countB) {
                     for (int i = 0; i < countB; i++) {
-                        // XXX blind update not working
-                        final IB0 o = session.find(IB0.class, i);
-                        //final IB0 o = session.newInstance(IB0.class);
-                        assert o != null;
+                        // blind update
+                        final IB0 o = session.newInstance(IB0.class);
                         o.setId(i);
+                        assert o != null;
                         o.setCint(i);
                         o.setClong((long)i);
                         o.setCfloat((float)i);
@@ -249,9 +247,9 @@ public class ClusterjLoad extends Driver {
                 new ClusterjOp("setVarbinary" + l) {
                     public void run(int countA, int countB) {
                         for (int i = 0; i < countB; i++) {
-                            // XXX blind update not working
-                            final IB0 o = session.find(IB0.class, i);
-                            //final IB0 o = session.newInstance(IB0.class);
+                            // blind update
+                            final IB0 o = session.newInstance(IB0.class);
+                            o.setId(i);
                             assert o != null;
                             o.setCvarbinary_def(b);
                             session.updatePersistent(o);
@@ -274,9 +272,9 @@ public class ClusterjLoad extends Driver {
                 new ClusterjOp("clearVarbinary" + l) {
                     public void run(int countA, int countB) {
                         for (int i = 0; i < countB; i++) {
-                            // XXX blind update not working
-                            final IB0 o = session.find(IB0.class, i);
-                            //final IB0 o = session.newInstance(IB0.class);
+                            // blind update
+                            final IB0 o = session.newInstance(IB0.class);
+                            o.setId(i);
                             assert o != null;
                             o.setCvarbinary_def(null);
                             session.updatePersistent(o);
@@ -293,9 +291,9 @@ public class ClusterjLoad extends Driver {
                 new ClusterjOp("setVarchar" + l) {
                     public void run(int countA, int countB) {
                         for (int i = 0; i < countB; i++) {
-                            // XXX blind update not working
-                            final IB0 o = session.find(IB0.class, i);
-                            //final IB0 o = session.newInstance(IB0.class);
+                            // blind update
+                            final IB0 o = session.newInstance(IB0.class);
+                            o.setId(i);
                             assert o != null;
                             o.setCvarchar_def(s);
                             session.updatePersistent(o);
@@ -318,9 +316,9 @@ public class ClusterjLoad extends Driver {
                 new ClusterjOp("clearVarchar" + l) {
                     public void run(int countA, int countB) {
                         for (int i = 0; i < countB; i++) {
-                            // XXX blind update not working
-                            final IB0 o = session.find(IB0.class, i);
-                            //final IB0 o = session.newInstance(IB0.class);
+                            // blind update
+                            final IB0 o = session.newInstance(IB0.class);
+                            o.setId(i);
                             assert o != null;
                             o.setCvarchar_def(null);
                             session.updatePersistent(o);
@@ -333,9 +331,9 @@ public class ClusterjLoad extends Driver {
             new ClusterjOp("setB0->A") {
                 public void run(int countA, int countB) {
                     for (int i = 0; i < countB; i++) {
-                        // XXX blind update not working
-                        final IB0 b0 = session.find(IB0.class, i);
-                        //final IB0 b0 = session.newInstance(IB0.class);
+                        // blind update
+                        final IB0 b0 = session.newInstance(IB0.class);
+                        b0.setId(i);
                         assert b0 != null;
                         final int aId = i % countA;
                         b0.setAid(aId);
@@ -408,9 +406,9 @@ public class ClusterjLoad extends Driver {
             new ClusterjOp("nullB0->A") {
                 public void run(int countA, int countB) {
                     for (int i = 0; i < countB; i++) {
-                        // XXX blind update not working
-                        final IB0 b0 = session.find(IB0.class, i);
-                        //final IB0 b0 = session.newInstance(IB0.class);
+                        // blind update
+                        final IB0 b0 = session.newInstance(IB0.class);
+                        b0.setId(i);
                         assert b0 != null;
                         b0.setAid(0);
                     }
