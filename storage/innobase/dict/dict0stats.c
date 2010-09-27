@@ -646,8 +646,7 @@ equal) or 2 (the function found a non-boring record and returned).
 @return the last user record which was read or NULL if the page is empty and
 does not contain user records.
 dict_stats_scan_page() @{ */
-static
-inline
+UNIV_INLINE
 rec_t*
 dict_stats_scan_page(
 /*=================*/
