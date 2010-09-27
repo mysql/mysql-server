@@ -31,7 +31,7 @@ Warning	1205	Unable to instantly delete statistics for table test.innodb_stats_d
 SHOW TABLES;
 Tables_in_test
 COMMIT;
-SELECT table_name FROM innodb.table_stats 
+SELECT table_name FROM innodb.table_stats
 WHERE table_name='innodb_stats_drop_locked';
 table_name
 innodb_stats_drop_locked
