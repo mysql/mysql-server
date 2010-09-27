@@ -2267,6 +2267,87 @@ dict_stats_update(
 /* @} */
 
 /*********************************************************************//**
+Increment stats tables' mysql reference count to prevent these tables from
+being DROPped. Also check whether they have the correct structure. The caller
+must call dict_stats_dec_ref_count() when he has finished DMLing the tables.
+dict_stats_inc_ref_count_and_check() @{
+@return TRUE if tables exist, have the correct structure and reference count
+was incremented */
+UNIV_INLINE
+ibool
+dict_stats_inc_ref_count_and_check(
+/*===============================*/
+	trx_t*	trx)	/*!< in/out: transaction to use */
+{
+	dict_table_t*	table_stats;
+	dict_table_t*	index_stats;
+
+	row_mysql_lock_data_dictionary(trx);
+
+	table_stats = dict_table_get_low(TABLE_STATS_NAME);
+	index_stats = dict_table_get_low(INDEX_STATS_NAME);
+
+	if (table_stats == NULL || index_stats == NULL) {
+		/* tables do not exist */
+		row_mysql_unlock_data_dictionary(trx);
+		return(FALSE);
+	}
+
+	table_stats->n_mysql_handles_opened++;
+	index_stats->n_mysql_handles_opened++;
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	/* Check if the tables have the correct structure, if yes then
+	after this function we can safely DELETE from them without worrying
+	that they may get DROPped or DDLed because we have incremented the
+	mysql reference count. */
+	if (!dict_stats_persistent_storage_check(FALSE)) {
+
+		row_mysql_lock_data_dictionary(trx);
+
+		table_stats->n_mysql_handles_opened--;
+		index_stats->n_mysql_handles_opened--;
+
+		row_mysql_unlock_data_dictionary(trx);
+
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
+/* @} */
+
+/*********************************************************************//**
+Decrement stats tables' mysql reference count. Should always be called
+after dict_stats_inc_ref_count_and_check().
+dict_stats_dec_ref_count() @{ */
+UNIV_INLINE
+void
+dict_stats_dec_ref_count(
+/*=====================*/
+	trx_t*	trx
+)
+{
+	dict_table_t*	table_stats;
+	dict_table_t*	index_stats;
+
+	row_mysql_lock_data_dictionary(trx);
+
+	table_stats = dict_table_get_low(TABLE_STATS_NAME);
+	ut_a(table_stats != NULL);
+
+	index_stats = dict_table_get_low(INDEX_STATS_NAME);
+	ut_a(index_stats != NULL);
+
+	dict_table_decrement_handle_count(table_stats, TRUE);
+	dict_table_decrement_handle_count(index_stats, TRUE);
+
+	row_mysql_unlock_data_dictionary(trx);
+}
+/* @} */
+
+/*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
 The transaction is not committed, it must not be committed in this
@@ -2293,8 +2374,6 @@ dict_stats_delete_index_stats(
 {
 	char		database_name[1024];
 	const char*	table_name;
-	dict_table_t*	table_stats;
-	dict_table_t*	index_stats;
 	pars_info_t*	pinfo;
 	ulint		ret;
 	ibool		allowed_to_wait_orig;
@@ -2308,31 +2387,12 @@ dict_stats_delete_index_stats(
 
 	/* Increment table reference count to prevent the tables from
 	being DROPped just before que_eval_sql(). */
-
-	row_mysql_lock_data_dictionary(trx);
-
-	table_stats = dict_table_get_low(TABLE_STATS_NAME);
-	index_stats = dict_table_get_low(INDEX_STATS_NAME);
-
-	if (table_stats == NULL || index_stats == NULL) {
-		/* tables do not exist */
-		row_mysql_unlock_data_dictionary(trx);
+	if (!dict_stats_inc_ref_count_and_check(trx)) {
+		/* stats tables do not exist or have unexpected structure */
 		return(DB_SUCCESS);
 	}
 
-	table_stats->n_mysql_handles_opened++;
-	index_stats->n_mysql_handles_opened++;
-
-	row_mysql_unlock_data_dictionary(trx);
-
-	/* If the persistent statistics storage does not exist or is
-	corrupted, then do not attempt to DELETE from its tables because
-	the internal parser will crash. */
-	if (!dict_stats_persistent_storage_check(FALSE)) {
-
-		ret = DB_SUCCESS;
-		goto end;
-	}
+	/* the stats tables cannot be DROPped now */
 
 	ut_snprintf(database_name, sizeof(database_name), "%.*s",
 		    (int) dict_get_db_name_len(index->table_name),
@@ -2395,10 +2455,7 @@ dict_stats_delete_index_stats(
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-end:
-
-	dict_table_decrement_handle_count(table_stats, FALSE);
-	dict_table_decrement_handle_count(index_stats, FALSE);
+	dict_stats_dec_ref_count(trx);
 
 	return(ret);
 }
@@ -2423,8 +2480,6 @@ dict_stats_delete_table_stats(
 	const char*	table_name_strip; /* without leading db name */
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	dict_table_t*	table_stats;
-	dict_table_t*	index_stats;
 	enum db_err	ret = DB_ERROR;
 
 	/* skip tables that do not contain a database name
@@ -2458,31 +2513,10 @@ dict_stats_delete_table_stats(
 	from races, but we nevertheless increment the ref counter to
 	be sure the code continues to be race-free even if MySQL code
 	is changed. */
-
-	row_mysql_lock_data_dictionary(trx);
-
-	table_stats = dict_table_get_low(TABLE_STATS_NAME);
-	index_stats = dict_table_get_low(INDEX_STATS_NAME);
-
-	if (table_stats == NULL || index_stats == NULL) {
-		/* tables do not exist */
-		row_mysql_unlock_data_dictionary(trx);
+	if (!dict_stats_inc_ref_count_and_check(trx)) {
+		/* stats tables do not exist or have unexpected structure */
 		ret = DB_SUCCESS;
 		goto commit_and_return;
-	}
-
-	table_stats->n_mysql_handles_opened++;
-	index_stats->n_mysql_handles_opened++;
-
-	row_mysql_unlock_data_dictionary(trx);
-
-	/* If the persistent statistics storage does not exist or is
-	corrupted, then do not attempt to DELETE from its tables because
-	the internal SQL parser will crash. */
-	if (!dict_stats_persistent_storage_check(FALSE)) {
-
-		ret = DB_SUCCESS;
-		goto decrement_ref_count_commit_and_return;
 	}
 
 	ut_snprintf(database_name, sizeof(database_name), "%.*s",
@@ -2552,10 +2586,7 @@ dict_stats_delete_table_stats(
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-decrement_ref_count_commit_and_return:
-
-	dict_table_decrement_handle_count(table_stats, FALSE);
-	dict_table_decrement_handle_count(index_stats, FALSE);
+	dict_stats_dec_ref_count(trx);
 
 commit_and_return:
 
