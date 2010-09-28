@@ -5837,7 +5837,6 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
-  KEYUSE keyuse;
 
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS))
   {
@@ -5853,20 +5852,21 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
 	{
-	  keyuse.table= field->table;
-	  keyuse.val =  key_field->val;
-	  keyuse.key =  key;
-	  keyuse.keypart=part;
-	  keyuse.keypart_map= (key_part_map) 1 << part;
-	  keyuse.used_tables=key_field->val->used_tables();
-	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
-          keyuse.null_rejecting= key_field->null_rejecting;
-          keyuse.cond_guard= key_field->cond_guard;
-          keyuse.sj_pred_no= key_field->sj_pred_no;
-	  if (insert_dynamic(keyuse_array,(uchar*) &keyuse))
-            return TRUE;
+          KEYUSE keyuse;
+          keyuse.table=          field->table;
+          keyuse.val=            key_field->val;
+          keyuse.used_tables=    key_field->val->used_tables();
+          keyuse.key=            key;
+          keyuse.keypart=        part;
+          keyuse.optimize=       key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+          keyuse.keypart_map=    (key_part_map) 1 << part;
           /* This will be set accordingly in optimize_keyuse */
           keyuse.ref_table_rows= ~(ha_rows) 0;
+          keyuse.null_rejecting= key_field->null_rejecting;
+          keyuse.cond_guard=     key_field->cond_guard;
+          keyuse.sj_pred_no=     key_field->sj_pred_no;
+          if (insert_dynamic(keyuse_array, (uchar*) &keyuse))
+            return TRUE;
 	}
       }
     }
