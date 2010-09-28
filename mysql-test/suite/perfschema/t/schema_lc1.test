@@ -14,32 +14,10 @@
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
+#    Show existing objects and information about their structure
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source include/have_lowercase0.inc
-
-show databases;
-
-use performance_schema;
-
-show tables;
-
-show create table COND_INSTANCES;
-show create table EVENTS_WAITS_CURRENT;
-show create table EVENTS_WAITS_HISTORY;
-show create table EVENTS_WAITS_HISTORY_LONG;
-show create table EVENTS_WAITS_SUMMARY_BY_INSTANCE;
-show create table EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
-show create table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
-show create table FILE_INSTANCES;
-show create table FILE_SUMMARY_BY_EVENT_NAME;
-show create table FILE_SUMMARY_BY_INSTANCE;
-show create table MUTEX_INSTANCES;
-show create table PERFORMANCE_TIMERS;
-show create table RWLOCK_INSTANCES;
-show create table SETUP_CONSUMERS;
-show create table SETUP_INSTRUMENTS;
-show create table SETUP_TIMERS;
-show create table THREADS;
+--source include/have_lowercase1.inc
+--source ../include/schema.inc
 
