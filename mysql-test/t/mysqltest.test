@@ -701,6 +701,16 @@ echo banana = $cat;
 let $cat=ba\\\$cat\\\$cat;
 echo Not a banana: $cat;
 
+# Bug #55413 would cause this to fail
+let $escape= with\`some\"escaped\'quotes;
+echo $escape;
+
+--let $escape= with\`some\"escaped\'quotes
+echo $escape;
+
+# This only works with "--let" syntax
+--let $tick= single'tick`backtick
+echo $tick;
 
 # Test illegal uses of let
 
