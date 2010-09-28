@@ -25,16 +25,8 @@ public class B1 extends B0 {
     // this c'tor may me protected, for access from JNI is still possible
     // with default constructor, cdelegate needs to be written from JNI
     protected B1() {
-        System.out.println("<-> myjapi.B1()");
+        //System.out.println("<-> myjapi.B1()");
     };
-
-/*
-    // this c'tor may me protected, for access from JNI is still possible
-    protected B1(long cdelegate) {
-        super(cdelegate);
-        //System.out.println("<-> myjapi.B1(" + Long.toHexString(cdelegate) + ")");
-    };
-*/
 
     // static method
     static public native int f0s();

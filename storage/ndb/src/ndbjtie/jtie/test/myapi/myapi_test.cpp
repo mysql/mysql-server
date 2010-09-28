@@ -751,6 +751,8 @@ main(int argc, const char* argv[])
     printf("\n--> main()\n");
     (void)argc; (void)argv;
 
+    myapi_init();
+
     if (true) {
         test0();
         test1();
@@ -768,6 +770,8 @@ main(int argc, const char* argv[])
     } else {
         test12();
     }
+
+    myapi_finit();
 
     printf("\n<-- main()\n");
     return 0;

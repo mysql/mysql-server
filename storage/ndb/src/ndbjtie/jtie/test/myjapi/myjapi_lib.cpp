@@ -69,6 +69,10 @@ JNI_OnLoad(JavaVM * jvm, void * reserved)
         return JNI_ERR;
     }
 
+    VERBOSE("initializing the myapi resources ...");
+    myapi_init();
+    VERBOSE("... initialized the myapi resources");
+
     VERBOSE("... loaded the MyJAPI JTie library");
     return required_jni_version;
 }
@@ -81,6 +85,10 @@ JNI_OnUnload(JavaVM * jvm, void * reserved)
 {
     TRACE("void JNI_OnUnload(JavaVM *, void *)");
     VERBOSE("unloading the MyJAPI JTie library...");
+
+    VERBOSE("releasing the myapi resources ...");
+    myapi_finit();
+    VERBOSE("... released the myapi resources");
 
     JTie_OnUnload(jvm, reserved);
 
