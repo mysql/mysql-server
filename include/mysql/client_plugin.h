@@ -23,8 +23,10 @@
 */
 #define MYSQL_CLIENT_PLUGIN_INCLUDED
 
+#ifndef MYSQL_ABI_CHECK
 #include <stdarg.h>
 #include <stdlib.h>
+#endif
 
 /* known plugin types */
 #define MYSQL_CLIENT_reserved1               0
