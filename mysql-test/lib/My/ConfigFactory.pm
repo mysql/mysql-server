@@ -30,6 +30,13 @@ sub get_basedir {
   return $basedir;
 }
 
+sub get_testdir {
+  my ($self, $group)= @_;
+  my $testdir= $group->if_exist('testdir') ||
+    $self->{ARGS}->{testdir};
+  return $testdir;
+}
+
 
 sub fix_charset_dir {
   my ($self, $config, $group_name, $group)= @_;
@@ -142,8 +149,8 @@ sub fix_secure_file_priv {
 
 sub fix_std_data {
   my ($self, $config, $group_name, $group)= @_;
-  my $basedir= $self->get_basedir($group);
-  return "$basedir/mysql-test/std_data";
+  my $testdir= $self->get_testdir($group);
+  return "$testdir/std_data";
 }
 
 sub ssl_supported {

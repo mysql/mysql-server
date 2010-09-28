@@ -5526,7 +5526,11 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
         SEL_TREE *tmp= get_full_func_mm_tree(param, cond_func, 
                                     field_item, (Item*)(intptr)i, inv);
         if (inv)
+        {
           tree= !tree ? tmp : tree_or(param, tree, tmp);
+          if (tree == NULL)
+            break;
+        }
         else 
           tree= tree_and(param, tree, tmp);
       }
@@ -8447,9 +8451,14 @@ int QUICK_RANGE_SELECT::reset()
   in_range= FALSE;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
-  if (file->inited == handler::NONE && (error= file->ha_index_init(index,1)))
-    DBUG_RETURN(error);
- 
+  if (file->inited == handler::NONE)
+  {
+    if (in_ror_merged_scan)
+      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+    if ((error= file->ha_index_init(index,1)))
+        DBUG_RETURN(error);
+  }
+
   /* Do not allocate the buffers twice. */
   if (multi_range_length)
   {
