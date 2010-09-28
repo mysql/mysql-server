@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* classes for sum functions */
@@ -427,7 +427,6 @@ public:
     forced_const= TRUE; 
   }
   virtual bool const_item() const { return forced_const; }
-  void make_field(Send_field *field);
   virtual void print(String *str, enum_query_type query_type);
   void fix_num_length_and_dec();
 
@@ -1008,6 +1007,11 @@ protected:
   void no_rows_in_result();
   Field *create_tmp_field(bool group, TABLE *table,
 			  uint convert_blob_length);
+  /*
+    MIN/MAX uses Item_cache_datetime for storing DATETIME values, thus
+    in this case a correct INT value can be provided.
+  */
+  bool result_as_longlong() { return args[0]->result_as_longlong(); }
 };
 
 

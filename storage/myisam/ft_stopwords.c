@@ -18,6 +18,10 @@
 #include "ftdefs.h"
 #include "my_handler.h"
 
+
+static CHARSET_INFO *ft_stopword_cs= NULL;
+
+
 typedef struct st_ft_stopwords
 {
   const char * pos;
@@ -29,7 +33,7 @@ static TREE *stopwords3=NULL;
 static int FT_STOPWORD_cmp(void* cmp_arg __attribute__((unused)),
 			   FT_STOPWORD *w1, FT_STOPWORD *w2)
 {
-  return ha_compare_text(default_charset_info,
+  return ha_compare_text(ft_stopword_cs,
 			 (uchar *)w1->pos,w1->len,
 			 (uchar *)w2->pos,w2->len,0,0);
 }
@@ -38,7 +42,7 @@ static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
                              void *arg __attribute__((unused)))
 {
   if (action == free_free)
-    my_free((uchar*) w->pos, MYF(0));
+    my_free((void*)w->pos);
 }
 
 static int ft_add_stopword(const char *w)
@@ -59,6 +63,14 @@ int ft_init_stopwords()
               0,
               (ft_stopword_file ? (tree_element_free)&FT_STOPWORD_free : 0),
               NULL);
+    /*
+      Stopword engine currently does not support tricky
+      character sets UCS2, UTF16, UTF32.
+      Use latin1 to compare stopwords in case of these character sets.
+      It's also fine to use latin1 with the built-in stopwords.
+    */
+    ft_stopword_cs= default_charset_info->mbminlen == 1 ?
+                    default_charset_info : &my_charset_latin1;
   }
 
   if (ft_stopword_file)
@@ -80,14 +92,14 @@ int ft_init_stopwords()
       goto err0;
     len=my_read(fd, buffer, len, MYF(MY_WME));
     end=start+len;
-    while (ft_simple_get_word(default_charset_info, &start, end, &w, TRUE))
+    while (ft_simple_get_word(ft_stopword_cs, &start, end, &w, TRUE))
     {
       if (ft_add_stopword(my_strndup((char*) w.pos, w.len, MYF(0))))
         goto err1;
     }
     error=0;
 err1:
-    my_free(buffer, MYF(0));
+    my_free(buffer);
 err0:
     my_close(fd, MYF(MY_WME));
     return error;
@@ -121,7 +133,7 @@ void ft_free_stopwords()
   if (stopwords3)
   {
     delete_tree(stopwords3); /* purecov: inspected */
-    my_free((char*) stopwords3,MYF(0));
+    my_free(stopwords3);
     stopwords3=0;
   }
   ft_stopword_file= 0;

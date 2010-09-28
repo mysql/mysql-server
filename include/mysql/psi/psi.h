@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2010 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 #define MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
@@ -28,6 +28,8 @@
 #endif
 
 C_MODE_START
+
+struct TABLE_SHARE;
 
 /**
   @file mysql/psi/psi.h
@@ -79,6 +81,12 @@ struct PSI_thread;
   This is an opaque structure.
 */
 struct PSI_file;
+
+/**
+  Interface for an instrumented table operation.
+  This is an opaque structure.
+*/
+struct PSI_table_locker;
 
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
@@ -229,11 +237,22 @@ enum PSI_file_operation
   PSI_FILE_SYNC= 16
 };
 
-/**
-  Interface for an instrumented table operation.
-  This is an opaque structure.
-*/
-struct PSI_table_locker;
+/** Operation performed on an instrumented table. */
+enum PSI_table_operation
+{
+  /** Table lock, in the server layer. */
+  PSI_TABLE_LOCK= 0,
+  /** Table lock, in the storage engine layer. */
+  PSI_TABLE_EXTERNAL_LOCK= 1,
+  /** Row fetch. */
+  PSI_TABLE_FETCH_ROW= 2,
+  /** Row write. */
+  PSI_TABLE_WRITE_ROW= 3,
+  /** Row update. */
+  PSI_TABLE_UPDATE_ROW= 4,
+  /** Row delete. */
+  PSI_TABLE_DELETE_ROW= 5
+};
 
 /**
   Instrumented mutex key.
@@ -422,6 +441,175 @@ struct PSI_file_info_v1
   int m_flags;
 };
 
+/**
+  State data storage for @c get_thread_mutex_locker_v1_t.
+  This structure provide temporary storage to a mutex locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa get_thread_mutex_locker_v1_t
+*/
+struct PSI_mutex_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current mutex. */
+  struct PSI_mutex *m_mutex;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Current operation. */
+  enum PSI_mutex_operation m_operation;
+  /** Source file. */
+  const char* m_src_file;
+  /** Source line number. */
+  int m_src_line;
+  /** Internal data. */
+  void *m_wait;
+};
+
+/**
+  State data storage for @c get_thread_rwlock_locker_v1_t.
+  This structure provide temporary storage to a rwlock locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa get_thread_rwlock_locker_v1_t
+*/
+struct PSI_rwlock_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current rwlock. */
+  struct PSI_rwlock *m_rwlock;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Current operation. */
+  enum PSI_rwlock_operation m_operation;
+  /** Source file. */
+  const char* m_src_file;
+  /** Source line number. */
+  int m_src_line;
+  /** Internal data. */
+  void *m_wait;
+};
+
+/**
+  State data storage for @c get_thread_cond_locker_v1_t.
+  This structure provide temporary storage to a condition locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa get_thread_cond_locker_v1_t
+*/
+struct PSI_cond_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current condition. */
+  struct PSI_cond *m_cond;
+  /** Current mutex. */
+  struct PSI_mutex *m_mutex;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Current operation. */
+  enum PSI_cond_operation m_operation;
+  /** Source file. */
+  const char* m_src_file;
+  /** Source line number. */
+  int m_src_line;
+  /** Internal data. */
+  void *m_wait;
+};
+
+/**
+  State data storage for @c get_thread_file_name_locker_v1_t.
+  This structure provide temporary storage to a file locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa get_thread_file_name_locker_v1_t
+  @sa get_thread_file_stream_locker_v1_t
+  @sa get_thread_file_descriptor_locker_v1_t
+*/
+struct PSI_file_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current file. */
+  struct PSI_file *m_file;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Operation number of bytes. */
+  size_t m_number_of_bytes;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Current operation. */
+  enum PSI_file_operation m_operation;
+  /** Source file. */
+  const char* m_src_file;
+  /** Source line number. */
+  int m_src_line;
+  /** Internal data. */
+  void *m_wait;
+};
+
+/**
+  State data storage for @c get_thread_table_locker_v1_t.
+  This structure provide temporary storage to a table locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa get_thread_table_locker_v1_t
+*/
+struct PSI_table_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current table handle. */
+  struct PSI_table *m_table;
+  /** Current table share. */
+  struct PSI_table_share *m_table_share;
+  /** Instrumentation class. */
+  void *m_class;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Current operation. */
+  enum PSI_table_operation m_operation;
+  /** Current table io index. */
+  uint m_index;
+  /** Current table lock index. */
+  uint m_lock_index;
+  /** Source file. */
+  const char* m_src_file;
+  /** Source line number. */
+  int m_src_line;
+  /** Internal data. */
+  void *m_wait;
+};
+
 /* Using typedef to make reuse between PSI_v1 and PSI_v2 easier later. */
 
 /**
@@ -515,23 +703,30 @@ typedef struct PSI_cond* (*init_cond_v1_t)
 typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
 
 /**
-  Acquire a table info by name.
-  @param schema_name name of the table schema
-  @param schema_name_length length of schema_name
-  @param table_name name of the table
-  @param table_name_length length of table_name
-  @param identity table identity pointer, typically the table share
-  @return a table info, or NULL if the table is not instrumented
+  Acquire a table share instrumentation.
+  @param temporary True for temporary tables
+  @param share The SQL layer table share
+  @return a table share instrumentation, or NULL
 */
 typedef struct PSI_table_share* (*get_table_share_v1_t)
-  (const char *schema_name, int schema_name_length, const char *table_name,
-   int table_name_length, const void *identity);
+  (my_bool temporary, struct TABLE_SHARE *share);
 
 /**
   Release a table share.
   @param info the table share to release
 */
 typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
+
+/**
+  Drop a table share.
+  @param schema_name the table schema name
+  @param schema_name_length the table schema name length
+  @param table_name the table name
+  @param table_name_length the table name length
+*/
+typedef void (*drop_table_share_v1_t)
+  (const char *schema_name, int schema_name_length,
+   const char *table_name, int table_name_length);
 
 /**
   Open an instrumentation table handle.
@@ -601,6 +796,55 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 
 /**
+  Assign a user name to the instrumented thread.
+  @param user the user name
+  @param user_len the user name length
+*/
+typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
+
+/**
+  Assign a user name and host name to the instrumented thread.
+  @param user the user name
+  @param user_len the user name length
+  @param host the host name
+  @param host_len the host name length
+*/
+typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,
+                                          const char *host, int host_len);
+
+/**
+  Assign a current database to the instrumented thread.
+  @param db the database name
+  @param db_len the database name length
+*/
+typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
+
+/**
+  Assign a current command to the instrumented thread.
+  @param command the current command
+*/
+typedef void (*set_thread_command_v1_t)(int command);
+
+/**
+  Assign a start time to the instrumented thread.
+  @param start_time the thread start time
+*/
+typedef void (*set_thread_start_time_v1_t)(time_t start_time);
+
+/**
+  Assign a state to the instrumented thread.
+  @param state the thread state
+*/
+typedef void (*set_thread_state_v1_t)(const char* state);
+
+/**
+  Assign a process info to the instrumented thread.
+  @param info the process into string
+  @param info_len the process into string length
+*/
+typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
+
+/**
   Attach a thread instrumentation to the running thread.
   In case of thread pools, this method should be called when
   a worker thread picks a work item and runs it.
@@ -619,40 +863,53 @@ typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
 
 /**
   Get a mutex instrumentation locker.
+  @param state data storage for the locker
   @param mutex the instrumented mutex to lock
   @return a mutex locker, or NULL
 */
 typedef struct PSI_mutex_locker* (*get_thread_mutex_locker_v1_t)
-  (struct PSI_mutex *mutex, enum PSI_mutex_operation op);
+  (struct PSI_mutex_locker_state_v1 *state,
+   struct PSI_mutex *mutex,
+   enum PSI_mutex_operation op);
 
 /**
   Get a rwlock instrumentation locker.
+  @param state data storage for the locker
   @param rwlock the instrumented rwlock to lock
   @return a rwlock locker, or NULL
 */
 typedef struct PSI_rwlock_locker* (*get_thread_rwlock_locker_v1_t)
-  (struct PSI_rwlock *rwlock, enum PSI_rwlock_operation op);
+  (struct PSI_rwlock_locker_state_v1 *state,
+   struct PSI_rwlock *rwlock,
+   enum PSI_rwlock_operation op);
 
 /**
   Get a cond instrumentation locker.
+  @param state data storage for the locker
   @param cond the instrumented condition to wait on
   @param mutex the instrumented mutex associated with the condition
   @return a condition locker, or NULL
 */
 typedef struct PSI_cond_locker* (*get_thread_cond_locker_v1_t)
-  (struct PSI_cond *cond, struct PSI_mutex *mutex,
+  (struct PSI_cond_locker_state_v1 *state,
+   struct PSI_cond *cond, struct PSI_mutex *mutex,
    enum PSI_cond_operation op);
 
 /**
   Get a table instrumentation locker.
+  @param state data storage for the locker
   @param table the instrumented table to lock
+  @param op the operation to be performed
+  @param flags Per operation flags
   @return a table locker, or NULL
 */
 typedef struct PSI_table_locker* (*get_thread_table_locker_v1_t)
-  (struct PSI_table *table);
+  (struct PSI_table_locker_state_v1 *state,
+   struct PSI_table *table, enum PSI_table_operation op, ulong flags);
 
 /**
   Get a file instrumentation locker, for opening or creating a file.
+  @param state data storage for the locker
   @param key the file instrumentation key
   @param op the operation to perform
   @param name the file name
@@ -660,58 +917,59 @@ typedef struct PSI_table_locker* (*get_thread_table_locker_v1_t)
   @return a file locker, or NULL
 */
 typedef struct PSI_file_locker* (*get_thread_file_name_locker_v1_t)
-  (PSI_file_key key, enum PSI_file_operation op, const char *name,
+  (struct PSI_file_locker_state_v1 *state,
+   PSI_file_key key, enum PSI_file_operation op, const char *name,
    const void *identity);
 
 /**
   Get a file stream instrumentation locker.
+  @param state data storage for the locker
   @param file the file stream to access
   @param op the operation to perform
   @return a file locker, or NULL
 */
 typedef struct PSI_file_locker* (*get_thread_file_stream_locker_v1_t)
-  (struct PSI_file *file, enum PSI_file_operation op);
+  (struct PSI_file_locker_state_v1 *state,
+   struct PSI_file *file, enum PSI_file_operation op);
 
 /**
   Get a file instrumentation locker.
+  @param state data storage for the locker
   @param file the file descriptor to access
   @param op the operation to perform
   @return a file locker, or NULL
 */
 typedef struct PSI_file_locker* (*get_thread_file_descriptor_locker_v1_t)
-  (File file, enum PSI_file_operation op);
+  (struct PSI_file_locker_state_v1 *state,
+   File file, enum PSI_file_operation op);
 
 /**
   Record a mutex instrumentation unlock event.
-  @param thread the running thread instrumentation
   @param mutex the mutex instrumentation
 */
 typedef void (*unlock_mutex_v1_t)
-  (struct PSI_thread *thread, struct PSI_mutex *mutex);
+  (struct PSI_mutex *mutex);
 
 /**
   Record a rwlock instrumentation unlock event.
-  @param thread the running thread instrumentation
   @param rwlock the rwlock instrumentation
 */
 typedef void (*unlock_rwlock_v1_t)
-  (struct PSI_thread *thread, struct PSI_rwlock *rwlock);
+  (struct PSI_rwlock *rwlock);
 
 /**
   Record a condition instrumentation signal event.
-  @param thread the running thread instrumentation
   @param cond the cond instrumentation
 */
 typedef void (*signal_cond_v1_t)
-  (struct PSI_thread *thread, struct PSI_cond *cond);
+  (struct PSI_cond *cond);
 
 /**
   Record a condition instrumentation broadcast event.
-  @param thread the running thread instrumentation
   @param cond the cond instrumentation
 */
 typedef void (*broadcast_cond_v1_t)
-  (struct PSI_thread *thread, struct PSI_cond *cond);
+  (struct PSI_cond *cond);
 
 /**
   Record a mutex instrumentation wait start event.
@@ -779,11 +1037,12 @@ typedef void (*end_cond_wait_v1_t)
 /**
   Record a table instrumentation wait start event.
   @param locker a table locker for the running thread
+  @param index the index used if any, or MAX_KEY
   @param file the source file name
   @param line the source line number
 */
 typedef void (*start_table_wait_v1_t)
-  (struct PSI_table_locker *locker, const char *src_file, uint src_line);
+  (struct PSI_table_locker *locker, uint index, const char *src_file, uint src_line);
 
 /**
   Record a table instrumentation wait end event.
@@ -875,6 +1134,8 @@ struct PSI_v1
   get_table_share_v1_t get_table_share;
   /** @sa release_table_share_v1_t. */
   release_table_share_v1_t release_table_share;
+  /** @sa drop_table_share_v1_t. */
+  drop_table_share_v1_t drop_table_share;
   /** @sa open_table_v1_t. */
   open_table_v1_t open_table;
   /** @sa close_table_v1_t. */
@@ -889,6 +1150,20 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
+  /** @sa set_thread_user_v1_t. */
+  set_thread_user_v1_t set_thread_user;
+  /** @sa set_thread_user_host_v1_t. */
+  set_thread_user_host_v1_t set_thread_user_host;
+  /** @sa set_thread_db_v1_t. */
+  set_thread_db_v1_t set_thread_db;
+  /** @sa set_thread_command_v1_t. */
+  set_thread_command_v1_t set_thread_command;
+  /** @sa set_thread_start_time_v1_t. */
+  set_thread_start_time_v1_t set_thread_start_time;
+  /** @sa set_thread_state_v1_t. */
+  set_thread_state_v1_t set_thread_state;
+  /** @sa set_thread_info_v1_t. */
+  set_thread_info_v1_t set_thread_info;
   /** @sa set_thread_v1_t. */
   set_thread_v1_t set_thread;
   /** @sa delete_current_thread_v1_t. */
@@ -1013,6 +1288,36 @@ struct PSI_file_info_v2
   int placeholder;
 };
 
+struct PSI_mutex_locker_state_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+struct PSI_rwlock_locker_state_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+struct PSI_cond_locker_state_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+struct PSI_file_locker_state_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+struct PSI_table_locker_state_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
 /** @} (end of group Group_PSI_v2) */
 
 #endif /* HAVE_PSI_2 */
@@ -1056,6 +1361,11 @@ typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
+typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
+typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
+typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
+typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
+typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 #endif
 
 #ifdef USE_PSI_2
@@ -1065,6 +1375,11 @@ typedef struct PSI_rwlock_info_v2 PSI_rwlock_info;
 typedef struct PSI_cond_info_v2 PSI_cond_info;
 typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
+typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
+typedef struct PSI_rwlock_locker_state_v2 PSI_rwlock_locker_state;
+typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;
+typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
+typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 #endif
 
 #else /* HAVE_PSI_INTERFACE */

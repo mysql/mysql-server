@@ -22,7 +22,9 @@
 /**
   Check type of .frm if we are not going to parse it.
 
-  @param  path  path to FRM file
+  @param[in]  thd   The current session.
+  @param[in]  path  path to FRM file.
+  @param[out] dbt   db_type of the table if FRMTYPE_TABLE, otherwise undefined.
 
   @retval  FRMTYPE_ERROR        error
   @retval  FRMTYPE_TABLE        table
@@ -66,6 +68,58 @@ frm_type_enum dd_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
 
 
 /**
+  Given a table name, check type of .frm and legacy table type.
+
+  @param[in]   thd          The current session.
+  @param[in]   db           Table schema.
+  @param[in]   table_name   Table database.
+  @param[out]  table_type   handlerton of the table if FRMTYPE_TABLE,
+                            otherwise undefined.
+
+  @return FALSE if FRMTYPE_TABLE and storage engine found. TRUE otherwise.
+*/
+
+bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
+                           handlerton **table_type)
+{
+  char path[FN_REFLEN + 1];
+  enum legacy_db_type db_type;
+  LEX_STRING db_name = {(char *) db, strlen(db)};
+
+  /* There should be at least some lock on the table.  */
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db,
+                                             table_name, MDL_SHARED));
+
+  if (check_and_convert_db_name(&db_name, FALSE))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), db_name.str);
+    return TRUE;
+  }
+
+  if (check_table_name(table_name, strlen(table_name), FALSE))
+  {
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name);
+    return TRUE;
+  }
+
+  (void) build_table_filename(path, sizeof(path) - 1, db,
+                              table_name, reg_ext, 0);
+
+  dd_frm_type(thd, path, &db_type);
+
+  /* Type is unknown if the object is not found or is not a table. */
+  if (db_type == DB_TYPE_UNKNOWN ||
+      !(*table_type= ha_resolve_by_legacy_type(thd, db_type)))
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), db, table_name);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+/**
   Given a table name, check if the storage engine for the
   table referred by this name supports an option 'flag'.
   Return an error if the table does not exist or is not a
@@ -84,40 +138,11 @@ bool dd_check_storage_engine_flag(THD *thd,
                                   const char *db, const char *table_name,
                                   uint32 flag, bool *yes_no)
 {
-  char path[FN_REFLEN + 1];
-  enum legacy_db_type db_type;
   handlerton *table_type;
-  LEX_STRING db_name = {(char *) db, strlen(db)};
 
-  if (check_db_name(&db_name))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), db_name.str);
+  if (dd_frm_storage_engine(thd, db, table_name, &table_type))
     return TRUE;
-  }
 
-  if (check_table_name(table_name, strlen(table_name), FALSE))
-  {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name);
-    return TRUE;
-  }
-
-  /* There should be at least some lock on the table.  */
-  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db,
-                                             table_name, MDL_SHARED));
-
-  (void) build_table_filename(path, sizeof(path) - 1, db,
-                              table_name, reg_ext, 0);
-
-  dd_frm_type(thd, path, &db_type);
-
-  /* Type is unknown if the object is not found or is not a table. */
-  if (db_type == DB_TYPE_UNKNOWN)
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), db, table_name);
-    return TRUE;
-  }
-
-  table_type= ha_resolve_by_legacy_type(thd, db_type);
   *yes_no= ha_check_storage_engine_flag(table_type, flag);
 
   return FALSE;
@@ -152,9 +177,7 @@ bool dd_recreate_table(THD *thd, const char *db, const char *table_name)
   build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);
 
   /* Attempt to reconstruct the table. */
-  mysql_mutex_lock(&LOCK_open);
   error= ha_create_table(thd, path, db, table_name, &create_info, TRUE);
-  mysql_mutex_unlock(&LOCK_open);
 
   DBUG_RETURN(error);
 }

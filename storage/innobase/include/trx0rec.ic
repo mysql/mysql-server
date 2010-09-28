@@ -78,7 +78,7 @@ trx_undo_rec_get_undo_no(
 
 	ptr = undo_rec + 3;
 
-	return(mach_dulint_read_much_compressed(ptr));
+	return(mach_ull_read_much_compressed(ptr));
 }
 
 /**********************************************************************//**
@@ -90,7 +90,7 @@ trx_undo_rec_get_offset(
 /*====================*/
 	undo_no_t	undo_no)	/*!< in: undo no read from node */
 {
-	return (3 + mach_dulint_get_much_compressed_size(undo_no));
+	return (3 + mach_ull_get_much_compressed_size(undo_no));
 }
 
 /***********************************************************************//**

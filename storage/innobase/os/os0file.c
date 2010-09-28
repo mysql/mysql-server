@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -43,6 +43,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "srv0mon.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
 # include "os0thread.h"
@@ -183,7 +184,7 @@ struct os_aio_slot_struct{
 					which pending aio operation was
 					completed */
 #ifdef WIN_ASYNC_IO
-	os_event_t	event;		/*!< event object we need in the
+	HANDLE		handle;		/*!< handle object we need in the
 					OVERLAPPED struct */
 	OVERLAPPED	control;	/*!< Windows control block for the
 					aio request */
@@ -225,7 +226,7 @@ struct os_aio_array_struct{
 				aio array outside the ibuf segment */
 	os_aio_slot_t*	slots;	/*!< Pointer to the slots in the array */
 #ifdef __WIN__
-	os_native_event_t* native_events;
+	HANDLE*		handles;
 				/*!< Pointer to an array of OS native
 				event handles where we copied the
 				handles from slots, in the same
@@ -304,7 +305,8 @@ UNIV_INTERN ulint	os_n_pending_reads = 0;
 
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
-@return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000 */
+@return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
+OS_WIN7. */
 UNIV_INTERN
 ulint
 os_get_os_version(void)
@@ -322,10 +324,18 @@ os_get_os_version(void)
 	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
 		return(OS_WIN95);
 	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-		if (os_info.dwMajorVersion <= 4) {
-			return(OS_WINNT);
-		} else {
-			return(OS_WIN2000);
+		switch (os_info.dwMajorVersion) {
+		case 3:
+		case 4:
+			return OS_WINNT;
+		case 5:
+			return (os_info.dwMinorVersion == 0) ? OS_WIN2000
+							     : OS_WINXP;
+		case 6:
+			return (os_info.dwMinorVersion == 0) ? OS_WINVISTA
+							     : OS_WIN7;
+		default:
+			return OS_WIN7;
 		}
 	} else {
 		ut_error;
@@ -623,7 +633,7 @@ os_file_handle_error_no_exit(
 
 #undef USE_FILE_LOCK
 #define USE_FILE_LOCK
-#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__NETWARE__)
+#if defined(UNIV_HOTBACKUP) || defined(__WIN__)
 /* InnoDB Hot Backup does not lock the data files.
  * On Windows, mandatory locking is used.
  */
@@ -673,45 +683,37 @@ os_io_init_simple(void)
 {
 	ulint	i;
 
-	os_file_count_mutex = os_mutex_create(NULL);
+	os_file_count_mutex = os_mutex_create();
 
 	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
-		os_file_seek_mutexes[i] = os_mutex_create(NULL);
+		os_file_seek_mutexes[i] = os_mutex_create();
 	}
 }
 
 /***********************************************************************//**
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
-On Netware, this function is like tmpfile(3), because the C run-time
-library of Netware does not expose the delete-on-close flag.
 @return	temporary file handle, or NULL on error */
 UNIV_INTERN
 FILE*
 os_file_create_tmpfile(void)
 /*========================*/
 {
-#ifdef __NETWARE__
-	FILE*	file	= tmpfile();
-#else /* __NETWARE__ */
 	FILE*	file	= NULL;
 	int	fd	= innobase_mysql_tmpfile();
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
 	}
-#endif /* __NETWARE__ */
 
 	if (!file) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: unable to create temporary file;"
 			" errno: %d\n", errno);
-#ifndef __NETWARE__
 		if (fd >= 0) {
 			close(fd);
 		}
-#endif /* !__NETWARE__ */
 	}
 
 	return(file);
@@ -1453,7 +1455,11 @@ try_again:
 
 		/* When srv_file_per_table is on, file creation failure may not
 		be critical to the whole instance. Do not crash the server in
-		case of unknown errors. */
+		case of unknown errors.
+		Please note "srv_file_per_table" is a global variable with
+		no explicit synchronization protection. It could be
+		changed during this execution path. It might not have the
+		same value as the one when building the table definition */
 		if (srv_file_per_table) {
 			retry = os_file_handle_error_no_exit(name,
 						create_mode == OS_FILE_CREATE ?
@@ -1540,7 +1546,11 @@ try_again:
 
 		/* When srv_file_per_table is on, file creation failure may not
 		be critical to the whole instance. Do not crash the server in
-		case of unknown errors. */
+		case of unknown errors.
+		Please note "srv_file_per_table" is a global variable with
+		no explicit synchronization protection. It could be
+		changed during this execution path. It might not have the
+		same value as the one when building the table definition */
 		if (srv_file_per_table) {
 			retry = os_file_handle_error_no_exit(name,
 						create_mode == OS_FILE_CREATE ?
@@ -2210,6 +2220,7 @@ os_file_pread(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	n_bytes = pread(file, buf, (ssize_t)n, offs);
@@ -2217,6 +2228,7 @@ os_file_pread(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	return(n_bytes);
@@ -2230,6 +2242,7 @@ os_file_pread(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads++;
+		MONITOR_INC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2253,6 +2266,7 @@ os_file_pread(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		return(ret);
@@ -2301,6 +2315,7 @@ os_file_pwrite(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
 	os_n_pending_writes++;
+	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 	ret = pwrite(file, buf, (ssize_t)n, offs);
@@ -2308,6 +2323,7 @@ os_file_pwrite(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
 	os_n_pending_writes--;
+	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 # ifdef UNIV_DO_FLUSH
@@ -2333,6 +2349,7 @@ os_file_pwrite(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes++;
+		MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 # ifndef UNIV_HOTBACKUP
@@ -2372,6 +2389,7 @@ func_exit:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
+		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 		return(ret);
@@ -2423,6 +2441,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2442,6 +2461,7 @@ try_again:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		goto error_handling;
@@ -2455,6 +2475,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
@@ -2549,6 +2570,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2568,6 +2590,7 @@ try_again:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		goto error_handling;
@@ -2581,6 +2604,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
@@ -2679,6 +2703,7 @@ retry:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes++;
+	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2698,6 +2723,7 @@ retry:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
+		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 		ut_print_timestamp(stderr);
@@ -2734,6 +2760,7 @@ retry:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
+	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
@@ -3217,7 +3244,7 @@ os_aio_array_create(
 
 	array = ut_malloc(sizeof(os_aio_array_t));
 
-	array->mutex		= os_mutex_create(NULL);
+	array->mutex		= os_mutex_create();
 	array->not_full		= os_event_create(NULL);
 	array->is_empty		= os_event_create(NULL);
 
@@ -3229,10 +3256,13 @@ os_aio_array_create(
 	array->cur_seg		= 0;
 	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
 #ifdef __WIN__
-	array->native_events	= ut_malloc(n * sizeof(os_native_event_t));
+	array->handles		= ut_malloc(n * sizeof(HANDLE));
 #endif
 
 #if defined(LINUX_NATIVE_AIO)
+	array->aio_ctx = NULL;
+	array->aio_events = NULL;
+
 	/* If we are not using native aio interface then skip this
 	part of initialization. */
 	if (!srv_use_native_aio) {
@@ -3270,13 +3300,13 @@ skip_native_aio:
 		slot->pos = i;
 		slot->reserved = FALSE;
 #ifdef WIN_ASYNC_IO
-		slot->event = os_event_create(NULL);
+		slot->handle = CreateEvent(NULL,TRUE, FALSE, NULL);
 
 		over = &(slot->control);
 
-		over->hEvent = slot->event->handle;
+		over->hEvent = slot->handle;
 
-		*((array->native_events) + i) = over->hEvent;
+		*((array->handles) + i) = over->hEvent;
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3302,16 +3332,23 @@ os_aio_array_free(
 
 	for (i = 0; i < array->n_slots; i++) {
 		os_aio_slot_t*	slot = os_aio_array_get_nth_slot(array, i);
-		os_event_free(slot->event);
+		CloseHandle(slot->handle);
 	}
 #endif /* WIN_ASYNC_IO */
 
 #ifdef __WIN__
-	ut_free(array->native_events);
+	ut_free(array->handles);
 #endif /* __WIN__ */
 	os_mutex_free(array->mutex);
 	os_event_free(array->not_full);
 	os_event_free(array->is_empty);
+
+#if defined(LINUX_NATIVE_AIO)
+	if (srv_use_native_aio) {
+		ut_free(array->aio_events);
+		ut_free(array->aio_ctx);
+	}
+#endif /* LINUX_NATIVE_AIO */
 
 	ut_free(array->slots);
 	ut_free(array);
@@ -3453,7 +3490,7 @@ os_aio_array_wake_win_aio_at_shutdown(
 
 	for (i = 0; i < array->n_slots; i++) {
 
-		os_event_set((array->slots + i)->event);
+		SetEvent((array->slots + i)->handle);
 	}
 }
 #endif
@@ -3692,7 +3729,7 @@ found:
 	control = &(slot->control);
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
-	os_event_reset(slot->event);
+	ResetEvent(slot->handle);
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3764,7 +3801,7 @@ os_aio_array_free_slot(
 
 #ifdef WIN_ASYNC_IO
 
-	os_event_reset(slot->event);
+	ResetEvent(slot->handle);
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -4198,13 +4235,20 @@ os_aio_windows_handle(
 	n = array->n_slots / array->n_segments;
 
 	if (array == os_aio_sync_array) {
-		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
+		WaitForSingleObject(
+			os_aio_array_get_nth_slot(array, pos)->handle,
+			INFINITE);
 		i = pos;
 	} else {
 		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
-		i = os_event_wait_multiple(n,
-					   (array->native_events)
-					   + segment * n);
+		i = WaitForMultipleObjects((DWORD) n,
+					   array->handles + segment * n,
+					   FALSE,
+					   INFINITE);
+	}
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		os_thread_exit(NULL);
 	}
 
 	os_mutex_enter(array->mutex);

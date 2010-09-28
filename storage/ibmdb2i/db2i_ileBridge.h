@@ -320,7 +320,7 @@ public:
   {
     if (likely(connErrText))
     {
-      my_free(connErrText, MYF(0)); 
+      my_free(connErrText);
       connErrText = NULL;
     }
   }

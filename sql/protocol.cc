@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -658,7 +658,11 @@ void Protocol::end_partial_result_set(THD *thd_arg)
 bool Protocol::flush()
 {
 #ifndef EMBEDDED_LIBRARY
-  return net_flush(&thd->net);
+  bool error;
+  thd->stmt_da->can_overwrite_status= TRUE;
+  error= net_flush(&thd->net);
+  thd->stmt_da->can_overwrite_status= FALSE;
+  return error;
 #else
   return 0;
 #endif
@@ -698,7 +702,8 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   if (flags & SEND_NUM_ROWS)
   {				// Packet with number of elements
     uchar *pos= net_store_length(buff, list->elements);
-    (void) my_net_write(&thd->net, buff, (size_t) (pos-buff));
+    if (my_net_write(&thd->net, buff, (size_t) (pos-buff)))
+      DBUG_RETURN(1);
   }
 
 #ifndef DBUG_OFF
@@ -790,37 +795,20 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 	  local_packet->realloc(local_packet->length()+10))
 	goto err;
       pos= (char*) local_packet->ptr()+local_packet->length();
-
-#ifdef TO_BE_DELETED_IN_6
-      if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
-      {
-	pos[0]=3;
-	int3store(pos+1,field.length);
-	pos[4]=1;
-	pos[5]=field.type;
-	pos[6]=2;
-	pos[7]= (char) field.flags;
-	pos[8]= (char) field.decimals;
-	pos+= 9;
-      }
-      else
-#endif
-      {
-	pos[0]=3;
-	int3store(pos+1,field.length);
-	pos[4]=1;
-	pos[5]=field.type;
-	pos[6]=3;
-	int2store(pos+7,field.flags);
-	pos[9]= (char) field.decimals;
-	pos+= 10;
-      }
+      pos[0]=3;
+      int3store(pos+1,field.length);
+      pos[4]=1;
+      pos[5]=field.type;
+      pos[6]=3;
+      int2store(pos+7,field.flags);
+      pos[9]= (char) field.decimals;
+      pos+= 10;
     }
     local_packet->length((uint) (pos - local_packet->ptr()));
     if (flags & SEND_DEFAULTS)
       item->send(&prot, &tmp);			// Send default value
     if (prot.write())
-      break;					/* purecov: inspected */
+      DBUG_RETURN(1);
 #ifndef DBUG_OFF
     field_types[count++]= field.type;
 #endif
@@ -833,8 +821,9 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       to show that there is no cursor.
       Send no warning information, as it will be sent at statement end.
     */
-    write_eof_packet(thd, &thd->net, thd->server_status,
-                     thd->warning_info->statement_warn_count());
+    if (write_eof_packet(thd, &thd->net, thd->server_status,
+                         thd->warning_info->statement_warn_count()))
+      DBUG_RETURN(1);
   }
   DBUG_RETURN(prepare_for_send(list->elements));
 
@@ -1166,16 +1155,12 @@ bool Protocol_text::store(MYSQL_TIME *tm)
 #endif
   char buff[40];
   uint length;
-  length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-			   (int) tm->year,
-			   (int) tm->month,
-			   (int) tm->day,
-			   (int) tm->hour,
-			   (int) tm->minute,
-			   (int) tm->second));
+  length= sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
+                  (int) tm->year, (int) tm->month,
+                  (int) tm->day, (int) tm->hour,
+                  (int) tm->minute, (int) tm->second);
   if (tm->second_part)
-    length+= my_sprintf(buff+length,(buff+length, ".%06d",
-                                     (int)tm->second_part));
+    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1209,13 +1194,11 @@ bool Protocol_text::store_time(MYSQL_TIME *tm)
   char buff[40];
   uint length;
   uint day= (tm->year || tm->month) ? 0 : tm->day;
-  length= my_sprintf(buff,(buff, "%s%02ld:%02d:%02d",
-			   tm->neg ? "-" : "",
-			   (long) day*24L+(long) tm->hour,
-			   (int) tm->minute,
-			   (int) tm->second));
+  length= sprintf(buff, "%s%02ld:%02d:%02d", tm->neg ? "-" : "",
+                  (long) day*24L+(long) tm->hour, (int) tm->minute,
+                  (int) tm->second);
   if (tm->second_part)
-    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
+    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
   return net_store_data((uchar*) buff, length);
 }
 

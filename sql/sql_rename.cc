@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   Atomic rename of table;  RENAME TABLE t1 to t2, tmp to t1 [,...]
@@ -24,10 +24,9 @@
 #include "sql_table.h"                         // build_table_filename
 #include "sql_view.h"             // mysql_frm_type, mysql_rename_view
 #include "sql_trigger.h"
-#include "lock.h"       // wait_if_global_read_lock, lock_table_names,
-                        // unlock_table_names,
+#include "lock.h"       // wait_if_global_read_lock
                         // start_waiting_global_read_lock
-#include "sql_base.h"   // tdc_remove_table
+#include "sql_base.h"   // tdc_remove_table, lock_table_names,
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"
 
@@ -37,8 +36,8 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
 /*
-  Every second entry in the table_list is the original name and every
-  second entry is the new name.
+  Every two entries in the table_list form a pair of original name and
+  the new name.
 */
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
@@ -144,16 +143,19 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  if (lock_table_names(thd, table_list))
+  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_TEMPORARY))
     goto err;
-
-  mysql_mutex_lock(&LOCK_open);
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
-                     ren_table->table_name);
+                     ren_table->table_name, FALSE);
 
   error=0;
+  /*
+    An exclusive lock on table names is satisfactory to ensure
+    no other thread accesses this table.
+  */
   if ((ren_table=rename_tables(thd,table_list,0)))
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
@@ -175,17 +177,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
     error= 1;
   }
-  /*
-    An exclusive lock on table names is satisfactory to ensure
-    no other thread accesses this table.
-    However, NDB assumes that handler::rename_tables is called under
-    LOCK_open. And it indeed is, from ALTER TABLE.
-    TODO: remove this limitation.
-    We still should unlock LOCK_open as early as possible, to provide
-    higher concurrency - query_cache_invalidate can take minutes to
-    complete.
-  */
-  mysql_mutex_unlock(&LOCK_open);
 
   if (!silent && !error)
   {
@@ -196,8 +187,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   if (!error)
     query_cache_invalidate3(thd, table_list, 0);
-
-  unlock_table_names(thd);
 
 err:
   thd->global_read_lock.start_waiting_global_read_lock(thd);

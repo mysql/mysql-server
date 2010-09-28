@@ -120,7 +120,7 @@ SELECT @@global.ndb_log_update_as_write;
 #SELECT @@global.ndb_log_update_as_write;
 #SET @@global.ndb_log_update_as_write = 1;
 #SELECT @@global.ndb_log_update_as_write;
-## a value of 2 is used to just flush logs and then shutdown cold. Not supported on Netware
+## a value of 2 is used to just flush logs and then shutdown cold.
 #SET @@global.ndb_log_update_as_write = 2;
 #SELECT @@global.ndb_log_update_as_write;
 

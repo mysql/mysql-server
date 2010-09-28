@@ -301,7 +301,6 @@ create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
 drop table t1;
-
 create table t1 (s1 int);
 insert into t1 values (0),(9),(0);
 select s1 from t1 where s1 in (select version from
@@ -486,11 +485,14 @@ drop table t_crashme;
 # Bug#7215 information_schema: columns are longtext instead of varchar
 # Bug#7217 information_schema: columns are varbinary() instead of timestamp
 #
-select table_schema,table_name, column_name from
-information_schema.columns
-where data_type = 'longtext';
+select table_schema, table_name, column_name from information_schema.columns
+where table_schema not like 'performance_schema'
+  and data_type = 'longtext';
+
 select table_name, column_name, data_type from information_schema.columns
-where data_type = 'datetime' and table_name not like 'innodb_%';
+where table_schema not like 'performance_schema'
+  and data_type = 'datetime'
+  and table_name not like 'innodb_%';
 
 #
 # Bug#8164 subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
@@ -1416,6 +1418,31 @@ DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 
+--echo
+--echo Bug#54422 query with = 'variables'
+--echo
+
+CREATE TABLE variables(f1 INT);
+SELECT COLUMN_DEFAULT, TABLE_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE INFORMATION_SCHEMA.COLUMNS.TABLE_NAME = 'variables';
+DROP TABLE variables;
+
+--echo #
+--echo # Bug #53814: NUMERIC_PRECISION for unsigned bigint field is 19, 
+--echo # should be 20
+--echo #
+
+CREATE TABLE ubig (a BIGINT, b BIGINT UNSIGNED);
+
+SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION 
+  FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
+
+INSERT INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+SELECT length(CAST(b AS CHAR)) FROM ubig;
+
+DROP TABLE ubig;
+
 
 --echo End of 5.1 tests.
 
@@ -1463,7 +1490,8 @@ connection con3726_2;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info like "rename table t2 to t3";
+  where state = "Waiting for table metadata lock" and
+        info like "rename table t2 to t3";
 --source include/wait_condition.inc
 --echo # These statements should not be blocked by pending lock requests
 select table_name, column_name, data_type from information_schema.columns

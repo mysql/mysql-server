@@ -29,7 +29,7 @@
 
 #ifdef HAVE_CHARSET_gb2312
 
-static uchar NEAR ctype_gb2312[257] =
+static uchar ctype_gb2312[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -50,7 +50,7 @@ static uchar NEAR ctype_gb2312[257] =
   3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,
 };
 
-static uchar NEAR to_lower_gb2312[]=
+static uchar to_lower_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -86,7 +86,7 @@ static uchar NEAR to_lower_gb2312[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR to_upper_gb2312[]=
+static uchar to_upper_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -122,7 +122,7 @@ static uchar NEAR to_upper_gb2312[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR sort_order_gb2312[]=
+static uchar sort_order_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -177,7 +177,7 @@ static uint mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 }
 
 
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -298,7 +298,7 @@ static MY_UNICASE_INFO cA2[256]=
 };
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -419,7 +419,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA6[256]=
+static MY_UNICASE_CHARACTER cA6[256]=
 { 
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -540,7 +540,7 @@ static MY_UNICASE_INFO cA6[256]=
 };
   
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {  
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -661,7 +661,7 @@ static MY_UNICASE_INFO cA7[256]=
 };
   
 
-static MY_UNICASE_INFO cA8[256]=
+static MY_UNICASE_CHARACTER cA8[256]=
 { 
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -782,7 +782,7 @@ static MY_UNICASE_INFO cA8[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_gb2312[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_gb2312[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -816,6 +816,13 @@ static MY_UNICASE_INFO *my_caseinfo_gb2312[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_gb2312=
+{
+  0xFFFF,
+  my_caseinfo_pages_gb2312
 };
 
 
@@ -6419,11 +6426,10 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     to_lower_gb2312,
     to_upper_gb2312,
     sort_order_gb2312,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_gb2312, /* caseinfo     */
+    &my_caseinfo_gb2312,/* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -6432,7 +6438,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xF7FE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
@@ -6453,11 +6459,10 @@ CHARSET_INFO my_charset_gb2312_bin=
     to_lower_gb2312,
     to_upper_gb2312,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_gb2312, /* caseinfo     */
+    &my_caseinfo_gb2312,/* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -6466,7 +6471,7 @@ CHARSET_INFO my_charset_gb2312_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xF7FE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */

@@ -1,0 +1,15 @@
+#
+# Bug #34283  mysqlbinlog leaves tmpfile after termination
+# if binlog contains load data infile, so in mixed mode we
+# go to row-based for avoiding the problem.
+#
+
+--source include/have_binlog_format_mixed.inc
+--source include/have_log_bin.inc
+
+RESET MASTER;
+CREATE TABLE t1 (word CHAR(20) NOT NULL) ENGINE=MYISAM;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+--source include/show_binlog_events.inc
+DROP TABLE t1;

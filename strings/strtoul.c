@@ -23,7 +23,7 @@
 #include <my_global.h>
 #include <m_string.h>
 
-#if !defined(MSDOS) && !defined(HAVE_STRTOUL)
+#if !defined(HAVE_STRTOUL)
 #define USE_UNSIGNED
 #include "strto.c"
 #endif

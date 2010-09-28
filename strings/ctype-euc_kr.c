@@ -32,7 +32,7 @@
 #ifdef HAVE_CHARSET_euckr
 
 
-static uchar NEAR ctype_euc_kr[257] =
+static uchar ctype_euc_kr[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -69,7 +69,7 @@ static uchar NEAR ctype_euc_kr[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-static uchar NEAR to_lower_euc_kr[]=
+static uchar to_lower_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -105,7 +105,7 @@ static uchar NEAR to_lower_euc_kr[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR to_upper_euc_kr[]=
+static uchar to_upper_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -141,7 +141,7 @@ static uchar NEAR to_upper_euc_kr[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR sort_order_euc_kr[]=
+static uchar sort_order_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -216,7 +216,7 @@ static uint mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 }
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -421,7 +421,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA5[256]=
+static MY_UNICASE_CHARACTER cA5[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -626,7 +626,7 @@ static MY_UNICASE_INFO cA5[256]=
 };
 
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -831,7 +831,7 @@ static MY_UNICASE_INFO cA7[256]=
 };
 
 
-static MY_UNICASE_INFO cA8[256]=
+static MY_UNICASE_CHARACTER cA8[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1036,7 +1036,7 @@ static MY_UNICASE_INFO cA8[256]=
 };
 
 
-static MY_UNICASE_INFO cA9[256]=
+static MY_UNICASE_CHARACTER cA9[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1241,7 +1241,7 @@ static MY_UNICASE_INFO cA9[256]=
 };  
 
 
-static MY_UNICASE_INFO cAC[256]=
+static MY_UNICASE_CHARACTER cAC[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1446,7 +1446,7 @@ static MY_UNICASE_INFO cAC[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_euckr[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_euckr[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1480,6 +1480,13 @@ static MY_UNICASE_INFO *my_caseinfo_euckr[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_euckr=
+{
+  0xFFFF,
+  my_caseinfo_pages_euckr
 };
 
 
@@ -10016,11 +10023,10 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     to_lower_euc_kr,
     to_upper_euc_kr,
     sort_order_euc_kr,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_euckr,  /* caseinfo     */
+    &my_caseinfo_euckr, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10029,7 +10035,7 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
@@ -10051,11 +10057,10 @@ CHARSET_INFO my_charset_euckr_bin=
     to_lower_euc_kr,
     to_upper_euc_kr,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_euckr,  /* caseinfo     */
+    &my_caseinfo_euckr, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10064,7 +10069,7 @@ CHARSET_INFO my_charset_euckr_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */

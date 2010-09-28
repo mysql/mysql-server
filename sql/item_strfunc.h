@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* This file defines all string functions */
@@ -82,16 +82,13 @@ public:
   const char *func_name() const { return "sha"; }	
 };
 
-class Item_func_sha2 :public Item_str_func
+class Item_func_sha2 :public Item_str_ascii_func
 {
 public:
-  Item_func_sha2(Item *a, Item *b) :Item_str_func(a, b)
-  {
-    collation.set(&my_charset_bin);
-  }
-  String *val_str(String *);    
-  void fix_length_and_dec();      
-  const char *func_name() const { return "sha2"; }	
+  Item_func_sha2(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  String *val_str_ascii(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "sha2"; }
 };
 
 class Item_func_aes_encrypt :public Item_str_func
@@ -542,17 +539,17 @@ public:
 };
 
 
-class Item_func_format :public Item_str_func
+class Item_func_format :public Item_str_ascii_func
 {
   String tmp_str;
   MY_LOCALE *locale;
 public:
-  Item_func_format(Item *org, Item *dec): Item_str_func(org, dec) {}
+  Item_func_format(Item *org, Item *dec): Item_str_ascii_func(org, dec) {}
   Item_func_format(Item *org, Item *dec, Item *lang):
-  Item_str_func(org, dec, lang) {}
+  Item_str_ascii_func(org, dec, lang) {}
   
   MY_LOCALE *get_locale(Item *item);
-  String *val_str(String *);
+  String *val_str_ascii(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "format"; }
   virtual void print(String *str, enum_query_type query_type);
@@ -625,18 +622,18 @@ public:
 };
 
 
-class Item_func_hex :public Item_str_func
+class Item_func_hex :public Item_str_ascii_func
 {
   String tmp_value;
 public:
-  Item_func_hex(Item *a) :Item_str_func(a) {}
+  Item_func_hex(Item *a) :Item_str_ascii_func(a) {}
   const char *func_name() const { return "hex"; }
-  String *val_str(String *);
+  String *val_str_ascii(String *);
   void fix_length_and_dec()
   {
     collation.set(default_charset());
     decimals=0;
-    max_length=args[0]->max_length*2*collation.collation->mbmaxlen;
+    fix_char_length(args[0]->max_length * 2);
   }
 };
 

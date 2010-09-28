@@ -175,7 +175,7 @@ public:
     {
       alloced=0;
       Alloced_length=0;
-      my_free(Ptr,MYF(0));
+      my_free(Ptr);
       Ptr=0;
       str_length=0;				/* Safety */
     }

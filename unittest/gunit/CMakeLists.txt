@@ -185,6 +185,7 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${GTEST_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/unittest/mytap
 )
@@ -206,10 +207,10 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
 ENDIF()
 
 # Add tests (link them with sql library) 
-SET(TESTS sql_list mdl mdl_mytap thread_utils)
+SET(TESTS sql_list mdl mdl_mytap my_regex thread_utils)
 FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
-  TARGET_LINK_LIBRARIES(${test}-t gunit sql)
+  TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex)
   IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
     SET_TARGET_PROPERTIES(${test}-t  PROPERTIES LINK_FLAGS "-library=stlport4")
   ENDIF()

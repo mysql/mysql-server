@@ -80,7 +80,7 @@ my_bool	net_flush(NET *net);
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(MSDOS) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -91,12 +91,12 @@ my_bool	net_flush(NET *net);
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /*!defined(MSDOS) && !defined(__WIN__) */
+#endif /* !defined(__WIN__) */
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #define perror(A)
 #else
 #include <errno.h>
@@ -126,7 +126,7 @@ static void mysql_close_free_options(MYSQL *mysql);
 static void mysql_close_free(MYSQL *mysql);
 static void mysql_prune_stmt_list(MYSQL *mysql);
 
-#if !(defined(__WIN__) || defined(__NETWARE__))
+#if !defined(__WIN__)
 static int wait_for_data(my_socket fd, uint timeout);
 #endif
 
@@ -148,7 +148,7 @@ char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
 	       uint timeout)
 {
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
   DBUG_ENTER("my_connect");
   DBUG_RETURN(connect(fd, (struct sockaddr*) name, namelen));
 #else
@@ -193,7 +193,7 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
   If not, we will use select()
 */
 
-#if !(defined(__WIN__) || defined(__NETWARE__))
+#if !defined(__WIN__)
 
 static int wait_for_data(my_socket fd, uint timeout)
 {
@@ -316,7 +316,7 @@ static int wait_for_data(my_socket fd, uint timeout)
   DBUG_RETURN(0);					/* ok */
 #endif /* HAVE_POLL */
 }
-#endif /* defined(__WIN__) || defined(__NETWARE__) */
+#endif /* !defined(__WIN__) */
 
 /**
   Set the internal error message to mysql handler
@@ -688,8 +688,7 @@ err2:
       CloseHandle(handle_file_map);
   }
 err:
-  if (tmp)
-    my_free(tmp, MYF(0));
+  my_free(tmp);
   if (error_allow)
     error_code = GetLastError();
   if (event_connect_request)
@@ -802,7 +801,7 @@ void free_rows(MYSQL_DATA *cur)
   if (cur)
   {
     free_root(&cur->alloc,MYF(0));
-    my_free((uchar*) cur,MYF(0));
+    my_free(cur);
   }
 }
 
@@ -1127,9 +1126,8 @@ mysql_free_result(MYSQL_RES *result)
     free_rows(result->data);
     if (result->fields)
       free_root(&result->field_alloc,MYF(0));
-    if (result->row)
-      my_free((uchar*) result->row,MYF(0));
-    my_free((uchar*) result,MYF(0));
+    my_free(result->row);
+    my_free(result);
   }
   DBUG_VOID_RETURN;
 }
@@ -1167,13 +1165,13 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   {
     options->init_commands= (DYNAMIC_ARRAY*)my_malloc(sizeof(DYNAMIC_ARRAY),
 						      MYF(MY_WME));
-    init_dynamic_array(options->init_commands,sizeof(char*),0,5 CALLER_INFO);
+    init_dynamic_array(options->init_commands,sizeof(char*),0,5);
   }
 
   if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
       insert_dynamic(options->init_commands, (uchar*)&tmp))
   {
-    my_free(tmp, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp);
     return 1;
   }
 
@@ -1221,7 +1219,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 2:				/* socket */
 	  if (opt_arg)
 	  {
-	    my_free(options->unix_socket,MYF(MY_ALLOW_ZERO_PTR));
+	    my_free(options->unix_socket);
 	    options->unix_socket=my_strdup(opt_arg,MYF(MY_WME));
 	  }
 	  break;
@@ -1232,7 +1230,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 4:				/* password */
 	  if (opt_arg)
 	  {
-	    my_free(options->password,MYF(MY_ALLOW_ZERO_PTR));
+	    my_free(options->password);
 	    options->password=my_strdup(opt_arg,MYF(MY_WME));
 	  }
 	  break;
@@ -1246,7 +1244,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 7:				/* user */
 	  if (opt_arg)
 	  {
-	    my_free(options->user,MYF(MY_ALLOW_ZERO_PTR));
+	    my_free(options->user);
 	    options->user=my_strdup(opt_arg,MYF(MY_WME));
 	  }
 	  break;
@@ -1256,14 +1254,14 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 9:				/* host */
 	  if (opt_arg)
 	  {
-	    my_free(options->host,MYF(MY_ALLOW_ZERO_PTR));
+	    my_free(options->host);
 	    options->host=my_strdup(opt_arg,MYF(MY_WME));
 	  }
 	  break;
 	case 10:			/* database */
 	  if (opt_arg)
 	  {
-	    my_free(options->db,MYF(MY_ALLOW_ZERO_PTR));
+	    my_free(options->db);
 	    options->db=my_strdup(opt_arg,MYF(MY_WME));
 	  }
 	  break;
@@ -1277,23 +1275,23 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 	case 13:			/* ssl_key */
-	  my_free(options->ssl_key, MYF(MY_ALLOW_ZERO_PTR));
+	  my_free(options->ssl_key);
           options->ssl_key = my_strdup(opt_arg, MYF(MY_WME));
           break;
 	case 14:			/* ssl_cert */
-	  my_free(options->ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
+	  my_free(options->ssl_cert);
           options->ssl_cert = my_strdup(opt_arg, MYF(MY_WME));
           break;
 	case 15:			/* ssl_ca */
-	  my_free(options->ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
+	  my_free(options->ssl_ca);
           options->ssl_ca = my_strdup(opt_arg, MYF(MY_WME));
           break;
 	case 16:			/* ssl_capath */
-	  my_free(options->ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
+	  my_free(options->ssl_capath);
           options->ssl_capath = my_strdup(opt_arg, MYF(MY_WME));
           break;
         case 23:			/* ssl_cipher */
-          my_free(options->ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
+          my_free(options->ssl_cipher);
           options->ssl_cipher= my_strdup(opt_arg, MYF(MY_WME));
           break;
 #else
@@ -1305,11 +1303,11 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 	case 17:			/* charset-lib */
-	  my_free(options->charset_dir,MYF(MY_ALLOW_ZERO_PTR));
+	  my_free(options->charset_dir);
           options->charset_dir = my_strdup(opt_arg, MYF(MY_WME));
 	  break;
 	case 18:
-	  my_free(options->charset_name,MYF(MY_ALLOW_ZERO_PTR));
+	  my_free(options->charset_name);
           options->charset_name = my_strdup(opt_arg, MYF(MY_WME));
 	  break;
 	case 19:				/* Interactive-timeout */
@@ -1339,7 +1337,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case 26: /* shared_memory_base_name */
 #ifdef HAVE_SMEM
           if (options->shared_memory_base_name != def_shared_memory_base_name)
-            my_free(options->shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+            my_free(options->shared_memory_base_name);
           options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
 #endif
           break;
@@ -1760,14 +1758,14 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   struct st_VioSSLFd *ssl_fd= (struct st_VioSSLFd*) mysql->connector_fd;
   DBUG_ENTER("mysql_ssl_free");
 
-  my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_key);
+  my_free(mysql->options.ssl_cert);
+  my_free(mysql->options.ssl_ca);
+  my_free(mysql->options.ssl_capath);
+  my_free(mysql->options.ssl_cipher);
   if (ssl_fd)
     SSL_CTX_free(ssl_fd->ssl_context);
-  my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->connector_fd);
   mysql->options.ssl_key = 0;
   mysql->options.ssl_cert = 0;
   mysql->options.ssl_ca = 0;
@@ -2271,8 +2269,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 			       (mysql->options.my_cnf_file ?
 				mysql->options.my_cnf_file : "my"),
 			       mysql->options.my_cnf_group);
-    my_free(mysql->options.my_cnf_file,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->options.my_cnf_file);
+    my_free(mysql->options.my_cnf_group);
     mysql->options.my_cnf_file=mysql->options.my_cnf_group=0;
   }
 
@@ -3014,7 +3012,7 @@ mysql_select_db(MYSQL *mysql, const char *db)
   if ((error=simple_command(mysql,COM_INIT_DB, (const uchar*) db,
                             (ulong) strlen(db),0)))
     DBUG_RETURN(error);
-  my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->db);
   mysql->db=my_strdup(db,MYF(MY_WME));
   DBUG_RETURN(0);
 }
@@ -3029,32 +3027,32 @@ static void mysql_close_free_options(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close_free_options");
 
-  my_free(mysql->options.user,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.host,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.password,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.unix_socket,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.db,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.my_cnf_file,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.client_ip,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.user);
+  my_free(mysql->options.host);
+  my_free(mysql->options.password);
+  my_free(mysql->options.unix_socket);
+  my_free(mysql->options.db);
+  my_free(mysql->options.my_cnf_file);
+  my_free(mysql->options.my_cnf_group);
+  my_free(mysql->options.charset_dir);
+  my_free(mysql->options.charset_name);
+  my_free(mysql->options.client_ip);
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
     char **ptr= (char**)init_commands->buffer;
     char **end= ptr + init_commands->elements;
     for (; ptr<end; ptr++)
-      my_free(*ptr,MYF(MY_WME));
+      my_free(*ptr);
     delete_dynamic(init_commands);
-    my_free((char*)init_commands,MYF(MY_WME));
+    my_free(init_commands);
   }
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   mysql_ssl_free(mysql);
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 #ifdef HAVE_SMEM
   if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
-    my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->options.shared_memory_base_name);
 #endif /* HAVE_SMEM */
   bzero((char*) &mysql->options,sizeof(mysql->options));
   DBUG_VOID_RETURN;
@@ -3063,12 +3061,12 @@ static void mysql_close_free_options(MYSQL *mysql)
 
 static void mysql_close_free(MYSQL *mysql)
 {
-  my_free((uchar*) mysql->host_info,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->host_info);
+  my_free(mysql->user);
+  my_free(mysql->passwd);
+  my_free(mysql->db);
 #if defined(EMBEDDED_LIBRARY) || MYSQL_VERSION_ID >= 50100
-  my_free(mysql->info_buffer,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->info_buffer);
   mysql->info_buffer= 0;
 #endif
   /* Clear pointers for better safety */
@@ -3176,7 +3174,7 @@ void STDCALL mysql_close(MYSQL *mysql)
       (*mysql->methods->free_embedded_thd)(mysql);
 #endif
     if (mysql->free_me)
-      my_free((uchar*) mysql,MYF(0));
+      my_free(mysql);
   }
   DBUG_VOID_RETURN;
 }
@@ -3313,7 +3311,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   if (!(result->data=
 	(*mysql->methods->read_rows)(mysql,mysql->fields,mysql->field_count)))
   {
-    my_free((uchar*) result,MYF(0));
+    my_free(result);
     DBUG_RETURN(0);
   }
   mysql->affected_rows= result->row_count= result->data->rows;
@@ -3361,7 +3359,7 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
   if (!(result->row=(MYSQL_ROW)
 	my_malloc(sizeof(result->row[0])*(mysql->field_count+1), MYF(MY_WME))))
   {					/* Ptrs: to one row */
-    my_free((uchar*) result,MYF(0));
+    my_free(result);
     DBUG_RETURN(0);
   }
   result->fields=	mysql->fields;
@@ -3482,19 +3480,19 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     add_init_command(&mysql->options,arg);
     break;
   case MYSQL_READ_DEFAULT_FILE:
-    my_free(mysql->options.my_cnf_file,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->options.my_cnf_file);
     mysql->options.my_cnf_file=my_strdup(arg,MYF(MY_WME));
     break;
   case MYSQL_READ_DEFAULT_GROUP:
-    my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->options.my_cnf_group);
     mysql->options.my_cnf_group=my_strdup(arg,MYF(MY_WME));
     break;
   case MYSQL_SET_CHARSET_DIR:
-    my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->options.charset_dir);
     mysql->options.charset_dir=my_strdup(arg,MYF(MY_WME));
     break;
   case MYSQL_SET_CHARSET_NAME:
-    my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->options.charset_name);
     mysql->options.charset_name=my_strdup(arg,MYF(MY_WME));
     break;
   case MYSQL_OPT_PROTOCOL:
@@ -3503,7 +3501,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_SHARED_MEMORY_BASE_NAME:
 #ifdef HAVE_SMEM
     if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
-      my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(mysql->options.shared_memory_base_name);
     mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
 #endif
     break;

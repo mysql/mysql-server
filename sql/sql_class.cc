@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*****************************************************************************
@@ -29,7 +29,6 @@
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
-#include "lock.h"      // unlock_global_read_lock, mysql_unlock_tables
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_time.h"                         // date_time_format_copy
@@ -58,6 +57,7 @@
 #include "transaction.h"
 #include "debug_sync.h"
 #include "sql_parse.h"                          // is_update_query
+#include "sql_callback.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -100,8 +100,8 @@ extern "C" void free_user_var(user_var_entry *entry)
 {
   char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
   if (entry->value && entry->value != pos)
-    my_free(entry->value, MYF(0));
-  my_free((char*) entry,MYF(0));
+    my_free(entry->value);
+  my_free(entry);
 }
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
@@ -278,6 +278,10 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_state(info);
+#endif
   return old_info;
 }
 
@@ -307,6 +311,11 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
 
+extern "C"
+void thd_storage_lock_wait(THD *thd, long long value)
+{
+  thd->utime_after_lock+= value;
+}
 
 /**
   Provide a handler data getter to simplify coding
@@ -491,9 +500,9 @@ THD::THD()
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
-   lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   binlog_unsafe_warning_flags(0), binlog_table_maps(0),
+   binlog_unsafe_warning_flags(0),
+   binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -537,7 +546,7 @@ THD::THD()
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
-  is_slave_error= thread_specific_used= thread_temporary_used= FALSE;
+  is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
@@ -588,7 +597,7 @@ THD::THD()
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
   slave_net = 0;
-  command=COM_CONNECT;
+  set_command(COM_CONNECT);
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
@@ -623,9 +632,11 @@ THD::THD()
   randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
-  thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
+  current_user_used= FALSE;
+  memset(&invoker_user, 0, sizeof(invoker_user));
+  memset(&invoker_host, 0, sizeof(invoker_host));
 }
 
 
@@ -843,35 +854,6 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     }
   }
 
-  /*
-    If a continue handler is found, the error message will be cleared
-    by the stored procedures code.
-  */
-  if (!is_fatal_error && spcont &&
-      spcont->handle_condition(this, sql_errno, sqlstate, level, msg, &cond))
-  {
-    /*
-      Do not push any warnings, a handled error must be completely
-      silenced.
-    */
-    DBUG_RETURN(cond);
-  }
-
-  /* Un-handled conditions */
-
-  cond= raise_condition_no_handler(sql_errno, sqlstate, level, msg);
-  DBUG_RETURN(cond);
-}
-
-MYSQL_ERROR*
-THD::raise_condition_no_handler(uint sql_errno,
-                                const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
-                                const char* msg)
-{
-  MYSQL_ERROR *cond= NULL;
-  DBUG_ENTER("THD::raise_condition_no_handler");
-
   query_cache_abort(&query_cache_tls);
 
   /* FIXME: broken special case */
@@ -884,6 +866,7 @@ THD::raise_condition_no_handler(uint sql_errno,
   cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }
+
 extern "C"
 void *thd_alloc(MYSQL_THD thd, unsigned int size)
 {
@@ -1097,6 +1080,7 @@ THD::~THD()
   DBUG_ENTER("~THD()");
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
+  mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_unlock(&LOCK_thd_data);
   add_to_status(&global_status_var, &status_var);
 
@@ -1109,7 +1093,6 @@ THD::~THD()
   }
 #endif
   stmt_map.reset();                     /* close all prepared statements */
-  DBUG_ASSERT(lock_info.n_cursors == 0);
   if (!cleanup_done)
     cleanup();
 
@@ -1120,9 +1103,9 @@ THD::~THD()
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
-  safeFree(db);
+  my_free(db);
+  db= NULL;
   free_root(&transaction.mem_root,MYF(0));
-  mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
@@ -1165,6 +1148,9 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 
   while (to != end)
     *(to++)+= *(from++);
+
+  to_var->bytes_received+= from_var->bytes_received;
+  to_var->bytes_sent+= from_var->bytes_sent;
 }
 
 /*
@@ -1190,6 +1176,9 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 
   while (to != end)
     *(to++)+= *(from++) - *(dec++);
+
+  to_var->bytes_received+= from_var->bytes_received - dec_var->bytes_received;;
+  to_var->bytes_sent+= from_var->bytes_sent - dec_var->bytes_sent;
 }
 
 
@@ -1205,7 +1194,7 @@ void THD::awake(THD::killed_state state_to_set)
   {
     thr_alarm_kill(thread_id);
     if (!slave_thread)
-      thread_scheduler.post_kill_notification(this);
+      MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (this));
 #ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
     {
@@ -1274,6 +1263,15 @@ bool THD::store_globals()
   if (my_pthread_setspecific_ptr(THR_THD,  this) ||
       my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
     return 1;
+  /*
+    mysys_var is concurrently readable by a killer thread.
+    It is protected by LOCK_thd_data, it is not needed to lock while the
+    pointer is changing from NULL not non-NULL. If the kill thread reads
+    NULL it doesn't refer to anything, but if it is non-NULL we need to
+    ensure that the thread doesn't proceed to assign another thread to
+    have the mysys_var reference (which in fact refers to the worker
+    threads local storage with key THR_KEY_mysys. 
+  */
   mysys_var=my_thread_var;
   /*
     Let mysqld define the thread id (not mysys)
@@ -1341,6 +1339,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
+  clean_current_user_used();
 }
 
 
@@ -1728,9 +1727,9 @@ bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
   return res;
 }
 
-void select_send::abort()
+void select_send::abort_result_set()
 {
-  DBUG_ENTER("select_send::abort");
+  DBUG_ENTER("select_send::abort_result_set");
 
   if (is_result_set_started && thd->spcont)
   {
@@ -1804,12 +1803,6 @@ bool select_send::send_eof()
   */
   ha_release_temporary_latches(thd);
 
-  /* Unlock tables before sending packet to gain some speed */
-  if (thd->lock && ! thd->locked_tables_mode)
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock=0;
-  }
   /* 
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
@@ -2583,7 +2576,6 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
   lex(lex_arg),
-  cursor(0),
   db(NULL),
   db_length(0)
 {
@@ -2605,7 +2597,6 @@ void Statement::set_statement(Statement *stmt)
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
   query_string=   stmt->query_string;
-  cursor=         stmt->cursor;
 }
 
 
@@ -2904,6 +2895,7 @@ void TMP_TABLE_PARAM::init()
   quick_group= 1;
   table_charset= 0;
   precomputed_group_by= 0;
+  bit_fields_as_long= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2952,10 +2944,18 @@ void Security_context::destroy()
 {
   // If not pointer to constant
   if (host != my_localhost)
-    safeFree(host);
+  {
+    my_free(host);
+    host= NULL;
+  }
   if (user != delayed_user)
-    safeFree(user);
-  safeFree(ip);
+  {
+    my_free(user);
+    user= NULL;
+  }
+
+  my_free(ip);
+  ip= NULL;
 }
 
 
@@ -2971,7 +2971,7 @@ void Security_context::skip_grants()
 
 bool Security_context::set_user(char *user_arg)
 {
-  safeFree(user);
+  my_free(user);
   user= my_strdup(user_arg, MYF(0));
   return user == 0;
 }
@@ -3202,6 +3202,60 @@ extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
 {
   return sqlcom_can_generate_row_events(thd);
 }
+
+#ifndef EMBEDDED_LIBRARY
+extern "C" void thd_pool_wait_begin(MYSQL_THD thd, int wait_type);
+extern "C" void thd_pool_wait_end(MYSQL_THD thd);
+
+/*
+  Interface for MySQL Server, plugins and storage engines to report
+  when they are going to sleep/stall.
+  
+  SYNOPSIS
+  thd_wait_begin()
+  thd                     Thread object
+  wait_type               Type of wait
+                          1 -- short wait (e.g. for mutex)
+                          2 -- medium wait (e.g. for disk io)
+                          3 -- large wait (e.g. for locked row/table)
+  NOTES
+    This is used by the threadpool to have better knowledge of which
+    threads that currently are actively running on CPUs. When a thread
+    reports that it's going to sleep/stall, the threadpool scheduler is
+    free to start another thread in the pool most likely. The expected wait
+    time is simply an indication of how long the wait is expected to
+    become, the real wait time could be very different.
+
+  thd_wait_end MUST be called immediately after waking up again.
+*/
+extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+{
+  MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
+}
+
+/**
+  Interface for MySQL Server, plugins and storage engines to report
+  when they waking up from a sleep/stall.
+
+  @param  thd   Thread handle
+*/
+extern "C" void thd_wait_end(MYSQL_THD thd)
+{
+  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
+}
+#else
+extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+{
+  /* do NOTHING for the embedded library */
+  return;
+}
+
+extern "C" void thd_wait_end(MYSQL_THD thd)
+{
+  /* do NOTHING for the embedded library */
+  return;
+}
+#endif
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
@@ -3356,6 +3410,16 @@ void THD::set_statement(Statement *stmt)
 }
 
 
+void THD::set_command(enum enum_server_command command)
+{
+  m_command= command;
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_command(m_command);
+#endif
+}
+
+
 /** Assign a new value to thd->query.  */
 
 void THD::set_query(char *query_arg, uint32 query_length_arg)
@@ -3363,6 +3427,11 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
   mysql_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
+
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_info(query_arg, query_length_arg);
+#endif
 }
 
 /** Assign a new value to thd->query and thd->query_id.  */
@@ -3385,6 +3454,13 @@ void THD::set_query_id(query_id_t new_query_id)
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 
+/** Assign a new value to thd->mysys_var.  */
+void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
+{
+  mysql_mutex_lock(&LOCK_thd_data);
+  mysys_var= new_mysys_var;
+  mysql_mutex_unlock(&LOCK_thd_data);
+}
 
 /**
   Leave explicit LOCK TABLES or prelocked mode and restore value of
@@ -3399,6 +3475,22 @@ void THD::leave_locked_tables_mode()
   /* Also ensure that we don't release metadata locks for open HANDLERs. */
   if (handler_tables_hash.records)
     mysql_ha_move_tickets_after_trans_sentinel(this);
+}
+
+void THD::get_definer(LEX_USER *definer)
+{
+  set_current_user_used();
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  if (slave_thread && has_invoker())
+  {
+    definer->user = invoker_user;
+    definer->host= invoker_host;
+    definer->password.str= NULL;
+    definer->password.length= 0;
+  }
+  else
+#endif
+    get_default_definer(this, definer);
 }
 
 
@@ -3447,7 +3539,7 @@ uchar *xid_get_hash_key(const uchar *ptr, size_t *length,
 void xid_free_hash(void *ptr)
 {
   if (!((XID_STATE*)ptr)->in_thd)
-    my_free((uchar*)ptr, MYF(0));
+    my_free(ptr);
 }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -3540,67 +3632,3 @@ void xid_cache_delete(XID_STATE *xid_state)
   mysql_mutex_unlock(&LOCK_xid_cache);
 }
 
-
-#ifdef NOT_USED
-static char const* 
-field_type_name(enum_field_types type) 
-{
-  switch (type) {
-  case MYSQL_TYPE_DECIMAL:
-    return "MYSQL_TYPE_DECIMAL";
-  case MYSQL_TYPE_TINY:
-    return "MYSQL_TYPE_TINY";
-  case MYSQL_TYPE_SHORT:
-    return "MYSQL_TYPE_SHORT";
-  case MYSQL_TYPE_LONG:
-    return "MYSQL_TYPE_LONG";
-  case MYSQL_TYPE_FLOAT:
-    return "MYSQL_TYPE_FLOAT";
-  case MYSQL_TYPE_DOUBLE:
-    return "MYSQL_TYPE_DOUBLE";
-  case MYSQL_TYPE_NULL:
-    return "MYSQL_TYPE_NULL";
-  case MYSQL_TYPE_TIMESTAMP:
-    return "MYSQL_TYPE_TIMESTAMP";
-  case MYSQL_TYPE_LONGLONG:
-    return "MYSQL_TYPE_LONGLONG";
-  case MYSQL_TYPE_INT24:
-    return "MYSQL_TYPE_INT24";
-  case MYSQL_TYPE_DATE:
-    return "MYSQL_TYPE_DATE";
-  case MYSQL_TYPE_TIME:
-    return "MYSQL_TYPE_TIME";
-  case MYSQL_TYPE_DATETIME:
-    return "MYSQL_TYPE_DATETIME";
-  case MYSQL_TYPE_YEAR:
-    return "MYSQL_TYPE_YEAR";
-  case MYSQL_TYPE_NEWDATE:
-    return "MYSQL_TYPE_NEWDATE";
-  case MYSQL_TYPE_VARCHAR:
-    return "MYSQL_TYPE_VARCHAR";
-  case MYSQL_TYPE_BIT:
-    return "MYSQL_TYPE_BIT";
-  case MYSQL_TYPE_NEWDECIMAL:
-    return "MYSQL_TYPE_NEWDECIMAL";
-  case MYSQL_TYPE_ENUM:
-    return "MYSQL_TYPE_ENUM";
-  case MYSQL_TYPE_SET:
-    return "MYSQL_TYPE_SET";
-  case MYSQL_TYPE_TINY_BLOB:
-    return "MYSQL_TYPE_TINY_BLOB";
-  case MYSQL_TYPE_MEDIUM_BLOB:
-    return "MYSQL_TYPE_MEDIUM_BLOB";
-  case MYSQL_TYPE_LONG_BLOB:
-    return "MYSQL_TYPE_LONG_BLOB";
-  case MYSQL_TYPE_BLOB:
-    return "MYSQL_TYPE_BLOB";
-  case MYSQL_TYPE_VAR_STRING:
-    return "MYSQL_TYPE_VAR_STRING";
-  case MYSQL_TYPE_STRING:
-    return "MYSQL_TYPE_STRING";
-  case MYSQL_TYPE_GEOMETRY:
-    return "MYSQL_TYPE_GEOMETRY";
-  }
-  return "Unknown";
-}
-#endif

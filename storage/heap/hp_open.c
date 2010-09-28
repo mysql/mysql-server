@@ -16,10 +16,6 @@
 /* open a heap-database */
 
 #include "heapdef.h"
-#ifdef VMS
-#include "hp_static.c"			/* Stupid vms-linker */
-#endif
-
 #include "my_sys.h"
 
 /*

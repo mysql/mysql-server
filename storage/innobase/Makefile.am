@@ -174,6 +174,8 @@ noinst_HEADERS=		\
 			include/row0upd.ic	\
 			include/row0vers.h	\
 			include/row0vers.ic	\
+			include/srv0mon.h	\
+			include/srv0mon.ic	\
 			include/srv0srv.h	\
 			include/srv0srv.ic	\
 			include/srv0start.h	\
@@ -298,6 +300,7 @@ libinnobase_a_SOURCES=	\
 			row/row0undo.c			\
 			row/row0upd.c			\
 			row/row0vers.c			\
+			srv/srv0mon.c			\
 			srv/srv0srv.c			\
 			srv/srv0start.c			\
 			sync/sync0arr.c			\
@@ -323,14 +326,14 @@ libinnobase_a_SOURCES=	\
 			ut/ut0vec.c			\
 			ut/ut0wqueue.c
 
-libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
+libinnobase_a_CXXFLAGS=	$(AM_CXXFLAGS)
 libinnobase_a_CFLAGS=	$(AM_CFLAGS)
 
 EXTRA_LTLIBRARIES=	ha_innodb.la
 pkgplugin_LTLIBRARIES=	@plugin_innobase_shared_target@
 
 ha_innodb_la_LDFLAGS=	-module -rpath $(pkgplugindir)
-ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_innodb_la_CXXFLAGS=	$(AM_CXXFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_la_CFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_la_SOURCES=	$(libinnobase_a_SOURCES)
 

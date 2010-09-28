@@ -145,3 +145,15 @@ a
 DEALLOCATE PREPARE stmt1;
 DROP TABLE t1;
 End of 5.1 tests
+SELECT ' '  REGEXP '[[:blank:]]';
+' '  REGEXP '[[:blank:]]'
+1
+SELECT '\t' REGEXP '[[:blank:]]';
+'\t' REGEXP '[[:blank:]]'
+0
+SELECT ' '  REGEXP '[[:space:]]';
+' '  REGEXP '[[:space:]]'
+1
+SELECT '\t' REGEXP '[[:space:]]';
+'\t' REGEXP '[[:space:]]'
+1

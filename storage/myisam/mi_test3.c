@@ -15,8 +15,6 @@
 
 /* Test av locking */
 
-#ifndef __NETWARE__
-
 #include "myisam.h"
 #include <sys/types.h>
 #ifdef HAVE_SYS_WAIT_H
@@ -460,7 +458,7 @@ int test_update(MI_INFO *file,int id,int lock_type)
 	}
       }
     }
-    memcpy_fixed(new_record.id,record.id,sizeof(record.id));
+    memcpy(new_record.id, record.id, sizeof(record.id));
     tmp=rnd(20000)+40000;
     int4store(new_record.nr,tmp);
     if (!mi_update(file,record.id,new_record.id))
@@ -489,15 +487,3 @@ int test_update(MI_INFO *file,int id,int lock_type)
 }
 
 #include "mi_extrafunc.h"
-
-#else /* __NETWARE__ */
-
-#include <stdio.h>
-
-main()
-{
-	fprintf(stderr,"this test has not been ported to NetWare\n");
-	return 0;
-}
-
-#endif /* __NETWARE__ */

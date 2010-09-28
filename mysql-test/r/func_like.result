@@ -169,3 +169,17 @@ select 'andre%' like 'andre %' escape ' ';
 select _cp1251'andre%' like convert('andre %' using cp1251)  escape ' ';
 _cp1251'andre%' like convert('andre %' using cp1251)  escape ' '
 1
+End of 4.1 tests
+#
+# Bug #54575: crash when joining tables with unique set column
+#
+CREATE TABLE t1(a SET('a') NOT NULL, UNIQUE KEY(a));
+CREATE TABLE t2(b INT PRIMARY KEY);
+INSERT INTO t1 VALUES ();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+INSERT INTO t2 VALUES (1), (2), (3);
+SELECT 1 FROM t2 JOIN t1 ON 1 LIKE a GROUP BY a;
+1
+DROP TABLE t1, t2;
+End of 5.1 tests

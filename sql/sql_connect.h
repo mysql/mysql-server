@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,5 +39,9 @@ bool setup_connection_thread_globals(THD *thd);
 int check_user(THD *thd, enum enum_server_command command,
 	       const char *passwd, uint passwd_len, const char *db,
 	       bool check_count);
+
+bool login_connection(THD *thd);
+void prepare_new_connection_state(THD* thd);
+void end_connection(THD *thd);
 
 #endif /* SQL_CONNECT_INCLUDED */

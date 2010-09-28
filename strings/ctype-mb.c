@@ -62,11 +62,11 @@ size_t my_casedn_str_mb(CHARSET_INFO * cs, char *str)
 }
 
 
-static inline MY_UNICASE_INFO*
+static inline MY_UNICASE_CHARACTER*
 get_case_info_for_ch(CHARSET_INFO *cs, uint page, uint offs)
 {
-  MY_UNICASE_INFO *p;
-  return cs->caseinfo ? ((p= cs->caseinfo[page]) ? &p[offs] : NULL) :  NULL;
+  MY_UNICASE_CHARACTER *p;
+  return cs->caseinfo ? ((p= cs->caseinfo->page[page]) ? &p[offs] : NULL) :  NULL;
 }
 
 
@@ -89,7 +89,7 @@ size_t my_caseup_mb(CHARSET_INFO * cs, char *src, size_t srclen,
   {
     if ((l=my_ismbchar(cs, src, srcend)))
     {
-      MY_UNICASE_INFO *ch;
+      MY_UNICASE_CHARACTER *ch;
       if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
       {
         *src++= ch->toupper >> 8;
@@ -124,7 +124,7 @@ size_t my_casedn_mb(CHARSET_INFO * cs, char *src, size_t srclen,
   {
     if ((l= my_ismbchar(cs, src, srcend)))
     {
-      MY_UNICASE_INFO *ch;
+      MY_UNICASE_CHARACTER *ch;
       if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
       {
         *src++= ch->tolower >> 8;
@@ -168,7 +168,7 @@ my_casefold_mb_varlen(CHARSET_INFO *cs,
     size_t mblen= my_ismbchar(cs, src, srcend);
     if (mblen)
     {
-      MY_UNICASE_INFO *ch;
+      MY_UNICASE_CHARACTER *ch;
       if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
       {
         int code= is_upper ? ch->toupper : ch->tolower;
@@ -695,7 +695,9 @@ my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
   DESCRIPTION
       Write max key:
       - for non-Unicode character sets:
-        just set to 255.
+        just bfill using max_sort_char if max_sort_char is one byte.
+        In case when max_sort_char is two bytes, fill with double-byte pairs
+        and optionally pad with a single space character.
       - for Unicode character set (utf-8):
         create a buffer with multibyte representation of the max_sort_char
         character, and copy it into max_str in a loop. 
@@ -707,12 +709,20 @@ static void pad_max_char(CHARSET_INFO *cs, char *str, char *end)
   
   if (!(cs->state & MY_CS_UNICODE))
   {
-    bfill(str, end - str, 255);
-    return;
+    if (cs->max_sort_char <= 255)
+    {
+      bfill(str, end - str, cs->max_sort_char);
+      return;
+    }
+    buf[0]= cs->max_sort_char >> 8;
+    buf[1]= cs->max_sort_char & 0xFF;
+    buflen= 2;
   }
-  
-  buflen= cs->cset->wc_mb(cs, cs->max_sort_char, (uchar*) buf,
-                          (uchar*) buf + sizeof(buf));
+  else
+  {
+    buflen= cs->cset->wc_mb(cs, cs->max_sort_char, (uchar*) buf,
+                            (uchar*) buf + sizeof(buf));
+  }
   
   DBUG_ASSERT(buflen > 0);
   do
@@ -764,8 +774,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
-  const char *contraction_flags= cs->contractions ? 
-              ((const char*) cs->contractions) + 0x40*0x40 : NULL;
+  my_bool have_contractions= my_uca_have_contractions(cs->uca);
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -833,8 +842,8 @@ fill_max_and_min:
         'ab\min\min\min\min' and 'ab\max\max\max\max'.
 
       */
-      if (contraction_flags && ptr + 1 < end &&
-          contraction_flags[(uchar) *ptr])
+      if (have_contractions && ptr + 1 < end &&
+          my_uca_can_be_contraction_head(cs->uca, (uchar) *ptr))
       {
         /* Ptr[0] is a contraction head. */
         
@@ -856,8 +865,9 @@ fill_max_and_min:
           is not a contraction, then we put only ptr[0],
           and continue with ptr[1] on the next loop.
         */
-        if (contraction_flags[(uchar) ptr[1]] &&
-            cs->contractions[(*ptr-0x40)*0x40 + ptr[1] - 0x40])
+        if (my_uca_can_be_contraction_tail(cs->uca, (uchar) ptr[1]) &&
+            my_uca_contraction2_weight(cs->uca,
+                                       (uchar) ptr[0], ptr[1]))
         {
           /* Contraction found */
           if (maxcharlen == 1 || min_str + 1 >= min_end)

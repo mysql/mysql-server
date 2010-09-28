@@ -29,21 +29,22 @@
   We choose implementation as follows:
   ------------------------------------
   On Windows using Visual C++ the native implementation should be
-  preferrable. When using gcc we prefer the native x86 implementation,
-  we prefer the Solaris implementation before the gcc because of
-  stability preference, we choose gcc implementation if nothing else
-  works on gcc. If neither Visual C++ or gcc we still choose the
-  Solaris implementation on Solaris (mainly for SunStudio compiles.
+  preferrable. When using gcc we prefer the Solaris implementation
+  before the gcc because of stability preference, we choose gcc
+  builtins if available, otherwise we choose the somewhat broken
+  native x86 implementation. If neither Visual C++ or gcc we still
+  choose the Solaris implementation on Solaris (mainly for SunStudio
+  compilers).
 */
 #  if defined(_MSV_VER)
 #    include "generic-msvc.h"
 #  elif __GNUC__
-#    if defined(__i386__) || defined(__x86_64__)
-#      include "x86-gcc.h"
-#    elif defined(HAVE_SOLARIS_ATOMIC)
+#    if defined(HAVE_SOLARIS_ATOMIC)
 #      include "solaris.h"
 #    elif defined(HAVE_GCC_ATOMIC_BUILTINS)
 #      include "gcc_builtins.h"
+#    elif defined(__i386__) || defined(__x86_64__)
+#      include "x86-gcc.h"
 #    endif
 #  elif defined(HAVE_SOLARIS_ATOMIC)
 #    include "solaris.h"

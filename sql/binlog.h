@@ -11,8 +11,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #define BINLOG_H_INCLUDED
 
@@ -197,10 +197,10 @@ public:
   /* Use this to start writing a new log file */
   void new_file();
 
-  bool write(Log_event* event_info);
+  bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-  bool write_incident(THD *thd, bool lock);
 
+  bool write_incident(THD *thd, bool lock);
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
   void set_write_error(THD *thd);
   bool check_write_error(THD *thd);
@@ -284,6 +284,7 @@ bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(const THD *thd);
 bool use_trans_cache(const THD* thd, bool is_transactional);
 bool ending_trans(THD* thd, const bool all);
+bool ending_single_stmt_trans(THD* thd, const bool all);
 bool trans_has_updated_non_trans_table(const THD* thd);
 bool stmt_has_updated_non_trans_table(const THD* thd);
 

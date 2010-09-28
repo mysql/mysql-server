@@ -481,3 +481,16 @@ SELECT LENGTH(SHA2( '', 224 )) / 2 * 8           = 224;
 SELECT LENGTH(SHA2( 'any', 256 )) / 2 * 8        = 256;
 SELECT LENGTH(SHA2( 'size', 384 )) / 2 * 8       = 384;
 SELECT LENGTH(SHA2( 'computed', 512 )) / 2 * 8   = 512;
+
+--echo #
+--echo # Bug#54661 sha2() returns BINARY result
+--echo #
+--enable_metadata
+SET NAMES binary;
+SELECT sha2('1',224);
+SET NAMES utf8;
+SELECT sha2('1',224);
+SET NAMES latin1;
+SELECT sha2('1',224);
+--disable_metadata
+

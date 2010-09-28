@@ -27,7 +27,7 @@
 
 static uint my_get_large_page_size_int(void);
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
-static my_bool my_large_free_int(uchar* ptr, myf my_flags);
+static my_bool my_large_free_int(uchar* ptr);
 
 /* Gets the size of large pages from the OS */
 
@@ -70,7 +70,7 @@ uchar* my_large_malloc(size_t size, myf my_flags)
   to my_free_lock() in case of failure
  */
 
-void my_large_free(uchar* ptr, myf my_flags __attribute__((unused)))
+void my_large_free(uchar* ptr)
 {
   DBUG_ENTER("my_large_free");
   
@@ -79,9 +79,8 @@ void my_large_free(uchar* ptr, myf my_flags __attribute__((unused)))
     my_large_malloc_int(), i.e. my_malloc_lock() was used so we should free it
     with my_free_lock()
   */
-  if (!my_use_large_pages || !my_large_page_size ||
-      !my_large_free_int(ptr, my_flags))
-    my_free_lock(ptr, my_flags);
+  if (!my_use_large_pages || !my_large_page_size || !my_large_free_int(ptr))
+    my_free_lock(ptr);
 
   DBUG_VOID_RETURN;
 }
@@ -157,7 +156,7 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
 
 /* Linux-specific large pages deallocator */
 
-my_bool my_large_free_int(uchar *ptr, myf my_flags __attribute__((unused)))
+my_bool my_large_free_int(uchar *ptr)
 {
   DBUG_ENTER("my_large_free_int");
   DBUG_RETURN(shmdt(ptr) == 0);

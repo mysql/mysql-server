@@ -23,6 +23,6 @@
 #include <my_global.h>
 #include <m_string.h>
 
-#if !defined(MSDOS) && !defined(HAVE_STRTOL) && !defined(__WIN__)
+#if !defined(HAVE_STRTOL) && !defined(__WIN__)
 #include "strto.c"
 #endif

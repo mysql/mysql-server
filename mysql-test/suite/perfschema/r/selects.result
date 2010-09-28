@@ -1,4 +1,6 @@
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'NO'
+  where NAME='wait/io/table/sql/handler';
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
 ENGINE=MyISAM;
@@ -13,7 +15,7 @@ OPERATION	TOTAL
 chsize	[NUM_BYTES]
 SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
 WHERE THREAD_ID IN
-(SELECT THREAD_ID FROM performance_schema.PROCESSLIST)
+(SELECT THREAD_ID FROM performance_schema.THREADS)
 AND EVENT_NAME IN
 (SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
 WHERE NAME LIKE "wait/synch/%")
@@ -55,14 +57,21 @@ THREAD_ID	EVENT_ID
 [THREAD_ID]	[EVENT_ID]
 [THREAD_ID]	[EVENT_ID]
 [THREAD_ID]	[EVENT_ID]
+DROP TABLE IF EXISTS t_event;
+DROP EVENT IF EXISTS t_ps_event;
+CREATE TABLE t_event AS
+SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
+WHERE 1 = 2;
 CREATE EVENT t_ps_event
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
-DO SELECT DISTINCT EVENT_ID
+DO INSERT INTO t_event
+SELECT DISTINCT EVENT_ID
 FROM performance_schema.EVENTS_WAITS_CURRENT
 JOIN performance_schema.EVENTS_WAITS_HISTORY USING (EVENT_ID)
 ORDER BY EVENT_ID
 LIMIT 1;
 ALTER TABLE t1 ADD COLUMN c INT;
+DROP TRIGGER IF EXISTS t_ps_trigger;
 CREATE TRIGGER t_ps_trigger BEFORE INSERT ON t1
 FOR EACH ROW BEGIN
 SET NEW.c = (SELECT MAX(EVENT_ID)
@@ -76,22 +85,29 @@ id	c
 12	[EVENT_ID]
 13	[EVENT_ID]
 DROP TRIGGER t_ps_trigger;
-CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
+DROP PROCEDURE IF EXISTS t_ps_proc;
+CREATE PROCEDURE t_ps_proc(IN conid INT, OUT pid INT)
 BEGIN
-SELECT id FROM performance_schema.PROCESSLIST
-WHERE THREAD_ID = tid INTO pid;
+SELECT thread_id FROM performance_schema.THREADS
+WHERE PROCESSLIST_ID = conid INTO pid;
 END;
 |
-CALL t_ps_proc(0, @p_id);
-CREATE FUNCTION t_ps_func(tid INT) RETURNS int
+CALL t_ps_proc(connection_id(), @p_id);
+DROP FUNCTION IF EXISTS t_ps_proc;
+CREATE FUNCTION t_ps_func(conid INT) RETURNS int
 BEGIN
-return (SELECT id FROM performance_schema.PROCESSLIST
-WHERE THREAD_ID = tid);
+return (SELECT thread_id FROM performance_schema.THREADS
+WHERE PROCESSLIST_ID = conid);
 END;
 |
-SELECT t_ps_func(0) = @p_id;
-t_ps_func(0) = @p_id
+SELECT t_ps_func(connection_id()) = @p_id;
+t_ps_func(connection_id()) = @p_id
 1
+SELECT * FROM t_event;
+EVENT_ID
+[EVENT_ID]
 DROP PROCEDURE t_ps_proc;
 DROP FUNCTION t_ps_func;
 DROP TABLE t1;
+DROP TABLE t_event;
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
