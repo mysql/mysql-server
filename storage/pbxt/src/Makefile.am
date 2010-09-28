@@ -40,8 +40,8 @@ libpbxt_la_LDFLAGS =	-module
 # These are the warning Drizzle uses:
 # DRIZZLE_WARNINGS =		-W -Wall -Wextra -pedantic -Wundef -Wredundant-decls -Wno-strict-aliasing -Wno-long-long -Wno-unused-parameter
 
-libpbxt_la_CXXFLAGS =	-shared $(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-libpbxt_la_CFLAGS =	-shared $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -std=c99
+libpbxt_la_CXXFLAGS =	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+libpbxt_la_CFLAGS =		$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -std=c99
 
 EXTRA_LIBRARIES =		libpbxt.a
 noinst_LIBRARIES = 		libpbxt.a

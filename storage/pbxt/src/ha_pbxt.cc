@@ -1232,6 +1232,11 @@ static int pbxt_init(void *p)
 				THD *thd = NULL;
 
 #ifndef DRIZZLED
+#if MYSQL_VERSION_ID < 50147
+				/* A hack which is no longer required after 5.1.46 */
+				extern myxt_mutex_t LOCK_plugin;
+#endif
+
 				/* {MYSQL QUIRK}
 				 * I have to release this lock for PBXT recovery to
 				 * work, because it needs to open .frm files.
@@ -1248,8 +1253,7 @@ static int pbxt_init(void *p)
 				 * Only real problem, 2 threads try to load the same
 				 * plugin at the same time.
 				 */
-#if MYSQL_VERSION_ID <= 50146
-				extern myxt_mutex_t LOCK_plugin;
+#if MYSQL_VERSION_ID < 50147
 				myxt_mutex_unlock(&LOCK_plugin);
 #endif
 #endif
@@ -1285,8 +1289,10 @@ static int pbxt_init(void *p)
 
 				if (thd)
 					myxt_destroy_thread(thd, FALSE);
-#if MYSQL_VERSION_ID <= 50146 && !defined(DRIZZLED)
+#ifndef DRIZZLED
+#if MYSQL_VERSION_ID < 50147
 				myxt_mutex_lock(&LOCK_plugin);
+#endif
 #endif
 			}
 #endif
@@ -1948,8 +1954,13 @@ xtPublic int ha_pbxt::reopen()
 			 * selectity of the indices, as soon as the number of rows
 			 * exceeds 200 (see [**])
 			 */
+#ifdef XT_ROW_COUNT_CORRECTED
+			/* {CORRECTED-ROW-COUNT} */
+			pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) < 150;
+#else
 			/* {FREE-ROWS-BAD} */
 			pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) < 150;
+#endif
 		}
 
 		/* I am not doing this anymore because it was only required
@@ -2006,7 +2017,7 @@ static int pbxt_statistics_fill_table(THD *thd, TABLE_LIST *tables, COND *cond)
 			xt_ha_open_database_of_table(self, (XTPathStrPtr) NULL);
 		}
 
-		err = myxt_statistics_fill_table(self, thd, tables, cond, system_charset_info);
+		err = myxt_statistics_fill_table(self, thd, tables, cond, (void*) system_charset_info);
 	}
 	catch_(a) {
 		err = xt_ha_pbxt_thread_error_for_mysql(thd, self, FALSE);
@@ -2296,6 +2307,36 @@ void ha_pbxt::internal_close(THD *thd, struct XTThread *self)
 					 */
 					if (!thd || thd_sql_command(thd) == SQLCOM_FLUSH) // FLUSH TABLES
 						xt_sync_flush_table(self, ot);
+					else {
+						/* This change is a result of a problem mentioned by Arjen.
+						 * REPAIR and ALTER lead to the following sequence:
+						 * 1. tab  -- copy --> tmp1
+						 * 2. tab  -- rename --> tmp2
+						 * 3. tmp1 -- rename --> tab
+						 * 4. delete tmp2
+						 *
+						 * PBXT flushes a table before rename.
+						 * In the sequence above results in a table flush in step 3 which can
+						 * take a very long time.
+						 *
+						 * The problem is, during this time frame we have only temp tables.
+						 * A crash in this state leaves the database in a bad state.
+						 *
+						 * To reduce the time in this state, the flush needs to be done
+						 * elsewhere. The code below causes the flish to occur after
+						 * step 1:
+						 */ 
+						switch (thd_sql_command(thd)) {
+							case SQLCOM_REPAIR:
+							case SQLCOM_RENAME_TABLE:
+							case SQLCOM_OPTIMIZE:
+							case SQLCOM_ANALYZE:
+							case SQLCOM_ALTER_TABLE:
+							case SQLCOM_CREATE_INDEX:
+								xt_sync_flush_table(self, ot);
+								break;
+						}
+					}
 				}
 				freer_(); // xt_db_return_table_to_pool(ot);
 			}
@@ -2356,9 +2397,15 @@ int ha_pbxt::open(const char *table_path, int XT_UNUSED(mode), uint XT_UNUSED(te
 #else
 			xt_tab_load_row_pointers(self, pb_open_tab);
 #endif
+
 			xt_ind_set_index_selectivity(pb_open_tab, self);
+#ifdef XT_ROW_COUNT_CORRECTED
+			/* {CORRECTED-ROW-COUNT} */
+			pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) < 150;
+#else
 			/* {FREE-ROWS-BAD} */
 			pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) < 150;
+#endif
 		}
 
 		init_auto_increment(0);
@@ -3929,6 +3976,8 @@ int ha_pbxt::info(uint flag)
 
 	if ((ot = pb_open_tab)) {
 		if (flag & HA_STATUS_VARIABLE) {
+				register XTTableHPtr tab = ot->ot_table;
+
 			/* {FREE-ROWS-BAD}
 			 * Free row count is not reliable, so ignore it.
 			 * The problem is if tab_row_fnum > tab_row_eof_id - 1 then
@@ -3955,11 +4004,26 @@ int ha_pbxt::info(uint flag)
 			 * the actual number of vectors. But it must assume that it has at
 			 * least EXTRA_RECORDS vectors.
 			 */
-			stats.deleted = /* ot->ot_table->tab_row_fnum */ 0;
-			stats.records = (ha_rows) (ot->ot_table->tab_row_eof_id - 1 /* - stats.deleted */);
-			stats.data_file_length = xt_rec_id_to_rec_offset(ot->ot_table, ot->ot_table->tab_rec_eof_id);
-			stats.index_file_length = xt_ind_node_to_offset(ot->ot_table, ot->ot_table->tab_ind_eof);
-			stats.delete_length = ot->ot_table->tab_rec_fnum * ot->ot_rec_size;
+#ifdef XT_ROW_COUNT_CORRECTED
+			if (tab->tab_row_eof_id <= tab->tab_row_fnum ||
+				(!tab->tab_row_free_id && tab->tab_row_fnum))
+				xt_tab_check_free_lists(NULL, ot, false, true);
+			stats.records = (ha_rows) tab->tab_row_eof_id - 1;
+			if (stats.records >= tab->tab_row_fnum) {
+				stats.deleted = tab->tab_row_fnum;
+				stats.records -= stats.deleted;
+			}
+			else {
+				stats.deleted = 0;
+				stats.records = 2;
+			}
+#else
+			stats.deleted = /* tab->tab_row_fnum */ 0;
+			stats.records = (ha_rows) (tab->tab_row_eof_id - 1 /* - stats.deleted */);
+#endif
+			stats.data_file_length = xt_rec_id_to_rec_offset(tab, tab->tab_rec_eof_id);
+			stats.index_file_length = xt_ind_node_to_offset(tab, tab->tab_ind_eof);
+			stats.delete_length = tab->tab_rec_fnum * ot->ot_rec_size;
 			//check_time = info.check_time;
 			stats.mean_rec_length = (ulong) ot->ot_rec_size;
 		}
@@ -4584,13 +4648,24 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 				}
 
 				if (pb_share->sh_recalc_selectivity) {
+#ifdef XT_ROW_COUNT_CORRECTED
+					/* {CORRECTED-ROW-COUNT} */
+					if ((pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) >= 200)
+#else
 					/* {FREE-ROWS-BAD} */
-					if ((pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) >= 200) {
+					if ((pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) >= 200)
+#endif
+					{
 						/* [**] */
 						pb_share->sh_recalc_selectivity = FALSE;
 						xt_ind_set_index_selectivity(pb_open_tab, self);
+#ifdef XT_ROW_COUNT_CORRECTED
+						/* {CORRECTED-ROW-COUNT} */
+						pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) < 150;
+#else
 						/* {FREE-ROWS-BAD} */
 						pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) < 150;
+#endif
 					}
 				}
 			}
@@ -4638,6 +4713,17 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 				goto complete;
 			}
 			cont_(a);
+
+			/* Occurs if you do:
+			 * truncate table t1;
+			 * truncate table t1;
+			 */
+			if (!pb_open_tab) {
+				if ((err = reopen())) {
+					pb_ex_in_use = 0;
+					goto complete;
+				}
+			}
 		}
 		else {
 			pb_ex_in_use = 1;
@@ -6076,6 +6162,40 @@ mysql_declare_plugin(pbxt)
 drizzle_declare_plugin_end;
 #else
 mysql_declare_plugin_end;
+#if defined(MARIADB_BASE_VERSION) && MYSQL_VERSION_ID > 50200
+maria_declare_plugin(pbxt)
+{ /* PBXT */
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &pbxt_storage_engine,
+  "PBXT",
+  "Paul McCullagh, PrimeBase Technologies GmbH",
+  "High performance, multi-versioning transactional engine",
+  PLUGIN_LICENSE_GPL,
+  pbxt_init, /* Plugin Init */
+  pbxt_end, /* Plugin Deinit */
+  0x0001 /* 0.1 */,
+  NULL,                       /* status variables */
+  pbxt_system_variables,      /* system variables */
+  "1.0.11-7 Pre-GA",              /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+},
+{ /* PBXT_STATISTICS */
+  MYSQL_INFORMATION_SCHEMA_PLUGIN,
+  &pbxt_statitics,
+  "PBXT_STATISTICS",
+  "Paul McCullagh, PrimeBase Technologies GmbH",
+  "PBXT internal system statitics",
+  PLUGIN_LICENSE_GPL,
+  pbxt_init_statistics,       /* plugin init */
+  pbxt_exit_statistics,       /* plugin deinit */
+  0x0005,
+  NULL,                       /* status variables */
+  NULL,                       /* system variables */
+  "1.0.11-7 Pre-GA",          /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+}
+maria_declare_plugin_end;
+#endif
 #endif
 
 #if defined(XT_WIN) && defined(XT_COREDUMP)

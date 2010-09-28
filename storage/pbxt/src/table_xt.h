@@ -507,6 +507,7 @@ int					xt_tab_compare_names(const char *n1, const char *n2);
 int					xt_tab_compare_paths(char *n1, char *n2);
 void				xt_tab_init_db(struct XTThread *self, struct XTDatabase *db);
 void				xt_tab_exit_db(struct XTThread *self, struct XTDatabase *db);
+void				xt_tab_check_free_lists(struct XTThread *self, XTOpenTablePtr ot, bool check_recs, bool correct_count);
 void				xt_check_tables(struct XTThread *self);
 
 char				*xt_tab_file_to_name(size_t size, char *tab_name, char *file_name);
@@ -572,6 +573,7 @@ xtBool				xt_tab_get_rec_data(register XTOpenTablePtr ot, xtRecordID rec_id, siz
 void				xt_tab_disable_index(XTTableHPtr tab, u_int ind_error);
 void				xt_tab_set_index_error(XTTableHPtr tab);
 
+void				xt_tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size);
 xtBool				xt_tab_is_table_repair_pending(XTTableHPtr tab);
 void				xt_tab_table_repaired(XTTableHPtr tab);
 void				xt_tab_set_table_repair_pending(XTTableHPtr tab);

@@ -80,6 +80,65 @@
 
 /*
  * -----------------------------------------------------------------------
+ * Handle Error Detected in a Table
+ */
+
+struct XTTableError {
+	xtTableID		ter_tab_id;
+	xtRecordID		ter_rec_id;
+};
+
+static int tab_comp_tab_error(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
+{
+	XTTableError	*ter_a = ((XTTableError *) a);
+	XTTableError	*ter_b = (XTTableError *) b;
+
+	if (ter_a->ter_tab_id < ter_b->ter_tab_id)
+		return -1;
+	if (ter_a->ter_tab_id == ter_b->ter_tab_id) {
+		if (ter_a->ter_rec_id < ter_b->ter_rec_id)
+			return -1;
+		if (ter_a->ter_rec_id == ter_b->ter_rec_id)
+			return 0;
+		return 1;
+	}
+	return 1;
+}
+
+static xtBool tab_record_corrupt(XTOpenTablePtr ot, xtRowID row_id, xtRecordID rec_id, bool not_valid, int where)
+{
+	XTTableHPtr		tab = ot->ot_table;
+	XTDatabaseHPtr	db = tab->tab_db;
+	XTTableError	ter;
+	XTTableError	*ter_ptr;
+	
+	ter.ter_tab_id = tab->tab_id;
+	ter.ter_rec_id = rec_id;
+	
+	xt_sl_lock_ns(db->db_error_list, ot->ot_thread);
+	if (!(ter_ptr = (XTTableError *) xt_sl_find(NULL, db->db_error_list, &ter))) {
+		xtBool	ok;
+		char	table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+		ok = xt_sl_insert(NULL, db->db_error_list, &ter, &ter);
+		xt_sl_unlock_ns(db->db_error_list);
+		if (!ok)
+			return FAILED;
+		xt_tab_set_table_repair_pending(tab);
+		xt_tab_make_table_name(tab, table_name, sizeof(table_name));
+		xt_logf(XT_NT_ERROR, "#%d Table %s: row %llu, record %llu, is %s, REPAIR TABLE required.\n", where,
+			table_name, 
+			(u_llong) row_id,
+			(u_llong) rec_id,
+			not_valid ? "not valid" : "free");
+	}
+	else
+		xt_sl_unlock_ns(db->db_error_list);
+	return OK;
+}
+
+/*
+ * -----------------------------------------------------------------------
  * Compare paths:
  */
 
@@ -425,6 +484,7 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 		db->db_tables = xt_new_hashtable(self, tab_list_comp, tab_list_hash, tab_list_free, TRUE, TRUE);
 	db->db_table_by_id = xt_new_sortedlist(self, sizeof(XTTableEntryRec), 20, 20, tab_comp_by_id, db, tab_free_by_id, FALSE, FALSE);
 	db->db_table_paths = xt_new_sortedlist(self, sizeof(XTTablePathPtr), 20, 20, tab_comp_path, db, tab_free_path, FALSE, FALSE);
+	db->db_error_list = xt_new_sortedlist(self, sizeof(XTTableError), 20, 20, tab_comp_tab_error, db, NULL, TRUE, FALSE);
 
 	if (db->db_multi_path) {
 		XTOpenFilePtr	of;
@@ -648,6 +708,10 @@ xtPublic void xt_tab_exit_db(XTThreadPtr self, XTDatabaseHPtr db)
 	if (db->db_table_paths) {
 		xt_free_sortedlist(self, db->db_table_paths);
 		db->db_table_paths = NULL;
+	}
+	if (db->db_error_list) {
+		xt_free_sortedlist(self, db->db_error_list);
+		db->db_error_list = NULL;
 	}
 }
 
@@ -1713,6 +1777,116 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name, xtBool drop
 	exit_();
 }
 
+xtPublic void xt_tab_check_free_lists(XTThreadPtr self, XTOpenTablePtr ot, bool check_recs, bool correct_count)
+{
+	char					table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
+	register XTTableHPtr	tab = ot->ot_table;
+	xtRowID					prev_row_id;
+	xtRowID					row_id;
+	xtRefID					next_row_id;
+	u_llong					free_count;
+
+	xt_tab_make_table_name(tab, table_name, sizeof(table_name));
+	if (check_recs) {
+		xtRecordID		prev_rec_id;
+		xtRecordID		rec_id;
+		XTTabRecExtDRec	rec_buf;
+
+		xt_lock_mutex_ns(&tab->tab_rec_lock);
+		/* Checking the free list: */
+		prev_rec_id = 0;
+		free_count = 0;
+		rec_id = tab->tab_rec_free_id;
+		while (rec_id) {
+			if (rec_id >= tab->tab_rec_eof_id) {
+				xt_logf(XT_NT_ERROR, "Table %s: invalid reference on free list: %llu, ", table_name, (u_llong) rec_id);
+				if (prev_rec_id)
+					xt_logf(XT_NT_ERROR, "reference by: %llu\n", (u_llong) prev_rec_id);
+				else
+					xt_logf(XT_NT_ERROR, "reference by list head pointer\n");
+				xt_tab_set_table_repair_pending(tab);
+				break;
+			}
+			if (!xt_tab_get_rec_data(ot, rec_id, XT_REC_FIX_HEADER_SIZE, (xtWord1 *) &rec_buf)) {
+				if (self)
+					xt_throw(self);
+				else
+					xt_log_and_clear_warning(ot->ot_thread);
+				break;
+			}
+			if ((rec_buf.tr_rec_type_1 & XT_TAB_STATUS_MASK) != XT_TAB_STATUS_FREED)
+				xt_logf(XT_NT_INFO, "Table %s: record, %llu, on free list is not free\n", table_name, (u_llong) rec_id);
+			free_count++;
+			prev_rec_id = rec_id;
+			rec_id = XT_GET_DISK_4(rec_buf.tr_prev_rec_id_4);
+		}
+		if (free_count != tab->tab_rec_fnum) {
+			if (correct_count) {
+				tab->tab_rec_fnum = free_count;
+				tab->tab_head_rec_fnum = free_count;
+				tab->tab_flush_pending = TRUE;
+				xt_logf(XT_NT_INFO, "Table %s: free record count (%llu) has been set to the number of records on the list: %llu\n", table_name, (u_llong) tab->tab_rec_fnum, (u_llong) free_count);
+			}
+			else
+				xt_logf(XT_NT_INFO, "Table %s: free record count (%llu) differs from the number of records on the list: %llu\n", table_name, (u_llong) tab->tab_rec_fnum, (u_llong) free_count);
+		}
+		xt_unlock_mutex_ns(&tab->tab_rec_lock);
+	}
+
+	/* Check the row free list: */
+	xt_lock_mutex_ns(&tab->tab_row_lock);
+
+	prev_row_id = 0;
+	free_count = 0;
+	row_id = tab->tab_row_free_id;
+	while (row_id) {
+		if (row_id >= tab->tab_row_eof_id) {
+			xt_logf(XT_NT_ERROR, "Table %s: invalid reference on free row: %llu, ", table_name, (u_llong) row_id);
+			if (prev_row_id)
+				xt_logf(XT_NT_ERROR, "reference by: %llu\n", (u_llong) prev_row_id);
+			else
+				xt_logf(XT_NT_ERROR, "reference by list head pointer\n");
+			xt_tab_set_table_repair_pending(tab);
+			break;
+		}
+		if (!tab->tab_rows.xt_tc_read_4(ot->ot_row_file, row_id, &next_row_id, ot->ot_thread)) {
+			if (self)
+				xt_throw(self);
+			else
+				xt_log_and_clear_warning(ot->ot_thread);
+			break;
+		}
+		free_count++;
+		prev_row_id = row_id;
+		row_id = next_row_id;
+	}
+	if (free_count != tab->tab_row_fnum) {
+		if (correct_count) {
+			/* tab_row_fnum is the current value, and tab_head_row_fnum is the value on
+			 * disk. tab_head_row_fnum is set by the writer as the changes are applied
+			 * to the database.
+			 *
+			 * This is the value then stored in the header of the file. This value
+			 * is in sync with other changes to the file.
+			 *
+			 * So the fact that I am setting both value means this will not work at
+			 * runtime, unless all changes have been applied by the writer.
+			 *
+			 * The correct way to do this at run time would be to add the change to the
+			 * transaction log, so that it is applied by the writer.
+			 */
+			tab->tab_row_fnum = free_count;
+			tab->tab_head_row_fnum = free_count;
+			tab->tab_flush_pending = TRUE;
+			xt_logf(XT_NT_INFO, "Table %s: free row count (%llu) has been set to the number of rows on the list: %llu\n", table_name, (u_llong) tab->tab_row_fnum, (u_llong) free_count);
+		}
+		else
+			xt_logf(XT_NT_INFO, "Table %s: free row count (%llu) differs from the number of rows on the list: %llu\n", table_name, (u_llong) tab->tab_row_fnum, (u_llong) free_count);
+	}
+
+	xt_unlock_mutex_ns(&tab->tab_row_lock);
+}
+
 /*
  * Record buffer size:
  * -------------------
@@ -2010,7 +2184,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 		prec_id = rec_id;
 		rec_id = XT_GET_DISK_4(rec_buf->tr_prev_rec_id_4);
 	}
-	if (free_count2 < free_rec_count)
+	if (free_count2 != free_rec_count)
 		xt_logf(XT_INFO, "Table %s: not all free blocks (%llu) on free list: %llu\n", tab->tab_name, (u_llong) free_rec_count, (u_llong) free_count2);
 
 	freer_(); // xt_unlock_mutex_ns(&tab->tab_rec_lock);
@@ -2041,6 +2215,29 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 #endif
 		rec_id++;
 	}
+
+	prec_id = 0;
+	free_count2 = 0;
+	row_id = tab->tab_row_free_id;
+	while (row_id) {
+		if (row_id >= tab->tab_row_eof_id) {
+			xt_logf(XT_INFO, "Table %s: invalid reference on free row: %llu, ", tab->tab_name, (u_llong) row_id);
+			if (prec_id)
+				xt_logf(XT_INFO, "reference by: %llu\n", (u_llong) prec_id);
+			else
+				xt_logf(XT_INFO, "reference by list head pointer\n");
+			break;
+		}
+		if (!tab->tab_rows.xt_tc_read_4(ot->ot_row_file, row_id, &ref_id, self)) {
+			xt_log_and_clear_exception(self);
+			break;
+		}
+		free_count2++;
+		prec_id = row_id;
+		row_id = ref_id;
+	}
+	if (free_count2 != tab->tab_row_fnum)
+		xt_logf(XT_INFO, "Table %s: free row count (%llu) differs from the number of row on the list: %llu\n", tab->tab_name, (u_llong) tab->tab_row_fnum, (u_llong) free_count2);
 
 	freer_(); // xt_unlock_mutex(&tab->tab_row_lock);
 
@@ -3117,10 +3314,18 @@ static int tab_visible(register XTOpenTablePtr ot, XTTabRecHeadDPtr rec_head, xt
 #endif
 				break;
 			case XT_XN_REREAD:
+				/* {RETRY-READ}
+				 * TODO: This is not as "correct" as it could be.
+				 * Such records should be considered to be aborted,
+				 * and removed from the list.
+				 */
 				if (invalid_rec != var_rec_id) {
 					invalid_rec = var_rec_id;
 					goto retry_3;
 				}
+				if (!tab_record_corrupt(ot, row_id, var_rec_id, true, 1))
+					goto failed;
+
 				/* Assume end of list. */
 #ifdef XT_CRASH_DEBUG
 				/* Should not happen! */
@@ -3308,6 +3513,8 @@ xtPublic int xt_tab_visible(XTOpenTablePtr ot)
 			/* Avoid infinite loop: */
 			if (read_again) {
 				/* Should not happen! */
+				if (!tab_record_corrupt(ot, row_id, ot->ot_curr_rec_id, true, 2))
+					return XT_ERR;
 #ifdef XT_CRASH_DEBUG
 				/* Generate a core dump! */
 				xt_crash_me();
@@ -3364,6 +3571,8 @@ xtPublic int xt_tab_read_record(register XTOpenTablePtr ot, xtWord1 *buffer)
 			/* Avoid infinite loop: */
 			if (read_again) {
 				/* Should not happen! */
+				if (!tab_record_corrupt(ot, XT_GET_DISK_4(((XTTabRecHeadDPtr) ot->ot_row_rbuffer)->tr_row_id_4), ot->ot_curr_rec_id, true, 3))
+					return XT_ERR;
 #ifdef XT_CRASH_DEBUG
 				/* Generate a core dump! */
 				xt_crash_me();
@@ -3580,6 +3789,7 @@ xtPublic xtBool xt_tab_free_row(XTOpenTablePtr ot, XTTableHPtr tab, xtRowID row_
 	}
 	tab->tab_row_free_id = row_id;
 	tab->tab_row_fnum++;
+	ASSERT_NS(tab->tab_row_fnum < tab->tab_row_eof_id);
 	xt_unlock_mutex_ns(&tab->tab_row_lock);
 
 	if (!xt_xlog_modify_table(tab->tab_id, XT_LOG_ENT_ROW_FREED, op_seq, 0, row_id, sizeof(XTTabRowRefDRec), (xtWord1 *) &free_row, ot->ot_thread))
@@ -3776,7 +3986,7 @@ xtPublic int xt_tab_remove_record(XTOpenTablePtr ot, xtRecordID rec_id, xtWord1 
 		xt_lock_mutex_ns(&tab->tab_db->db_co_ext_lock);
 		if (!xt_tab_get_rec_data(ot, rec_id, XT_REC_EXT_HEADER_SIZE, ot->ot_row_rbuffer)) {
 			xt_unlock_mutex_ns(&tab->tab_db->db_co_ext_lock);
-			return FAILED;
+			return XT_ERR;
 		}
 		xt_unlock_mutex_ns(&tab->tab_db->db_co_ext_lock);
 
@@ -3824,7 +4034,7 @@ xtPublic int xt_tab_remove_record(XTOpenTablePtr ot, xtRecordID rec_id, xtWord1 
 	XT_SET_DISK_4(free_rec->rf_next_rec_id_4, prev_rec_id);
 	if (!xt_tab_put_rec_data(ot, rec_id, sizeof(XTTabRecFreeDRec), ot->ot_row_rbuffer, &op_seq)) {
 		xt_unlock_mutex_ns(&tab->tab_rec_lock);
-		return FAILED;
+		return XT_ERR;
 	}
 	tab->tab_rec_free_id = rec_id;
 	ASSERT_NS(tab->tab_rec_free_id < tab->tab_rec_eof_id);
@@ -3832,7 +4042,9 @@ xtPublic int xt_tab_remove_record(XTOpenTablePtr ot, xtRecordID rec_id, xtWord1 
 	xt_unlock_mutex_ns(&tab->tab_rec_lock);
 
 	free_rec->rf_rec_type_1 = old_rec_type;
-	return xt_xlog_modify_table(tab->tab_id, XT_LOG_ENT_REC_REMOVED_BI, op_seq, (xtRecordID) new_rec_type, rec_id, rec_size, ot->ot_row_rbuffer, ot->ot_thread);
+	if (!xt_xlog_modify_table(tab->tab_id, XT_LOG_ENT_REC_REMOVED_BI, op_seq, (xtRecordID) new_rec_type, rec_id, rec_size, ot->ot_row_rbuffer, ot->ot_thread))
+		return XT_ERR;
+	return OK;
 }
 
 static xtRowID tab_new_row(XTOpenTablePtr ot, XTTableHPtr tab)
@@ -3851,6 +4063,7 @@ static xtRowID tab_new_row(XTOpenTablePtr ot, XTTableHPtr tab)
 			return 0;
 		}
 		tab->tab_row_free_id = next_row_id;
+		ASSERT_NS(tab->tab_row_fnum > 0);
 		tab->tab_row_fnum--;
 	}
 	else {
@@ -4170,9 +4383,12 @@ static xtBool tab_wait_for_rollback(XTOpenTablePtr ot, xtRowID row_id, xtRecordI
 			return FAILED;
 		if (XT_REC_IS_CLEAN(var_head.tr_rec_type_1))
 			goto locked;
-		if (XT_REC_IS_FREE(var_head.tr_rec_type_1))
+		if (XT_REC_IS_FREE(var_head.tr_rec_type_1)) {
 			/* Should not happen: */
+			if (!tab_record_corrupt(ot, row_id, var_rec_id, false, 4))
+				return FAILED;
 			goto record_invalid;
+		}
 		xn_id = XT_GET_DISK_4(var_head.tr_xact_id_4);
 		switch (xt_xn_status(ot, xn_id, var_rec_id)) {
 			case XT_XN_VISIBLE:
@@ -4195,6 +4411,8 @@ static xtBool tab_wait_for_rollback(XTOpenTablePtr ot, xtRowID row_id, xtRecordI
 				XT_TAB_ROW_WRITE_LOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], ot->ot_thread);
 				goto retry;
 			case XT_XN_REREAD:
+				if (!tab_record_corrupt(ot, row_id, var_rec_id, true, 5))
+					return FAILED;
 				goto record_invalid;
 		}
 		var_rec_id = XT_GET_DISK_4(var_head.tr_prev_rec_id_4);
@@ -4206,9 +4424,10 @@ static xtBool tab_wait_for_rollback(XTOpenTablePtr ot, xtRowID row_id, xtRecordI
 	return FAILED;
 	
 	record_invalid:
+	/* {RETRY-READ} */
 	/* Prevent an infinite loop due to a bad record: */
 	if (invalid_rec != var_rec_id) {
-		var_rec_id = invalid_rec;
+		invalid_rec = var_rec_id;
 		goto retry;
 	}
 	/* The record is invalid, it will be "overwritten"... */
@@ -4280,9 +4499,12 @@ xtPublic int xt_tab_maybe_committed(XTOpenTablePtr ot, xtRecordID rec_id, xtXact
 #ifdef TRACE_VARIATIONS_IN_DUP_CHECK
 				t_type="Re-read";
 #endif
+				/* {RETRY-READ} */
 				/* Avoid infinite loop: */
 				if (invalid_rec == rec_id) {
 					/* Should not happen! */
+					if (!tab_record_corrupt(ot, XT_GET_DISK_4(rec_head.tr_row_id_4), rec_id, true, 6))
+						goto failed;
 #ifdef XT_CRASH_DEBUG
 					/* Generate a core dump! */
 					xt_crash_me();
@@ -4327,7 +4549,7 @@ xtPublic int xt_tab_maybe_committed(XTOpenTablePtr ot, xtRecordID rec_id, xtXact
 		if (XT_REC_IS_FREE(rec_head.tr_rec_type_1)) {
 			/* Should not happen: */
 			if (invalid_rec != var_rec_id) {
-				var_rec_id = invalid_rec;
+				invalid_rec = var_rec_id;
 				goto retry;
 			}
 			/* Assume end of list. */
@@ -4364,11 +4586,14 @@ xtPublic int xt_tab_maybe_committed(XTOpenTablePtr ot, xtRecordID rec_id, xtXact
 				}
 				break;
 			case XT_XN_REREAD:
+				/* {RETRY-READ} */
 				if (invalid_rec != var_rec_id) {
-					var_rec_id = invalid_rec;
+					invalid_rec = var_rec_id;
 					goto retry;
 				}
 				/* Assume end of list. */
+				if (!tab_record_corrupt(ot, row_id, invalid_rec, true, 7))
+					goto failed;
 #ifdef XT_CRASH_DEBUG
 				/* Should not happen! */
 				xt_crash_me();
@@ -5068,6 +5293,8 @@ xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 				ot->ot_on_page = FALSE;
 				goto next_page;
 			}
+			if (!tab_record_corrupt(ot, XT_GET_DISK_4(((XTTabRecHeadDPtr) buff_ptr)->tr_row_id_4), invalid_rec, true, 8))
+				return XT_ERR;
 #ifdef XT_CRASH_DEBUG
 			/* Should not happen! */
 			xt_crash_me();
@@ -5240,7 +5467,7 @@ static xtBool tab_exec_repair_pending(XTDatabaseHPtr db, int what, char *table_n
 	return FALSE;
 }
 
-static void tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
+xtPublic void xt_tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
 {
 	char	*nptr;
 
@@ -5316,7 +5543,7 @@ xtPublic xtBool xt_tab_is_table_repair_pending(XTTableHPtr tab)
 {
 	char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
 
-	tab_make_table_name(tab, table_name, sizeof(table_name));
+	xt_tab_make_table_name(tab, table_name, sizeof(table_name));
 	return tab_exec_repair_pending(tab->tab_db, REP_FIND, table_name);
 }
 
@@ -5326,7 +5553,7 @@ xtPublic void xt_tab_table_repaired(XTTableHPtr tab)
 		char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
 
 		tab->tab_repair_pending = FALSE;
-		tab_make_table_name(tab, table_name, sizeof(table_name));
+		xt_tab_make_table_name(tab, table_name, sizeof(table_name));
 		tab_exec_repair_pending(tab->tab_db, REP_DEL, table_name);
 	}
 }
@@ -5337,7 +5564,7 @@ xtPublic void xt_tab_set_table_repair_pending(XTTableHPtr tab)
 		char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
 
 		tab->tab_repair_pending = TRUE;
-		tab_make_table_name(tab, table_name, sizeof(table_name));
+		xt_tab_make_table_name(tab, table_name, sizeof(table_name));
 		tab_exec_repair_pending(tab->tab_db, REP_ADD, table_name);
 	}
 }
