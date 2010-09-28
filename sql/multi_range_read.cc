@@ -332,7 +332,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
   
   /*
-    Figure out what steps we'll need to do
+    Determine whether we'll need to do key sorting and/or rnd_pos() scan
   */
   do_sort_keys= FALSE;
   if ((mode & HA_MRR_SINGLE_POINT) && 
@@ -362,8 +362,9 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
 
   /* 
-    At start, alloc all of the buffer for rowids. Key sorting code will grab a
-    piece if necessary.
+    At start, alloc all of the buffer for rowids. When/if key sorting code
+    figures how much buffer space it needs, it will call setup_buffer_sizes()
+    to re-distribute the buffer space.
   */
   full_buf= buf->buffer;
   full_buf_end= buf->buffer_end;
@@ -530,22 +531,19 @@ static int rowid_cmp_reverse(void *h, uchar *a, uchar *b)
 /**
   DS-MRR: Fill and sort the rowid buffer
 
-  {This is an internal function of DiskSweep MRR implementation}
-
   Scan the MRR ranges and collect ROWIDs (or {ROWID, range_id} pairs) into 
   buffer. When the buffer is full or scan is completed, sort the buffer by 
   rowid and return.
+
+  When this function returns, either rowid buffer is not empty, or the source
+  of lookup keys (i.e. ranges) is exhaused.
   
   dsmrr_eof is set to indicate whether we've exhausted the list of ranges we're
   scanning. This function never returns HA_ERR_END_OF_FILE.
 
-  post-condition:
-   rowid buffer is not empty, or key source is exhausted.
-
   @retval 0      OK, the next portion of rowids is in the buffer,
                  properly ordered
   @retval other  Error
-  
 */
 
 int DsMrr_impl::dsmrr_fill_rowid_buffer()
@@ -556,14 +554,12 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_rowid_buffer");
   
   DBUG_ASSERT(rowid_buffer.is_empty());
-  rowid_buffer.reset_for_writing();
+  rowid_buffer.reset();
   rowid_buffer.setup_writing(&h2->ref, h2->ref_length,
-                             is_mrr_assoc? (uchar**)&range_info_ptr: NULL, sizeof(void*));
+                             is_mrr_assoc? (uchar**)&range_info_ptr: NULL,
+                             sizeof(void*));
 
   last_identical_rowid= NULL;
-
-  //if (do_sort_keys && key_buffer.is_reverse())
-  //  key_buffer.flip();
 
   while (rowid_buffer.can_write())
   {
@@ -652,18 +648,21 @@ equals:
   return 0;
 }
 
+
 int DsMrr_impl::key_tuple_cmp_reverse(void* arg, uchar* key1, uchar* key2)
 {
   return -key_tuple_cmp(arg, key1, key2);
 }
 
-/*
-  Setup key/rowid buffer sizes based on sample_key
 
-  DESCRIPTION
-    Setup key/rowid buffer sizes based on sample_key and its length.
-
-    This function must be called when all buffer space is empty.
+/**
+  Setup key/rowid buffer sizes based on sample_key and its length.
+  
+  @param
+    sample_key  A lookup key to use as a sample. It is assumed that
+                all other keys will have the same length/etc.
+  @note
+    This function must be called when all buffers are empty
 */
 
 void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
@@ -737,22 +736,19 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
 }
 
 
-/*
+/**
   DS-MRR/CPK: Fill the buffer with (lookup_tuple, range_id) pairs and sort
   
-  SYNOPSIS
-    DsMrr_impl::dsmrr_fill_key_buffer()
+  Enumerate the input range (=key) sequence, fill the key buffer with 
+  (lookup_key, range_id) pairs and sort it.
 
-  DESCRIPTION
-    DS-MRR/CPK: Enumerate the input range (=key) sequence, fill the key buffer
-    (lookup_key, range_id) pairs and sort.
-
+  When this function returns, either
+   - key buffer is non-empty, or
+   - key buffer is empty and source range sequence is exhausted
+  
+  @note
     dsmrr_eof is set to indicate whether we've exhausted the list of ranges 
     we're scanning.
-
-  post-condition:
-   - key buffer is non-empty
-   - key buffer is empty and source range sequence is exhausted
 */
 
 void DsMrr_impl::dsmrr_fill_key_buffer()
@@ -778,7 +774,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
       identical_key_it= &backward_key_it;
       key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end);
     }
-    key_buffer->reset_for_writing();
+    key_buffer->reset();
     key_buffer->setup_writing(&key_ptr, key_size_in_keybuf,
                               is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
                               sizeof(uchar*));
@@ -825,8 +821,8 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
 }
 
 
-/*
-  Take unused space from key buffer and give it to rowid buffer.
+/**
+  Take unused space from the key buffer and give it to the rowid buffer
 */
 
 void DsMrr_impl::reallocate_buffer_space()
@@ -837,30 +833,25 @@ void DsMrr_impl::reallocate_buffer_space()
 }
 
 
-/*
+/**
   DS-MRR/CPK: multi_range_read_next() function
-
-  DESCRIPTION
-    DsMrr_impl::dsmrr_next_from_index()
-      range_info  OUT  identifier of range that the returned record belongs to
-
-  DESCRIPTION
   
-  This function walks over key buffer and does index reads, i.e. it produces
-  {current_record, range_id} pairs.
-
-  The function has the same call contract like multi_range_read_next()'s.
-
-  We actually iterate nested sequences:
+  @param range_info  OUT  identifier of range that the returned record belongs to
   
-  - a disjoint sequence of index ranges
-    - each range has multiple records
-      - each record goes into multiple identical ranges.
+  @note
+    This function walks over key buffer and does index reads, i.e. it produces
+    {current_record, range_id} pairs.
 
-  RETURN
-    0                   OK, next record was successfully read
-    HA_ERR_END_OF_FILE  End of records
-    Other               Some other error
+    The function has the same call contract like multi_range_read_next()'s.
+
+    We actually iterate over nested sequences:
+    - a disjoint sequence of index ranges
+      - each range has multiple records
+        - each record goes into multiple identical ranges.
+
+  @retval 0                   OK, next record was successfully read
+  @retval HA_ERR_END_OF_FILE  End of records
+  @retval Other               Some other error
 */
 
 int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
@@ -1007,7 +998,9 @@ end:
 
 
 /**
-  DS-MRR implementation: multi_range_read_next() function
+  DS-MRR implementation: multi_range_read_next() function.
+
+  Calling convention is like multi_range_read_next() has.
 */
 
 int DsMrr_impl::dsmrr_next(char **range_info)
@@ -1237,17 +1230,12 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
 /*
   Check if key/flags allow DS-MRR/CPK strategy to be used
   
-  SYNOPSIS
-   DsMrr_impl::check_cpk_scan()
-     keyno      Index that will be used
-     mrr_flags  
+  @param thd
+  @param keyno      Index that will be used
+  @param  mrr_flags  
   
-  DESCRIPTION
-    Check if key/flags allow DS-MRR/CPK strategy to be used. 
- 
-  RETURN
-    TRUE   DS-MRR/CPK should be used
-    FALSE  Otherwise
+  @retval TRUE   DS-MRR/CPK should be used
+  @retval FALSE  Otherwise
 */
 
 bool DsMrr_impl::check_cpk_scan(THD *thd, uint keyno, uint mrr_flags)
@@ -1413,17 +1401,14 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 
 /* 
   Get cost of one sort-and-sweep step
+  
+  It consists of two parts:
+   - sort an array of #nrows ROWIDs using qsort
+   - read #nrows records from table in a sweep.
 
-  SYNOPSIS
-    get_sort_and_sweep_cost()
-      table       Table being accessed
-      nrows       Number of rows to be sorted and retrieved
-      cost   OUT  The cost
-
-  DESCRIPTION
-    Get cost of these operations:
-     - sort an array of #nrows ROWIDs using qsort
-     - read #nrows records from table in a sweep.
+  @param table       Table being accessed
+  @param nrows       Number of rows to be sorted and retrieved
+  @param cost   OUT  The cost of scan
 */
 
 static 

@@ -1326,6 +1326,10 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   The MRR user has materialized range keys somewhere in the user's buffer.
   This can be used for optimization of the procedure that sorts these keys
   since in this case key values don't have to be copied into the MRR buffer.
+
+  In other words, it is guaranteed that after RANGE_SEQ_IF::next() call the 
+  pointer in range->start_key.key will point to a key value that will remain 
+  there until the end of the MRR scan.
 */
 #define HA_MRR_MATERIALIZED_KEYS 256
 

@@ -66,6 +66,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			log.h log_slow.h sql_show.h rpl_rli.h rpl_mi.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
+                        sql_lifo_buffer.h \
 			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
 			log_event.h rpl_record.h \
 			log_event_old.h rpl_record_old.h \
