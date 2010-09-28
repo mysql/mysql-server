@@ -770,3 +770,13 @@
    fun:lf_hash_insert
 }
 
+{
+   missing shutdown_performance_schema 3
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:initialize_bucket
+   fun:lf_hash_search
+   fun:_Z19find_or_create_fileP10PFS_threadP14PFS_file_classPKcj
+}
+
