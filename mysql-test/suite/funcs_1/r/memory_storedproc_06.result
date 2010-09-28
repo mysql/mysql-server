@@ -79,7 +79,6 @@ grant all on db_storedproc_1.* to 'user_1'@'localhost';
 revoke create routine on db_storedproc_1.* from 'user_1'@'localhost';
 flush privileges;
 DROP PROCEDURE IF EXISTS sp1;
-connect(localhost,user_1,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_1@localhost	db_storedproc_1
 USE db_storedproc_1;
@@ -92,7 +91,6 @@ USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
 GRANT CREATE ROUTINE ON db_storedproc_1.* TO 'user_1'@'localhost';
-connect(localhost,user_1,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_1@localhost	db_storedproc_1
 USE db_storedproc_1;
@@ -113,7 +111,6 @@ Ensure that root always has the GRANT CREATE ROUTINE privilege.
 --------------------------------------------------------------------------------
 grant create routine on db_storedproc_1.* to 'user_1'@'localhost';
 flush privileges;
-connect(localhost,user_1,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_1@localhost	db_storedproc_1
 DROP PROCEDURE IF EXISTS sp3;
@@ -150,7 +147,6 @@ CREATE PROCEDURE sp4(v1 char(20))
 BEGIN
 SELECT * from db_storedproc_1.t6 where t6.f2= 'xyz';
 END//
-connect(localhost,user_1,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_1@localhost	db_storedproc_1
 USE db_storedproc_1;
@@ -192,7 +188,6 @@ grant create routine on db_storedproc_1.* to 'user_1'@'localhost';
 grant SELECT on db_storedproc_1.* to 'user_2'@'localhost';
 grant execute on db_storedproc_1.* to 'user_2'@'localhost';
 flush privileges;
-connect(localhost,user_1,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_1@localhost	db_storedproc_1
 CREATE PROCEDURE sp5_s_i () sql security definer
@@ -208,7 +203,6 @@ CREATE PROCEDURE sp5_ins () sql security definer
 BEGIN
 insert into db_storedproc_1.t3165 values ('inserted', 'from sp5_ins', 1000);
 END//
-connect(localhost,user_2,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_2@localhost	db_storedproc_1
 CALL sp5_s_i();
@@ -306,7 +300,6 @@ GRANT CREATE ROUTINE ON db_storedproc_1.* TO 'user_1'@'localhost';
 GRANT SELECT  ON db_storedproc_1.* TO 'user_2'@'localhost';
 GRANT EXECUTE ON db_storedproc_1.* TO 'user_2'@'localhost';
 FLUSH PRIVILEGES;
-connect(localhost,user_1,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_1@localhost	db_storedproc_1
 CREATE PROCEDURE sp3166_s_i () SQL SECURITY INVOKER
@@ -322,7 +315,6 @@ CREATE PROCEDURE sp3166_ins () SQL SECURITY INVOKER
 BEGIN
 insert into db_storedproc_1.t3166 values ('inserted from sp3166_ins');
 END//
-connect(localhost,user_2,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_2@localhost	db_storedproc_1
 CALL sp3166_s_i();
@@ -341,7 +333,6 @@ c1
 inserted outside SP
 GRANT INSERT  ON db_storedproc_1.* TO 'user_2'@'localhost';
 FLUSH PRIVILEGES;
-connect(localhost,user_2,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_2@localhost	db_storedproc_1
 CALL sp3166_s_i();
@@ -362,7 +353,6 @@ inserted from sp3166_s_i
 inserted from sp3166_ins
 REVOKE SELECT ON db_storedproc_1.* FROM 'user_2'@'localhost';
 FLUSH PRIVILEGES;
-connect(localhost,user_2,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_2@localhost	db_storedproc_1
 CALL sp3166_s_i();
@@ -380,7 +370,6 @@ inserted from sp3166_ins
 root@localhost	db_storedproc_1
 REVOKE EXECUTE on db_storedproc_1.* FROM 'user_2'@'localhost';
 FLUSH PRIVILEGES;
-connect(localhost,user_2,,db_storedproc_1,MYSQL_PORT,MYSQL_SOCK);
 	
 user_2@localhost	db_storedproc_1
 CALL sp3166_s_i();
