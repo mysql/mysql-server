@@ -1184,4 +1184,40 @@ NULL
 NULL
 1
 DROP TABLE t1, t2, mm1;
+#
+# Bug #54468: crash after item's print() function when ordering/grouping 
+#             by subquery
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (), ();
+SELECT 1 FROM t1
+GROUP BY
+GREATEST(t1.a,
+(SELECT 1 FROM
+(SELECT t1.b FROM t1,t1 t2
+ORDER BY t1.a, t1.a LIMIT 1) AS d)
+);
+1
+1
+DROP TABLE t1;
+#
+# Bug #53544: Server hangs during JOIN query in stored procedure called
+#             twice in a row
+#
+CREATE TABLE t1(c INT);
+INSERT INTO t1 VALUES (1), (2);
+PREPARE stmt FROM "SELECT t2.c AS f1 FROM t1 LEFT JOIN
+                                        t1 t2 ON t1.c=t2.c RIGHT JOIN
+                                        t1 t3 ON t1.c=t3.c 
+                   GROUP BY f1;";
+EXECUTE stmt;
+f1
+1
+2
+EXECUTE stmt;
+f1
+1
+2
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.1 tests

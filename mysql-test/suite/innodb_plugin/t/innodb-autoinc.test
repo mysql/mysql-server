@@ -1,8 +1,6 @@
 -- source include/have_innodb_plugin.inc
 # embedded server ignores 'delayed', so skip this
 -- source include/not_embedded.inc
-# remove the next line after bug #55503 is fixed
--- source include/not_valgrind.inc
 
 let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
 
@@ -664,6 +662,18 @@ DROP TABLE t1;
 CREATE TABLE t1  (c1 INTEGER AUTO_INCREMENT, PRIMARY KEY (c1)) ENGINE=InnoDB;
 INSERT INTO  t1 VALUES (1), (2), (-685113344), (NULL);
 SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+##
+# 55277: Failing assertion: auto_inc > 0
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (18446744073709551615);
+# Restart the server
+-- source include/restart_mysqld.inc
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
