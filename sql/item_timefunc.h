@@ -881,6 +881,8 @@ public:
   { 
     decimals=0;
     max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    /* It returns NULL when the second argument is less or equal to 0 */
+    maybe_null= 1;
   }
   longlong val_int();
 };

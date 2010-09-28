@@ -2259,7 +2259,7 @@ my_tz_find(THD *thd, const String *name)
   DBUG_PRINT("enter", ("time zone name='%s'",
                        name ? ((String *)name)->c_ptr_safe() : "NULL"));
 
-  if (!name)
+  if (!name || name->is_empty())
     DBUG_RETURN(0);
 
   VOID(pthread_mutex_lock(&tz_LOCK));

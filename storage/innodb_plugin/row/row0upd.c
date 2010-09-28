@@ -1598,6 +1598,7 @@ row_upd_clust_rec_by_insert(
 	dict_table_t*	table;
 	dtuple_t*	entry;
 	ulint		err;
+	ibool		change_ownership = FALSE;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -1630,9 +1631,9 @@ row_upd_clust_rec_by_insert(
 		index = dict_table_get_first_index(table);
 		offsets = rec_get_offsets(rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
-		btr_cur_mark_extern_inherited_fields(
-			btr_cur_get_page_zip(btr_cur),
-			rec, index, offsets, node->update, mtr);
+		change_ownership = btr_cur_mark_extern_inherited_fields(
+			btr_cur_get_page_zip(btr_cur), rec, index, offsets,
+			node->update, mtr);
 		if (check_ref) {
 			/* NOTE that the following call loses
 			the position of pcur ! */
@@ -1661,10 +1662,11 @@ row_upd_clust_rec_by_insert(
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
-	if (node->upd_ext) {
+	if (change_ownership) {
 		/* If we return from a lock wait, for example, we may have
 		extern fields marked as not-owned in entry (marked in the
-		if-branch above). We must unmark them. */
+		if-branch above). We must unmark them, take the ownership
+		back. */
 
 		btr_cur_unmark_dtuple_extern_fields(entry);
 
