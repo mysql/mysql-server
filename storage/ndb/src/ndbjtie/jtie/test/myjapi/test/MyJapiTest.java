@@ -2488,11 +2488,10 @@ public class MyJapiTest {
         out.println("\ncalling A.print()...");
         try {
             A.print(a);
-            assert (false); // XXX conflicts with catch...
+            throw new RuntimeException("Expected exception not thrown.");
         } catch (AssertionError e) {
             out.println("... successfully caught: " + e);
         }
-
         out.println("\ncalling A.deliver_ptr()...");
         A pa = A.deliver_ptr();
         assert (pa != null);
@@ -2517,7 +2516,7 @@ public class MyJapiTest {
         out.println("\ncalling A.deliver_null_ref()...");
         try {
             A.deliver_null_ref();
-            assert (false); // XXX conflicts with catch...
+            throw new RuntimeException("Expected exception not thrown.");
         } catch (AssertionError e) {
             out.println("... successfully caught: " + e);
         }
@@ -3292,88 +3291,88 @@ public class MyJapiTest {
         out.println("... ap = " + ap);
         assert (ap != null);
 
-        out.println();
+        out.println("\ncalling A.h0()...");
         A.h0();
 
-        out.println();
+        out.println("\ncalling A.h1(byte)...");
         A.h1((byte)1);
 
-        out.println();
+        out.println("\ncalling A.h2(byte), short)...");
         A.h2((byte)1, (short)2);
 
-        out.println();
-        A.h3((byte)1, (short)2, 3);
+        out.println("\ncalling A.h3(byte), short, int)...");
+        A.h3((byte)1, (short)2, (int)3);
 
-        out.println();
+        out.println("\ncalling A.h0r()...");
         n = A.h0r();
         assert (n == 0);
 
-        out.println();
+        out.println("\ncalling A.h1r(byte)...");
         n = A.h1r((byte)1);
         assert (n == 1);
 
-        out.println();
+        out.println("\ncalling A.h2r(byte, short)...");
         n = A.h2r((byte)1, (short)2);
         assert (n == 3);
 
-        out.println();
-        n = A.h3r((byte)1, (short)2, 3);
+        out.println("\ncalling A.h3r(byte, short, int)...");
+        n = A.h3r((byte)1, (short)2, (int)3);
         assert (n == 6);
 
-        out.println();
+        out.println("\ncalling a.g0c()...");
         a.g0c();
 
-        out.println();
+        out.println("\ncalling a.g1c(byte)...");
         a.g1c((byte)1);
 
-        out.println();
+        out.println("\ncalling a.g2c(byte, short)...");
         a.g2c((byte)1, (short)2);
 
-        out.println();
-        a.g3c((byte)1, (short)2, 3);
+        out.println("\ncalling a.g3c(byte, short, int)...");
+        a.g3c((byte)1, (short)2, (int)3);
 
-        out.println();
+        out.println("\ncalling a.g0()...");
         a.g0();
 
-        out.println();
+        out.println("\ncalling a.g1(byte)...");
         a.g1((byte)1);
 
-        out.println();
+        out.println("\ncalling a.g2(byte, short)...");
         a.g2((byte)1, (short)2);
 
-        out.println();
-        a.g3((byte)1, (short)2, 3);
+        out.println("\ncalling a.g3(byte, short, int)...");
+        a.g3((byte)1, (short)2, (int)3);
 
-        out.println();
+        out.println("\ncalling n = a.g0rc()...");
         n = a.g0rc();
         assert (n == 0);
 
-        out.println();
+        out.println("\ncalling n = a.g1rc(byte)...");
         n = a.g1rc((byte)1);
         assert (n == 1);
 
-        out.println();
+        out.println("\ncalling n = a.g2rc(byte, short)...");
         n = a.g2rc((byte)1, (short)2);
         assert (n == 3);
 
-        out.println();
-        n = a.g3rc((byte)1, (short)2, 3);
+        out.println("\ncalling n = a.g3rc(byte, short, int)...");
+        n = a.g3rc((byte)1, (short)2, (int)3);
         assert (n == 6);
 
-        out.println();
+        out.println("\ncalling n = a.g0r()...");
         n = a.g0r();
         assert (n == 0);
 
-        out.println();
+        out.println("\ncalling n = a.g1r(byte)...");
         n = a.g1r((byte)1);
         assert (n == 1);
 
-        out.println();
+        out.println("\ncalling n = a.g2r(byte, short)...");
         n = a.g2r((byte)1, (short)2);
         assert (n == 3);
 
-        out.println();
-        n = a.g3r((byte)1, (short)2, 3);
+        out.println("\ncalling n = a.g3r(byte, short, int)...");
+        n = a.g3r((byte)1, (short)2, (int)3);
         assert (n == 6);
 
         out.println("\ncalling A.delete_p(a)...");
@@ -3856,8 +3855,6 @@ public class MyJapiTest {
             out.println();
             test12();
         } else {
-            out.println();
-            test10();
             out.println();
             test12();
         }
