@@ -68,7 +68,7 @@ myapi_test_LDADD = libmyapi.la
 ##   using -no-install requires shared libraries to be installed
 #myapi_test_LDFLAGS = -no-install ## never needs wrapper script
 myapi_test_LDFLAGS = -no-undefined ## build self-contained executable
-myapi_test_LDFLAGS += @ndb_cxx_runtime_libs@ ## Need to link with C++ runtime
+myapi_test_LDFLAGS += @ndb_cxx_runtime_libs@ ## need to link with C++ runtime
 #myapi_test_LDFLAGS += -static ## only create a static executable
 
 ## ----------------------------------------------------------------------
