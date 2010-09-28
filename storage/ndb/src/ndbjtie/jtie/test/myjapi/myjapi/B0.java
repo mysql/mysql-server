@@ -25,16 +25,8 @@ public class B0 extends com.mysql.jtie.Wrapper {
     // this c'tor may me protected, for access from JNI is still possible
     // with default constructor, cdelegate needs to be written from JNI
     protected B0() {
-        System.out.println("<-> myjapi.B0()");
+        //System.out.println("<-> myjapi.B0()");
     };
-
-/*
-    // this c'tor may me protected, for access from JNI is still possible
-    protected B0(long cdelegate) {
-        super(cdelegate);
-        //System.out.println("<-> myjapi.B0(" + Long.toHexString(cdelegate) + ")");
-    };
-*/
 
     // static method
     static public native int f0s();

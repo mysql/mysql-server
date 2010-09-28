@@ -25,16 +25,8 @@ public class A extends com.mysql.jtie.Wrapper {
     // this c'tor may me protected, for access from JNI is still possible
     // with default constructor, cdelegate needs to be written from JNI
     protected A() {
-        System.out.println("<-> myjapi.A()");
+        //System.out.println("<-> myjapi.A()");
     };
-
-/*
-    // this c'tor may me protected, for access from JNI is still possible
-    protected A(long cdelegate) {
-        super(cdelegate);
-        //System.out.println("<-> myjapi.A(" + Long.toHexString(cdelegate) + ")");
-    };
-*/
 
     // constructor wrapper (mapped by reference)
     static public native A create_r();

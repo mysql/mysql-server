@@ -25,30 +25,156 @@
 #include "myapi.hpp"
 #include "helpers.hpp"
 
-void f0()
-{
-    TRACE("void f0()");
+// ---------------------------------------------------------------------------
+// static initializations
+// ---------------------------------------------------------------------------
+
+int32_t B0::d0s = 20;
+const int32_t B0::d0sc = -20;
+
+int32_t B1::d0s = 30;
+const int32_t B1::d0sc = -30;
+
+A * A::a;
+int32_t A::d0s = 10;
+const int32_t A::d0sc = -10;
+
+void B0::init() {
+}
+
+void B0::finit() {
+}
+
+void B1::init() {
+}
+
+void B1::finit() {
+}
+
+void A::init() {
+    assert(!a);
+    a = new A();
+    //printf("    a = %p\n", a);
+}
+
+void A::finit() {
+    assert(a);
+    delete a;
+    a = NULL;
+}
+
+// ----------------------------------------
+
+const C0 * C0::cc;
+C0 * C0::c;
+
+const C1 * C1::cc;
+C1 * C1::c;
+
+void C0::init() {
+    assert(!c);
+    assert(!cc);
+    assert(C1::c);
+    assert(C1::cc);
+    c = C1::c;
+    cc = C1::cc;
+    //printf("    c = %p, cc = %p\n", C0::c, C0::cc);
+}
+
+void C0::finit() {
+    assert(c);
+    assert(cc);
+    c = NULL;
+    cc = NULL;
+}
+
+void C1::init() {
+    assert(!c);
+    assert(!cc);
+    c = new C1();
+    cc = new C1();
+    //printf("    c = %p, cc = %p\n", C1::c, C1::cc);
+}
+
+void C1::finit() {
+    assert(c);
+    assert(cc);
+    delete c;
+    delete cc;
+    c = NULL;
+    cc = NULL;
+}
+
+// ----------------------------------------
+
+D0 * D0::d;
+D1 * D1::d;
+D2 * D2::d;
+
+void D0::init() {
+    assert(!d);
+    d = new D0();
+}
+
+void D0::finit() {
+    assert(d);
+    delete d;
+    d = NULL;
+}
+
+void D1::init() {
+    assert(!d);
+    d = new D1();
+}
+
+void D1::finit() {
+    assert(d);
+    delete d;
+    d = NULL;
+}
+
+void D2::init() {
+    assert(!d);
+    d = new D2();
+}
+
+void D2::finit() {
+    assert(d);
+    delete d;
+    d = NULL;
+}
+
+// ----------------------------------------
+
+void myapi_init() {
+    // some order dependencies
+    D2::init();
+    D1::init();
+    D0::init();
+    C1::init();
+    C0::init();
+    B1::init();
+    B0::init();
+    A::init();
+}
+
+void myapi_finit() {
+    A::init();
+    B0::init();
+    B1::init();
+    C0::init();
+    C1::init();
+    D0::init();
+    D1::init();
+    D2::init();
 }
 
 // ---------------------------------------------------------------------------
 
-A * A::a = new A();
-
-int32_t A::d0s = 10;
-const int32_t A::d0sc = -10;
-int32_t B0::d0s = 20;
-const int32_t B0::d0sc = -20;
-int32_t B1::d0s = 30;
-const int32_t B1::d0sc = -30;
-
-const C1 * const C1::cc = new C1();
-C1 * const C1::c = new C1();
-const C0 * const C0::cc = C1::cc;
-C0 * const C0::c = C1::c;
-
-D0 D0::d;
-D1 D1::d;
-D2 D2::d;
+void f0()
+{
+    TRACE("void f0()");
+}
 
 // ---------------------------------------------------------------------------
 
