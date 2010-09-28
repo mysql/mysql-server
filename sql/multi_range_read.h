@@ -197,11 +197,22 @@ private:
  
   /** Index scaning and key buffer-related members **/
   
+
+  enum enum_index_scan_state {
+    NEED_MORE_RANGES,
+    IN_RANGE_LIST,
+    IN_INDEX_RANGE,
+    IN_IDENTICAL_KEYS_RANGE,
+    SCAN_FINISHED
+  };
+
+  enum enum_index_scan_state index_scan_state;
+
   /* TRUE <=> We can get at most one index tuple for a lookup key */
   bool index_ranges_unique;
 
   /* TRUE<=> we're in a middle of enumerating records for a key range */
-  bool in_index_range;
+  //bool in_index_range;
   
   /*
     One of the following two is used for key buffer: forward is used when 
@@ -249,7 +260,7 @@ private:
     subsequent key values are the same as the one we've already retrieved and
     returned index tuple for.
   */
-  bool in_identical_keys_range;
+  //bool in_identical_keys_range;
 
   /* range_id of the first of the identical keys */
   char *first_identical_range_info;
@@ -303,6 +314,8 @@ private:
 
   void setup_buffer_sizes(key_range *sample_key);
   void reallocate_buffer_space();
+  
+  void read_out_identical_ranges();
 
   static range_seq_t key_buf_seq_init(void *init_param, uint n_ranges, uint flags);
   static uint key_buf_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
