@@ -73,13 +73,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pnull	system	NULL	NULL	NULL	NULL	1	
 explain partitions select * from t1 where a >= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t1 where a <= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -112,16 +112,16 @@ select * from t1 where a > 1;
 a	b
 explain partitions select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a >= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
 explain partitions select * from t1 where a < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a <= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1,p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1,p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
 explain partitions select * from t1 where a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -808,3 +808,47 @@ select sum(count) from t2 ch where ch.defid in (50,52) and ch.day between 200703
 sum(count)
 579
 drop table t1, t2;
+#
+# Bug#50939: Loose Index Scan unduly relies on engine to remember range 
+# endpoints
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY ( a, b )
+) PARTITION BY HASH (a) PARTITIONS 1;
+CREATE TABLE t2 (
+a INT,
+b INT,
+KEY ( a, b )
+);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+INSERT INTO t1 SELECT a +  5, b +  5 FROM t1;
+INSERT INTO t1 SELECT a + 10, b + 10 FROM t1;
+INSERT INTO t1 SELECT a + 20, b + 20 FROM t1;
+INSERT INTO t1 SELECT a + 40, b + 40 FROM t1;
+INSERT INTO t2 SELECT * FROM t1;
+# plans should be identical
+EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10,100) GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	1	Using where; Using index for group-by
+EXPLAIN SELECT a, MAX(b) FROM t2 WHERE a IN (10,100) GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	5	NULL	2	Using where; Using index for group-by
+FLUSH status;
+SELECT a, MAX(b) FROM t1 WHERE a IN (10, 100) GROUP BY a;
+a	MAX(b)
+10	10
+# Should be no more than 4 reads.
+SHOW status LIKE 'handler_read_key';
+Variable_name	Value
+Handler_read_key	4
+FLUSH status;
+SELECT a, MAX(b) FROM t2 WHERE a IN (10, 100) GROUP BY a;
+a	MAX(b)
+10	10
+# Should be no more than 4 reads.
+SHOW status LIKE 'handler_read_key';
+Variable_name	Value
+Handler_read_key	4
+DROP TABLE t1, t2;

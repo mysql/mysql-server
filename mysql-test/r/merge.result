@@ -2298,4 +2298,45 @@ t2 WHERE b SOUNDS LIKE e AND d = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 DROP TABLE t2, t1;
+#
+# Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
+#
+DROP TABLE IF EXISTS m1, t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MYISAM;
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1) INSERT_METHOD=LAST;
+LOCK TABLE m1 READ;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+UNLOCK TABLES;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1,t1;
+CREATE TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Can't open table
+test.m1	repair	error	Corrupt
+CREATE TABLE t1 (f1 BIGINT) ENGINE = MyISAM;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1, t1;
+CREATE TEMPORARY TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'test.m1' doesn't exist
+test.m1	repair	error	Corrupt
+CREATE TEMPORARY TABLE t1 (f1 BIGINT) ENGINE=MyISAM;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+m1	repair	error	Cannot repair temporary table from .frm file
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1, t1;
 End of 5.1 tests

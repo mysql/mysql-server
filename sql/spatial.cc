@@ -528,7 +528,7 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
   n_points= wkb_get_uint(wkb, bo);
   proper_length= 4 + n_points * POINT_DATA_SIZE;
 
-  if (len < proper_length || res->reserve(proper_length))
+  if (!n_points || len < proper_length || res->reserve(proper_length))
     return 0;
 
   res->q_append(n_points);
@@ -746,7 +746,9 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
   if (len < 4)
     return 0;
 
-  n_linear_rings= wkb_get_uint(wkb, bo);
+  if (!(n_linear_rings= wkb_get_uint(wkb, bo)))
+    return 0;
+
   if (res->reserve(4, 512))
     return 0;
   wkb+= 4;

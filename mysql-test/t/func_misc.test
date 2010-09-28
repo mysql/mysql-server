@@ -467,4 +467,16 @@ select NAME_CONST('_id',1234) as id;
 
 select connection_id() > 0;
 
+--echo #
+--echo # Bug #54461: crash with longblob and union or update with subquery
+--echo #
+
+CREATE TABLE t1 (a INT, b LONGBLOB);
+INSERT INTO t1 VALUES (1, '2'), (2, '3'), (3, '2');
+
+SELECT DISTINCT LEAST(a, (SELECT b FROM t1 LIMIT 1)) FROM t1 UNION SELECT 1;
+SELECT DISTINCT GREATEST(a, (SELECT b FROM t1 LIMIT 1)) FROM t1 UNION SELECT 1;
+
+DROP TABLE t1;
+
 --echo End of tests

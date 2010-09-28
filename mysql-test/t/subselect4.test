@@ -62,3 +62,81 @@ FROM t3 WHERE 1 = 0 GROUP BY 1;
 DROP TABLE t1,t2,t3;
 
 --echo End of 5.0 tests.
+
+--echo #
+--echo # Bug#54568: create view cause Assertion failed: 0, 
+--echo # file .\item_subselect.cc, line 836
+--echo #
+EXPLAIN SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+DESCRIBE SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+--echo # None of the below should crash
+CREATE VIEW v1 AS SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+CREATE VIEW v2 AS SELECT 1 LIKE '%' ESCAPE ( 1 IN ( SELECT 1 ) );
+DROP VIEW v1, v2;
+
+--echo # 
+--echo # Bug#51070: Query with a NOT IN subquery predicate returns a wrong
+--echo # result set
+--echo # 
+CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO t1 VALUES ( 1, NULL ), ( 2, NULL );
+
+CREATE TABLE t2 ( c INT, d INT );
+INSERT INTO t2 VALUES ( NULL, 3 ), ( NULL, 4 );
+
+CREATE TABLE t3 ( e INT, f INT );
+INSERT INTO t3 VALUES ( NULL, NULL ), ( NULL, NULL );
+
+CREATE TABLE t4 ( a INT );
+INSERT INTO t4 VALUES (1), (2), (3);
+
+CREATE TABLE t5 ( a INT );
+INSERT INTO t5 VALUES (NULL), (2);
+
+--replace_column 1 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
+
+EXPLAIN
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS NULL;
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS NULL;
+SELECT * FROM t1 WHERE ( a, b ) IN ( SELECT c, d FROM t2 ) IS NULL;
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS UNKNOWN;
+SELECT * FROM t1 WHERE (( a, b ) NOT IN ( SELECT c, d FROM t2 )) IS UNKNOWN;
+
+SELECT * FROM t1 WHERE 1 = 1 AND ( a, b ) NOT IN ( SELECT c, d FROM t2 );
+
+--replace_column 1 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT e, f FROM t3 );
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT e, f FROM t3 );
+
+--replace_column 1 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN
+SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT a, b FROM t1 );
+SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT a, b FROM t1 );
+
+--replace_column 1 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN
+SELECT * FROM t3 WHERE ( e, f ) NOT IN ( SELECT c, d FROM t2 );
+SELECT * FROM t3 WHERE ( e, f ) NOT IN ( SELECT c, d FROM t2 );
+
+--replace_column 1 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN
+SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT e, f FROM t3 );
+SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT e, f FROM t3 );
+
+SELECT * FROM t1 WHERE ( a, b ) NOT IN 
+  ( SELECT c, d FROM t2 WHERE c = 1 AND c <> 1 );
+
+SELECT * FROM t1 WHERE b NOT IN ( SELECT c FROM t2 WHERE c = 1 );
+
+SELECT * FROM t1 WHERE NULL NOT IN ( SELECT c FROM t2 WHERE c = 1 AND c <> 1 );
+
+DROP TABLE t1, t2, t3, t4, t5;
+
+
+--echo #
+--echo # End of 5.1 tests.
+--echo #

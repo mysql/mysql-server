@@ -1705,4 +1705,82 @@ t2 WHERE b SOUNDS LIKE e AND d = 1;
 
 DROP TABLE t2, t1;
 
+--echo #
+--echo # Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS m1, t1;
+--enable_warnings
+#
+# Test derived from a proposal of Shane Bester.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MYISAM;
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1) INSERT_METHOD=LAST;
+#
+# REPAIR ... USE_FRM with LOCK TABLES.
+#
+LOCK TABLE m1 READ;
+REPAIR TABLE m1 USE_FRM;
+UNLOCK TABLES;
+#
+# REPAIR ... USE_FRM without LOCK TABLES.
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+DROP TABLE m1,t1;
+#
+# Test derived from a proposal of Matthias Leich.
+#
+# Base table is missing.
+#
+CREATE TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Create base table.
+#
+CREATE TABLE t1 (f1 BIGINT) ENGINE = MyISAM;
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Normal repair as reference.
+#
+REPAIR TABLE m1;
+#
+# Cleanup.
+#
+DROP TABLE m1, t1;
+#
+# Same with temporary tables.
+#
+# Base table is missing.
+#
+CREATE TEMPORARY TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Create base table.
+#
+CREATE TEMPORARY TABLE t1 (f1 BIGINT) ENGINE=MyISAM;
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Normal repair as reference.
+#
+REPAIR TABLE m1;
+#
+# Cleanup.
+#
+DROP TABLE m1, t1;
+
 --echo End of 5.1 tests

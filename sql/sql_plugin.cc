@@ -3030,12 +3030,12 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     Allocate temporary space for the value of the tristate.
     This option will have a limited lifetime and is not used beyond
     server initialization.
-    GET_ENUM value is an integer.
+    GET_ENUM value is a unsigned long integer.
   */
   options[0].value= options[1].value= (uchar **)alloc_root(mem_root,
-                                                          sizeof(int));
-  *((uint*) options[0].value)= *((uint*) options[1].value)=
-    (uint) options[0].def_value;
+                                                          sizeof(ulong));
+  *((ulong*) options[0].value)= *((ulong*) options[1].value)=
+    (ulong) options[0].def_value;
 
   options+= 2;
 
@@ -3319,7 +3319,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
      Set plugin loading policy from option value. First element in the option
      list is always the <plugin name> option value.
     */
-    plugin_load_policy= (enum_plugin_load_policy)*(uint*)opts[0].value;
+    plugin_load_policy= (enum_plugin_load_policy)*(ulong*)opts[0].value;
   }
 
   disable_plugin= (plugin_load_policy == PLUGIN_OFF);

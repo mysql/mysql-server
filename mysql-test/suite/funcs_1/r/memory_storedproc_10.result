@@ -82,7 +82,6 @@ create user 'user_2'@'localhost';
 GRANT CREATE ROUTINE ON db_storedproc.* TO 'user_1'@'localhost';
 GRANT SELECT         ON db_storedproc.* TO 'user_2'@'localhost';
 FLUSH PRIVILEGES;
-connect(localhost,user_1,,db_storedproc,MYSQL_PORT,MYSQL_SOCK);
 	
 user_1@localhost	db_storedproc
 CREATE PROCEDURE sp31102 () SQL SECURITY INVOKER
@@ -95,7 +94,6 @@ DECLARE res INT;
 SET res = n * n;
 RETURN res;
 END//
-connect(localhost,user_2,,db_storedproc,MYSQL_PORT,MYSQL_SOCK);
 	
 user_2@localhost	db_storedproc
 CALL sp31102();
@@ -114,7 +112,6 @@ fn31105( 9 )
 81
 GRANT EXECUTE ON db_storedproc.* TO 'user_2'@'localhost';
 FLUSH PRIVILEGES;
-connect(localhost,user_2,,db_storedproc,MYSQL_PORT,MYSQL_SOCK);
 	
 user_2@localhost	db_storedproc
 CALL sp31102();
@@ -135,7 +132,6 @@ a`	a`	1000-01-01	-5000	a`	-5000
 SELECT fn31105( 9 );
 fn31105( 9 )
 81
-connect(localhost,user_2,,db_storedproc,MYSQL_PORT,MYSQL_SOCK);
 	
 user_2@localhost	db_storedproc
 CALL sp31102();
