@@ -37,6 +37,18 @@
 
 #include "helpers.hpp"
 
+// ----------------------------------------------------------------------
+//  initializer and finalizer functions
+// ----------------------------------------------------------------------
+
+// initializer avoiding issues with static construction of objects
+extern void myapi_init();
+extern void myapi_finit();
+
+// ----------------------------------------------------------------------
+// void result/parameter types
+// ----------------------------------------------------------------------
+
 extern void f0();
 
 // ----------------------------------------------------------------------
@@ -452,6 +464,16 @@ extern void f784(double * const);
 // ----------------------------------------------------------------------
 
 struct B0 {
+    static int32_t d0s;
+    static const int32_t d0sc;
+
+    int32_t d0;
+    const int32_t d0c;
+
+    static void init();
+
+    static void finit();
+
     B0() : d0(21), d0c(-21) {
         TRACE("B0()");
     };
@@ -461,8 +483,7 @@ struct B0 {
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
     };
 
-    virtual ~B0() {
-    };
+    virtual ~B0() {};
 
     B0 & operator=(const B0 & p) {
         TRACE("B0 & operator=(const B0 &)");
@@ -470,13 +491,6 @@ struct B0 {
         ABORT_ERROR("!USE OF ASSIGNMENT OPERATOR!");
         return *this;
     }
-
-    // ----------------------------------------------------------------------
-
-    static int32_t d0s;
-    static const int32_t d0sc;
-    int32_t d0;
-    const int32_t d0c;
 
     // ----------------------------------------------------------------------
 
@@ -498,6 +512,16 @@ struct B0 {
 };
 
 struct B1 : public B0 {
+    static int32_t d0s;
+    static const int32_t d0sc;
+
+    int32_t d0;
+    const int32_t d0c;
+
+    static void init();
+
+    static void finit();
+
     B1() : d0(31), d0c(-31) {
         TRACE("B1()");
     };
@@ -507,8 +531,7 @@ struct B1 : public B0 {
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
     };
 
-    virtual ~B1() {
-    };
+    virtual ~B1() {};
 
     B1 & operator=(const B1 & p) {
         TRACE("B1 & operator=(const B1 &)");
@@ -516,13 +539,6 @@ struct B1 : public B0 {
         ABORT_ERROR("!USE OF ASSIGNMENT OPERATOR!");
         return *this;
     }
-
-    // ----------------------------------------------------------------------
-
-    static int32_t d0s;
-    static const int32_t d0sc;
-    int32_t d0;
-    const int32_t d0c;
 
     // ----------------------------------------------------------------------
 
@@ -544,6 +560,15 @@ struct B1 : public B0 {
 
 struct A {
     static A * a;
+    static int32_t d0s;
+    static const int32_t d0sc;
+
+    int32_t d0;
+    const int32_t d0c;
+
+    static void init();
+
+    static void finit();
 
     A() : d0(11), d0c(-11) {
         TRACE("A()");
@@ -572,16 +597,9 @@ struct A {
 
     // ----------------------------------------------------------------------
 
-    static int32_t d0s;
-    static const int32_t d0sc;
-    int32_t d0;
-    const int32_t d0c;
-
-    // ----------------------------------------------------------------------
-
     static A * deliver_ptr() {
         TRACE("A * A::deliver_ptr()");
-        return a;
+        return A::a;
     };
 
     static A * deliver_null_ptr() {
@@ -591,7 +609,7 @@ struct A {
 
     static A & deliver_ref() {
         TRACE("A & A::deliver_ref()");
-        return *a;
+        return *A::a;
     };
 
     static A & deliver_null_ref() {
@@ -621,9 +639,8 @@ struct A {
 
     static void print(A * p0) {
         TRACE("void A::print(A *)");
-        // in case of problems with %p
-        //printf("    p0 = %lx\n", (unsigned long)p0);
         printf("    p0 = %p\n", (void*)p0);
+        fflush(stdout);
     };
 
     // ----------------------------------------------------------------------
@@ -821,7 +838,14 @@ inline int32_t h3r(int8_t p0, int16_t p1, int32_t p2) {
 // ----------------------------------------------------------------------
 
 struct C0 {
+    static C0 * c;
+    static const C0 * cc;
+
     const int64_t id;
+
+    static void init();
+
+    static void finit();
 
     C0() : id((int64_t)this) {
         TRACE("C0()");
@@ -874,10 +898,6 @@ struct C0 {
     // (non-virtual) instance (on purpose) array functions
     // ----------------------------------------------------------------------
 
-    static C0 * const c;
-    static const C0 * const cc;
-    //printf("    cp = %p, c = %p, cc = %p\n", cp, C0::c, C0::cc);
-
     void check(int64_t id) const {
         TRACE("void check(int64_t) const");
         if (id != this->id) ABORT_ERROR("id != this->id");
@@ -885,7 +905,8 @@ struct C0 {
 
     void print() const {
         TRACE("void C0::print() const");
-        printf("    this->id = %lx\n", id);
+        printf("    this->id = %llx\n", id);
+        fflush(stdout);
     }
 
     const C0 * deliver_C0Cp() const {
@@ -934,6 +955,13 @@ struct C0 {
 };
 
 struct C1 : public C0 {
+    static C1 * c;
+    static const C1 * cc;
+
+    static void init();
+
+    static void finit();
+
     C1() {
         TRACE("C1()");
     };
@@ -984,10 +1012,6 @@ struct C1 : public C0 {
     // ----------------------------------------------------------------------
     // (non-virtual) instance (on purpose) array functions
     // ----------------------------------------------------------------------
-
-    static C1 * const c;
-    static const C1 * const cc;
-    //printf("    cp = %p, c = %p, cc = %p\n", cp, C1::c, C1::cc);
 
     const C1 * deliver_C1Cp() const {
         TRACE("const C1 * C1::deliver_C1Cp() const");
@@ -1041,36 +1065,45 @@ struct C1 : public C0 {
 struct D1;
 
 struct D0 {
+    static D0 * d;
+    static void init();
+    static void finit();
+    virtual ~D0() {}
+
     int f_d0() { TRACE("D0::f_d0()"); return 20; }
     int f_nv() { TRACE("D0::f_nv()"); return 21; }
     virtual int f_v() { TRACE("D0::f_v()"); return 22; }
     static D1 * sub();
-    static D0 d;
-    virtual ~D0() {}
 };
 
 struct D1 : D0 {
+    static D1 * d;
+    static void init();
+    static void finit();
+    virtual ~D1() {}
+
     int f_d1() { TRACE("D0::f_d1()"); return 30; }
     int f_nv() { TRACE("D1::f_nv()"); return 31; }
     virtual int f_v() { TRACE("D1::f_v()"); return 32; }
     static D1 * sub();
-    static D1 d;
-    virtual ~D1() {}
 };
 
 struct D2 : D1 {
+    static D2 * d;
+    static void init();
+    static void finit();
+    virtual ~D2() {}
+
     int f_d2() { TRACE("D2::f_d2()"); return 40; }
     int f_nv() { TRACE("D2::f_nv()"); return 41; }
     virtual int f_v() { TRACE("D2::f_v()"); return 42; }
     static D1 * sub();
-    static D2 d;
-    virtual ~D2() {}
 };
 
 // d1class instance returns (casts unnecessary but for attention)
-inline D1 * D0::sub() { TRACE("D1 * D0::sub()"); return ((D1*)&D1::d); }
-inline D1 * D1::sub() { TRACE("D1 * D1::sub()"); return ((D1*)&D2::d); }
-inline D1 * D2::sub() { TRACE("D1 * D2::sub()"); return NULL; }
+inline D1 * D0::sub() { TRACE("D1 * D0::sub()"); return ((D1*)D1::d); } // D1
+inline D1 * D1::sub() { TRACE("D1 * D1::sub()"); return ((D1*)D2::d); } // D2
+inline D1 * D2::sub() { TRACE("D1 * D2::sub()"); return NULL; }         // --
 
 // ----------------------------------------------------------------------
 // enums
