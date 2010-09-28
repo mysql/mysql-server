@@ -385,7 +385,10 @@ public:
 
   virtual bool inspect_edge(MDL_context *dest) = 0;
   virtual ~MDL_wait_for_graph_visitor();
-  MDL_wait_for_graph_visitor() :m_lock_open_count(0) {}
+  MDL_wait_for_graph_visitor() :m_lock_open_count(0),
+                                m_current_search_depth(0)
+  { }
+  virtual void abort_traversal(MDL_context *node) = 0;
 public:
   /**
    XXX, hack: During deadlock search, we may need to
@@ -396,6 +399,17 @@ public:
    LOCK_open since it has significant performance impacts.
   */
   uint m_lock_open_count;
+  /**
+    Set to the 0 at start. Increased whenever
+    we descend into another MDL context (aka traverse to the next
+    wait-for graph node). When MAX_SEARCH_DEPTH is reached, we
+    assume that a deadlock is found, even if we have not found a
+    loop.
+
+    XXX: This member belongs to this class only temporarily until
+         bug #56405 is fixed.
+  */
+  uint m_current_search_depth;
 };
 
 /**

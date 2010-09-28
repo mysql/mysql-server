@@ -9151,7 +9151,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
-    pack_flag= FIELDFLAG_DECIMAL | FIELDFLAG_NUMBER |
+    pack_flag= FIELDFLAG_NUMBER |
       (decimals_arg & FIELDFLAG_MAX_DEC) << FIELDFLAG_DEC_SHIFT;
     break;
 
@@ -9200,12 +9200,13 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     (maybe_null ? FIELDFLAG_MAYBE_NULL : 0) |
     (is_unsigned ? 0 : FIELDFLAG_DECIMAL);
 
-  DBUG_PRINT("debug", ("pack_flag: %s%s%s%s%s, pack_type: %d",
+  DBUG_PRINT("debug", ("pack_flag: %s%s%s%s%s%s, pack_type: %d",
                        FLAGSTR(pack_flag, FIELDFLAG_BINARY),
                        FLAGSTR(pack_flag, FIELDFLAG_NUMBER),
                        FLAGSTR(pack_flag, FIELDFLAG_INTERVAL),
                        FLAGSTR(pack_flag, FIELDFLAG_GEOM),
                        FLAGSTR(pack_flag, FIELDFLAG_BLOB),
+                       FLAGSTR(pack_flag, FIELDFLAG_DECIMAL),
                        f_packtype(pack_flag)));
   DBUG_VOID_RETURN;
 }
