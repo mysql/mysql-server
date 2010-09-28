@@ -202,7 +202,17 @@ lpad(f1, 12, "-o-/")
 drop table t2;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
-create table t1 (a varchar(10) character set ucs2, key(a));
+select @@collation_connection;
+@@collation_connection
+ucs2_general_ci
+create table t1 as select repeat(' ',10) as a union select null;
+alter table t1 add key(a);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(10) CHARACTER SET ucs2 DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -3864,6 +3874,204 @@ drop function f1;
 #
 # End of WL#2649 Number-to-string conversions
 #
+#
+# Bug#54668 User variable assignments get wrong type
+#
+SET @x=md5('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+ucs2	ucs2_general_ci
+SET @x=old_password('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+ucs2	ucs2_general_ci
+SET @x=password('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+ucs2	ucs2_general_ci
+SET @x=sha('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+ucs2	ucs2_general_ci
+SET @x=sha1('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+ucs2	ucs2_general_ci
+SET @x=astext(point(1,2));
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+ucs2	ucs2_general_ci
+SET @x=aswkt(point(1,2));
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+ucs2	ucs2_general_ci
+#
+# Bug#54916 GROUP_CONCAT + IFNULL truncates output
+#
+SELECT @@collation_connection;
+@@collation_connection
+ucs2_general_ci
+CREATE TABLE t1 (a MEDIUMINT NULL) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1234567);
+SELECT GROUP_CONCAT(IFNULL(a,'')) FROM t1;
+GROUP_CONCAT(IFNULL(a,''))
+1234567
+SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
+GROUP_CONCAT(IF(a,a,''))
+1234567
+SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					COALESCE(a,'')	253	9	7	Y	0	31	8
+COALESCE(a,'')
+1234567
+# All columns must be VARCHAR(9) with the same length:
+CREATE TABLE t2 AS
+SELECT
+CONCAT(a),
+IFNULL(a,''),
+IF(a,a,''),
+CASE WHEN a THEN a ELSE '' END,
+COALESCE(a,'')
+FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `CONCAT(a)` varchar(9) CHARACTER SET ucs2 DEFAULT NULL,
+  `IFNULL(a,'')` varchar(9) CHARACTER SET ucs2 NOT NULL DEFAULT '',
+  `IF(a,a,'')` varchar(9) CHARACTER SET ucs2 DEFAULT NULL,
+  `CASE WHEN a THEN a ELSE '' END` varchar(9) CHARACTER SET ucs2 DEFAULT NULL,
+  `COALESCE(a,'')` varchar(9) CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT CONCAT_WS(1,2,3) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `CONCAT_WS(1,2,3)` varchar(3) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT INSERT(1133,3,0,22) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `INSERT(1133,3,0,22)` varchar(6) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT LCASE(a) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `LCASE(a)` varchar(9) CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT UCASE(a) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `UCASE(a)` varchar(9) CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT REPEAT(1,2) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `REPEAT(1,2)` varchar(2) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT LEFT(123,2) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `LEFT(123,2)` varchar(2) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT RIGHT(123,2) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `RIGHT(123,2)` varchar(2) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT LTRIM(123) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `LTRIM(123)` varchar(3) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT RTRIM(123) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `RTRIM(123)` varchar(3) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT ELT(1,111,222,333) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `ELT(1,111,222,333)` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT REPLACE(111,2,3) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `REPLACE(111,2,3)` varchar(3) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT SUBSTRING_INDEX(111,111,1) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `SUBSTRING_INDEX(111,111,1)` varchar(3) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT MAKE_SET(111,222,3) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `MAKE_SET(111,222,3)` varchar(5) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT SOUNDEX(1) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `SOUNDEX(1)` varchar(4) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT EXPORT_SET(1,'Y','N','',8);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `EXPORT_SET(1,'Y','N','',8)` varchar(64) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# End of Bug#54916
+#
+#
+# Bug#52159 returning time type from function and empty left join causes debug assertion
+#
+CREATE FUNCTION f1() RETURNS TIME RETURN 1;
+CREATE TABLE t1 (b INT);
+INSERT INTO t1 VALUES (0);
+SELECT f1() FROM t1 LEFT JOIN (SELECT 1 AS a FROM t1 LIMIT 0) AS d ON 1 GROUP BY a;
+f1()
+00:00:01
+DROP FUNCTION f1;
+DROP TABLE t1;
+SET NAMES latin1;
+SET sql_mode='';
+CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
+INSERT INTO t1 VALUES ();
+SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
+maketime(`a`,`a`,`a`)
+00:00:00
+DROP TABLE t1;
+SET sql_mode=default;
 SET NAMES latin1;
 #
 # End of 5.5 tests
@@ -4270,6 +4478,102 @@ s1	hex(s1)
 DROP TABLE t1;
 SET timestamp=0;
 SET NAMES latin1;
+#
+# WL#4013 Unicode german2 collation
+#
+SET collation_connection=ucs2_german2_ci;
+"BEGIN ctype_german.inc"
+drop table if exists t1;
+create table t1 as select repeat(' ', 64) as s1;
+select collation(s1) from t1;
+collation(s1)
+ucs2_german2_ci
+delete from t1;
+INSERT INTO t1 VALUES ('ud'),('uf');
+INSERT INTO t1 VALUES ('od'),('of');
+INSERT INTO t1 VALUES ('e');
+INSERT INTO t1 VALUES ('ad'),('af');
+insert into t1 values ('a'),('ae'),(_latin1 0xE4);
+insert into t1 values ('o'),('oe'),(_latin1 0xF6);
+insert into t1 values ('s'),('ss'),(_latin1 0xDF);
+insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+INSERT INTO t1 VALUES (_latin1 0xE6), (_latin1 0xC6);
+INSERT INTO t1 VALUES (_latin1 0x9C), (_latin1 0x8C);
+select s1, hex(s1) from t1 order by s1, binary s1;
+s1	hex(s1)
+a	0061
+ad	00610064
+ae	00610065
+Æ	00C6
+ä	00E4
+æ	00E6
+af	00610066
+e	0065
+o	006F
+od	006F0064
+oe	006F0065
+ö	00F6
+Œ	0152
+œ	0153
+of	006F0066
+s	0073
+ss	00730073
+ß	00DF
+u	0075
+ud	00750064
+ue	00750065
+ü	00FC
+uf	00750066
+select group_concat(s1 order by binary s1) from t1 group by s1;
+group_concat(s1 order by binary s1)
+a
+ad
+ae,Æ,ä,æ
+af
+e
+o
+od
+oe,ö,Œ,œ
+of
+s
+ss,ß
+u
+ud
+ue,ü
+uf
+SELECT s1, hex(s1), hex(weight_string(s1)) FROM t1 ORDER BY s1, BINARY(s1);
+s1	hex(s1)	hex(weight_string(s1))
+a	0061	0E33
+ad	00610064	0E330E6D
+ae	00610065	0E330E8B
+Æ	00C6	0E330E8B
+ä	00E4	0E330E8B
+æ	00E6	0E330E8B
+af	00610066	0E330EB9
+e	0065	0E8B
+o	006F	0F82
+od	006F0064	0F820E6D
+oe	006F0065	0F820E8B
+ö	00F6	0F820E8B
+Œ	0152	0F820E8B
+œ	0153	0F820E8B
+of	006F0066	0F820EB9
+s	0073	0FEA
+ss	00730073	0FEA0FEA
+ß	00DF	0FEA0FEA
+u	0075	101F
+ud	00750064	101F0E6D
+ue	00750065	101F0E8B
+ü	00FC	101F0E8B
+uf	00750066	101F0EB9
+SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
+s1	hex(s1)
+ae	00610065
+Æ	00C6
+ä	00E4
+æ	00E6
+drop table t1;
+"END ctype_german.inc"
 #
 # End of 5.6 tests
 #

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -84,6 +84,9 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "srv0mon.h"
+#include "mysql/plugin.h"
+#include "mysql/service_thd_wait.h"
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -142,6 +145,21 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 UNIV_INTERN my_bool	srv_use_native_aio = TRUE;
 
+#ifdef __WIN__
+/* Windows native condition variables. We use runtime loading / function
+pointers, because they are not available on Windows Server 2003 and
+Windows XP/2000.
+
+We use condition for events on Windows if possible, even if os_event
+resembles Windows kernel event object well API-wise. The reason is
+performance, kernel objects are heavyweights and WaitForSingleObject() is a
+performance killer causing calling thread to context switch. Besides, Innodb
+is preallocating large number (often millions) of os_events. With kernel event
+objects it takes a big chunk out of non-paged pool, which is better suited
+for tasks like IO than for storing idle event objects. */
+UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
+#endif /* __WIN__ */
+
 UNIV_INTERN ulint	srv_n_data_files = 0;
 UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
@@ -196,6 +214,8 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
+/* number of mutexes to protect buf_pool->page_hash */
+UNIV_INTERN ulong	srv_n_page_hash_mutexes = 256;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -1217,7 +1237,9 @@ retry:
 
 	trx->op_info = "waiting in InnoDB queue";
 
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
 	os_event_wait(slot->event);
+	thd_wait_end(trx->mysql_thd);
 
 	trx->op_info = "";
 
@@ -1541,6 +1563,7 @@ srv_suspend_mysql_thread(
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		srv_n_lock_wait_count++;
 		srv_n_lock_wait_current_count++;
+		MONITOR_INC(MONITOR_ROW_LOCK_CURRENT_WAIT);
 
 		if (ut_usectime(&sec, &ms) == -1) {
 			start_time = -1;
@@ -1582,7 +1605,9 @@ srv_suspend_mysql_thread(
 
 	/* Suspend this thread and wait for the event. */
 
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
 	os_event_wait(event);
+	thd_wait_end(trx->mysql_thd);
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
@@ -1621,6 +1646,7 @@ srv_suspend_mysql_thread(
 		diff_time = (ulint) (finish_time - start_time);
 
 		srv_n_lock_wait_current_count--;
+		MONITOR_DEC(MONITOR_ROW_LOCK_CURRENT_WAIT);
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
 		if (diff_time > srv_n_lock_max_wait_time &&
 		    /* only update the variable if we successfully
@@ -1628,6 +1654,9 @@ srv_suspend_mysql_thread(
 		    start_time != -1 && finish_time != -1) {
 			srv_n_lock_max_wait_time = diff_time;
 		}
+
+		/* Record the lock wait time for this thread */
+		thd_set_lock_wait_time(trx->mysql_thd, diff_time);
 	}
 
 	if (trx->was_chosen_as_deadlock_victim) {
@@ -2226,6 +2255,7 @@ loop:
 				if (trx->wait_lock) {
 					lock_cancel_waiting_and_release(
 						trx->wait_lock);
+					MONITOR_INC(MONITOR_TIMEOUT);
 				}
 			}
 		}
@@ -2551,6 +2581,7 @@ srv_master_thread(
 	ulint		n_pend_ios;
 	ulint		next_itr_time;
 	ulint		i;
+	ibool		max_modified_ratio_exceeded = FALSE;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2675,6 +2706,9 @@ loop:
 			n_pages_flushed = buf_flush_list(
 				PCT_IO(100), IB_ULONGLONG_MAX);
 
+			/* Record 100% srv_io_capacity for the buffer
+			flush rate */
+			MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
 		} else if (srv_adaptive_flushing) {
 
 			/* Try to keep the rate of flushing of dirty
@@ -2690,6 +2724,11 @@ loop:
 					buf_flush_list(
 						n_flush,
 						IB_ULONGLONG_MAX);
+
+				/* Record the IO capacity percentage used
+				for the flush */
+				MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY,
+					    n_flush * 100 / srv_io_capacity)
 			}
 		}
 
@@ -2731,6 +2770,8 @@ loop:
 		srv_main_thread_op_info = "flushing buffer pool pages";
 		buf_flush_list(PCT_IO(100), IB_ULONGLONG_MAX);
 
+		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
+
 		/* Flush logs if needed */
 		srv_sync_log_buffer_in_background();
 	}
@@ -2767,6 +2808,8 @@ loop:
 
 		n_pages_flushed = buf_flush_list(
 			PCT_IO(100), IB_ULONGLONG_MAX);
+
+		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
 	} else {
 		/* Otherwise, we only flush a small number of pages so that
 		we do not unnecessarily use much disk i/o capacity from
@@ -2774,6 +2817,8 @@ loop:
 
 		n_pages_flushed = buf_flush_list(
 			  PCT_IO(10), IB_ULONGLONG_MAX);
+
+		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 10);
 	}
 
 	srv_main_thread_op_info = "making checkpoint";
@@ -2860,9 +2905,16 @@ background_loop:
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 	srv_main_flush_loops++;
+
 	if (srv_fast_shutdown < 2) {
 		n_pages_flushed = buf_flush_list(
 			  PCT_IO(100), IB_ULONGLONG_MAX);
+
+		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
+
+		if (max_modified_ratio_exceeded) {
+			MONITOR_INC(MONITOR_FLUSH_DIRTY_PAGE_EXCEED);
+		}
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */
@@ -2890,12 +2942,14 @@ flush_loop:
 	log_checkpoint(TRUE, FALSE);
 
 	if (buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
+		max_modified_ratio_exceeded = TRUE;
 
 		/* Try to keep the number of modified pages in the
 		buffer pool under the limit wished by the user */
 
 		goto flush_loop;
 	}
+	max_modified_ratio_exceeded = FALSE;
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -3007,6 +3061,8 @@ srv_purge_thread(
 
 	slot_no = srv_table_reserve_slot(SRV_WORKER);
 
+	slot = srv_table_get_nth_slot(slot_no);
+
 	++srv_n_threads_active[SRV_WORKER];
 
 	mutex_exit(&kernel_mutex);
@@ -3058,19 +3114,15 @@ srv_purge_thread(
 
 	mutex_enter(&kernel_mutex);
 
+	ut_ad(srv_table_get_nth_slot(slot_no) == slot);
+
 	/* Decrement the active count. */
 	srv_suspend_thread();
 
-	mutex_exit(&kernel_mutex);
+	slot->in_use = FALSE;
 
 	/* Free the thread local memory. */
 	thr_local_free(os_thread_get_curr_id());
-
-	mutex_enter(&kernel_mutex);
-
-	/* Free the slot for reuse. */
-	slot = srv_table_get_nth_slot(slot_no);
-	slot->in_use = FALSE;
 
 	mutex_exit(&kernel_mutex);
 

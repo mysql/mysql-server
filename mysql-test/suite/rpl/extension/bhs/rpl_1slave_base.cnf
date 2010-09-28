@@ -22,7 +22,6 @@ loose-innodb
 log-bin=                    slave-bin
 relay-log=                  slave-relay-bin
 
-init-rpl-role=              slave
 log-slave-updates
 master-retry-count=         10
 
@@ -47,7 +46,6 @@ loose-innodb
 log-bin=                    blackhole-slave-bin
 relay-log=                  blackhole-slave-relay-bin
 
-init-rpl-role=              slave
 log-slave-updates
 master-retry-count=         10
 

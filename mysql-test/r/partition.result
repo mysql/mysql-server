@@ -359,6 +359,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	2
+Handler_read_last	0
 Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -377,6 +378,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	2
+Handler_read_last	0
 Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -407,6 +409,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -423,6 +426,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -439,6 +443,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -455,6 +460,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1715,8 +1721,7 @@ WHERE t1.id IN (
 SELECT distinct id
 FROM t4
 WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-ORDER BY t1.id
-;
+ORDER BY t1.id;
 MyISAM_part
 16421
 19092

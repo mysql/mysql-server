@@ -212,6 +212,8 @@ copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
   to->max_sort_char= from->max_sort_char;
   to->mbminlen= from->mbminlen;
   to->mbmaxlen= from->mbmaxlen;
+  to->caseup_multiply= from->caseup_multiply;
+  to->casedn_multiply= from->casedn_multiply;
   to->state|= MY_CS_AVAILABLE | MY_CS_LOADED |
               MY_CS_STRNXFRM  | MY_CS_UNICODE;
 }
@@ -362,6 +364,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   int  fd;
   size_t len, tmp_len;
   MY_STAT stat_info;
+  char error[128];
   
   if (!my_stat(filename, &stat_info, MYF(myflags)) ||
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
@@ -375,21 +378,19 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   if (tmp_len != len)
     goto error;
   
-  if (my_parse_charset_xml((char*) buf,len,add_collation))
+  if (my_parse_charset_xml((char *) buf,len,add_collation,
+                           error, sizeof(error)))
   {
-#ifdef NOT_YET
-    printf("ERROR at line %d pos %d '%s'\n",
-	   my_xml_error_lineno(&p)+1,
-	   my_xml_error_pos(&p),
-	   my_xml_error_string(&p));
-#endif
+    my_printf_error(EE_UNKNOWN_CHARSET, "Error while parsing '%s': %s\n",
+                    MYF(0), filename, error);
+    goto error;
   }
   
-  my_free(buf, myflags);
+  my_free(buf);
   return FALSE;
 
 error:
-  my_free(buf, myflags);
+  my_free(buf);
   return TRUE;
 }
 
@@ -568,9 +569,15 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
     {
       if (!(cs->state & MY_CS_READY))
       {
-        if ((cs->cset->init && cs->cset->init(cs, cs_alloc)) ||
-            (cs->coll->init && cs->coll->init(cs, cs_alloc)))
+        char err[128];
+        if ((cs->cset->init && cs->cset->init(cs, cs_alloc, err, sizeof(err))) ||
+            (cs->coll->init && cs->coll->init(cs, cs_alloc, err, sizeof(err))))
+        {
+          my_printf_error(EE_UNKNOWN_CHARSET,
+                          "Error while initializing '%s': %s", MYF(0),
+                          cs->name, err);
           cs= NULL;
+        }
         else
           cs->state|= MY_CS_READY;
       }

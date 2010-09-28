@@ -177,6 +177,13 @@ log. */
 #define OS_WIN95	2	/*!< Microsoft Windows 95 */
 #define OS_WINNT	3	/*!< Microsoft Windows NT 3.x */
 #define OS_WIN2000	4	/*!< Microsoft Windows 2000 */
+#define OS_WINXP	5	/*!< Microsoft Windows XP
+				or Windows Server 2003 */
+#define OS_WINVISTA	6	/*!< Microsoft Windows Vista
+				or Windows Server 2008 */
+#define OS_WIN7		7	/*!< Microsoft Windows 7
+				or Windows Server 2008 R2 */
+
 
 extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
@@ -194,12 +201,12 @@ various file I/O operations with performance schema.
 used to register file creation, opening, closing and renaming.
 2) register_pfs_file_io_begin() and register_pfs_file_io_end() are
 used to register actual file read, write and flush */
-# define register_pfs_file_open_begin(locker, key, op, name,		\
+# define register_pfs_file_open_begin(state, locker, key, op, name,	\
 				      src_file, src_line)		\
 do {									\
 	if (PSI_server) {						\
 		locker = PSI_server->get_thread_file_name_locker(	\
-			key, op, name, &locker);			\
+			state, key, op, name, &locker);			\
 		if (locker) {						\
 			PSI_server->start_file_open_wait(		\
 				locker, src_file, src_line);		\
@@ -215,12 +222,12 @@ do {									\
 	}								\
 } while (0)
 
-# define register_pfs_file_io_begin(locker, file, count, op,		\
+# define register_pfs_file_io_begin(state, locker, file, count, op,	\
 				    src_file, src_line)			\
 do {									\
 	if (PSI_server) {						\
 		locker = PSI_server->get_thread_file_descriptor_locker(	\
-			file, op);					\
+			state, file, op);				\
 		if (locker) {						\
 			PSI_server->start_file_wait(			\
 				locker, count, src_file, src_line);	\
@@ -368,7 +375,8 @@ typedef DIR*	os_file_dir_t;	/*!< directory stream */
 
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
-@return	OS_WIN95, OS_WIN31, OS_WINNT, or OS_WIN2000 */
+@return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
+OS_WIN7. */
 UNIV_INTERN
 ulint
 os_get_os_version(void);
@@ -383,8 +391,6 @@ os_io_init_simple(void);
 /***********************************************************************//**
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
-On Netware, this function is like tmpfile(3), because the C run-time
-library of Netware does not expose the delete-on-close flag.
 @return	temporary file handle, or NULL on error */
 
 FILE*
@@ -1166,7 +1172,7 @@ os_file_get_status(
 	os_file_stat_t* stat_info);	/*!< information of a file in a
 					directory */
 
-#if !defined(UNIV_HOTBACKUP) && !defined(__NETWARE__)
+#if !defined(UNIV_HOTBACKUP)
 /*********************************************************************//**
 Creates a temporary file that will be deleted on close.
 This function is defined in ha_innodb.cc.
@@ -1175,7 +1181,7 @@ UNIV_INTERN
 int
 innobase_mysql_tmpfile(void);
 /*========================*/
-#endif /* !UNIV_HOTBACKUP && !__NETWARE__ */
+#endif /* !UNIV_HOTBACKUP */
 
 
 #if defined(LINUX_NATIVE_AIO)

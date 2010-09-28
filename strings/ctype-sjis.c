@@ -31,7 +31,7 @@
  * .configure. mbmaxlen_sjis=2
  */
 
-static uchar NEAR ctype_sjis[257] =
+static uchar ctype_sjis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -68,7 +68,7 @@ static uchar NEAR ctype_sjis[257] =
     0020, 0020, 0020, 0020, 0020, 0000, 0000, 0000
 };
 
-static uchar NEAR to_lower_sjis[]=
+static uchar to_lower_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -104,7 +104,7 @@ static uchar NEAR to_lower_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR to_upper_sjis[]=
+static uchar to_upper_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -140,7 +140,7 @@ static uchar NEAR to_upper_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR sort_order_sjis[]=
+static uchar sort_order_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -197,7 +197,7 @@ static uint mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 #define sjiscode(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
 
-static MY_UNICASE_INFO c81[256]=
+static MY_UNICASE_CHARACTER c81[256]=
 {
   /* 8100-810F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -407,7 +407,7 @@ static MY_UNICASE_INFO c81[256]=
 };
 
 
-static MY_UNICASE_INFO c82[256]=
+static MY_UNICASE_CHARACTER c82[256]=
 {
   /* 8200-820F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -615,7 +615,7 @@ static MY_UNICASE_INFO c82[256]=
 };
 
 
-static MY_UNICASE_INFO c83[256]=
+static MY_UNICASE_CHARACTER c83[256]=
 {
   /* 8300-830F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -825,7 +825,7 @@ static MY_UNICASE_INFO c83[256]=
 };
 
 
-static MY_UNICASE_INFO c84[256]=
+static MY_UNICASE_CHARACTER c84[256]=
 {
   /* 8400-840F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1035,7 +1035,7 @@ static MY_UNICASE_INFO c84[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_sjis[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_sjis[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1069,6 +1069,13 @@ static MY_UNICASE_INFO *my_caseinfo_sjis[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_sjis=
+{
+  0xFFFF,
+  my_caseinfo_pages_sjis
 };
 
 
@@ -1152,86 +1159,6 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
     }
   }
   return res;
-}
-
-
-/*
-** Calculate min_str and max_str that ranges a LIKE string.
-** Arguments:
-** ptr		Pointer to LIKE string.
-** ptr_length	Length of LIKE string.
-** escape	Escape character in LIKE.  (Normally '\').
-**		All escape characters should be removed from min_str and max_str
-** res_length	Length of min_str and max_str.
-** min_str	Smallest case sensitive string that ranges LIKE.
-**		Should be space padded to res_length.
-** max_str	Largest case sensitive string that ranges LIKE.
-**		Normally padded with the biggest character sort value.
-**
-** The function should return 0 if ok and 1 if the LIKE string can't be
-** optimized !
-*/
-
-#define max_sort_char ((char) 255)
-
-static my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
-				  const char *ptr,size_t ptr_length,
-				  pbool escape, pbool w_one, pbool w_many,
-				  size_t res_length,
-                                  char *min_str,char *max_str,
-				  size_t *min_length,size_t *max_length)
-{
-  const char *end= ptr + ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-  size_t charlen= res_length / cs->mbmaxlen;
-
-  for ( ; ptr < end && min_str < min_end && charlen > 0 ; charlen--)
-  {
-    if (ismbchar_sjis(cs, ptr, end)) {
-      *min_str++ = *max_str++ = *ptr++;
-      if (min_str < min_end)
-	*min_str++ = *max_str++ = *ptr++;
-      continue;
-    }
-    if (*ptr == escape && ptr+1 < end) {
-      ptr++;				/* Skip escape */
-      if (ismbchar_sjis(cs, ptr, end))
-	*min_str++ = *max_str++ = *ptr++;
-      if (min_str < min_end)
-	*min_str++ = *max_str++ = *ptr++;
-      continue;
-    }
-    if (*ptr == w_one) {		/* '_' in SQL */
-      *min_str++ = '\0';		/* This should be min char */
-      *max_str++ = max_sort_char;
-      ptr++;
-      continue;
-    }
-    if (*ptr == w_many)
-    {						/* '%' in SQL */
-      /*
-        Calculate length of keys:
-        'a\0\0... is the smallest possible string when we have space expand
-        a\ff\ff... is the biggest possible string
-      */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
-                    res_length);
-      *max_length= res_length;
-      do
-      {
-	*min_str++= 0;
-	*max_str++= max_sort_char;
-      } while (min_str < min_end);
-      return 0;
-    }
-    *min_str++ = *max_str++ = *ptr++;
-  }
-
-  *min_length= *max_length= (size_t) (min_str - min_org);
-  while (min_str != min_end)
-    *min_str++= *max_str++= ' ';              /* Because if key compression */
-  return 0;
 }
 
 
@@ -34207,7 +34134,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strnncollsp_sjis,
   my_strnxfrm_mb,
   my_strnxfrmlen_simple,
-  my_like_range_sjis,
+  my_like_range_mb,
   my_wildcmp_mb,	/* wildcmp  */
   my_strcasecmp_8bit,
   my_instr_mb,
@@ -34260,11 +34187,10 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     to_lower_sjis,
     to_upper_sjis,
     sort_order_sjis,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_sjis,   /* caseinfo     */
+    &my_caseinfo_sjis,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -34273,7 +34199,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFCFC,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
@@ -34294,11 +34220,10 @@ CHARSET_INFO my_charset_sjis_bin=
     to_lower_sjis,
     to_upper_sjis,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_sjis,   /* caseinfo     */
+    &my_caseinfo_sjis,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -34307,7 +34232,7 @@ CHARSET_INFO my_charset_sjis_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFCFC,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */

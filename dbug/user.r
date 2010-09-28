@@ -1019,14 +1019,6 @@ Most useful with
 .B DBUG_PUSH 
 macros used to temporarily alter the
 debugger state.
-.LI S
-When compiled with
-.I safemalloc
-this flag forces "sanity" memory checks (for overwrites/underwrites)
-on each
-.B DBUG_ENTER
-and
-.B DBUG_RETURN.
 .LI t[,N]
 Enable function control flow tracing.
 The maximum nesting depth is specified by N, and defaults to

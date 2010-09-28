@@ -38,13 +38,16 @@ void *my_mmap(void *addr, size_t len, int prot,
   HANDLE hFileMap;
   LPVOID ptr;
   HANDLE hFile= (HANDLE)my_get_osfhandle(fd);
+  DBUG_ENTER("my_mmap");
+  DBUG_PRINT("mysys", ("map fd: %d", fd));
+
   if (hFile == INVALID_HANDLE_VALUE)
-    return MAP_FAILED;
+    DBUG_RETURN(MAP_FAILED);
 
   hFileMap=CreateFileMapping(hFile, &mmap_security_attributes,
                              PAGE_READWRITE, 0, (DWORD) len, NULL);
   if (hFileMap == 0)
-    return MAP_FAILED;
+    DBUG_RETURN(MAP_FAILED);
 
   ptr=MapViewOfFile(hFileMap,
                     prot & PROT_WRITE ? FILE_MAP_WRITE : FILE_MAP_READ,
@@ -59,14 +62,19 @@ void *my_mmap(void *addr, size_t len, int prot,
   CloseHandle(hFileMap);
 
   if (ptr)
-    return ptr;
+  {
+    DBUG_PRINT("mysys", ("mapped addr: %p", ptr));
+    DBUG_RETURN(ptr);
+  }
 
-  return MAP_FAILED;
+  DBUG_RETURN(MAP_FAILED);
 }
 
 int my_munmap(void *addr, size_t len)
 {
-  return UnmapViewOfFile(addr) ? 0 : -1;
+  DBUG_ENTER("my_munmap");
+  DBUG_PRINT("mysys", ("unmap addr: %p", addr));
+  DBUG_RETURN(UnmapViewOfFile(addr) ? 0 : -1);
 }
 
 int my_msync(int fd, void *addr, size_t len, int flags)

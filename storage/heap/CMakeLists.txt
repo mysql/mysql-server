@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 SET(HEAP_PLUGIN_STATIC  "heap")
 SET(HEAP_PLUGIN_MANDATORY  TRUE)
@@ -24,8 +24,12 @@ SET(HEAP_SOURCES  _check.c _rectest.c hp_block.c hp_clear.c hp_close.c hp_create
 
 MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY RECOMPILE_FOR_EMBEDDED)
 
-ADD_EXECUTABLE(hp_test1 hp_test1.c)
-TARGET_LINK_LIBRARIES(hp_test1 mysys heap dbug strings)
+IF(WITH_UNIT_TESTS)
+  ADD_EXECUTABLE(hp_test1 hp_test1.c)
+  TARGET_LINK_LIBRARIES(hp_test1 heap mysys)
+  ADD_TEST(hp_test1 hp_test1)
 
-ADD_EXECUTABLE(hp_test2 hp_test2.c)
-TARGET_LINK_LIBRARIES(hp_test2 mysys heap dbug strings)
+  ADD_EXECUTABLE(hp_test2 hp_test2.c)
+  TARGET_LINK_LIBRARIES(hp_test2 heap mysys)
+  ADD_TEST(hp_test2 hp_test2)
+ENDIF()

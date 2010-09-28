@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (C) 2000-2002 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* This file includes all reserved words and functions */
@@ -207,6 +207,7 @@ static SYMBOL symbols[] = {
   { "EXISTS",		SYM(EXISTS)},
   { "EXIT",             SYM(EXIT_SYM)},
   { "EXPANSION",	SYM(EXPANSION_SYM)},
+  { "EXCHANGE",         SYM(EXCHANGE_SYM)},
   { "EXPLAIN",		SYM(DESCRIBE)},
   { "EXTENDED",		SYM(EXTENDED_SYM)},
   { "EXTENT_SIZE",	SYM(EXTENT_SIZE_SYM)},
@@ -322,6 +323,7 @@ static SYMBOL symbols[] = {
   { "MASTER_LOG_POS",           SYM(MASTER_LOG_POS_SYM)},
   { "MASTER_PASSWORD",           SYM(MASTER_PASSWORD_SYM)},
   { "MASTER_PORT",           SYM(MASTER_PORT_SYM)},
+  { "MASTER_RETRY_COUNT",           SYM(MASTER_RETRY_COUNT_SYM)},
   { "MASTER_SERVER_ID",           SYM(MASTER_SERVER_ID_SYM)},
   { "MASTER_SSL",       SYM(MASTER_SSL_SYM)},
   { "MASTER_SSL_CA",    SYM(MASTER_SSL_CA_SYM)},

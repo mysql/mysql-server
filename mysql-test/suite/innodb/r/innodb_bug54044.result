@@ -1,0 +1,3 @@
+CREATE TEMPORARY TABLE table_54044 ENGINE = INNODB
+AS SELECT IF(NULL  IS NOT NULL, NULL, NULL);
+ERROR HY000: Can't create table 'test.table_54044' (errno: -1)

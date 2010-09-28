@@ -1,4 +1,4 @@
-/* Copyright (C) 1995-2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -90,7 +90,7 @@ When one supplies long data for a placeholder:
 #include "set_var.h"
 #include "sql_prepare.h"
 #include "sql_parse.h" // insert_precheck, update_precheck, delete_precheck
-#include "sql_base.h"  // close_thread_tables
+#include "sql_base.h"  // open_normal_and_derived_tables
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_view.h"                          // create_view_precheck
 #include "sql_delete.h"                        // mysql_prepare_delete
@@ -152,6 +152,7 @@ public:
   THD *thd;
   Select_fetch_protocol_binary result;
   Item_param **param_array;
+  Server_side_cursor *cursor;
   uint param_count;
   uint last_errno;
   uint flags;
@@ -352,8 +353,11 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
                                           &stmt->lex->param_list,
                                           Protocol::SEND_EOF);
   }
-  /* Flag that a response has already been sent */
-  thd->stmt_da->disable_status();
+
+  if (!error)
+    /* Flag that a response has already been sent */
+    thd->stmt_da->disable_status();
+
   DBUG_RETURN(error);
 }
 #else
@@ -791,6 +795,19 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
 }
 
 #ifndef EMBEDDED_LIBRARY
+
+/**
+  Check whether this parameter data type is compatible with long data.
+  Used to detect whether a long data stream has been supplied to a
+  incompatible data type.
+*/
+inline bool is_param_long_data_type(Item_param *param)
+{
+  return ((param->param_type >= MYSQL_TYPE_TINY_BLOB) &&
+          (param->param_type <= MYSQL_TYPE_STRING));
+}
+
+
 /**
   Routines to assign parameters from data supplied by the client.
 
@@ -860,6 +877,14 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
           DBUG_RETURN(1);
       }
     }
+    /*
+      A long data stream was supplied for this parameter marker.
+      This was done after prepare, prior to providing a placeholder
+      type (the types are supplied at execute). Check that the
+      supplied type of placeholder can accept a data stream.
+    */
+    else if (! is_param_long_data_type(param))
+      DBUG_RETURN(1);
     res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
@@ -898,6 +923,14 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
           DBUG_RETURN(1);
       }
     }
+    /*
+      A long data stream was supplied for this parameter marker.
+      This was done after prepare, prior to providing a placeholder
+      type (the types are supplied at execute). Check that the
+      supplied type of placeholder can accept a data stream.
+    */
+    else if (! is_param_long_data_type(param))
+      DBUG_RETURN(1);
     if (param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);                           /* out of memory */
   }
@@ -1442,6 +1475,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
+  thd->thd_marker.emb_on_expr_nest= 0;
 
   /*
     JOIN::prepare calls
@@ -1683,14 +1717,6 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
-
-   /*
-     The open and lock strategies will be set again once the
-     statement is executed. These values are only meaningful
-     for the prepare phase.
-   */
-  create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-  create_table->lock_strategy= TABLE_LIST::OTLS_NONE;
 
   if (select_lex->item_list.elements)
   {
@@ -2643,7 +2669,6 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!cursor->is_open())
   {
     stmt->close_cursor();
-    thd->cursor= 0;
     reset_stmt_params(stmt);
   }
 
@@ -2699,7 +2724,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
 
   stmt->state= Query_arena::PREPARED;
 
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   my_ok(thd);
 
@@ -2732,7 +2757,7 @@ void mysqld_stmt_close(THD *thd, char *packet)
   */
   DBUG_ASSERT(! stmt->is_in_use());
   stmt->deallocate();
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
 }
@@ -2836,7 +2861,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
 
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
 }
@@ -2960,12 +2985,6 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   error= mysql_execute_command(thd);
 
-  if (thd->killed_errno())
-  {
-    if (! thd->stmt_da->is_set())
-      thd->send_kill_message();
-  }
-
   /* report error issued during command execution */
   if (error == 0 && thd->spcont == NULL)
     general_log_write(thd, COM_STMT_EXECUTE,
@@ -2987,6 +3006,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   thd(thd_arg),
   result(thd_arg),
   param_array(0),
+  cursor(0),
   param_count(0),
   last_errno(0),
   flags((uint) IS_IN_USE)
@@ -3073,13 +3093,8 @@ void Prepared_statement::cleanup_stmt()
   DBUG_ENTER("Prepared_statement::cleanup_stmt");
   DBUG_PRINT("enter",("stmt: 0x%lx", (long) this));
 
-  delete lex->sphead;
-  lex->sphead= 0;
-  /* The order is important */
-  lex->unit.cleanup();
   cleanup_items(free_list);
   thd->cleanup_after_query();
-  close_thread_tables(thd);
   thd->rollback_item_tree_changes();
 
   DBUG_VOID_RETURN;
@@ -3243,21 +3258,16 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     to PREPARE stmt FROM "CREATE PROCEDURE ..."
   */
   DBUG_ASSERT(lex->sphead == NULL || error != 0);
-  if (lex->sphead)
-  {
-    delete lex->sphead;
-    lex->sphead= NULL;
-  }
+  /* The order is important */
+  lex->unit.cleanup();
 
+  /* No need to commit statement transaction, it's not started. */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   lex_end(lex);
   cleanup_stmt();
-  /*
-    If not inside a multi-statement transaction, the metadata
-    locks have already been released and our savepoint points
-    to ticket which has been released as well.
-  */
-  if (thd->in_multi_stmt_transaction_mode())
-    thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
@@ -3364,11 +3374,6 @@ Prepared_statement::set_parameters(String *expanded_query,
   and execute of a new statement. If this happens repeatedly
   more than MAX_REPREPARE_ATTEMPTS times, we give up.
 
-  In future we need to be able to keep the metadata locks between
-  prepare and execute, but right now open_and_lock_tables(), as
-  well as close_thread_tables() are buried deep inside
-  execution code (mysql_execute_command()).
-
   @return TRUE if an error, FALSE if success
   @retval  TRUE    either MAX_REPREPARE_ATTEMPTS has been reached,
                    or some general error
@@ -3455,11 +3460,6 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
 
   error= server_runnable->execute_server_code(thd);
 
-  delete lex->sphead;
-  lex->sphead= 0;
-  /* The order is important */
-  lex->unit.cleanup();
-  close_thread_tables(thd);
   thd->cleanup_after_query();
 
   thd->restore_active_arena(this, &stmt_backup);
@@ -3748,8 +3748,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   /* Go! */
 
   if (open_cursor)
-    error= mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
-                             &result, &cursor);
+    error= mysql_open_cursor(thd, &result, &cursor);
   else
   {
     /*

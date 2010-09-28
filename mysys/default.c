@@ -118,7 +118,6 @@ static int search_default_file_with_ext(Process_option_func func,
   - Windows:     GetWindowsDirectory()
   - Windows:     C:/
   - Windows:     Directory above where the executable is located
-  - Netware:     sys:/etc/
   - Unix:        /etc/
   - Unix:        /etc/mysql/
   - Unix:        --sysconfdir=<path> (compile-time option)
@@ -458,12 +457,11 @@ int my_load_defaults(const char *conf_file, const char **groups,
   MEM_ROOT alloc;
   char *ptr,**res;
   struct handle_option_ctx ctx;
-  const char **dirs= NULL;
+  const char **dirs;
   DBUG_ENTER("load_defaults");
 
   init_alloc_root(&alloc,512,0);
-  if (default_directories != NULL &&
-      (dirs= init_default_directories(&alloc)) == NULL)
+  if ((dirs= init_default_directories(&alloc)) == NULL)
     goto err;
   /*
     Check if the user doesn't want any default option processing
@@ -577,7 +575,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
 void free_defaults(char **argv)
 {
   MEM_ROOT ptr;
-  memcpy_fixed((char*) &ptr,(char *) argv - sizeof(ptr), sizeof(ptr));
+  memcpy(&ptr, ((char *) argv) - sizeof(ptr), sizeof(ptr));
   free_root(&ptr,MYF(0));
 }
 
@@ -709,7 +707,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     strmov(name,config_file);
   }
   fn_format(name,name,"","",4);
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   {
     MY_STAT stat_info;
     if (!my_stat(name,&stat_info,MYF(0)))
@@ -955,7 +953,6 @@ static char *remove_end_comment(char *ptr)
   return ptr;
 }
 
-#include <help_start.h>
 
 void my_print_default_files(const char *conf_file)
 {
@@ -1034,8 +1031,6 @@ void print_defaults(const char *conf_file, const char **groups)
 --defaults-file=#       Only read default options from the given file #.\n\
 --defaults-extra-file=# Read this file after the global files are read.");
 }
-
-#include <help_end.h>
 
 
 static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
@@ -1151,10 +1146,6 @@ static const char **init_default_directories(MEM_ROOT *alloc)
       errors += add_directory(alloc, fname_buffer, dirs);
   }
 
-#elif defined(__NETWARE__)
-
-  errors += add_directory(alloc, "sys:/etc/", dirs);
-
 #else
 
   errors += add_directory(alloc, "/etc/", dirs);
@@ -1173,7 +1164,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   /* Placeholder for --defaults-extra-file=<path> */
   errors += add_directory(alloc, "", dirs);
 
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   errors += add_directory(alloc, "~/", dirs);
 #endif
 

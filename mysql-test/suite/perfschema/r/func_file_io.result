@@ -1,6 +1,8 @@
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'YES';
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
 WHERE name LIKE 'wait/io/file/%';
+update performance_schema.THREADS SET instrumented = 'YES'
+  WHERE PROCESSLIST_ID=connection_id();
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
 ENGINE=MyISAM;
@@ -90,28 +92,27 @@ SUM(SUM_NUMBER_OF_BYTES_WRITE) AS sum_num_bytes_write
 FROM performance_schema.FILE_SUMMARY_BY_INSTANCE
 WHERE FILE_NAME LIKE CONCAT('%', @@tmpdir, '%') ORDER BY NULL;
 SELECT EVENT_NAME, COUNT_STAR, AVG_TIMER_WAIT, SUM_TIMER_WAIT
-FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME
+FROM performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
 WHERE COUNT_STAR > 0
 ORDER BY SUM_TIMER_WAIT DESC
 LIMIT 10;
-SELECT i.user, SUM(TIMER_WAIT) SUM_WAIT
+SELECT p.processlist_user, SUM(TIMER_WAIT) SUM_WAIT
 # ((TIME_TO_SEC(TIMEDIFF(NOW(), i.startup_time)) * 1000) / SUM(TIMER_WAIT)) * 100 WAIT_PERCENTAGE
 FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
-INNER JOIN performance_schema.PROCESSLIST p USING (THREAD_ID)
-LEFT JOIN information_schema.PROCESSLIST i USING (ID)
-GROUP BY i.user
+INNER JOIN performance_schema.THREADS p USING (THREAD_ID)
+GROUP BY p.processlist_user
 ORDER BY SUM_WAIT DESC
 LIMIT 20;
 SELECT h.EVENT_NAME, SUM(h.TIMER_WAIT) TOTAL_WAIT
 FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
-INNER JOIN performance_schema.PROCESSLIST p USING (THREAD_ID)
-WHERE p.ID = 1
+INNER JOIN performance_schema.THREADS p USING (THREAD_ID)
+WHERE p.PROCESSLIST_ID = 1
 GROUP BY h.EVENT_NAME
 HAVING TOTAL_WAIT > 0;
-SELECT i.user, h.operation, SUM(NUMBER_OF_BYTES) bytes
+SELECT p.processlist_user, h.operation, SUM(NUMBER_OF_BYTES) bytes
 FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
-INNER JOIN performance_schema.PROCESSLIST p USING (THREAD_ID)
-LEFT JOIN information_schema.PROCESSLIST i USING (ID)
-GROUP BY i.user, h.operation
+INNER JOIN performance_schema.THREADS p USING (THREAD_ID)
+GROUP BY p.processlist_user, h.operation
 HAVING BYTES > 0
-ORDER BY i.user, h.operation;
+ORDER BY p.processlist_user, h.operation;
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';

@@ -328,7 +328,7 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 SELECT table_schema,table_name FROM information_schema.tables
 WHERE table_schema = 'information_schema' AND table_name = 'tables';
 table_schema	table_name
-information_schema	tables
+information_schema	TABLES
 SELECT * FROM information_schema.table_privileges
 WHERE table_schema = 'information_schema';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE

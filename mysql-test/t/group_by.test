@@ -1222,5 +1222,42 @@ DROP TABLE t1, t2;
 
 
 --echo #
+--echo # Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
+--echo #
+
+CREATE TABLE t1 (a text, b varchar(10));
+INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
+
+query_vertical EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+query_vertical EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+DROP TABLE t1;
+
 
 --echo # End of 5.1 tests
+
+--echo #
+--echo # Bug#49771: Incorrect MIN (date) when minimum value is 0000-00-00
+--echo #
+CREATE TABLE t1 (f1 int, f2 DATE);
+
+INSERT INTO t1 VALUES (1,'2004-04-19'), (1,'0000-00-00'), (1,'2004-04-18'),
+(2,'2004-05-19'), (2,'0001-01-01'), (3,'2004-04-10');
+
+SELECT MIN(f2),MAX(f2) FROM t1;
+SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 ( f1 int, f2 time);
+INSERT INTO t1 VALUES (1,'01:27:35'), (1,'06:11:01'), (2,'19:53:05'),
+(2,'21:44:25'), (3,'10:55:12'), (3,'05:45:11'), (4,'00:25:00');
+
+SELECT MIN(f2),MAX(f2) FROM t1;
+SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
+
+DROP TABLE t1;
+--echo #End of test#49771

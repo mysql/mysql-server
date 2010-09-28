@@ -383,7 +383,7 @@ struct trx_undo_struct{
 	XID		xid;		/*!< X/Open XA transaction
 					identification */
 	ibool		dict_operation;	/*!< TRUE if a dict operation trx */
-	dulint		table_id;	/*!< if a dict operation, then the table
+	table_id_t	table_id;	/*!< if a dict operation, then the table
 					id */
 	trx_rseg_t*	rseg;		/*!< rseg where the undo log belongs */
 	/*-----------------------------*/

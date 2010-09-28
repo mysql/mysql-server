@@ -561,9 +561,6 @@ FILE *outf;
 
 #define usage() fprintf (DBUG_FILE,"Usage: %s [-v] [prof-file]\n",my_name)
 
-#ifdef MSDOS
-extern int getopt(int argc, char **argv, char *opts);
-#endif
 extern int optind;
 extern char *optarg;
 
@@ -609,118 +606,5 @@ int main (int argc, char **argv)
     process (infile);
     output (outfile);
     DBUG_RETURN (EX_OK);
+  }
 }
-}
-
-#ifdef MSDOS
-
-/*
- * From std-unix@ut-sally.UUCP (Moderator, John Quarterman) Sun Nov  3 14:34:15 1985
- * Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site gatech.CSNET
- * Posting-Version: version B 2.10.2 9/18/84; site ut-sally.UUCP
- * Path: gatech!akgua!mhuxv!mhuxt!mhuxr!ulysses!allegra!mit-eddie!genrad!panda!talcott!harvard!seismo!ut-sally!std-unix
- * From: std-unix@ut-sally.UUCP (Moderator, John Quarterman)
- * Newsgroups: mod.std.unix
- * Subject: public domain AT&T getopt source
- * Message-ID: <3352@ut-sally.UUCP>
- * Date: 3 Nov 85 19:34:15 GMT
- * Date-Received: 4 Nov 85 12:25:09 GMT
- * Organization: IEEE/P1003 Portable Operating System Environment Committee
- * Lines: 91
- * Approved: jsq@ut-sally.UUCP
- *
- * Here's something you've all been waiting for:  the AT&T public domain
- * source for getopt(3).  It is the code which was given out at the 1985
- * UNIFORUM conference in Dallas.  I obtained it by electronic mail
- * directly from AT&T.	The people there assure me that it is indeed
- * in the public domain.
- *
- * There is no manual page.  That is because the one they gave out at
- * UNIFORUM was slightly different from the current System V Release 2
- * manual page.  The difference apparently involved a note about the
- * famous rules 5 and 6, recommending using white space between an option
- * and its first argument, and not grouping options that have arguments.
- * Getopt itself is currently lenient about both of these things White
- * space is allowed, but not mandatory, and the last option in a group can
- * have an argument.  That particular version of the man page evidently
- * has no official existence, and my source at AT&T did not send a copy.
- * The current SVR2 man page reflects the actual behavor of this getopt.
- * However, I am not about to post a copy of anything licensed by AT&T.
- *
- * I will submit this source to Berkeley as a bug fix.
- *
- * I, personally, make no claims or guarantees of any kind about the
- * following source.  I did compile it to get some confidence that
- * it arrived whole, but beyond that you're on your own.
- *
- */
-
-/*LINTLIBRARY*/
-
-int	opterr = 1;
-int	optind = 1;
-int	optopt;
-char	*optarg;
-
-static void _ERR(s,c,argv)
-char *s;
-int c;
-char *argv[];
-{
-	char errbuf[3];
-
-	if (opterr) {
-		errbuf[0] = c;
-		errbuf[1] = '\n';
-		(void) fprintf(stderr, "%s", argv[0]);
-		(void) fprintf(stderr, "%s", s);
-		(void) fprintf(stderr, "%s", errbuf);
-	}
-}
-
-int getopt(argc, argv, opts)
-int	argc;
-char	**argv, *opts;
-{
-	static int sp = 1;
-	register int c;
-	register char *cp;
-
-	if(sp == 1)
-		if(optind >= argc ||
-		   argv[optind][0] != '-' || argv[optind][1] == '\0')
-			return(EOF);
-		else if(strcmp(argv[optind], "--") == 0) {
-			optind++;
-			return(EOF);
-		}
-	optopt = c = argv[optind][sp];
-	if(c == ':' || (cp=strchr(opts, c)) == NULL) {
-		_ERR(": illegal option -- ", c, argv);
-		if(argv[optind][++sp] == '\0') {
-			optind++;
-			sp = 1;
-		}
-		return('?');
-	}
-	if(*++cp == ':') {
-		if(argv[optind][sp+1] != '\0')
-			optarg = &argv[optind++][sp+1];
-		else if(++optind >= argc) {
-			_ERR(": option requires an argument -- ", c, argv);
-			sp = 1;
-			return('?');
-		} else
-			optarg = argv[optind++];
-		sp = 1;
-	} else {
-		if(argv[optind][++sp] == '\0') {
-			sp = 1;
-			optind++;
-		}
-		optarg = NULL;
-	}
-	return(c);
-}
-
-#endif	/* !unix && !xenix */

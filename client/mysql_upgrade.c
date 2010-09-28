@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "client_priv.h"
 #include <sslopt-vars.h>
@@ -56,8 +56,6 @@ static char **defaults_argv;
 static my_bool not_used; /* Can't use GET_BOOL without a value pointer */
 
 static my_bool opt_write_binlog;
-
-#include <help_start.h>
 
 static struct my_option my_long_options[]=
 {
@@ -139,8 +137,6 @@ static struct my_option my_long_options[]=
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-#include <help_end.h>
-
 
 static void free_used_memory(void)
 {
@@ -212,6 +208,9 @@ static void add_one_option(DYNAMIC_STRING* ds,
     switch (opt->var_type & GET_TYPE_MASK) {
     case GET_STR:
       arg= argument;
+      break;
+    case GET_BOOL:
+      arg= (*(my_bool *)opt->value) ? "1" : "0";
       break;
     default:
       die("internal error at %s: %d",__FILE__, __LINE__);
@@ -600,7 +599,10 @@ static int upgrade_already_done(void)
 
   my_fclose(in, MYF(0));
 
-  return (strncmp(buf, MYSQL_SERVER_VERSION,
+  if (!res)
+    return 0; /* Could not read from file => not sure */
+
+  return (strncmp(res, MYSQL_SERVER_VERSION,
                   sizeof(MYSQL_SERVER_VERSION)-1)==0);
 }
 
@@ -757,17 +759,35 @@ static void print_line(char* line)
 static int run_sql_fix_privilege_tables(void)
 {
   int found_real_errors= 0;
+  const char **query_ptr;
+  DYNAMIC_STRING ds_script;
   DYNAMIC_STRING ds_result;
   DBUG_ENTER("run_sql_fix_privilege_tables");
+
+  if (init_dynamic_string(&ds_script, "", 65536, 1024))
+    die("Out of memory");
 
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
   verbose("Running 'mysql_fix_privilege_tables'...");
-  run_query(mysql_fix_privilege_tables,
+
+  /*
+    Individual queries can not be executed independently by invoking
+    a forked mysql client, because the script uses session variables
+    and prepared statements.
+  */
+  for ( query_ptr= &mysql_fix_privilege_tables[0];
+        *query_ptr != NULL;
+        query_ptr++
+      )
+  {
+    dynstr_append(&ds_script, *query_ptr);
+  }
+
+  run_query(ds_script.str,
             &ds_result, /* Collect result */
             TRUE);
-
   {
     /*
       Scan each line of the result for real errors
@@ -792,6 +812,7 @@ static int run_sql_fix_privilege_tables(void)
   }
 
   dynstr_free(&ds_result);
+  dynstr_free(&ds_script);
   return found_real_errors;
 }
 
@@ -809,9 +830,6 @@ int main(int argc, char **argv)
   char self_name[FN_REFLEN];
 
   MY_INIT(argv[0]);
-#ifdef __NETWARE__
-  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-#endif
 
 #if __WIN__
   if (GetModuleFileName(NULL, self_name, FN_REFLEN) == 0)

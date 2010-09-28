@@ -200,7 +200,7 @@ if (`SELECT $CRC_ARG_type = 1`) {
 if (`SELECT $CRC_ARG_type = 2`) {
   # It will be unsafe to call this procedure.
   --let $CRC_name= proc_$CRC_ARG_level
-  --let $CRC_create= CREATE PROCEDURE $CRC_name() BEGIN INSERT INTO ta$CRC_ARG_level VALUES (47); $CRC_ARG_stmt_sidef; END
+  --let $CRC_create= CREATE PROCEDURE $CRC_name() BEGIN $CRC_ARG_stmt_sidef; INSERT INTO ta$CRC_ARG_level VALUES (47); END
   --let $CRC_RET_stmt_sidef= CALL $CRC_name()
   --let $CRC_RET_value=
   --let $CRC_RET_sel_retval=
@@ -344,18 +344,9 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
   if (`SELECT '$event_type' != 'Table_map'`) {
     --enable_query_log
     --echo ******** Failure! Event number 3 was a '$event_type', not a 'Table_map'. ********
-
-    # Currently, there is a bug causing some statements to be logged
-    # partially in statement format. Hence, we don't fail here, we
-    # just print the events (masking out nondeterministic components
-    # of the output) and continue. When binloggging works perfectly,
-    # we should instead execute:
-    #--enable_query_log
-    #SHOW BINLOG EVENTS;
-    #--die Wrong events in binlog.
-
-    --source include/show_binlog_events.inc
-    --disable_query_log
+    SHOW WARNINGS;
+    SHOW BINLOG EVENTS;
+    --die Wrong events in binlog.
   }
   SET binlog_format = STATEMENT;
 

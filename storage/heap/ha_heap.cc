@@ -112,7 +112,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     create_info.pin_share= TRUE;
 
     rc= heap_create(name, &create_info, &internal_share, &created_new_share);
-    my_free((uchar*) create_info.keydef, MYF(0));
+    my_free(create_info.keydef);
     if (rc)
       goto end;
 
@@ -390,7 +390,7 @@ int ha_heap::rnd_pos(uchar * buf, uchar *pos)
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        FALSE);
   ha_statistic_increment(&SSV::ha_read_rnd_count);
-  memcpy_fixed((char*) &heap_position, pos, sizeof(HEAP_PTR));
+  memcpy(&heap_position, pos, sizeof(HEAP_PTR));
   error=heap_rrnd(file, buf, heap_position);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_READ_ROW_DONE(error);
@@ -654,7 +654,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
 				       parts * sizeof(HA_KEYSEG),
 				       MYF(MY_WME))))
     return my_errno;
-  seg= my_reinterpret_cast(HA_KEYSEG*) (keydef + keys);
+  seg= reinterpret_cast<HA_KEYSEG*>(keydef + keys);
   for (key= 0; key < keys; key++)
   {
     KEY *pos= table_arg->key_info+key;
@@ -764,7 +764,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
   error= heap_create(name, &hp_create_info, &internal_share, &created);
-  my_free((uchar*) hp_create_info.keydef, MYF(0));
+  my_free(hp_create_info.keydef);
   DBUG_ASSERT(file == 0);
   return (error);
 }

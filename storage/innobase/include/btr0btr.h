@@ -130,7 +130,7 @@ btr_page_get(
 Gets the index id field of a page.
 @return	index id */
 UNIV_INLINE
-dulint
+index_id_t
 btr_page_get_index_id(
 /*==================*/
 	const page_t*	page);	/*!< in: index page */
@@ -226,7 +226,7 @@ btr_create(
 	ulint		space,	/*!< in: space where created */
 	ulint		zip_size,/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	dulint		index_id,/*!< in: index id */
+	index_id_t	index_id,/*!< in: index id */
 	dict_index_t*	index,	/*!< in: index */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /************************************************************//**

@@ -145,7 +145,7 @@ uchar *hp_free_level(HP_BLOCK *block, uint level, HP_PTRS *pos, uchar *last_pos)
   }
   if ((uchar*) pos != last_pos)
   {
-    my_free((uchar*) pos,MYF(0));
+    my_free(pos);
     return last_pos;
   }
   return next_ptr;			/* next memory position */

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -32,7 +32,6 @@
 #include "rpl_mi.h"
 #include "rpl_rli.h"
 #include "rpl_filter.h"
-#include "repl_failsafe.h"
 #include "transaction.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
@@ -82,7 +81,6 @@ ulonglong relay_log_space_limit = 0;
 */
 
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
-int events_till_abort = -1;
 
 static pthread_key(Master_info*, RPL_MASTER_INFO);
 
@@ -799,17 +797,6 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 }
 
 
-#ifdef NOT_USED_YET
-static int end_slave_on_walk(Master_info* mi, uchar* /*unused*/)
-{
-  DBUG_ENTER("end_slave_on_walk");
-
-  end_master_info(mi);
-  DBUG_RETURN(0);
-}
-#endif
-
-
 /*
   Release slave threads at time of executing shutdown.
 
@@ -1050,6 +1037,25 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   DBUG_RETURN(1);
 }
 
+int init_longvar_from_file(long* var, IO_CACHE* f, long default_val)
+{
+  char buf[32];
+  DBUG_ENTER("init_longvar_from_file");
+
+
+  if (my_b_gets(f, buf, sizeof(buf)))
+  {
+    *var = atol(buf);
+    DBUG_RETURN(0);
+  }
+  else if (default_val)
+  {
+    *var = default_val;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
 {
   char buf[16];
@@ -1155,7 +1161,7 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f)
   }
 err:
   if (buf_act != buf)
-    my_free(buf_act, MYF(0));
+    my_free(buf_act);
   DBUG_RETURN(ret);
 }
 
@@ -1181,12 +1187,20 @@ bool is_network_error(uint errorno)
   return FALSE;   
 }
 
+/**
+  Set user variables after connecting to the master.
+
+  @param  mysql MYSQL to request uuid from master.
+  @param  mi    Master_info to set master_uuid
+
+  @return 0: Success, 1: Fatal error, 2: Network error.
+ */
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
 {
   char query[256];
   int ret= 0;
 
-  my_sprintf(query, (query, "SET @slave_uuid= '%s'", server_uuid));
+  sprintf(query, "SET @slave_uuid= '%s'", server_uuid);
   if (mysql_real_query(mysql, query, strlen(query))
       && !check_io_slave_killed(mi->io_thd, mi, NULL))
     goto err;
@@ -1198,13 +1212,19 @@ err:
   if (mysql_errno(mysql) && is_network_error(mysql_errno(mysql)))
   {
     mi->report(WARNING_LEVEL, mysql_errno(mysql),
-               "init-command:'%s' failed with error: %s", mysql_error(mysql));
+               "The initialization command '%s' failed with the following"
+               " error: '%s'.", query, mysql_error(mysql));
     ret= 2;
   }
   else
   {
+    char errmsg[512];
+    const char *errmsg_fmt=
+      "The slave I/O thread stops because a fatal error is encountered "
+      "when it tries to send query to master(query: %s).";
+    sprintf(errmsg, errmsg_fmt, query);
     mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
-               query);
+               errmsg);
     ret= 1;
   }
   mysql_free_result(mysql_store_result(mysql));
@@ -1253,8 +1273,10 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     else
     {
       if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[1]))
-        sql_print_warning("Master's UUID has changed, its old UUID is %s, "
-                          "the new one is %s", mi->master_uuid, master_row[1]);
+        sql_print_warning("The master's UUID has changed, although this should"
+                          " not happen unless you have changed it manually."
+                          " The old UUID was %s.",
+                          mi->master_uuid);
       strncpy(mi->master_uuid, master_row[1], UUID_LENGTH);
       mi->master_uuid[UUID_LENGTH]= 0;
     }
@@ -1272,7 +1294,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     {
       /* Fatal error */
       errmsg= "The slave I/O thread stops because a fatal error is encountered "
-        "when it try to get the value of SERVER_UUID variable from master.";
+        "when it tries to get the value of SERVER_UUID variable from master.";
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
                  errmsg);
       ret= 1;
@@ -1683,7 +1705,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
        the period is an ulonglong of nano-secs. 
     */
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
-    my_sprintf(query, (query, query_format, llbuf));
+    sprintf(query, query_format, llbuf);
 
     if (mysql_real_query(mysql, query, strlen(query)))
     {
@@ -2062,6 +2084,8 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_return_int("SQL_Delay", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("SQL_Remaining_Delay", 8, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
+  field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
+                                           MYSQL_TYPE_LONGLONG));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2179,11 +2203,30 @@ bool show_master_info(THD* thd, Master_info* mi)
     // Last_IO_Errno
     protocol->store(mi->last_error().number);
     // Last_IO_Error
-    protocol->store(mi->last_error().message, &my_charset_bin);
+    if (*mi->last_error().message != '\0')
+    {
+      String msg_buf;
+      msg_buf.append(mi->last_error().timestamp);
+      msg_buf.append(" ");
+      msg_buf.append(mi->last_error().message);
+      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
+    }
+    else
+      protocol->store(mi->last_error().message, &my_charset_bin);
     // Last_SQL_Errno
     protocol->store(mi->rli.last_error().number);
     // Last_SQL_Error
-    protocol->store(mi->rli.last_error().message, &my_charset_bin);
+    if (*mi->rli.last_error().message != '\0')
+    {
+      String msg_buf;
+      msg_buf.append(mi->rli.last_error().timestamp);
+      msg_buf.append(" ");
+      msg_buf.append(mi->rli.last_error().message);
+      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
+    }
+    else
+      protocol->store(mi->rli.last_error().message, &my_charset_bin);
+
     // Replicate_Ignore_Server_Ids
     {
       char buff[FN_REFLEN];
@@ -2194,17 +2237,17 @@ bool show_master_info(THD* thd, Master_info* mi)
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
         get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
-        slen= my_sprintf(sbuff, (sbuff, (i==0? "%lu" : ", %lu"), s_id));
+        slen= sprintf(sbuff, (i==0? "%lu" : ", %lu"), s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
           /*
             break the loop whenever remained space could not fit
             ellipses on the next cycle
           */
-          my_sprintf(buff + cur_len, (buff + cur_len, "..."));
+          sprintf(buff + cur_len, "...");
           break;
         }
-        cur_len += my_sprintf(buff + cur_len, (buff + cur_len, "%s", sbuff));
+        cur_len += sprintf(buff + cur_len, "%s", sbuff);
       }
       protocol->store(buff, &my_charset_bin);
     }
@@ -2228,6 +2271,8 @@ bool show_master_info(THD* thd, Master_info* mi)
       protocol->store_null();
     // Slave_SQL_Running_State
     protocol->store(slave_sql_running_state, &my_charset_bin);
+    // Master_Retry_Count
+    protocol->store((ulonglong) mi->retry_count);
 
     mysql_mutex_unlock(&mi->rli.err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -2654,7 +2699,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->variables.option_bits, OPTION_BEGIN),
-                      rli->last_event_start_time));
+                      (ulong) rli->last_event_start_time));
 
   /*
     Execute the event to change the database and update the binary
@@ -2994,11 +3039,11 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   @details Terminates current connection to master, sleeps for
   @c mi->connect_retry msecs and initiates new connection with
   @c safe_reconnect(). Variable pointed by @c retry_count is increased -
-  if it exceeds @c master_retry_count then connection is not re-established
+  if it exceeds @c mi->retry_count then connection is not re-established
   and function signals error.
   Unless @c suppres_warnings is TRUE, a warning is put in the server error log
   when reconnecting. The warning message and messages used to report errors
-  are taken from @c messages array. In case @c master_retry_count is exceeded,
+  are taken from @c messages array. In case @c mi->retry_count is exceeded,
   no messages are added to the log.
 
   @param[in]     thd                 Thread context.
@@ -3026,7 +3071,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   end_server(mysql);
   if ((*retry_count)++)
   {
-    if (*retry_count > master_retry_count)
+    if (*retry_count > mi->retry_count)
       return 1;                             // Don't retry forever
     safe_sleep(thd, mi->connect_retry, (CHECK_KILLED_FUNC) io_slave_killed,
                (void *) mi);
@@ -3435,11 +3480,8 @@ err:
   /* Forget the relay log's format */
   delete mi->rli.relay_log.description_event_for_queue;
   mi->rli.relay_log.description_event_for_queue= 0;
-  // TODO: make rpl_status part of Master_info
-  change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
-  close_thread_tables(thd);
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
@@ -3520,8 +3562,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
-  my_off_t saved_log_pos;
-  my_off_t saved_master_log_pos;
+  my_off_t UNINIT_VAR(saved_log_pos);
+  my_off_t UNINIT_VAR(saved_master_log_pos);
   my_off_t saved_skip= 0;
 
   Relay_log_info* rli = &((Master_info*)arg)->rli;
@@ -3670,11 +3712,8 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   mysql_mutex_lock(&rli->data_lock);
   if (rli->slave_skip_counter)
   {
-    char *pos;
-    pos= strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
-    pos= '\0';
-    pos= strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
-    pos= '\0';
+    strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
+    strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
     saved_log_pos= rli->group_relay_log_pos;
     saved_master_log_pos= rli->group_master_log_pos;
     saved_skip= rli->slave_skip_counter;
@@ -4087,7 +4126,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
                     errmsg);
-    my_free((char*) tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_buf);
     DBUG_RETURN(1);
   }
 
@@ -4124,7 +4163,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     mi->master_log_pos += inc_pos;
     DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
     mysql_mutex_unlock(&mi->data_lock);
-    my_free((char*)tmp_buf, MYF(0));
+    my_free(tmp_buf);
     DBUG_RETURN(error);
   }
   default:
@@ -4176,7 +4215,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
                     errmsg);
-    my_free((char*) tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_buf);
     DBUG_RETURN(1);
   }
   mysql_mutex_lock(&mi->data_lock);
@@ -4686,7 +4725,7 @@ static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi)
 
   IMPLEMENTATION
     Try to connect until successful or slave killed or we have retried
-    master_retry_count times
+    mi->retry_count times
 */
 
 static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
@@ -4694,7 +4733,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 {
   int slave_was_killed;
   int last_errno= -2;                           // impossible error
-  ulong err_count=0;
+  ulong err_count= 0;
   char llbuff[22];
   DBUG_ENTER("connect_to_master");
 
@@ -4732,8 +4771,20 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                              mi->port, 0, client_flag) == 0))
   {
     /* Don't repeat last error */
-    if ((int)mysql_errno(mysql) != last_errno)
+    if ((int)mysql_errno(mysql) != last_errno || 
+        DBUG_EVALUATE_IF("connect_to_master_always_report_error", 
+                         TRUE, FALSE))
     {
+      /*
+        TODO: would be great that when issuing SHOW SLAVE STATUS
+              the number of retries would actually show err_count
+              instead of mi->retry_count.
+
+              We can achieve that if we remove the 'if' above and 
+              replace mi->retry_count with err_count. However, we
+              would be adding an entry in the error log for each 
+              connection attempt (ie, for each retry).
+       */
       last_errno=mysql_errno(mysql);
       suppress_warnings= 0;
       mi->report(ERROR_LEVEL, last_errno,
@@ -4741,19 +4792,20 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                  " - retry-time: %d  retries: %lu",
                  (reconnect ? "reconnecting" : "connecting"),
                  mi->user, mi->host, mi->port,
-                 mi->connect_retry, master_retry_count);
+                 mi->connect_retry, 
+                 DBUG_EVALUATE_IF("connect_to_master_always_report_error", 
+                                  err_count+1, 
+                                  mi->retry_count));
     }
     /*
       By default we try forever. The reason is that failure will trigger
-      master election, so if the user did not set master_retry_count we
+      master election, so if the user did not set mi->retry_count we
       do not want to have election triggered on the first failure to
       connect
     */
-    if (++err_count == master_retry_count)
+    if (++err_count == mi->retry_count)
     {
       slave_was_killed=1;
-      if (reconnect)
-        change_rpl_status(RPL_ACTIVE_SLAVE,RPL_LOST_SOLDIER);
       break;
     }
     safe_sleep(thd,mi->connect_retry,(CHECK_KILLED_FUNC)io_slave_killed,
@@ -4774,7 +4826,6 @@ replication resumed in log '%s' at position %s", mi->user,
     }
     else
     {
-      change_rpl_status(RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE);
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
                         mi->user, mi->host, mi->port);
     }
@@ -4793,7 +4844,7 @@ replication resumed in log '%s' at position %s", mi->user,
 
   IMPLEMENTATION
     Try to connect until successful or slave killed or we have retried
-    master_retry_count times
+    mi->retry_count times
 */
 
 static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
@@ -5858,12 +5909,9 @@ bool change_master(THD* thd, Master_info* mi)
   /*
     Before processing the command, save the previous state.
   */
-  char *pos;
-  pos= strmake(saved_host, mi->host, HOSTNAME_LENGTH);
-  pos= '\0';
+  strmake(saved_host, mi->host, HOSTNAME_LENGTH);
   saved_port= mi->port;
-  pos= strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
-  pos= '\0';
+  strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
   saved_log_pos= mi->master_log_pos;
 
   /*
@@ -5903,6 +5951,8 @@ bool change_master(THD* thd, Master_info* mi)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
+  if (lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->retry_count = lex_mi->retry_count;
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
   else

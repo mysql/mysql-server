@@ -15,10 +15,6 @@
 
 /* Not MT-SAFE */
 
-#ifdef SAFEMALLOC			/* We don't need SAFEMALLOC here */
-#undef SAFEMALLOC
-#endif
-
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "mysys_err.h"

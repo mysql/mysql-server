@@ -89,23 +89,11 @@ typedef struct st_thr_lock_info
 {
   pthread_t thread;
   my_thread_id thread_id;
-  ulong n_cursors;
 } THR_LOCK_INFO;
-
-/*
-  Lock owner identifier. Globally identifies the lock owner within the
-  thread and among all the threads. The address of an instance of this
-  structure is used as id.
-*/
-
-typedef struct st_thr_lock_owner
-{
-  THR_LOCK_INFO *info;
-} THR_LOCK_OWNER;
 
 
 typedef struct st_thr_lock_data {
-  THR_LOCK_OWNER *owner;
+  THR_LOCK_INFO *owner;
   struct st_thr_lock_data *next,**prev;
   struct st_thr_lock *lock;
   mysql_cond_t *cond;
@@ -141,19 +129,18 @@ extern LIST *thr_lock_thread_list;
 extern mysql_mutex_t THR_LOCK_lock;
 
 my_bool init_thr_lock(void);		/* Must be called once/thread */
-#define thr_lock_owner_init(owner, info_arg) (owner)->info= (info_arg)
 void thr_lock_info_init(THR_LOCK_INFO *info);
 void thr_lock_init(THR_LOCK *lock);
 void thr_lock_delete(THR_LOCK *lock);
 void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
 			void *status_param);
 enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data,
-                                   THR_LOCK_OWNER *owner,
+                                   THR_LOCK_INFO *owner,
                                    enum thr_lock_type lock_type,
                                    ulong lock_wait_timeout);
 void thr_unlock(THR_LOCK_DATA *data);
 enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
-                                         uint count, THR_LOCK_OWNER *owner,
+                                         uint count, THR_LOCK_INFO *owner,
                                          ulong lock_wait_timeout);
 void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
 void
@@ -168,6 +155,8 @@ void    thr_downgrade_write_lock(THR_LOCK_DATA *data,
                                  enum thr_lock_type new_lock_type);
 my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data,
                                   ulong lock_wait_timeout);
+void thr_set_lock_wait_callback(void (*before_wait)(void),
+                                void (*after_wait)(void));
 #ifdef	__cplusplus
 }
 #endif

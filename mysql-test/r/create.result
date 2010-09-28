@@ -1,5 +1,6 @@
 drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
+drop view if exists v1;
 create table t1 (b char(0));
 insert into t1 values (""),(null);
 select * from t1;
@@ -264,15 +265,14 @@ create table if not exists t1 select 1,2;
 Warnings:
 Note	1050	Table 't1' already exists
 create table if not exists t1 select 1,2,3,4;
-ERROR 21S01: Column count doesn't match value count at row 1
+Warnings:
+Note	1050	Table 't1' already exists
 create table if not exists t1 select 1;
 Warnings:
 Note	1050	Table 't1' already exists
 select * from t1;
 1	2	3
 1	2	3
-0	1	2
-0	0	1
 drop table t1;
 flush status;
 create table t1 (a int not null, b int, primary key (a));
@@ -280,28 +280,21 @@ insert into t1 values (1,1);
 create table if not exists t1 select 2;
 Warnings:
 Note	1050	Table 't1' already exists
-Warning	1364	Field 'a' doesn't have a default value
 select * from t1;
 a	b
 1	1
-0	2
 create table if not exists t1 select 3 as 'a',4 as 'b';
 Warnings:
 Note	1050	Table 't1' already exists
-create table if not exists t1 select 3 as 'a',3 as 'b';
-ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 show warnings;
 Level	Code	Message
 Note	1050	Table 't1' already exists
-Error	1062	Duplicate entry '3' for key 'PRIMARY'
 show status like "Opened_tables";
 Variable_name	Value
 Opened_tables	2
 select * from t1;
 a	b
 1	1
-0	2
-3	4
 drop table t1;
 create table `t1 `(a int);
 ERROR 42000: Incorrect table name 't1 '
@@ -611,7 +604,7 @@ b
 drop table t1,t2;
 create table t1 (a int);
 create table t1 select * from t1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR 42S01: Table 't1' already exists
 create table t2 union = (t1) select * from t1;
 ERROR HY000: 'test.t2' is not BASE TABLE
 flush tables with read lock;
@@ -811,7 +804,8 @@ create table t1 (primary key(a)) select "b" as b;
 ERROR 42000: Key column 'a' doesn't exist in table
 create table t1 (a int);
 create table if not exists t1 select 1 as a, 2 as b;
-ERROR 21S01: Column count doesn't match value count at row 1
+Warnings:
+Note	1050	Table 't1' already exists
 drop table t1;
 create table t1 (primary key (a)) (select 1 as a) union all (select 1 as a);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
@@ -823,25 +817,14 @@ Warnings:
 Note	1050	Table 't1' already exists
 select * from t1;
 i
-1
 create table if not exists t1 select * from t1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+Warnings:
+Note	1050	Table 't1' already exists
 select * from t1;
 i
-1
+drop table t1;
 create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
-select * from t1;
-i
-1
-alter table t1 add primary key (i);
-create table if not exists t1 (select 2 as i) union all (select 2 as i);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
-select * from t1;
-i
-1
-2
-drop table t1;
 create temporary table t1 (j int);
 create table if not exists t1 select 1;
 select * from t1;
@@ -891,8 +874,6 @@ Warnings:
 Note	1050	Table 't2' already exists
 select * from t2;
 i
-1
-2
 1
 2
 unlock tables;
@@ -1561,6 +1542,7 @@ show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1586,11 +1568,9 @@ CREATE TABLE t1 (a INTEGER AUTO_INCREMENT PRIMARY KEY, b INTEGER NOT NULL);
 INSERT IGNORE INTO t1 (b) VALUES (5);
 CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
 SELECT a FROM t1;
-CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
-SELECT a FROM t1;
+INSERT INTO t2 SELECT a FROM t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
-SELECT a FROM t1;
+INSERT INTO t2 SELECT a FROM t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 DROP TABLE t1, t2;
 #
@@ -1620,7 +1600,7 @@ drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 't2'
 CREATE TABLE t2 (a int, b int, primary key (a));
-CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+INSERT INTO t2 select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
@@ -1633,13 +1613,7 @@ a	b
 1	1
 drop table t2;
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
-CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-SELECT * from t2;
-a	b
-1	1
-TRUNCATE table t2;
-INSERT INTO t2 select * from t1;
+INSERT INTO t2 SELECT * FROM t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
@@ -1964,11 +1938,7 @@ CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN 
 INSERT INTO t1 ( `int` ) VALUES (4 ),( 8 ),( 2 ) ; 
 END ; |
-CREATE TABLE IF NOT EXISTS t1 ( 
-`pk` INTEGER NOT NULL AUTO_INCREMENT , 
-`int` INTEGER ,
-PRIMARY KEY ( `pk` ) 
-) SELECT `pk` , `int_key` FROM B ;
+INSERT INTO t1 (pk, int_key) SELECT `pk` , `int_key` FROM B ;
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
 CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW 
 BEGIN 
@@ -2088,3 +2058,347 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 set @@sql_mode= @old_mode;
 drop tables t1, t2;
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int);
+INSERT INTO t1 VALUES (1), (1);
+INSERT INTO t2 VALUES (2), (2);
+CREATE VIEW v1 AS SELECT id FROM t2;
+CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
+Warnings:
+Note	1050	Table 'v1' already exists
+SHOW CREATE TABLE v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	latin1	latin1_swedish_ci
+SELECT * FROM t2;
+id
+2
+2
+SELECT * FROM v1;
+id
+2
+2
+DROP VIEW v1;
+CREATE TEMPORARY TABLE tt1 AS SELECT id FROM t2;
+CREATE TEMPORARY TABLE IF NOT EXISTS tt1(a int, b int) SELECT id, id FROM t1;
+Warnings:
+Note	1050	Table 'tt1' already exists
+SELECT * FROM t2;
+id
+2
+2
+SELECT * FROM tt1;
+id
+2
+2
+DROP TEMPORARY TABLE tt1;
+DROP TABLE t1, t2;
+#
+# WL#5370 "Changing 'CREATE TABLE IF NOT EXISTS ... SELECT'
+# behaviour.
+# 
+#
+# 1. Basic case: a base table.
+# 
+create table if not exists t1 (a int) select 1 as a;
+select * from t1;
+a
+1
+create table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+a
+1
+# Produces an essential warning ER_TABLE_EXISTS.
+create table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+# No new data in t1.
+select * from t1;
+a
+1
+drop table t1;
+# 
+# 2. A temporary table.
+#
+create temporary table if not exists t1 (a int) select 1 as a;
+select * from t1;
+a
+1
+create temporary table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+a
+1
+# An essential warning.
+create temporary table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+# No new data in t1.
+select * from t1;
+a
+1
+drop temporary table t1;
+# 
+# 3. Creating a base table in presence of a temporary table.
+#
+create table t1 (a int);
+# Create a view for convenience of querying t1 shadowed by a temp.
+create view v1 as select a from t1;
+drop table t1;
+create temporary table t1 (a int) select 1 as a;
+create table if not exists t1 (a int) select 2 as a;
+select * from t1;
+a
+1
+select * from v1;
+a
+2
+# Note: an essential warning.
+create table if not exists t1 (a int) select 3 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+1
+select * from v1;
+a
+2
+drop temporary table t1;
+select * from t1;
+a
+2
+drop view v1;
+drop table t1;
+# 
+# 4. Creating a temporary table in presence of a base table.
+#
+create table t1 (a int) select 1 as a;
+create temporary table if not exists t1 select 2 as a;
+select * from t1;
+a
+2
+# Note: an essential warning.
+create temporary table if not exists t1 select 3 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+2
+drop temporary table t1;
+select * from t1;
+a
+1
+drop table t1;
+#
+# 5. Creating a base table in presence of an updatable view.
+# 
+create table t2 (a int unique);
+create view t1 as select a from t2;
+insert into t1 (a) values (1);
+create table t1 (a int);
+ERROR 42S01: Table 't1' already exists
+# Note: an essential warning.
+create table if not exists t1 (a int);
+Warnings:
+Note	1050	Table 't1' already exists
+create table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+a
+1
+# Note: an essential warning.
+create table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+1
+select * from t2;
+a
+1
+create temporary table if not exists t1 (a int) select 3 as a;
+select * from t1;
+a
+3
+select * from t2;
+a
+1
+# Note: an essential warning.
+create temporary table if not exists t1 (a int) select 4 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+3
+select * from t2;
+a
+1
+drop temporary table t1;
+#
+# Repeating the test with a non-updatable view.
+#
+drop view t1;
+create view t1 as select a + 5 as a from t2;
+insert into t1 (a) values (1);
+ERROR HY000: The target table t1 of the INSERT is not insertable-into
+update t1 set a=3 where a=2;
+ERROR HY000: Column 'a' is not updatable
+create table t1 (a int);
+ERROR 42S01: Table 't1' already exists
+# Note: an essential warning.
+create table if not exists t1 (a int);
+Warnings:
+Note	1050	Table 't1' already exists
+create table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+a
+6
+# Note: an essential warning.
+create table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+6
+select * from t2;
+a
+1
+create temporary table if not exists t1 (a int) select 3 as a;
+select * from t1;
+a
+3
+select * from t2;
+a
+1
+# Note: an essential warning.
+create temporary table if not exists t1 (a int) select 4 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+3
+select * from t2;
+a
+1
+drop temporary table t1;
+drop view t1;
+drop table t2;
+#
+# Repeating the test with a view select a constant number
+#
+create view t1 as select 1 as a;
+insert into t1 (a) values (1);
+ERROR HY000: The target table t1 of the INSERT is not insertable-into
+update t1 set a=3 where a=2;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+create table t1 (a int);
+ERROR 42S01: Table 't1' already exists
+# Note: an essential warning.
+create table if not exists t1 (a int);
+Warnings:
+Note	1050	Table 't1' already exists
+create table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+a
+1
+# Note: an essential warning.
+create table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+1
+create temporary table if not exists t1 (a int) select 3 as a;
+select * from t1;
+a
+3
+# Note: an essential warning.
+create temporary table if not exists t1 (a int) select 4 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+3
+drop temporary table t1;
+drop view t1;
+#
+# 6. Test of unique_table().
+#
+create table t1 (a int) select 1 as a;
+create temporary table if not exists t1 (a int) select * from t1;
+create temporary table if not exists t1 (a int) select * from t1;
+ERROR HY000: Can't reopen table: 't1'
+select * from t1;
+a
+1
+drop temporary table t1;
+select * from t1;
+a
+1
+drop table t1;
+create temporary table t1 (a int) select 1 as a;
+create table if not exists t1 (a int) select * from t1;
+create table if not exists t1 (a int) select * from t1;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+1
+drop temporary table t1;
+select * from t1;
+a
+1
+drop table t1;
+create table if not exists t1 (a int) select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+#
+# 7. Test of non-matching columns, REPLACE and IGNORE.
+#
+create table t1 (a int) select 1 as b, 2 as c;
+select * from t1;
+a	b	c
+NULL	1	2
+drop table t1;
+create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'c' at row 1
+select * from t1;
+a	b	c
+NULL	0000-00-00	0000-00-00
+drop table t1;
+set @@session.sql_mode='STRICT_ALL_TABLES';
+create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table if not exists t1 (a int, b date, c date) 
+replace select 1 as b, 2 as c;
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table if not exists t1 (a int, b date, c date) 
+ignore select 1 as b, 2 as c;
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'c' at row 1
+select * from t1;
+a	b	c
+NULL	0000-00-00	0000-00-00
+set @@session.sql_mode=default;
+drop table t1;
+create table if not exists t1 (a int unique, b int)
+replace select 1 as a, 1 as b union select 1 as a, 2 as b;
+select * from t1;
+a	b
+1	2
+drop table t1;
+create table if not exists t1 (a int unique, b int)
+ignore select 1 as a, 1 as b union select 1 as a, 2 as b;
+select * from t1;
+a	b
+1	1
+drop table t1;
+#

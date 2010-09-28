@@ -19,10 +19,6 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <signal.h>
-#ifdef VMS
-#include <my_static.c>
-#include <m_ctype.h>
-#endif
 #ifdef __WIN__
 #ifdef _MSC_VER
 #include <locale.h>
@@ -36,11 +32,9 @@ static my_bool win32_init_tcp_ip();
 #else
 #define my_win_init()
 #endif
-#ifdef __NETWARE__
-static void netware_init();
-#else
-#define netware_init()
-#endif
+
+#define SCALE_SEC       100
+#define SCALE_USEC      10000
 
 my_bool my_init_done= 0;
 /** True if @c my_basic_init() has been called. */
@@ -84,14 +78,12 @@ my_bool my_basic_init(void)
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
 
-#ifndef VMS
   /* Default creation of new files */
   if ((str= getenv("UMASK")) != 0)
     my_umask= (int) (atoi_octal(str) | 0600);
   /* Default creation of new dir's */
   if ((str= getenv("UMASK_DIR")) != 0)
     my_umask_dir= (int) (atoi_octal(str) | 0700);
-#endif
 
   init_glob_errs();
 
@@ -109,7 +101,6 @@ my_bool my_basic_init(void)
 #if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   fastmutex_global_init();              /* Must be called early */
 #endif
-  netware_init();
 #ifdef THREAD
 #if defined(HAVE_PTHREAD_INIT)
   pthread_init();			/* Must be called before DBUG_ENTER */
@@ -141,6 +132,7 @@ my_bool my_init(void)
 {
   if (my_init_done)
     return 0;
+
   my_init_done= 1;
 
   if (my_basic_init())
@@ -149,17 +141,11 @@ my_bool my_init(void)
 #ifdef THREAD
   if (my_thread_global_init())
     return 1;
-#if !defined( __WIN__) && !defined(__NETWARE__)
-  sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
-#endif
 #endif /* THREAD */
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
     my_win_init();
-#ifdef VMS
-    init_ctype();                       /* Stupid linker don't link _ctype.c */
-#endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
 #ifdef __WIN__
     win32_init_tcp_ip();
@@ -238,12 +224,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 	      rus.ru_msgsnd, rus.ru_msgrcv, rus.ru_nsignals,
 	      rus.ru_nvcsw, rus.ru_nivcsw);
 #endif
-#if defined(__NETWARE__) && !defined(__WIN__)
-    fprintf(info_file,"\nRun time: %.1f\n",(double) clock()/CLOCKS_PER_SEC);
-#endif
-#if defined(SAFEMALLOC)
-    TERMINATE(stderr, (infoflag & MY_GIVE_INFO) != 0);
-#elif defined(__WIN__) && defined(_MSC_VER)
+#if defined(__WIN__) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
    _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
    _CrtSetReportMode( _CRT_ERROR, _CRTDBG_MODE_FILE );
@@ -253,10 +234,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
    _CrtCheckMemory();
    _CrtDumpMemoryLeaks();
 #endif
-  }
-  else if (infoflag & MY_CHECK_ERROR)
-  {
-    TERMINATE(stderr, 0);		/* Print memory leaks on screen */
   }
 
   if (!(infoflag & MY_DONT_FREE_DBUG))
@@ -280,6 +257,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   if (have_tcpip)
     WSACleanup();
 #endif /* __WIN__ */
+
   my_init_done=0;
   my_basic_init_done= 0;
 } /* my_end */
@@ -499,7 +477,7 @@ static my_bool win32_init_tcp_ip()
 {
   if (win32_have_tcpip())
   {
-    WORD wVersionRequested = MAKEWORD( 2, 0 );
+    WORD wVersionRequested = MAKEWORD( 2, 2 );
     WSADATA wsaData;
  	/* Be a good citizen: maybe another lib has already initialised
  		sockets, so dont clobber them unless necessary */
@@ -527,60 +505,6 @@ static my_bool win32_init_tcp_ip()
   return(0);
 }
 #endif /* __WIN__ */
-
-
-#ifdef __NETWARE__
-/*
-  Basic initialisation for netware
-*/
-
-static void netware_init()
-{
-  char cwd[PATH_MAX], *name;
-
-  DBUG_ENTER("netware_init");
-
-  /* init only if we are not a client library */
-  if (my_progname)
-  {
-#if SUPPORTED_BY_LIBC   /* Removed until supported in Libc */
-    struct termios tp;
-    /* Disable control characters */
-    tcgetattr(STDIN_FILENO, &tp);
-    tp.c_cc[VINTR] = _POSIX_VDISABLE;
-    tp.c_cc[VEOF] = _POSIX_VDISABLE;
-    tp.c_cc[VSUSP] = _POSIX_VDISABLE;
-    tcsetattr(STDIN_FILENO, TCSANOW, &tp);
-#endif /* SUPPORTED_BY_LIBC */
-
-    /* With stdout redirection */
-    if (!isatty(STDOUT_FILENO))
-    {
-      setscreenmode(SCR_AUTOCLOSE_ON_EXIT);      /* auto close the screen */
-    }
-    else
-    {
-      setscreenmode(SCR_NO_MODE);		/* keep the screen up */
-    }
-
-    /* Parse program name and change to base format */
-    name= (char*) my_progname;
-    for (; *name; name++)
-    {
-      if (*name == '\\')
-      {
-        *name = '/';
-      }
-      else
-      {
-        *name = tolower(*name);
-      }
-    }
-  }
-
-  DBUG_VOID_RETURN;
-}
-#endif /* __NETWARE__ */
 
 #ifdef HAVE_PSI_INTERFACE
 

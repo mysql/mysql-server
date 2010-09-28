@@ -55,6 +55,7 @@ Created 7/19/1997 Heikki Tuuri
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "que0que.h"
+#include "srv0start.h" /* srv_shutdown_state */
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
 
@@ -395,8 +396,10 @@ ibuf_tree_root_get(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	buf_block_t*	block;
+	page_t*		root;
 
 	ut_ad(ibuf_inside());
+	ut_ad(mutex_own(&ibuf_mutex));
 
 	mtr_x_lock(dict_index_get_lock(ibuf->index), mtr);
 
@@ -405,7 +408,13 @@ ibuf_tree_root_get(
 
 	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 
-	return(buf_block_get_frame(block));
+	root = buf_block_get_frame(block);
+
+	ut_ad(page_get_space_id(root) == IBUF_SPACE_ID);
+	ut_ad(page_get_page_no(root) == FSP_IBUF_TREE_ROOT_PAGE_NO);
+	ut_ad(ibuf->empty == (page_get_n_recs(root) == 0));
+
+	return(root);
 }
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -482,8 +491,6 @@ ibuf_size_update(
 
 	/* the '1 +' is the ibuf header page */
 	ibuf->size = ibuf->seg_size - (1 + ibuf->free_list_len);
-
-	ibuf->empty = page_get_n_recs(root) == 0;
 }
 
 /******************************************************************//**
@@ -554,6 +561,7 @@ ibuf_init_at_db_start(void)
 	ibuf_size_update(root, &mtr);
 	mutex_exit(&ibuf_mutex);
 
+	ibuf->empty = (page_get_n_recs(root) == 0);
 	mtr_commit(&mtr);
 
 	ibuf_exit();
@@ -565,7 +573,7 @@ ibuf_init_at_db_start(void)
 
 	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
 
-	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, IBUF_SPACE_ID);
+	table->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
 
 	dict_table_add_to_cache(table, heap);
 	mem_heap_free(heap);
@@ -576,7 +584,7 @@ ibuf_init_at_db_start(void)
 
 	dict_mem_index_add_field(index, "DUMMY_COLUMN", 0);
 
-	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, IBUF_SPACE_ID);
+	index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
 
 	error = dict_index_add_to_cache(table, index,
 					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);
@@ -1350,10 +1358,18 @@ ibuf_add_ops(
 	const ulint*	ops)	/*!< in: operation counts */
 
 {
+#ifndef HAVE_ATOMIC_BUILTINS
+	ut_ad(mutex_own(&ibuf_mutex));
+#endif /* !HAVE_ATOMIC_BUILTINS */
+
 	ulint	i;
 
 	for (i = 0; i < IBUF_OP_COUNT; i++) {
+#ifdef HAVE_ATOMIC_BUILTINS
+		os_atomic_increment_ulint(&arr[i], ops[i]);
+#else /* HAVE_ATOMIC_BUILTINS */
 		arr[i] += ops[i];
+#endif /* HAVE_ATOMIC_BUILTINS */
 	}
 }
 
@@ -2017,9 +2033,9 @@ ibuf_data_too_much_free(void)
 /*********************************************************************//**
 Allocates a new page from the ibuf file segment and adds it to the free
 list.
-@return	DB_SUCCESS, or DB_STRONG_FAIL if no space left */
+@return	TRUE on success, FALSE if no space left */
 static
-ulint
+ibool
 ibuf_add_free_page(void)
 /*====================*/
 {
@@ -2055,10 +2071,10 @@ ibuf_add_free_page(void)
 		header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER, 0, FSP_UP,
 		&mtr);
 
-	if (page_no == FIL_NULL) {
+	if (UNIV_UNLIKELY(page_no == FIL_NULL)) {
 		mtr_commit(&mtr);
 
-		return(DB_STRONG_FAIL);
+		return(FALSE);
 	}
 
 	{
@@ -2096,16 +2112,16 @@ ibuf_add_free_page(void)
 	bitmap_page = ibuf_bitmap_get_map_page(
 		IBUF_SPACE_ID, page_no, zip_size, &mtr);
 
+	mutex_exit(&ibuf_mutex);
+
 	ibuf_bitmap_page_set_bits(
 		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, TRUE, &mtr);
 
 	mtr_commit(&mtr);
 
-	mutex_exit(&ibuf_mutex);
-
 	ibuf_exit();
 
-	return(DB_SUCCESS);
+	return(TRUE);
 }
 
 /*********************************************************************//**
@@ -2135,19 +2151,16 @@ ibuf_remove_free_page(void)
 	header_page = ibuf_header_page_get(&mtr);
 
 	/* Prevent pessimistic inserts to insert buffer trees for a while */
-	mutex_enter(&ibuf_pessimistic_insert_mutex);
-
 	ibuf_enter();
-
+	mutex_enter(&ibuf_pessimistic_insert_mutex);
 	mutex_enter(&ibuf_mutex);
 
 	if (!ibuf_data_too_much_free()) {
 
 		mutex_exit(&ibuf_mutex);
+		mutex_exit(&ibuf_pessimistic_insert_mutex);
 
 		ibuf_exit();
-
-		mutex_exit(&ibuf_pessimistic_insert_mutex);
 
 		mtr_commit(&mtr);
 
@@ -2158,6 +2171,8 @@ ibuf_remove_free_page(void)
 
 	root = ibuf_tree_root_get(&mtr2);
 
+	mutex_exit(&ibuf_mutex);
+
 	page_no = flst_get_last(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 				&mtr2).page;
 
@@ -2166,7 +2181,6 @@ ibuf_remove_free_page(void)
 	is a level 2 page. */
 
 	mtr_commit(&mtr2);
-	mutex_exit(&ibuf_mutex);
 
 	ibuf_exit();
 
@@ -2209,16 +2223,18 @@ ibuf_remove_free_page(void)
 	flst_remove(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 		    page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE, &mtr);
 
+	mutex_exit(&ibuf_pessimistic_insert_mutex);
+
 	ibuf->seg_size--;
 	ibuf->free_list_len--;
-
-	mutex_exit(&ibuf_pessimistic_insert_mutex);
 
 	/* Set the bit indicating that this page is no more an ibuf tree page
 	(level 2 page) */
 
 	bitmap_page = ibuf_bitmap_get_map_page(
 		IBUF_SPACE_ID, page_no, zip_size, &mtr);
+
+	mutex_exit(&ibuf_mutex);
 
 	ibuf_bitmap_page_set_bits(
 		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, FALSE, &mtr);
@@ -2227,8 +2243,6 @@ ibuf_remove_free_page(void)
 	buf_page_set_file_page_was_freed(IBUF_SPACE_ID, page_no);
 #endif
 	mtr_commit(&mtr);
-
-	mutex_exit(&ibuf_mutex);
 
 	ibuf_exit();
 }
@@ -2270,16 +2284,15 @@ ibuf_free_excess_pages(void)
 
 	for (i = 0; i < 4; i++) {
 
+		ibool	too_much_free;
+
 		mutex_enter(&ibuf_mutex);
+		too_much_free = ibuf_data_too_much_free();
+		mutex_exit(&ibuf_mutex);
 
-		if (!ibuf_data_too_much_free()) {
-
-			mutex_exit(&ibuf_mutex);
-
+		if (!too_much_free) {
 			return;
 		}
-
-		mutex_exit(&ibuf_mutex);
 
 		ibuf_remove_free_page();
 	}
@@ -2476,18 +2489,20 @@ ibuf_contract_ext(
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
 	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
-	ulint		n_stored;
 	ulint		sum_sizes;
 	mtr_t		mtr;
 
 	*n_pages = 0;
 	ut_ad(!ibuf_inside());
 
-	mutex_enter(&ibuf_mutex);
+	/* We perform a dirty read of ibuf->empty, without latching
+	the insert buffer root page. We trust this dirty read except
+	when a slow shutdown is being executed. During a slow
+	shutdown, the insert buffer merge must be completed. */
 
-	if (ibuf->empty) {
+	if (UNIV_UNLIKELY(ibuf->empty)
+	    && UNIV_LIKELY(!srv_shutdown_state)) {
 ibuf_is_empty:
-		mutex_exit(&ibuf_mutex);
 
 #if 0 /* TODO */
 		if (srv_shutdown_state) {
@@ -2519,13 +2534,14 @@ ibuf_is_empty:
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 
 	if (page_get_n_recs(btr_pcur_get_page(&pcur)) == 0) {
-		/* When the ibuf tree is emptied completely, the last record
-		is removed using an optimistic delete and ibuf_size_update
-		is not called, causing ibuf->empty to remain FALSE. If we do
-		not reset it to TRUE here then database shutdown will hang
-		in the loop in ibuf_contract_for_n_pages. */
-
-		ibuf->empty = TRUE;
+		/* If a B-tree page is empty, it must be the root page
+		and the whole B-tree must be empty. InnoDB does not
+		allow empty B-tree pages other than the root. */
+		ut_ad(ibuf->empty);
+		ut_ad(page_get_space_id(btr_pcur_get_page(&pcur))
+		      == IBUF_SPACE_ID);
+		ut_ad(page_get_page_no(btr_pcur_get_page(&pcur))
+		      == FSP_IBUF_TREE_ROOT_PAGE_NO);
 
 		ibuf_exit();
 
@@ -2535,14 +2551,12 @@ ibuf_is_empty:
 		goto ibuf_is_empty;
 	}
 
-	mutex_exit(&ibuf_mutex);
-
 	sum_sizes = ibuf_get_merge_page_nos(TRUE, btr_pcur_get_rec(&pcur),
 					    space_ids, space_versions,
-					    page_nos, &n_stored);
+					    page_nos, n_pages);
 #if 0 /* defined UNIV_IBUF_DEBUG */
 	fprintf(stderr, "Ibuf contract sync %lu pages %lu volume %lu\n",
-		sync, n_stored, sum_sizes);
+		sync, *n_pages, sum_sizes);
 #endif
 	ibuf_exit();
 
@@ -2550,8 +2564,7 @@ ibuf_is_empty:
 	btr_pcur_close(&pcur);
 
 	buf_read_ibuf_merge_pages(sync, space_ids, space_versions, page_nos,
-				  n_stored);
-	*n_pages = n_stored;
+				  *n_pages);
 
 	return(sum_sizes + 1);
 }
@@ -2621,33 +2634,33 @@ ibuf_contract_after_insert(
 	ibool	sync;
 	ulint	sum_sizes;
 	ulint	size;
+	ulint	max_size;
 
-	mutex_enter(&ibuf_mutex);
+	/* Perform dirty reads of ibuf->size and ibuf->max_size, to
+	reduce ibuf_mutex contention. ibuf->max_size remains constant
+	after ibuf_init_at_db_start(), but ibuf->size should be
+	protected by ibuf_mutex. Given that ibuf->size fits in a
+	machine word, this should be OK; at worst we are doing some
+	excessive ibuf_contract() or occasionally skipping a
+	ibuf_contract(). */
+	size = ibuf->size;
+	max_size = ibuf->max_size;
 
-	if (ibuf->size < ibuf->max_size + IBUF_CONTRACT_ON_INSERT_NON_SYNC) {
-		mutex_exit(&ibuf_mutex);
-
+	if (size < max_size + IBUF_CONTRACT_ON_INSERT_NON_SYNC) {
 		return;
 	}
 
-	sync = FALSE;
-
-	if (ibuf->size >= ibuf->max_size + IBUF_CONTRACT_ON_INSERT_SYNC) {
-
-		sync = TRUE;
-	}
-
-	mutex_exit(&ibuf_mutex);
+	sync = (size >= max_size + IBUF_CONTRACT_ON_INSERT_SYNC);
 
 	/* Contract at least entry_size many bytes */
 	sum_sizes = 0;
 	size = 1;
 
-	while ((size > 0) && (sum_sizes < entry_size)) {
+	do {
 
 		size = ibuf_contract(sync);
 		sum_sizes += size;
-	}
+	} while (size > 0 && sum_sizes < entry_size);
 }
 
 /*********************************************************************//**
@@ -3265,7 +3278,7 @@ ibuf_set_entry_counter(
 /*********************************************************************//**
 Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible.
-@return	DB_SUCCESS, DB_FAIL, DB_STRONG_FAIL */
+@return	DB_SUCCESS, DB_STRONG_FAIL or other error */
 static
 ulint
 ibuf_insert_low(
@@ -3295,6 +3308,7 @@ ibuf_insert_low(
 	rec_t*		ins_rec;
 	ibool		old_bit_value;
 	page_t*		bitmap_page;
+	buf_block_t*	block;
 	page_t*		root;
 	ulint		err;
 	ibool		do_merge;
@@ -3315,13 +3329,17 @@ ibuf_insert_low(
 
 	do_merge = FALSE;
 
-	mutex_enter(&ibuf_mutex);
-
+	/* Perform dirty reads of ibuf->size and ibuf->max_size, to
+	reduce ibuf_mutex contention. ibuf->max_size remains constant
+	after ibuf_init_at_db_start(), but ibuf->size should be
+	protected by ibuf_mutex. Given that ibuf->size fits in a
+	machine word, this should be OK; at worst we are doing some
+	excessive ibuf_contract() or occasionally skipping a
+	ibuf_contract(). */
 	if (ibuf->size >= ibuf->max_size + IBUF_CONTRACT_DO_NOT_INSERT) {
 		/* Insert buffer is now too big, contract it but do not try
 		to insert */
 
-		mutex_exit(&ibuf_mutex);
 
 #ifdef UNIV_IBUF_DEBUG
 		fputs("Ibuf too big\n", stderr);
@@ -3330,40 +3348,6 @@ ibuf_insert_low(
 		ibuf_contract(TRUE);
 
 		return(DB_STRONG_FAIL);
-	}
-
-	mutex_exit(&ibuf_mutex);
-
-	if (mode == BTR_MODIFY_TREE) {
-		mutex_enter(&ibuf_pessimistic_insert_mutex);
-
-		ibuf_enter();
-
-		mutex_enter(&ibuf_mutex);
-
-		while (!ibuf_data_enough_free_for_insert()) {
-
-			mutex_exit(&ibuf_mutex);
-
-			ibuf_exit();
-
-			mutex_exit(&ibuf_pessimistic_insert_mutex);
-
-			err = ibuf_add_free_page();
-
-			if (err == DB_STRONG_FAIL) {
-
-				return(err);
-			}
-
-			mutex_enter(&ibuf_pessimistic_insert_mutex);
-
-			ibuf_enter();
-
-			mutex_enter(&ibuf_mutex);
-		}
-	} else {
-		ibuf_enter();
 	}
 
 	heap = mem_heap_create(512);
@@ -3383,6 +3367,31 @@ ibuf_insert_low(
 	/* Open a cursor to the insert buffer tree to calculate if we can add
 	the new entry to it without exceeding the free space limit for the
 	page. */
+
+	if (mode == BTR_MODIFY_TREE) {
+		for (;;) {
+			ibuf_enter();
+			mutex_enter(&ibuf_pessimistic_insert_mutex);
+			mutex_enter(&ibuf_mutex);
+
+			if (UNIV_LIKELY(ibuf_data_enough_free_for_insert())) {
+
+				break;
+			}
+
+			mutex_exit(&ibuf_mutex);
+			mutex_exit(&ibuf_pessimistic_insert_mutex);
+			ibuf_exit();
+
+			if (UNIV_UNLIKELY(!ibuf_add_free_page())) {
+
+				mem_heap_free(heap);
+				return(DB_STRONG_FAIL);
+			}
+		}
+	} else {
+		ibuf_enter();
+	}
 
 	mtr_start(&mtr);
 
@@ -3417,9 +3426,14 @@ ibuf_insert_low(
 		before mtr_commit(&mtr).  We must not mtr_commit(&mtr)
 		until after the IBUF_OP_DELETE has been buffered. */
 
-		err = DB_STRONG_FAIL;
+fail_exit:
+		if (mode == BTR_MODIFY_TREE) {
+			mutex_exit(&ibuf_mutex);
+			mutex_exit(&ibuf_pessimistic_insert_mutex);
+		}
 
-		goto function_exit;
+		err = DB_STRONG_FAIL;
+		goto func_exit;
 	}
 
 	/* After this point, the page could still be loaded to the
@@ -3465,9 +3479,7 @@ ibuf_insert_low(
 				space_ids, space_versions,
 				page_nos, &n_stored);
 
-			err = DB_STRONG_FAIL;
-
-			goto function_exit;
+			goto fail_exit;
 		}
 	}
 
@@ -3478,11 +3490,9 @@ ibuf_insert_low(
 	    && !ibuf_set_entry_counter(ibuf_entry, space, page_no, &pcur,
 				       mode == BTR_MODIFY_PREV, &mtr)) {
 bitmap_fail:
-		err = DB_STRONG_FAIL;
-
 		mtr_commit(&bitmap_mtr);
 
-		goto function_exit;
+		goto fail_exit;
 	}
 
 	/* Set the bitmap bit denoting that the insert buffer contains
@@ -3506,10 +3516,19 @@ bitmap_fail:
 		err = btr_cur_optimistic_insert(BTR_NO_LOCKING_FLAG, cursor,
 						ibuf_entry, &ins_rec,
 						&dummy_big_rec, 0, thr, &mtr);
-		if (err == DB_SUCCESS && op != IBUF_OP_DELETE) {
-			/* Update the page max trx id field */
-			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
-					       thr_get_trx(thr)->id, &mtr);
+		block = btr_cur_get_block(cursor);
+		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
+
+		/* If this is the root page, update ibuf->empty. */
+		if (UNIV_UNLIKELY(buf_block_get_page_no(block)
+				  == FSP_IBUF_TREE_ROOT_PAGE_NO)) {
+			const page_t*	root = buf_block_get_frame(block);
+
+			ut_ad(page_get_space_id(root) == IBUF_SPACE_ID);
+			ut_ad(page_get_page_no(root)
+			      == FSP_IBUF_TREE_ROOT_PAGE_NO);
+
+			ibuf->empty = (page_get_n_recs(root) == 0);
 		}
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
@@ -3526,16 +3545,22 @@ bitmap_fail:
 						 cursor,
 						 ibuf_entry, &ins_rec,
 						 &dummy_big_rec, 0, thr, &mtr);
-		if (err == DB_SUCCESS && op != IBUF_OP_DELETE) {
-			/* Update the page max trx id field */
-			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
-					       thr_get_trx(thr)->id, &mtr);
-		}
-
+		mutex_exit(&ibuf_pessimistic_insert_mutex);
 		ibuf_size_update(root, &mtr);
+		mutex_exit(&ibuf_mutex);
+		ibuf->empty = (page_get_n_recs(root) == 0);
+
+		block = btr_cur_get_block(cursor);
+		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
 	}
 
-function_exit:
+	if (err == DB_SUCCESS && op != IBUF_OP_DELETE) {
+		/* Update the page max trx id field */
+		page_update_max_trx_id(block, NULL,
+				       thr_get_trx(thr)->id, &mtr);
+	}
+
+func_exit:
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	if (err == DB_SUCCESS) {
 		fprintf(stderr,
@@ -3547,11 +3572,6 @@ function_exit:
 			       ibuf_count_get(space, page_no) + 1);
 	}
 #endif
-	if (mode == BTR_MODIFY_TREE) {
-
-		mutex_exit(&ibuf_mutex);
-		mutex_exit(&ibuf_pessimistic_insert_mutex);
-	}
 
 	mtr_commit(&mtr);
 	btr_pcur_close(&pcur);
@@ -3559,16 +3579,8 @@ function_exit:
 
 	mem_heap_free(heap);
 
-	if (err == DB_SUCCESS) {
-		mutex_enter(&ibuf_mutex);
-
-		ibuf->empty = FALSE;
-
-		mutex_exit(&ibuf_mutex);
-
-		if (mode == BTR_MODIFY_TREE) {
-			ibuf_contract_after_insert(entry_size);
-		}
+	if (err == DB_SUCCESS && mode == BTR_MODIFY_TREE) {
+		ibuf_contract_after_insert(entry_size);
 	}
 
 	if (do_merge) {
@@ -3683,10 +3695,11 @@ check_watch:
 		buf_page_t*	bpage;
 		ulint		fold = buf_page_address_fold(space, page_no);
 		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
+		mutex_t*	hash_mutex = buf_page_hash_mutex_get(buf_pool, fold);
 
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(hash_mutex);
 		bpage = buf_page_hash_get_low(buf_pool, space, page_no, fold);
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(hash_mutex);
 
 		if (UNIV_LIKELY_NULL(bpage)) {
 			/* A buffer pool watch has been set or the
@@ -4075,6 +4088,22 @@ ibuf_delete_rec(
 	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
 
 	if (success) {
+		if (UNIV_UNLIKELY(!page_get_n_recs(btr_pcur_get_page(pcur)))) {
+			/* If a B-tree page is empty, it must be the root page
+			and the whole B-tree must be empty. InnoDB does not
+			allow empty B-tree pages other than the root. */
+			root = btr_pcur_get_page(pcur);
+
+			ut_ad(page_get_space_id(root) == IBUF_SPACE_ID);
+			ut_ad(page_get_page_no(root)
+			      == FSP_IBUF_TREE_ROOT_PAGE_NO);
+
+			/* ibuf->empty is protected by the root page latch.
+			Before the deletion, it had to be FALSE. */
+			ut_ad(!ibuf->empty);
+			ibuf->empty = TRUE;
+		}
+
 #ifdef UNIV_IBUF_COUNT_DEBUG
 		fprintf(stderr,
 			"Decrementing ibuf count of space %lu page %lu\n"
@@ -4102,6 +4131,7 @@ ibuf_delete_rec(
 	if (!ibuf_restore_pos(space, page_no, search_tuple,
 			      BTR_MODIFY_TREE, pcur, mtr)) {
 
+		mutex_exit(&ibuf_mutex);
 		goto func_exit;
 	}
 
@@ -4115,12 +4145,13 @@ ibuf_delete_rec(
 	ibuf_count_set(space, page_no, ibuf_count_get(space, page_no) - 1);
 #endif
 	ibuf_size_update(root, mtr);
+	mutex_exit(&ibuf_mutex);
+
+	ibuf->empty = (page_get_n_recs(root) == 0);
 	btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
 	btr_pcur_close(pcur);
-
-	mutex_exit(&ibuf_mutex);
 
 	return(TRUE);
 }
@@ -4495,6 +4526,11 @@ reset_bit:
 	btr_pcur_close(&pcur);
 	mem_heap_free(heap);
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_atomic_increment_ulint(&ibuf->n_merges, 1);
+	ibuf_add_ops(ibuf->n_merged_ops, mops);
+	ibuf_add_ops(ibuf->n_discarded_ops, dops);
+#else /* HAVE_ATOMIC_BUILTINS */
 	/* Protect our statistics keeping from race conditions */
 	mutex_enter(&ibuf_mutex);
 
@@ -4503,6 +4539,7 @@ reset_bit:
 	ibuf_add_ops(ibuf->n_discarded_ops, dops);
 
 	mutex_exit(&ibuf_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (update_ibuf_bitmap && !tablespace_being_deleted) {
 
@@ -4604,10 +4641,14 @@ leave_loop:
 	mtr_commit(&mtr);
 	btr_pcur_close(&pcur);
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	ibuf_add_ops(ibuf->n_discarded_ops, dops);
+#else /* HAVE_ATOMIC_BUILTINS */
 	/* Protect our statistics keeping from race conditions */
 	mutex_enter(&ibuf_mutex);
 	ibuf_add_ops(ibuf->n_discarded_ops, dops);
 	mutex_exit(&ibuf_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	ibuf_exit();
 
@@ -4627,36 +4668,17 @@ ibuf_is_empty(void)
 	mtr_t		mtr;
 
 	ibuf_enter();
-
-	mutex_enter(&ibuf_mutex);
-
 	mtr_start(&mtr);
 
+	mutex_enter(&ibuf_mutex);
 	root = ibuf_tree_root_get(&mtr);
-
-	if (page_get_n_recs(root) == 0) {
-
-		is_empty = TRUE;
-
-		if (ibuf->empty == FALSE) {
-			fprintf(stderr,
-				"InnoDB: Warning: insert buffer tree is empty"
-				" but the data struct does not\n"
-				"InnoDB: know it. This condition is legal"
-				" if the master thread has not yet\n"
-				"InnoDB: run to completion.\n");
-		}
-	} else {
-		ut_a(ibuf->empty == FALSE);
-
-		is_empty = FALSE;
-	}
-
-	mtr_commit(&mtr);
-
 	mutex_exit(&ibuf_mutex);
 
+	is_empty = (page_get_n_recs(root) == 0);
+	mtr_commit(&mtr);
 	ibuf_exit();
+
+	ut_a(is_empty == ibuf->empty);
 
 	return(is_empty);
 }
