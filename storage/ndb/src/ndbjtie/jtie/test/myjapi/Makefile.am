@@ -129,6 +129,7 @@ libmyjapi_la_LIBADD = ../myapi/libmyapi.la
 ## mode-specific libtool options (overrides AM_LDFLAGS)
 libmyjapi_la_LDFLAGS = -no-undefined ## build self-contained library
 libmyjapi_la_LDFLAGS += -shared ## only create a shared library
+libmyjapi_la_LDFLAGS += @ndb_cxx_runtime_libs@ ## need to link with C++ runtime
 ## libmyjapi_la_LDFLAGS = -static ## only create a static library
 ## libmyjapi_la_LDFLAGS = -rpath . ## only absolute run-paths are allowed
 
