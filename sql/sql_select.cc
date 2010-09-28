@@ -6443,6 +6443,8 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
 {
   if (*e1)
   {
+    if (!e2)
+      return;
     Item *res;
     if ((res= new Item_cond_and(*e1, e2)))
     {
@@ -6513,9 +6515,8 @@ static void add_not_null_conds(JOIN *join)
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
-    if ((tab->type == JT_REF || tab->type == JT_EQ_REF || 
-         tab->type == JT_REF_OR_NULL) &&
-        !tab->table->maybe_null)
+    if (tab->type == JT_REF || tab->type == JT_EQ_REF || 
+        tab->type == JT_REF_OR_NULL)
     {
       for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
       {
@@ -6547,9 +6548,14 @@ static void add_not_null_conds(JOIN *join)
           DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->alias,
                                            QT_ORDINARY););
-          COND *new_cond= referred_tab->select_cond;
-          add_cond_and_fix(&new_cond, notnull);
-          referred_tab->set_select_cond(new_cond, __LINE__);
+          if (!tab->first_inner)
+	  {
+            COND *new_cond= referred_tab->select_cond;
+            add_cond_and_fix(&new_cond, notnull);
+            referred_tab->set_select_cond(new_cond, __LINE__);
+          }
+          else
+            add_cond_and_fix(tab->first_inner->on_expr_ref, notnull);
         }
       }
     }
@@ -6729,6 +6735,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  make_cond_for_table(cond,
                               join->const_table_map,
                               (table_map) 0, TRUE);
+        /* Add conditions added by add_not_null_conds(). */
+        for (uint i= 0 ; i < join->const_tables ; i++)
+          add_cond_and_fix(&const_cond, join->join_tab[i].select_cond);
+
         DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
              tab < join->join_tab+join->tables ; tab++)
@@ -6827,6 +6837,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       tmp= NULL;
       if (cond)
         tmp= make_cond_for_table(cond, used_tables, current_map, FALSE);
+      /* Add conditions added by add_not_null_conds(). */
+      if (tab->select_cond)
+        add_cond_and_fix(&tmp, tab->select_cond);
       if (cond && !tmp && tab->quick)
       {						// Outer join
         if (tab->type != JT_ALL)
@@ -13896,13 +13909,6 @@ join_read_always_key(JOIN_TAB *tab)
       table->file->print_error(error, MYF(0));/* purecov: inspected */
       return(1);                              /* purecov: inspected */
     }
-  }
-
-  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
-  for (uint i= 0 ; i < tab->ref.key_parts ; i++)
-  {
-    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
-        return -1;
   }
 
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))

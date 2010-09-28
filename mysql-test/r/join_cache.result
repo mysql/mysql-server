@@ -4379,7 +4379,7 @@ SELECT a1<>a2, a1, a2, b2, b3, c3,
 SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	Using index
 1	SIMPLE	t3	ref	idx	idx	5	test.t2.b2	5	Using where
 SELECT a1<>a2, a1, a2, b2, b3, c3,
@@ -4407,7 +4407,7 @@ SELECT a1<>a2, a1, a2, b2, b3, c3,
 SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	Using index
 1	SIMPLE	t3	ref	idx	idx	5	test.t2.b2	5	Using where; Using join buffer
 SELECT a1<>a2, a1, a2, b2, b3, c3,
@@ -4619,7 +4619,7 @@ set join_cache_level=6;
 set join_buffer_size=1024;
 EXPLAIN SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2050	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2050	Using where
 1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	640	Using join buffer
 SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 AVG(c)
@@ -4796,7 +4796,7 @@ f1	f2	f3
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
 set join_cache_level=6;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -4809,7 +4809,7 @@ f1	f2	f3
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
 set join_cache_level=7;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -4822,7 +4822,7 @@ f1	f2	f3
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
 set join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -4835,7 +4835,7 @@ f1	f2	f3
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
 drop table t1,t2;
 set join_cache_level=default;
@@ -4854,7 +4854,7 @@ explain
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	idx1	idx1	5	const	4	Using index; Using temporary; Using filesort
+1	SIMPLE	t1	ref	idx1	idx1	5	const	4	Using where; Using index; Using temporary; Using filesort
 1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using join buffer
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
@@ -4866,7 +4866,7 @@ explain
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	idx1	idx1	5	const	4	Using index; Using temporary; Using filesort
+1	SIMPLE	t1	ref	idx1	idx1	5	const	4	Using where; Using index; Using temporary; Using filesort
 1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using where; Using join buffer
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
@@ -4910,7 +4910,7 @@ explain
 select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
 1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	1	
 1	SIMPLE	t3	ref	idx	idx	5	test.t1.d	1	
 1	SIMPLE	t4	ref	idx	idx	5	test.t1.c	1	
@@ -4923,7 +4923,7 @@ explain
 select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
 1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	1	Using join buffer
 1	SIMPLE	t3	ref	idx	idx	5	test.t1.d	1	Using join buffer
 1	SIMPLE	t4	ref	idx	idx	5	test.t1.c	1	Using join buffer
@@ -4974,8 +4974,8 @@ FROM t1 JOIN  t2 JOIN  t3 JOIN  t4 JOIN  t5
 WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND
 t5.enum2='Active' AND t3.id4=t2.id4 AND t2.id3=t1.id3 AND t3.text1<'D';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	349	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	Using join buffer
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	349	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	Using where; Using join buffer
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	Using where; Using join buffer
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.id2	1	Using join buffer
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	Using where; Using join buffer
@@ -5189,7 +5189,7 @@ INSERT INTO t3 VALUES
 EXPLAIN
 SELECT t3.a FROM t1,t2,t3 WHERE t1.a = t3.a AND t1.b = t3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	Using join buffer
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer
 SELECT t3.a FROM t1,t2,t3 WHERE t1.a = t3.a AND t1.b = t3.b;
@@ -5238,8 +5238,69 @@ ON t3.carrier = t1.carrier;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.carrier	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.carrier	1	Using where
 1	SIMPLE	t4	ref	carrier_id	carrier_id	5	test.t3.id	2	Using index
 SET join_cache_level=default;
 DROP TABLE t1,t2,t3,t4;
+#
+# BUG#52636: allowing JOINs on NULL values w/ join_cache_level = 5-8
+#
+CREATE TABLE t1 (b int);
+INSERT INTO t1 VALUES (NULL),(3);
+CREATE TABLE t2 (a int, b int, KEY (b));
+INSERT INTO t2 VALUES (100,NULL),(150,200);
+set join_cache_level = 5;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+a
+NULL
+NULL
+set join_cache_level = 8;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+a
+NULL
+NULL
+delete from t1;
+INSERT INTO t1 VALUES (NULL),(NULL);
+set join_cache_level = 5;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+a
+NULL
+NULL
+DROP TABLE t1,t2;
+CREATE TABLE t1 (b varchar(100));
+INSERT INTO t1 VALUES (NULL),("some varchar");
+CREATE TABLE t2 (a int, b varchar(100), KEY (b));
+INSERT INTO t2 VALUES (100,NULL),(150,"varchar"),(200,NULL),(250,"long long varchar");
+set join_cache_level = 5;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using where; Using join buffer
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+a
+NULL
+NULL
+set join_cache_level = 8;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using where; Using join buffer
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+a
+NULL
+NULL
+set join_cache_level = default;
+DROP TABLE t1,t2;
 set @@optimizer_switch=@save_optimizer_switch;
