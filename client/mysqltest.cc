@@ -112,6 +112,7 @@ static my_bool parsing_disabled= 0;
 static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
+static my_bool disable_connect_log= 1;
 static my_bool disable_warnings= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
@@ -227,8 +228,9 @@ typedef struct
   int str_val_len;
   int int_val;
   int alloced_len;
-  int int_dirty; /* do not update string if int is updated until first read */
-  int alloced;
+  bool int_dirty; /* do not update string if int is updated until first read */
+  bool is_int;
+  bool alloced;
 } VAR;
 
 /*Perl/shell-like variable registers */
@@ -284,6 +286,7 @@ enum enum_commands {
   Q_EVAL_RESULT,
   Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
   Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
+  Q_ENABLE_CONNECT_LOG, Q_DISABLE_CONNECT_LOG,
   Q_WAIT_FOR_SLAVE_TO_STOP,
   Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
   Q_ENABLE_INFO, Q_DISABLE_INFO,
@@ -349,6 +352,8 @@ const char *command_names[]=
   /* Enable/disable that the _result_ from a query is logged to result file */
   "enable_result_log",
   "disable_result_log",
+  "enable_connect_log",
+  "disable_connect_log",
   "wait_for_slave_to_stop",
   "enable_warnings",
   "disable_warnings",
@@ -1954,6 +1959,21 @@ static void var_free(void *v)
 
 C_MODE_END
 
+void var_set_int(VAR *v, const char *str)
+{
+  char *endptr;
+  /* Initially assume not a number */
+  v->int_val= 0;
+  v->is_int= false;
+  v->int_dirty= false;
+  if (!str) return;
+  
+  v->int_val = (int) strtol(str, &endptr, 10);
+  /* It is an int if strtol consumed something up to end/space/tab */
+  if (endptr > str && (!*endptr || *endptr == ' ' || *endptr == '\t'))
+    v->is_int= true;
+}
+
 
 VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
               int val_len)
@@ -1988,11 +2008,10 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     memcpy(tmp_var->str_val, val, val_len);
     tmp_var->str_val[val_len]= 0;
   }
+  var_set_int(tmp_var, val);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
-  tmp_var->int_val = (val) ? atoi(val) : 0;
-  tmp_var->int_dirty = 0;
   return tmp_var;
 }
 
@@ -2053,7 +2072,7 @@ VAR* var_get(const char *var_name, const char **var_name_end, my_bool raw,
   if (!raw && v->int_dirty)
   {
     sprintf(v->str_val, "%d", v->int_val);
-    v->int_dirty = 0;
+    v->int_dirty= false;
     v->str_val_len = strlen(v->str_val);
   }
   if (var_name_end)
@@ -2115,7 +2134,7 @@ void var_set(const char *var_name, const char *var_name_end,
     if (v->int_dirty)
     {
       sprintf(v->str_val, "%d", v->int_val);
-      v->int_dirty= 0;
+      v->int_dirty=false;
       v->str_val_len= strlen(v->str_val);
     }
     /* setenv() expects \0-terminated strings */
@@ -2421,6 +2440,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
 void var_copy(VAR *dest, VAR *src)
 {
   dest->int_val= src->int_val;
+  dest->is_int= src->is_int;
   dest->int_dirty= src->int_dirty;
 
   /* Alloc/realloc data for str_val in dest */
@@ -2504,9 +2524,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     v->str_val_len = new_val_len;
     memcpy(v->str_val, p, new_val_len);
     v->str_val[new_val_len] = 0;
-    v->int_val=atoi(p);
-    DBUG_PRINT("info", ("atoi on '%s', returns: %d", p, v->int_val));
-    v->int_dirty=0;
+    var_set_int(v, p);
   }
   DBUG_VOID_RETURN;
 }
@@ -2853,6 +2871,8 @@ int do_modify_var(struct st_command *command,
     die("The argument to %.*s must be a variable (start with $)",
         command->first_word_len, command->query);
   v= var_get(p, &p, 1, 0);
+  if (! v->is_int)
+    die("Cannot perform inc/dec on a non-numeric value");
   switch (op) {
   case DO_DEC:
     v->int_val--;
@@ -2864,7 +2884,7 @@ int do_modify_var(struct st_command *command,
     die("Invalid operator to do_modify_var");
     break;
   }
-  v->int_dirty= 1;
+  v->int_dirty= true;
   command->last_argument= (char*)++p;
   return 0;
 }
@@ -4822,6 +4842,16 @@ void select_connection_name(const char *name)
 
   set_current_connection(con);
 
+  /* Connection logging if enabled */
+  if (!disable_connect_log && !disable_query_log)
+  {
+    DYNAMIC_STRING *ds= &ds_res;
+
+    dynstr_append_mem(ds, "connection ", 11);
+    replace_dynstr_append(ds, name);
+    dynstr_append_mem(ds, ";\n", 2);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -4907,6 +4937,16 @@ void do_close_connection(struct st_command *command)
     /* Current connection was closed */
     var_set_int("$mysql_get_server_version", 0xFFFFFFFF);
     var_set_string("$CURRENT_CONNECTION", con->name);
+  }
+
+  /* Connection logging if enabled */
+  if (!disable_connect_log && !disable_query_log)
+  {
+    DYNAMIC_STRING *ds= &ds_res;
+
+    dynstr_append_mem(ds, "disconnect ", 11);
+    replace_dynstr_append(ds, ds_connection.str);
+    dynstr_append_mem(ds, ";\n", 2);
   }
 
   DBUG_VOID_RETURN;
@@ -5043,6 +5083,13 @@ int connect_n_handle_errors(struct st_command *command,
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
   }
+  /* Simlified logging if enabled */
+  if (!disable_connect_log && !disable_query_log)
+  {
+    replace_dynstr_append(ds, command->query);
+    dynstr_append_mem(ds, ";\n", 2);
+  }
+  
   while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {
@@ -8120,6 +8167,8 @@ int main(int argc, char **argv)
       case Q_DISABLE_ABORT_ON_ERROR: abort_on_error=0; break;
       case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
+      case Q_ENABLE_CONNECT_LOG:   disable_connect_log=0; break;
+      case Q_DISABLE_CONNECT_LOG:  disable_connect_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
       case Q_ENABLE_INFO:        disable_info=0; break;
