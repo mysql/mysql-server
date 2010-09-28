@@ -1583,6 +1583,13 @@ int Arg_comparator::compare_row()
   bool was_null= 0;
   (*a)->bring_value();
   (*b)->bring_value();
+
+  if ((*a)->null_value || (*b)->null_value)
+  {
+    owner->null_value= 1;
+    return -1;
+  }
+
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
@@ -1751,6 +1758,76 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 }
 
 
+/**
+   The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
+   predicates. The implementation works as follows.
+
+   For the current value of the outer expression
+   
+   - If it contains only NULL values, the original (before rewrite by the
+     Item_in_subselect rewrite methods) inner subquery is non-correlated and
+     was previously executed, there is no need to re-execute it, and the
+     previous return value is returned.
+
+   - If it contains NULL values, check if there is a partial match for the
+     inner query block by evaluating it. For clarity we repeat here the
+     transformation previously performed on the sub-query. The expression
+
+     <tt>
+     ( oc_1, ..., oc_n ) 
+     \<in predicate\>
+     ( SELECT ic_1, ..., ic_n
+       FROM \<table\>
+       WHERE \<inner where\> 
+     )
+     </tt>
+
+     was transformed into
+     
+     <tt>
+     ( oc_1, ..., oc_n ) 
+     \<in predicate\>
+     ( SELECT ic_1, ..., ic_n 
+       FROM \<table\> 
+       WHERE \<inner where\> AND ... ( ic_k = oc_k OR ic_k IS NULL ) 
+       HAVING ... NOT ic_k IS NULL
+     )
+     </tt>
+
+     The evaluation will now proceed according to special rules set up
+     elsewhere. These rules include:
+
+     - The HAVING NOT \<inner column\> IS NULL conditions added by the
+       aforementioned rewrite methods will detect whether they evaluated (and
+       rejected) a NULL value and if so, will cause the subquery to evaluate
+       to NULL. 
+
+     - The added WHERE and HAVING conditions are present only for those inner
+       columns that correspond to outer column that are not NULL at the moment.
+     
+     - If there is an eligible index for executing the subquery, the special
+       access method "Full scan on NULL key" is employed which ensures that
+       the inner query will detect if there are NULL values resulting from the
+       inner query. This access method will quietly resort to table scan if it
+       needs to find NULL values as well.
+
+     - Under these conditions, the sub-query need only be evaluated in order to
+       find out whether it produced any rows.
+     
+       - If it did, we know that there was a partial match since there are
+         NULL values in the outer row expression.
+
+       - If it did not, the result is FALSE or UNKNOWN. If at least one of the
+         HAVING sub-predicates rejected a NULL value corresponding to an outer
+         non-NULL, and hence the inner query block returns UNKNOWN upon
+         evaluation, there was a partial match and the result is UNKNOWN.
+
+   - If it contains no NULL values, the call is forwarded to the inner query
+     block.
+
+     @see Item_in_subselect::val_bool()
+     @see Item_is_not_null_test::val_int()
+ */
 longlong Item_in_optimizer::val_int()
 {
   bool tmp;
@@ -1804,7 +1881,7 @@ longlong Item_in_optimizer::val_int()
           all_left_cols_null= false;
       }
 
-      if (!((Item_in_subselect*)args[1])->is_correlated && 
+      if (!item_subs->is_correlated && 
           all_left_cols_null && result_for_null_param != UNKNOWN)
       {
         /* 
@@ -1818,8 +1895,11 @@ longlong Item_in_optimizer::val_int()
       else 
       {
         /* The subquery has to be evaluated */
-        (void) args[1]->val_bool_result();
-        null_value= !item_subs->engine->no_rows();
+        (void) item_subs->val_bool_result();
+        if (item_subs->engine->no_rows())
+          null_value= item_subs->null_value;
+        else
+          null_value= TRUE;
         if (all_left_cols_null)
           result_for_null_param= null_value;
       }
@@ -4606,7 +4686,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   
-  if (escape_item->const_item())
+  if (escape_item->const_item() && !thd->lex->view_prepare_mode)
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&cmp.value1);

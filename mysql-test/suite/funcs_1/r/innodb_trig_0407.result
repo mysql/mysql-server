@@ -67,8 +67,6 @@ revoke ALL PRIVILEGES, GRANT OPTION FROM test_general@localhost;
 create User test_super@localhost;
 set password for test_super@localhost = password('PWD');
 grant ALL on *.* to test_super@localhost with grant OPTION;
-connect(localhost,test_general,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_super,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 
 Testcase 3.5.4:
 ---------------

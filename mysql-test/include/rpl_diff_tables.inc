@@ -33,3 +33,4 @@ while (`SELECT "XX$_servers" <> "XX"`)
   --source include/diff_tables.inc
   connection $_slave;
 }
+connection $_master;

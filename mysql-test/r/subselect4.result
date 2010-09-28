@@ -59,3 +59,110 @@ FROM t3 WHERE 1 = 0 GROUP BY 1;
 (SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
 DROP TABLE t1,t2,t3;
 End of 5.0 tests.
+#
+# Bug#54568: create view cause Assertion failed: 0, 
+# file .\item_subselect.cc, line 836
+#
+EXPLAIN SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+DESCRIBE SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+# None of the below should crash
+CREATE VIEW v1 AS SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+CREATE VIEW v2 AS SELECT 1 LIKE '%' ESCAPE ( 1 IN ( SELECT 1 ) );
+DROP VIEW v1, v2;
+# 
+# Bug#51070: Query with a NOT IN subquery predicate returns a wrong
+# result set
+# 
+CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO t1 VALUES ( 1, NULL ), ( 2, NULL );
+CREATE TABLE t2 ( c INT, d INT );
+INSERT INTO t2 VALUES ( NULL, 3 ), ( NULL, 4 );
+CREATE TABLE t3 ( e INT, f INT );
+INSERT INTO t3 VALUES ( NULL, NULL ), ( NULL, NULL );
+CREATE TABLE t4 ( a INT );
+INSERT INTO t4 VALUES (1), (2), (3);
+CREATE TABLE t5 ( a INT );
+INSERT INTO t5 VALUES (NULL), (2);
+EXPLAIN
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	PRIMARY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
+a	b
+EXPLAIN
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS NULL;
+a	b
+1	NULL
+2	NULL
+SELECT * FROM t1 WHERE ( a, b ) IN ( SELECT c, d FROM t2 ) IS NULL;
+a	b
+1	NULL
+2	NULL
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS UNKNOWN;
+a	b
+1	NULL
+2	NULL
+SELECT * FROM t1 WHERE (( a, b ) NOT IN ( SELECT c, d FROM t2 )) IS UNKNOWN;
+a	b
+1	NULL
+2	NULL
+SELECT * FROM t1 WHERE 1 = 1 AND ( a, b ) NOT IN ( SELECT c, d FROM t2 );
+a	b
+EXPLAIN
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT e, f FROM t3 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	PRIMARY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT e, f FROM t3 );
+a	b
+EXPLAIN
+SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT a, b FROM t1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	PRIMARY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT a, b FROM t1 );
+c	d
+EXPLAIN
+SELECT * FROM t3 WHERE ( e, f ) NOT IN ( SELECT c, d FROM t2 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	PRIMARY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+SELECT * FROM t3 WHERE ( e, f ) NOT IN ( SELECT c, d FROM t2 );
+e	f
+EXPLAIN
+SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT e, f FROM t3 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	PRIMARY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT e, f FROM t3 );
+c	d
+SELECT * FROM t1 WHERE ( a, b ) NOT IN 
+( SELECT c, d FROM t2 WHERE c = 1 AND c <> 1 );
+a	b
+1	NULL
+2	NULL
+SELECT * FROM t1 WHERE b NOT IN ( SELECT c FROM t2 WHERE c = 1 );
+a	b
+1	NULL
+2	NULL
+SELECT * FROM t1 WHERE NULL NOT IN ( SELECT c FROM t2 WHERE c = 1 AND c <> 1 );
+a	b
+1	NULL
+2	NULL
+DROP TABLE t1, t2, t3, t4, t5;
+#
+# End of 5.1 tests.
+#
