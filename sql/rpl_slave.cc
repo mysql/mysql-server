@@ -4310,7 +4310,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     mi->checksum_alg_before_fd :
     mi->rli.relay_log.relay_log_checksum_alg;
 
-  char *save_buf; // needed for checksumming the fake Rotate event
+  char *save_buf= NULL; // needed for checksumming the fake Rotate event
   char rot_buf[LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN + FN_REFLEN];
 
   DBUG_ASSERT(checksum_alg == BINLOG_CHECKSUM_ALG_OFF || 
