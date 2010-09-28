@@ -33,7 +33,6 @@
 #include "mysql_priv.h"
 #include "sql_sort.h"
 
-
 int unique_write_to_file(uchar* key, element_count count, Unique *unique)
 {
   /*
@@ -45,6 +44,12 @@ int unique_write_to_file(uchar* key, element_count count, Unique *unique)
   return my_b_write(&unique->file, key, unique->size) ? 1 : 0;
 }
 
+int unique_write_to_file_with_count(uchar* key, element_count count, Unique *unique)
+{
+  return my_b_write(&unique->file, key, unique->size) ||
+         my_b_write(&unique->file, &count, sizeof(element_count)) ? 1 : 0;
+}
+
 int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique)
 {
   memcpy(unique->record_pointers, key, unique->size);
@@ -52,10 +57,26 @@ int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique)
   return 0;
 }
 
+int unique_intersect_write_to_ptrs(uchar* key, element_count count, Unique *unique)
+{
+  if (count >= unique->min_dupl_count)
+  {
+    memcpy(unique->record_pointers, key, unique->size);
+    unique->record_pointers+=unique->size;
+  }
+  return 0;
+}
+
+
 Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
-	       uint size_arg, ulonglong max_in_memory_size_arg)
+	       uint size_arg, ulonglong max_in_memory_size_arg,
+               uint min_dupl_count_arg)
   :max_in_memory_size(max_in_memory_size_arg), size(size_arg), elements(0)
 {
+  min_dupl_count= min_dupl_count_arg;
+  full_size= size;
+  if (min_dupl_count_arg)
+    full_size+= sizeof(element_count);
   my_b_clear(&file);
   init_tree(&tree, (ulong) (max_in_memory_size / 16), 0, size, comp_func, 0,
             NULL, comp_func_fixed_arg);
@@ -276,7 +297,11 @@ double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
   result= 2*log2_n_fact(last_tree_elems + 1.0);
   if (n_full_trees)
     result+= n_full_trees * log2_n_fact(max_elements_in_tree + 1.0);
+#if 1
   result /= TIME_FOR_COMPARE_ROWID;
+#else
+  result /= TIME_FOR_COMPARE_ROWID * 10;
+#endif
 
   DBUG_PRINT("info",("unique trees sizes: %u=%u*%lu + %lu", nkeys,
                      n_full_trees, n_full_trees?max_elements_in_tree:0,
@@ -327,7 +352,10 @@ bool Unique::flush()
   file_ptr.count=tree.elements_in_tree;
   file_ptr.file_pos=my_b_tell(&file);
 
-  if (tree_walk(&tree, (tree_walk_action) unique_write_to_file,
+  tree_walk_action action= min_dupl_count ?
+		           (tree_walk_action) unique_write_to_file_with_count :
+		           (tree_walk_action) unique_write_to_file;
+  if (tree_walk(&tree, action,
 		(void*) this, left_root_right) ||
       insert_dynamic(&file_ptrs, (uchar*) &file_ptr))
     return 1;
@@ -357,6 +385,7 @@ Unique::reset()
     reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
   }
   elements= 0;
+  tree.flag= 0;
 }
 
 /*
@@ -576,14 +605,16 @@ bool Unique::get(TABLE *table)
 {
   SORTPARAM sort_param;
   table->sort.found_records=elements+tree.elements_in_tree;
-
   if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
     if ((record_pointers=table->sort.record_pointers= (uchar*)
 	 my_malloc(size * tree.elements_in_tree, MYF(0))))
     {
-      (void) tree_walk(&tree, (tree_walk_action) unique_write_to_ptrs,
+      tree_walk_action action= min_dupl_count ?
+		         (tree_walk_action) unique_intersect_write_to_ptrs :
+		         (tree_walk_action) unique_write_to_ptrs;
+      (void) tree_walk(&tree, action,
 		       this, left_root_right);
       return 0;
     }
@@ -614,7 +645,10 @@ bool Unique::get(TABLE *table)
   sort_param.max_rows= elements;
   sort_param.sort_form=table;
   sort_param.rec_length= sort_param.sort_length= sort_param.ref_length=
-    size;
+  sort_param.rec_length= sort_param.sort_length= sort_param.ref_length=
+   full_size;
+  sort_param.min_dupl_count= min_dupl_count;
+  sort_param.res_length= 0;
   sort_param.keys= (uint) (max_in_memory_size / sort_param.sort_length);
   sort_param.not_killable=1;
 
@@ -635,8 +669,9 @@ bool Unique::get(TABLE *table)
   if (flush_io_cache(&file) ||
       reinit_io_cache(&file,READ_CACHE,0L,0,0))
     goto err;
-  if (merge_buffers(&sort_param, &file, outfile, sort_buffer, file_ptr,
-		    file_ptr, file_ptr+maxbuffer,0))
+  sort_param.res_length= sort_param.rec_length-
+                         (min_dupl_count ? sizeof(min_dupl_count) : 0);
+  if (merge_index(&sort_param, sort_buffer, file_ptr, maxbuffer, &file, outfile))
     goto err;
   error=0;
 err:

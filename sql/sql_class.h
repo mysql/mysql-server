@@ -2949,6 +2949,7 @@ class user_var_entry
   DTCollation collation;
 };
 
+
 /*
    Unique -- class for unique (removing of duplicates).
    Puts all values to the TREE. If the tree becomes too big,
@@ -2967,11 +2968,14 @@ class Unique :public Sql_alloc
   uchar *record_pointers;
   bool flush();
   uint size;
+  uint full_size;
+  uint min_dupl_count;
 
 public:
   ulong elements;
   Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
-	 uint size_arg, ulonglong max_in_memory_size_arg);
+	 uint size_arg, ulonglong max_in_memory_size_arg,
+         uint min_dupl_count_arg= 0);
   ~Unique();
   ulong elements_in_tree() { return tree.elements_in_tree; }
   inline bool unique_add(void *ptr)
@@ -2982,6 +2986,9 @@ public:
       DBUG_RETURN(1);
     DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));
   }
+
+  bool is_in_memory() { return (my_b_tell(&file) == 0); }
+  void close_for_expansion() { tree.flag= TREE_ONLY_DUPS; }
 
   bool get(TABLE *table);
   static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
@@ -3002,6 +3009,11 @@ public:
 
   friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
+
+  friend int unique_write_to_file_with_count(uchar* key, element_count count,
+                                             Unique *unique);
+  friend int unique_intersect_write_to_ptrs(uchar* key, element_count count, 
+				            Unique *unique);
 };
 
 
