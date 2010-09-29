@@ -172,8 +172,8 @@ Ndb::releaseTransactionArrays()
 
 void
 Ndb::executeMessage(void* NdbObject,
-                    NdbApiSignal * aSignal,
-                    LinearSectionPtr ptr[3])
+                    const NdbApiSignal * aSignal,
+                    const LinearSectionPtr ptr[3])
 {
   Ndb* tNdb = (Ndb*)NdbObject;
   tNdb->handleReceivedSignal(aSignal, ptr);
@@ -343,7 +343,8 @@ Parameters:     aSignal: The signal object.
 Remark:         Send all operations belonging to this connection. 
 *****************************************************************************/
 void	
-Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
+Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
+			  const LinearSectionPtr ptr[3])
 {
   NdbOperation* tOp;
   NdbIndexOperation* tIndexOp;
@@ -763,9 +764,15 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
         !op->execSUB_TABLE_DATA(aSignal, ptr))
       return;
     
-    for (int i= aSignal->m_noOfSections;i < 3; i++) {
-      ptr[i].p = NULL;
-      ptr[i].sz = 0;
+    LinearSectionPtr copy[3];
+    for (int i = 0; i<aSignal->m_noOfSections; i++)
+    {
+      copy[i] = ptr[i];
+    }
+    for (int i = aSignal->m_noOfSections; i < 3; i++)
+    {
+      copy[i].p = NULL;
+      copy[i].sz = 0;
     }
     DBUG_PRINT("info",("oid=senderData: %d, gci{hi/lo}: %d/%d, operation: %d, "
 		       "tableId: %d",
@@ -773,7 +780,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 		       SubTableData::getOperation(sdata->requestInfo),
 		       sdata->tableId));
 
-    theEventBuffer->insertDataL(op, sdata, tLen, ptr);
+    theEventBuffer->insertDataL(op, sdata, tLen, copy);
     return;
   }
   case GSN_DIHNDBTAMPER:
