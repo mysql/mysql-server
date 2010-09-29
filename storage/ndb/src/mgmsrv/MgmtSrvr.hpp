@@ -469,7 +469,7 @@ private:
   NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
 
-  void handleReceivedSignal(NdbApiSignal* signal);
+  void handleReceivedSignal(const NdbApiSignal* signal);
   void handleStatus(NodeId nodeId, bool alive, bool nfComplete);
 
   /**
@@ -480,8 +480,8 @@ private:
      @param  ptr: The long part(s) of the signal
    */
   static void signalReceivedNotification(void* mgmtSrvr, 
-					 NdbApiSignal* signal, 
-					 struct LinearSectionPtr ptr[3]);
+					 const NdbApiSignal* signal,
+					 const struct LinearSectionPtr ptr[3]);
 
   /**
      Callback function installed into TransporterFacade, will be called

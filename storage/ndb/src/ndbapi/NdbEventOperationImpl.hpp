@@ -383,8 +383,8 @@ public:
   Uint64 getGCI();
   Uint32 getAnyValue() const;
   Uint64 getLatestGCI();
-  bool execSUB_TABLE_DATA(NdbApiSignal * signal, 
-                          LinearSectionPtr ptr[3]);
+  bool execSUB_TABLE_DATA(const NdbApiSignal * signal,
+                          const LinearSectionPtr ptr[3]);
 
   NdbDictionary::Event::TableEvent getEventType();
 

@@ -589,6 +589,7 @@ private:
       ,BUCKET_DROPPED_OTHER = 0x80 // New nodegroup (not me)
       ,BUCKET_DROPPED_MASK  = (BUCKET_DROPPED_SELF | BUCKET_DROPPED_OTHER)
       ,BUCKET_SHUTDOWN = 0x100 // Graceful shutdown
+      ,BUCKET_SHUTDOWN_TO = 0x200 // Graceful shutdown
     };
     Uint16 m_state;
     Uint16 m_switchover_node;

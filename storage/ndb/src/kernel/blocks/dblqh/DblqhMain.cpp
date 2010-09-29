@@ -17946,8 +17946,18 @@ void Dblqh::readFileInInvalidate(Signal* signal, int stepNext)
              logPartPtr.p->logPartNo, logFilePtr.p->fileNo, stepNext);
   }
 
+  if (stepNext == 0)
+  {
+    jam();
+    // Contact NDBFS. Real time break.
+    readSinglePage(signal, logPartPtr.p->invalidatePageNo);
+    lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
+    return;
+  }
+
   if (stepNext == 1)
   {
+    jam();
     logPartPtr.p->invalidatePageNo++;
     if (logPartPtr.p->invalidatePageNo == (clogFileSize * ZPAGES_IN_MBYTE))
     {

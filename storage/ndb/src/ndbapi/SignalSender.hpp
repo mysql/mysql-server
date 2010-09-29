@@ -110,8 +110,6 @@ public:
                               Uint16 recBlock, Uint16 gsn, Uint32 len);
 
   SimpleSignal * waitFor(Uint32 timeOutMillis = 0);
-  SimpleSignal * waitFor(Uint16 nodeId, Uint32 timeOutMillis = 0);
-  SimpleSignal * waitFor(Uint16 nodeId, Uint16 gsn, Uint32 timeOutMillis = 0);  
 
   Uint32 get_an_alive_node() const { return theFacade->get_an_alive_node(); }
   Uint32 getAliveNode() const { return get_an_alive_node(); }
@@ -122,8 +120,8 @@ private:
   TransporterFacade * theFacade;
   
   static void execSignal(void* signalSender, 
-			 NdbApiSignal* signal, 
-			 struct LinearSectionPtr ptr[3]);
+			 const NdbApiSignal* signal,
+			 const struct LinearSectionPtr ptr[3]);
   
   static void execNodeStatus(void* signalSender, Uint32 nodeId, 
 			     bool alive, bool nfCompleted);

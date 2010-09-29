@@ -33,6 +33,8 @@
 #include "Services.hpp"
 #include "../mgmapi/ndb_logevent.hpp"
 
+#include "ndb_mgmd_error.h"
+
 #include <base64.h>
 #include <ndberror.h>
 
@@ -158,6 +160,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("initialstart", Int, Optional, "Initial start"),
     MGM_ARG("nostart", Int, Optional, "No start"),
     MGM_ARG("abort", Int, Optional, "Abort"),
+    MGM_ARG("force", Int, Optional, "Force"),
 
   MGM_CMD("restart all", &MgmApiSession::restartAll, ""),
     MGM_ARG("initialstart", Int, Optional, "Initial start"),
@@ -203,6 +206,7 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("stop v2", &MgmApiSession::stop_v2, ""),
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("abort", Int, Mandatory, "Node"),
+    MGM_ARG("force", Int, Optional, "Force"),
 
   MGM_CMD("stop all", &MgmApiSession::stopAll, ""),
     MGM_ARG("abort", Int, Mandatory, "Node"),
@@ -924,7 +928,7 @@ MgmApiSession::restart(Properties const &args, int version) {
   Uint32
     nostart = 0,
     initialstart = 0,
-    abort = 0;
+    abort = 0, force = 0;
   char *nodes_str;
   Vector<NodeId> nodes;
     
@@ -932,6 +936,7 @@ MgmApiSession::restart(Properties const &args, int version) {
   args.get("nostart", &nostart);
   args.get("abort", &abort);
   args.get("node", (const char **)&nodes_str);
+  args.get("force", &force);
 
   char *p, *last;
   for((p = strtok_r(nodes_str, " ", &last));
@@ -947,7 +952,15 @@ MgmApiSession::restart(Properties const &args, int version) {
                                     initialstart != 0,
                                     abort != 0,
                                     &m_stopSelf);
-  
+
+  if (force &&
+      (result == NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH ||
+       result == UNSUPPORTED_NODE_SHUTDOWN))
+  {
+    // Force restart by restarting all nodes
+    result = m_mgmsrv.restartDB(nostart, initialstart, false, &restarted);
+  }
+
   m_output->println("restart reply");
   if(result != 0){
     m_output->println("result: %d-%s", result, get_error_text(result));
@@ -1102,7 +1115,7 @@ MgmApiSession::stop_v2(Parser<MgmApiSession>::Context &,
 
 void
 MgmApiSession::stop(Properties const &args, int version) {
-  Uint32 abort;
+  Uint32 abort, force = 0;
   char *nodes_str;
   Vector<NodeId> nodes;
 
@@ -1115,6 +1128,7 @@ MgmApiSession::stop(Properties const &args, int version) {
     return;
   }
   args.get("abort", &abort);
+  args.get("force", &force);
 
   char *p, *last;
   for((p = strtok_r(nodes_str, " ", &last));
@@ -1126,7 +1140,17 @@ MgmApiSession::stop(Properties const &args, int version) {
   int stopped= 0;
   int result= 0;
   if (nodes.size())
+  {
     result= m_mgmsrv.stopNodes(nodes, &stopped, abort != 0, &m_stopSelf);
+
+    if (force &&
+        (result == NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH ||
+         result == UNSUPPORTED_NODE_SHUTDOWN))
+    {
+      // Force stop and shutdown all remaining nodes
+      result = m_mgmsrv.shutdownDB(&stopped, false);
+    }
+  }
 
   m_output->println("stop reply");
   if(result != 0)

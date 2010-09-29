@@ -1609,3 +1609,12 @@ max-time: 500
 cmd: testDict
 args: -n Bug53944 T1
 
+max-time: 300
+cmd: testIndex
+args: -n Bug56829 T1
+
+max-time: 500
+cmd testNodeRestart
+args: -n ForceStopAndRestart T1
+
+

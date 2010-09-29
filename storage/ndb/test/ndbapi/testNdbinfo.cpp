@@ -534,6 +534,15 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
 
 
 NDBT_TESTSUITE(testNdbinfo);
+#ifndef NDB_WIN
+/**
+ * TODO NdbRestarter does not work on windoze
+ */
+TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
+  STEP(runRestarter);
+  STEPS(runTestTableUntilStopped, 1);
+}
+#endif
 TESTCASE("Ndbinfo",
          "Test ndbapi interface to NDB$INFO"){
   INITIALIZER(runTestNdbInfo);
@@ -566,15 +575,6 @@ TESTCASE("TestTable",
           "of rows which will depend on how many TUP blocks are configured"){
   STEP(runTestTable);
 }
-#ifndef NDB_WIN
-/**
- * TODO NdbRestarter does not work on windoze
- */
-TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
-  STEP(runRestarter);
-  STEPS(runTestTableUntilStopped, 1);
-}
-#endif
 NDBT_TESTSUITE_END(testNdbinfo);
 
 

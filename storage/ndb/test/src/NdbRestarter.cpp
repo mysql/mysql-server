@@ -73,11 +73,14 @@ int
 NdbRestarter::restartOneDbNode(int _nodeId,
 			       bool inital,
 			       bool nostart,
-			       bool abort){
+			       bool abort,
+                               bool force)
+{
   return restartNodes(&_nodeId, 1,
                       (inital ? NRRF_INITIAL : 0) |
                       (nostart ? NRRF_NOSTART : 0) |
-                      (abort ? NRRF_ABORT : 0));
+                      (abort ? NRRF_ABORT : 0) |
+                      (force ? NRRF_FORCE : 0));
 }
 
 int
@@ -88,14 +91,16 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
     return -1;
 
   int ret = 0;
-  
-  if ((ret = ndb_mgm_restart2(handle, cnt, nodes,
+  int unused;
+  if ((ret = ndb_mgm_restart4(handle, cnt, nodes,
                               (flags & NRRF_INITIAL),
                               (flags & NRRF_NOSTART),
-                              (flags & NRRF_ABORT))) <= 0)
+                              (flags & NRRF_ABORT),
+                              (flags & NRRF_FORCE),
+                              &unused)) <= 0)
   {
     /**
-     * ndb_mgm_restart2 returned error, one reason could
+     * ndb_mgm_restart4 returned error, one reason could
      * be that the node have not stopped fast enough!
      * Check status of the node to see if it's on the 
      * way down. If that's the case ignore the error
@@ -104,7 +109,7 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
     if (getStatus() != 0)
       return -1;
 
-    g_info << "ndb_mgm_restart2 returned with error, checking node state"
+    g_info << "ndb_mgm_restart4 returned with error, checking node state"
            << endl;
 
     for (int j = 0; j<cnt; j++)
@@ -623,12 +628,15 @@ int NdbRestarter::getNumDbNodes(){
 
 int NdbRestarter::restartAll(bool initial,
 			     bool nostart,
-			     bool abort){
-  
+			     bool abort,
+                             bool force)
+{
   if (!isConnected())
     return -1;
 
-  if (ndb_mgm_restart2(handle, 0, NULL, initial, 1, abort) == -1) {
+  int unused;
+  if (ndb_mgm_restart4(handle, 0, NULL, initial, 1, abort,
+                       force, &unused) == -1) {
     MGMERR(handle);
     g_err  << "Could not restart(stop) all nodes " << endl;
     // return -1; Continue anyway - Magnus
