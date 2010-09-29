@@ -3039,24 +3039,28 @@ int ndb_mgm_get_version(NdbMgmHandle handle,
 
   Uint32 id;
   if(!prop->get("id",&id)){
-    fprintf(handle->errstream, "Unable to get value\n");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Unable to get version id");
     DBUG_RETURN(0);
   }
   *build= getBuild(id);
 
   if(!prop->get("major",(Uint32*)major)){
-    fprintf(handle->errstream, "Unable to get value\n");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Unable to get version major");
     DBUG_RETURN(0);
   }
 
   if(!prop->get("minor",(Uint32*)minor)){
-    fprintf(handle->errstream, "Unable to get value\n");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Unable to get version minor");
     DBUG_RETURN(0);
   }
 
   BaseString result;
   if(!prop->get("string", result)){
-    fprintf(handle->errstream, "Unable to get value\n");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Unable to get version string");
     DBUG_RETURN(0);
   }
 
