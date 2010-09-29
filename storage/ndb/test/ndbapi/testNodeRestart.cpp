@@ -3976,6 +3976,95 @@ runBug56044(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  Vector<int> group1;
+  Vector<int> group2;
+  Bitmask<256/32> nodeGroupMap;
+  for (int j = 0; j<res.getNumDbNodes(); j++)
+  {
+    int node = res.getDbNodeId(j);
+    int ng = res.getNodeGroup(node);
+    if (nodeGroupMap.get(ng))
+    {
+      group2.push_back(node);
+    }
+    else
+    {
+      group1.push_back(node);
+      nodeGroupMap.set(ng);
+    }
+  }
+
+  // Stop half of the cluster
+  res.restartNodes(group1.getBase(), (int)group1.size(),
+                   NdbRestarter::NRRF_NOSTART);
+  res.waitNodesNoStart(group1.getBase(), (int)group1.size());
+
+  // Try to stop first node in second half without force, should return error
+  if (res.restartOneDbNode(group2[0],
+                           false, /* initial */
+                           true,  /* nostart  */
+                           false, /* abort */
+                           false  /* force */) != -1)
+  {
+    g_err << "Restart suceeded without force" << endl;
+    return NDBT_FAILED;
+  }
+
+  // Now stop with force
+  if (res.restartOneDbNode(group2[0],
+                           false, /* initial */
+                           true,  /* nostart  */
+                           false, /* abort */
+                           true   /* force */) != 0)
+  {
+    g_err << "Could not restart with force" << endl;
+    return NDBT_FAILED;
+  }
+
+  // All nodes should now be in nostart, the above stop force
+  // cvaused the remainig nodes to be stopped(and restarted nostart)
+  res.waitClusterNoStart();
+
+  // Start second half back up again
+  res.startNodes(group2.getBase(), (int)group2.size());
+  res.waitNodesStarted(group2.getBase(), (int)group2.size());
+
+  // Try to stop remaining half without force, should return error
+  if (res.restartNodes(group2.getBase(), (int)group2.size(),
+                       NdbRestarter::NRRF_NOSTART) != -1)
+  {
+    g_err << "Restart suceeded without force" << endl;
+    return NDBT_FAILED;
+  }
+
+  // Now stop with force
+  if (res.restartNodes(group2.getBase(), (int)group2.size(),
+                       NdbRestarter::NRRF_NOSTART |
+                       NdbRestarter::NRRF_FORCE) != 0)
+  {
+    g_err << "Could not restart with force" << endl;
+    return NDBT_FAILED;
+  }
+  if (res.waitNodesNoStart(group2.getBase(), (int)group2.size()))
+  {
+    g_err << "Failed to waitNodesNoStart" << endl;
+    return NDBT_FAILED;
+  }
+
+  // Start all nodes again
+  res.startAll();
+  res.waitClusterStarted();
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -4493,6 +4582,10 @@ TESTCASE("MixReadUnlockRestart",
 TESTCASE("Bug56044", "")
 {
   INITIALIZER(runBug56044);
+}
+TESTCASE("ForceStopAndRestart", "Test restart and stop -with force flag")
+{
+  STEP(runForceStopAndRestart);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
