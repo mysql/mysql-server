@@ -2653,3 +2653,13 @@ COMMIT;
 COMMIT;
 DROP TABLE t1;
 DROP FUNCTION f1;
+#
+# Bug#54606 innodb fast alter table + pack_keys=0 
+#           prevents adding new indexes
+#
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
+ENGINE=InnoDB 
+PACK_KEYS=0;
+CREATE INDEX a ON t1 (a);
+CREATE INDEX c on t1 (c);
+DROP TABLE t1;
