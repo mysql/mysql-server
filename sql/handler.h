@@ -426,9 +426,6 @@ enum ha_push_flag {
   /* Handler want to block const table optimization */
   HA_PUSH_BLOCK_CONST_TABLE
 
-  /* Handler prefers index scan over file-sort for order by wo/ limit */
-  ,HA_PUSH_PREFER_INDEX
-
   /* Handler want to block 'Using join buffer' on the pushed join
      having this handler instance as *root*.
    */

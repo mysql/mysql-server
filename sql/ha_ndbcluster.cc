@@ -1833,7 +1833,6 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
   DBUG_ENTER("test_push_flag");
   switch (flag) {
   case HA_PUSH_BLOCK_CONST_TABLE:
-  case HA_PUSH_PREFER_INDEX:
   {
     /**
      * We don't support join push down if...
