@@ -570,7 +570,8 @@ private:
       ,BUCKET_HANDOVER = 0x2 // On running node
       ,BUCKET_TAKEOVER = 0x4 // On takeing over node
       ,BUCKET_RESEND   = 0x8 // On takeing over node
-      ,BUCKET_SHUTDOWN = 0x10 // Graceful shutdown
+      ,BUCKET_SHUTDOWN = 0x10 // Graceful shutdown (shutdown)
+      ,BUCKET_SHUTDOWN_TO = 0x20 // Graceful shutdown (take-over)
     };
     Uint16 m_state;
     Uint16 m_switchover_node;
