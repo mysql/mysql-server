@@ -5,7 +5,7 @@ TWS (Table With Strings)
 A self-contained benchmark that measures the performance of selected MySQL
 Server/Cluster APIs for basic operations on a string/varchar-based schema.
 
-This benchmark may be integrated into CRUND, in future.
+This benchmark is standalone and not yet integrated into CRUND.
 
 Questions or comments appreciated: martin.zaun@oracle.com
 
@@ -61,9 +61,12 @@ The benchmark is built and run by Ant scripts (generated from Netbeans).
 
 2) Run TWS
 
+    Start the Cluster and load the schema (see ../scripts/)
+        ./schema.sql
+
     Copy the run configuration sample file
-	$ cp -v run.properties.sample run.properties
-	run.properties.sample -> run.properties
+        $ cp -v run.properties.sample run.properties
+        run.properties.sample -> run.properties
 
     Edit the file for the benchmark settings
         ./run.properties
@@ -71,4 +74,4 @@ The benchmark is built and run by Ant scripts (generated from Netbeans).
     Run (and Profiling?) targets:
         $ ant run
 
-    At this time, all the benchmark's data output is to stdout.
+    All the benchmark's data output is to stdout, at this time.

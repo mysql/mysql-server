@@ -28,7 +28,7 @@
 # plain cc, debug:
 #  CFLAGS	= -g -DDEBUG
 # gnu gcc, general: -pedantic -ansi -std=c89 -std=c99 -std=gnu89 -std=gnu99
-  CFLAGS.gen	= -Wall -m64
+  CFLAGS.gen	= -Wall
 # gnu gcc, default:
   CFLAGS	= $(CFLAGS.gen) -g -O
 # gnu gcc, debug:
@@ -58,7 +58,7 @@
 #   -Woverloaded-virtual
 #      Unfortunately, too many warnings from NDB includes
   CXXFLAGS.gen	= -ansi -Wall -Wstrict-null-sentinel \
-		  -Wsign-promo -m64
+		  -Wsign-promo
 # gnu g++, default:
   CXXFLAGS	= $(CXXFLAGS.gen) -g -O
   CXXFLAGS.dbg	= $(CXXFLAGS.gen) -g -DDEBUG
