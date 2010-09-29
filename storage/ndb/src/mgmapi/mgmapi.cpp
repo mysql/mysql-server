@@ -107,10 +107,77 @@ struct ndb_mgm_handle {
   int mgmd_version_major;
   int mgmd_version_minor;
   int mgmd_version_build;
+
+  int mgmd_version(void) const {
+    // Must be connected
+    assert(connected);
+    // Check that version has been read
+    assert(mgmd_version_major >= 0 &&
+           mgmd_version_minor >= 0 &&
+           mgmd_version_build >= 0);
+    return NDB_MAKE_VERSION(mgmd_version_major,
+                            mgmd_version_minor,
+                            mgmd_version_build);
+  }
+
   char * m_bindaddress;
   int m_bindaddress_port;
   bool ignore_sigpipe;
 };
+
+
+/*
+  Check if version "curr" is greater than or equal to
+  a list of given versions
+
+  NOTE! The list of versions to check against must be listed
+  with the highest version first and terminated with version 0
+*/
+static inline
+bool check_version_ge(Uint32 curr, ...)
+{
+  Uint32 version, last = ~0;
+
+  va_list versions;
+  va_start(versions, curr);
+  while ((version= va_arg(versions, Uint32)))
+  {
+    if (curr >= version)
+    {
+      va_end(versions);
+      return true;
+    }
+    assert(version < last); // check that version list is descending
+    last = version;
+  }
+
+  va_end(versions);
+  return false;
+}
+
+static inline void
+test_check_version_ge(void)
+{
+  assert(check_version_ge(NDB_MAKE_VERSION(7,0,19),
+                          NDB_MAKE_VERSION(7,0,20),
+                          0) == false);
+  assert(check_version_ge(NDB_MAKE_VERSION(7,0,19),
+                          NDB_MAKE_VERSION(7,1,6),
+                          NDB_MAKE_VERSION(7,0,20),
+                          0) == false);
+  assert(check_version_ge(NDB_MAKE_VERSION(7,0,19),
+                          NDB_MAKE_VERSION(7,1,6),
+                          NDB_MAKE_VERSION(7,0,18),
+                          0));
+  assert(check_version_ge(NDB_MAKE_VERSION(7,1,8),
+                          NDB_MAKE_VERSION(7,1,6),
+                          NDB_MAKE_VERSION(7,0,18),
+                          0));
+  assert(check_version_ge(NDB_MAKE_VERSION(5,5,6),
+                          NDB_MAKE_VERSION(7,1,6),
+                          NDB_MAKE_VERSION(7,0,18),
+                          0) == false);
+}
 
 #define SET_ERROR(h, e, s) setError((h), (e), __LINE__, (s))
 
@@ -535,6 +602,26 @@ int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle)
   return count;
 }
 
+
+static inline
+bool get_mgmd_version(NdbMgmHandle handle)
+{
+  assert(handle->connected);
+
+  if (handle->mgmd_version_major >= 0)
+    return true; // Already fetched version of mgmd
+
+  char buf[2]; // Not used -> keep short
+  if (!ndb_mgm_get_version(handle,
+                           &(handle->mgmd_version_major),
+                           &(handle->mgmd_version_minor),
+                           &(handle->mgmd_version_build),
+                           sizeof(buf), buf))
+    return false;
+  return true;
+}
+
+
 /**
  * Connect to a management server
  */
@@ -682,6 +769,11 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   
   handle->socket    = sockfd;
   handle->connected = 1;
+
+  // Version of the connected ndb_mgmd is not yet known
+  handle->mgmd_version_major= -1;
+  handle->mgmd_version_minor= -1;
+  handle->mgmd_version_build= -1;
 
   DBUG_RETURN(0);
 }
@@ -1135,7 +1227,6 @@ extern "C"
 int 
 ndb_mgm_stop(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
 {
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_stop");
   return ndb_mgm_stop2(handle, no_of_nodes, node_list, 0);
 }
 
@@ -1148,36 +1239,23 @@ ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   return ndb_mgm_stop3(handle, no_of_nodes, node_list, abort, &disconnect);
 }
 
-
-extern "C"
-int
-ndb_mgm_obtain_mgmd_version(NdbMgmHandle handle)
-{
-  if (handle->mgmd_version_build == -1)
-  {
-    char verStr[64]; /* Long enough? */
-
-    if (!ndb_mgm_get_version(handle,
-                             &(handle->mgmd_version_major),
-                             &(handle->mgmd_version_minor),
-                             &(handle->mgmd_version_build),
-                             sizeof(verStr),
-                             verStr))
-    {
-      return -1;
-    }
-  }
-  return 0;
-}
-
 extern "C"
 int
 ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 	      int abort, int *disconnect)
 {
-  DBUG_ENTER("ndb_mgm_stop3");
+  return ndb_mgm_stop4(handle, no_of_nodes, node_list, abort,
+                       false, disconnect);
+}
+
+extern "C"
+int
+ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
+	      int abort, int force, int *disconnect)
+{
+  DBUG_ENTER("ndb_mgm_stop4");
   CHECK_HANDLE(handle, -1);
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_stop3");
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_stop4");
   const ParserRow<ParserDummy> stop_reply_v1[] = {
     MGM_CMD("stop reply", NULL, ""),
     MGM_ARG("stopped", Int, Optional, "No of stopped nodes"),
@@ -1194,10 +1272,8 @@ ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 
   CHECK_CONNECTED(handle, -1);
 
-  if(ndb_mgm_obtain_mgmd_version(handle) == -1)
-  {
+  if (!get_mgmd_version(handle))
     DBUG_RETURN(-1);
-  }
 
   int use_v2= ((handle->mgmd_version_major==5)
     && (
@@ -1223,6 +1299,7 @@ ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     args.put("abort", abort);
     if(use_v2)
       args.put("stop", (no_of_nodes==-1)?"mgm,db":"db");
+    // force has no effect, continue anyway for consistency
     const Properties *reply;
     if(use_v2)
       reply = ndb_mgm_call(handle, stop_reply_v2, "stop all", &args);
@@ -1263,6 +1340,14 @@ ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   
   args.put("node", node_list_str.c_str());
   args.put("abort", abort);
+  if (check_version_ge(handle->mgmd_version(),
+                       NDB_MAKE_VERSION(7,1,8),
+                       NDB_MAKE_VERSION(7,0,19),
+                       0))
+    args.put("force", force);
+  else
+    SET_ERROR(handle, NDB_MGM_STOP_FAILED,
+	      "The connected mgm server does not support 'stop --force'");
 
   const Properties *reply;
   if(use_v2)
@@ -1296,7 +1381,6 @@ extern "C"
 int
 ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes, const int *node_list) 
 {
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart");
   return ndb_mgm_restart2(handle, no_of_nodes, node_list, 0, 0, 0);
 }
 
@@ -1316,9 +1400,19 @@ int
 ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 		 int initial, int nostart, int abort, int *disconnect)
 {
-  DBUG_ENTER("ndb_mgm_restart3");
+  return ndb_mgm_restart4(handle, no_of_nodes, node_list, initial,
+                          nostart, abort, false, disconnect);
+}
+
+extern "C"
+int
+ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
+                 int initial, int nostart, int abort, int force,
+                 int *disconnect)
+{
+  DBUG_ENTER("ndb_mgm_restart");
   CHECK_HANDLE(handle, -1);
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart3");
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart4");
   Uint32 restarted = 0;
   const ParserRow<ParserDummy> restart_reply_v1[] = {
     MGM_CMD("restart reply", NULL, ""),
@@ -1336,19 +1430,9 @@ ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 
   CHECK_CONNECTED(handle, -1);
 
-  if(handle->mgmd_version_build==-1)
-  {
-    char verstr[50];
-    if(!ndb_mgm_get_version(handle,
-                        &(handle->mgmd_version_major),
-                        &(handle->mgmd_version_minor),
-                        &(handle->mgmd_version_build),
-                        sizeof(verstr),
-                            verstr))
-    {
-      DBUG_RETURN(-1);
-    }
-  }
+  if (!get_mgmd_version(handle))
+    DBUG_RETURN(-1);
+
   int use_v2= ((handle->mgmd_version_major==5)
     && (
         (handle->mgmd_version_minor==0 && handle->mgmd_version_build>=21)
@@ -1369,6 +1453,7 @@ ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     args.put("abort", abort);
     args.put("initialstart", initial);
     args.put("nostart", nostart);
+    // force has no effect, continue anyway for consistency
     const Properties *reply;
     const int timeout = handle->timeout;
     handle->timeout= 5*60*1000; // 5 minutes
@@ -1404,6 +1489,15 @@ ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   args.put("abort", abort);
   args.put("initialstart", initial);
   args.put("nostart", nostart);
+
+  if (check_version_ge(handle->mgmd_version(),
+                       NDB_MAKE_VERSION(7,1,8),
+                       NDB_MAKE_VERSION(7,0,19),
+                       0))
+    args.put("force", force);
+  else
+    SET_ERROR(handle, NDB_MGM_RESTART_FAILED,
+	      "The connected mgm server does not support 'restart --force'");
 
   const Properties *reply;
   const int timeout = handle->timeout;
@@ -2229,19 +2323,6 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
 		     unsigned int backuppoint) 
 {
   DBUG_ENTER("ndb_mgm_start_backup");
-  /* Before we start the backup, first get the version of the
-   * management node we are connected to
-   */
-  if (ndb_mgm_obtain_mgmd_version(handle) == -1)
-  {
-    DBUG_RETURN(-1);
-  }
-
-  Uint32 mgmdVersion = NDB_MAKE_VERSION(handle->mgmd_version_major,
-                                        handle->mgmd_version_minor,
-                                        handle->mgmd_version_build);
-  
-  bool sendBackupPoint = (mgmdVersion >= MGMD_MGMAPI_PROTOCOL_CHANGE);
 
   CHECK_HANDLE(handle, -1);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_start_backup");
@@ -2252,6 +2333,11 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
     MGM_END()
   };
   CHECK_CONNECTED(handle, -1);
+
+  if (!get_mgmd_version(handle))
+    DBUG_RETURN(-1);
+
+  bool sendBackupPoint = (handle->mgmd_version() >= NDB_MAKE_VERSION(6,4,0));
 
   Properties args;
   args.put("completed", wait_completed);
@@ -2344,23 +2430,16 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
                            enum ndb_mgm_node_type nodetype)
 {
   DBUG_ENTER("ndb_mgm_get_configuration2");
-  /* Before we get the config, first get the version of the
-   * managment node we are connected to
-   */
-  if (ndb_mgm_obtain_mgmd_version(handle) == -1)
-  {
-    DBUG_RETURN(NULL);
-  }
-
-  Uint32 mgmdVersion = NDB_MAKE_VERSION(handle->mgmd_version_major,
-                                        handle->mgmd_version_minor,
-                                        handle->mgmd_version_build);
-  
-  bool getConfigUsingNodetype = (mgmdVersion >= MGMD_MGMAPI_PROTOCOL_CHANGE); 
 
   CHECK_HANDLE(handle, 0);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_configuration");
   CHECK_CONNECTED(handle, 0);
+
+  if (!get_mgmd_version(handle))
+    DBUG_RETURN(NULL);
+
+  bool getConfigUsingNodetype =
+    (handle->mgmd_version() >= NDB_MAKE_VERSION(6,4,0));
 
   Properties args;
   args.put("version", version);
@@ -3041,24 +3120,28 @@ int ndb_mgm_get_version(NdbMgmHandle handle,
 
   Uint32 id;
   if(!prop->get("id",&id)){
-    fprintf(handle->errstream, "Unable to get value\n");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Unable to get version id");
     DBUG_RETURN(0);
   }
   *build= getBuild(id);
 
   if(!prop->get("major",(Uint32*)major)){
-    fprintf(handle->errstream, "Unable to get value\n");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Unable to get version major");
     DBUG_RETURN(0);
   }
 
   if(!prop->get("minor",(Uint32*)minor)){
-    fprintf(handle->errstream, "Unable to get value\n");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Unable to get version minor");
     DBUG_RETURN(0);
   }
 
   BaseString result;
   if(!prop->get("string", result)){
-    fprintf(handle->errstream, "Unable to get value\n");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Unable to get version string");
     DBUG_RETURN(0);
   }
 
