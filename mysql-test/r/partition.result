@@ -1767,7 +1767,7 @@ INSERT INTO t1 VALUES
 ('2006-09-29 21:50:01',22589,'Verified');
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (
 id int(8) NOT NULL,
 severity tinyint(4) NOT NULL DEFAULT '0',

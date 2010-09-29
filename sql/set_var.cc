@@ -108,7 +108,7 @@ void sys_var_end()
   my_hash_free(&system_variable_hash);
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
-    var->~sys_var();
+    var->cleanup();
 
   DBUG_VOID_RETURN;
 }

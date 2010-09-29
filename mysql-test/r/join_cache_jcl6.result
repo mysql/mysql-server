@@ -1448,7 +1448,7 @@ explain
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using temporary; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index; Using temporary; Using filesort
 1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using where; Using join buffer (BKA, incremental buffers)
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
@@ -2193,4 +2193,60 @@ col_int_key
 9
 9
 drop table t1;
+#
+# BUG#54481 "GROUP BY loses effect with JOIN + ORDER BY + LIMIT
+# and join_cache_level=5-8"
+#
+CREATE TABLE t1 (
+`col_int_key` int,
+`col_datetime` datetime,
+KEY `col_int_key` (`col_int_key`)
+);
+INSERT INTO t1 VALUES (2,'2003-02-11 21:19:41');
+INSERT INTO t1 VALUES (3,'2009-10-18 02:27:49');
+INSERT INTO t1 VALUES (0,'2000-09-26 07:45:57');
+CREATE TABLE t2 (
+`col_int` int,
+`col_int_key` int,
+KEY `col_int_key` (`col_int_key`)
+);
+INSERT INTO t2 VALUES (14,1);
+INSERT INTO t2 VALUES (98,1);
+explain SELECT t1.col_int_key, t1.col_datetime 
+FROM t1,t2
+WHERE t2.col_int_key = 1 AND t2.col_int >= 3
+GROUP BY t1.col_int_key
+ORDER BY t1.col_int_key, t1.col_datetime
+LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+1	SIMPLE	t2	ref	col_int_key	col_int_key	5	const	1	Using where; Using join buffer (BKA, incremental buffers)
+SELECT t1.col_int_key, t1.col_datetime 
+FROM t1,t2
+WHERE t2.col_int_key = 1 AND t2.col_int >= 3
+GROUP BY t1.col_int_key
+ORDER BY t1.col_int_key, t1.col_datetime
+LIMIT 2;
+col_int_key	col_datetime
+0	2000-09-26 07:45:57
+2	2003-02-11 21:19:41
+explain SELECT t1.col_int_key, t1.col_datetime 
+FROM t1 force index (col_int_key), t2 ignore index (col_int_key)
+WHERE t2.col_int_key = 1 AND t2.col_int >= 3
+GROUP BY t1.col_int_key
+ORDER BY t1.col_int_key, t1.col_datetime
+LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+SELECT t1.col_int_key, t1.col_datetime 
+FROM t1 force index (col_int_key), t2 ignore index (col_int_key)
+WHERE t2.col_int_key = 1 AND t2.col_int >= 3
+GROUP BY t1.col_int_key
+ORDER BY t1.col_int_key, t1.col_datetime
+LIMIT 2;
+col_int_key	col_datetime
+0	2000-09-26 07:45:57
+2	2003-02-11 21:19:41
+drop table t1,t2;
 set optimizer_join_cache_level = default;

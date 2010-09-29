@@ -10618,8 +10618,8 @@ insert_lock_option:
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
+          Lex->keyword_delayed_begin= YYLIP->get_tok_start();
           $$= TL_WRITE_DELAYED;
-          Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
         }
         | HIGH_PRIORITY { $$= TL_WRITE; }
         ;
@@ -10628,8 +10628,8 @@ replace_lock_option:
           opt_low_priority { $$= $1; }
         | DELAYED_SYM
         {
+          Lex->keyword_delayed_begin= YYLIP->get_tok_start();
           $$= TL_WRITE_DELAYED;
-          Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
         }
         ;
 
