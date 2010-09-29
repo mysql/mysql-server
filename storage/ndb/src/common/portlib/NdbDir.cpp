@@ -209,7 +209,7 @@ NdbDir::create(const char *dir, mode_t mode, bool ignore_existing)
       return true;
 
     fprintf(stderr,
-            "Failed to create directory '%s', error: %d",
+            "Failed to create directory '%s', error: %d\n",
             dir, GetLastError());
     return false;
   }
@@ -220,7 +220,7 @@ NdbDir::create(const char *dir, mode_t mode, bool ignore_existing)
       return true;
 
     fprintf(stderr,
-            "Failed to create directory '%s', error: %d",
+            "Failed to create directory '%s', error: %d\n",
             dir, errno);
     return false;
   }
