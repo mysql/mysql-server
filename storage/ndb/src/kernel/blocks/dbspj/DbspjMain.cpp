@@ -1417,7 +1417,7 @@ Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
       cnt ++;
     }
     treeNodePtr.p->m_row_list.init();
-    DEBUG(""SLFifoRowListIterator: released " << cnt << " rows!")
+    DEBUG("SLFifoRowListIterator: released " << cnt << " rows!")
   }
   else
   {
@@ -1434,7 +1434,7 @@ Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
       cnt++;
     }
     treeNodePtr.p->m_row_map.init();
-    DEBUG(""RowMapIterator: released " << cnt << " rows!")
+    DEBUG("RowMapIterator: released " << cnt << " rows!")
   }
 }
 
