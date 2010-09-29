@@ -14,3 +14,4 @@ rpl_failed_optimize       : WL#4284: Can't optimize table used by a pending tran
 rpl_read_only             : WL#4284: Setting Read only won't succeed until all metadata locks are released.
 rpl_row_create_table      : Bug#51574 2010-02-27 andrei failed different way than earlier with bug#45576
 rpl_spec_variables        : BUG#47661 2009-10-27 jasonh rpl_spec_variables fails on PB2 hpux
+rpl_log_pos               : BUG#55675 2010-09-10 alfranio rpl.rpl_log_pos fails sporadically with error binlog truncated in the middle
