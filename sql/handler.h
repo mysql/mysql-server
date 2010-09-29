@@ -1879,7 +1879,7 @@ public:
    @param     altered_table     A temporary table show what table is to
                                 change to
    @param     alter_info        Storage place for data used during phase1
-                                and phase2
+                                and phase2 and phase3
    @param     alter_flags       Bitmask that shows what will be changed
 
    @retval   0      OK
@@ -1897,8 +1897,10 @@ public:
     @param    thd               The thread handle
     @param    altered_table     A temporary table show what table is to
                                 change to
+    @param    create_info       Information from the parsing phase about new
+                                table properties.
     @param    alter_info        Storage place for data used during phase1
-                                and phase2
+                                and phase2 and phase3
     @param    alter_flags       Bitmask that shows what will be changed
 
     @retval  0      OK
@@ -1921,8 +1923,16 @@ public:
 
     @param    thd               The thread handle
     @param    table             The altered table, re-opened
+    @param    create_info       Information from the parsing phase about new
+                                table properties.
+    @param    alter_info        Storage place for data used during phase1
+                                and phase2 and phase3
+    @param    alter_flags       Bitmask that shows what has been changed
  */
- virtual int alter_table_phase3(THD *thd, TABLE *table);
+ virtual int alter_table_phase3(THD *thd, TABLE *table,
+                                HA_CREATE_INFO *create_info,
+                                HA_ALTER_INFO *alter_info,
+                                HA_ALTER_FLAGS *alter_flags);
 
   /**
     use_hidden_primary_key() is called in case of an update/delete when

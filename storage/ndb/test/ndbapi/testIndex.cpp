@@ -24,6 +24,9 @@
 #include <NdbRestarts.hpp>
 #include <Vector.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <NodeBitmask.hpp>
+#include <NdbSqlUtil.hpp>
+#include <BlockNumbers.h>
 
 #define CHECK(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
@@ -2319,6 +2322,250 @@ runBug50118(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+// bug#56829
+
+#undef CHECK2 // previous no good
+#define CHECK2(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    result = NDBT_FAILED; \
+    break; \
+  }
+
+static int
+get_data_memory_pages(NdbMgmHandle h, NdbNodeBitmask dbmask, int* pages_out)
+{
+  int result = NDBT_OK;
+  int pages = 0;
+
+  while (1)
+  {
+    // sends dump 1000 and retrieves all replies
+    ndb_mgm_events* e = 0;
+    CHECK2((e = ndb_mgm_dump_events(h, NDB_LE_MemoryUsage, 0, 0)) != 0, ndb_mgm_get_latest_error_msg(h));
+
+    // sum up pages (also verify sanity)
+    for (int i = 0; i < e->no_of_events; i++)
+    {
+      ndb_logevent* le = &e->events[i];
+      CHECK2(le->type == NDB_LE_MemoryUsage, "bad event type " << le->type);
+      const ndb_logevent_MemoryUsage* lem = &le->MemoryUsage;
+      if (lem->block != DBTUP)
+        continue;
+      int nodeId = le->source_nodeid;
+      CHECK2(dbmask.get(nodeId), "duplicate event from node " << nodeId);
+      dbmask.clear(nodeId);
+      pages += lem->pages_used;
+      g_info << "i:" << i << " node:" << le->source_nodeid << " pages:" << lem->pages_used << endl;
+    }
+    free(e);
+    CHECK2(result == NDBT_OK, "failed");
+
+    char buf[NdbNodeBitmask::TextLength + 1];
+    CHECK2(dbmask.isclear(), "no response from nodes " << dbmask.getText(buf));
+    break;
+  }
+
+  *pages_out = pages;
+  return result;
+}
+
+int
+runBug56829(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const int loops = ctx->getNumLoops();
+  int result = NDBT_OK;
+  const NdbDictionary::Table tab(*ctx->getTab());
+  const int rows = ctx->getNumRecords();
+  const char* mgm = ctx->getRemoteMgm();
+
+  char tabname[100];
+  strcpy(tabname, tab.getName());
+  char indname[100];
+  strcpy(indname, tabname);
+  strcat(indname, "X1");
+
+  (void)pDic->dropTable(tabname);
+
+  NdbMgmHandle h = 0;
+  NdbNodeBitmask dbmask;
+  // entry n marks if row with PK n exists
+  char* rowmask = new char [rows];
+  memset(rowmask, 0, rows);
+  int loop = 0;
+  while (loop < loops)
+  {
+    CHECK2(rows > 0, "rows must be != 0");
+    g_info << "loop " << loop << "<" << loops << endl;
+
+    // at first loop connect to mgm
+    if (loop == 0)
+    {
+      CHECK2((h = ndb_mgm_create_handle()) != 0, "mgm: failed to create handle");
+      CHECK2(ndb_mgm_set_connectstring(h, mgm) == 0, ndb_mgm_get_latest_error_msg(h));
+      CHECK2(ndb_mgm_connect(h, 0, 0, 0) == 0, ndb_mgm_get_latest_error_msg(h));
+      g_info << "mgm: connected to " << (mgm ? mgm : "default") << endl;
+
+      // make bitmask of DB nodes
+      dbmask.clear();
+      ndb_mgm_cluster_state* cs = 0;
+      CHECK2((cs = ndb_mgm_get_status(h)) != 0, ndb_mgm_get_latest_error_msg(h));
+      for (int j = 0; j < cs->no_of_nodes; j++)
+      {
+        ndb_mgm_node_state* ns = &cs->node_states[j];
+        if (ns->node_type == NDB_MGM_NODE_TYPE_NDB)
+        {
+          CHECK2(ns->node_status == NDB_MGM_NODE_STATUS_STARTED, "node " << ns->node_id << " not started status " << ns->node_status);
+          CHECK2(!dbmask.get(ns->node_id), "duplicate node id " << ns->node_id);
+          dbmask.set(ns->node_id);
+          g_info << "added DB node " << ns->node_id << endl;
+        }
+      }
+      free(cs);
+      CHECK2(result == NDBT_OK, "some DB nodes are not started");
+      CHECK2(!dbmask.isclear(), "found no DB nodes");
+    }
+
+    // data memory pages after following events
+    // 0-initial 1,2-create table,index 3-load 4-delete 5,6-drop index,table
+    int pages[7];
+
+    // initial
+    CHECK2(get_data_memory_pages(h, dbmask, &pages[0]) == NDBT_OK, "failed");
+    g_info << "initial pages " << pages[0] << endl;
+
+    // create table
+    g_info << "create table " << tabname << endl;
+    const NdbDictionary::Table* pTab = 0;
+    CHECK2(pDic->createTable(tab) == 0, pDic->getNdbError());
+    CHECK2((pTab = pDic->getTable(tabname)) != 0, pDic->getNdbError());
+    CHECK2(get_data_memory_pages(h, dbmask, &pages[1]) == NDBT_OK, "failed");
+    g_info << "create table pages " << pages[1] << endl;
+
+    // choice of index attributes is not relevant to this bug
+    // choose one non-PK updateable column
+    NdbDictionary::Index ind;
+    ind.setName(indname);
+    ind.setTable(tabname);
+    ind.setType(NdbDictionary::Index::OrderedIndex);
+    ind.setLogging(false);
+    {
+      HugoCalculator calc(*pTab);
+      for (int j = 0; j < pTab->getNoOfColumns(); j++)
+      {
+        const NdbDictionary::Column* col = pTab->getColumn(j);
+        if (col->getPrimaryKey() || calc.isUpdateCol(j))
+          continue;
+        CHARSET_INFO* cs = col->getCharset();
+        if (NdbSqlUtil::check_column_for_ordered_index(col->getType(), col->getCharset()) == 0)
+        {
+          ind.addColumn(*col);
+          break;
+        }
+      }
+    }
+    CHECK2(ind.getNoOfColumns() == 1, "cannot use table " << tabname);
+
+    // create index
+    g_info << "create index " << indname << " on " << ind.getColumn(0)->getName() << endl;
+    const NdbDictionary::Index* pInd = 0;
+    CHECK2(pDic->createIndex(ind, *pTab) == 0, pDic->getNdbError());
+    CHECK2((pInd = pDic->getIndex(indname, tabname)) != 0, pDic->getNdbError());
+    CHECK2(get_data_memory_pages(h, dbmask, &pages[2]) == NDBT_OK, "failed");
+    g_info << "create index pages " << pages[2] << endl;
+
+    HugoTransactions trans(*pTab);
+
+    // load all records
+    g_info << "load records" << endl;
+    CHECK2(trans.loadTable(pNdb, rows) == 0, trans.getNdbError());
+    memset(rowmask, 1, rows);
+    CHECK2(get_data_memory_pages(h, dbmask, &pages[3]) == NDBT_OK, "failed");
+    g_info << "load records pages " << pages[3] << endl;
+
+    // test index with random ops
+    g_info << "test index ops" << endl;
+    {
+      HugoOperations ops(*pTab);
+      for (int i = 0; i < rows; i++)
+      {
+        CHECK2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
+        for (int j = 0; j < 32; j++)
+        {
+          int n = rand() % rows;
+          if (!rowmask[n])
+          {
+            CHECK2(ops.pkInsertRecord(pNdb, n) == 0, ops.getNdbError());
+            rowmask[n] = 1;
+          }
+          else if (rand() % 2 == 0)
+          {
+            CHECK2(ops.pkDeleteRecord(pNdb, n) == 0, ops.getNdbError());
+            rowmask[n] = 0;
+          }
+          else
+          {
+            CHECK2(ops.pkUpdateRecord(pNdb, n) == 0, ops.getNdbError());
+          }
+        }
+        CHECK2(result == NDBT_OK, "index ops batch failed");
+        CHECK2(ops.execute_Commit(pNdb) == 0, ops.getNdbError());
+        ops.closeTransaction(pNdb);
+      }
+      CHECK2(result == NDBT_OK, "index ops failed");
+    }
+
+    // delete all records
+    g_info << "delete records" << endl;
+    CHECK2(trans.clearTable(pNdb) == 0, trans.getNdbError());
+    memset(rowmask, 0, rows);
+    CHECK2(get_data_memory_pages(h, dbmask, &pages[4]) == NDBT_OK, "failed");
+    g_info << "delete records pages " << pages[4] << endl;
+
+    // drop index
+    g_info << "drop index" <<  endl;
+    CHECK2(pDic->dropIndex(indname, tabname) == 0, pDic->getNdbError());
+    CHECK2(get_data_memory_pages(h, dbmask, &pages[5]) == NDBT_OK, "failed");
+    g_info << "drop index pages " << pages[5] << endl;
+
+    // drop table
+    g_info << "drop table" << endl;
+    CHECK2(pDic->dropTable(tabname) == 0, pDic->getNdbError());
+    CHECK2(get_data_memory_pages(h, dbmask, &pages[6]) == NDBT_OK, "failed");
+    g_info << "drop table pages " << pages[6] << endl;
+
+    // verify
+    CHECK2(pages[1] == pages[0], "pages after create table " << pages[1]
+                                  << " not == initial pages " << pages[0]);
+    CHECK2(pages[2] == pages[0], "pages after create index " << pages[2]
+                                  << " not == initial pages " << pages[0]);
+    CHECK2(pages[3] >  pages[0], "pages after load " << pages[3]
+                                  << " not >  initial pages " << pages[0]);
+    CHECK2(pages[4] == pages[0], "pages after delete " << pages[4]
+                                  << " not == initial pages " << pages[0]);
+    CHECK2(pages[5] == pages[0], "pages after drop index " << pages[5]
+                                  << " not == initial pages " << pages[0]);
+    CHECK2(pages[6] == pages[0], "pages after drop table " << pages[6]
+                                  << " not == initial pages " << pages[0]);
+
+    loop++;
+
+    // at last loop disconnect from mgm
+    if (loop == loops)
+    {
+      CHECK2(ndb_mgm_disconnect(h) == 0, ndb_mgm_get_latest_error_msg(h));
+      ndb_mgm_destroy_handle(&h);
+      g_info << "mgm: disconnected" << endl;
+    }
+  }
+  delete [] rowmask;
+
+  return result;
+}
+
 
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
@@ -2709,6 +2956,11 @@ TESTCASE("Bug50118", ""){
   STEP(runBug50118);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug56829",
+         "Return empty ordered index nodes to index fragment "
+         "so that empty fragment pages can be freed"){
+  STEP(runBug56829);
 }
 NDBT_TESTSUITE_END(testIndex);
 
