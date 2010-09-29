@@ -177,7 +177,7 @@ private:
   NdbIndexOperation(Ndb* aNdb);
   ~NdbIndexOperation();
 
-  int receiveTCINDXREF(NdbApiSignal* aSignal);
+  int receiveTCINDXREF(const NdbApiSignal* aSignal);
 
   // Overloaded methods from NdbCursorOperation
   int indxInit(const class NdbIndexImpl* anIndex,

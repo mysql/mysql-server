@@ -42,7 +42,7 @@
  *
  ****************************************************************************/
 int			
-NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
+NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal* aSignal){
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
   
   if(checkState_TransId(&ref->transId1)){
@@ -83,7 +83,7 @@ NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
  * 
  *****************************************************************************/
 int			
-NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal, 
+NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
 				   const Uint32 * ops, Uint32 len)
 {
   const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, aSignal->getDataPtr());
