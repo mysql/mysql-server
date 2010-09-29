@@ -1101,10 +1101,10 @@ Suma::execNODE_FAILREP(Signal* signal){
 	  progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
 		    "Nodefailure during SUMA takeover");
 	}
-        else if (state & Bucket::BUCKET_SHUTDOWN)
+        else if (state & Bucket::BUCKET_SHUTDOWN_TO)
         {
           jam();
-          c_buckets[i].m_state &= ~Uint32(Bucket::BUCKET_SHUTDOWN);
+          c_buckets[i].m_state &= ~Uint32(Bucket::BUCKET_SHUTDOWN_TO);
           m_switchover_buckets.clear(i);
           ndbrequire(get_responsible_node(i, tmp) == getOwnNodeId());
           start_resend(signal, i);
@@ -3569,7 +3569,11 @@ Suma::get_responsible_node(Uint32 bucket, const NdbNodeBitmask& mask) const
 bool
 Suma::check_switchover(Uint32 bucket, Uint64 gci)
 {
-  const Uint32 send_mask = (Bucket::BUCKET_STARTING | Bucket::BUCKET_TAKEOVER);
+  const Uint32 send_mask = 
+    Bucket::BUCKET_STARTING |
+    Bucket::BUCKET_TAKEOVER |
+    Bucket::BUCKET_SHUTDOWN_TO;
+
   bool send = c_buckets[bucket].m_state & send_mask;
   ndbassert(m_switchover_buckets.get(bucket));
   if(unlikely(gci > c_buckets[bucket].m_switchover_gci))
@@ -3864,24 +3868,26 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	}
         else if (state & Bucket::BUCKET_SHUTDOWN)
         {
+          jam();
           Uint32 nodeId = c_buckets[i].m_switchover_node;
-          if (nodeId == getOwnNodeId())
-          {
-            jam();
-            m_active_buckets.clear(i);
-            shutdown_nodes.set(nodeId);
-          }
-          else
-          {
-            jam();
-            NdbNodeBitmask nodegroup = c_nodes_in_nodegroup_mask;
-            nodegroup.clear(nodeId);
-            ndbrequire(get_responsible_node(i) == nodeId &&
-                       get_responsible_node(i, nodegroup) == getOwnNodeId());
-            m_active_buckets.set(i);
-            takeover_nodes.set(nodeId);
-          }
+          ndbrequire(nodeId == getOwnNodeId());
+          m_active_buckets.clear(i);
+          shutdown_nodes.set(nodeId);
           c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_SHUTDOWN;
+          ndbout_c(" shutdown");
+        }
+        else if (state & Bucket::BUCKET_SHUTDOWN_TO)
+        {
+          jam();
+          Uint32 nodeId = c_buckets[i].m_switchover_node;
+          NdbNodeBitmask nodegroup = c_nodes_in_nodegroup_mask;
+          nodegroup.clear(nodeId);
+          ndbrequire(get_responsible_node(i) == nodeId &&
+                     get_responsible_node(i, nodegroup) == getOwnNodeId());
+          m_active_buckets.set(i);
+          takeover_nodes.set(nodeId);
+          c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_SHUTDOWN_TO;
+          ndbout_c(" shutdown_to");
         }
 	else
 	{
@@ -4880,7 +4886,7 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
         tmp.set(i);
         m_switchover_buckets.set(i);
         c_buckets[i].m_switchover_gci = (Uint64(start_gci) << 32) - 1;
-        c_buckets[i].m_state |= Bucket::BUCKET_SHUTDOWN;
+        c_buckets[i].m_state |= Bucket::BUCKET_SHUTDOWN_TO;
         c_buckets[i].m_switchover_node = nodeId;
         ndbout_c("prepare to takeover bucket: %d", i);
       }
