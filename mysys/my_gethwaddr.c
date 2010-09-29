@@ -64,7 +64,7 @@ my_bool my_gethwaddr(uchar *to)
     if (ifm->ifm_type == RTM_IFINFO)
     {
       sdl = (struct sockaddr_dl *)(ifm + 1);
-      addr=LLADDR(sdl);
+      addr=(uchar *)LLADDR(sdl);
       res=memcpy_and_test(to, addr, ETHER_ADDR_LEN);
     }
   }
