@@ -994,7 +994,7 @@ int double2decimal(double from, decimal_t *to)
   char buff[400], *end;
   int length, res;
   DBUG_ENTER("double2decimal");
-  length= my_sprintf(buff, (buff, "%.16G", from));
+  length= sprintf(buff, "%.16G", from);
   DBUG_PRINT("info",("from: %g  from_as_str: %s", from, buff));
   end= buff+length;
   res= string2decimal(buff, to, &end);
@@ -1934,8 +1934,7 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
 int decimal_intg(decimal_t *from)
 {
   int res;
-  dec1 *tmp_res;
-  tmp_res= remove_leading_zeroes(from, &res);
+  remove_leading_zeroes(from, &res);
   return res;
 }
 

@@ -1,0 +1,205 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+
+# On slave2
+# Connect slave2 to slave
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=SLAVE_MYPORT;,
+MASTER_LOG_FILE='slave-bin.000001', MASTER_USER='root';
+START SLAVE;
+
+# [On master]
+DROP VIEW IF EXISTS v_user;
+DROP VIEW IF EXISTS v_tables_priv;
+DROP VIEW IF EXISTS v_procs_priv;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS my_grant;
+DROP PROCEDURE IF EXISTS my_revoke;
+DROP FUNCTION IF EXISTS my_user;
+DROP EVENT IF EXISTS e1;
+CREATE TABLE t1(c1 char(100));
+CREATE VIEW test.v_user AS SELECT * FROM mysql.user WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_tables_priv AS SELECT * FROM mysql.tables_priv WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_procs_priv AS SELECT * FROM mysql.procs_priv WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_event AS SELECT definer FROM mysql.event WHERE name = 'e1';
+CREATE PROCEDURE p1() SELECT 1;
+# bug48321_1-01234 has the max length(16) of user.
+GRANT ALL PRIVILEGES ON *.* TO 'bug48321_1-01234'@'localhost' WITH GRANT OPTION;
+
+# Make sure the max lengths of user and host
+# the user name is too lengh
+GRANT CREATE USER ON *.* TO '01234567890123456'@'fakehost';
+ERROR HY000: String '01234567890123456' is too long for user name (should be no longer than 16)
+# the host name is too lengh
+GRANT CREATE USER ON *.* TO 'fakename'@'0123456789012345678901234567890123456789012345678901234567890';
+ERROR HY000: String '0123456789012345678901234567890123456789012345678901234567890' is too long for host name (should be no longer than 60)
+
+# User 'bug48321_1-01234' connects to master by conn1
+# [On conn1]
+# Verify 'REVOKE ALL' statement
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM CURRENT_USER();
+Comparing tables master:test.v_user and slave:test.v_user
+Comparing tables master:test.v_user and slave2:test.v_user
+
+# Verify 'GRANT ... ON TABLE ...' statement
+GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
+Comparing tables master:test.v_tables_priv and slave:test.v_tables_priv
+Comparing tables master:test.v_tables_priv and slave2:test.v_tables_priv
+
+# Verify 'GRANT ... ON PROCEDURE...' statement
+GRANT ALTER ROUTINE, EXECUTE ON PROCEDURE p1 TO CURRENT_USER();
+Comparing tables master:test.v_procs_priv and slave:test.v_procs_priv
+Comparing tables master:test.v_procs_priv and slave2:test.v_procs_priv
+
+# Verify 'GRANT ... ON *.* ...' statement
+GRANT ALL PRIVILEGES ON *.* TO CURRENT_USER() WITH GRANT OPTION;
+Comparing tables master:test.v_procs_priv and slave:test.v_procs_priv
+Comparing tables master:test.v_procs_priv and slave2:test.v_procs_priv
+
+# Verify 'REVOKE ... ON TABLE ...' statement
+REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
+Comparing tables master:test.v_tables_priv and slave:test.v_tables_priv
+Comparing tables master:test.v_tables_priv and slave2:test.v_tables_priv
+
+# Verify 'REVOKE ... ON PROCEDURE...' statement
+REVOKE ALTER ROUTINE, EXECUTE ON PROCEDURE p1 FROM CURRENT_USER();
+Comparing tables master:test.v_procs_priv and slave:test.v_procs_priv
+Comparing tables master:test.v_procs_priv and slave2:test.v_procs_priv
+
+# Verify 'REVOKE ... ON *.* ...' statement
+REVOKE ALL PRIVILEGES ON *.* FROM CURRENT_USER();
+Comparing tables master:test.v_user and slave:test.v_user
+Comparing tables master:test.v_user and slave2:test.v_user
+
+# Verify 'GRANT ...' statement in the procedure
+CREATE PROCEDURE my_grant()
+GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
+call my_grant;
+Comparing tables master:test.v_tables_priv and slave:test.v_tables_priv
+Comparing tables master:test.v_tables_priv and slave2:test.v_tables_priv
+
+# Verify 'REVOKE ... ON TABLE ...' statement in the procedure
+CREATE PROCEDURE my_revoke()
+REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
+call my_revoke;
+Comparing tables master:test.v_tables_priv and slave:test.v_tables_priv
+Comparing tables master:test.v_tables_priv and slave2:test.v_tables_priv
+
+# Verify 'RENAME USER ...' statement
+RENAME USER CURRENT_USER TO 'bug48321_2'@'localhost';
+Comparing tables master:test.v_user and slave:test.v_user
+Comparing tables master:test.v_user and slave2:test.v_user
+
+# Verify 'DROP USER ...' statement
+GRANT CREATE USER ON *.* TO 'bug48321_2'@'localhost';
+DROP USER CURRENT_USER();
+Comparing tables master:test.v_user and slave:test.v_user
+Comparing tables master:test.v_user and slave2:test.v_user
+
+# Verify 'ALTER EVENT...' statement
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT * FROM t1;
+# Explicitly assign CURRENT_USER() to definer
+ALTER DEFINER=CURRENT_USER() EVENT e1 ENABLE;
+Comparing tables master:test.v_event and slave:test.v_event
+Comparing tables master:test.v_event and slave2:test.v_event
+
+# Session user will be set as definer, if the statement does not assign
+# a definer
+ALTER EVENT e1 ENABLE;
+Comparing tables master:test.v_event and slave:test.v_event
+Comparing tables master:test.v_event and slave2:test.v_event
+
+# Verify that this patch does not affect the calling of CURRENT_USER() 
+# in the other statements
+# [On master]
+INSERT INTO t1 VALUES(CURRENT_USER()), ('1234');
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+SELECT * FROM t1;
+c1
+root@localhost
+1234
+# [On slave]
+SELECT * FROM t1;
+c1
+@
+1234
+# [On slave2]
+SELECT * FROM t1;
+c1
+@
+1234
+# [On master]
+UPDATE t1 SET c1=CURRENT_USER() WHERE c1='1234';
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+SELECT * FROM t1;
+c1
+root@localhost
+root@localhost
+# [On slave]
+SELECT * FROM t1;
+c1
+@
+@
+# [On slave2]
+SELECT * FROM t1;
+c1
+@
+@
+# [On master]
+DELETE FROM t1 WHERE c1=CURRENT_USER();
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+SELECT * FROM t1;
+c1
+# [On slave]
+SELECT * FROM t1;
+c1
+# [On slave2]
+SELECT * FROM t1;
+c1
+# [On master]
+CREATE TABLE t2(c1 char(100));
+CREATE FUNCTION my_user() RETURNS VARCHAR(64) 
+SQL SECURITY INVOKER 
+BEGIN
+INSERT INTO t2 VALUES(CURRENT_USER());
+RETURN CURRENT_USER();
+END |
+INSERT INTO t1 VALUES(my_user());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+SELECT * FROM t1;
+c1
+root@localhost
+SELECT * FROM t2;
+c1
+root@localhost
+# [On slave]
+SELECT * FROM t1;
+c1
+@
+SELECT * FROM t2;
+c1
+@
+# [On slave2]
+SELECT * FROM t1;
+c1
+@
+SELECT * FROM t2;
+c1
+@
+
+# END
+DROP TABLE t1, t2;
+DROP VIEW v_user, v_tables_priv, v_procs_priv, v_event;
+DROP PROCEDURE p1;
+DROP PROCEDURE my_grant;
+DROP PROCEDURE my_revoke;
+DROP FUNCTION my_user;
+DROP EVENT e1;

@@ -103,8 +103,8 @@ char *partition_info::create_default_partition_names(uint part_no,
   {
     do
     {
-      my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
-      move_ptr+=MAX_PART_NAME_SIZE;
+      sprintf(move_ptr, "p%u", (start_no + i));
+      move_ptr+= MAX_PART_NAME_SIZE;
     } while (++i < no_parts_arg);
   }
   else
@@ -135,7 +135,7 @@ char *partition_info::create_subpartition_name(uint subpart_no,
 
   if (likely(ptr != NULL))
   {
-    my_sprintf(ptr, (ptr, "%ssp%u", part_name, subpart_no));
+    my_snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
   }
   else
   {
@@ -1206,13 +1206,11 @@ bool partition_info::set_up_charset_field_preps()
     i= 0;
     while ((field= *(ptr++)))
     {
-      CHARSET_INFO *cs;
       uchar *field_buf;
       LINT_INIT(field_buf);
 
       if (!field_is_partition_charset(field))
         continue;
-      cs= ((Field_str*)field)->charset();
       size= field->pack_length();
       if (!(field_buf= (uchar*) sql_calloc(size)))
         goto error;

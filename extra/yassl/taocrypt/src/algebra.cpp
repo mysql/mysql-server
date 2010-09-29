@@ -186,10 +186,10 @@ Integer AbstractGroup::CascadeScalarMultiply(const Element &x,
 
 struct WindowSlider
 {
-    WindowSlider(const Integer &exp, bool fastNegate,
+    WindowSlider(const Integer &expIn, bool fastNegateIn,
                  unsigned int windowSizeIn=0)
-        : exp(exp), windowModulus(Integer::One()), windowSize(windowSizeIn),
-          windowBegin(0), fastNegate(fastNegate), firstTime(true),
+        : exp(expIn), windowModulus(Integer::One()), windowSize(windowSizeIn),
+          windowBegin(0), fastNegate(fastNegateIn), firstTime(true),
           finished(false)
     {
         if (windowSize == 0)
