@@ -13,8 +13,6 @@
 
     + navA->B0: do not find the As
 
-*** check in CRUND to ClusterJ repository
-
 *** Operations.cpp: remove #ifndef NDEBUG... to ensure consistent
     result verifications across all operations and backends
 
