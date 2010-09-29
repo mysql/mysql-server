@@ -1,6 +1,6 @@
 
 TWS (Table With Strings)
-========================
+------------------------
 
 A self-contained benchmark that measures the performance of selected MySQL
 Server/Cluster APIs for basic operations on a string/varchar-based schema.
