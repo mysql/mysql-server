@@ -59,8 +59,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p01,p02,p03,p11	ALL	NULL	NULL	NULL	NULL	8	Using where
 explain partitions select * from t1 where a=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p11,p12,p13,p21	ALL	NULL	NULL	NULL	NULL	14	Using where
+1	SIMPLE	t1	p11,p12,p13,p21	ALL	NULL	NULL	NULL	NULL	8	Using where
 explain partitions select * from t1 where a=2 and b < 22;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p01,p02,p03	ALL	NULL	NULL	NULL	NULL	14	Using where
+1	SIMPLE	t1	p01,p02,p03	ALL	NULL	NULL	NULL	NULL	6	Using where
 drop table t1;
