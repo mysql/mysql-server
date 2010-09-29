@@ -51,6 +51,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_delete");
   bool save_binlog_row_based;
+  bool skip_record;
 
   THD::enum_binlog_query_type query_type=
     thd->lex->sql_command == SQLCOM_TRUNCATE ?
@@ -307,7 +308,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   {
     thd->examined_row_count++;
     // thd->is_error() is tested to disallow delete row on error
-    if (!(select && select->skip_record())&& ! thd->is_error() )
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
 
       if (triggers_applicable &&

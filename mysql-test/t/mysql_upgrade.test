@@ -108,3 +108,19 @@ CALL testproc();
 DROP PROCEDURE testproc;
 --cat_file $MYSQLTEST_VARDIR/tmp/41569.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/41569.txt
+
+
+--echo #
+--echo # Bug #53613: mysql_upgrade incorrectly revokes 
+--echo #   TRIGGER privilege on given table
+--echo #
+
+GRANT USAGE ON *.* TO 'user3'@'%';
+GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
+--echo Run mysql_upgrade with all privileges on a user
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+SHOW GRANTS FOR 'user3'@'%';
+
+DROP USER 'user3'@'%';
+
+--echo End of 5.1 tests

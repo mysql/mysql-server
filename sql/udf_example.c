@@ -141,7 +141,9 @@ typedef long long longlong;
 
 #ifdef HAVE_DLOPEN
 
+#if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
 static pthread_mutex_t LOCK_hostname;
+#endif
 
 /* These must be right or mysqld will not find the symbol! */
 
@@ -1065,7 +1067,7 @@ char *myfunc_argument_name(UDF_INIT *initid __attribute__((unused)),
 {
   if (!args->attributes[0])
   {
-    null_value= 0;
+    *null_value= 1;
     return 0;
   }
   (*length)--; /* space for ending \0 (for debugging purposes) */

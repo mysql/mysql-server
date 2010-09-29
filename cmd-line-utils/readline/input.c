@@ -318,7 +318,9 @@ _rl_input_available ()
     return (_kbhit ());
 #endif
 
+#if !defined (HAVE_SELECT)
   return 0;
+#endif
 }
 
 int
