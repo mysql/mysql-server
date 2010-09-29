@@ -1228,7 +1228,7 @@ FLUSH PRIVILEGES;
 DROP TABLE mysql.user;
 drop table if exists test;
 Warnings:
-Note	1051	Unknown table 'test'
+Note	1051	Unknown table 'test.test'
 drop function if exists test_function;
 Warnings:
 Note	1305	FUNCTION test.test_function does not exist

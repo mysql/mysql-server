@@ -242,6 +242,32 @@ private:
   binlog_cache_mngr(const binlog_cache_mngr& info);
 };
 
+/**
+  Checks if the BINLOG_CACHE_SIZE's value is greater than MAX_BINLOG_CACHE_SIZE.
+  If this happens, the BINLOG_CACHE_SIZE is set to MAX_BINLOG_CACHE_SIZE.
+*/
+void check_binlog_cache_size(THD *thd)
+{
+  if (binlog_cache_size > max_binlog_cache_size)
+  {
+    if (thd)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
+                          ER(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
+                          (ulong) binlog_cache_size,
+                          (ulong) max_binlog_cache_size);
+    }
+    else
+    {
+      sql_print_warning(ER_DEFAULT(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
+                        (ulong) binlog_cache_size,
+                        (ulong) max_binlog_cache_size);
+    }
+    binlog_cache_size= max_binlog_cache_size;
+  }
+}
+
  /*
   Save position of binary log transaction cache.
 
@@ -1601,6 +1627,9 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       if (!s.is_valid())
         goto err;
       s.dont_set_created= null_created_arg;
+      /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
+      if (is_relay_log)
+        s.set_relay_log_event();
       if (s.write(&log_file))
         goto err;
       bytes_written+= s.data_written;
@@ -3543,11 +3572,8 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
                                            const struct timespec *timeout)
 {
   int ret= 0;
-  const char* old_msg = thd->proc_info;
   DBUG_ENTER("wait_for_update_bin_log");
-  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           "Master has sent all binlog to slave; "
-                           "waiting for binlog to be updated");
+
   if (!timeout)
     mysql_cond_wait(&update_cond, &LOCK_log);
   else
@@ -3952,14 +3978,22 @@ void THD::binlog_set_stmt_begin() {
   Note that in order to keep the signature uniform with related methods,
   we use a redundant parameter to indicate whether a transactional table
   was changed or not.
+  Sometimes it will write a Rows_query_log_event into binary log before
+  the table map too.
  
   @param table             a pointer to the table.
   @param is_transactional  @c true indicates a transactional table,
                            otherwise @c false a non-transactional.
+  @param binlog_rows_query @c true indicates a Rows_query log event
+                           will be binlogged before table map,
+                           otherwise @c false indicates it will not
+                           be binlogged.
   @return
-    nonzero if an error pops up when writing the table map event.
+    nonzero if an error pops up when writing the table map event
+    or the Rows_query log event.
 */
-int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
+int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
+                                bool binlog_rows_query)
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
@@ -3982,6 +4016,16 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
 
   IO_CACHE *file=
     cache_mngr->get_binlog_cache_log(use_trans_cache(this, is_transactional));
+
+  if (binlog_rows_query && this->query())
+  {
+    /* Write the Rows_query_log_event into binlog before the table map */
+    Rows_query_log_event
+      rows_query_ev(this, this->query(), this->query_length());
+    if ((error= rows_query_ev.write(file)))
+      DBUG_RETURN(error);
+  }
+
   if ((error= the_event.write(file)))
     DBUG_RETURN(error);
 

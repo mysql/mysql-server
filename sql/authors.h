@@ -120,6 +120,8 @@ struct show_table_authors_st show_table_authors[]= {
   { "Jan Pazdziora", "", "Czech sorting order" },
   { "Benjamin Pflugmann", "",
     "Extended MERGE storage engine to handle INSERT" },
+  { "Evgeny Potemkin", "Russia",
+    "Filesort and derived tables optimizations, bugfixes" },
   { "Igor Romanenko", "",
     "mysqldump" },
   { "Mikael Ronström", "Stockholm, Sweden",
