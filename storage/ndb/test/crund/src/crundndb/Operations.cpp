@@ -9,6 +9,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
 
 #include <NdbApi.hpp>
 #include <NdbError.hpp>

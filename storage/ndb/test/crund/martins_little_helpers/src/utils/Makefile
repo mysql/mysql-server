@@ -17,10 +17,8 @@ include	../../../env.properties
 #		 -DHRT_CPUTIME_METHOD=HRT_USE_GETRUSAGE \
 
   DDEFINES 	= \
-		 -DHRT_REALTIME_METHOD=HRT_USE_GETTIMEOFDAY \
-		 -DHRT_CPUTIME_METHOD=HRT_USE_GETRUSAGE \
-		 #-DHRT_REALTIME_METHOD=HRT_USE_CLOCK_GETTIME \
-		 #-DHRT_CPUTIME_METHOD=HRT_USE_CLOCK_GETTIME \
+		 -DHRT_REALTIME_METHOD=HRT_USE_CLOCK_GETTIME \
+		 -DHRT_CPUTIME_METHOD=HRT_USE_CLOCK_GETTIME \
 		 #-DHRT_REALTIME_METHOD=HRT_USE_GETTIMEOFDAY \
 		 #-DHRT_CPUTIME_METHOD=HRT_USE_GETRUSAGE \
 		 #-DHRT_REALTIME_METHOD=HRT_USE_TIMES \
@@ -68,8 +66,8 @@ include	../../../env.properties
 #   LOADLIBES for libs for the individual case
 # check with non-gnu makes: use of LOADLIBES, LDLIBS
 # CLOCK_GETTIME requires -lrt
-  LDLIBS	=
-#  LDLIBS	= -lrt
+#  LDLIBS	=
+  LDLIBS	= -lrt
 
 #------------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 # benchmark settings
-#doJdbc=true
-#doClusterj=true
+doJdbc=true
+doClusterj=true
 doNdbjtie=true
 doInsert=true
 doLookup=true
@@ -19,15 +19,16 @@ doBatch=true
 #   clusterj single/bulk: ndb-7.1.8 revno 3782 crashes with node failure during
 #nRows=16000
 #nRows=4000
-nRows=1000
+#nRows=1000
 #nRows=500
-#nRows=250
+nRows=250
 
 #nRuns=10000
-#nRuns=50
+#nRuns=1000
+#nRuns=100
 #nRuns=25
-#nRuns=10
-nRuns=5
+nRuns=10
+#nRuns=5
 #nRuns=1
 
 # JDBC - MySQL settings

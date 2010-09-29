@@ -5,6 +5,7 @@
 
 #include <sstream>
 #include <cassert>
+#include <cstdlib>
 
 #include "Properties.hpp"
 
@@ -152,7 +153,7 @@ exitUsage()
          << "    -p <file name>         properties file name" << endl
          << "    -h|--help              print usage message and exit" << endl
          << endl;
-    exit(1); // return an error code
+    exit(EXIT_FAILURE);
 }
 
 int

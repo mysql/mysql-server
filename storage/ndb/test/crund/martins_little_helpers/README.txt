@@ -6,13 +6,16 @@ A collection of C++ utility classes and headers I found useful writing.
 
 Sources and libs are currently all in src/utils :
 
-- helpers.hpp           tracing and debugging macros
-- string_helpers.hpp    some string convenience functions
-- Properties.hpp        C++ implementation of java.util.Properties
+- helpers.hpp           some tracing and debugging macros
+- string_helpers.hpp    a few string convenience functions
+- Properties.hpp        a C++ implementation of java.util.Properties
+
 - hrt_utils.h           high-resolution time measurement utilities
 - hrt_stopwatch.h       high-resolution time stopwatch utility
 - hrt_gstopwatch.h      a global (=singleton) high-resolution time stopwatch
+
 - HrtStopwatch.java     a Java high-resolution time stopwatch utility
+- HrtProfiler.java	a crude utility for manual Java code instrumentation
 
 
 How to Install:
@@ -42,12 +45,13 @@ How to Install:
                  -DHRT_REALTIME_METHOD=HRT_USE_GETTIMEOFDAY \
                  -DHRT_CPUTIME_METHOD=HRT_USE_GETRUSAGE \
 
-    Linux (can try compiling with these methods for higher resolution!):
+    Linux (try compiling with these methods for higher clock resolution):
     DDEFINES    = \
                  -DHRT_REALTIME_METHOD=HRT_USE_CLOCK_GETTIME \
                  -DHRT_CPUTIME_METHOD=HRT_USE_CLOCK_GETTIME \
 
     LDLIBS	= -lrt
+
 
 3) Build the library
 
@@ -70,7 +74,4 @@ How to Install:
         $ make run.HrtStopwatchTest
 
 
-Questions or comments appreciated: dev-ndb-connectors@sun.com
-
-Martin Zaun
-martin.zaun@sun.com
+Comments or questions appreciated: martin.zaun@oracle.com
