@@ -2457,7 +2457,7 @@ const char* MgmtSrvr::getErrorText(int errorCode, char *buf, int buf_sz)
 
 
 void
-MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
+MgmtSrvr::handleReceivedSignal(const NdbApiSignal* signal)
 {
   int gsn = signal->readSignalNumber();
 
@@ -2493,8 +2493,8 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
 
 void
 MgmtSrvr::signalReceivedNotification(void* mgmtSrvr,
-                                     NdbApiSignal* signal,
-				     LinearSectionPtr ptr[3])
+                                     const NdbApiSignal* signal,
+				     const LinearSectionPtr ptr[3])
 {
   ((MgmtSrvr*)mgmtSrvr)->handleReceivedSignal(signal);
 }

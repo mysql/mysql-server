@@ -1837,7 +1837,8 @@ private:
 
   // Handle a received signal. Used by both
   // synchronous and asynchronous interface
-  void handleReceivedSignal(NdbApiSignal* anApiSignal, struct LinearSectionPtr ptr[3]);
+  void handleReceivedSignal(const NdbApiSignal* anApiSignal,
+			    const struct LinearSectionPtr ptr[3]);
   
   int			sendRecSignal(Uint16 aNodeId,
 				      Uint32 aWaitState,
@@ -1999,8 +2000,8 @@ private:
   int creleaseSignals;
 #endif
 
-  static void executeMessage(void*, NdbApiSignal *, 
-			     struct LinearSectionPtr ptr[3]);
+  static void executeMessage(void*, const NdbApiSignal *,
+			     const struct LinearSectionPtr ptr[3]);
   static void statusMessage(void*, Uint32, bool, bool);
 #ifdef VM_TRACE
 #include <my_attribute.h>

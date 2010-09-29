@@ -253,37 +253,12 @@ SignalSender::waitFor(Uint32 timeOutMillis){
   return waitFor(timeOutMillis, w);
 }
 
-class WaitForNode {
-public:
-  WaitForNode() {}
-  Uint32 m_nodeId;
-  SimpleSignal * check(Vector<SimpleSignal*> & m_jobBuffer){
-    Uint32 len = m_jobBuffer.size();
-    for(Uint32 i = 0; i<len; i++){
-      if(refToNode(m_jobBuffer[i]->header.theSendersBlockRef) == m_nodeId){
-	SimpleSignal * s = m_jobBuffer[i];
-	m_jobBuffer.erase(i);
-	return s;
-      }
-    }
-    return 0;
-  }
-};
-
-SimpleSignal *
-SignalSender::waitFor(Uint16 nodeId, Uint32 timeOutMillis){
-  
-  WaitForNode w;
-  w.m_nodeId = nodeId;
-  return waitFor(timeOutMillis, w);
-}
-
 #include <NdbApiSignal.hpp>
 
 void
 SignalSender::execSignal(void* signalSender, 
-			 NdbApiSignal* signal, 
-			 struct LinearSectionPtr ptr[3]){
+			 const NdbApiSignal* signal,
+			 const struct LinearSectionPtr ptr[3]){
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
   memcpy(&s->theData[0], signal->getDataPtr(), 4 * s->header.theLength);
@@ -411,7 +386,6 @@ SignalSender::find_alive_node(const NodeBitmask& mask)
 
 
 #if __SUNPRO_CC != 0x560
-template SimpleSignal* SignalSender::waitFor<WaitForNode>(unsigned, WaitForNode&);
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
 template NodeId SignalSender::find_node<FindConfirmedNode>(const NodeBitmask&,
                                                            FindConfirmedNode&);

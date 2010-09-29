@@ -2069,8 +2069,8 @@ NdbDictInterface::~NdbDictInterface()
 
 void 
 NdbDictInterface::execSignal(void* dictImpl, 
-			     class NdbApiSignal* signal, 
-			     struct LinearSectionPtr ptr[3])
+			     const class NdbApiSignal* signal,
+			     const struct LinearSectionPtr ptr[3])
 {
   NdbDictInterface * tmp = (NdbDictInterface*)dictImpl;
   
@@ -2461,8 +2461,8 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execGET_TABINFO_CONF(NdbApiSignal * signal, 
-				       LinearSectionPtr ptr[3])
+NdbDictInterface::execGET_TABINFO_CONF(const NdbApiSignal * signal,
+				       const LinearSectionPtr ptr[3])
 {
   const GetTabInfoConf* conf = CAST_CONSTPTR(GetTabInfoConf, signal->getDataPtr());
   const Uint32 i = GetTabInfoConf::DICT_TAB_INFO;
@@ -2492,8 +2492,8 @@ end:
 }
 
 void
-NdbDictInterface::execGET_TABINFO_REF(NdbApiSignal * signal,
-				      LinearSectionPtr ptr[3])
+NdbDictInterface::execGET_TABINFO_REF(const NdbApiSignal * signal,
+				      const LinearSectionPtr ptr[3])
 {
   const GetTabInfoRef* ref = CAST_CONSTPTR(GetTabInfoRef, 
 					   signal->getDataPtr());
@@ -3658,8 +3658,8 @@ NdbDictInterface::sendCreateTable(const NdbTableImpl &impl,
 }
 
 void
-NdbDictInterface::execCREATE_TABLE_CONF(NdbApiSignal * signal,
-					LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_TABLE_CONF(const NdbApiSignal * signal,
+					const LinearSectionPtr ptr[3])
 {
   const CreateTableConf* const conf=
     CAST_CONSTPTR(CreateTableConf, signal->getDataPtr());
@@ -3671,8 +3671,8 @@ NdbDictInterface::execCREATE_TABLE_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_TABLE_REF(NdbApiSignal * sig,
-				       LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_TABLE_REF(const NdbApiSignal * sig,
+				       const LinearSectionPtr ptr[3])
 {
   const CreateTableRef* ref = CAST_CONSTPTR(CreateTableRef, sig->getDataPtr());
   m_error.code= ref->errorCode;
@@ -3681,15 +3681,15 @@ NdbDictInterface::execCREATE_TABLE_REF(NdbApiSignal * sig,
 }
 
 void
-NdbDictInterface::execALTER_TABLE_CONF(NdbApiSignal * signal,
-                                       LinearSectionPtr ptr[3])
+NdbDictInterface::execALTER_TABLE_CONF(const NdbApiSignal * signal,
+                                       const LinearSectionPtr ptr[3])
 {
   m_waiter.signal(NO_WAIT);
 }
 
 void
-NdbDictInterface::execALTER_TABLE_REF(NdbApiSignal * sig,
-				      LinearSectionPtr ptr[3])
+NdbDictInterface::execALTER_TABLE_REF(const NdbApiSignal * sig,
+				      const LinearSectionPtr ptr[3])
 {
   const AlterTableRef * ref = CAST_CONSTPTR(AlterTableRef, sig->getDataPtr());
   m_error.code= ref->errorCode;
@@ -3884,8 +3884,8 @@ NdbDictInterface::dropTable(const NdbTableImpl & impl)
 }
 
 void
-NdbDictInterface::execDROP_TABLE_CONF(NdbApiSignal * signal,
-				       LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_TABLE_CONF(const NdbApiSignal * signal,
+				      const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_TABLE_CONF");
   //DropTableConf* const conf = CAST_CONSTPTR(DropTableConf, signal->getDataPtr());
@@ -3895,8 +3895,8 @@ NdbDictInterface::execDROP_TABLE_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execDROP_TABLE_REF(NdbApiSignal * signal,
-				      LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_TABLE_REF(const NdbApiSignal * signal,
+				     const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_TABLE_REF");
   const DropTableRef* ref = CAST_CONSTPTR(DropTableRef, signal->getDataPtr());
@@ -4145,15 +4145,15 @@ NdbDictInterface::createIndex(Ndb & ndb,
 }
 
 void
-NdbDictInterface::execCREATE_INDX_CONF(NdbApiSignal * signal,
-				       LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_INDX_CONF(const NdbApiSignal * signal,
+				       const LinearSectionPtr ptr[3])
 {
   m_waiter.signal(NO_WAIT);  
 }
 
 void
-NdbDictInterface::execCREATE_INDX_REF(NdbApiSignal * sig,
-				      LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_INDX_REF(const NdbApiSignal * sig,
+				      const LinearSectionPtr ptr[3])
 {
   const CreateIndxRef* ref = CAST_CONSTPTR(CreateIndxRef, sig->getDataPtr());
   m_error.code = ref->errorCode;
@@ -4281,15 +4281,15 @@ NdbDictInterface::dropIndex(const NdbIndexImpl & impl,
 }
 
 void
-NdbDictInterface::execDROP_INDX_CONF(NdbApiSignal * signal,
-				       LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_INDX_CONF(const NdbApiSignal * signal,
+				       const LinearSectionPtr ptr[3])
 {
   m_waiter.signal(NO_WAIT);  
 }
 
 void
-NdbDictInterface::execDROP_INDX_REF(NdbApiSignal * signal,
-				      LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_INDX_REF(const NdbApiSignal * signal,
+				      const LinearSectionPtr ptr[3])
 {
   const DropIndxRef* ref = CAST_CONSTPTR(DropIndxRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
@@ -4774,8 +4774,8 @@ NdbDictionaryImpl::getBlobEvent(const NdbEventImpl& ev, uint col_no)
 }
 
 void
-NdbDictInterface::execCREATE_EVNT_CONF(NdbApiSignal * signal,
-				       LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_EVNT_CONF(const NdbApiSignal * signal,
+				       const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_EVNT_CONF");
 
@@ -4807,8 +4807,8 @@ NdbDictInterface::execCREATE_EVNT_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_EVNT_REF(NdbApiSignal * signal,
-				      LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_EVNT_REF(const NdbApiSignal * signal,
+				      const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_EVNT_REF");
 
@@ -4824,8 +4824,8 @@ NdbDictInterface::execCREATE_EVNT_REF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSUB_STOP_CONF(NdbApiSignal * signal,
-				      LinearSectionPtr ptr[3])
+NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
+				      const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_CONF");
   const SubStopConf * const subStopConf=
@@ -4856,8 +4856,8 @@ NdbDictInterface::execSUB_STOP_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSUB_STOP_REF(NdbApiSignal * signal,
-				     LinearSectionPtr ptr[3])
+NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
+				     const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
   const SubStopRef * const subStopRef=
@@ -4880,8 +4880,8 @@ NdbDictInterface::execSUB_STOP_REF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSUB_START_CONF(NdbApiSignal * signal,
-				     LinearSectionPtr ptr[3])
+NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
+				     const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execSUB_START_CONF");
   const SubStartConf * const subStartConf=
@@ -4929,8 +4929,8 @@ NdbDictInterface::execSUB_START_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSUB_START_REF(NdbApiSignal * signal,
-				    LinearSectionPtr ptr[3])
+NdbDictInterface::execSUB_START_REF(const NdbApiSignal * signal,
+				    const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execSUB_START_REF");
   const SubStartRef * const subStartRef=
@@ -5070,8 +5070,8 @@ NdbDictInterface::dropEvent(const NdbEventImpl &evnt)
 }
 
 void
-NdbDictInterface::execDROP_EVNT_CONF(NdbApiSignal * signal,
-				     LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_EVNT_CONF(const NdbApiSignal * signal,
+				     const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_EVNT_CONF");
   m_waiter.signal(NO_WAIT);  
@@ -5079,8 +5079,8 @@ NdbDictInterface::execDROP_EVNT_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execDROP_EVNT_REF(NdbApiSignal * signal,
-				    LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_EVNT_REF(const NdbApiSignal * signal,
+				    const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_EVNT_REF");
   const DropEvntRef* const ref=
@@ -5667,8 +5667,8 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
 }
 
 void
-NdbDictInterface::execLIST_TABLES_CONF(NdbApiSignal* signal,
-                                       LinearSectionPtr ptr[3])
+NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
+                                       const LinearSectionPtr ptr[3])
 {
   Uint16 nodeId = refToNode(signal->theSendersBlockRef);
   NodeInfo info = m_transporter->theClusterMgr->getNodeInfo(nodeId).m_info;
@@ -5745,8 +5745,8 @@ NdbDictInterface::execLIST_TABLES_CONF(NdbApiSignal* signal,
 
 
 void
-NdbDictInterface::execOLD_LIST_TABLES_CONF(NdbApiSignal* signal,
-                                           LinearSectionPtr ptr[3])
+NdbDictInterface::execOLD_LIST_TABLES_CONF(const NdbApiSignal* signal,
+                                           const LinearSectionPtr ptr[3])
 {
   const unsigned off = OldListTablesConf::HeaderLength;
   const unsigned len = (signal->getLength() - off);
@@ -5835,15 +5835,15 @@ NdbDictInterface::forceGCPWait(int type)
 }
 
 void
-NdbDictInterface::execWAIT_GCP_CONF(NdbApiSignal* signal,
-				    LinearSectionPtr ptr[3])
+NdbDictInterface::execWAIT_GCP_CONF(const NdbApiSignal* signal,
+				    const LinearSectionPtr ptr[3])
 {
   m_waiter.signal(NO_WAIT);
 }
 
 void
-NdbDictInterface::execWAIT_GCP_REF(NdbApiSignal* signal,
-                                   LinearSectionPtr ptr[3])
+NdbDictInterface::execWAIT_GCP_REF(const NdbApiSignal* signal,
+                                   const LinearSectionPtr ptr[3])
 {
   m_waiter.signal(NO_WAIT);
 }
@@ -7232,8 +7232,8 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
 }
 
 void
-NdbDictInterface::execCREATE_FILE_CONF(NdbApiSignal * signal,
-				       LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FILE_CONF(const NdbApiSignal * signal,
+				       const LinearSectionPtr ptr[3])
 {
   const CreateFileConf* conf=
     CAST_CONSTPTR(CreateFileConf, signal->getDataPtr());
@@ -7247,8 +7247,8 @@ NdbDictInterface::execCREATE_FILE_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_FILE_REF(NdbApiSignal * signal,
-				      LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FILE_REF(const NdbApiSignal * signal,
+				      const LinearSectionPtr ptr[3])
 {
   const CreateFileRef* ref = 
     CAST_CONSTPTR(CreateFileRef, signal->getDataPtr());
@@ -7285,15 +7285,15 @@ NdbDictInterface::drop_file(const NdbFileImpl & file)
 }
 
 void
-NdbDictInterface::execDROP_FILE_CONF(NdbApiSignal * signal,
-					    LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FILE_CONF(const NdbApiSignal * signal,
+					    const LinearSectionPtr ptr[3])
 {
   m_waiter.signal(NO_WAIT);  
 }
 
 void
-NdbDictInterface::execDROP_FILE_REF(NdbApiSignal * signal,
-					   LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FILE_REF(const NdbApiSignal * signal,
+					   const LinearSectionPtr ptr[3])
 {
   const DropFileRef* ref = 
     CAST_CONSTPTR(DropFileRef, signal->getDataPtr());
@@ -7401,8 +7401,8 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
 }
 
 void
-NdbDictInterface::execCREATE_FILEGROUP_CONF(NdbApiSignal * signal,
-					    LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FILEGROUP_CONF(const NdbApiSignal * signal,
+					    const LinearSectionPtr ptr[3])
 {
   const CreateFilegroupConf* conf=
     CAST_CONSTPTR(CreateFilegroupConf, signal->getDataPtr());
@@ -7415,8 +7415,8 @@ NdbDictInterface::execCREATE_FILEGROUP_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_FILEGROUP_REF(NdbApiSignal * signal,
-					   LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FILEGROUP_REF(const NdbApiSignal * signal,
+					   const LinearSectionPtr ptr[3])
 {
   const CreateFilegroupRef* ref = 
     CAST_CONSTPTR(CreateFilegroupRef, signal->getDataPtr());
@@ -7453,15 +7453,15 @@ NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group)
 }
 
 void
-NdbDictInterface::execDROP_FILEGROUP_CONF(NdbApiSignal * signal,
-					    LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FILEGROUP_CONF(const NdbApiSignal * signal,
+					    const LinearSectionPtr ptr[3])
 {
   m_waiter.signal(NO_WAIT);  
 }
 
 void
-NdbDictInterface::execDROP_FILEGROUP_REF(NdbApiSignal * signal,
-					   LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FILEGROUP_REF(const NdbApiSignal * signal,
+					   const LinearSectionPtr ptr[3])
 {
   const DropFilegroupRef* ref = 
     CAST_CONSTPTR(DropFilegroupRef, signal->getDataPtr());
@@ -7983,8 +7983,8 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
 }
 
 void
-NdbDictInterface::execCREATE_HASH_MAP_REF(NdbApiSignal * signal,
-                                          LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_HASH_MAP_REF(const NdbApiSignal * signal,
+                                          const LinearSectionPtr ptr[3])
 {
   const CreateHashMapRef* ref =
     CAST_CONSTPTR(CreateHashMapRef, signal->getDataPtr());
@@ -7995,8 +7995,8 @@ NdbDictInterface::execCREATE_HASH_MAP_REF(NdbApiSignal * signal,
 
 
 void
-NdbDictInterface::execCREATE_HASH_MAP_CONF(NdbApiSignal * signal,
-                                           LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal,
+                                           const LinearSectionPtr ptr[3])
 {
   const CreateHashMapConf* conf=
     CAST_CONSTPTR(CreateHashMapConf, signal->getDataPtr());
@@ -8207,8 +8207,8 @@ NdbDictInterface::endSchemaTrans(Uint32 flags)
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(NdbApiSignal * signal,
-                                              LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal * signal,
+                                              const LinearSectionPtr ptr[3])
 {
   const SchemaTransBeginConf* conf=
     CAST_CONSTPTR(SchemaTransBeginConf, signal->getDataPtr());
@@ -8218,8 +8218,8 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(NdbApiSignal * signal,
-                                             LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal * signal,
+                                             const LinearSectionPtr ptr[3])
 {
   const SchemaTransBeginRef* ref =
     CAST_CONSTPTR(SchemaTransBeginRef, signal->getDataPtr());
@@ -8229,8 +8229,8 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_END_CONF(NdbApiSignal * signal,
-                                            LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal * signal,
+                                            const LinearSectionPtr ptr[3])
 {
   const SchemaTransEndConf* conf=
     CAST_CONSTPTR(SchemaTransEndConf, signal->getDataPtr());
@@ -8239,8 +8239,8 @@ NdbDictInterface::execSCHEMA_TRANS_END_CONF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_END_REF(NdbApiSignal * signal,
-                                           LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_END_REF(const NdbApiSignal * signal,
+                                           const LinearSectionPtr ptr[3])
 {
   const SchemaTransEndRef* ref =
     CAST_CONSTPTR(SchemaTransEndRef, signal->getDataPtr());
@@ -8251,8 +8251,8 @@ NdbDictInterface::execSCHEMA_TRANS_END_REF(NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_END_REP(NdbApiSignal * signal,
-                                           LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_END_REP(const NdbApiSignal * signal,
+                                           const LinearSectionPtr ptr[3])
 {
   const SchemaTransEndRep* rep =
     CAST_CONSTPTR(SchemaTransEndRep, signal->getDataPtr());

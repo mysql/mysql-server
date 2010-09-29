@@ -283,6 +283,8 @@ NdbApiSignal::copyFrom(const NdbApiSignal * src){
   theSendersBlockRef      = src->theSendersBlockRef;
   theLength               = src->theLength;
   theTrace                = src->theTrace;
+  m_noOfSections          = src->m_noOfSections;
+  m_fragmentInfo          = src->m_fragmentInfo;
   
   Uint32 * dstData = getDataPtrSend();
   const Uint32 * srcData = src->getDataPtr();
