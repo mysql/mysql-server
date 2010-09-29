@@ -1644,7 +1644,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        Sets theRestartGCI in the NDB object. 
 *******************************************************************************/
 int			
-NdbTransaction::receiveDIHNDBTAMPER(NdbApiSignal* aSignal)
+NdbTransaction::receiveDIHNDBTAMPER(const NdbApiSignal* aSignal)
 {
   if (theStatus != Connecting) {
     return -1;
@@ -1664,7 +1664,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        Sets TC Connect pointer at reception of TCSEIZECONF. 
 *******************************************************************************/
 int			
-NdbTransaction::receiveTCSEIZECONF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCSEIZECONF(const NdbApiSignal* aSignal)
 {
   if (theStatus != Connecting)
   {
@@ -1686,7 +1686,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        Sets TC Connect pointer. 
 *******************************************************************************/
 int			
-NdbTransaction::receiveTCSEIZEREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCSEIZEREF(const NdbApiSignal* aSignal)
 {
   DBUG_ENTER("NdbTransaction::receiveTCSEIZEREF");
   if (theStatus != Connecting)
@@ -1712,7 +1712,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:         DisConnect TC Connect pointer to NDBAPI. 
 *******************************************************************************/
 int			
-NdbTransaction::receiveTCRELEASECONF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCRELEASECONF(const NdbApiSignal* aSignal)
 {
   if (theStatus != DisConnecting)
   {
@@ -1733,7 +1733,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        DisConnect TC Connect pointer to NDBAPI Failure. 
 *******************************************************************************/
 int			
-NdbTransaction::receiveTCRELEASEREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCRELEASEREF(const NdbApiSignal* aSignal)
 {
   if (theStatus != DisConnecting) {
     return -1;
@@ -1788,7 +1788,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 ******************************************************************************/
 int			
-NdbTransaction::receiveTC_COMMITREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTC_COMMITREF(const NdbApiSignal* aSignal)
 {
   const TcCommitRef * ref = CAST_CONSTPTR(TcCommitRef, aSignal->getDataPtr());
   if(checkState_TransId(&ref->transId1)){
@@ -1815,7 +1815,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 ******************************************************************************/
 int			
-NdbTransaction::receiveTCROLLBACKCONF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCROLLBACKCONF(const NdbApiSignal* aSignal)
 {
   if(checkState_TransId(aSignal->getDataPtr() + 1)){
     theCommitStatus = Aborted;
@@ -1839,7 +1839,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 *******************************************************************************/
 int			
-NdbTransaction::receiveTCROLLBACKREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCROLLBACKREF(const NdbApiSignal* aSignal)
 {
   if(checkState_TransId(aSignal->getDataPtr() + 1)){
     setOperationErrorCodeAbort(aSignal->readData(4));
@@ -1866,7 +1866,7 @@ Parameters:     aSignal: the signal object that contains the
 Remark:         Handles the reception of the ROLLBACKREP signal.
 *****************************************************************************/
 int
-NdbTransaction::receiveTCROLLBACKREP( NdbApiSignal* aSignal)
+NdbTransaction::receiveTCROLLBACKREP( const NdbApiSignal* aSignal)
 {
   DBUG_ENTER("NdbTransaction::receiveTCROLLBACKREP");
 
@@ -2062,7 +2062,7 @@ Parameters:     aSignal: the signal object that contains the
 Remark:         Handles the reception of the TCKEY_FAILREF signal.
 **************************************************************************/
 int
-NdbTransaction::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCKEY_FAILREF(const NdbApiSignal* aSignal)
 {
   /*
     Check that we are expecting signals from this transaction and
