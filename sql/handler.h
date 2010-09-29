@@ -433,6 +433,14 @@ enum ha_push_flag {
      having this handler instance as *root*.
    */
   ,HA_PUSH_BLOCK_JOINCACHE
+
+  /* Handler reports a pushed join as having multiple dependencies 
+     if its results does not only depend on the root operation:
+     ie. results from some child operations does not only depend
+     on results from the root operation and/or other child operations
+     within this pushed join 
+   */
+  ,HA_PUSH_MULTIPLE_DEPENDENCY
 };
 
 /**

@@ -2432,6 +2432,7 @@ insert into t1 values (9,9,10,10);
 insert into t1 values (10,10,10,10);
 insert into t1 values (11,11,10,10);
 
+
 explain select count(*) from t1 as x1 join t1 as x2 join t1 as x3 
 on x1.a=x2.u and x2.a = x3.b;
 
@@ -2650,8 +2651,27 @@ select count(*) from
 update t1 set u=u-100;
 
 ##############
-drop table t1;
 
+drop index ix2 on t1;
+create unique index ix2 on t1(a,u);
+
+set ndb_join_pushdown=on;
+explain
+select straight_join * from
+t1 as table1 join 
+ (t1 as table2 join t1 as table3 on table3.a = table2.a)
+ on table3.u = table1.u
+ where table2.pk = 3;
+
+--sorted_result
+select straight_join * from
+t1 as table1 join 
+ (t1 as table2 join t1 as table3 on table3.a = table2.a)
+ on table3.u = table1.u
+ where table2.pk = 3;
+
+##############
+drop table t1;
 
 #############################################
 # Test pruned index scan:

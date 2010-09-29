@@ -967,7 +967,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
 
   if (m_const_scope.contain(current_parents))
    {
-     // NOTE: This is a constant table in the context of this pushed join.
+     // NOTE: This is a constant table wrt. this instance of the pushed join.
      //       It should be relatively simple to extend the SPJ block to 
      //       allow such tables to be included in the pushed join.
     DBUG_PRINT("info", ("  Contain only const/param REFs, -> can't append(yet) as 'const' wrt. pushed join:%d\n",tab_no+1));
@@ -1868,6 +1868,19 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
     if (m_pushed_join &&
          (m_pushed_join->get_field_referrences_count() > 0 || // Childs has field refs
          !m_pushed_join->get_query_def().isScanQuery()))      // Roots lookup keys may refer joincache
+    {
+      DBUG_RETURN(true);
+    }
+    DBUG_RETURN(false);
+
+  case HA_PUSH_MULTIPLE_DEPENDENCY:
+    /**
+     * If any child operation within this pushed join refer 
+     * column values (paramValues), the pushed join has dependencies
+     * in addition to the root operation itself.
+     */
+    if (m_pushed_join &&
+        m_pushed_join->get_field_referrences_count() > 0)   // Childs has field refs
     {
       DBUG_RETURN(true);
     }

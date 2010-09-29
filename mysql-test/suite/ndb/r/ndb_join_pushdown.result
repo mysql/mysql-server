@@ -3636,6 +3636,37 @@ left outer join t1 as z on z.u = x.a;
 count(*)
 156
 update t1 set u=u-100;
+drop index ix2 on t1;
+create unique index ix2 on t1(a,u);
+set ndb_join_pushdown=on;
+explain
+select straight_join * from
+t1 as table1 join 
+(t1 as table2 join t1 as table3 on table3.a = table2.a)
+on table3.u = table1.u
+where table2.pk = 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	table1	ALL	NULL	NULL	NULL	NULL	13	
+1	SIMPLE	table2	const	PRIMARY,ix2	PRIMARY	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	table3	ref	ix2	ix2	9	test.table2.a,test.table1.u	1	Child of pushed join@1; Using where
+select straight_join * from
+t1 as table1 join 
+(t1 as table2 join t1 as table3 on table3.a = table2.a)
+on table3.u = table1.u
+where table2.pk = 3;
+pk	u	a	b	pk	u	a	b	pk	u	a	b
+0	0	10	10	3	3	10	10	0	0	10	10
+1	1	10	10	3	3	10	10	1	1	10	10
+10	10	10	10	3	3	10	10	10	10	10	10
+11	11	10	10	3	3	10	10	11	11	10	10
+2	2	10	10	3	3	10	10	2	2	10	10
+3	3	10	10	3	3	10	10	3	3	10	10
+4	4	10	10	3	3	10	10	4	4	10	10
+5	5	10	10	3	3	10	10	5	5	10	10
+6	6	10	10	3	3	10	10	6	6	10	10
+7	7	10	10	3	3	10	10	7	7	10	10
+8	8	10	10	3	3	10	10	8	8	10	10
+9	9	10	10	3	3	10	10	9	9	10	10
 drop table t1;
 create table t1(
 d int not null,
@@ -3938,8 +3969,8 @@ CONST_PRUNED_RANGE_SCANS_RECEIVED	6
 LOCAL_TABLE_SCANS_SENT	192
 PRUNED_RANGE_SCANS_RECEIVED	14
 RANGE_SCANS_RECEIVED	195
-READS_NOT_FOUND	402
-READS_RECEIVED	48
+READS_NOT_FOUND	403
+READS_RECEIVED	61
 SCAN_ROWS_RETURNED	63563
 TABLE_SCANS_RECEIVED	192
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
@@ -3948,19 +3979,19 @@ where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
 and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 LOCAL+REMOTE READS_SENT
-29082
+29120
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-1961
+1969
 pruned_scan_count
 7
 sorted_scan_count
 44
 pushed_queries_defined
-328
+330
 pushed_queries_dropped
 11
 pushed_queries_executed
-245
+258
 set ndb_join_pushdown = @save_ndb_join_pushdown;
