@@ -2136,7 +2136,13 @@ NdbDictionary::Dictionary::invalidateIndex(const char * indexName,
 int
 NdbDictionary::Dictionary::forceGCPWait()
 {
-  return m_impl.forceGCPWait();
+  return forceGCPWait(0);
+}
+
+int
+NdbDictionary::Dictionary::forceGCPWait(int type)
+{
+  return m_impl.forceGCPWait(type);
 }
 
 void
@@ -2563,3 +2569,14 @@ NdbDictionary::Dictionary::getUndofile(Uint32 node, const char * path)
   return tmp;
 }
 
+void
+NdbDictionary::Dictionary::invalidateDbGlobal(const char * name)
+{
+  if (m_impl.m_globalHash && name != 0)
+  {
+    size_t len = strlen(name);
+    m_impl.m_globalHash->lock();
+    m_impl.m_globalHash->invalidateDb(name, len);
+    m_impl.m_globalHash->unlock();
+  }
+}

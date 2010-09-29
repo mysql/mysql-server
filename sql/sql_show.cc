@@ -3353,6 +3353,9 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   uint table_open_method;
   DBUG_ENTER("get_all_tables");
 
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
+  global_schema_lock_guard.lock();
+
   lex->view_prepare_mode= TRUE;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
 

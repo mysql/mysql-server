@@ -2136,8 +2136,15 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   
-  tabPtr.p->m_dropTable.tabUserPtr= tabPtr.p->m_attributes[DD].m_no_of_fixsize;
-  tabPtr.p->m_dropTable.tabUserRef= tabPtr.p->m_attributes[DD].m_no_of_varsize;
+  ndbassert(tabPtr.p->m_attributes[DD].m_no_of_fixsize < (1 << 16));
+  ndbassert(tabPtr.p->m_attributes[DD].m_no_of_varsize < (1 << 16));
+  
+  Uint32 saveAttrCounts = 
+    (tabPtr.p->m_attributes[DD].m_no_of_fixsize << 16) |
+    (tabPtr.p->m_attributes[DD].m_no_of_varsize << 0);
+  
+  tabPtr.p->m_dropTable.tabUserPtr= saveAttrCounts;
+  tabPtr.p->m_dropTable.tabUserRef= (tabPtr.p->m_bits & Tablerec::TR_RowGCI)? 1 : 0;
   
   Uint32 *tabDesc = (Uint32*)(tableDescriptor+tabPtr.p->tabDescriptor);
   for(Uint32 i= 0; i<tabPtr.p->m_no_of_attributes; i++)
@@ -2154,6 +2161,8 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.p->m_no_of_disk_attributes = 0;
   tabPtr.p->m_attributes[DD].m_no_of_fixsize = 0;
   tabPtr.p->m_attributes[DD].m_no_of_varsize = 0;
+  /* Avoid LQH trampling GCI restored in raw format */
+  tabPtr.p->m_bits &= ~((Uint16) Tablerec::TR_RowGCI);
 }
 void
 Dbtup::complete_restore_lcp(Signal* signal, 
@@ -2164,9 +2173,12 @@ Dbtup::complete_restore_lcp(Signal* signal,
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   
-  tabPtr.p->m_attributes[DD].m_no_of_fixsize= tabPtr.p->m_dropTable.tabUserPtr;
-  tabPtr.p->m_attributes[DD].m_no_of_varsize= tabPtr.p->m_dropTable.tabUserRef;
-  
+  Uint32 restoreAttrCounts = tabPtr.p->m_dropTable.tabUserPtr;
+
+  tabPtr.p->m_attributes[DD].m_no_of_fixsize= restoreAttrCounts >> 16;
+  tabPtr.p->m_attributes[DD].m_no_of_varsize= restoreAttrCounts & 0xffff;
+  tabPtr.p->m_bits |= ((tabPtr.p->m_dropTable.tabUserRef & 1) ? Tablerec::TR_RowGCI : 0);
+
   tabPtr.p->m_no_of_disk_attributes = 
     tabPtr.p->m_attributes[DD].m_no_of_fixsize + 
     tabPtr.p->m_attributes[DD].m_no_of_varsize;

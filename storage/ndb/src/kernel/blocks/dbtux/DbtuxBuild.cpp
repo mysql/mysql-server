@@ -144,8 +144,6 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
       {
         break;
       }
-      // link to freelist
-      node.setLink(0, frag.m_freeLoc);
       frag.m_freeLoc = node.m_loc;
       ndbrequire(frag.m_freeLoc != NullTupLoc);
     }

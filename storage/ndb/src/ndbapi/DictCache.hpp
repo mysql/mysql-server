@@ -79,6 +79,7 @@ public:
 
   unsigned get_size();
   void invalidate_all();
+  void invalidateDb(const char * name, size_t len);
 public:
   enum Status {
     OK = 0,
