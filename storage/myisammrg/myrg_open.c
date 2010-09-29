@@ -227,9 +227,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   int       save_errno;
   int       insert_method;
   uint      length;
-  uint      dir_length;
   uint      child_count;
-  size_t    name_buff_length;
   File      fd;
   IO_CACHE  file_cache;
   char      parent_name_buff[FN_REFLEN * 2];
@@ -299,7 +297,6 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   }
 
   /* Call callback for each child. */
-  dir_length= dirname_part(parent_name_buff, parent_name, &name_buff_length);
   my_b_seek(&file_cache, 0);
   while ((length= my_b_gets(&file_cache, child_name_buff, FN_REFLEN - 1)))
   {
@@ -379,7 +376,6 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
 {
   ulonglong  file_offset;
   MI_INFO    *myisam;
-  int        rc;
   int        errpos;
   int        save_errno;
   uint       idx;
@@ -398,7 +394,6 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
     here and in ha_myisammrg::store_lock() forces consistent data.
   */
   pthread_mutex_lock(&m_info->mutex);
-  rc= 1;
   errpos= 0;
   file_offset= 0;
   min_keys= 0;

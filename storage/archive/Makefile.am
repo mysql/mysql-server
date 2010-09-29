@@ -36,14 +36,14 @@ noinst_PROGRAMS	=	archive_test archive_reader
 EXTRA_LTLIBRARIES =	ha_archive.la
 pkgplugin_LTLIBRARIES =	@plugin_archive_shared_target@
 ha_archive_la_LDFLAGS =	-module -rpath $(pkgplugindir)
-ha_archive_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_archive_la_CXXFLAGS=	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_archive_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_archive_la_SOURCES =	ha_archive.cc azio.c
 
 
 EXTRA_LIBRARIES =	libarchive.a
 noinst_LIBRARIES =	@plugin_archive_static_target@
-libarchive_a_CXXFLAGS =	$(AM_CFLAGS)
+libarchive_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libarchive_a_CFLAGS =	$(AM_CFLAGS)
 libarchive_a_SOURCES =	ha_archive.cc azio.c
 
