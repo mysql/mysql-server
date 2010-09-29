@@ -16,7 +16,7 @@ AC_DEFUN([MY_MAINTAINER_MODE], [
 AC_DEFUN([MY_MAINTAINER_MODE_WARNINGS], [
   # Setup GCC warning options.
   AS_IF([test "$GCC" = "yes"], [
-    C_WARNINGS="-Wall -Wextra -Wunused -Wwrite-strings -Werror"
+    C_WARNINGS="-Wall -Wextra -Wunused -Wwrite-strings -Wno-strict-aliasing -Werror"
     CXX_WARNINGS="${C_WARNINGS} -Wno-unused-parameter"
   ])
 
