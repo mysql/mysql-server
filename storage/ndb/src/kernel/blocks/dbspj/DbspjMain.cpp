@@ -1417,7 +1417,7 @@ Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
       cnt ++;
     }
     treeNodePtr.p->m_row_list.init();
-    ndbout_c("SLFifoRowListIterator: released %u rows!", cnt);
+    DEBUG(""SLFifoRowListIterator: released " << cnt << " rows!")
   }
   else
   {
@@ -1434,7 +1434,7 @@ Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
       cnt++;
     }
     treeNodePtr.p->m_row_map.init();
-    ndbout_c("RowMapIterator: released %u rows!", cnt);
+    DEBUG(""RowMapIterator: released " << cnt << " rows!")
   }
 }
 
@@ -5663,6 +5663,7 @@ Dbspj::getCorrelationData(const RowPtr::Section & row,
   ndbrequire(reader.getWord(&tmp));
   Uint32 len = AttributeHeader::getDataSize(tmp);
   ndbrequire(len == 1);
+  ndbrequire(AttributeHeader::getAttributeId(tmp) == AttributeHeader::CORR_FACTOR32);
   ndbrequire(reader.getWord(&correlationNumber));
 }
 
@@ -5678,6 +5679,7 @@ Dbspj::getCorrelationData(const RowPtr::Linear & row,
   Uint32 tmp = row.m_data[offset];
   Uint32 len = AttributeHeader::getDataSize(tmp);
   ndbrequire(len == 1);
+  ndbrequire(AttributeHeader::getAttributeId(tmp) == AttributeHeader::CORR_FACTOR32);
   correlationNumber = row.m_data[offset+1];
 }
 
