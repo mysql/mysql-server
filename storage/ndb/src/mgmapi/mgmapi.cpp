@@ -1135,7 +1135,6 @@ extern "C"
 int 
 ndb_mgm_stop(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
 {
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_stop");
   return ndb_mgm_stop2(handle, no_of_nodes, node_list, 0);
 }
 
@@ -1296,7 +1295,6 @@ extern "C"
 int
 ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes, const int *node_list) 
 {
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart");
   return ndb_mgm_restart2(handle, no_of_nodes, node_list, 0, 0, 0);
 }
 
