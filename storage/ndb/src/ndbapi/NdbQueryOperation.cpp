@@ -441,7 +441,7 @@ private:
 
 NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 rootFragNo):
   m_rootFragNo(rootFragNo),
-  m_receiver(operation.getQuery().getNdbTransaction().getNdb(), &operation),  // FIXME? Use Ndb recycle lists
+  m_receiver(operation.getQuery().getNdbTransaction().getNdb(), &operation),
   m_maxRows(0),
   m_rowCount(0),
   m_operation(operation),
@@ -689,8 +689,7 @@ NdbResultStream::nextResult()
 void
 NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
 {
-  assert(m_iterState == Iter_notStarted ||
-         !m_operation.getQueryOperationDef().isScanOperation());
+  assert(m_iterState == Iter_notStarted);
   if (m_operation.getQueryDef().isScanQuery())
   {
     const CorrelationData correlData(ptr, len);
@@ -733,9 +732,6 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
 void 
 NdbResultStream::handleBatchComplete()
 {
-  assert(m_iterState == Iter_notStarted || m_iterState == Iter_finished ||
-         !m_operation.getQueryOperationDef().isScanOperation());
-
   for (Uint32 tupleNo=0; tupleNo<getRowCount(); tupleNo++)
   {
     m_tupleSet[tupleNo].m_skip = false;
