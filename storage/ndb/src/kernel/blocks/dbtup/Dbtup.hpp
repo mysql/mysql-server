@@ -1670,7 +1670,7 @@ public:
    * index node.  TUX reads and writes the node directly via pointer.
    */
   int tuxAllocNode(EmulatedJamBuffer*, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node);
-  void tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node);
+  void tuxFreeNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node);
   void tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node);
 
   /*

@@ -532,7 +532,7 @@ public:
   /** Process absence of result data for this operation. (Only used when the 
    * root operation is a lookup.)
    * @return true if query complete.*/
-  bool execTCKEYREF(NdbApiSignal* aSignal);
+  bool execTCKEYREF(const NdbApiSignal* aSignal);
 
   /** Called once per complete (within batch) fragment when a SCAN_TABCONF 
    * signal is received.

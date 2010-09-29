@@ -492,7 +492,7 @@ private:
     Uint16 m_numAttrs;
     bool m_storeNullKey;
     TreeHead m_tree;
-    TupLoc m_freeLoc;           // list of free index nodes
+    TupLoc m_freeLoc;           // one free node for next op
     DLList<ScanOp> m_scanList;  // current scans on this fragment
     Uint32 m_tupIndexFragPtrI;
     Uint32 m_tupTableFragPtrI;
@@ -604,9 +604,11 @@ private:
    * DbtuxNode.cpp
    */
   int allocNode(TuxCtx&, NodeHandle& node);
+  void freeNode(NodeHandle& node);
   void selectNode(NodeHandle& node, TupLoc loc);
   void insertNode(NodeHandle& node);
   void deleteNode(NodeHandle& node);
+  void freePreallocatedNode(Frag& frag);
   void setNodePref(struct TuxCtx &, NodeHandle& node);
   // node operations
   void nodePushUp(TuxCtx&, NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList);

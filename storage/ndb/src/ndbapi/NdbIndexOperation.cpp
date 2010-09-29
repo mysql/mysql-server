@@ -16,11 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>
-#include <NdbIndexOperation.hpp>
-#include <Ndb.hpp>
-#include <NdbTransaction.hpp>
-#include "NdbApiSignal.hpp"
+#include "API.hpp"
 #include <AttributeHeader.hpp>
 #include <signaldata/TcIndx.hpp>
 #include <signaldata/TcKeyReq.hpp>
@@ -188,7 +184,7 @@ Parameters:     aSignal: the signal object that contains the TCINDXREF signal fr
 Remark:         Handles the reception of the TCKEYREF signal.
 ***************************************************************************/
 int
-NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
+NdbIndexOperation::receiveTCINDXREF(const NdbApiSignal* aSignal)
 {
   return receiveTCKEYREF(aSignal);
 }//NdbIndexOperation::receiveTCINDXREF()
