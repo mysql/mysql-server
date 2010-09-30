@@ -15,7 +15,7 @@ static void test1 (size_t chars_per_file, size_t bytes_per_read) {
     int still_live[N];
     int n_live=N;
     for (int i=0; i<N; i++) {
-	snprintf(fnames[i], 100, "dbufio-test-file%d.data", i);
+	snprintf(fnames[i], 100, "dbufio-test-destroy-file%d.data", i);
 	unlink(fnames[i]);
 	fds[i] = open(fnames[i], O_CREAT|O_RDWR, S_IRWXU);
 	//printf("fds[%d]=%d is %s\n", i, fds[i], fnames[i]);
