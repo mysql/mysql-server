@@ -141,7 +141,7 @@ error_handler:
   ndbout << "error_handler" << endl;
   releaseTransactionArrays();
   delete theDictionary;
-  theImpl->m_transporter_facade->close(theNdbBlockNumber, 0);
+  theImpl->m_transporter_facade->close(theNdbBlockNumber);
   DBUG_RETURN(-1);
 }
 
@@ -190,9 +190,8 @@ void Ndb::connected(Uint32 ref)
   }
   theImpl->theNoOfDBnodes = n;
   
-  theFirstTransId = ((Uint64)tBlockNo << 52)+
+  theFirstTransId += ((Uint64)tBlockNo << 52)+
     ((Uint64)tmpTheNode << 40);
-  theFirstTransId += theFacade->m_max_trans_id;
   //      assert(0);
   DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id: 0x%lx",
 		     theMyRef,

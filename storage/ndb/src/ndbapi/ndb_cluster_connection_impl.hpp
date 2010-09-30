@@ -120,6 +120,9 @@ private:
 
   // Scan batch configuration parameters
   NdbApiConfig m_config;
+  
+  // keep initial transId's increasing...
+  Uint32 m_max_trans_id;
 };
 
 #endif
