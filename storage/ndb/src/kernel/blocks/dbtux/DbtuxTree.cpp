@@ -328,6 +328,8 @@ Dbtux::treeRemoveNode(Frag& frag, NodeHandle leafNode)
   }
   // tree is now empty
   tree.m_root = NullTupLoc;
+  // free even the pre-allocated node
+  freePreallocatedNode(frag);
 }
 
 /*

@@ -962,23 +962,23 @@ private:
   Uint32        get_send_size();                  // Get size to send
   void          set_send_size(Uint32);            // Set size to send;
   
-  int  receiveDIHNDBTAMPER(NdbApiSignal* anApiSignal);
-  int  receiveTCSEIZECONF(NdbApiSignal* anApiSignal); 
-  int  receiveTCSEIZEREF(NdbApiSignal* anApiSignal);	
-  int  receiveTCRELEASECONF(NdbApiSignal* anApiSignal);	
-  int  receiveTCRELEASEREF(NdbApiSignal* anApiSignal);	
+  int  receiveDIHNDBTAMPER(const NdbApiSignal* anApiSignal);
+  int  receiveTCSEIZECONF(const NdbApiSignal* anApiSignal);
+  int  receiveTCSEIZEREF(const NdbApiSignal* anApiSignal);
+  int  receiveTCRELEASECONF(const NdbApiSignal* anApiSignal);
+  int  receiveTCRELEASEREF(const NdbApiSignal* anApiSignal);
   int  receiveTC_COMMITCONF(const class TcCommitConf *, Uint32 len);
   int  receiveTCKEYCONF(const class TcKeyConf *, Uint32 aDataLength);
   int  receiveTCKEY_FAILCONF(const class TcKeyFailConf *);
-  int  receiveTCKEY_FAILREF(NdbApiSignal* anApiSignal);
-  int  receiveTC_COMMITREF(NdbApiSignal* anApiSignal);		    	
-  int  receiveTCROLLBACKCONF(NdbApiSignal* anApiSignal); // Rec TCPREPARECONF ?
-  int  receiveTCROLLBACKREF(NdbApiSignal* anApiSignal);  // Rec TCPREPAREREF ?
-  int  receiveTCROLLBACKREP(NdbApiSignal* anApiSignal);
+  int  receiveTCKEY_FAILREF(const NdbApiSignal* anApiSignal);
+  int  receiveTC_COMMITREF(const NdbApiSignal* anApiSignal);
+  int  receiveTCROLLBACKCONF(const NdbApiSignal* anApiSignal);
+  int  receiveTCROLLBACKREF(const NdbApiSignal* anApiSignal);
+  int  receiveTCROLLBACKREP(const NdbApiSignal* anApiSignal);
   int  receiveTCINDXCONF(const class TcIndxConf *, Uint32 aDataLength);
-  int  receiveTCINDXREF(NdbApiSignal*);
-  int  receiveSCAN_TABREF(NdbApiSignal*);
-  int  receiveSCAN_TABCONF(NdbApiSignal*, const Uint32*, Uint32 len);
+  int  receiveTCINDXREF(const NdbApiSignal*);
+  int  receiveSCAN_TABREF(const NdbApiSignal*);
+  int  receiveSCAN_TABCONF(const NdbApiSignal*, const Uint32*, Uint32 len);
 
   int 	doSend();	                // Send all operations
   int 	sendROLLBACK();	                // Send of an ROLLBACK

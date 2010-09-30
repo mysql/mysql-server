@@ -36,7 +36,7 @@ class Ndb;
 class NdbApiSignal;
 class NdbWaiter;
 
-typedef void (* ExecuteFunction)(void *, NdbApiSignal *, LinearSectionPtr ptr[3]);
+typedef void (* ExecuteFunction)(void *, const NdbApiSignal *, const LinearSectionPtr ptr[3]);
 typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfComplete);
 
 extern "C" {
@@ -360,6 +360,7 @@ TransporterFacade::unlock_mutex()
 }
 
 #include "ClusterMgr.hpp"
+#include "ndb_cluster_connection_impl.hpp"
 
 inline
 unsigned Ndb_cluster_connection_impl::get_connect_count() const

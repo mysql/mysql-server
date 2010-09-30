@@ -80,7 +80,7 @@ public:
   Uint32 		readData(Uint32 aDataNo) const; // Read word in signal
   
   int 			setSignal(int NdbSignalType);  	// Set signal header  
-  int 			readSignalNumber();    		// Read signal number  
+  int 			readSignalNumber() const;	// Read signal number
   Uint32             	getLength() const;
   void	             	setLength(Uint32 aLength);
   void 			next(NdbApiSignal* anApiSignal);  
@@ -184,7 +184,7 @@ Remark:          Read signal number
 *****************************************************************************/
 inline
 int		
-NdbApiSignal::readSignalNumber()
+NdbApiSignal::readSignalNumber() const
 {
   return (int)theVerId_signalNumber;
 }

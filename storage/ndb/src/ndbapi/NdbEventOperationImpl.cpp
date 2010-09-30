@@ -769,8 +769,8 @@ NdbEventOperationImpl::getLatestGCI()
 }
 
 bool
-NdbEventOperationImpl::execSUB_TABLE_DATA(NdbApiSignal * signal, 
-                                          LinearSectionPtr ptr[3])
+NdbEventOperationImpl::execSUB_TABLE_DATA(const NdbApiSignal * signal,
+                                          const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbEventOperationImpl::execSUB_TABLE_DATA");
   const SubTableData * const sdata=

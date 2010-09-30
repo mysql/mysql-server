@@ -137,7 +137,8 @@ bool
 do_mkdir(const char * path)
 {
   return NdbDir::create(path,
-                        NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x());
+                        NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x(),
+                        true /* ignore_existing */);
 }
 
 static

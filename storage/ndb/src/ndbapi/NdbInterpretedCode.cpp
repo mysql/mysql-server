@@ -706,7 +706,7 @@ NdbInterpretedCode::interpret_exit_nok(Uint32 ErrorCode)
 int
 NdbInterpretedCode::interpret_exit_nok()
 {
-  return add1((899 << 16) | Interpreter::EXIT_REFUSE);
+  return add1((626 << 16) | Interpreter::EXIT_REFUSE);
 }
 
 int
