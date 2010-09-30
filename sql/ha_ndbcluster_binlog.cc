@@ -3649,7 +3649,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   }
 
   thd->init_for_queries();
-  thd->command= COM_DAEMON;
+  thd->set_command(COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
