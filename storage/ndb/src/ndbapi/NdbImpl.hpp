@@ -20,12 +20,8 @@
 #define NDB_IMPL_HPP
 
 #include <ndb_global.h>
-#include <Ndb.hpp>
+#include "API.hpp"
 #include <NdbOut.hpp>
-#include <NdbError.hpp>
-#include <NdbCondition.h>
-#include <NdbReceiver.hpp>
-#include <NdbOperation.hpp>
 #include <kernel/ndb_limits.h>
 
 #include <NdbTick.h>
@@ -115,6 +111,13 @@ public:
   static inline void setForceShortRequests(Ndb* ndb, bool val)
   {
     ndb->theImpl->forceShortRequests = val;
+  }
+
+  Uint32 get_waitfor_timeout() const {
+    return m_ndb_cluster_connection.m_config.m_waitfor_timeout;
+  }
+  const NdbApiConfig& get_ndbapi_config_parameters() const {
+    return m_ndb_cluster_connection.m_config;
   }
 
 

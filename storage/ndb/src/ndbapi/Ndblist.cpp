@@ -16,16 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <NdbOut.hpp>
-#include <Ndb.hpp>
-#include <NdbOperation.hpp>
-#include <NdbIndexOperation.hpp>
-#include <NdbIndexScanOperation.hpp>
-#include "NdbApiSignal.hpp"
-#include <NdbRecAttr.hpp>
-#include "NdbUtil.hpp"
 #include "API.hpp"
-#include "NdbBlob.hpp"
 
 void
 Ndb::checkFailedNode()

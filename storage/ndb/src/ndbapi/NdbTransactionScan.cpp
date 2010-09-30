@@ -19,15 +19,7 @@
 
 #include <ndb_global.h>
 
-#include <Ndb.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
-#include "NdbUtil.hpp"
 #include "API.hpp"
-#include "NdbImpl.hpp"
 
 #include <signaldata/ScanTab.hpp>
 

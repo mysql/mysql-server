@@ -18,17 +18,7 @@
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include <NdbIndexScanOperation.hpp>
-#include <NdbIndexOperation.hpp>
-#include <NdbDictionaryImpl.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
 #include "API.hpp"
-#include "NdbBlob.hpp"
-#include "NdbUtil.hpp"
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyConf.hpp>
@@ -535,7 +525,7 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
 //------------------------------------------------------------------------
   Ndb* tNdb = theNdb;
 
-  Uint32 timeout = theNdb->theImpl->m_transporter_facade->m_waitfor_timeout;
+  Uint32 timeout = theNdb->theImpl->get_waitfor_timeout();
   m_waitForReply = false;
   executeAsynchPrepare(aTypeOfExec, NULL, NULL, abortOption);
   if (m_waitForReply){
