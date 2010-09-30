@@ -113,6 +113,13 @@ public:
     ndb->theImpl->forceShortRequests = val;
   }
 
+  Uint32 get_waitfor_timeout() const {
+    return m_ndb_cluster_connection.m_config.m_waitfor_timeout;
+  }
+  const NdbApiConfig& get_ndbapi_config_parameters() const {
+    return m_ndb_cluster_connection.m_config;
+  }
+
 
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
 
