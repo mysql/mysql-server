@@ -20,11 +20,9 @@
 #include <ndb_global.h>
 #include <kernel_types.h>
 
-#include "NdbDictionaryImpl.hpp"
 #include "API.hpp"
 #include <NdbOut.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
+
 #include <signaldata/CreateEvnt.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <SimpleProperties.hpp>
@@ -34,15 +32,7 @@
 #include <NdbError.hpp>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
-#include <NdbDictionary.hpp>
-#include <Ndb.hpp>
-#include "NdbImpl.hpp"
-#include "DictCache.hpp"
 #include <portlib/NdbMem.h>
-#include <NdbRecAttr.hpp>
-#include <NdbBlob.hpp>
-#include <NdbEventOperation.hpp>
-#include "NdbEventOperationImpl.hpp"
 #include <signaldata/AlterTable.hpp>
 #include "ndb_internal.hpp"
 

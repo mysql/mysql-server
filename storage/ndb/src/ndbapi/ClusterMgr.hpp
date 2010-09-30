@@ -19,7 +19,6 @@
 #ifndef ClusterMgr_H
 #define ClusterMgr_H
 
-#include "API.hpp"
 #include <ndb_limits.h>
 #include <NdbThread.h>
 #include <NdbMutex.h>

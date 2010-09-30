@@ -19,16 +19,7 @@
 
 #include <ndb_global.h>
 
-#include "NdbApiSignal.hpp"
-#include "NdbImpl.hpp"
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbIndexOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include <NdbRecAttr.hpp>
-#include <NdbReceiver.hpp>
 #include "API.hpp"
-#include "NdbEventOperationImpl.hpp"
 
 #include <signaldata/TcCommit.hpp>
 #include <signaldata/TcKeyFailConf.hpp>

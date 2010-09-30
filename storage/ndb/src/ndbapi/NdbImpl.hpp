@@ -20,12 +20,8 @@
 #define NDB_IMPL_HPP
 
 #include <ndb_global.h>
-#include <Ndb.hpp>
+#include "API.hpp"
 #include <NdbOut.hpp>
-#include <NdbError.hpp>
-#include <NdbCondition.h>
-#include <NdbReceiver.hpp>
-#include <NdbOperation.hpp>
 #include <kernel/ndb_limits.h>
 
 #include <NdbTick.h>

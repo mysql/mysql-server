@@ -23,7 +23,7 @@
 #include "ndb_cluster_connection_impl.hpp"
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
-#include <TransporterFacade.hpp>
+#include "TransporterFacade.hpp"
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbThread.h>
@@ -33,6 +33,8 @@
 #include <mgmapi_debug.h>
 #include <mgmapi_internal.h>
 #include <md5_hash.hpp>
+#include "NdbImpl.hpp"
+#include "NdbDictionaryImpl.hpp"
 
 #include <NdbMutex.h>
 #ifdef VM_TRACE

@@ -17,6 +17,7 @@
 */
 
 #include "SignalSender.hpp"
+#include <kernel/GlobalSignalNumbers.h>
 #include <NdbSleep.h>
 #include <SignalLoggerManager.hpp>
 #include <signaldata/NFCompleteRep.hpp>

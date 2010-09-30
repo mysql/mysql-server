@@ -16,25 +16,34 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "NdbDictionaryImpl.hpp"
 #include "API.hpp"
 #include <NdbOut.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
 #include <SimpleProperties.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
-#include <NdbEventOperation.hpp>
-#include "NdbEventOperationImpl.hpp"
-#include <NdbBlob.hpp>
-#include "NdbBlobImpl.hpp"
-#include <NdbInterpretedCode.hpp>
 #include <AttributeHeader.hpp>
 #include <my_sys.h>
 #include <NdbEnv.h>
 #include <NdbMem.h>
 #include <util/version.h>
 #include <NdbSleep.h>
+
+#include <signaldata/GetTabInfo.hpp>
+#include <signaldata/DictTabInfo.hpp>
+#include <signaldata/CreateTable.hpp>
+#include <signaldata/CreateIndx.hpp>
+#include <signaldata/CreateEvnt.hpp>
+#include <signaldata/SumaImpl.hpp>
+#include <signaldata/DropTable.hpp>
+#include <signaldata/AlterTable.hpp>
+#include <signaldata/DropIndx.hpp>
+#include <signaldata/ListTables.hpp>
+#include <signaldata/DropFilegroup.hpp>
+#include <signaldata/CreateFilegroup.hpp>
+#include <signaldata/WaitGCP.hpp>
+#include <signaldata/SchemaTrans.hpp>
+#include <signaldata/CreateHashMap.hpp>
+#include <signaldata/ApiRegSignalData.hpp>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -5095,7 +5104,6 @@ NdbDictInterface::execDROP_EVNT_REF(const NdbApiSignal * signal,
   DBUG_VOID_RETURN;
 }
 
-#include <NdbScanOperation.hpp>
 static int scanEventTable(Ndb* pNdb, 
                           const NdbDictionary::Table* pTab,
                           NdbDictionary::Dictionary::List &list)

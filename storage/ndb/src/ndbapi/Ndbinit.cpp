@@ -19,23 +19,15 @@
 
 #include <ndb_global.h>
 
+#include "API.hpp"
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-#include <NdbOperation.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbRecAttr.hpp>
-#include <IPCConfig.hpp>
-#include "TransporterFacade.hpp"
 #include <ConfigRetriever.hpp>
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include "ObjectMap.hpp"
-#include <NdbIndexScanOperation.hpp>
-#include <NdbIndexOperation.hpp>
 #include "NdbUtil.hpp"
-#include <NdbBlob.hpp>
-#include "NdbEventOperationImpl.hpp"
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;

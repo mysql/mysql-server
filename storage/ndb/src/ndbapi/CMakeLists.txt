@@ -56,5 +56,6 @@ ADD_LIBRARY(ndbapi STATIC
             SignalSender.cpp
             ObjectMap.cpp
             NdbInfo.cpp
-            NdbInfoScanOperation.cpp)
+            NdbInfoScanOperation.cpp
+            ndb_internal.cpp)
 
