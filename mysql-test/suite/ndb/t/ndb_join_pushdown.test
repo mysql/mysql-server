@@ -2529,6 +2529,37 @@ select straight_join * from t1 as table1
    (t1 as table2  join t1 as table3 on table2.pk = table3.b)
  on table1.pk = table2.b;
 
+#############
+# Testcase for 'sledgehammer' fix for scan -> outer join scan:
+# Pushing of outer joined has to be dissabled as incomplete child batches
+# may cause the parent row to be returned multiple times:
+
+# Push scan-scan when inner joined
+explain select straight_join * from t1 as x1 
+  inner join t1 as x2 on x2.b = x1.a;
+
+# Outer joined scans are not pushed.
+explain select straight_join * from t1 as x1 
+  left join t1 as x2 on x2.b = x1.a;
+explain select straight_join * from t1 as x1 
+  right join t1 as x2 on x2.b = x1.a;
+
+# If there is a lookup operation(s) inbetween the scans
+# pushing is disabled if any of these are outer joined
+
+# inner joined lookups, push allowed
+explain select straight_join * from 
+  t1 as x1 inner join
+    (t1 as x2 inner join t1 as x3 on x3.b = x2.a)
+  on x2.pk = x1.a;
+
+# Even if x3 is inner joined with x2 (lookup)
+# push is dissabled as x2 is outer joined with embedding scan operation
+# which makes join relation between the scans on x1 & x3 an 'indirect' outer join
+explain select straight_join * from 
+  t1 as x1 left join
+    (t1 as x2 inner join t1 as x3 on x3.b = x2.a)
+  on x2.pk = x1.a;
 
 #############
 # Test bushy-scans:
@@ -2583,7 +2614,7 @@ select straight_join count(*) from t1 as x1
 # If we have a bushy lookup, with scandescendants depending on these lookups,
 # we dont serialize the scan by insertion of artificial dependencies.
 #
-# (Actually we could have serialized these also be forcing an artificial dependency
+# (Actually we could have serialized these also by forcing an artificial dependency
 #  between the referred lookup parent, and one of the other scan child. However, we
 #  don't believe this to be an efficient way of executing the pushed query, and would
 #  instead break these queries up into several smaller queries) 

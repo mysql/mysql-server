@@ -1019,19 +1019,31 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
 
       const AQP::Table_access* const scan_descendant = m_plan.get_table_access(descendant_no);
       parent= m_plan.get_table_access(parent_no);
-      if (scan_descendant->get_join_type(parent) != AQP::JT_INNER_JOIN)
+      if (scan_descendant->get_join_type(parent) == AQP::JT_OUTER_JOIN)
       {
         DBUG_PRINT("info", ("  There are outer joins between parent and artificial parent -> can't append"));
         DBUG_RETURN(false);
       }
       parent_no= descendant_no;
 //    parent= scan_descendant;
-      DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s", parent->get_table()->alias));
+      DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s", scan_descendant->get_table()->alias));
+
+      if (scan_descendant && 
+         table->get_join_type(scan_descendant) == AQP::JT_OUTER_JOIN)
+      {
+        DBUG_PRINT("info", ("  Table scan %d is outer joined with scan-descendant %d, not pushable (yet)",
+                    tab_no, descendant_no));
+        DBUG_RETURN(false);
+      }
     }
     else
     {
-      // Verify that there are no ancestors with scan descendants.
+      // Verify that there are no ancestors with scan descendants. (possibly through lookup operations)
       // (Which would cause an indirect bushy scan to be defined.)
+      // Terminate search at first scan ancester, as the presence if this scan guarante that 
+      // the tree is non scan-bush above.
+      //
+      const AQP::Table_access* scan_ancestor= NULL;
       uint ancestor_no= parent_no;
       while (ancestor_no != MAX_TABLES)
       {
@@ -1041,13 +1053,24 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
           DBUG_RETURN(false);
         }
 
-        const AQP::Table_access* const ancestor= m_plan.get_table_access(ancestor_no);
-        if (!is_lookup_operation(ancestor->get_access_type()))
+        scan_ancestor= m_plan.get_table_access(ancestor_no);
+        if (!is_lookup_operation(scan_ancestor->get_access_type()))
         {
           break; // As adding this scanop was prev. allowed, above ancestor can't be scan bushy
         }
         ancestor_no= m_tables[ancestor_no].m_parent;
       } // while
+
+      // Outer joining scan-scan is not supported due to possible parent-NULL-row duplicates
+      // being created in the NdbResultStream when incomplete child batches are received.
+      // (Outer joining with scan may be indirect through lookup operations inbetween)
+      if (scan_ancestor && 
+         table->get_join_type(scan_ancestor) == AQP::JT_OUTER_JOIN)
+      {
+        DBUG_PRINT("info", ("  Table scan %d is outer joined with scan-ancestor %d, not pushable (yet)",
+                    tab_no, ancestor_no));
+        DBUG_RETURN(false);
+      }
     }
   } // scan operation
 
@@ -1291,12 +1314,6 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
       continue;
     }
-    if (!is_lookup_operation(child_type) && !is_lookup_operation(access_type) && 
-         join_tab->get_join_type(join_parent) == AQP::JT_OUTER_JOIN )
-    {
-      DBUG_PRINT("info", ("Table %d is outer joined Scan-scan, not pushable (yet)", join_cnt));
-      continue;
-    }
     /**
      * If this is the first child in pushed join we need to define the 
      * parent operation first.
@@ -1396,6 +1413,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       }
     }
 
+    DBUG_ASSERT (join_parent!=NULL);
     bool need_explicit_parent= true;
     ndb_table_access_map parent_map(join_parent);
     KEY_PART_INFO *key_part= key->key_part;
@@ -1474,7 +1492,6 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     const NdbDictionary::Table* const table= handler->m_table;
  
     NdbQueryOptions options;
-    DBUG_ASSERT(join_parent!=NULL);
     if (join_tab->get_join_type(join_parent) == AQP::JT_INNER_JOIN)
     {
       options.setMatchType(NdbQueryOptions::MatchNonNull);
