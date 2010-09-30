@@ -21,10 +21,11 @@
 #include <util/version.h>
 
 #include "TransporterFacade.hpp"
+#include <kernel/GlobalSignalNumbers.h>
+
 #include "ClusterMgr.hpp"
 #include <IPCConfig.hpp>
 #include "NdbApiSignal.hpp"
-#include "API.hpp"
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>

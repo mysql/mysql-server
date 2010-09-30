@@ -20,14 +20,9 @@
 #define NDB_WAITER_HPP
 
 #include <ndb_global.h>
-#include <NdbOut.hpp>
-#include <NdbError.hpp>
-#include <NdbCondition.h>
-#include <NdbReceiver.hpp>
-#include <NdbOperation.hpp>
-#include <kernel/ndb_limits.h>
-
 #include <NdbTick.h>
+#include <NdbCondition.h>
+#include <NdbOut.hpp>
 
 enum WaitSignalType { 
   NO_WAIT           = 0,

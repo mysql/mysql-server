@@ -25,11 +25,12 @@
 #include <TransporterCallback.hpp>
 #include <TransporterRegistry.hpp>
 #include "NdbApiSignal.hpp"
+#include "NdbWaiter.hpp"
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
 #include <NdbSleep.h>
 
-#include "API.hpp"
+#include <kernel/GlobalSignalNumbers.h>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 #include <NdbConfig.h>

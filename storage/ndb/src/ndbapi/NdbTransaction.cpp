@@ -18,17 +18,7 @@
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include <NdbIndexScanOperation.hpp>
-#include <NdbIndexOperation.hpp>
-#include <NdbDictionaryImpl.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
 #include "API.hpp"
-#include "NdbBlob.hpp"
-#include "NdbUtil.hpp"
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyConf.hpp>
