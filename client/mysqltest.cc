@@ -3853,7 +3853,18 @@ void do_perl(struct st_command *command)
     if (!error)
       my_delete(temp_file_path, MYF(0));
 
-    handle_command_error(command, WEXITSTATUS(error));
+    /* Check for error code that indicates perl could not be started */
+    int exstat= WEXITSTATUS(error);
+#ifdef __WIN__
+    if (exstat == 1)
+      /* Text must begin 'perl not found' as mtr looks for it */
+      abort_not_supported_test("perl not found in path or did not start");
+#else
+    if (exstat == 127)
+      abort_not_supported_test("perl not found in path");
+#endif
+    else
+      handle_command_error(command, exstat);
   }
   dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
