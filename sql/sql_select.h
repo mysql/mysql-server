@@ -1369,8 +1369,21 @@ inline bool sj_is_materialize_strategy(uint strategy)
 
 class JOIN :public Sql_alloc
 {
+private:
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
+
+protected:
+  /* Support for plan reoptimization with rewritten conditions. */
+  int reoptimize(Item *added_where, table_map join_tables,
+                 POSITION *save_best_positions);
+  int save_query_plan(DYNAMIC_ARRAY *save_keyuse, POSITION *save_positions,
+                      KEYUSE **save_join_tab_keyuse,
+                      key_map *save_join_tab_checked_keys);
+  void restore_query_plan(DYNAMIC_ARRAY *save_keyuse, POSITION *save_positions,
+                      KEYUSE **save_join_tab_keyuse,
+                      key_map *save_join_tab_checked_keys);
+
 public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
@@ -1746,7 +1759,7 @@ public:
               NULL : join_tab+const_tables;
   }
   bool setup_subquery_caches();
-  bool choose_subquery_plan();
+  bool choose_subquery_plan(table_map join_tables);
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP

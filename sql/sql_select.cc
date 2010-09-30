@@ -53,9 +53,9 @@ static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, COND *conds,
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
                                 JOIN_TAB *join_tab,
                                 uint tables, COND *conds,
-                                COND_EQUAL *cond_equal,
                                 table_map table_map, SELECT_LEX *select_lex,
                                 st_sargable_param **sargables);
+static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       table_map used_tables);
@@ -928,24 +928,29 @@ JOIN::optimize()
     error= 0;
     if (optimize_unflattened_subqueries())
       DBUG_RETURN(1);
-    if (in_to_exists_where || in_to_exists_having)
-    {
-      /*
-        TIMOUR: TODO: refactor this block and JOIN::choose_subquery_plan
-      */
-      Item_in_subselect *in_subs= (Item_in_subselect*)
-        select_lex->master_unit()->item;
+    /*
+      TIMOUR: TODO: consider do we need to optimize here at all and refactor
+      this block and JOIN::choose_subquery_plan.
 
-      if (in_subs->exec_method ==  Item_in_subselect::MATERIALIZATION)
-        ; // setup materialized execution structures
-      else if (in_subs->exec_method == Item_in_subselect::IN_TO_EXISTS)
+    if (choose_subquery_plan())
+      DBUG_RETURN(1);
+    */
+    Item_in_subselect *in_subs;
+    if (select_lex->master_unit()->item &&
+        select_lex->master_unit()->item->is_in_predicate())
+    {
+      in_subs= (Item_in_subselect*) select_lex->master_unit()->item;
+      if (in_subs->in_strategy & SUBS_MATERIALIZATION &&
+          in_subs->setup_mat_engine())
+        in_subs->in_strategy= SUBS_IN_TO_EXISTS;
+      if (in_subs->in_strategy & SUBS_IN_TO_EXISTS)
       {
+        if (in_subs->create_in_to_exists_cond(this))
+          DBUG_RETURN(1);
         if (in_subs->inject_in_to_exists_cond(this))
           DBUG_RETURN(1);
         tmp_having= having;
       }
-      else
-        DBUG_ASSERT(FALSE);
     }
     DBUG_RETURN(0);
   }
@@ -2828,10 +2833,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   }
 
   if (conds || outer_join)
+  {
     if (update_ref_and_keys(join->thd, keyuse_array, stat, join->tables,
-                            conds, join->cond_equal,
-                            ~outer_join, join->select_lex, &sargables))
+                            conds, ~outer_join, join->select_lex, &sargables))
       goto error;
+    if (keyuse_array->elements && sort_and_filter_keyuse(keyuse_array))
+      goto error;
+    DBUG_EXECUTE("opt", print_keyuse_array(keyuse_array););
+  }
 
   join->const_table_map= no_rows_const_tables;
   join->const_tables= const_count;
@@ -3135,8 +3144,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	   sizeof(POSITION)*join->const_tables);
     join->best_read=1.0;
   }
-  if ((join->in_to_exists_where || join->in_to_exists_having)
-      && join->choose_subquery_plan())
+  if (join->choose_subquery_plan(all_table_map & ~join->const_table_map))
     goto error;
 
   /* Generate an execution plan from the found optimal join order. */
@@ -4089,11 +4097,10 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
 
 static bool
 update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
-                    uint tables, COND *cond, COND_EQUAL *cond_equal,
-                    table_map normal_tables, SELECT_LEX *select_lex,
-                    SARGABLE_PARAM **sargables)
+                    uint tables, COND *cond, table_map normal_tables,
+                    SELECT_LEX *select_lex, SARGABLE_PARAM **sargables)
 {
-  uint	and_level,i,found_eq_constant;
+  uint	and_level,i;
   KEY_FIELD *key_fields, *end, *field;
   uint sz;
   uint m= max(select_lex->max_equal_elems,1);
@@ -4189,66 +4196,75 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       return TRUE;
   }
 
-  /*
-    Sort the array of possible keys and remove the following key parts:
-    - ref if there is a keypart which is a ref and a const.
-      (e.g. if there is a key(a,b) and the clause is a=3 and b=7 and b=t2.d,
-      then we skip the key part corresponding to b=t2.d)
-    - keyparts without previous keyparts
-      (e.g. if there is a key(a,b,c) but only b < 5 (or a=2 and c < 3) is
-      used in the query, we drop the partial key parts from consideration).
-    Special treatment for ft-keys.
-  */
-  if (keyuse->elements)
-  {
-    KEYUSE key_end,*prev,*save_pos,*use;
-
-    my_qsort(keyuse->buffer,keyuse->elements,sizeof(KEYUSE),
-	  (qsort_cmp) sort_keyuse);
-
-    bzero((char*) &key_end,sizeof(key_end));    /* Add for easy testing */
-    if (insert_dynamic(keyuse,(uchar*) &key_end))
-      return TRUE;
-
-    use=save_pos=dynamic_element(keyuse,0,KEYUSE*);
-    prev= &key_end;
-    found_eq_constant=0;
-    for (i=0 ; i < keyuse->elements-1 ; i++,use++)
-    {
-      if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
-	use->table->const_key_parts[use->key]|= use->keypart_map;
-      if (use->keypart != FT_KEYPART)
-      {
-	if (use->key == prev->key && use->table == prev->table)
-	{
-	  if (prev->keypart+1 < use->keypart ||
-	      (prev->keypart == use->keypart && found_eq_constant))
-	    continue;				/* remove */
-	}
-	else if (use->keypart != 0)		// First found must be 0
-	  continue;
-      }
-
-#ifdef HAVE_valgrind
-      /* Valgrind complains about overlapped memcpy when save_pos==use. */
-      if (save_pos != use)
-#endif
-        *save_pos= *use;
-      prev=use;
-      found_eq_constant= !use->used_tables;
-      /* Save ptr to first use */
-      if (!use->table->reginfo.join_tab->keyuse)
-	use->table->reginfo.join_tab->keyuse=save_pos;
-      use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
-      save_pos++;
-    }
-    i=(uint) (save_pos-(KEYUSE*) keyuse->buffer);
-    VOID(set_dynamic(keyuse,(uchar*) &key_end,i));
-    keyuse->elements=i;
-  }
-  DBUG_EXECUTE("opt", print_keyuse_array(keyuse););
   return FALSE;
 }
+
+
+/**
+  Sort the array of possible keys and remove the following key parts:
+  - ref if there is a keypart which is a ref and a const.
+    (e.g. if there is a key(a,b) and the clause is a=3 and b=7 and b=t2.d,
+    then we skip the key part corresponding to b=t2.d)
+  - keyparts without previous keyparts
+    (e.g. if there is a key(a,b,c) but only b < 5 (or a=2 and c < 3) is
+    used in the query, we drop the partial key parts from consideration).
+  Special treatment for ft-keys.
+*/
+
+static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse)
+{
+  KEYUSE key_end, *prev, *save_pos, *use;
+  uint found_eq_constant, i;
+
+  DBUG_ASSERT(keyuse->elements);
+
+  my_qsort(keyuse->buffer, keyuse->elements, sizeof(KEYUSE),
+           (qsort_cmp) sort_keyuse);
+
+  bzero((char*) &key_end, sizeof(key_end));    /* Add for easy testing */
+  if (insert_dynamic(keyuse, (uchar*) &key_end))
+    return TRUE;
+
+  use= save_pos= dynamic_element(keyuse,0,KEYUSE*);
+  prev= &key_end;
+  found_eq_constant= 0;
+
+  for (i=0 ; i < keyuse->elements-1 ; i++,use++)
+  {
+    if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
+      use->table->const_key_parts[use->key]|= use->keypart_map;
+    if (use->keypart != FT_KEYPART)
+    {
+      if (use->key == prev->key && use->table == prev->table)
+      {
+        if (prev->keypart+1 < use->keypart ||
+            (prev->keypart == use->keypart && found_eq_constant))
+          continue;				/* remove */
+      }
+      else if (use->keypart != 0)		// First found must be 0
+        continue;
+    }
+
+#ifdef HAVE_valgrind
+    /* Valgrind complains about overlapped memcpy when save_pos==use. */
+    if (save_pos != use)
+#endif
+      *save_pos= *use;
+    prev= use;
+    found_eq_constant= !use->used_tables;
+    /* Save ptr to first use */
+    if (!use->table->reginfo.join_tab->keyuse)
+      use->table->reginfo.join_tab->keyuse=save_pos;
+    use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
+    save_pos++;
+  }
+  i= (uint) (save_pos-(KEYUSE*) keyuse->buffer);
+  VOID(set_dynamic(keyuse,(uchar*) &key_end,i));
+  keyuse->elements= i;
+
+  return FALSE;
+}
+
 
 /**
   Update some values in keyuse for faster choose_plan() loop.
@@ -19263,6 +19279,131 @@ bool JOIN::change_result(select_result *res)
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Save the original query execution plan so that the caller can revert to it
+  if needed.
+*/
+int JOIN::save_query_plan(DYNAMIC_ARRAY *save_keyuse,
+                          POSITION *save_best_positions,
+                          KEYUSE **save_join_tab_keyuse,
+                          key_map *save_join_tab_checked_keys)
+{
+  if (keyuse.elements)
+  {
+    DYNAMIC_ARRAY tmp_keyuse;
+    if (my_init_dynamic_array(save_keyuse, sizeof(KEYUSE), 20, 64))
+      return 1;
+    /* Swap the current and the backup keyuse arrays. */
+    tmp_keyuse= keyuse;
+    keyuse= (*save_keyuse);
+    (*save_keyuse)= tmp_keyuse;
+
+    for (uint i= 0; i < tables; i++)
+    {
+      save_join_tab_keyuse[i]= join_tab[i].keyuse;
+      join_tab[i].keyuse= NULL;
+      save_join_tab_checked_keys[i]= join_tab[i].checked_keys;
+      join_tab[i].checked_keys.clear_all();
+    }
+  }
+  memcpy((uchar*) save_best_positions, (uchar*) best_positions,
+         sizeof(POSITION) * (tables + 1));
+  memset(best_positions, 0, sizeof(POSITION) * (tables + 1));
+  return 0;
+}
+
+
+/**
+  Restore the query plan saved before reoptimization with additional
+  conditions.
+*/
+
+void JOIN::restore_query_plan(DYNAMIC_ARRAY *save_keyuse,
+                              POSITION *save_best_positions,
+                              KEYUSE **save_join_tab_keyuse,
+                              key_map *save_join_tab_checked_keys)
+{
+  if (save_keyuse->elements)
+  {
+    DYNAMIC_ARRAY tmp_keyuse;
+    tmp_keyuse= keyuse;
+    keyuse= (*save_keyuse);
+    (*save_keyuse)= tmp_keyuse;
+    delete_dynamic(save_keyuse);
+
+    for (uint i= 0; i < tables; i++)
+    {
+      join_tab[i].keyuse= save_join_tab_keyuse[i];
+      join_tab[i].checked_keys= save_join_tab_checked_keys[i];
+    }
+
+  }
+  memcpy((uchar*) best_positions, (uchar*) save_best_positions,
+         sizeof(POSITION) * (tables + 1));
+}
+
+
+/**
+   Reoptimize a query plan taking into account an additional conjunct to the
+   WHERE clause.
+*/
+
+int JOIN::reoptimize(Item *added_where, table_map join_tables,
+                     POSITION *save_best_positions)
+{
+  DYNAMIC_ARRAY added_keyuse;
+  SARGABLE_PARAM *sargables= 0; /* Used only as a dummy parameter. */
+
+  if (my_init_dynamic_array(&added_keyuse, sizeof(KEYUSE), 20, 64))
+  {
+    delete_dynamic(&added_keyuse);
+    return 1;
+  }
+
+  /* Re-run the REF optimizer to take into account the new conditions. */
+  if (update_ref_and_keys(thd, &added_keyuse, join_tab, tables, added_where,
+                          ~outer_join, select_lex, &sargables))
+  {
+    delete_dynamic(&added_keyuse);
+    return 1;
+  }
+
+  if (!added_keyuse.elements)
+  {
+    /* No need to optimize if no new access methods were discovered. */
+    if (save_best_positions)
+      memcpy((uchar*) best_positions, (uchar*) save_best_positions,
+             sizeof(POSITION) * (tables + 1));
+    delete_dynamic(&added_keyuse);
+    return 0;
+  }
+
+  /* Add the new access methods to the keyuse array. */
+  if (!keyuse.buffer &&
+      my_init_dynamic_array(&keyuse, sizeof(KEYUSE), 20, 64))
+  {
+    delete_dynamic(&added_keyuse);
+    return 1;
+  }
+  allocate_dynamic(&keyuse, keyuse.elements + added_keyuse.elements);
+  memcpy(keyuse.buffer + keyuse.elements * keyuse.size_of_element,
+         added_keyuse.buffer,
+         (size_t) added_keyuse.elements * added_keyuse.size_of_element);
+  keyuse.elements+= added_keyuse.elements;
+  delete_dynamic(&added_keyuse);
+
+  if (sort_and_filter_keyuse(&keyuse))
+    return 1;
+  optimize_keyuse(this, &keyuse);
+
+  /* Re-run the join optimizer to compute a new query plan. */
+  if (choose_plan(this, join_tables))
+    return 1;
+
+  return 0;
 }
 
 /**

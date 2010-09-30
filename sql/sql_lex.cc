@@ -2157,8 +2157,8 @@ void st_select_lex::print_limit(THD *thd,
                     select_limit == 1, and there should be no offset_limit.
                   */
                   (((subs_type == Item_subselect::IN_SUBS) &&
-                    ((Item_in_subselect*)item)->exec_method ==
-                    Item_in_subselect::MATERIALIZATION) ?
+                    ((Item_in_subselect*)item)->in_strategy &
+                    SUBS_MATERIALIZATION) ?
                    TRUE :
                    (select_limit->val_int() == 1LL) &&
                    offset_limit == 0));
@@ -3096,25 +3096,11 @@ bool st_select_lex::optimize_unflattened_subqueries()
     Item_subselect *subquery_predicate= un->item;
     if (subquery_predicate)
     {
-      Item_in_subselect *item_in= NULL;
-      if (subquery_predicate->substype() == Item_subselect::IN_SUBS ||
-          subquery_predicate->substype() == Item_subselect::ALL_SUBS ||
-          subquery_predicate->substype() == Item_subselect::ANY_SUBS)
-        item_in= (Item_in_subselect*) subquery_predicate;
       for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
       {
         JOIN *inner_join= sl->join;
         SELECT_LEX *save_select= un->thd->lex->current_select;
         int res;
-
-        /*
-          Make sure that we do not create IN->EXISTS conditions for
-          subquery predicates that were substituted by Item_maxmin_subselect
-          or by Item_singlerow_subselect.
-        */
-        DBUG_ASSERT(!item_in || (item_in && !item_in->is_min_max_optimized));
-        if (item_in && item_in->create_in_to_exists_cond(inner_join))
-            return TRUE;
         /* We need only 1 row to determine existence */
         un->set_limit(un->global_parameters);
         un->thd->lex->current_select= sl;

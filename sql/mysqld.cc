@@ -304,7 +304,7 @@ static const char *optimizer_switch_names[]=
   "index_merge","index_merge_union","index_merge_sort_union",
   "index_merge_intersection",
   "index_condition_pushdown",
-  "firstmatch","loosescan","materialization", "semijoin",
+  "firstmatch","loosescan","materialization","in_to_exists","semijoin",
   "partial_match_rowid_merge",
   "partial_match_table_scan",
   "subquery_cache",
@@ -325,6 +325,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("firstmatch") - 1,
   sizeof("loosescan") - 1,
   sizeof("materialization") - 1,
+  sizeof("in_to_exists") - 1,
   sizeof("semijoin") - 1,
   sizeof("partial_match_rowid_merge") - 1,
   sizeof("partial_match_table_scan") - 1,
@@ -412,9 +413,10 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "firstmatch=on,"
                                         "loosescan=on,"
                                         "materialization=on,"
+                                        "in_to_exists=on,"
                                         "semijoin=on,"
                                         "partial_match_rowid_merge=on,"
-                                        "partial_match_table_scan=on,"
+  "partial_match_table_scan=on,"
                                         "subquery_cache=on"
 #ifndef DBUG_OFF
                                         ",table_elimination=on";
@@ -7233,7 +7235,7 @@ The minimum value for this variable is 4096.",
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
    "index_merge_union, index_merge_sort_union, index_merge_intersection, "
-   "index_condition_pushdown, firstmatch, loosescan, materialization, "
+   "index_condition_pushdown, firstmatch, loosescan, materialization, in_to_exists, "
    "semijoin, partial_match_rowid_merge, partial_match_table_scan, "
    "subquery_cache"
 #ifndef DBUG_OFF

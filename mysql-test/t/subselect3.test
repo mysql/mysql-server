@@ -681,7 +681,8 @@ SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
 # The x alias is used below to workaround bug #40674.
 # Regression tests for sum function on outer column in subselect from dual:
 SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
---echo # 2nd and 3rd columns should be same for x == 11 only
+--echo # 2nd and 3rd columns should be same
+EXPLAIN SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
 SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
 
 DROP TABLE t1;

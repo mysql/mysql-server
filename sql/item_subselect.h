@@ -108,9 +108,6 @@ public:
   /* subquery is transformed */
   bool changed;
 
-  /* TIMOUR: this is temporary, remove it. */
-  bool is_min_max_optimized;
-
   /* TRUE <=> The underlying SELECT is correlated w.r.t some ancestor select */
   bool is_correlated; 
 
@@ -121,6 +118,12 @@ public:
   Item_subselect();
 
   virtual subs_type substype() { return UNKNOWN_SUBS; }
+  bool is_in_predicate()
+  {
+    return (substype() == Item_subselect::IN_SUBS ||
+            substype() == Item_subselect::ALL_SUBS ||
+            substype() == Item_subselect::ANY_SUBS);
+  }
 
   /*
     We need this method, because some compilers do not allow 'this'
@@ -314,6 +317,18 @@ public:
 };
 
 
+/*
+  Possible methods to execute an IN predicate. These are set by the optimizer
+  based on user-set optimizer switches, syntactic analysis and cost comparison.
+*/
+#define SUBS_NOT_TRANSFORMED 0 /* No execution method was chosen for this IN. */
+#define SUBS_SEMI_JOIN 1       /* IN was converted to semi-join. */
+#define SUBS_IN_TO_EXISTS 2    /* IN was converted to correlated EXISTS. */
+#define SUBS_MATERIALIZATION 4 /* Execute IN via subquery materialization. */
+/* Partial matching substrategies of MATERIALIZATION. */
+#define SUBS_PARTIAL_MATCH_ROWID_MERGE 8
+#define SUBS_PARTIAL_MATCH_TABLE_SCAN 16
+
 /**
   Representation of IN subquery predicates of the form
   "left_expr IN (SELECT ...)".
@@ -362,19 +377,13 @@ protected:
   trans_res select_in_like_transformer(JOIN *join);
   trans_res single_value_transformer(JOIN *join);
   trans_res row_value_transformer(JOIN * join);
+  bool fix_having(Item *having, st_select_lex *select_lex);
   trans_res create_single_in_to_exists_cond(JOIN * join,
                                             Item **where_item,
                                             Item **having_item);
-  trans_res inject_single_in_to_exists_cond(JOIN * join,
-                                            Item *where_item,
-                                            Item *having_item);
-
   trans_res create_row_in_to_exists_cond(JOIN * join,
                                          Item **where_item,
                                          Item **having_item);
-  trans_res inject_row_in_to_exists_cond(JOIN * join,
-                                         Item *where_item,
-                                         Item *having_item);
 public:
   Item *left_expr;
   /* Priority of this predicate in the convert-to-semi-join-nest process. */
@@ -407,14 +416,8 @@ public:
   */
   bool sjm_scan_allowed;
 
-  /* The method chosen to execute the IN predicate.  */
-  enum enum_exec_method {
-    NOT_TRANSFORMED, /* No execution method was chosen for this IN. */
-    SEMI_JOIN,   /* IN was converted to semi-join nest and should be removed. */
-    IN_TO_EXISTS, /* IN was converted to correlated EXISTS. */
-    MATERIALIZATION /* IN will be executed via subquery materialization. */
-  };
-  enum_exec_method exec_method;
+  /* A bitmap of possible execution strategies for an IN predicate. */
+  uchar in_strategy;
 
   bool *get_cond_guard(int i)
   {
@@ -433,7 +436,7 @@ public:
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
     is_constant(FALSE), optimizer(0), abort_on_null(0),
-    pushed_cond_guards(NULL), func(NULL), exec_method(NOT_TRANSFORMED),
+    pushed_cond_guards(NULL), func(NULL), in_strategy(0),
     upper_item(0)
     {}
   void cleanup();
@@ -446,8 +449,8 @@ public:
     was_null= 0;
   }
   trans_res select_transformer(JOIN *join);
-  bool create_in_to_exists_cond(JOIN * join_arg);
-  bool inject_in_to_exists_cond(JOIN * join_arg);
+  bool create_in_to_exists_cond(JOIN *join_arg);
+  bool inject_in_to_exists_cond(JOIN *join_arg);
 
   virtual bool exec();
   longlong val_int();

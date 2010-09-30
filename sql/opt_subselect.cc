@@ -165,7 +165,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         thd->thd_marker.emb_on_expr_nest &&                           // 5
         select_lex->outer_select()->join &&                           // 6
         parent_unit->first_select()->leaf_tables &&                   // 7
-        in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED && // 8
+        !in_subs->in_strategy &&                                      // 8
         select_lex->outer_select()->leaf_tables &&                    // 9
         !((join->select_options |                                     // 10
            select_lex->outer_select()->join->select_options)          // 10
@@ -185,65 +185,71 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
     else
     {
       DBUG_PRINT("info", ("Subquery can't be converted to semi-join"));
-      /*
-        Check if the subquery predicate can be executed via materialization.
-        The required conditions are:
-        1. Subquery predicate is an IN/=ANY subq predicate
-        2. Subquery is a single SELECT (not a UNION)
-        3. Subquery is not a table-less query. In this case there is no
-           point in materializing.
-          3A The upper query is not a table-less SELECT ... FROM DUAL. We
+      if (!optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS) &&
+          !optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION))
+        my_error(ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES, MYF(0));
+
+      if (in_subs)
+      {
+        /* Subquery predicate is an IN/=ANY predicate. */
+        if (optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS))
+          in_subs->in_strategy|= SUBS_IN_TO_EXISTS;
+        if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION))
+          in_subs->in_strategy|= SUBS_MATERIALIZATION;
+
+        /*
+          Check if the subquery predicate can be executed via materialization.
+          The required conditions are:
+          1. Subquery is a single SELECT (not a UNION)
+          2. Subquery is not a table-less query. In this case there is no
+             point in materializing.
+          2A The upper query is not a table-less SELECT ... FROM DUAL. We
              can't do materialization for SELECT .. FROM DUAL because it
              does not call setup_subquery_materialization(). We could make 
              SELECT ... FROM DUAL call that function but that doesn't seem
              to be the case that is worth handling.
-        4. Either the subquery predicate is a top-level predicate, or at
-           least one partial match strategy is enabled. If no partial match
-           strategy is enabled, then materialization cannot be used for
-           non-top-level queries because it cannot handle NULLs correctly.
-        5. Subquery is non-correlated
-           TODO:
-           This is an overly restrictive condition. It can be extended to:
-           (Subquery is non-correlated ||
-            Subquery is correlated to any query outer to IN predicate ||
-            (Subquery is correlated to the immediate outer query &&
-             Subquery !contains {GROUP BY, ORDER BY [LIMIT],
-             aggregate functions}) && subquery predicate is not under "NOT IN"))
-        6. No execution method was already chosen (by a prepared statement).
+          3. Either the subquery predicate is a top-level predicate, or at
+             least one partial match strategy is enabled. If no partial match
+             strategy is enabled, then materialization cannot be used for
+             non-top-level queries because it cannot handle NULLs correctly.
+          4. Subquery is non-correlated
+             TODO:
+             This is an overly restrictive condition. It can be extended to:
+             (Subquery is non-correlated ||
+              Subquery is correlated to any query outer to IN predicate ||
+              (Subquery is correlated to the immediate outer query &&
+               Subquery !contains {GROUP BY, ORDER BY [LIMIT],
+               aggregate functions}) && subquery predicate is not under "NOT IN"))
 
-        (*) The subquery must be part of a SELECT statement. The current
-             condition also excludes multi-table update statements.
-
-        Determine whether we will perform subquery materialization before
-        calling the IN=>EXISTS transformation, so that we know whether to
-        perform the whole transformation or only that part of it which wraps
-        Item_in_subselect in an Item_in_optimizer.
-      */
-      if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION)  && 
-          in_subs  &&                                                   // 1
-          !select_lex->is_part_of_union() &&                            // 2
-          parent_unit->first_select()->leaf_tables &&                   // 3
-          thd->lex->sql_command == SQLCOM_SELECT &&                     // *
-          select_lex->outer_select()->leaf_tables &&                    // 3A
-          subquery_types_allow_materialization(in_subs) &&
-          // psergey-todo: duplicated_subselect_card_check: where it's done?
-          (in_subs->is_top_level_item() ||
-           optimizer_flag(thd, OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE) ||
-           optimizer_flag(thd, OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) &&//4
-          !in_subs->is_correlated &&                                  // 5
-          in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED) // 6
-      {
-        /*
-          Materialization is possible, later the optimize phase of each
-          subquery will choose either materialization or in-to-exists based
-          on cost.
+          (*) The subquery must be part of a SELECT statement. The current
+               condition also excludes multi-table update statements.
         */
-        in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
-      }
-      else if (in_subs)
-      {
-        /* Materialization is not possible at all. */
-        in_subs->exec_method= Item_in_subselect::IN_TO_EXISTS;
+        if (!(in_subs->in_strategy & SUBS_MATERIALIZATION && 
+              !select_lex->is_part_of_union() &&                            // 1
+              parent_unit->first_select()->leaf_tables &&                   // 2
+              thd->lex->sql_command == SQLCOM_SELECT &&                     // *
+              select_lex->outer_select()->leaf_tables &&                    // 2A
+              subquery_types_allow_materialization(in_subs) &&
+              // psergey-todo: duplicated_subselect_card_check: where it's done?
+              (in_subs->is_top_level_item() ||                               //3
+               optimizer_flag(thd,
+                              OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE) || //3
+               optimizer_flag(thd,
+                              OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) && //3
+              !in_subs->is_correlated))                                      //4
+        {
+          /* Materialization is not possible based on syntactic properties. */
+          in_subs->in_strategy&= ~SUBS_MATERIALIZATION;
+        }
+
+        if (!in_subs->in_strategy)
+        {
+          /*
+            If neither materialization is possible, nor the user chose
+            IN-TO-EXISTS, choose IN-TO-EXISTS as the only universal strategy.
+          */
+          in_subs->in_strategy|= SUBS_IN_TO_EXISTS;
+        }
       }
 
       /*
@@ -533,13 +539,13 @@ skip_conversion:
     }
     /*
       Revert to the IN->EXISTS strategy in the rare case when the subquery could
-      be flattened.
+      not be flattened.
       TODO: This is a limitation done for simplicity. Such subqueries could also
       be executed via materialization. In order to determine this, we should
       re-run the test for materialization that was done in
       check_and_do_in_subquery_rewrites.
     */
-    (*in_subq)->exec_method= Item_in_subselect::IN_TO_EXISTS;
+    (*in_subq)->in_strategy= SUBS_IN_TO_EXISTS;
   }
 
   if (arena)
@@ -800,8 +806,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   /* 3. Remove the original subquery predicate from the WHERE/ON */
 
   // The subqueries were replaced for Item_int(1) earlier
-  subq_pred->exec_method=
-    Item_in_subselect::SEMI_JOIN;         // for subsequent executions
+  subq_pred->in_strategy= SUBS_SEMI_JOIN;         // for subsequent executions
   /*TODO: also reset the 'with_subselect' there. */
 
   /* n. Adjust the parent_join->tables counter */
@@ -3393,6 +3398,7 @@ int rewrite_to_index_subquery_engine(JOIN *join)
   JOIN_TAB* join_tab=join->join_tab;
   SELECT_LEX_UNIT *unit= join->unit;
   DBUG_ENTER("rewrite_to_index_subquery_engine");
+
   /*
     is this simple IN subquery?
   */
@@ -3564,56 +3570,157 @@ bool JOIN::optimize_unflattened_subqueries()
 }
 
 
-bool JOIN::choose_subquery_plan()
+bool JOIN::choose_subquery_plan(table_map join_tables)
 {
-  double mat_strategy_cost;    /* The cost to compute IN via materialization. */
-  double in_exists_strategy_cost; /* The cost of the IN->EXISTS strategy. */
-  bool res;
+  /* The original QEP of the subquery. */
+  DYNAMIC_ARRAY save_keyuse; /* Copy of the JOIN::keyuse array. */
+  POSITION save_best_positions[MAX_TABLES+1]; /* Copy of JOIN::best_positions */
+  /* Copies of the JOIN_TAB::keyuse pointers for each JOIN_TAB. */
+  KEYUSE *save_join_tab_keyuse[MAX_TABLES];
+  /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
+  key_map save_join_tab_checked_keys[MAX_TABLES];
 
-  DBUG_ASSERT(in_to_exists_where || in_to_exists_having);
-  DBUG_ASSERT(select_lex->master_unit()->item &&
-              (select_lex->master_unit()->item->substype() ==
-               Item_subselect::IN_SUBS ||
-               select_lex->master_unit()->item->substype() ==
-               Item_subselect::ALL_SUBS ||
-               select_lex->master_unit()->item->substype() ==
-               Item_subselect::ANY_SUBS));
+  bool in_exists_reoptimized= false;
+  Item_in_subselect *in_subs;
 
-  Item_in_subselect *in_subs= (Item_in_subselect*)
-                              select_lex->master_unit()->item;
-
-  /* Always revert to IN->EXISTS. */
-  mat_strategy_cost= 0;
-  in_exists_strategy_cost= 1;
-
-  /*
-    If (1) materialization is a possible strategy based on static analysis, and
-    (2) it is cheaper strategy than the IN->EXISTS transformation, then compute
-    in_subs via the materialization trategy.
-  */
-  if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION && // 1
-      mat_strategy_cost < in_exists_strategy_cost)                  // 2
+  if (select_lex->master_unit()->item &&
+      select_lex->master_unit()->item->is_in_predicate())
   {
-    if (in_subs->setup_mat_engine())
-    {
-      /*
-        In some cases it is not possible to create usable indexes for the
-        materialization strategy, so fall back to IN->EXISTS.
-      */
-      in_subs->exec_method= Item_in_subselect::IN_TO_EXISTS;
-    }
+    in_subs= (Item_in_subselect*) select_lex->master_unit()->item;
+    if (in_subs->create_in_to_exists_cond(this))
+      return true;
   }
   else
+    return false;
+
+  DBUG_ASSERT(in_subs->in_strategy); /* A strategy must be chosen earlier. */
+  DBUG_ASSERT(in_to_exists_where || in_to_exists_having);
+  DBUG_ASSERT(!in_to_exists_where || in_to_exists_where->fixed);
+  DBUG_ASSERT(!in_to_exists_having || in_to_exists_having->fixed);
+
+  save_keyuse.elements= 0;
+  save_keyuse.buffer= NULL;
+
+  /*
+    Compute and compare the costs of materialization and in-exists if both
+    strategies are possible and allowed by the user (checked during the prepare
+    phase.
+  */
+  if (in_subs->in_strategy & SUBS_MATERIALIZATION &&
+      in_subs->in_strategy & SUBS_IN_TO_EXISTS)
   {
+    JOIN *outer_join= unit->outer_select() ? unit->outer_select()->join : NULL;
+    JOIN *inner_join= this;
+    /* Cost of the outer JOIN. */
+    double outer_read_time= 0, outer_record_count= 0;
+    /* Cost of the unmodified subquery. */
+    double inner_read_time_1= 0, inner_record_count_1= 0;
+    /* Cost of the subquery with injected IN-EXISTS predicates. */
+    double inner_read_time_2= 0, inner_record_count_2= 0;
+    /* The cost to compute IN via materialization. */
+    double materialize_strategy_cost= 0;
+    /* The cost of the IN->EXISTS strategy. */
+    double in_exists_strategy_cost= 1;
+
+    if (outer_join)
+      get_partial_join_cost(outer_join, outer_join->tables,
+                            &outer_read_time, &outer_record_count);
+    else
+    {
+      /* TODO: outer_join can be NULL for DELETE statements. */
+      outer_read_time= 1; /* TODO */
+      outer_record_count= 1;  /* TODO */
+    }
+
+    get_partial_join_cost(inner_join, inner_join->tables,
+                          &inner_read_time_1, &inner_record_count_1);
+
+    if (in_to_exists_where && const_tables != tables)
+    {
+      /*
+        Re-optimize and cost the subquery taking into account the IN-EXISTS
+        conditions.
+      */
+      if (save_query_plan(&save_keyuse, save_best_positions,
+                          save_join_tab_keyuse, save_join_tab_checked_keys) ||
+          reoptimize(in_to_exists_where, join_tables, save_best_positions))
+        return TRUE;
+      in_exists_reoptimized= true;
+
+      get_partial_join_cost(inner_join, inner_join->tables,
+                            &inner_read_time_2, &inner_record_count_2);
+    }
+    else
+    {
+      /* Reoptimization would not produce any better plan. */
+      inner_read_time_2= inner_read_time_1;
+    }
+
+    /* Compute execution costs. */
     /*
-      Previous optimizer phases should have chosen either a materialization
-      or IN->EXISTS strategy.
+      1. Compute the cost of the materialization strategy.
     */
-    DBUG_ASSERT(in_subs->exec_method == Item_in_subselect::IN_TO_EXISTS);
+    double materialization_cost; /* The cost of executing the subquery and */
+                                 /* storing its result in an indexed temp table.*/
+    /* The cost of a lookup into the unique index of the materialized table. */
+    double lookup_cost;
+    double write_row_cost= 1; /* TODO: what is the real cost to write a row? */
+    materialization_cost= inner_read_time_1 +
+                          inner_record_count_1 * write_row_cost;
+    /*
+      The cost of a hash/btree lookup into a unique index of a materialized
+      subquery.
+      TIMOUR: TODO: the block of code below is exact copy/paste from
+      opt_subselect.cc:optimize_semi_join_nests() - refactor it.
+    */
+    uint rowlen= get_tmp_table_rec_length(unit->first_select()->item_list);
+    if (rowlen * inner_record_count_1 < thd->variables.max_heap_table_size)
+      lookup_cost= HEAP_TEMPTABLE_LOOKUP_COST;
+    else
+      lookup_cost= DISK_TEMPTABLE_LOOKUP_COST;
+    materialize_strategy_cost= materialization_cost +
+                               outer_record_count * lookup_cost;
+
+    /*
+      2. Compute the cost of the IN=>EXISTS strategy.
+    */
+    in_exists_strategy_cost= outer_record_count * inner_read_time_2;
+
+    /* Compare the costs and choose the cheaper strategy. */
+    if (materialize_strategy_cost >= in_exists_strategy_cost)
+      in_subs->in_strategy&= ~SUBS_MATERIALIZATION;
+    else
+      in_subs->in_strategy&= ~SUBS_IN_TO_EXISTS;
   }
 
-  if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION)
+  /*
+    If (1) materialization is a possible strategy based on static analysis
+    during the prepare phase, then if
+      (2) it is more expensive than the IN->EXISTS transformation, and
+      (3) it is not possible to create usable indexes for the materialization
+          strategy,
+      fall back to IN->EXISTS.
+    otherwise use materialization.
+  */
+  if (in_subs->in_strategy & SUBS_MATERIALIZATION &&
+      in_subs->setup_mat_engine())
   {
+    /*
+      If materialization was the cheaper or the only user-selected strategy,
+      but it is not possible to execute it due to limitations in the
+      implementation, fall back to IN-TO-EXISTS.
+    */
+    in_subs->in_strategy&= ~SUBS_MATERIALIZATION;
+    in_subs->in_strategy|= SUBS_IN_TO_EXISTS;
+  }
+
+  if (in_subs->in_strategy & SUBS_MATERIALIZATION)
+  {
+    /* Restore orginal query plan used for materialization. */
+    if (in_exists_reoptimized)
+      restore_query_plan(&save_keyuse, save_best_positions,
+                         save_join_tab_keyuse, save_join_tab_checked_keys);
+
     /* TODO: should we set/unset this flag for both select_lex and its unit? */
     in_subs->unit->uncacheable&= ~UNCACHEABLE_DEPENDENT;
     select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT;
@@ -3633,13 +3740,32 @@ bool JOIN::choose_subquery_plan()
       set in the beginning of JOIN::optimize, which was already done.
     */
     select_limit= in_subs->unit->select_limit_cnt;
-
-    // TODO: inner_join->restore_plan (keyuse, best_positions, best_read)
   }
-  else if (in_subs->exec_method == Item_in_subselect::IN_TO_EXISTS)
-    res= in_subs->inject_in_to_exists_cond(this);
+  else if (in_subs->in_strategy & SUBS_IN_TO_EXISTS)
+  {
+    /* Keep the new query plan with injected conditions, delete the old one. */
+    if (save_keyuse.elements)
+    {
+      DBUG_ASSERT(in_exists_reoptimized);
+      delete_dynamic(&save_keyuse);
+    }
+
+    if (!in_exists_reoptimized && in_to_exists_where && const_tables != tables)
+    {
+      for (uint i= 0; i < tables; i++)
+      {
+        join_tab[i].keyuse= NULL;
+        join_tab[i].checked_keys.clear_all();
+      }
+      if (reoptimize(in_to_exists_where, join_tables, NULL))
+        return TRUE;
+    }
+
+    if (in_subs->inject_in_to_exists_cond(this))
+      return TRUE;
+  }
   else
     DBUG_ASSERT(FALSE);
 
-  return res;
+  return FALSE;
 }
