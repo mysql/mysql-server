@@ -152,7 +152,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   int recordsWithLowerOrSameGci = 0;
   unsigned i; 
   for (i = 0; i < savedRecords.size(); i++){
-    if (savedRecords[i].m_gci <= restartGCI)
+    if (savedRecords[i].m_gci <= (int)restartGCI)
       recordsWithLowerOrSameGci++;
   }
   if (recordsWithLowerOrSameGci != count){
@@ -180,7 +180,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
       // Record was not found in db'
 
       // Check record gci
-      if (savedRecords[i].m_gci <= restartGCI){
+      if (savedRecords[i].m_gci <= (int)restartGCI){
 	ndbout << "ERR: Record "<<i<<" should have existed" << endl;
 	result = NDBT_FAILED;
       }
@@ -201,7 +201,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
 	result = NDBT_FAILED;
       }
       // Check record gci in range
-      if (savedRecords[i].m_gci > restartGCI){
+      if (savedRecords[i].m_gci > (int)restartGCI){
 	ndbout << "ERR: Record "<<i<<" should not have existed" << endl;
 	result = NDBT_FAILED;
       }
