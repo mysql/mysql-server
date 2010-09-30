@@ -433,7 +433,6 @@ typedef struct st_table_share
   bool waiting_on_cond;                 /* Protection against free */
   bool deleting;                        /* going to delete this table */
   ulong table_map_id;                   /* for row-based replication */
-  ulonglong table_map_version;
 
   /*
     Cache for row-based replication table share checks that does not

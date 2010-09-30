@@ -76,6 +76,8 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
+static int commit_one_phase_2(THD *thd, bool all, THD_TRANS *trans,
+                              bool is_real_trans);
 
 
 static plugin_ref ha_default_plugin(THD *thd)
@@ -1070,7 +1072,7 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 */
 int ha_commit_trans(THD *thd, bool all)
 {
-  int error= 0, cookie= 0;
+  int error= 0, cookie;
   /*
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
@@ -1085,7 +1087,8 @@ int ha_commit_trans(THD *thd, bool all)
   */
   bool is_real_trans= all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list;
-  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+  bool need_prepare_ordered, need_commit_ordered;
+  my_xid xid;
   DBUG_ENTER("ha_commit_trans");
 
   /*
@@ -1118,85 +1121,112 @@ int ha_commit_trans(THD *thd, bool all)
     DBUG_RETURN(2);
   }
 #ifdef USING_TRANSACTIONS
-  if (ha_info)
+  if (!ha_info)
   {
-    uint rw_ha_count;
-    bool rw_trans;
-
-    DBUG_EXECUTE_IF("crash_commit_before", abort(););
-
-    /* Close all cursors that can not survive COMMIT */
-    if (is_real_trans)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
-    rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
-    /* rw_trans is TRUE when we in a transaction changing data */
-    rw_trans= is_real_trans && (rw_ha_count > 0);
-
-    if (rw_trans &&
-        wait_if_global_read_lock(thd, 0, 0))
-    {
-      ha_rollback_trans(thd, all);
-      DBUG_RETURN(1);
-    }
-
-    if (rw_trans &&
-        opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
-        !thd->slave_thread)
-    {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
-      ha_rollback_trans(thd, all);
-      error= 1;
-      goto end;
-    }
-
-    if (!trans->no_2pc && (rw_ha_count > 1))
-    {
-      for (; ha_info && !error; ha_info= ha_info->next())
-      {
-        int err;
-        handlerton *ht= ha_info->ht();
-        /*
-          Do not call two-phase commit if this particular
-          transaction is read-only. This allows for simpler
-          implementation in engines that are always read-only.
-        */
-        if (! ha_info->is_trx_read_write())
-          continue;
-        /*
-          Sic: we know that prepare() is not NULL since otherwise
-          trans->no_2pc would have been set.
-        */
-        if ((err= ht->prepare(ht, thd, all)))
-        {
-          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
-          error= 1;
-        }
-        status_var_increment(thd->status_var.ha_prepare_count);
-      }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
-      if (error || (is_real_trans && xid &&
-                    (error= !(cookie= tc_log->log_xid(thd, xid)))))
-      {
-        ha_rollback_trans(thd, all);
-        error= 1;
-        goto end;
-      }
-      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
-    }
-    error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
-    if (cookie)
-      tc_log->unlog(cookie, xid);
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
-end:
-    if (rw_trans)
-      start_waiting_global_read_lock(thd);
+    /* Free resources and perform other cleanup even for 'empty' transactions. */
+    if (is_real_trans)
+      thd->transaction.cleanup();
+    DBUG_RETURN(0);
   }
-  /* Free resources and perform other cleanup even for 'empty' transactions. */
-  else if (is_real_trans)
-    thd->transaction.cleanup();
+
+  DBUG_EXECUTE_IF("crash_commit_before", abort(););
+
+  /* Close all cursors that can not survive COMMIT */
+  if (is_real_trans)                          /* not a statement commit */
+    thd->stmt_map.close_transient_cursors();
+
+  uint rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
+  /* rw_trans is TRUE when we in a transaction changing data */
+  bool rw_trans= is_real_trans && (rw_ha_count > 0);
+
+  if (rw_trans &&
+      wait_if_global_read_lock(thd, 0, 0))
+  {
+    ha_rollback_trans(thd, all);
+    DBUG_RETURN(1);
+  }
+
+  if (rw_trans &&
+      opt_readonly &&
+      !(thd->security_ctx->master_access & SUPER_ACL) &&
+      !thd->slave_thread)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+    goto err;
+  }
+
+  if (trans->no_2pc || (rw_ha_count <= 1))
+  {
+    error= ha_commit_one_phase(thd, all);
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+    goto end;
+  }
+
+  need_prepare_ordered= FALSE;
+  need_commit_ordered= FALSE;
+  xid= thd->transaction.xid_state.xid.get_my_xid();
+
+  for (Ha_trx_info *hi= ha_info; hi; hi= hi->next())
+  {
+    int err;
+    handlerton *ht= hi->ht();
+    /*
+      Do not call two-phase commit if this particular
+      transaction is read-only. This allows for simpler
+      implementation in engines that are always read-only.
+    */
+    if (! hi->is_trx_read_write())
+      continue;
+    /*
+      Sic: we know that prepare() is not NULL since otherwise
+      trans->no_2pc would have been set.
+    */
+    if ((err= ht->prepare(ht, thd, all)))
+      my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+    status_var_increment(thd->status_var.ha_prepare_count);
+
+    if (err)
+      goto err;
+
+    if (ht->prepare_ordered)
+      need_prepare_ordered= TRUE;
+    if (ht->commit_ordered)
+      need_commit_ordered= TRUE;
+  }
+  DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
+
+  if (!is_real_trans)
+  {
+    error= commit_one_phase_2(thd, all, trans, is_real_trans);
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+    goto end;
+  }
+
+  cookie= tc_log->log_and_order(thd, xid, all, need_prepare_ordered,
+                                need_commit_ordered);
+  if (!cookie)
+    goto err;
+
+  DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
+
+  error= commit_one_phase_2(thd, all, trans, is_real_trans) ? 2 : 0;
+  DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+
+  DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
+  tc_log->unlog(cookie, xid);
+
+  DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+  goto end;
+
+  /* Come here if error and we need to rollback. */
+err:
+  if (!error)
+    error= 1;
+  ha_rollback_trans(thd, all);
+
+end:
+  if (rw_trans)
+    start_waiting_global_read_lock(thd);
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
@@ -1207,7 +1237,6 @@ end:
 */
 int ha_commit_one_phase(THD *thd, bool all)
 {
-  int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   /*
     "real" is a nick name for a transaction for which a commit will
@@ -1217,8 +1246,41 @@ int ha_commit_one_phase(THD *thd, bool all)
     enclosing 'all' transaction is rolled back.
   */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
-  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_commit_one_phase");
+#ifdef USING_TRANSACTIONS
+  if (ha_info)
+  {
+    if (is_real_trans)
+    {
+      bool locked= false;
+      for (; ha_info; ha_info= ha_info->next())
+      {
+        handlerton *ht= ha_info->ht();
+        if (ht->commit_ordered)
+        {
+          if (ha_info->is_trx_read_write() && !locked)
+          {
+            pthread_mutex_lock(&LOCK_commit_ordered);
+            locked= 1;
+          }
+          ht->commit_ordered(ht, thd, all);
+        }
+      }
+      if (locked)
+        pthread_mutex_unlock(&LOCK_commit_ordered);
+    }
+  }
+#endif /* USING_TRANSACTIONS */
+  DBUG_RETURN(commit_one_phase_2(thd, all, trans, is_real_trans));
+}
+
+static int
+commit_one_phase_2(THD *thd, bool all, THD_TRANS *trans, bool is_real_trans)
+{
+  int error= 0;
+  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  DBUG_ENTER("commit_one_phase_2");
 #ifdef USING_TRANSACTIONS
   if (ha_info)
   {

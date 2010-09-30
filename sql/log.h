@@ -33,11 +33,173 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log_xid(THD *thd, my_xid xid)=0;
+  virtual int log_and_order(THD *thd, my_xid xid, bool all,
+                            bool need_prepare_ordered,
+                            bool need_commit_ordered) = 0;
   virtual void unlog(ulong cookie, my_xid xid)=0;
+
+protected:
+  /*
+    These methods are meant to be invoked from log_and_order() implementations
+    to run any prepare_ordered() respectively commit_ordered() methods in
+    participating handlers.
+
+    They must be called using suitable thread syncronisation to ensure that
+    they are each called in the correct commit order among all
+    transactions. However, it is only necessary to call them if the
+    corresponding flag passed to log_and_order is set (it is safe, but not
+    required, to call them when the flag is false).
+
+    The caller must be holding LOCK_prepare_ordered respectively
+    LOCK_commit_ordered when calling these methods.
+  */
+  void run_prepare_ordered(THD *thd, bool all);
+  void run_commit_ordered(THD *thd, bool all);
 };
 
-class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
+/*
+  Locks used to ensure serialised execution of TC_LOG::run_prepare_ordered()
+  and TC_LOG::run_commit_ordered(), or any other code that calls handler
+  prepare_ordered() or commit_ordered() methods.
+*/
+extern pthread_mutex_t LOCK_prepare_ordered;
+extern pthread_mutex_t LOCK_commit_ordered;
+
+extern void TC_init();
+extern void TC_destroy();
+
+/*
+  Base class for two TC implementations TC_LOG_unordered and
+  TC_LOG_group_commit that both use a queue of threads waiting for group
+  commit.
+*/
+class TC_LOG_queued: public TC_LOG
+{
+protected:
+  TC_LOG_queued();
+  ~TC_LOG_queued();
+
+  /* Structure used to link list of THDs waiting for group commit. */
+  struct TC_group_commit_entry
+  {
+    struct TC_group_commit_entry *next;
+    THD *thd;
+    /* This is the `all' parameter for ha_commit_trans() etc. */
+    bool all;
+    /*
+      Flag set true when it is time for this thread to wake up after group
+      commit. Used with THD::LOCK_commit_ordered and THD::COND_commit_ordered.
+    */
+    bool group_commit_ready;
+    /*
+      Set by TC_LOG_group_commit::group_log_xid(), to return per-thd error and
+      cookie.
+    */
+    int xid_error;
+  };
+
+  TC_group_commit_entry * reverse_queue(TC_group_commit_entry *queue);
+
+  void group_commit_wait_for_wakeup(TC_group_commit_entry *entry);
+  void group_commit_wakeup_other(TC_group_commit_entry *other);
+
+  /*
+    This is a queue of threads waiting for being allowed to commit.
+    Access to the queue must be protected by LOCK_prepare_ordered.
+  */
+  TC_group_commit_entry *group_commit_queue;
+};
+
+class TC_LOG_unordered: public TC_LOG_queued
+{
+public:
+  TC_LOG_unordered();
+  ~TC_LOG_unordered();
+
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_prepare_ordered, bool need_commit_ordered);
+
+protected:
+  virtual int log_xid(THD *thd, my_xid xid)=0;
+
+private:
+  /*
+    This flag and condition is used to reserve the queue while threads in it
+    each run the commit_ordered() methods one after the other. Only once the
+    last commit_ordered() in the queue is done can we start on a new queue
+    run.
+
+    Since we start this process in the first thread in the queue and finish in
+    the last (and possibly different) thread, we need a condition variable for
+    this (we cannot unlock a mutex in a different thread than the one who
+    locked it).
+
+    The condition is used together with the LOCK_prepare_ordered mutex.
+  */
+  my_bool group_commit_queue_busy;
+  pthread_cond_t COND_queue_busy;
+};
+
+class TC_LOG_group_commit: public TC_LOG_queued
+{
+public:
+  TC_LOG_group_commit();
+  ~TC_LOG_group_commit();
+
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_prepare_ordered, bool need_commit_ordered);
+
+protected:
+  /* Total number of committed transactions. */
+  ulonglong num_commits;
+  /* Number of group commits done. */
+  ulonglong num_group_commits;
+
+  /*
+    When using this class, this method is used instead of log_xid() to do
+    logging of a group of transactions all at once.
+
+    The transactions will be linked through THD::next_commit_ordered.
+
+    Additionally, when this method is used instead of log_xid(), the order in
+    which handler->prepare_ordered() and handler->commit_ordered() are called
+    is guaranteed to be the same as the order of calls and THD list elements
+    for group_log_xid().
+
+    This can be used to efficiently implement group commit that at the same
+    time preserves the order of commits among handlers and TC (eg. to get same
+    commit order in InnoDB and binary log).
+
+    For TCs that do not need this, it can be preferable to use plain log_xid()
+    with class TC_LOG_unordered instead, as it allows threads to run log_xid()
+    in parallel with each other. In contrast, group_log_xid() runs under a
+    global mutex, so it is guaranteed that only once call into it will be
+    active at once.
+
+    Since this call handles multiple threads/THDs at once, my_error() (and
+    other code that relies on thread local storage) cannot be used in this
+    method. Instead, the implementation must record any error and report it as
+    the return value from xid_log_after(), which will be invoked individually
+    for each thread.
+
+    In the success case, this method must set thd->xid_cookie for each thread
+    to the cookie that is normally returned from log_xid() (which must be
+    non-zero in the non-error case).
+  */
+  virtual void group_log_xid(TC_group_commit_entry *first) = 0;
+  /*
+    Called for each transaction (in corrent thread context) after
+    group_log_xid() has finished, but with no guarantee on ordering among
+    threads.
+    Can be used to do error reporting etc. */
+  virtual int xid_log_after(TC_group_commit_entry *entry) = 0;
+
+private:
+  /* Mutex used to serialise calls to group_log_xid(). */
+  pthread_mutex_t LOCK_group_commit;
+};
+
+class TC_LOG_DUMMY: public TC_LOG_unordered // use it to disable the logging
 {
 public:
   TC_LOG_DUMMY() {}
@@ -48,7 +210,7 @@ public:
 };
 
 #ifdef HAVE_MMAP
-class TC_LOG_MMAP: public TC_LOG
+class TC_LOG_MMAP: public TC_LOG_unordered
 {
   public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
@@ -227,12 +389,19 @@ private:
   time_t last_time;
 };
 
-class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
+class binlog_trx_data;
+class MYSQL_BIN_LOG: public TC_LOG_group_commit, private MYSQL_LOG
 {
  private:
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_index;
   pthread_mutex_t LOCK_prep_xids;
+  /*
+    Mutex to protect the queue of transactions waiting to participate in group
+    commit. (Only used on platforms without native atomic operations).
+  */
+  pthread_mutex_t LOCK_queue;
+
   pthread_cond_t  COND_prep_xids;
   pthread_cond_t update_cond;
   ulonglong bytes_written;
@@ -271,8 +440,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     In 5.0 it's 0 for relay logs too!
   */
   bool no_auto_events;
-
-  ulonglong m_table_map_version;
+  /* Queue of transactions queued up to participate in group commit. */
+  binlog_trx_data *group_commit_queue;
 
   int write_to_file(IO_CACHE *cache);
   /*
@@ -282,6 +451,14 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   void new_file_without_locking();
   void new_file_impl(bool need_lock);
+  int write_transaction(binlog_trx_data *trx_data);
+  bool write_transaction_to_binlog_events(binlog_trx_data *trx_data);
+  void trx_group_commit_participant(binlog_trx_data *trx_data);
+  void trx_group_commit_leader(TC_group_commit_entry *first);
+  binlog_trx_data *atomic_enqueue_trx(binlog_trx_data *trx_data);
+  binlog_trx_data *atomic_grab_trx_queue();
+  void mark_xid_done();
+  void mark_xids_active(uint xid_count);
 
 public:
   MYSQL_LOG::generate_name;
@@ -310,18 +487,11 @@ public:
 
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  void group_log_xid(TC_group_commit_entry *first);
+  int xid_log_after(TC_group_commit_entry *entry);
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
-  bool is_table_mapped(TABLE *table) const
-  {
-    return table->s->table_map_version == table_map_version();
-  }
-
-  ulonglong table_map_version() const { return m_table_map_version; }
-  void update_table_map_version() { ++m_table_map_version; }
-
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
   int remove_pending_rows_event(THD *thd);
 
@@ -362,10 +532,12 @@ public:
   void new_file();
 
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-  bool write_incident(THD *thd, bool lock);
+  bool write_transaction_to_binlog(THD *thd, binlog_trx_data *trx_data,
+                                   Log_event *end_ev);
+  bool trx_group_commit_finish(binlog_trx_data *trx_data);
+  bool write_incident(THD *thd);
 
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  int  write_cache(IO_CACHE *cache);
   void set_write_error(THD *thd);
   bool check_write_error(THD *thd);
 
@@ -420,6 +592,7 @@ public:
   inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+  void set_status_variables();
 };
 
 class Log_event_handler

@@ -1438,6 +1438,10 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+  /* Mutex and condition for waking up threads after group commit. */
+  pthread_mutex_t LOCK_commit_ordered;
+  pthread_cond_t COND_commit_ordered;
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 

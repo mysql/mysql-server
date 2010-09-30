@@ -673,6 +673,8 @@ THD::THD()
   active_vio = 0;
 #endif
   pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_commit_ordered, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_commit_ordered, 0);
 
   /* Variables with default values */
   proc_info="login";
@@ -999,6 +1001,8 @@ THD::~THD()
   free_root(&transaction.mem_root,MYF(0));
 #endif
   mysys_var=0;					// Safety (shouldn't be needed)
+  pthread_cond_destroy(&COND_commit_ordered);
+  pthread_mutex_destroy(&LOCK_commit_ordered);
   pthread_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
@@ -3773,7 +3777,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
     if (stmt_end)
     {
       pending->set_flags(Rows_log_event::STMT_END_F);
-      pending->flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       binlog_table_maps= 0;
     }
 
@@ -3901,7 +3904,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     {
       Query_log_event qinfo(this, query_arg, query_len, is_trans, suppress_use,
                             errcode);
-      qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event
         (they are just removed on the slave side) so after the query
