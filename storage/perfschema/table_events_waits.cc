@@ -123,6 +123,7 @@ table_events_waits_current::m_share=
   &table_events_waits_current::create,
   NULL, /* write_row */
   &table_events_waits_current::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_events_waits_current), /* ref length */
   &m_table_lock,
@@ -140,6 +141,7 @@ table_events_waits_history::m_share=
   &table_events_waits_history::create,
   NULL, /* write_row */
   &table_events_waits_history::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_events_waits_history), /* ref length */
   &m_table_lock,
@@ -157,6 +159,7 @@ table_events_waits_history_long::m_share=
   &table_events_waits_history_long::create,
   NULL, /* write_row */
   &table_events_waits_history_long::delete_all_rows,
+  NULL, /* get_row_count */
   10000, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,

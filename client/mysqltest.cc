@@ -5346,8 +5346,10 @@ void do_connect(struct st_command *command)
   }
 #endif
 
+#ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+#endif
 
 #ifdef HAVE_SMEM
   if (con_shm)
@@ -5633,6 +5635,8 @@ int read_line(char *buf, int size)
   char c, UNINIT_VAR(last_quote), last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
+  my_bool have_slash= FALSE;
+  
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
@@ -5704,9 +5708,13 @@ int read_line(char *buf, int size)
       }
       else if (c == '\'' || c == '"' || c == '`')
       {
-        last_quote= c;
-	state= R_Q;
+        if (! have_slash) 
+        {
+	  last_quote= c;
+	  state= R_Q;
+	}
       }
+      have_slash= (c == '\\');
       break;
 
     case R_COMMENT:
@@ -8073,8 +8081,10 @@ int main(int argc, char **argv)
     mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
+#ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
     mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#endif
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 

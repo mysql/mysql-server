@@ -925,8 +925,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     if (!query)
     {
       is_command= TRUE;
-      query= command_name[thd->command].str;
-      query_length= command_name[thd->command].length;
+      query= command_name[thd->get_command()].str;
+      query_length= command_name[thd->get_command()].length;
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
@@ -1998,10 +1998,32 @@ extern "C" my_bool reopen_fstreams(const char *filename,
                                    FILE *outstream, FILE *errstream)
 {
   int handle_fd;
-  int stream_fd;
+  int err_fd, out_fd;
   HANDLE osfh;
 
-  DBUG_ASSERT(filename && (outstream || errstream));
+  DBUG_ASSERT(filename && errstream);
+
+  // Services don't have stdout/stderr on Windows, so _fileno returns -1.
+  err_fd= _fileno(errstream);
+  if (err_fd < 0)
+  {
+    if (!freopen(filename, "a+", errstream))
+      return TRUE;
+
+    setbuf(errstream, NULL);
+    err_fd= _fileno(errstream);
+  }
+
+  if (outstream)
+  {
+    out_fd= _fileno(outstream);
+    if (out_fd < 0)
+    {
+      if (!freopen(filename, "a+", outstream))
+        return TRUE;
+      out_fd= _fileno(outstream);
+    }
+  }
 
   if ((osfh= CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
                         FILE_SHARE_READ | FILE_SHARE_WRITE |
@@ -2017,24 +2039,16 @@ extern "C" my_bool reopen_fstreams(const char *filename,
     return TRUE;
   }
 
-  if (outstream)
+  if (_dup2(handle_fd, err_fd) < 0)
   {
-    stream_fd= _fileno(outstream);
-    if (_dup2(handle_fd, stream_fd) < 0)
-    {
-      CloseHandle(osfh);
-      return TRUE;
-    }
+    CloseHandle(osfh);
+    return TRUE;
   }
 
-  if (errstream)
+  if (outstream && _dup2(handle_fd, out_fd) < 0)
   {
-    stream_fd= _fileno(errstream);
-    if (_dup2(handle_fd, stream_fd) < 0)
-    {
-      CloseHandle(osfh);
-      return TRUE;
-    }
+    CloseHandle(osfh);
+    return TRUE;
   }
 
   _close(handle_fd);
