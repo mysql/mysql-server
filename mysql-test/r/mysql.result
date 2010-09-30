@@ -434,3 +434,5 @@ Bug #47147: mysql client option --skip-column-names does not apply to vertical o
 1
 
 End of tests
+Connected
+OK
