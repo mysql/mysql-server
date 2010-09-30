@@ -1660,27 +1660,33 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
         /* fetchMoreResults() will either copy fragments that are already
          * complete (under mutex protection), or block until more data arrives.
          */
-        const FetchResult fetchResult = fetchMoreResults(forceSend);
+        const FetchResult fetchResult = awaitMoreResults(forceSend);
         switch (fetchResult) {
+
         case FetchResult_ok:
           break;
+
         case FetchResult_otherError:
           assert (m_error.code != 0);
           setErrorCode(m_error.code);
           return NdbQuery::NextResult_error;
+
         case FetchResult_sendFail:
-          // FIXME: copy semantics from NdbScanOperation.
-          setErrorCode(Err_NodeFailCausedAbort); // Node fail
+          setErrorCode(Err_NodeFailCausedAbort);
           return NdbQuery::NextResult_error;
+
         case FetchResult_nodeFail:
-          setErrorCode(Err_NodeFailCausedAbort); // Node fail
+          setErrorCode(Err_NodeFailCausedAbort);
           return NdbQuery::NextResult_error;
+
         case FetchResult_timeOut:
-          setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
+          setErrorCode(Err_ReceiveFromNdbFailed);
           return NdbQuery::NextResult_error;
+
         case FetchResult_scanComplete:
           getRoot().nullifyResult();
           return NdbQuery::NextResult_scanComplete;
+
         default:
           assert(false);
         }
@@ -1695,13 +1701,28 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
     }
     else
     {
+      assert(rootFrag->isFragBatchComplete());
       rootFrag->getResultStream(0).nextResult();   // Consume current
-      rootFrag = m_applFrags.reorganize();         // Reorg. may update 'current' RootFragment
-      assert(rootFrag==NULL || rootFrag == m_applFrags.getCurrent());
+      m_applFrags.reorganize();
+      // Reorg. may update 'current' RootFragment
+      rootFrag = m_applFrags.getCurrent();
+
+      // Ask for a new batch if we emptied one.
+      NdbRootFragment* const emptyFrag = m_applFrags.getEmpty();
+      if (emptyFrag != NULL)
+      {
+        if (sendFetchMore(*emptyFrag, forceSend) != 0)
+        {
+          setErrorCode(Err_NodeFailCausedAbort); // Node fail
+          return NdbQuery::NextResult_error;
+        }        
+        assert(m_applFrags.getEmpty() == NULL);
+      }
     }
 
     if (rootFrag!=NULL)
     {
+      assert(rootFrag->isFragBatchComplete());
       getRoot().fetchRow(rootFrag->getResultStream(0));
       return NdbQuery::NextResult_gotRow;
     }
@@ -1713,7 +1734,7 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
 
 
 NdbQueryImpl::FetchResult
-NdbQueryImpl::fetchMoreResults(bool forceSend)
+NdbQueryImpl::awaitMoreResults(bool forceSend)
 {
   assert(m_applFrags.getCurrent() == NULL);
 
@@ -1726,46 +1747,62 @@ NdbQueryImpl::fetchMoreResults(bool forceSend)
     Ndb* const ndb = m_transaction.getNdb();
     TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
 
-    /* This part needs to be done under mutex due to synchronization with 
-     * receiver thread. */
-    PollGuard poll_guard(facade,
-                         &ndb->theImpl->theWaiter,
-                         ndb->theNdbBlockNumber);
-
     while (likely(m_error.code==0))
     {
-      /* m_fullFrags contains any fragments that are complete (for this batch)
-       * but have not yet been moved (under mutex protection) to 
-       * m_applFrags.*/
-      if (m_fullFrags.size()==0) {
-        if (isBatchComplete()) {
-          // Request another scan batch, may already be at EOF
-          const int sent = sendFetchMore(m_transaction.getConnectedNodeId());
-          if (sent==0) {  // EOF reached?
+      {
+        /* This part needs to be done under mutex due to synchronization with 
+         * receiver thread. */
+        PollGuard poll_guard(facade,
+                             &ndb->theImpl->theWaiter,
+                             ndb->theNdbBlockNumber);
+        /* m_fullFrags contains any fragments that are complete (for this batch)
+         * but have not yet been moved (under mutex protection) to 
+         * m_applFrags.*/
+        if (m_fullFrags.size()==0) {
+          if (m_pendingFrags == 0)
+          {
+            assert(m_finalBatchFrags == getRootFragCount());
             m_state = EndOfData;
             postFetchRelease();
             return FetchResult_scanComplete;
-          } else if (unlikely(sent<0)) {
-            return FetchResult_sendFail;
           }
-        } //if (isBatchComplete...
-
-        /* More results are on the way, so we wait for them.*/
-        const FetchResult waitResult = static_cast<FetchResult>
-          (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
-                                m_transaction.getConnectedNodeId(), 
-                                forceSend));
-        if(waitResult != FetchResult_ok){
-          return waitResult;
+          else
+          {
+            /* More results are on the way, so we wait for them.*/
+            const FetchResult waitResult = static_cast<FetchResult>
+              (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+                                    m_transaction.getConnectedNodeId(), 
+                                    forceSend));
+            if (waitResult != FetchResult_ok)
+            {
+              return waitResult;
+            }
+          }
+        } // if (m_fullFrags.size()==0)
+  
+        NdbRootFragment* frag;
+        while ((frag=m_fullFrags.pop()) != NULL)
+        {
+          m_applFrags.add(*frag);
         }
-      } // if (m_fullFrags.size()==0)
-
-      NdbRootFragment* frag;
-      while ((frag=m_fullFrags.pop()) != NULL) {
-        m_applFrags.add(*frag);
       }
 
-      if (m_applFrags.getCurrent() != NULL) {
+      /**
+       * We may get batches that are empty but still not the final batch
+       * for that fragment. If so, ask for a new batch.
+       */
+      NdbRootFragment* emptyFrag = m_applFrags.getEmpty();
+      while (emptyFrag != NULL)
+      {
+        if (unlikely(sendFetchMore(*emptyFrag, forceSend) != 0))
+        {
+          return FetchResult_sendFail;
+        }        
+        emptyFrag = m_applFrags.getEmpty();
+      }
+
+      if (m_applFrags.getCurrent() != NULL)
+      {
         return FetchResult_ok;
       }
 
@@ -2427,207 +2464,104 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 } // NdbQueryImpl::doSend()
 
 
-/** This iterator is used for inserting a sequence of receiver ids for scan
- * batches other than the first batch  into a section via a GenericSectionPtr.
-*/
-class ReceiverIdIterator: public GenericSectionIterator
-{
-public:
-  
-  ReceiverIdIterator(const NdbQueryImpl& query)
-    :m_query(query),
-     m_currFragNo(0)
-  {}
-
-  virtual ~ReceiverIdIterator() {}
-  
-  virtual void reset()
-  { m_currFragNo = 0; };
-  
-  /**
-   * Get next batch of receiver ids. 
-   * @param sz This will be set to the number of receiver ids that have been
-   * put in the buffer (0 if end has been reached.)
-   * @return Array of receiver ids (or NULL if end reached.
-   */
-  virtual const Uint32* getNextWords(Uint32& sz);
-
-  /** Get the fragment number of the buffEntryNo'th entry in the internal
-   * buffer.
-   */
-  Uint32 getRootFragNo(Uint32 buffEntryNo) const
-  { 
-    assert(buffEntryNo < bufSize);
-    return m_rootFragNos[buffEntryNo]; 
-  }
-
-private:
-  /** 
-   * Size of internal receiver id buffer. This value is arbitrary, but 
-   * a larger buffer would mean fewer calls to getNextWords(), possibly
-   * improving efficiency.
-   */
-  static const Uint32 bufSize = 16;
-  /** The query with the scan root operation that we list receiver ids for.*/
-  const NdbQueryImpl& m_query;
-  /** The next fragment numnber to be processed. (Range for 0 to [no of 
-   * fragments] - 1.)*/
-  Uint32 m_currFragNo;
-  /** Buffer for storing one batch of receiver ids.*/
-  Uint32 m_receiverIds[bufSize];
-  /** Buffer of fragment numbers for the root operation. (Fragments are 
-   * numbered from 0 to [no of fragments] - 1)*/
-  Uint32 m_rootFragNos[bufSize];
-};
-
-
-const Uint32* ReceiverIdIterator::getNextWords(Uint32& sz)
-{
-  sz = 0;
-  if (m_query.getRoot().getOrdering() == NdbQueryOptions::ScanOrdering_unordered)
-  {
-    /* For unordered scans, ask for a new batch for each fragment.*/
-    while (m_currFragNo < m_query.getRootFragCount()
-           && sz < bufSize)
-    {
-      const Uint32 tcPtrI = 
-        m_query.getRoot().getReceiver(m_currFragNo).m_tcPtrI;
-      if (tcPtrI != RNIL) // Check if we have received the final batch.
-      {
-        m_receiverIds[sz] = tcPtrI;
-        m_rootFragNos[sz++] = m_currFragNo;
-      }
-      m_currFragNo++;
-    }
-  }
-  else if (m_currFragNo == 0)
-  {
-    /* For ordred scans we must have records buffered for each (non-finished)
-     * root fragment at all times, in order to find the lowest remaining 
-     * record. When one root fragment is empty, we must block the scan ask 
-     * for a new batch for that particular fragment.
-     * Note that getEmpty() will never return a fragment that is complete 
-     * (meaning that the last batch has been received).
-     */
-    const NdbRootFragment* const emptyFrag = m_query.m_applFrags.getEmpty();
-    if(emptyFrag!=NULL)
-    {
-      sz = 1;
-      m_receiverIds[0] = emptyFrag->getResultStream(0).getReceiver().m_tcPtrI;
-      assert(m_receiverIds[0] != RNIL);
-      m_rootFragNos[0] = emptyFrag->getFragNo();
-    }
-    /**
-     * Set it to one to make sure that the next call to getNextWords() will 
-     * return NULL, since we only want one fragment at a time.
-     */
-    m_currFragNo = 1;
-  }
-  
-  return sz == 0 ? NULL : m_receiverIds;
-}
-
 /******************************************************************************
 int sendFetchMore() - Fetch another scan batch, optionaly closing the scan
                 
                 Request another batch of rows to be retrieved from the scan.
                 Transporter mutex is locked before this method is called. 
 
-Return Value:   Return >0 : send was succesful, returns number of fragments
-                having pending scans batches.
-                Return =0 : No more rows is available -> EOF
-                Return -1: In all other case.   
-Parameters:     nodeId: Receiving processor node
+Return Value:   0 if send succeeded, -1 otherwise.
+Parameters:     emptyFrag: Root frgament for which to ask for another batch.
 Remark:
 ******************************************************************************/
 int
-NdbQueryImpl::sendFetchMore(int nodeId)
+NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
 {
-  Uint32 sent = 0;
   assert(getRoot().m_resultStreams!=NULL);
-  assert(m_pendingFrags==0);
+  assert(!emptyFrag.finalBatchReceived());
   assert(m_queryDef.isScanQuery());
 
-  ReceiverIdIterator receiverIdIter(*this);
+  m_pendingFrags++;
+  assert(m_pendingFrags <= getRootFragCount());
 
-  Uint32 idBuffSize = 0;
-  receiverIdIter.getNextWords(idBuffSize);
+  emptyFrag.reset();
 
-  /* Iterate over the fragments for which we will request a new batch.*/
-  while (idBuffSize > 0)
+  for (unsigned opNo=0; opNo<m_countOperations; opNo++) 
   {
-    sent += idBuffSize;
-    m_pendingFrags += idBuffSize;
-  
-    for (Uint32 i = 0; i<idBuffSize; i++)
+    const NdbQueryOperationImpl& op = getQueryOperation(opNo);
+    // Check if this is a leaf scan.
+    if (!op.getQueryOperationDef().hasScanDescendant() &&
+        op.getQueryOperationDef().isScanOperation())
     {
-      NdbRootFragment* const emptyFrag = 
-        m_rootFrags + receiverIdIter.getRootFragNo(i);
-      emptyFrag->reset();
-  
-      for (unsigned opNo=0; opNo<m_countOperations; opNo++) 
+      // Find first ancestor that is not finished.
+      const NdbQueryOperationImpl* ancestor = &op;
+      while (ancestor!=NULL && 
+             ancestor->getResultStream(emptyFrag.getFragNo())
+             .isSubScanComplete())
       {
-        const NdbQueryOperationImpl& op = getQueryOperation(opNo);
-        // Check if this is a leaf scan.
-        if (!op.getQueryOperationDef().hasScanDescendant() &&
-            op.getQueryOperationDef().isScanOperation())
-        {
-          // Find first ancestor that is not finished.
-          const NdbQueryOperationImpl* ancestor = &op;
-          while (ancestor!=NULL && 
-                 ancestor->getResultStream(emptyFrag->getFragNo())
-                 .isSubScanComplete())
-          {
-            ancestor = ancestor->getParentOperation();
-          }
-          if (ancestor!=NULL)
-          {
-            /* Reset ancestor and all its descendants, since all these
-             * streams will get a new set of rows in the next batch. */ 
-            ancestor->getResultStream(emptyFrag->getFragNo()).reset();
-          }
-        }
+        ancestor = ancestor->getParentOperation();
+      }
+      if (ancestor!=NULL)
+      {
+        /* Reset ancestor and all its descendants, since all these
+         * streams will get a new set of rows in the next batch. */ 
+        ancestor->getResultStream(emptyFrag.getFragNo()).reset();
       }
     }
-    receiverIdIter.getNextWords(idBuffSize);
-  }
-  receiverIdIter.reset();
-
-//printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
-  if (sent==0)
-  {
-    assert (m_finalBatchFrags == getRootFragCount());
-    return 0;
   }
 
-  assert (m_finalBatchFrags+m_pendingFrags <= getRootFragCount());
-
-  Ndb& ndb = *m_transaction.getNdb();
+  Ndb& ndb = *getNdbTransaction().getNdb();
   NdbApiSignal tSignal(&ndb);
   tSignal.setSignal(GSN_SCAN_NEXTREQ);
-  ScanNextReq * const scanNextReq = CAST_PTR(ScanNextReq, tSignal.getDataPtrSend());
-
+  ScanNextReq * const scanNextReq = 
+    CAST_PTR(ScanNextReq, tSignal.getDataPtrSend());
+  
   assert (m_scanTransaction);
   const Uint64 transId = m_scanTransaction->getTransactionId();
-
+  
   scanNextReq->apiConnectPtr = m_scanTransaction->theTCConPtr;
   scanNextReq->stopScan = 0;
   scanNextReq->transId1 = (Uint32) transId;
   scanNextReq->transId2 = (Uint32) (transId >> 32);
   tSignal.setLength(ScanNextReq::SignalLength);
 
+  const uint32 receiverId = 
+    emptyFrag.getResultStream(0).getReceiver().m_tcPtrI;
+  LinearSectionIterator receiverIdIter(&receiverId ,1);
+
   GenericSectionPtr secs[1];
   secs[ScanNextReq::ReceiverIdsSectionNum].sectionIter = &receiverIdIter;
-  secs[ScanNextReq::ReceiverIdsSectionNum].sz = sent;
+  secs[ScanNextReq::ReceiverIdsSectionNum].sz = 1;
+  
+  TransporterFacade* const facade = ndb.theImpl->m_transporter_facade;
 
-  TransporterFacade* tp = ndb.theImpl->m_transporter_facade;
-  const int res = tp->sendSignal(&tSignal, nodeId, secs, 1);
-  if (unlikely(res == -1)) {
-    setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
-    return FetchResult_sendFail;
+  /* This part needs to be done under mutex due to synchronization with 
+   * receiver thread. */
+  PollGuard poll_guard(facade,
+                       &ndb.theImpl->theWaiter,
+                       ndb.theNdbBlockNumber);
+  const int res = 
+    facade->sendSignal(&tSignal, 
+                       getNdbTransaction().getConnectedNodeId(), 
+                       secs, 
+                       1);
+  if (unlikely(res == -1)) 
+  {
+    // Error: 'Send to NDB failed'
+    return -1;
   }
 
-  return sent;
+  if (forceSend)
+  {
+    // Flush signals to TC.
+    facade->forceSend(ndb.theNdbBlockNumber);
+  }
+  else
+  {
+    facade->checkForceSend(ndb.theNdbBlockNumber);
+  }
+
+  return 0;
 } // NdbQueryImpl::sendFetchMore()
 
 int
@@ -2822,14 +2756,25 @@ NdbQueryImpl::FragStack::push(NdbRootFragment& frag){
 
 NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_capacity(0),
-  m_size(0),
-  m_completedFrags(0),
+  m_activeFragCount(0),
+  m_emptiedFragCount(0),
+  m_finalFragCount(0),
   m_ordering(NdbQueryOptions::ScanOrdering_void),
   m_keyRecord(NULL),
   m_resultRecord(NULL),
-  m_array(NULL)
+  m_activeFrags(NULL),
+  m_emptiedFrags(NULL)
 {
 }
+
+NdbQueryImpl::OrderedFragSet::~OrderedFragSet() 
+{ 
+  delete[] m_activeFrags;
+  m_activeFrags = NULL;
+  delete[] m_emptiedFrags;
+  m_emptiedFrags= NULL;
+}
+
 
 int
 NdbQueryImpl::OrderedFragSet::prepare(NdbQueryOptions::ScanOrdering ordering, 
@@ -2837,16 +2782,21 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbQueryOptions::ScanOrdering ordering,
                                       const NdbRecord* keyRecord,
                                       const NdbRecord* resultRecord)
 {
-  assert(m_array==NULL);
+  assert(m_activeFrags==NULL);
   assert(m_capacity==0);
   assert(ordering!=NdbQueryOptions::ScanOrdering_void);
   
   if (capacity > 0) 
-  { m_capacity = capacity;
-    m_array = new NdbRootFragment*[capacity];
-    if (unlikely(m_array==NULL))
+  { 
+    m_capacity = capacity;
+    m_activeFrags = new NdbRootFragment*[capacity];
+    if (unlikely(m_activeFrags==NULL))
       return Err_MemoryAlloc;
-    bzero(m_array, capacity * sizeof(NdbRootFragment*));
+    bzero(m_activeFrags, capacity * sizeof(NdbRootFragment*));
+    m_emptiedFrags = new NdbRootFragment*[capacity];
+    if (unlikely(m_emptiedFrags==NULL))
+      return Err_MemoryAlloc;
+    bzero(m_emptiedFrags, capacity * sizeof(NdbRootFragment*));
   }
   m_ordering = ordering;
   m_keyRecord = keyRecord;
@@ -2861,120 +2811,109 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbQueryOptions::ScanOrdering ordering,
  *  RootFragment is advanced to next result. This will eliminate
  *  empty RootFragments from the OrderedFragSet object
  *
- *  TODO1: For ordered resultset comment above is not correct:
- *         -> There might exist empty RootFragment
- *
- *  TODO2: Considder to reverse ordering in m_array[] for ordered
- *         resultset such that m_array[m_size-1] always is current.
  */
 NdbRootFragment* 
-NdbQueryImpl::OrderedFragSet::getCurrent()
+NdbQueryImpl::OrderedFragSet::getCurrent() const
 { 
-  if (unlikely(m_size==0))
-  {
-    return NULL;
-  }
-  else if (m_ordering==NdbQueryOptions::ScanOrdering_unordered)
-  {
-    // Empty RootFragment should have been eliminated by ::reorganize
-    assert(!m_array[m_size-1]->isEmpty());
-    return m_array[m_size-1];
-  }
-  else
+  if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered)
   {
     // Results should be ordered.
     assert(verifySortOrder());
-
-    if (m_size+m_completedFrags < m_capacity) 
+    /** 
+     * Must have tuples for each (non-completed) fragment when doing ordered
+     * scan.
+     */
+    if (unlikely(m_activeFragCount+m_finalFragCount < m_capacity))
     {
-      // Waiting for the first batch for all fragments to arrive.
       return NULL;
     }
-    if (m_array[0]->isEmpty()) 
-    {      
-      // Waiting for a new batch for a fragment.
-      return NULL;
-    }
-    else
-    {
-      return m_array[0];
-    }
+  }
+  
+  if (unlikely(m_activeFragCount==0))
+  {
+    return NULL;
+  }
+  else
+  {
+    assert(!m_activeFrags[m_activeFragCount-1]->isEmpty());
+    return m_activeFrags[m_activeFragCount-1];
   }
 }
 
 
 /**
  *  Keep the FragSet ordered, both with respect to specified ScanOrdering, and
- *  such that RootFragments which becomes empty are removed from m_array[].
- *  Thus,  ::getCurrent() should be as leightweight as possible and only has
+ *  such that RootFragments which becomes empty are removed from 
+ *  m_activeFrags[].
+ *  Thus,  ::getCurrent() should be as lightweight as possible and only has
  *  to return the 'next' available from array wo/ doing any housekeeping.
  */
-NdbRootFragment*
+void
 NdbQueryImpl::OrderedFragSet::reorganize()
 {
-  if (m_ordering==NdbQueryOptions::ScanOrdering_unordered)
+  // Remove the current fragment if the batch has been emptied.
+  if (m_activeFragCount>0 && m_activeFrags[m_activeFragCount-1]->isEmpty())
   {
-    while (m_size>0 && m_array[m_size-1]->isEmpty())
+    if (m_activeFrags[m_activeFragCount-1]->finalBatchReceived())
     {
-      m_size--;
+      m_finalFragCount++;
     }
-    return (m_size>0) ? m_array[m_size-1] : NULL;
+    else
+    {
+      m_emptiedFrags[m_emptiedFragCount++] = m_activeFrags[m_activeFragCount-1];
+    }
+    m_activeFragCount--;
+    assert(m_activeFragCount==0 || 
+           !m_activeFrags[m_activeFragCount-1]->isEmpty());
+    assert(m_activeFragCount + m_emptiedFragCount + m_finalFragCount 
+           <= m_capacity);
   }
-  else
+
+  // Reorder fragments if this is a sorted scan.
+  if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered && 
+      m_activeFragCount+m_finalFragCount == m_capacity)
   {
-    if (unlikely(m_size==0))
+    /** 
+     * This is a sorted scan. There are more data to be read from 
+     * m_activeFrags[m_activeFragCount-1]. Move it to its proper place.
+     */
+    int first = 0;
+    int last = m_activeFragCount-1;
+    /* Use binary search to find the largest record that is smaller than or
+     * equal to m_activeFrags[m_activeFragCount-1] */
+    int middle = (first+last)/2;
+    while(first<last)
     {
-      return NULL;
-    }
-    if (m_array[0]->finalBatchReceived() &&
-        m_array[0]->isEmpty())
-    {
-      m_completedFrags++;
-      m_size--;
-      if (m_size==0)
-        return NULL;
-      memmove(m_array, m_array+1, m_size * sizeof(NdbRootFragment*));
-    }
-    else if (m_array[0]->isEmpty()) 
-    {      
-      // Need a new batch for this fragment.
-      return NULL;
-    }
-    else if (m_size>1)
-    {
-      /* There are more data to be read from m_array[0]. Move it to its proper
-       * place.*/
-      int first = 1;
-      int last = m_size;
-      /* Use binary search to find the largest record that is smaller than or
-       * equal to m_array[0] */
-      int middle = (first+last)/2;
-      while(first<last)
+      assert(middle<m_activeFragCount);
+      switch(compare(*m_activeFrags[m_activeFragCount-1], 
+                     *m_activeFrags[middle]))
       {
-        assert(middle<m_size);
-        switch(compare(*m_array[0], *m_array[middle]))
-        {
-        case -1:
-          last = middle;
-          break;
-        case 0:
-          last = first = middle;
-          break;
-        case 1:
-          first = middle + 1;
-          break;
-        }
-        middle = (first+last)/2;
+      case -1:
+        first = middle + 1;
+        break;
+      case 0:
+        last = first = middle;
+        break;
+      case 1:
+        last = middle;
+        break;
       }
-      if(middle>0)
-      {
-        NdbRootFragment* const oldTop = m_array[0];
-        memmove(m_array, m_array+1, (middle-1) * sizeof(NdbRootFragment*));
-        m_array[middle-1] = oldTop;
-      }
+      middle = (first+last)/2;
+    }
+
+    assert(m_activeFragCount == 0 ||
+           compare(*m_activeFrags[m_activeFragCount-1], 
+                   *m_activeFrags[middle]) >= 0);
+
+    if(middle < m_activeFragCount-1)
+    {
+      NdbRootFragment* const oldTop = m_activeFrags[m_activeFragCount-1];
+      memmove(m_activeFrags+middle+1, 
+              m_activeFrags+middle, 
+              (m_activeFragCount - middle - 1) * sizeof(NdbRootFragment*));
+      m_activeFrags[middle] = oldTop;
     }
     assert(verifySortOrder());
-    return m_array[0];
   }
 }
 
@@ -2982,77 +2921,75 @@ void
 NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
 {
   assert(&frag!=NULL);
-  if(m_ordering==NdbQueryOptions::ScanOrdering_unordered)
+
+  if (frag.isEmpty())
   {
-    assert(m_size<m_capacity);
-    if (!frag.isEmpty())
+    if (frag.finalBatchReceived())
     {
-      m_array[m_size++] = &frag;
+      m_finalFragCount++;
+    }
+    else
+    {
+      m_emptiedFrags[m_emptiedFragCount++] = &frag;
     }
   }
   else
   {
-    if(m_size+m_completedFrags < m_capacity)
+    assert(m_activeFragCount+m_finalFragCount < m_capacity);
+    if(m_ordering==NdbQueryOptions::ScanOrdering_unordered)
     {
-      // We have not yet received the first batch for each fragment.
-      if(frag.isEmpty() && frag.finalBatchReceived())
-      {
-        // This is the first and final batch for this fragment, and it is empty.
-        m_completedFrags++;
-      }
-      else
-      {
-        int current = 0;
-        // Insert the new frag such that the array remains sorted.
-        while(current<m_size && compare(frag, *m_array[current])==1)
-        {
-          current++;
-        }
-        memmove(m_array+current+1,
-                m_array+current,
-                (m_size - current) * sizeof(NdbRootFragment*));
-        m_array[current] = &frag;
-        m_size++;
-        assert(m_size <= m_capacity);
-        assert(verifySortOrder());
-      }
+      m_activeFrags[m_activeFragCount++] = &frag;
     }
     else
     {
-      // This is not the first batch, so the frag should be here already.
-
-      /* A Frag may only be emptied when it hold the record with the 
-       * currently lowest sort order. It must hence become member no 0 in
-       * m_array before it can be emptied. Then we will ask for a new batch
-       * for that particular frag.*/
-      assert(&frag==m_array[0]);
-      // Move current frag 0 to its proper place.
-      reorganize();
+      int current = 0;
+      // Insert the new frag such that the array remains sorted.
+      while(current<m_activeFragCount && 
+            compare(frag, *m_activeFrags[current])==-1)
+      {
+        current++;
+      }
+      memmove(m_activeFrags+current+1,
+              m_activeFrags+current,
+              (m_activeFragCount - current) * sizeof(NdbRootFragment*));
+      m_activeFrags[current] = &frag;
+      m_activeFragCount++;
+      assert(verifySortOrder());
     }
   }
+  assert(m_activeFragCount==0 || 
+         !m_activeFrags[m_activeFragCount-1]->isEmpty());
+  assert(m_activeFragCount + m_emptiedFragCount + m_finalFragCount 
+         <= m_capacity);
+}
+
+void NdbQueryImpl::OrderedFragSet::clear() 
+{ 
+  m_activeFragCount = 0;
+  m_emptiedFragCount = 0; 
+  m_finalFragCount = 0;
 }
 
 NdbRootFragment* 
-NdbQueryImpl::OrderedFragSet::getEmpty() const
+NdbQueryImpl::OrderedFragSet::getEmpty()
 {
-  // This method is not applicable to unordered scans.
-  assert(m_ordering!=NdbQueryOptions::ScanOrdering_unordered);
-  if(m_completedFrags==m_capacity)
+  if (m_emptiedFragCount > 0)
   {
-    assert(m_size==0);
-    // All frags are complete.
+    assert(m_emptiedFrags[m_emptiedFragCount-1]->isEmpty());
+    return m_emptiedFrags[--m_emptiedFragCount];
+  }
+  else
+  {
     return NULL;
   }
-  assert(!m_array[0]->finalBatchReceived());
-  return m_array[0];
 }
 
 bool 
 NdbQueryImpl::OrderedFragSet::verifySortOrder() const
 {
-  for(int i = 0; i<m_size-2; i++)
+  for(int i = 0; i<m_activeFragCount-2; i++)
   {
-    if(compare(*m_array[i], *m_array[i+1])==1)
+    if(compare(*m_activeFrags[i], *m_activeFrags[i+1])==-1)
     {
       assert(false);
       return false;
@@ -4425,7 +4362,8 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     m_queryImpl.m_finalBatchFrags++;
   }
   if(traceSignals){
-    ndbout << "  resultStream(root) {" << resultStream << "}" << endl;
+    ndbout << "  resultStream(root) {" << resultStream << "} fragNo=" 
+           << fragNo << endl;
   }
 
   const NdbQueryDefImpl& queryDef = m_queryImpl.getQueryDef();
@@ -4473,8 +4411,8 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     /* nextResult() will later move it from m_fullFrags to m_applFrags
      * under mutex protection.*/
     m_queryImpl.m_fullFrags.push(rootFrag);
-    // Don't awake before we have data, or query batch completed.
-    ret = !rootFrag.isEmpty() || m_queryImpl.isBatchComplete();
+    // Wake up now.
+    ret = true;
   }
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret

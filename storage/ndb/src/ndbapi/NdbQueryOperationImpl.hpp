@@ -199,7 +199,7 @@ public:
   { return m_rootFragCount; }
 
 private:
-  /** Possible return values from NdbQuery::fetchMoreResults. Integer values
+  /** Possible return values from NdbQuery::awaitMoreResults. Integer values
    * matches those returned from PoolGuard::waitScan().
    */
   enum FetchResult{
@@ -253,8 +253,7 @@ private:
   public:
     explicit OrderedFragSet();
 
-    ~OrderedFragSet() 
-    { delete[] m_array; }
+    ~OrderedFragSet(); 
 
     // Prepare internal datastructures.
     // Return 0 if ok, else errorcode
@@ -263,34 +262,50 @@ private:
                 const NdbRecord* keyRecord,
                 const NdbRecord* resultRecord);
 
-    NdbRootFragment* getCurrent();
+    /** Get the root fragment from which to read the next row.*/
+    NdbRootFragment* getCurrent() const;
 
-    NdbRootFragment* reorganize();
+    /** Re-organize the fragments after a row has been consumed. This is 
+     * needed to remove fragements that has been needed, and to re-sort 
+     * fragments if doing a sorted scan.*/
+    void reorganize();
 
+    /** Add a complete fragment that has been received.*/
     void add(NdbRootFragment& frag);
 
-    void clear() 
-    { m_size = 0; }
+    /** Reset object to an empty state.*/
+    void clear();
 
-    /** When doing an ordered scan, get the fragment that needs a new batch.*/
-    NdbRootFragment* getEmpty() const;
+    /** Get a fragment where all rows have been consumed. (This method is 
+     * not idempotent - the fragment is removed from the set. 
+     * @return Emptied fragment (or NULL if there are no more emptied 
+     * fragments).
+     */
+    NdbRootFragment* getEmpty();
 
   private:
 
     /** Max no of fragments.*/
     int m_capacity;
-    /** Current number of fragments.*/
-    int m_size;
-    /** Current number of completed fragments (where all data have been received
-     * and processed).*/
-    int m_completedFrags;
+    /** Number of fragments in 'm_activeFrags'.*/
+    int m_activeFragCount;
+    /** Number of fragments in 'm_emptiedFrags'. */
+    int m_emptiedFragCount;
+    /** Number of fragments where the final batch has been received
+     * and consumed.*/
+    int m_finalFragCount;
     /** Ordering of index scan result.*/
     NdbQueryOptions::ScanOrdering m_ordering;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_keyRecord;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_resultRecord;
-    NdbRootFragment** m_array;
+    /** Fragments where some tuples in the current batch has not yet been 
+     * consumed.*/
+    NdbRootFragment** m_activeFrags;
+    /** Fragments where all tuples in the current batch have been consumed, 
+     * but where there are more batches to fetch.*/
+    NdbRootFragment** m_emptiedFrags;
     // No copying.
     OrderedFragSet(const OrderedFragSet&);
     OrderedFragSet& operator=(const OrderedFragSet&);
@@ -301,6 +316,7 @@ private:
     int compare(const NdbRootFragment& frag1,
                 const NdbRootFragment& frag2) const;
 
+    /** For debugging purposes.*/
     bool verifySortOrder() const;
   }; // class OrderedFragSet
 
@@ -431,12 +447,12 @@ private:
   NdbQuery::NextResultOutcome nextRootResult(bool fetchAllowed, bool forceSend);
 
   /** Get more scan results, ask datanodes for the next batch if necessary.*/
-  FetchResult fetchMoreResults(bool forceSend);
+  FetchResult awaitMoreResults(bool forceSend);
 
   /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
-   *  @return #signals sent, -1 if error.
+   * @return 0 if send succeeded, -1 otherwise.
    */
-  int sendFetchMore(int nodeId);
+  int sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend);
 
   /** Close cursor on TC */
   int closeTcCursor(bool forceSend);
