@@ -1664,23 +1664,6 @@ public:
   };
 
   /**
-   * For testing purposes it is possible to tamper with the NDB Cluster
-   * (i.e. send a special signal to DBDIH, the NDB distribution handler).
-   * <b>This feature should only used for debugging purposes.</b>
-   * In a release versions of NDB Cluster,
-   * this call always return -1 and does nothing.
-   * 
-   * @param aAction Action to be taken according to TamperType above
-   *
-   * @param aNode  Which node the action will be taken
-   *              -1:   Master DIH.
-   *            0-16:   Nodnumber.
-   * @return -1 indicates error, other values have meaning dependent 
-   *          on type of tampering.
-   */
-  int NdbTamper(TamperType aAction, int aNode);  
-
-  /**
    * Return a unique tuple id for a table.  The id sequence is
    * ascending but may contain gaps.  Methods which have no
    * TupleIdRange argument use NDB API dict cache.  They may
@@ -1846,9 +1829,6 @@ private:
                                       Uint32 nodeSequence,
                                       Uint32 *ret_conn_seq= 0);
   
-  // Sets Restart GCI in Ndb object
-  void			RestartGCI(int aRestartGCI);
-
   // Get block number of this NDBAPI object
   int			getBlockNumber();
   

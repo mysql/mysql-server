@@ -4606,7 +4606,7 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
                        errCodes, -1);
   if (ret == 0)
   {
-    buckets =m_sub_start_conf.m_buckets;
+    buckets = m_data.m_sub_start_conf.m_buckets;
   }
 
   DBUG_RETURN(ret);
@@ -4921,7 +4921,7 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
 
   if (signal->getLength() == SubStartConf::SignalLength)
   {
-    m_sub_start_conf.m_buckets = subStartConf->bucketCount;
+    m_data.m_sub_start_conf.m_buckets = subStartConf->bucketCount;
   }
   else
   {
@@ -4929,7 +4929,7 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
      * 6.3 doesn't send required bucketCount.  
      * ~0 indicates no bucketCount received
      */
-    m_sub_start_conf.m_buckets = ~0;
+    m_data.m_sub_start_conf.m_buckets = ~0;
   }
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subscriptionId,subscriptionKey,subscriberData));
@@ -5778,12 +5778,15 @@ int
 NdbDictInterface::forceGCPWait(int type)
 {
   NdbApiSignal tSignal(m_reference);
-  if (type == 0)
+  if (type == 0 || type == 2)
   {
     WaitGCPReq* const req = CAST_PTR(WaitGCPReq, tSignal.getDataPtrSend());
     req->senderRef = m_reference;
     req->senderData = 0;
-    req->requestType = WaitGCPReq::CompleteForceStart;
+    req->requestType = 
+      type == 0 ? 
+      WaitGCPReq::CompleteForceStart : WaitGCPReq::RestartGCI;
+      
     tSignal.theReceiversBlockNumber = DBDIH;
     tSignal.theVerId_signalNumber = GSN_WAIT_GCP_REQ;
     tSignal.theLength = WaitGCPReq::SignalLength;
@@ -5808,7 +5811,7 @@ NdbDictInterface::forceGCPWait(int type)
       m_waiter.m_state = WAIT_LIST_TABLES_CONF;
       m_waiter.wait(DICT_WAITFOR_TIMEOUT);
       m_transporter->unlock_mutex();
-      return 0;
+      return m_error.code == 0 ? 0 : -1;
     }
     return -1;
   }
@@ -5837,15 +5840,34 @@ NdbDictInterface::forceGCPWait(int type)
       m_transporter->forceSend(refToBlock(m_reference));
       m_transporter->unlock_mutex();
     }
-    return 0;
+    return m_error.code == 0 ? 0 : -1;
+  }
+  else
+  {
+    m_error.code = 4003;
   }
   return -1;
+}
+
+int
+NdbDictionaryImpl::getRestartGCI(Uint32 * gci)
+{
+  int res = m_receiver.forceGCPWait(2);
+  if (res == 0 && gci != 0)
+  {
+    * gci = m_receiver.m_data.m_wait_gcp_conf.gci_hi;
+  }
+  return res;
 }
 
 void
 NdbDictInterface::execWAIT_GCP_CONF(const NdbApiSignal* signal,
 				    const LinearSectionPtr ptr[3])
 {
+  const WaitGCPConf* conf = CAST_CONSTPTR(WaitGCPConf, signal->getDataPtr());
+
+  m_data.m_wait_gcp_conf.gci_lo = conf->gci_lo;
+  m_data.m_wait_gcp_conf.gci_hi = conf->gci_hi;
   m_waiter.signal(NO_WAIT);
 }
 
@@ -5853,6 +5875,9 @@ void
 NdbDictInterface::execWAIT_GCP_REF(const NdbApiSignal* signal,
                                    const LinearSectionPtr ptr[3])
 {
+  const WaitGCPRef* ref = CAST_CONSTPTR(WaitGCPRef, signal->getDataPtr());
+  m_error.code = ref->errorCode;
+
   m_waiter.signal(NO_WAIT);
 }
 

@@ -773,21 +773,6 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
     theEventBuffer->insertDataL(op, sdata, tLen, copy);
     return;
   }
-  case GSN_DIHNDBTAMPER:
-    {
-      tFirstDataPtr = int2void(tFirstData);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-      
-      if (tWaitState != WAIT_NDB_TAMPER)
-	return;
-      tCon = void2con(tFirstDataPtr);
-      if (tCon->checkMagicNumber() != 0)
-	return;
-      tReturnCode = tCon->receiveDIHNDBTAMPER(aSignal);
-      if (tReturnCode != -1)
-	theImpl->theWaiter.m_state = NO_WAIT;
-      break;
-    }
   case GSN_SCAN_TABCONF:
     {
       tFirstDataPtr = int2void(tFirstData);
