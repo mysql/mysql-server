@@ -1369,7 +1369,7 @@ enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab,
      advance_sj_state() for details.
 */
 
-typedef struct st_position
+typedef struct st_position : public Sql_alloc
 {
   /*
     The "fanout" -  number of output rows that will be produced (after
@@ -1613,7 +1613,7 @@ public:
   */
   ha_rows  fetch_limit;
   /* Finally picked QEP. This is result of join optimization */
-  POSITION best_positions[MAX_TABLES+1];
+  POSITION *best_positions;
 
 /******* Join optimization state members start *******/
   /*
@@ -1623,7 +1623,7 @@ public:
   TABLE_LIST *emb_sjm_nest;
   
   /* Current join optimization state */
-  POSITION positions[MAX_TABLES+1];
+  POSITION *positions;
   
   /*
     Bitmap of nested joins embedding the position at the end of the current 
