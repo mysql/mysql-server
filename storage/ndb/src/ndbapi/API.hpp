@@ -44,6 +44,6 @@
 #include <NdbInterpretedCode.hpp>
 
 #include <NdbEventOperation.hpp>
-#include <NdbEventOperationImpl.hpp>
+#include "NdbEventOperationImpl.hpp"
 
 #endif
