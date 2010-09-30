@@ -592,6 +592,46 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
   DBUG_RETURN(0);
 }
 
+int
+Ndb_cluster_connection_impl::configure(Uint32 nodeId,
+                                       const ndb_mgm_configuration &config)
+{
+  DBUG_ENTER("Ndb_cluster_connection_impl::configure");
+  {
+    ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
+    if(iter.find(CFG_NODE_ID, nodeId))
+      DBUG_RETURN(-1);
+
+    // Configure scan settings
+    Uint32 scan_batch_size= 0;
+    if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
+      m_config.m_scan_batch_size= scan_batch_size;
+    }
+    Uint32 batch_byte_size= 0;
+    if (!iter.get(CFG_BATCH_BYTE_SIZE, &batch_byte_size)) {
+      m_config.m_batch_byte_size= batch_byte_size;
+    }
+    Uint32 batch_size= 0;
+    if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
+      m_config.m_batch_size= batch_size;
+    }
+
+    // Configure timeouts
+    Uint32 timeout = 120000;
+    for (iter.first(); iter.valid(); iter.next())
+    {
+      Uint32 tmp1 = 0, tmp2 = 0;
+      iter.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
+      iter.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
+      tmp1 += tmp2;
+      if (tmp1 > timeout)
+        timeout = tmp1;
+    }
+    m_config.m_waitfor_timeout = timeout;
+  }
+  DBUG_RETURN(init_nodes_vector(nodeId, config));
+}
+
 void
 Ndb_cluster_connection_impl::do_test()
 {
@@ -686,16 +726,16 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
     if(props == 0)
       break;
 
-    if (m_transporter_facade->start_instance(nodeId, props) < 0)
-    {
-      ndb_mgm_destroy_configuration(props);
-      DBUG_RETURN(-1);
-    }
-
-    if (init_nodes_vector(nodeId, *props))
+    if (configure(nodeId, *props))
     {
       ndb_mgm_destroy_configuration(props);
       DBUG_PRINT("exit", ("malloc failure, ret: -1"));
+      DBUG_RETURN(-1);
+    }
+
+    if (m_transporter_facade->start_instance(nodeId, props) < 0)
+    {
+      ndb_mgm_destroy_configuration(props);
       DBUG_RETURN(-1);
     }
 
