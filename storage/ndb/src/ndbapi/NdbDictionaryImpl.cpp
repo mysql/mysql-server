@@ -7912,7 +7912,8 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
                                  Uint32 flags)
 {
   DictHashMapInfo::HashMap hm; hm.init();
-  BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName), src.getName());
+  BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName), 
+                       "%s", src.getName());
   hm.HashMapBuckets = src.getMapLen();
   for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
   {
