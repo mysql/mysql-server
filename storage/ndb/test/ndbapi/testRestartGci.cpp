@@ -132,7 +132,14 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   HugoOperations hugoOps(*ctx->getTab());
   NdbRestarter restarter;
 
-  int restartGCI = pNdb->NdbTamper(Ndb::ReadRestartGCI, 0);    
+  Uint32 restartGCI;
+  int res = pNdb->getDictionary()->getRestartGCI(&restartGCI);
+  if (res != 0)
+  {
+    ndbout << "Failed to retreive restart gci" << endl;
+    ndbout << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
 
   ndbout << "restartGCI = " << restartGCI << endl;
   int count = 0;

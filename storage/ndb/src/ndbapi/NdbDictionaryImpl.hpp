@@ -661,6 +661,7 @@ public:
 			  Uint32 noOfSections, bool fullyQualifiedNames);
 
   int forceGCPWait(int type);
+  int getRestartGCI(Uint32 *);
 
   static int parseTableInfo(NdbTableImpl ** dst, 
 			    const Uint32 * data, Uint32 len,
@@ -787,9 +788,15 @@ private:
   UtilBuffer m_tableData;
   UtilBuffer m_tableNames;
 
-  struct {
-    Uint32 m_buckets;
-  } m_sub_start_conf;
+  union {
+    struct SubStartConfData {
+      Uint32 m_buckets;
+    } m_sub_start_conf;
+    struct WaitGcpData {
+      Uint32 gci_hi;
+      Uint32 gci_lo;
+    } m_wait_gcp_conf;
+  } m_data;
 };
 
 class NdbDictionaryImpl;
@@ -846,6 +853,7 @@ public:
   int stopSubscribeEvent(NdbEventOperationImpl &);
 
   int forceGCPWait(int type);
+  int getRestartGCI(Uint32*);
 
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);
