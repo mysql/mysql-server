@@ -7749,8 +7749,10 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
     CHECK2(res.waitClusterStarted() == 0,
            "wait cluster started failed");
 
-    int restartGCI = pNdb->NdbTamper(Ndb::ReadRestartGCI, 0);
-    ndbout_c("restartGCI: %d", restartGCI);
+    Uint32 restartGCI = 0;
+    CHECK2(pDic->getRestartGCI(&restartGCI) == 0,
+           "getRestartGCI failed");
+    ndbout_c("restartGCI: %u", restartGCI);
 
     pDic->invalidateTable(tab.getName());
     {
