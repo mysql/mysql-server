@@ -15,7 +15,7 @@ insert into t1 values (1, 2);
 #
 # Restart node 1
 #
---exec $ndb_mgm_cmd -e "1 RESTART"
+--exec $ndb_mgm_cmd -e "1 RESTART -n"
 --exec $ndb_waiter_cmd --nowait-nodes=2 --not-started > /dev/null
 --exec $ndb_mgm_cmd -e "1 START"
 --exec $ndb_waiter_cmd  > /dev/null
@@ -27,7 +27,7 @@ insert into t1 values (2, 3);
 #
 # Restart node 1 --initial
 #
---exec $ndb_mgm_cmd -e "1 RESTART -I"
+--exec $ndb_mgm_cmd -e "1 RESTART -n -I"
 --exec $ndb_waiter_cmd --nowait-nodes=2 --not-started  > /dev/null
 --exec $ndb_mgm_cmd -e "1 START"
 --exec $ndb_waiter_cmd  > /dev/null

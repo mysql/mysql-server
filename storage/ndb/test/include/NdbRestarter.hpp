@@ -33,29 +33,34 @@ public:
   enum RestartFlags {
     NRRF_INITIAL = 0x1,
     NRRF_NOSTART = 0x2,
-    NRRF_ABORT   = 0x4
+    NRRF_ABORT   = 0x4,
+    NRRF_FORCE   = 0x8
   };
 
   int restartOneDbNode(int _nodeId, 
 		       bool initial = false, 
 		       bool nostart = false, 
-		       bool abort = false);
+		       bool abort = false,
+                       bool force = false);
 
   int restartOneDbNode2(int _nodeId, Uint32 flags){
     return restartOneDbNode(_nodeId,
                             flags & NRRF_INITIAL,
                             flags & NRRF_NOSTART,
-                            flags & NRRF_ABORT);
+                            flags & NRRF_ABORT,
+                            flags & NRRF_FORCE);
   }
 
   int restartAll(bool initial = false, 
 		 bool nostart = false, 
-		 bool abort = false);
+		 bool abort = false,
+                 bool force = false);
   
   int restartAll2(Uint32 flags){
     return restartAll(flags & NRRF_INITIAL,
                       flags & NRRF_NOSTART,
-                      flags & NRRF_ABORT);
+                      flags & NRRF_ABORT,
+                      flags & NRRF_FORCE);
   }
 
   int restartNodes(int * nodes, int num_nodes, Uint32 flags);

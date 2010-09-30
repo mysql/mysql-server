@@ -19,11 +19,31 @@
 #ifndef API_H
 #define API_H
 
+#include <ndb_global.h>
 #include <BlockNumbers.h>
 #include <GlobalSignalNumbers.h>
 #include <RefConvert.hpp>
+#include <NdbOut.hpp>
+
+#include "NdbApiSignal.hpp"
+
 #include "NdbImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "NdbRecord.hpp"
+#include "NdbUtil.hpp"
+
+#include <Ndb.hpp>
+#include <NdbTransaction.hpp>
+#include <NdbOperation.hpp>
+#include <NdbIndexOperation.hpp>
+#include <NdbScanOperation.hpp>
+#include <NdbIndexScanOperation.hpp>
+#include <NdbRecAttr.hpp>
+#include <NdbReceiver.hpp>
+#include <NdbBlob.hpp>
+#include <NdbInterpretedCode.hpp>
+
+#include <NdbEventOperation.hpp>
+#include "NdbEventOperationImpl.hpp"
 
 #endif

@@ -4327,7 +4327,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
 
 
 bool 
-NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
+NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal){
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTCKEYREF()" <<  endl;
   }

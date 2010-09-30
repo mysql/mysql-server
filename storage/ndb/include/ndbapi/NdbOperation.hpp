@@ -1272,11 +1272,11 @@ protected:
   int    insertATTRINFOData_NdbRecord(const char *value,
                                       Uint32 size);
 
-  int	 receiveTCKEYREF(NdbApiSignal*); 
+  int	 receiveTCKEYREF(const NdbApiSignal*);
 
   int	 checkMagicNumber(bool b = true); // Verify correct object
 
-  int    checkState_TransId(NdbApiSignal* aSignal);
+  int    checkState_TransId(const NdbApiSignal* aSignal);
 
 /******************************************************************************
  *	These are support methods only used locally in this class.

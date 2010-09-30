@@ -16,21 +16,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>
-#include <Ndb.hpp>
-#include <NdbScanOperation.hpp>
-#include <NdbIndexScanOperation.hpp>
-#include <NdbTransaction.hpp>
-#include "NdbApiSignal.hpp"
-#include <NdbOut.hpp>
-#include "NdbDictionaryImpl.hpp"
-#include <NdbBlob.hpp>
-#include <NdbInterpretedCode.hpp>
+#include "API.hpp"
 
-#include <NdbRecAttr.hpp>
-#include <NdbReceiver.hpp>
-
-#include <stdlib.h>
 #include <NdbSqlUtil.hpp>
 #include <AttributeHeader.hpp>
 

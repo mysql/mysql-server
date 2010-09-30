@@ -1697,7 +1697,7 @@ NdbOperation::insertATTRINFOData_NdbRecord(const char *value,
 }
 
 int
-NdbOperation::checkState_TransId(NdbApiSignal* aSignal)
+NdbOperation::checkState_TransId(const NdbApiSignal* aSignal)
 {
   Uint64 tRecTransId, tCurrTransId;
   Uint32 tTmp1, tTmp2;
@@ -1732,7 +1732,7 @@ Parameters:     aSignal: the signal object that contains the TCKEYREF signal fro
 Remark:         Handles the reception of the TCKEYREF signal.
 ***************************************************************************/
 int
-NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
+NdbOperation::receiveTCKEYREF(const NdbApiSignal* aSignal)
 {
   if (checkState_TransId(aSignal) == -1) {
     return -1;

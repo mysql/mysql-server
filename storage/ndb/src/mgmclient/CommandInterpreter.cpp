@@ -25,15 +25,9 @@
 #include <util/Vector.hpp>
 #include <kernel/BlockNumbers.h>
 
-class MgmtSrvr;
-
 /** 
  *  @class CommandInterpreter
  *  @brief Reads command line in management client
- *
- *  This class has one public method which reads a command line 
- *  from a stream. It then interpret that commmand line and calls a suitable 
- *  method in the MgmtSrvr class which executes the command.
  *
  *  For command syntax, see the HELP command.
  */ 
@@ -228,8 +222,8 @@ static const char* helpText =
 "CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
 "CLUSTERLOG INFO                        Print cluster log information\n"
 "<id> START                             Start data node (started with -n)\n"
-"<id> RESTART [-n] [-i] [-a]            Restart data or management server node\n"
-"<id> STOP [-a]                         Stop data or management server node\n"
+"<id> RESTART [-n] [-i] [-a] [-f]       Restart data or management server node\n"
+"<id> STOP [-a] [-f]                    Stop data or management server node\n"
 "ENTER SINGLE USER MODE <id>            Enter single user mode\n"
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
@@ -397,7 +391,7 @@ static const char* helpTextRestart =
 " NDB Cluster -- Management Client -- Help for RESTART command\n"
 "---------------------------------------------------------------------------\n"
 "RESTART  Restart data or management server node\n\n"
-"<id> RESTART [-n] [-i] [-a]\n"
+"<id> RESTART [-n] [-i] [-a] [-f]\n"
 "                   Restart the data or management node <id>(or All data nodes).\n\n"
 "                   -n (--nostart) restarts the node but does not\n"
 "                   make it join the cluster. Use '<id> START' to\n"
@@ -407,8 +401,10 @@ static const char* helpTextRestart =
 "                   and the node will copy data from another node\n"
 "                   in the same node group during start up.\n\n"
 "                   Consult the documentation before using -i.\n\n" 
-"                   INCORRECT USE OF -i WILL CAUSE DATA LOSS!\n"
-"                   -a Aborts the node, not syncing GCP.\n"
+"                   INCORRECT USE OF -i WILL CAUSE DATA LOSS!\n\n"
+"                   -a Aborts the node, not syncing GCP.\n\n"
+"                   -f Force restart even if that would mean the\n"
+"                      whole cluster would need to be restarted\n"
 ;
 
 static const char* helpTextStop =
@@ -416,11 +412,14 @@ static const char* helpTextStop =
 " NDB Cluster -- Management Client -- Help for STOP command\n"
 "---------------------------------------------------------------------------\n"
 "STOP  Stop data or management server node\n\n"
-"<id> STOP [-a]     Stop the data or management server node <id>.\n\n"
+"<id> STOP [-a] [-f]\n"
+"                   Stop the data or management server node <id>.\n\n"
 "                   ALL STOP will just stop all data nodes.\n\n"
 "                   If you desire to also shut down management servers,\n"
-"                   use SHUTDOWN instead.\n"
-"                   -a Aborts the node, not syncing GCP.\n"
+"                   use SHUTDOWN instead.\n\n"
+"                   -a Aborts the node, not syncing GCP.\n\n"
+"                   -f Force stop even if that would mean the\n"
+"                      whole cluster would need to be stopped\n"
 ;
 
 static const char* helpTextEnterSingleUserMode =
@@ -2044,6 +2043,7 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
   int need_disconnect;
   int abort= 0;
   int retval = 0;
+  int force = 0;
 
   for (; command_pos < command_list.size(); command_pos++)
   {
@@ -2053,13 +2053,18 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
       abort= 1;
       continue;
     }
-    ndbout_c("Invalid option: %s. Expecting -A after STOP",
+    if (strcasecmp(item, "-F") == 0)
+    {
+      force = 1;
+      continue;
+    }
+    ndbout_c("Invalid option: %s. Expecting -A or -F after STOP",
              item);
     return -1;
   }
 
-  int result= ndb_mgm_stop3(m_mgmsrv, no_of_nodes, node_ids, abort,
-                            &need_disconnect);
+  int result= ndb_mgm_stop4(m_mgmsrv, no_of_nodes, node_ids, abort,
+                            force, &need_disconnect);
   if (result < 0)
   {
     ndbout_c("Shutdown failed.");
@@ -2207,6 +2212,7 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
   int initialstart= 0;
   int abort= 0;
   int need_disconnect= 0;
+  int force = 0;
 
   for (; command_pos < command_list.size(); command_pos++)
   {
@@ -2226,7 +2232,12 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
       abort= 1;
       continue;
     }
-    ndbout_c("Invalid option: %s. Expecting -A,-N or -I after RESTART",
+    if (strcasecmp(item, "-F") == 0)
+    {
+      force = 1;
+      continue;
+    }
+    ndbout_c("Invalid option: %s. Expecting -A,-N,-I or -F after RESTART",
              item);
     return -1;
   }
@@ -2275,8 +2286,9 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     }
   }
 
-  result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
-                           initialstart, nostart, abort, &need_disconnect);
+  result= ndb_mgm_restart4(m_mgmsrv, no_of_nodes, node_ids,
+                           initialstart, nostart, abort, force,
+                           &need_disconnect);
 
   if (result <= 0) {
     ndbout_c("Restart failed.");
