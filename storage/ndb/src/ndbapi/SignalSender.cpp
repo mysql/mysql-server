@@ -100,7 +100,7 @@ SignalSender::~SignalSender(){
   int i;
   if (m_lock)
     unlock();
-  theFacade->close(m_blockNo,0);
+  theFacade->close(m_blockNo);
   // free these _after_ closing theFacade to ensure that
   // we delete all signals
   for (i= m_jobBuffer.size()-1; i>= 0; i--)

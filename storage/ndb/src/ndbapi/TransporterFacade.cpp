@@ -728,7 +728,6 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
-  m_max_trans_id(0),
   m_fragmented_signal_id(0),
   m_globalDictCache(cache)
 {
@@ -976,11 +975,9 @@ TransporterFacade::ReportNodeAlive(NodeId tNodeId)
 }
 
 int 
-TransporterFacade::close(BlockNumber blockNumber, Uint64 trans_id)
+TransporterFacade::close(BlockNumber blockNumber)
 {
   NdbMutex_Lock(theMutexPtr);
-  Uint32 low_bits = (Uint32)trans_id;
-  m_max_trans_id = m_max_trans_id > low_bits ? m_max_trans_id : low_bits;
   close_local(blockNumber);
   NdbMutex_Unlock(theMutexPtr);
   return 0;

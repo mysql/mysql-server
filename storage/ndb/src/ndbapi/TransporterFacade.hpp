@@ -73,7 +73,7 @@ public:
            int blockNo = -1);
   
   // Close this block number
-  int close(BlockNumber blockNumber, Uint64 trans_id);
+  int close(BlockNumber blockNumber);
   Uint32 get_active_ndb_objects() const;
 
   // Only sends to nodes which are alive
@@ -303,7 +303,6 @@ private:
   } m_threads;
 
   Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
-  Uint32 m_max_trans_id;
   Uint32 m_fragmented_signal_id;
 
 public:

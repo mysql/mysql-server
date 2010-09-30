@@ -304,7 +304,8 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_latest_trans_gci(0),
     m_first_ndb_object(0),
     m_latest_error_msg(),
-    m_latest_error(0)
+    m_latest_error(0),
+    m_max_trans_id(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
@@ -455,6 +456,7 @@ Ndb_cluster_connection_impl::link_ndb_object(Ndb* p)
   p->theImpl->m_next_ndb_object = m_first_ndb_object;
   m_first_ndb_object = p;
   
+  p->theFirstTransId += m_max_trans_id;
   unlock_ndb_objects();
 }
 
@@ -482,6 +484,12 @@ Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
   
   p->theImpl->m_prev_ndb_object = 0;
   p->theImpl->m_next_ndb_object = 0;
+
+  Uint32 transId = (Uint32)p->theFirstTransId;
+  if (transId > m_max_trans_id)
+  {
+    m_max_trans_id = transId;
+  }
 
   unlock_ndb_objects();  
 }

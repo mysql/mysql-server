@@ -145,7 +145,7 @@ Ndb::~Ndb()
 
   /* Disconnect from transporter to stop signals from coming in */
   if (theImpl->m_transporter_facade != NULL && theNdbBlockNumber > 0){
-    theImpl->m_transporter_facade->close(theNdbBlockNumber, theFirstTransId);
+    theImpl->m_transporter_facade->close(theNdbBlockNumber);
   }
 
   delete theEventBuffer;
