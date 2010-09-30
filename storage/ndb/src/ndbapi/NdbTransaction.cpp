@@ -1626,26 +1626,6 @@ NdbTransaction::getNdbIndexOperation(const NdbDictionary::Index * index,
 
 
 /*******************************************************************************
-int  receiveDIHNDBTAMPER(NdbApiSignal* aSignal)
-
-Return Value:  Return 0 : receiveDIHNDBTAMPER was successful.
-               Return -1: In all other case.
-Parameters:    aSignal: The signal object pointer.
-Remark:        Sets theRestartGCI in the NDB object. 
-*******************************************************************************/
-int			
-NdbTransaction::receiveDIHNDBTAMPER(const NdbApiSignal* aSignal)
-{
-  if (theStatus != Connecting) {
-    return -1;
-  } else {
-    theNdb->RestartGCI((Uint32)aSignal->readData(2));
-    theStatus = Connected;
-  }//if
-  return 0;  
-}//NdbTransaction::receiveDIHNDBTAMPER()
-
-/*******************************************************************************
 int  receiveTCSEIZECONF(NdbApiSignal* aSignal);
 
 Return Value:  Return 0 : receiveTCSEIZECONF was successful.

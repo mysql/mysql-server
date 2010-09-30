@@ -2322,6 +2322,11 @@ public:
      */
     int forceGCPWait();
     int forceGCPWait(int type);
+
+    /**
+     * Get restart gci
+     */
+    int getRestartGCI(Uint32 * gci);
 #endif
 
     /** @} *******************************************************************/

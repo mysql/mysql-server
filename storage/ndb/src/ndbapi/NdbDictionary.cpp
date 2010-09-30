@@ -2551,6 +2551,12 @@ NdbDictionary::Dictionary::forceGCPWait(int type)
   return m_impl.forceGCPWait(type);
 }
 
+int
+NdbDictionary::Dictionary::getRestartGCI(Uint32 * gci)
+{
+  return m_impl.getRestartGCI(gci);
+}
+
 void
 NdbDictionary::Dictionary::removeCachedIndex(const Index *index){
   DBUG_ENTER("NdbDictionary::Dictionary::removeCachedIndex");
