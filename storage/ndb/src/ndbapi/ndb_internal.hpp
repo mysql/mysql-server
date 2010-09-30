@@ -22,8 +22,9 @@
 /**
  * This class exposes non-public funcionality to various test/utility programs
  */
-struct Ndb_internal
+class Ndb_internal
 {
+public:
   Ndb_internal() {}
   virtual ~Ndb_internal() {}
 
