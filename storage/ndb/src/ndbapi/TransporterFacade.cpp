@@ -25,11 +25,12 @@
 #include <TransporterCallback.hpp>
 #include <TransporterRegistry.hpp>
 #include "NdbApiSignal.hpp"
+#include "NdbWaiter.hpp"
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
 #include <NdbSleep.h>
 
-#include "API.hpp"
+#include <kernel/GlobalSignalNumbers.h>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 #include <NdbConfig.h>
@@ -724,13 +725,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theArbitMgr(NULL),
   checkCounter(4),
   currentSendLimit(1),
-  m_scan_batch_size(MAX_SCAN_BATCH_SIZE),
-  m_batch_byte_size(SCAN_BATCH_SIZE),
-  m_batch_size(DEF_BATCH_SIZE),
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
-  m_max_trans_id(0),
   m_fragmented_signal_id(0),
   m_globalDictCache(cache)
 {
@@ -848,20 +845,6 @@ TransporterFacade::configure(NodeId nodeId,
     theArbitMgr= NULL;
   }
 
-  // Configure scan settings
-  Uint32 scan_batch_size= 0;
-  if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
-    m_scan_batch_size= scan_batch_size;
-  }
-  Uint32 batch_byte_size= 0;
-  if (!iter.get(CFG_BATCH_BYTE_SIZE, &batch_byte_size)) {
-    m_batch_byte_size= batch_byte_size;
-  }
-  Uint32 batch_size= 0;
-  if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
-    m_batch_size= batch_size;
-  }
-
   Uint32 auto_reconnect=1;
   iter.get(CFG_AUTO_RECONNECT, &auto_reconnect);
 
@@ -879,19 +862,6 @@ TransporterFacade::configure(NodeId nodeId,
     theClusterMgr->m_auto_reconnect = auto_reconnect;
   }
   
-  // Configure timeouts
-  Uint32 timeout = 120000;
-  for (iter.first(); iter.valid(); iter.next())
-  {
-    Uint32 tmp1 = 0, tmp2 = 0;
-    iter.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
-    iter.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
-    tmp1 += tmp2;
-    if (tmp1 > timeout)
-      timeout = tmp1;
-  }
-  m_waitfor_timeout = timeout;
-
 #ifdef API_TRACE
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);
 #endif
@@ -1005,11 +975,9 @@ TransporterFacade::ReportNodeAlive(NodeId tNodeId)
 }
 
 int 
-TransporterFacade::close(BlockNumber blockNumber, Uint64 trans_id)
+TransporterFacade::close(BlockNumber blockNumber)
 {
   NdbMutex_Lock(theMutexPtr);
-  Uint32 low_bits = (Uint32)trans_id;
-  m_max_trans_id = m_max_trans_id > low_bits ? m_max_trans_id : low_bits;
   close_local(blockNumber);
   NdbMutex_Unlock(theMutexPtr);
   return 0;

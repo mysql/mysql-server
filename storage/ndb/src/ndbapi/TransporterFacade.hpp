@@ -42,7 +42,6 @@ typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfCompl
 extern "C" {
   void* runSendRequest_C(void*);
   void* runReceiveResponse_C(void*);
-  void atexit_stop_instance();
 }
 
 class TransporterFacade : public TransporterCallback
@@ -74,7 +73,7 @@ public:
            int blockNo = -1);
   
   // Close this block number
-  int close(BlockNumber blockNumber, Uint64 trans_id);
+  int close(BlockNumber blockNumber);
   Uint32 get_active_ndb_objects() const;
 
   // Only sends to nodes which are alive
@@ -130,12 +129,6 @@ public:
 
   // Close this block number
   int close_local(BlockNumber blockNumber);
-
-  // Scan batch configuration parameters
-  Uint32 get_scan_batch_size();
-  Uint32 get_batch_byte_size();
-  Uint32 get_batch_size();
-  Uint32 m_waitfor_timeout; // in milli seconds...
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
@@ -244,11 +237,6 @@ private:
   
   void calculateSendLimit();
 
-  // Scan batch configuration parameters
-  Uint32 m_scan_batch_size;
-  Uint32 m_batch_byte_size;
-  Uint32 m_batch_size;
-
   // Declarations for the receive and send thread
   int  theStopReceive;
 
@@ -259,7 +247,6 @@ private:
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
-  friend void atexit_stop_instance();
 
   bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
 
@@ -316,7 +303,6 @@ private:
   } m_threads;
 
   Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
-  Uint32 m_max_trans_id;
   Uint32 m_fragmented_signal_id;
 
 public:
@@ -454,24 +440,6 @@ TransporterFacade::getMinDbNodeVersion() const
     return theClusterMgr->minDbVersion;
   else
     return 0;
-}
-
-inline
-Uint32
-TransporterFacade::get_scan_batch_size() {
-  return m_scan_batch_size;
-}
-
-inline
-Uint32
-TransporterFacade::get_batch_byte_size() {
-  return m_batch_byte_size;
-}
-
-inline
-Uint32
-TransporterFacade::get_batch_size() {
-  return m_batch_size;
 }
 
 /** 

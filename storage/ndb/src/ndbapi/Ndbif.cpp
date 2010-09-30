@@ -19,16 +19,7 @@
 
 #include <ndb_global.h>
 
-#include "NdbApiSignal.hpp"
-#include "NdbImpl.hpp"
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbIndexOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include <NdbRecAttr.hpp>
-#include <NdbReceiver.hpp>
 #include "API.hpp"
-#include "NdbEventOperationImpl.hpp"
 
 #include <signaldata/TcCommit.hpp>
 #include <signaldata/TcKeyFailConf.hpp>
@@ -150,7 +141,7 @@ error_handler:
   ndbout << "error_handler" << endl;
   releaseTransactionArrays();
   delete theDictionary;
-  theImpl->m_transporter_facade->close(theNdbBlockNumber, 0);
+  theImpl->m_transporter_facade->close(theNdbBlockNumber);
   DBUG_RETURN(-1);
 }
 
@@ -199,9 +190,8 @@ void Ndb::connected(Uint32 ref)
   }
   theImpl->theNoOfDBnodes = n;
   
-  theFirstTransId = ((Uint64)tBlockNo << 52)+
+  theFirstTransId += ((Uint64)tBlockNo << 52)+
     ((Uint64)tmpTheNode << 40);
-  theFirstTransId += theFacade->m_max_trans_id;
   //      assert(0);
   DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id: 0x%lx",
 		     theMyRef,
@@ -1094,7 +1084,7 @@ Ndb::pollCompleted(NdbTransaction** aCopyArray)
 void
 Ndb::check_send_timeout()
 {
-  Uint32 timeout = theImpl->m_transporter_facade->m_waitfor_timeout;
+  Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
   NDB_TICKS current_time = NdbTick_CurrentMillisecond();
   assert(current_time >= the_last_check_time);
   if (current_time - the_last_check_time > 1000) {

@@ -25,19 +25,11 @@ Name:          Ndb.cpp
 
 #include <ndb_global.h>
 
-
-#include "NdbApiSignal.hpp"
-#include "NdbImpl.hpp"
-#include <NdbOperation.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbEventOperation.hpp>
-#include <NdbEventOperationImpl.hpp>
-#include <NdbRecAttr.hpp>
+#include "API.hpp"
 #include <md5_hash.hpp>
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <ndb_limits.h>
-#include "API.hpp"
 #include <NdbEnv.h>
 #include <BaseString.hpp>
 #include <NdbSqlUtil.hpp>
