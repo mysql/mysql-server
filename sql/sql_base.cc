@@ -100,11 +100,14 @@ bool No_such_table_error_handler::safely_trapped_errors()
   TABLE_SHAREs, refresh_version and the table id counter.
 */
 mysql_mutex_t LOCK_open;
+mysql_mutex_t LOCK_dd_owns_lock_open;
+uint dd_owns_lock_open= 0;
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_open;
+static PSI_mutex_key key_LOCK_open, key_LOCK_dd_owns_lock_open;
 static PSI_mutex_info all_tdc_mutexes[]= {
-  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL }
+  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL },
+  { &key_LOCK_dd_owns_lock_open, "LOCK_dd_owns_lock_open", PSI_FLAG_GLOBAL }
 };
 
 /**
@@ -298,6 +301,8 @@ bool table_def_init(void)
   init_tdc_psi_keys();
 #endif
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_dd_owns_lock_open, &LOCK_dd_owns_lock_open,
+                   MY_MUTEX_INIT_FAST);
   oldest_unused_share= &end_of_unused_share;
   end_of_unused_share.prev= &oldest_unused_share;
 
@@ -341,6 +346,7 @@ void table_def_free(void)
     table_def_inited= 0;
     /* Free table definitions. */
     my_hash_free(&table_def_cache);
+    mysql_mutex_destroy(&LOCK_dd_owns_lock_open);
     mysql_mutex_destroy(&LOCK_open);
   }
   DBUG_VOID_RETURN;

@@ -1,0 +1,87 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_warnings
+drop table if exists test.SETUP_ACTORS;
+--enable_warnings
+
+# Save the setup
+create table test.SETUP_ACTORS as
+  select * from performance_schema.SETUP_ACTORS;
+truncate table performance_schema.SETUP_ACTORS;
+
+select * from performance_schema.SETUP_ACTORS;
+
+select * from performance_schema.SETUP_ACTORS
+  where user = '%';
+
+insert into performance_schema.SETUP_ACTORS
+  set user='Joe', host='localhost';
+
+insert into performance_schema.SETUP_ACTORS
+  set user='Joe', host='%';
+
+insert into performance_schema.SETUP_ACTORS
+  set user='%', host='server1';
+
+insert into performance_schema.SETUP_ACTORS
+  set user='%', host='%';
+
+select * from performance_schema.SETUP_ACTORS
+  order by USER, HOST;
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.SETUP_ACTORS
+  set user='ILLEGAL';
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.SETUP_ACTORS
+  set host='ILLEGAL';
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.SETUP_ACTORS
+  set role='ILLEGAL';
+
+select * from performance_schema.SETUP_ACTORS
+  order by USER, HOST;
+
+delete from performance_schema.SETUP_ACTORS
+  where user = 'Joe' and host = 'localhost';
+
+select * from performance_schema.SETUP_ACTORS
+  order by USER, HOST;
+
+delete from performance_schema.SETUP_ACTORS;
+
+select * from performance_schema.SETUP_ACTORS
+  order by USER, HOST;
+
+LOCK TABLES performance_schema.SETUP_ACTORS READ;
+UNLOCK TABLES;
+
+LOCK TABLES performance_schema.SETUP_ACTORS WRITE;
+UNLOCK TABLES;
+
+# Restore the setup
+truncate table performance_schema.SETUP_ACTORS;
+insert into performance_schema.SETUP_ACTORS
+  select * from test.SETUP_ACTORS;
+drop table test.SETUP_ACTORS;
+
