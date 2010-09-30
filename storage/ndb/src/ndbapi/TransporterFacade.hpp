@@ -42,7 +42,6 @@ typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfCompl
 extern "C" {
   void* runSendRequest_C(void*);
   void* runReceiveResponse_C(void*);
-  void atexit_stop_instance();
 }
 
 class TransporterFacade : public TransporterCallback
@@ -259,7 +258,6 @@ private:
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
-  friend void atexit_stop_instance();
 
   bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
 
