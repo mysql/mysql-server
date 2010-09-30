@@ -742,7 +742,6 @@ DROP TABLE t1;
 --echo End of 5.1 tests
 
 
-
 #
 # Bug#36785: Wrong error message when group_concat() exceeds max length
 #
