@@ -2194,6 +2194,11 @@ sub environment_setup {
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
+  # Add dir of this perl to aid mysqltest in finding perl
+  my $perldir= dirname($^X);
+  my $pathsep= ":";
+  $pathsep= ";" if IS_WINDOWS && ! IS_CYGWIN;
+  $ENV{'PATH'}= "$ENV{'PATH'}".$pathsep.$perldir;
 }
 
 
@@ -3666,6 +3671,9 @@ sub run_testcase ($) {
 	# Try to get reason from test log file
 	find_testcase_skipped_reason($tinfo);
 	mtr_report_test_skipped($tinfo);
+	# Restart if skipped due to missing perl, it may have had side effects
+	stop_all_servers($opt_shutdown_timeout)
+	  if ($tinfo->{'comment'} =~ /^perl not found/);
       }
       elsif ( $res == 65 )
       {
