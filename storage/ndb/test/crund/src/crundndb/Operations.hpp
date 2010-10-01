@@ -110,34 +110,34 @@ public:
 
     void setVarbinary(const NdbDictionary::Table* table,
                       int from, int to, bool batch, int length);
-    
+
     void getVarbinary(const NdbDictionary::Table* table,
                       int from, int to, bool batch, int length);
 
     void setVarchar(const NdbDictionary::Table* table,
                     int from, int to, bool batch, int length);
-    
+
     void getVarchar(const NdbDictionary::Table* table,
                     int from, int to, bool batch, int length);
 
     void setB0ToA(int count_A, int count_B,
                   bool batch);
-    
+
     void navB0ToA(int count_A, int count_B,
                   bool batch);
-    
+
     void navB0ToAalt(int count_A, int count_B,
                      bool batch);
-    
+
     void navAToB0(int count_A, int count_B,
                   bool forceSend);
-    
+
     void navAToB0alt(int count_A, int count_B,
                      bool forceSend);
-    
+
     void nullB0ToA(int count_A, int count_B,
                    bool batch);
-    
+
 protected:
     // executes the operations in the current transaction
     void executeOperations();
@@ -147,7 +147,7 @@ protected:
 
     void setVar(const NdbDictionary::Table* table, int attr_cvar,
                 int from, int to, bool batch, const char* str);
-    
+
     void getVar(const NdbDictionary::Table* table, int attr_cvar,
                 int from, int to, bool batch, const char* str);
 };
