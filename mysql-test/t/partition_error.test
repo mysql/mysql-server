@@ -74,10 +74,15 @@ INSERT INTO t1 VALUES ('2000-01-02 03:04:05');
 --sorted_result
 SELECT * FROM t1;
 FLUSH TABLES;
+--echo # replacing t1.frm with TO_DAYS(a) which was allowed earlier.
 --remove_file $MYSQLD_DATADIR/test/t1.frm
 --copy_file std_data/parts/t1TIMESTAMP.frm $MYSQLD_DATADIR/test/t1.frm
+--echo # Disable warnings, since the result would differ when running with
+--echo # --ps-protocol (only for the 'SELECT * FROM t1' statement).
+--disable_warnings
 --sorted_result
 SELECT * FROM t1;
+--enable_warnings
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES ('2001-02-03 04:05:06');
 --sorted_result
