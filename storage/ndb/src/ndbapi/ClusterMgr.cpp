@@ -58,6 +58,7 @@ runClusterMgr_C(void * me)
 ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   theStop(0),
   theFacade(_facade),
+  theArbitMgr(NULL),
   m_connect_count(0),
   m_max_api_reg_req_interval(~0),
   noOfAliveNodes(0),
@@ -85,13 +86,20 @@ ClusterMgr::~ClusterMgr()
 {
   DBUG_ENTER("ClusterMgr::~ClusterMgr");
   doStop();
+  if (theArbitMgr != 0)
+  {
+    delete theArbitMgr;
+    theArbitMgr = 0;
+  }
   NdbCondition_Destroy(waitForHBCond);
   NdbMutex_Destroy(clusterMgrThreadMutex);
   DBUG_VOID_RETURN;
 }
 
 void
-ClusterMgr::configure(const ndb_mgm_configuration* config){
+ClusterMgr::configure(Uint32 nodeId,
+                      const ndb_mgm_configuration* config)
+{
   ndb_mgm_configuration_iterator iter(* config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()){
     Uint32 nodeId = 0;
@@ -141,6 +149,30 @@ ClusterMgr::configure(const ndb_mgm_configuration* config){
   print_nodes("init");
 #endif
 
+  // Configure arbitrator
+  Uint32 rank = 0;
+  iter.first();
+  iter.find(CFG_NODE_ID, nodeId); // let not found in config mean rank=0
+  iter.get(CFG_NODE_ARBIT_RANK, &rank);
+
+  if (rank > 0)
+  {
+    // The arbitrator should be active
+    if (!theArbitMgr)
+      theArbitMgr = new ArbitMgr(theFacade);
+    theArbitMgr->setRank(rank);
+
+    Uint32 delay = 0;
+    iter.get(CFG_NODE_ARBIT_DELAY, &delay);
+    theArbitMgr->setDelay(delay);
+  }
+  else if (theArbitMgr)
+  {
+    // No arbitrator should be started
+    theArbitMgr->doStop(NULL);
+    delete theArbitMgr;
+    theArbitMgr= NULL;
+  }
 }
 
 void
@@ -168,6 +200,11 @@ ClusterMgr::doStop( ){
   if (theClusterMgrThread) {
     NdbThread_WaitFor(theClusterMgrThread, &status);  
     NdbThread_Destroy(&theClusterMgrThread);
+  }
+
+  if (theArbitMgr != NULL)
+  {
+    theArbitMgr->doStop(NULL);
   }
 
   DBUG_VOID_RETURN;
@@ -366,18 +403,18 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
     break;
 
   case GSN_ARBIT_STARTREQ:
-    if (theFacade.theArbitMgr != NULL)
-      theFacade.theArbitMgr->doStart(theData);
+    if (theArbitMgr != NULL)
+      theArbitMgr->doStart(theData);
     break;
 
   case GSN_ARBIT_CHOOSEREQ:
-    if (theFacade.theArbitMgr != NULL)
-      theFacade.theArbitMgr->doChoose(theData);
+    if (theArbitMgr != NULL)
+      theArbitMgr->doChoose(theData);
     break;
 
   case GSN_ARBIT_STOPORD:
-    if(theFacade.theArbitMgr != NULL)
-      theFacade.theArbitMgr->doStop(theData);
+    if(theArbitMgr != NULL)
+      theArbitMgr->doStop(theData);
     break;
 
   case GSN_ALTER_TABLE_REP:

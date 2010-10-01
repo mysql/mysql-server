@@ -42,7 +42,7 @@ class ClusterMgr : public trp_client
 public:
   ClusterMgr(class TransporterFacade &);
   virtual ~ClusterMgr();
-  void configure(const ndb_mgm_configuration* config);
+  void configure(Uint32 nodeId, const ndb_mgm_configuration* config);
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
@@ -62,7 +62,8 @@ private:
   
   int  theStop;
   class TransporterFacade & theFacade;
-  
+  class ArbitMgr * theArbitMgr;
+
 public:
   enum Cluster_state {
     CS_waiting_for_clean_cache = 0,
