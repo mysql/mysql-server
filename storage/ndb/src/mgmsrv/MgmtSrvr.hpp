@@ -542,7 +542,7 @@ private:
   // Returns: -
   //**************************************************************************
 
-  void handleStatus(NodeId nodeId, bool alive, bool nfComplete);
+  void handleStatus(NodeId nodeId, Uint32 event);
   //**************************************************************************
   // Description: Handle the death of a process
   // Parameters:
@@ -591,8 +591,7 @@ private:
    *                       shall receive the notification.
    *   @param  processId:  Id of the dead process.
    */
-  static void nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
-				     bool alive, bool nfCompleted);
+  static void nodeStatusNotification(void* mgmSrv, Uint32 nodeId, Uint32 event);
   
   /**
    * An event from <i>nodeId</i> has arrived

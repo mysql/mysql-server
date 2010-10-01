@@ -38,8 +38,16 @@ class Ndb;
 class NdbApiSignal;
 class NdbWaiter;
 
+enum NS_Event
+{
+  NS_CONNECTED,   // *we* are connected and have nodeId (report as NodeId)
+  NS_NODE_ALIVE,  // *nodeId* is alive (connected and API_REGCONF)
+  NS_NODE_FAILED, // *nodeId* has failed
+  NS_NODE_NF_COMPLETE
+};
+
 typedef void (* ExecuteFunction)(void *, NdbApiSignal *, LinearSectionPtr ptr[3]);
-typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfComplete);
+typedef void (* NodeStatusFunction)(void *, Uint32, Uint32 ns_Event);
 
 extern "C" {
   void* runSendRequest_C(void*);

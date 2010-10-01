@@ -647,8 +647,7 @@ private:
 			 class NdbApiSignal* signal, 
 			 struct LinearSectionPtr ptr[3]);
   
-  static void execNodeStatus(void* dictImpl, Uint32, 
-			     bool alive, bool nfCompleted);  
+  static void execNodeStatus(void* dictImpl, Uint32, Uint32);
   
   void execGET_TABINFO_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execGET_TABINFO_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);

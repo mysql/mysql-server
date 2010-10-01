@@ -2057,7 +2057,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
 }
 
 void
-MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
+MgmtSrvr::handleStatus(NodeId nodeId, Uint32 _event)
 {
   DBUG_ENTER("MgmtSrvr::handleStatus");
   union {
@@ -2065,20 +2065,24 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
     EventReport repData;
   };
   EventReport * rep = &repData;
+  NS_Event event = (NS_Event)_event;
 
   theData[1] = nodeId;
-  if (alive) {
+  switch(event){
+  case NS_CONNECTED:
+    DBUG_VOID_RETURN;
+  case NS_NODE_ALIVE:
     if (nodeTypes[nodeId] == NODE_TYPE_DB)
     {
       m_started_nodes.push_back(nodeId);
     }
     rep->setEventType(NDB_LE_Connected);
-  } else {
+    break;
+  case NS_NODE_FAILED:
     rep->setEventType(NDB_LE_Disconnected);
-    if(nfComplete)
-    {
-      DBUG_VOID_RETURN;
-    }
+    break;
+  case NS_NODE_NF_COMPLETE:
+    DBUG_VOID_RETURN;
   }
   rep->setNodeId(_ownNodeId);
   eventReport(theData, 1);
@@ -2100,12 +2104,11 @@ MgmtSrvr::signalReceivedNotification(void* mgmtSrvr,
 //****************************************************************************
 //****************************************************************************
 void 
-MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
-				 bool alive, bool nfComplete)
+MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId, Uint32 event)
 {
   DBUG_ENTER("MgmtSrvr::nodeStatusNotification");
-  DBUG_PRINT("enter",("nodeid= %d, alive= %d, nfComplete= %d", nodeId, alive, nfComplete));
-  ((MgmtSrvr*)mgmSrv)->handleStatus(nodeId, alive, nfComplete);
+  DBUG_PRINT("enter",("nodeid= %d, event: %u", nodeId, event));
+  ((MgmtSrvr*)mgmSrv)->handleStatus(nodeId, event);
   DBUG_VOID_RETURN;
 }
 

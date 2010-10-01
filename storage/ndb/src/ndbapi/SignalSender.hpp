@@ -98,8 +98,7 @@ private:
 			 NdbApiSignal* signal, 
 			 class LinearSectionPtr ptr[3]);
   
-  static void execNodeStatus(void* signalSender, Uint32 nodeId, 
-			     bool alive, bool nfCompleted);
+  static void execNodeStatus(void* signalSender, Uint32 nodeId, Uint32 event);
   
   int m_lock;
   struct NdbCondition * m_cond;
