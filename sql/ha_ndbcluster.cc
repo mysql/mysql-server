@@ -1543,7 +1543,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
   Check if any set or get of blob value in current query.
 */
 
-bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap)
+bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap) const
 {
   uint *blob_index, *blob_index_end;
   if (table_share->blob_fields == 0)
