@@ -116,9 +116,7 @@ public:
   void reportDisconnected(int NodeId);
 
   NodeId get_an_alive_node();
-  void ReportNodeAlive(NodeId nodeId);
-  void ReportNodeDead(NodeId nodeId);
-  void ReportNodeFailureComplete(NodeId nodeId);
+  void trp_node_status(NodeId, Uint32 event);
 
   /**
    * Send signal to each registered object

@@ -582,7 +582,7 @@ ClusterMgr::execNF_COMPLETEREP(const Uint32 * theData){
   Node & node = theNodes[nodeId];
   if (node.nfCompleteRep == false)
   {
-    theFacade.ReportNodeFailureComplete(nodeId);
+    theFacade.trp_node_status(nodeId, NS_NODE_NF_COMPLETE);
     node.nfCompleteRep = true;
   }
 }
@@ -618,7 +618,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
 
   theNode.minDbVersion = 0;
   
-  theFacade.ReportNodeAlive(nodeId);
+  theFacade.trp_node_status(nodeId, NS_NODE_ALIVE);
   DBUG_VOID_RETURN;
 }
 
@@ -658,7 +658,7 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
   
   if(disconnect || report)
   {
-    theFacade.ReportNodeDead(nodeId);
+    theFacade.trp_node_status(nodeId, NS_NODE_FAILED);
   }
   
   if (noOfConnectedNodes == 0)
