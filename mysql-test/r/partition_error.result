@@ -55,11 +55,12 @@ SELECT * FROM t1;
 a
 2000-01-02 03:04:05
 FLUSH TABLES;
+# replacing t1.frm with TO_DAYS(a) which was allowed earlier.
+# Disable warnings, since the result would differ when running with
+# --ps-protocol (only for the 'SELECT * FROM t1' statement).
 SELECT * FROM t1;
 a
 2000-01-02 03:04:05
-Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
-Warnings:
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
