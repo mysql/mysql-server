@@ -17,8 +17,8 @@
 */
 
 #include <ndb_global.h>
-#include <my_pthread.h>
 #include <ndb_limits.h>
+#include "trp_client.hpp"
 #include "TransporterFacade.hpp"
 #include "ClusterMgr.hpp"
 #include <IPCConfig.hpp>
@@ -211,24 +211,24 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
                                   Uint8 prio, Uint32 * const theData,
                                   LinearSectionPtr ptr[3])
 {
-
-  TransporterFacade::ThreadData::Object_Execute oe; 
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
   
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(header->theVerId_signalNumber)){
     signalLogger.executeSignal(* header, 
-			       prio,
+                               prio,
                                theData,
-			       ownId(),
+                               ownId(),
                                ptr, header->m_noOfSections);
     signalLogger.flushSignalLog();
   }
 #endif  
 
-  if (tRecBlockNo >= MIN_API_BLOCK_NO) {
-    oe = m_threads.get(tRecBlockNo);
-    if (oe.m_object != 0 && oe.m_executeFunction != 0) {
+  if (tRecBlockNo >= MIN_API_BLOCK_NO)
+  {
+    trp_client * clnt = m_threads.get(tRecBlockNo);
+    if (clnt != 0)
+    {
       /**
        * Handle received signal immediately to avoid any unnecessary
        * copying of data, allocation of memory and other things. Copying
@@ -243,9 +243,11 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       NdbApiSignal tmpSignal(*header);
       NdbApiSignal * tSignal = &tmpSignal;
       tSignal->setDataPtr(theData);
-      (* oe.m_executeFunction) (oe.m_object, tSignal, ptr);
+      clnt->trp_deliver_signal(tSignal, ptr);
     }//if
-  } else if (tRecBlockNo == API_PACKED) {
+  }
+  else if (tRecBlockNo == API_PACKED)
+  {
     /**
      * Block number == 2047 is used to signal a signal that consists of
      * multiple instances of the same signal. This is an effort to
@@ -263,150 +265,162 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       Tsent++;
       Uint32 TpacketLen = (Theader & 0x1F) + 3;
       tRecBlockNo = Theader >> 16;
-      if (TpacketLen <= 25) {
-	if ((TpacketLen + Tsent) <= Tlength) {
-	  /**
-	   * Set the data length of the signal and the receivers block
-	   * reference and then call the API.
-	   */
-	  header->theLength = TpacketLen;
-	  header->theReceiversBlockNumber = tRecBlockNo;
-	  Uint32* tDataPtr = &theData[Tsent];
-	  Tsent += TpacketLen;
-	  if (tRecBlockNo >= MIN_API_BLOCK_NO) {
-	    oe = m_threads.get(tRecBlockNo);
-	    if(oe.m_object != 0 && oe.m_executeFunction != 0){
-	      NdbApiSignal tmpSignal(*header);
-	      NdbApiSignal * tSignal = &tmpSignal;
-	      tSignal->setDataPtr(tDataPtr);
-	      (*oe.m_executeFunction)(oe.m_object, tSignal, 0);
-	    }
-	  }
-	}
+      if (TpacketLen <= 25)
+      {
+        if ((TpacketLen + Tsent) <= Tlength)
+        {
+          /**
+           * Set the data length of the signal and the receivers block
+           * reference and then call the API.
+           */
+          header->theLength = TpacketLen;
+          header->theReceiversBlockNumber = tRecBlockNo;
+          Uint32* tDataPtr = &theData[Tsent];
+          Tsent += TpacketLen;
+          if (tRecBlockNo >= MIN_API_BLOCK_NO)
+          {
+            trp_client * clnt = m_threads.get(tRecBlockNo);
+            if(clnt != 0)
+            {
+              NdbApiSignal tmpSignal(*header);
+              NdbApiSignal * tSignal = &tmpSignal;
+              tSignal->setDataPtr(tDataPtr);
+              clnt->trp_deliver_signal(tSignal, 0);
+            }
+          }
+        }
       }
     }
     return;
-  } else if (tRecBlockNo == API_CLUSTERMGR) {
-     /**
-      * The signal was aimed for the Cluster Manager. 
-      * We handle it immediately here.
-      */     
-     ClusterMgr * clusterMgr = theClusterMgr;
-     const Uint32 gsn = header->theVerId_signalNumber;
-
-     switch (gsn){
-     case GSN_API_REGREQ:
-       clusterMgr->execAPI_REGREQ(theData);
-       break;
-
-     case GSN_API_REGCONF:
-     {
-       clusterMgr->execAPI_REGCONF(theData);
-
-       // Distribute signal to all threads/blocks
-       NdbApiSignal tSignal(* header);
-       tSignal.setDataPtr(theData);
-       for_each(&tSignal, ptr);
-       break;
-     }
-
-     case GSN_API_REGREF:
-       clusterMgr->execAPI_REGREF(theData);
-       break;
-
-     case GSN_NODE_FAILREP:
-       clusterMgr->execNODE_FAILREP(theData);
-       break;
-       
-     case GSN_NF_COMPLETEREP:
-       clusterMgr->execNF_COMPLETEREP(theData);
-       break;
-
-     case GSN_ARBIT_STARTREQ:
-       if (theArbitMgr != NULL)
-	 theArbitMgr->doStart(theData);
-       break;
-       
-     case GSN_ARBIT_CHOOSEREQ:
-       if (theArbitMgr != NULL)
-	 theArbitMgr->doChoose(theData);
-       break;
-       
-     case GSN_ARBIT_STOPORD:
-       if(theArbitMgr != NULL)
-	 theArbitMgr->doStop(theData);
-       break;
-
-     case GSN_ALTER_TABLE_REP:
-     {
-       if (m_globalDictCache == NULL)
-         break;
-       const AlterTableRep* rep = (const AlterTableRep*)theData;
-       m_globalDictCache->lock();
-       m_globalDictCache->
-	 alter_table_rep((const char*)ptr[0].p, 
-			 rep->tableId,
-			 rep->tableVersion,
-			 rep->changeType == AlterTableRep::CT_ALTERED);
-       m_globalDictCache->unlock();
-       break;
-     }
-     case GSN_SUB_GCP_COMPLETE_REP:
-     {
-       /**
-	* Report
-	*/
-       NdbApiSignal tSignal(* header);
-       tSignal.setDataPtr(theData);
-       for_each(&tSignal, ptr);
-
-       /**
-	* Reply
-	*/
-       {
-	 Uint32* send= tSignal.getDataPtrSend();
-	 memcpy(send, theData, tSignal.getLength() << 2);
-	 CAST_PTR(SubGcpCompleteAck, send)->rep.senderRef = 
-	   numberToRef(API_CLUSTERMGR, theOwnId);
-	 Uint32 ref= header->theSendersBlockRef;
-	 Uint32 aNodeId= refToNode(ref);
-	 tSignal.theReceiversBlockNumber= refToBlock(ref);
-	 tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
-	 sendSignalUnCond(&tSignal, aNodeId);
-       }
-       break;
-     }
-     case GSN_TAKE_OVERTCCONF:
-     {
-       /**
-	* Report
-	*/
-       NdbApiSignal tSignal(* header);
-       tSignal.setDataPtr(theData);
-       for_each(&tSignal, ptr);
-       return;
-     }
-     default:
-       break;
-       
-     }
-     return;
-  } else if (tRecBlockNo >= MIN_API_FIXED_BLOCK_NO &&
-             tRecBlockNo <= MAX_API_FIXED_BLOCK_NO) {
+  }
+  else if (tRecBlockNo == API_CLUSTERMGR)
+  {
+    /**
+     * The signal was aimed for the Cluster Manager. 
+     * We handle it immediately here.
+     */     
+    ClusterMgr * clusterMgr = theClusterMgr;
+    const Uint32 gsn = header->theVerId_signalNumber;
+    
+    switch (gsn){
+    case GSN_API_REGREQ:
+      clusterMgr->execAPI_REGREQ(theData);
+      break;
+      
+    case GSN_API_REGCONF:
+    {
+      clusterMgr->execAPI_REGCONF(theData);
+      
+      // Distribute signal to all threads/blocks
+      NdbApiSignal tSignal(* header);
+      tSignal.setDataPtr(theData);
+      for_each(&tSignal, ptr);
+      break;
+    }
+    
+    case GSN_API_REGREF:
+      clusterMgr->execAPI_REGREF(theData);
+      break;
+      
+    case GSN_NODE_FAILREP:
+      clusterMgr->execNODE_FAILREP(theData);
+      break;
+      
+    case GSN_NF_COMPLETEREP:
+      clusterMgr->execNF_COMPLETEREP(theData);
+      break;
+      
+    case GSN_ARBIT_STARTREQ:
+      if (theArbitMgr != NULL)
+        theArbitMgr->doStart(theData);
+      break;
+      
+    case GSN_ARBIT_CHOOSEREQ:
+      if (theArbitMgr != NULL)
+        theArbitMgr->doChoose(theData);
+      break;
+      
+    case GSN_ARBIT_STOPORD:
+      if(theArbitMgr != NULL)
+        theArbitMgr->doStop(theData);
+      break;
+      
+    case GSN_ALTER_TABLE_REP:
+    {
+      if (m_globalDictCache == NULL)
+        break;
+      const AlterTableRep* rep = (const AlterTableRep*)theData;
+      m_globalDictCache->lock();
+      m_globalDictCache->
+        alter_table_rep((const char*)ptr[0].p, 
+                        rep->tableId,
+                        rep->tableVersion,
+                        rep->changeType == AlterTableRep::CT_ALTERED);
+      m_globalDictCache->unlock();
+      break;
+    }
+    case GSN_SUB_GCP_COMPLETE_REP:
+    {
+      /**
+       * Report
+       */
+      NdbApiSignal tSignal(* header);
+      tSignal.setDataPtr(theData);
+      for_each(&tSignal, ptr);
+      
+      /**
+       * Reply
+       */
+      {
+        Uint32* send= tSignal.getDataPtrSend();
+        memcpy(send, theData, tSignal.getLength() << 2);
+        CAST_PTR(SubGcpCompleteAck, send)->rep.senderRef = 
+          numberToRef(API_CLUSTERMGR, theOwnId);
+        Uint32 ref= header->theSendersBlockRef;
+        Uint32 aNodeId= refToNode(ref);
+        tSignal.theReceiversBlockNumber= refToBlock(ref);
+        tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
+        sendSignalUnCond(&tSignal, aNodeId);
+      }
+      break;
+    }
+    case GSN_TAKE_OVERTCCONF:
+    {
+      /**
+       * Report
+       */
+      NdbApiSignal tSignal(* header);
+      tSignal.setDataPtr(theData);
+      for_each(&tSignal, ptr);
+      return;
+    }
+    default:
+      break;
+      
+    }
+    return;
+  }
+  else if (tRecBlockNo >= MIN_API_FIXED_BLOCK_NO &&
+           tRecBlockNo <= MAX_API_FIXED_BLOCK_NO) 
+  {
     Uint32 dynamic= m_fixed2dynamic[tRecBlockNo - MIN_API_FIXED_BLOCK_NO];
-    oe = m_threads.get(dynamic);
-    if (oe.m_object != 0 && oe.m_executeFunction != 0) {
+    trp_client * clnt = m_threads.get(dynamic);
+    if (clnt != 0)
+    {
       NdbApiSignal tmpSignal(*header);
       NdbApiSignal * tSignal = &tmpSignal;
       tSignal->setDataPtr(theData);
-      (* oe.m_executeFunction) (oe.m_object, tSignal, ptr);
+      clnt->trp_deliver_signal(tSignal, ptr);
     }//if   
-  } else {
-    ; // Ignore all other block numbers.
-    if(header->theVerId_signalNumber != GSN_API_REGREQ) {
+  }
+  else
+  {
+    // Ignore all other block numbers.
+    if(header->theVerId_signalNumber != GSN_API_REGREQ)
+    {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
       ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
-	     << header->theVerId_signalNumber  << endl;
+             << header->theVerId_signalNumber  << endl;
       abort();
     }
   }
@@ -877,13 +891,12 @@ void
 TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 {
   Uint32 sz = m_threads.m_statusNext.size();
-  TransporterFacade::ThreadData::Object_Execute oe; 
   for (Uint32 i = 0; i < sz ; i ++) 
   {
-    oe = m_threads.m_objectExecute[i];
-    if (m_threads.getInUse(i))
+    trp_client * clnt = m_threads.m_objectExecute[i];
+    if (clnt != 0)
     {
-      (* oe.m_executeFunction) (oe.m_object, aSignal, ptr);
+      clnt->trp_deliver_signal(aSignal, ptr);
     }
   }
 }
@@ -893,11 +906,12 @@ TransporterFacade::connected()
 {
   DBUG_ENTER("TransporterFacade::connected");
   Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++) {
-    if (m_threads.getInUse(i)){
-      void * obj = m_threads.m_objectExecute[i].m_object;
-      NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
-      (*RegPC) (obj, numberToRef(indexToNumber(i), theOwnId), true, true);
+  for (Uint32 i = 0; i < sz ; i ++)
+  {
+    trp_client * clnt = m_threads.m_objectExecute[i];
+    if (clnt != 0)
+    {
+      clnt->trp_node_status(numberToRef(indexToNumber(i), theOwnId), true, true);
     }
   }
   DBUG_VOID_RETURN;
@@ -917,11 +931,12 @@ TransporterFacade::ReportNodeDead(NodeId tNodeId)
    * might not have noticed the failure.
    */
   Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++) {
-    if (m_threads.getInUse(i)){
-      void * obj = m_threads.m_objectExecute[i].m_object;
-      NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
-      (*RegPC) (obj, tNodeId, false, false);
+  for (Uint32 i = 0; i < sz ; i ++)
+  {
+    trp_client * clnt = m_threads.m_objectExecute[i];
+    if (clnt != 0)
+    {
+      clnt->trp_node_status(tNodeId, false, false);
     }
   }
   DBUG_VOID_RETURN;
@@ -942,11 +957,12 @@ TransporterFacade::ReportNodeFailureComplete(NodeId tNodeId)
   DBUG_ENTER("TransporterFacade::ReportNodeFailureComplete");
   DBUG_PRINT("enter",("nodeid= %d", tNodeId));
   Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++) {
-    if (m_threads.getInUse(i)){
-      void * obj = m_threads.m_objectExecute[i].m_object;
-      NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
-      (*RegPC) (obj, tNodeId, false, true);
+  for (Uint32 i = 0; i < sz ; i ++)
+  {
+    trp_client * clnt = m_threads.m_objectExecute[i];
+    if (clnt != 0)
+    {
+      clnt->trp_node_status(tNodeId, false, true);
     }
   }
   DBUG_VOID_RETURN;
@@ -965,11 +981,12 @@ TransporterFacade::ReportNodeAlive(NodeId tNodeId)
    * might not have noticed the failure.
    */
   Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++) {
-    if (m_threads.getInUse(i)){
-      void * obj = m_threads.m_objectExecute[i].m_object;
-      NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
-      (*RegPC) (obj, tNodeId, true, false);
+  for (Uint32 i = 0; i < sz ; i ++)
+  {
+    trp_client * clnt = m_threads.m_objectExecute[i];
+    if (clnt != 0)
+    {
+      clnt->trp_node_status(tNodeId, true, false);
     }
   }
 }
@@ -990,29 +1007,30 @@ TransporterFacade::close_local(BlockNumber blockNumber){
 }
 
 int
-TransporterFacade::open(void* objRef, 
-                        ExecuteFunction fun, 
-                        NodeStatusFunction statusFun,
-                        int blockNo)
+TransporterFacade::open(trp_client * clnt, int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
-  int r= m_threads.open(objRef, fun, statusFun);
+  int r= m_threads.open(clnt);
   if (r < 0)
+  {
     DBUG_RETURN(r);
+  }
 
-  if (unlikely(blockNo != -1)){
+  if (unlikely(blockNo != -1))
+  {
     // Using fixed block number, add fixed->dymamic mapping
-    Uint32 fixed_index= blockNo - MIN_API_FIXED_BLOCK_NO;
-
+    Uint32 fixed_index = blockNo - MIN_API_FIXED_BLOCK_NO;
+    
     assert(blockNo >= MIN_API_FIXED_BLOCK_NO &&
            fixed_index <= NO_API_FIXED_BLOCKS);
-
+    
     m_fixed2dynamic[fixed_index]= r;
   }
 
 #if 1
-  if (theOwnId > 0) {
-    (*statusFun)(objRef, numberToRef(r, theOwnId), true, true);
+  if (theOwnId > 0)
+  {
+    clnt->trp_node_status(numberToRef(r, theOwnId), true, true);
   }
 #endif
   DBUG_RETURN(r);
@@ -1746,12 +1764,10 @@ TransporterFacade::ThreadData::ThreadData(Uint32 size){
 
 void
 TransporterFacade::ThreadData::expand(Uint32 size){
-  Object_Execute oe = { 0 ,0 };
-  NodeStatusFunction fun = 0;
+  trp_client * oe = 0;
 
   const Uint32 sz = m_statusNext.size();
   m_objectExecute.fill(sz + size, oe);
-  m_statusFunction.fill(sz + size, fun);
   for(Uint32 i = 0; i<size; i++){
     m_statusNext.push_back(sz + i + 1);
   }
@@ -1762,9 +1778,7 @@ TransporterFacade::ThreadData::expand(Uint32 size){
 
 
 int
-TransporterFacade::ThreadData::open(void* objRef, 
-				    ExecuteFunction fun, 
-				    NodeStatusFunction fun2)
+TransporterFacade::ThreadData::open(trp_client * clnt)
 {
   Uint32 nextFree = m_firstFree;
 
@@ -1780,11 +1794,8 @@ TransporterFacade::ThreadData::open(void* objRef,
   m_use_cnt++;
   m_firstFree = m_statusNext[nextFree];
 
-  Object_Execute oe = { objRef , fun };
-
   m_statusNext[nextFree] = INACTIVE;
-  m_objectExecute[nextFree] = oe;
-  m_statusFunction[nextFree] = fun2;
+  m_objectExecute[nextFree] = clnt;
 
   return indexToNumber(nextFree);
 }
@@ -1792,14 +1803,12 @@ TransporterFacade::ThreadData::open(void* objRef,
 int
 TransporterFacade::ThreadData::close(int number){
   number= numberToIndex(number);
-  assert(getInUse(number));
+  assert(m_objectExecute[number] != 0);
   m_statusNext[number] = m_firstFree;
   assert(m_use_cnt);
   m_use_cnt--;
   m_firstFree = number;
-  Object_Execute oe = { 0, 0 };
-  m_objectExecute[number] = oe;
-  m_statusFunction[number] = 0;
+  m_objectExecute[number] = 0;
   return 0;
 }
 
@@ -1982,8 +1991,7 @@ void PollGuard::unlock_and_signal()
   m_locked=false;
 }
 
-template class Vector<NodeStatusFunction>;
-template class Vector<TransporterFacade::ThreadData::Object_Execute>;
+template class Vector<trp_client*>;
 
 #include "SignalSender.hpp"
 
