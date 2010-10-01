@@ -1980,9 +1980,6 @@ private:
   int creleaseSignals;
 #endif
 
-  static void executeMessage(void*, const NdbApiSignal *,
-			     const struct LinearSectionPtr ptr[3]);
-  static void statusMessage(void*, Uint32, bool, bool);
 #ifdef VM_TRACE
 #include <my_attribute.h>
   void printState(const char* fmt, ...)

@@ -127,9 +127,8 @@ public:
   virtual void trp_deliver_signal(const NdbApiSignal* signal,
                                   const struct LinearSectionPtr ptr[3]);
   
-  virtual void trp_node_status(Uint32 nodeId, bool alive, bool nfCompleted);
-  
-private:
+  virtual void trp_node_status(Uint32 nodeId, Uint32 _event);
+
   int m_lock;
   struct NdbCondition * m_cond;
   Vector<SimpleSignal *> m_jobBuffer;

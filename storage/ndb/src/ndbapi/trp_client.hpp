@@ -30,7 +30,7 @@ public:
 
   virtual void trp_deliver_signal(const NdbApiSignal *,
                                   const LinearSectionPtr ptr[3]) = 0;
-  virtual void trp_node_status(Uint32, bool nodeAlive, bool nfComplete) = 0;
+  virtual void trp_node_status(Uint32, Uint32 event) = 0;
 };
 
 #endif

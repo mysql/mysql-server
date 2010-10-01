@@ -150,7 +150,7 @@ public:
    */
   virtual void trp_deliver_signal(const NdbApiSignal*,
                                   const LinearSectionPtr p[3]);
-  virtual void trp_node_status(Uint32, bool nodeAlive, bool nfComplete);
+  virtual void trp_node_status(Uint32, Uint32);
 };
 
 #ifdef VM_TRACE

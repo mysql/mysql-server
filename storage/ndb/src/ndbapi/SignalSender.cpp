@@ -273,18 +273,24 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
 }
   
 void 
-SignalSender::trp_node_status(Uint32 nodeId,
-                              bool alive,
-                              bool nfCompleted){
-  if (alive) {
-    // node connected
+SignalSender::trp_node_status(Uint32 nodeId, Uint32 _event)
+{
+  NS_Event event = (NS_Event)_event;
+  switch(event){
+  case NS_CONNECTED:
+  case NS_NODE_ALIVE:
     return;
+  case NS_NODE_FAILED:
+  case NS_NODE_NF_COMPLETE:
+    goto ok;
   }
+  return;
 
+ok:
   SimpleSignal * s = new SimpleSignal(true);
 
   // node disconnected
-  if(nfCompleted)
+  if (event == NS_NODE_NF_COMPLETE)
   {
     // node shutdown complete
     s->header.theVerId_signalNumber = GSN_NF_COMPLETEREP;
