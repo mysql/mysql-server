@@ -4,7 +4,6 @@
  */
 
 #include <jni.h>
-#include <iostream>
 #include <cassert>
 
 #include "com_mysql_cluster_crund_NdbApiLoad.h"
@@ -93,13 +92,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_clearData(JNIEnv* env,
                                                   jobject obj)
 {
     TRACE("clearData()");
-    cout << "deleting all rows ..." << flush;
-    int delB0;
-    ops->delByScan(ops->meta->table_B0, delB0, true);
-    cout << "       [B0: " << delB0 << flush;
-    int delA;
-    ops->delByScan(ops->meta->table_A, delA, true);
-    cout << ", A: " << delA << "]" << endl;
+    ops->clearData();
 }
 
 JNIEXPORT void JNICALL
@@ -223,25 +216,47 @@ Java_com_mysql_cluster_crund_NdbApiLoad_setB0ByPK(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_getAByPK(JNIEnv* env,
-                                                 jobject obj,
-                                                 jint count_A,
-                                                 jint count_B,
-                                                 jboolean batch)
+Java_com_mysql_cluster_crund_NdbApiLoad_getAByPK_1bb(JNIEnv* env,
+                                                     jobject obj,
+                                                     jint count_A,
+                                                     jint count_B,
+                                                     jboolean batch)
 {
-    TRACE("getAByPK()");
-    ops->getByPK(ops->meta->table_A, 1, count_A, batch == JNI_TRUE);
+    TRACE("getAByPK_bb()");
+    ops->getByPK_bb(ops->meta->table_A, 1, count_A, batch == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_getB0ByPK(JNIEnv* env,
-                                                  jobject obj,
-                                                  jint count_A,
-                                                  jint count_B,
-                                                  jboolean batch)
+Java_com_mysql_cluster_crund_NdbApiLoad_getB0ByPK_1bb(JNIEnv* env,
+                                                      jobject obj,
+                                                      jint count_A,
+                                                      jint count_B,
+                                                      jboolean batch)
 {
-    TRACE("getB0ByPK()");
-    ops->getByPK(ops->meta->table_B0, 1, count_B, batch == JNI_TRUE);
+    TRACE("getB0ByPK_bb()");
+    ops->getByPK_bb(ops->meta->table_B0, 1, count_B, batch == JNI_TRUE);
+}
+
+JNIEXPORT void JNICALL
+Java_com_mysql_cluster_crund_NdbApiLoad_getAByPK_1ar(JNIEnv* env,
+                                                     jobject obj,
+                                                     jint count_A,
+                                                     jint count_B,
+                                                     jboolean batch)
+{
+    TRACE("getAByPK_ar()");
+    ops->getByPK_ar(ops->meta->table_A, 1, count_A, batch == JNI_TRUE);
+}
+
+JNIEXPORT void JNICALL
+Java_com_mysql_cluster_crund_NdbApiLoad_getB0ByPK_1ar(JNIEnv* env,
+                                                      jobject obj,
+                                                      jint count_A,
+                                                      jint count_B,
+                                                      jboolean batch)
+{
+    TRACE("getB0ByPK_ar()");
+    ops->getByPK_ar(ops->meta->table_B0, 1, count_B, batch == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL

@@ -15,6 +15,7 @@
 #include <NdbError.hpp>
 
 #include "helpers.hpp"
+#include "string_helpers.hpp"
 #include "Operations.hpp"
 
 //using namespace std;
@@ -26,6 +27,9 @@ using std::endl;
 using crund_ndb::Meta;
 using crund_ndb::Operations;
 
+// JNI crashes with gcc & operator<<(ostream &, long/int)
+using utils::toString;
+
 /************************************************************
  * Helper Macros & Functions
  ************************************************************/
@@ -35,8 +39,8 @@ using crund_ndb::Operations;
 // - all errors are reported and then followed by a process exit
 
 /*
-// runtime/compiler bug? macro aborts during into->string conversion
-#define ABORT_NDB_ERROR0(error)                                          \
+// JNI crashes with gcc & operator<<(ostream &, long/int)
+#define ABORT_NDB_ERROR0(error)                                         \
     do { cout << "!!! error in " << __FILE__ << ", line: " << __LINE__  \
               << ", code: " << (int)error.code                          \
               << ", msg: " << error.message << "." << endl;             \
@@ -58,14 +62,6 @@ using crund_ndb::Operations;
 
 #define VERIFY(cond)                                                    \
     if (cond); else ABORT_ERROR("wrong data; verification failed")
-
-/*
-static ostream& operator<<(ostream& s, const NdbError& e)
-{
-    s << "code: " << e.code << ", msg: " << e.message << ".";
-    return s;
-}
-*/
 
 /************************************************************
  * Member Functions of Class Meta
@@ -168,14 +164,17 @@ Operations::init(const char* mgmd_conn_str)
     assert (mgmd_conn_str);
 
     // ndb_init must be called first
-    cout << "initializing NDBAPI..." << flush;
+    cout << endl
+         << "initializing NDBAPI ..." << flush;
     int stat = ndb_init();
     if (stat != 0)
         ABORT_ERROR("ndb_init() returned: " << stat);
-    cout << "      [ok]" << endl;
+    cout << "     [ok]" << endl;
 
     // instantiate NDB cluster singleton
+    cout << "creating cluster conn ..." << flush;
     mgmd = new Ndb_cluster_connection(mgmd_conn_str);
+    cout << "   [ok]" << endl; // no useful mgmd->string conversion
 
     // connect to cluster management node (ndb_mgmd)
     cout << "connecting to mgmd ..." << flush;
@@ -219,10 +218,10 @@ Operations::initConnection(const char* catalog, const char* schema)
     // connect to database
     cout << "connecting to database..." << flush;
     ndb = new Ndb(mgmd, catalog, schema);
-    //const int max_no_tx = 10; // maximum number of parallel tx (<=1024)
+    const int max_no_tx = 10; // maximum number of parallel tx (<=1024)
     // note each scan or index scan operation uses one extra transaction
-    //if (ndb->init(max_no_tx) != 0)
-    if (ndb->init() != 0)
+    //if (ndb->init() != 0)
+    if (ndb->init(max_no_tx) != 0)
         ABORT_NDB_ERROR(ndb->getNdbError());
     cout << "   [ok]" << endl;
 
@@ -290,6 +289,19 @@ Operations::closeTransaction()
 }
 
 // ----------------------------------------------------------------------
+
+void
+Operations::clearData()
+{
+    cout << "deleting all rows ..." << flush;
+    const bool batch = true;
+    int delB0 = -1;
+    delByScan(meta->table_B0, delB0, batch);
+    cout << "       [B0: " << toString(delB0) << flush;
+    int delA = -1;
+    delByScan(meta->table_A, delA, batch);
+    cout << ", A: " << toString(delA) << "]" << endl;
+}
 
 struct CommonAB {
     Int32 id;
@@ -439,7 +451,7 @@ Operations::delByScan(const NdbDictionary::Table* table, int& count,
     const bool forceSend_ = false;
     const bool releaseOp = false;
     op->close(forceSend_, releaseOp);
-    //CDBG << "    deleted " << count << " rows" << endl;
+    //CDBG << "!!! deleted " << toString(count) << " rows" << endl;
 
     commitTransaction();
     closeTransaction();
@@ -506,9 +518,9 @@ Operations::setByPK(const NdbDictionary::Table* table,
 }
 
 void
-Operations::getByPK(const NdbDictionary::Table* table,
-                    int from, int to,
-                    bool batch)
+Operations::getByPK_bb(const NdbDictionary::Table* table,
+                       int from, int to,
+                       bool batch)
 {
     // allocate attributes holder
     const int count = (to - from) + 1;
@@ -556,7 +568,7 @@ Operations::getByPK(const NdbDictionary::Table* table,
         VERIFY(id == i);
 
         Int32 j = getCommonAB(pab);
-        //CDBG << "!!! id=" << id << ", i=" << i << endl;
+        //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
         VERIFY(j == id);
     }
 
@@ -564,7 +576,6 @@ Operations::getByPK(const NdbDictionary::Table* table,
     delete[] ab;
 }
 
-// XXX
 struct CommonAB_AR {
     NdbRecAttr* id;
     NdbRecAttr* cint;
@@ -573,7 +584,6 @@ struct CommonAB_AR {
     NdbRecAttr* cdouble;
 };
 
-// XXX
 static inline Int32
 getCommonAB(const CommonAB_AR* const ab)
 {
@@ -587,7 +597,6 @@ getCommonAB(const CommonAB_AR* const ab)
     return cint;
 }
 
-// XXX
 void
 Operations::getByPK_ar(const NdbDictionary::Table* table,
                        int from, int to,
@@ -639,7 +648,7 @@ Operations::getByPK_ar(const NdbDictionary::Table* table,
         VERIFY(id == i);
 
         Int32 j = getCommonAB(pab);
-        //CDBG << "!!! id=" << id << ", i=" << i << endl;
+        //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
         VERIFY(j == id);
     }
 
@@ -695,11 +704,9 @@ Operations::setVar(const NdbDictionary::Table* table, int attr_cvar,
         buf = new char[sbuf];
         buf[0] = (char)slen;
         memcpy(buf + 1, str, slen);
-#if 0
-        CDBG << "!!! buf[0]=" << (int)buf[0] << endl;
-        CDBG << "!!! buf[1]=" << (int)buf[1] << endl;
-        CDBG << "!!! buf[" << slen << "]=" << (int)buf[slen] << endl;
-#endif
+        //CDBG << "!!! buf[0]=" << toString(buf[0]) << endl;
+        //CDBG << "!!! buf[1]=" << toString(buf[1]) << endl;
+        //CDBG << "!!! buf[" << toString(slen) << "]=" << toString(buf[slen]) << endl;
     }
     
     beginTransaction();
@@ -743,13 +750,11 @@ Operations::getVar(const NdbDictionary::Table* table, int attr_cvar,
     const size_t sline = (1 + slen);
     const size_t sbuf = count * sline;
     char* const buf = new char[sbuf];
-#if 0
-    memset(buf, 1, sbuf);
-    CDBG << "!!! buf[0]=" << (int)buf[0] << endl;
-    CDBG << "!!! buf[1]=" << (int)buf[1] << endl;
-    CDBG << "!!! buf[" << slen << "]=" << (int)buf[slen] << endl;
-    CDBG << "!!! buf[" << (slen+1) << "]=" << (int)buf[slen + 1] << endl;
-#endif
+    //memset(buf, 1, sbuf);
+    //CDBG << "!!! buf[0]=" << toString(buf[0]) << endl;
+    //CDBG << "!!! buf[1]=" << toString(buf[1]) << endl;
+    //CDBG << "!!! buf[" << toString(slen) << "]=" << toString(buf[slen]) << endl;
+    //CDBG << "!!! buf[" << toString(slen+1) << "]=" << toString(buf[slen+1]) << endl;
 
     // fetch string attribute by key
     char* s = buf;
@@ -781,12 +786,11 @@ Operations::getVar(const NdbDictionary::Table* table, int attr_cvar,
     // copy (move) the strings to make them aligned and 0-terminated
     s = buf;
     for (int i = from; i <= to; i++, s += sline) {
-#if 0
-        CDBG << "!!! s[0]=" << (int)s[0] << endl;
-        CDBG << "!!! s[1]=" << (int)s[1] << endl;
-        CDBG << "!!! s[" << slen << "]=" << (int)s[slen] << endl;
-        CDBG << "!!! s[" << (slen+1) << "]=" << (int)s[slen + 1] << endl;
-#endif
+        //CDBG << "!!! s[0]=" << toString(s[0]) << endl;
+        //CDBG << "!!! s[1]=" << toString(s[1]) << endl;
+        //CDBG << "!!! s[" << toString(slen) << "]=" << toString(s[slen]) << endl;
+        //CDBG << "!!! s[" << toString(slen+1) << "]=" << toString(s[slen + 1]) << endl;
+
         const size_t n = s[0];
         VERIFY(n < sline);
 
@@ -795,7 +799,6 @@ Operations::getVar(const NdbDictionary::Table* table, int attr_cvar,
         s[n] = 0;
         
         // check fetched values
-        //CDBG << "!!! s=" << (void*)s << ", '" << s << "'" << endl;
         VERIFY(strcmp(s, str) == 0);
     }
     assert (s == buf + sbuf);
@@ -936,7 +939,7 @@ Operations::navB0ToA(int count_A, int count_B,
         VERIFY(id == ((i - 1) % count_A) + 1);
 
         Int32 j = getCommonAB(pab);
-        //CDBG << "!!! id=" << id << ", i=" << i << endl;
+        //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
         VERIFY(j == id);
     }
 
@@ -1025,7 +1028,7 @@ Operations::navB0ToAalt(int count_A, int count_B,
         VERIFY(id == ((i - 1) % count_A) + 1);
 
         Int32 j = getCommonAB(pab);
-        //CDBG << "!!! id=" << id << ", i=" << i << endl;
+        //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
         VERIFY(j == id);
     }
 
@@ -1098,21 +1101,19 @@ Operations::navAToB0(int count_A, int count_B,
     }
     commitTransaction();
     closeTransaction();
-    //CDBG << "!!! pab - ab =" << (pab-ab) << endl;
+    //CDBG << "!!! pab - ab =" << toString(pab-ab) << endl;
     assert (pab == ab + count_B);
 
     // check fetched values
-    // XXX this is may not be the most efficient way of testing...
-// #ifndef NDEBUG
+    // XXX this is not the most efficient way of testing...
     vector<CommonAB> b(ab, ab + count_B);
     sort(b.begin(), b.end(), compare);
     vector<CommonAB>::const_iterator it = b.begin();
     for (int i = 1; i <= count_B; i++, it++) {
         Int32 id = getCommonAB(&it[0]);
-        //CDBG << "!!! id=" << id << ", i=" << i << endl;
+        //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
         VERIFY(id == i);
     }
-//#endif
 
     // release attributes holder
     delete[] ab;
@@ -1199,22 +1200,20 @@ Operations::navAToB0alt(int count_A, int count_B,
     }
     commitTransaction();
     closeTransaction();
-    //CDBG << "!!! a_id=" << a_id << ", pab - ab =" << (pab-ab) << endl;
+    //CDBG << "!!! pab - ab =" << toString(pab-ab) << endl;
     assert (a_id == count_A + 1);
     assert (pab == ab + count_B);
 
     // check fetched values
-    // XXX this is may not be the most efficient way of testing...
-// #ifndef NDEBUG
+    // XXX this is not the most efficient way of testing...
     vector<CommonAB> b(ab, ab + count_B);
     sort(b.begin(), b.end(), compare);
     vector<CommonAB>::const_iterator it = b.begin();
     for (int i = 1; i <= count_B; i++, it++) {
         Int32 id = getCommonAB(&it[0]);
-        //CDBG << "!!! id=" << id << ", i=" << i << endl;
+        //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
         VERIFY(id == i);
     }
-//#endif
 
     // release attributes holder
     delete[] ab;
