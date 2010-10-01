@@ -3,6 +3,7 @@
 --eval $create_statement
 --eval $insert_statement
 --echo # State before failure
+--replace_result #p# #P# #sp# #SP#
 --list_files $DATADIR/test
 SHOW CREATE TABLE t1;
 --sorted_result
@@ -11,6 +12,7 @@ SELECT * FROM t1;
 --eval $fail_statement
 --enable_abort_on_error
 --echo # State after failure
+--replace_result #p# #P# #sp# #SP#
 --list_files $DATADIR/test
 SHOW CREATE TABLE t1;
 --sorted_result
