@@ -713,6 +713,7 @@ private:
   class TransporterFacade * m_transporter;
   
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbDictionaryImpl;
   static void execSignal(void* dictImpl, 
 			 const class NdbApiSignal* signal,

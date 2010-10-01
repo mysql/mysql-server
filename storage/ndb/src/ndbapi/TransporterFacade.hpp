@@ -35,9 +35,7 @@ struct ndb_mgm_configuration;
 class Ndb;
 class NdbApiSignal;
 class NdbWaiter;
-
-typedef void (* ExecuteFunction)(void *, const NdbApiSignal *, const LinearSectionPtr ptr[3]);
-typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfComplete);
+class trp_client;
 
 extern "C" {
   void* runSendRequest_C(void*);
@@ -69,8 +67,7 @@ public:
    * @blockNo block number to use, -1 => any blockNumber
    * @return BlockNumber or -1 for failure
    */
-  int open(void* objRef, ExecuteFunction, NodeStatusFunction,
-           int blockNo = -1);
+  int open(trp_client*, int blockNo = -1);
   
   // Close this block number
   int close(BlockNumber blockNumber);
@@ -262,43 +259,22 @@ private:
     
     ThreadData(Uint32 initialSize = 32);
     
-    /**
-     * Split "object" into 3 list
-     *   This to improve locality
-     *   when iterating over lists
-     */
-    struct Object_Execute {
-      void * m_object;
-      ExecuteFunction m_executeFunction;
-    };
-    struct NodeStatus_NextFree {
-      NodeStatusFunction m_statusFunction;
-    };
-
     Uint32 m_use_cnt;
     Uint32 m_firstFree;
     Vector<Uint32> m_statusNext;
-    Vector<Object_Execute> m_objectExecute;
-    Vector<NodeStatusFunction> m_statusFunction;
+    Vector<trp_client*> m_objectExecute;
     
-    int open(void* objRef, ExecuteFunction, NodeStatusFunction);
+    int open(trp_client*);
     int close(int number);
     void expand(Uint32 size);
 
-    inline Object_Execute get(Uint16 blockNo) const {
+    inline trp_client* get(Uint16 blockNo) const {
       blockNo -= MIN_API_BLOCK_NO;
-      if(likely (blockNo < m_objectExecute.size())){
-	return m_objectExecute[blockNo];
+      if(likely (blockNo < m_objectExecute.size()))
+      {
+        return m_objectExecute.getBase()[blockNo];
       }
-      Object_Execute oe = { 0, 0 };
-      return oe;
-    }
-
-    /**
-     * Is the block number used currently
-     */
-    inline bool getInUse(Uint16 index) const {
-      return (m_statusNext[index] & (1 << 16)) != 0;
+      return 0;
     }
   } m_threads;
 

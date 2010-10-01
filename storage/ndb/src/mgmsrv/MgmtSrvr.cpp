@@ -408,9 +408,7 @@ MgmtSrvr::start_transporter(const Config* config)
     Register ourself at TransporterFacade to be able to receive signals
     and to be notified when a database process has died.
   */
-  if ((_blockNumber= theFacade->open(this,
-                                     signalReceivedNotification,
-                                     nodeStatusNotification)) == -1)
+  if ((_blockNumber= theFacade->open(this)) == -1)
   {
     g_eventLogger->error("Failed to open block in TransporterFacade");
     theFacade->stop_instance();
@@ -2457,7 +2455,8 @@ const char* MgmtSrvr::getErrorText(int errorCode, char *buf, int buf_sz)
 
 
 void
-MgmtSrvr::handleReceivedSignal(const NdbApiSignal* signal)
+MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
+                             const LinearSectionPtr ptr[3])
 {
   int gsn = signal->readSignalNumber();
 
@@ -2492,16 +2491,7 @@ MgmtSrvr::handleReceivedSignal(const NdbApiSignal* signal)
 
 
 void
-MgmtSrvr::signalReceivedNotification(void* mgmtSrvr,
-                                     const NdbApiSignal* signal,
-				     const LinearSectionPtr ptr[3])
-{
-  ((MgmtSrvr*)mgmtSrvr)->handleReceivedSignal(signal);
-}
-
-
-void
-MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
+MgmtSrvr::trp_node_status(Uint32 nodeId, bool alive, bool nfComplete)
 {
   DBUG_ENTER("MgmtSrvr::handleStatus");
   DBUG_PRINT("enter",("nodeid: %d, alive: %d, nfComplete: %d",
@@ -2531,15 +2521,6 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
   eventReport(theData, 1);
   DBUG_VOID_RETURN;
 }
-
-
-void
-MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId,
-				 bool alive, bool nfComplete)
-{
-  ((MgmtSrvr*)mgmSrv)->handleStatus(nodeId, alive, nfComplete);
-}
-
 
 enum ndb_mgm_node_type 
 MgmtSrvr::getNodeType(NodeId nodeId) const 
