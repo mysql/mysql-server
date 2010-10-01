@@ -53,5 +53,29 @@ REPAIR TABLE t1;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug#56422 CHECK TABLE run when the table is locked reports corruption
+--echo #           along with timeout
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection con1
+connect(con1, localhost, root);
+SET lock_wait_timeout= 1;
+CHECK TABLE t1;
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+DROP TABLE t1;
+disconnect con1;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

@@ -2367,15 +2367,19 @@ struct LEX: public Query_tables_list
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
 
-    keyword_delayed_begin points to the begin of the DELAYED keyword in
-    INSERT DELAYED statement.
+    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
+    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
+    offset to the character right after the DELAYED keyword.
   */
   union {
     const char *stmt_definition_begin;
-    const char *keyword_delayed_begin;
+    uint keyword_delayed_begin_offset;
   };
 
-  const char *stmt_definition_end;
+  union {
+    const char *stmt_definition_end;
+    uint keyword_delayed_end_offset;
+  };
 
   /**
     During name resolution search only in the table list given by 
