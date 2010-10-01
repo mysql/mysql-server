@@ -72,6 +72,8 @@ a
 2000-01-02 03:04:05
 2001-02-03 04:05:06
 ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+Warnings:
+Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 ALTER TABLE t1
 PARTITION BY RANGE (TO_DAYS(a))
 (PARTITION p0 VALUES LESS THAN (10000),
@@ -84,8 +86,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (TO_DAYS(a))
 PARTITIONS 3 */
-Warnings:
-Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
