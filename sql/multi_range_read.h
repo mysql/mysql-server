@@ -199,10 +199,10 @@ private:
   
 
   enum enum_index_scan_state {
-    NEED_MORE_RANGES,
-    IN_RANGE_LIST,
-    IN_INDEX_RANGE,
-    IN_IDENTICAL_KEYS_RANGE,
+    REFILL_KEY_BUFFER,
+    GET_NEXT_RANGE,
+    GET_NEXT_RECORD,
+    GET_NEXT_IDENTICAL_KEY,
     SCAN_FINISHED
   };
 
@@ -238,7 +238,7 @@ private:
     we may have a situation where we've read everything from the key buffer but 
     haven't finished with getting index tuples for the last key)
   */
-  bool key_eof;
+  //bool key_eof;
 
   /* Initially FALSE, becomes TRUE when we've set key_tuple_xxx members */
   bool know_key_tuple_params;

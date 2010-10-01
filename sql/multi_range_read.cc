@@ -377,7 +377,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     h->mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
     h->mrr_funcs= *seq_funcs;
     keyno= (h->inited == handler::INDEX)? h->active_index : h2->active_index;
-    index_scan_state= IN_RANGE_LIST;
     dsmrr_fill_key_buffer();
     
     if (dsmrr_eof && !do_rndpos_scan)
@@ -818,7 +817,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
 
   last_identical_key_ptr= NULL;
   //in_identical_keys_range= FALSE;
-  index_scan_state= IN_RANGE_LIST;
+  index_scan_state= GET_NEXT_RANGE;
   DBUG_VOID_RETURN;
 }
 
@@ -884,7 +883,7 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
     bool have_record= FALSE;
     switch (index_scan_state)
     {
-      case IN_IDENTICAL_KEYS_RANGE:
+      case GET_NEXT_IDENTICAL_KEY:
       {
         /* Get the next range_id for the current record */ 
 
@@ -898,12 +897,12 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
             We've just got to the last of identical ranges. Next step is to
             go next record
           */
-          index_scan_state= index_ranges_unique? IN_RANGE_LIST : IN_INDEX_RANGE;
+          index_scan_state= index_ranges_unique? GET_NEXT_RANGE : GET_NEXT_RECORD;
         }
         have_record= TRUE;
         break;
       }
-      case IN_INDEX_RANGE:
+      case GET_NEXT_RECORD:
       {
         /* Get the next record from the range */
         res= file->ha_index_next_same(table->record[0], cur_index_tuple, 
@@ -911,10 +910,10 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
         if (res)
         {
           if (res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
-            return res;  /* Fatal error */
+            DBUG_RETURN(res);  /* Fatal error */
 
           /* Got EOF for this range, go get the next range */
-          index_scan_state= IN_RANGE_LIST;
+          index_scan_state= GET_NEXT_RANGE;
           break;
         }
         
@@ -925,21 +924,23 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
             If the range we're scanning is one of the set of identical ranges,
             return this record with range_id of each range
           */
-          index_scan_state= IN_IDENTICAL_KEYS_RANGE;
+          index_scan_state= GET_NEXT_IDENTICAL_KEY;
           identical_key_it->init(key_buffer);
           cur_range_info= first_identical_range_info;
+          have_record= FALSE; //psergey4
         }
         break;
       }
-      case IN_RANGE_LIST:
+      case GET_NEXT_RANGE:
       {
+        read_out_identical_ranges();
         if (do_rndpos_scan)
           reallocate_buffer_space();
 
         /* Get the next range to scan */
         if (key_buffer->read()) /* read to (cur_index_tuple,cur_range_info) */
         {
-          index_scan_state= NEED_MORE_RANGES;
+          index_scan_state= REFILL_KEY_BUFFER;
           break;
         }
         uchar *key_in_buf= cur_index_tuple;
@@ -951,7 +952,7 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
                                      key_tuple_map, HA_READ_KEY_EXACT);
 
         if (res && res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
-          return res; /* Fatal error */
+          DBUG_RETURN(res); /* Fatal error */
         
         /* 
           Check if subsequent elements in the key buffer are the same as this
@@ -970,28 +971,32 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
 
         if (last_identical_key_ptr)
         {
-          index_scan_state= IN_IDENTICAL_KEYS_RANGE;
+          index_scan_state= GET_NEXT_IDENTICAL_KEY;
           identical_key_it->init(key_buffer);
           first_identical_range_info= cur_range_info;
+          have_record= FALSE; //psergey4
         }
         else
-          index_scan_state= index_ranges_unique? IN_RANGE_LIST : IN_INDEX_RANGE;
+        {
+          index_scan_state= index_ranges_unique? GET_NEXT_RANGE : GET_NEXT_RECORD;
+          have_record= TRUE;
+        }
 
         if (res)
         {
           read_out_identical_ranges();
-          index_scan_state= IN_RANGE_LIST;
+          index_scan_state= GET_NEXT_RANGE;
+          have_record= FALSE;
         }
 
-        have_record= TRUE;
         break;
       }
-      case NEED_MORE_RANGES:
+      case REFILL_KEY_BUFFER:
       {
         if (dsmrr_eof)
         {
           index_scan_state= SCAN_FINISHED;
-          return HA_ERR_END_OF_FILE;
+          DBUG_RETURN(HA_ERR_END_OF_FILE);
         }
 
         /*
@@ -1004,10 +1009,10 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
         if (key_buffer->is_empty())
         {
           index_scan_state= SCAN_FINISHED;
-          return HA_ERR_END_OF_FILE;
+          DBUG_RETURN(HA_ERR_END_OF_FILE);
         }
 
-        index_scan_state= IN_RANGE_LIST;
+        index_scan_state= GET_NEXT_RANGE;
       }
       default:
         DBUG_ASSERT(0);
@@ -1016,16 +1021,17 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
     
     if (have_record &&
         (!h->mrr_funcs.skip_index_tuple ||
-         h->mrr_funcs.skip_index_tuple(h->mrr_iter, *(char**)cur_range_info)) 
+         !h->mrr_funcs.skip_index_tuple(h->mrr_iter, *(char**)cur_range_info)) 
         && 
         (!h->mrr_funcs.skip_record ||
-         h->mrr_funcs.skip_record(h->mrr_iter, *(char**)cur_range_info, NULL)))
+         !h->mrr_funcs.skip_record(h->mrr_iter, *(char**)cur_range_info, NULL)))
     {
       break;
     }
     /* Go get another (record, range_id) combination */
   } /* while */
   
+  memcpy(range_info_arg, cur_range_info, sizeof(void*));
   DBUG_RETURN(0);
 }
 
