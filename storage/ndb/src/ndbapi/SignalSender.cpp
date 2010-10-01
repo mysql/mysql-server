@@ -249,18 +249,25 @@ SignalSender::execSignal(void* signalSender,
 void 
 SignalSender::execNodeStatus(void* signalSender, 
 			     Uint32 nodeId, 
-			     bool alive, 
-			     bool nfCompleted){
-  if (alive) {
-    // node connected
+                             Uint32 _event)
+{
+  NS_Event event = (NS_Event)_event;
+  switch(event){
+  case NS_CONNECTED:
+  case NS_NODE_ALIVE:
     return;
+  case NS_NODE_FAILED:
+  case NS_NODE_NF_COMPLETE:
+    goto ok;
   }
+  return;
 
+ok:
   SimpleSignal * s = new SimpleSignal(true);
   SignalSender * ss = (SignalSender*)signalSender;
 
   // node disconnected
-  if(nfCompleted)
+  if (event == NS_NODE_NF_COMPLETE)
   {
     // node shutdown complete
     s->header.theVerId_signalNumber = GSN_NF_COMPLETEREP;

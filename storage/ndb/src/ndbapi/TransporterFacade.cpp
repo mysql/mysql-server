@@ -846,7 +846,7 @@ TransporterFacade::connected()
     if (m_threads.getInUse(i)){
       void * obj = m_threads.m_objectExecute[i].m_object;
       NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
-      (*RegPC) (obj, numberToRef(indexToNumber(i), theOwnId), true, true);
+      (*RegPC) (obj, numberToRef(indexToNumber(i), theOwnId), NS_CONNECTED);
     }
   }
   DBUG_VOID_RETURN;
@@ -870,7 +870,7 @@ TransporterFacade::ReportNodeDead(NodeId tNodeId)
     if (m_threads.getInUse(i)){
       void * obj = m_threads.m_objectExecute[i].m_object;
       NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
-      (*RegPC) (obj, tNodeId, false, false);
+      (*RegPC) (obj, tNodeId, NS_NODE_FAILED);
     }
   }
   DBUG_VOID_RETURN;
@@ -895,7 +895,7 @@ TransporterFacade::ReportNodeFailureComplete(NodeId tNodeId)
     if (m_threads.getInUse(i)){
       void * obj = m_threads.m_objectExecute[i].m_object;
       NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
-      (*RegPC) (obj, tNodeId, false, true);
+      (*RegPC) (obj, tNodeId, NS_NODE_NF_COMPLETE);
     }
   }
   DBUG_VOID_RETURN;
@@ -918,7 +918,7 @@ TransporterFacade::ReportNodeAlive(NodeId tNodeId)
     if (m_threads.getInUse(i)){
       void * obj = m_threads.m_objectExecute[i].m_object;
       NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
-      (*RegPC) (obj, tNodeId, true, false);
+      (*RegPC) (obj, tNodeId, NS_NODE_ALIVE);
     }
   }
 }
@@ -951,7 +951,7 @@ TransporterFacade::open(void* objRef,
     DBUG_RETURN(r);
 #if 1
   if (theOwnId > 0) {
-    (*statusFun)(objRef, numberToRef(r, theOwnId), true, true);
+    (*statusFun)(objRef, numberToRef(r, theOwnId), NS_CONNECTED);
   }
 #endif
   DBUG_RETURN(r);

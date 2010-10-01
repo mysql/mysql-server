@@ -222,28 +222,30 @@ void Ndb::report_node_connected(Uint32 nodeId)
 }
 
 void
-Ndb::statusMessage(void* NdbObject, Uint32 a_node, bool alive, bool nfComplete)
+Ndb::statusMessage(void* NdbObject, Uint32 a_node, Uint32 _event)
 {
   DBUG_ENTER("Ndb::statusMessage");
-  DBUG_PRINT("info", ("a_node: %u  alive: %u  nfComplete: %u",
-                      a_node, alive, nfComplete));
+  NS_Event event = (NS_Event)_event;
+  DBUG_PRINT("info", ("a_node: %u  event: %u",
+                      a_node, _event));
   Ndb* tNdb = (Ndb*)NdbObject;
-  if (alive) {
-    if (nfComplete) {
-      // cluster connect, a_node == own reference
-      tNdb->connected(a_node);
-      DBUG_VOID_RETURN;
-    }//if
+  switch(event){
+  case NS_CONNECTED:
+    // cluster connect, a_node == own reference
+    tNdb->connected(a_node);
+    break;
+  case NS_NODE_ALIVE:
     tNdb->report_node_connected(a_node);
-  } else {
-    if (nfComplete) {
-      tNdb->report_node_failure_completed(a_node);
-    } else {
-      tNdb->report_node_failure(a_node);
-    }//if
+    break;
+  case NS_NODE_FAILED:
+    tNdb->report_node_failure(a_node);
+    break;
+  case NS_NODE_NF_COMPLETE:
+    tNdb->report_node_failure_completed(a_node);
+    break;
   }//if
   NdbDictInterface::execNodeStatus(&tNdb->theDictionary->m_receiver,
-				   a_node, alive, nfComplete);
+				   a_node, event);
   DBUG_VOID_RETURN;
 }
 

@@ -1939,7 +1939,7 @@ private:
 
   static void executeMessage(void*, NdbApiSignal *, 
 			     struct LinearSectionPtr ptr[3]);
-  static void statusMessage(void*, Uint32, bool, bool);
+  static void statusMessage(void*, Uint32, Uint32);
 #ifdef VM_TRACE
 #include <my_attribute.h>
   void printState(const char* fmt, ...)
