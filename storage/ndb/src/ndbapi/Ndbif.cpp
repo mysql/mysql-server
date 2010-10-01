@@ -73,9 +73,8 @@ Ndb::init(int aMaxNoOfTransactions)
   TransporterFacade * theFacade =  theImpl->m_transporter_facade;
   theFacade->lock_mutex();
   
-  const int tBlockNo = theFacade->open(this,
-                                       executeMessage, 
-                                       statusMessage);  
+  const int tBlockNo = theFacade->open(theImpl);
+
   if ( tBlockNo == -1 ) {
     theError.code = 4105;
     theFacade->unlock_mutex();
@@ -162,12 +161,10 @@ Ndb::releaseTransactionArrays()
 }//Ndb::releaseTransactionArrays()
 
 void
-Ndb::executeMessage(void* NdbObject,
-                    const NdbApiSignal * aSignal,
-                    const LinearSectionPtr ptr[3])
+NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
+                            const LinearSectionPtr ptr[3])
 {
-  Ndb* tNdb = (Ndb*)NdbObject;
-  tNdb->handleReceivedSignal(aSignal, ptr);
+  m_ndb.handleReceivedSignal(aSignal, ptr);
 }
 
 void Ndb::connected(Uint32 ref)
@@ -215,12 +212,12 @@ void Ndb::report_node_connected(Uint32 nodeId)
 }
 
 void
-Ndb::statusMessage(void* NdbObject, Uint32 a_node, bool alive, bool nfComplete)
+NdbImpl::trp_node_status(Uint32 a_node, bool alive, bool nfComplete)
 {
   DBUG_ENTER("Ndb::statusMessage");
   DBUG_PRINT("info", ("a_node: %u  alive: %u  nfComplete: %u",
                       a_node, alive, nfComplete));
-  Ndb* tNdb = (Ndb*)NdbObject;
+  Ndb* tNdb = (Ndb*)&m_ndb;
   if (alive) {
     if (nfComplete) {
       // cluster connect, a_node == own reference

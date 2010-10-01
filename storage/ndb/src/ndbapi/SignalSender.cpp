@@ -81,7 +81,7 @@ SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
   m_cond = NdbCondition_Create();
   theFacade = facade;
   lock();
-  m_blockNo = theFacade->open(this, execSignal, execNodeStatus, blockNo);
+  m_blockNo = theFacade->open(this, blockNo);
   unlock();
   assert(m_blockNo > 0);
 }
@@ -91,7 +91,7 @@ SignalSender::SignalSender(Ndb_cluster_connection* connection)
   m_cond = NdbCondition_Create();
   theFacade = connection->m_impl.m_transporter_facade;
   lock();
-  m_blockNo = theFacade->open(this, execSignal, execNodeStatus, -1);
+  m_blockNo = theFacade->open(this, -1);
   unlock();
   assert(m_blockNo > 0);
 }
@@ -257,9 +257,9 @@ SignalSender::waitFor(Uint32 timeOutMillis){
 #include <NdbApiSignal.hpp>
 
 void
-SignalSender::execSignal(void* signalSender, 
-			 const NdbApiSignal* signal,
-			 const struct LinearSectionPtr ptr[3]){
+SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
+                                 const struct LinearSectionPtr ptr[3])
+{
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
   memcpy(&s->theData[0], signal->getDataPtr(), 4 * s->header.theLength);
@@ -268,23 +268,20 @@ SignalSender::execSignal(void* signalSender,
     s->ptr[i].sz = ptr[i].sz;
     memcpy(s->ptr[i].p, ptr[i].p, 4 * ptr[i].sz);
   }
-  SignalSender * ss = (SignalSender*)signalSender;
-  ss->m_jobBuffer.push_back(s);
-  NdbCondition_Signal(ss->m_cond);
+  m_jobBuffer.push_back(s);
+  NdbCondition_Signal(m_cond);
 }
   
 void 
-SignalSender::execNodeStatus(void* signalSender, 
-			     Uint32 nodeId, 
-			     bool alive, 
-			     bool nfCompleted){
+SignalSender::trp_node_status(Uint32 nodeId,
+                              bool alive,
+                              bool nfCompleted){
   if (alive) {
     // node connected
     return;
   }
 
   SimpleSignal * s = new SimpleSignal(true);
-  SignalSender * ss = (SignalSender*)signalSender;
 
   // node disconnected
   if(nfCompleted)
@@ -309,13 +306,13 @@ SignalSender::execNodeStatus(void* signalSender,
     NdbNodeBitmask::clear(rep->theNodes);
 
     // Mark ndb nodes as failed in bitmask
-    const ClusterMgr::Node node= ss->getNodeInfo(nodeId);
+    const ClusterMgr::Node node= getNodeInfo(nodeId);
     if (node.m_info.getType() ==  NodeInfo::DB)
       NdbNodeBitmask::set(rep->theNodes, nodeId);
   }
 
-  ss->m_jobBuffer.push_back(s);
-  NdbCondition_Signal(ss->m_cond);
+  m_jobBuffer.push_back(s);
+  NdbCondition_Signal(m_cond);
 }
 
 
