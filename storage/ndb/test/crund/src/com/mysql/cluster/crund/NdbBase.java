@@ -53,8 +53,8 @@ abstract public class NdbBase extends Driver {
 
     protected void printProperties() {
         super.printProperties();
-        out.println("ndb.mgmdConnect             " + mgmdConnect);
-        out.println("ndb.catalog                 " + catalog);
-        out.println("ndb.schema                  " + schema);
+        out.println("ndb.mgmdConnect             \"" + mgmdConnect + "\"");
+        out.println("ndb.catalog                 \"" + catalog + "\"");
+        out.println("ndb.schema                  \"" + schema + "\"");
     }
 }

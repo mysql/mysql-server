@@ -50,32 +50,23 @@ public class NdbApiLoad extends NdbBase {
         loadSystemLibrary("crundndb");
 
         // initialize NDB resources
-        out.println();
-        try {
-            final int ret = ndbinit(mgmdConnect);
-            if (ret != 0) {
-                err.println("NdbApiLoad: failed initializing NDBAPI;"
-                            + " return value = " + ret);
-            }
-        } catch (RuntimeException e) {
-            err.println("NdbApiLoad: failed initializing NDBAPI;"
-                        + " caught exception: " + e);
-            throw e;
+        final int ret = ndbinit(mgmdConnect);
+        if (ret != 0) {
+            String msg = ("NdbApiLoad: failed initializing NDBAPI;"
+                          + " return value = " + ret);
+            err.println(msg);
+            throw new Exception(msg);
         }
     }
 
     protected void close() throws Exception {
         // release NDB resources
-        try {
-            final int ret = ndbclose();
-            if (ret != 0) {
-                err.println("NdbApiLoad: failed closing NDBAPI;"
-                            + " return value = " + ret);
-            }
-        } catch (RuntimeException e) {
-            err.println("NdbApiLoad: failed closing NDBAPI;"
-                        + " caught exception: " + e);
-            throw e;
+        final int ret = ndbclose();
+        if (ret != 0) {
+            String msg = ("NdbApiLoad: failed closing NDBAPI;"
+                          + " return value = " + ret);
+            err.println(msg);
+            throw new Exception(msg);
         }
         super.close();
     }
@@ -107,10 +98,14 @@ public class NdbApiLoad extends NdbBase {
                                    boolean batch);
     protected native void setB0ByPK(int countA, int countB,
                                     boolean batch);
-    protected native void getAByPK(int countA, int countB,
-                                   boolean batch);
-    protected native void getB0ByPK(int countA, int countB,
-                                    boolean batch);
+    protected native void getAByPK_bb(int countA, int countB,
+                                      boolean batch);
+    protected native void getB0ByPK_bb(int countA, int countB,
+                                       boolean batch);
+    protected native void getAByPK_ar(int countA, int countB,
+                                      boolean batch);
+    protected native void getB0ByPK_ar(int countA, int countB,
+                                       boolean batch);
     protected native void setVarbinary(int countA, int countB,
                                        boolean batch, int length);
     protected native void getVarbinary(int countA, int countB,
@@ -171,16 +166,30 @@ public class NdbApiLoad extends NdbBase {
                 });
 
             ops.add(
-                new Op("getAByPK" + (batch ? "_batch" : "")) {
+                new Op("getAByPK_bb" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB) {
-                        getAByPK(countA, countB, batch);
+                        getAByPK_bb(countA, countB, batch);
                     }
                 });
 
             ops.add(
-                new Op("getB0ByPK" + (batch ? "_batch" : "")) {
+                new Op("getAByPK_ar" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB) {
-                        getB0ByPK(countA, countB, batch);
+                        getAByPK_ar(countA, countB, batch);
+                    }
+                });
+
+            ops.add(
+                new Op("getB0ByPK_bb" + (batch ? "_batch" : "")) {
+                    public void run(int countA, int countB) {
+                        getB0ByPK_bb(countA, countB, batch);
+                    }
+                });
+
+            ops.add(
+                new Op("getB0ByPK_ar" + (batch ? "_batch" : "")) {
+                    public void run(int countA, int countB) {
+                        getB0ByPK_ar(countA, countB, batch);
                     }
                 });
 

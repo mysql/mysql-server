@@ -89,23 +89,25 @@ abstract public class Driver {
     // benchmark settings
     protected final Properties props = new Properties();
     protected String descr = "";
-    protected boolean logRealTime = false;
-    protected boolean logMemUsage = false;
-    protected boolean includeFullGC = false;
-    protected boolean logSumOfOps = false;
-    protected boolean renewOperations = false;
-    protected boolean renewConnection = false;
-    protected boolean allowExtendedPC = false;
-    protected int aRows = (1 << 8);
-    protected int bRows = (1 << 8);
-    protected int aStart = (1 << 8), aEnd = (1 << 12), aIncr = (1 << 2);
-    protected int bStart = (1 << 8), bEnd = (1 << 12), bIncr = (1 << 2);
-    protected int maxVarbinaryBytes = 100;
-    protected int maxVarcharChars = 100;
-    protected int maxBlobBytes = 1000;
-    protected int maxTextChars = 1000;
-    protected int warmupRuns = 0;
-    protected int hotRuns = 0;
+    protected boolean logRealTime;
+    protected boolean logMemUsage;
+    protected boolean includeFullGC;
+    protected boolean logSumOfOps;
+    protected boolean renewOperations;
+    protected boolean renewConnection;
+    protected boolean allowExtendedPC;
+    protected int aStart;
+    protected int bStart;
+    protected int aEnd;
+    protected int bEnd;
+    protected int aScale;
+    protected int bScale;
+    protected int maxVarbinaryBytes;
+    protected int maxVarcharChars;
+    protected int maxBlobBytes;
+    protected int maxTextChars;
+    protected int warmupRuns;
+    protected int hotRuns;
     protected final Set<String> exclude = new HashSet<String>();
 
     // ----------------------------------------------------------------------
@@ -263,9 +265,10 @@ abstract public class Driver {
             init();
 
             // warmup runs
-            for (int i = 0; i < warmupRuns; i++)
+            for (int i = 0; i < warmupRuns; i++) {
                 runTests();
-
+            }
+            
             // truncate log file, reset log buffers
             out.println();
             out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
@@ -280,9 +283,10 @@ abstract public class Driver {
             openLogFile();
 
             // hot runs
-            for (int i = 0; i < hotRuns; i++)
+            for (int i = 0; i < hotRuns; i++) {
                 runTests();
-
+            }
+            
             // write log buffers
             if (logRealTime) {
                 log.println(descr + ", rtime[ms]"
@@ -311,7 +315,6 @@ abstract public class Driver {
         loadProperties();
         initProperties();
         printProperties();
-        checkProperties();
         openLogFile();
 
         // init log buffers
@@ -383,7 +386,12 @@ abstract public class Driver {
      * Initializes the benchmark properties.
      */
     protected void initProperties() {
-        // initialize boolean/numeric properties
+        //props.list(out);
+        out.print("initializing properties ... ");
+
+        final StringBuilder msg = new StringBuilder();        
+        final String eol = System.getProperty("line.separator");        
+
         logRealTime = parseBoolean("logRealTime");
         logMemUsage = parseBoolean("logMemUsage");
         includeFullGC = parseBoolean("includeFullGC");
@@ -391,14 +399,39 @@ abstract public class Driver {
         renewOperations = parseBoolean("renewOperations");
         renewConnection = parseBoolean("renewConnection");
         allowExtendedPC = parseBoolean("allowExtendedPC");
-        aRows = parseInt("aRows", 0);
-        bRows = parseInt("bRows", 0);
-        aStart = parseInt("aStart", 0);
-        aEnd = parseInt("aEnd", 0);
-        aIncr = parseInt("aIncr", 0);
-        bStart = parseInt("bStart", 0);
-        bEnd = parseInt("bEnd", 0);
-        bIncr = parseInt("bIncr", 0);
+
+        aStart = parseInt("aStart", 256);
+        if (aStart < 1) {
+            msg.append("[ignored] aStart:            " + aStart + eol);
+            aStart = 256;
+        }
+        aEnd = parseInt("aEnd", aStart);
+        if (aEnd < aStart) {
+            msg.append("[ignored] aEnd:              "+ aEnd + eol);
+            aEnd = aStart;
+        }
+        aScale = parseInt("aScale", 2);
+        if (aScale < 2) {
+            msg.append("[ignored] aScale:            " + aScale + eol);
+            aScale = 2;
+        }
+
+        bStart = parseInt("bStart", 256);
+        if (bStart < 1) {
+            msg.append("[ignored] bStart:            " + bStart + eol);
+            bStart = 256;
+        }
+        bEnd = parseInt("bEnd", bStart);
+        if (bEnd < bStart) {
+            msg.append("[ignored] bEnd:              " + bEnd + eol);
+            bEnd = bStart;
+        }
+        bScale = parseInt("bScale", 2);
+        if (bScale < 2) {
+            msg.append("[ignored] bScale:            " + bScale + eol);
+            bScale = 2;
+        }
+
         maxVarbinaryBytes = parseInt("maxVarbinaryBytes", 100);
         maxVarcharChars = parseInt("maxVarcharChars", 100);
         maxBlobBytes = parseInt("maxBlobBytes", 1000);
@@ -411,13 +444,22 @@ abstract public class Driver {
         for (int i = 0; i < e.length; i++) {
             exclude.add(e[i]);
         }
-    }
 
+        if (msg.length() == 0) {
+            out.println("[ok]");
+        } else {
+            out.println();
+            out.print(msg.toString());
+        }
+        out.println("data set:                   "
+                    + "[A=" + aStart + ".." + aEnd
+                    + ", B=" + bStart + ".." + bEnd + "]");
+    }
+    
     /**
      * Prints the benchmark's properties.
      */
     protected void printProperties() {
-        //props.list(out);
         out.println();
         out.println("main settings:");
         out.println("logRealTime:                " + logRealTime);
@@ -427,14 +469,12 @@ abstract public class Driver {
         out.println("renewOperations:            " + renewOperations);
         out.println("renewConnection:            " + renewConnection);
         out.println("allowExtendedPC:            " + allowExtendedPC);
-        out.println("aRows:                      " + aRows);
         out.println("aStart:                     " + aStart);
-        out.println("aEnd:                       " + aEnd);
-        out.println("aIncr:                      " + aIncr);
-        out.println("bRows:                      " + bRows);
         out.println("bStart:                     " + bStart);
+        out.println("aEnd:                       " + aEnd);
         out.println("bEnd:                       " + bEnd);
-        out.println("bIncr:                      " + bIncr);
+        out.println("aScale:                     " + aScale);
+        out.println("bScale:                     " + bScale);
         out.println("maxVarbinaryBytes:          " + maxVarbinaryBytes);
         out.println("maxVarcharChars:            " + maxVarcharChars);
         out.println("maxBlobBytes:               " + maxBlobBytes);
@@ -444,109 +484,6 @@ abstract public class Driver {
         out.println("exclude:                    " + exclude);
     }
 
-    /**
-     * Checks the benchmark's properties.
-     */
-    protected void checkProperties() {
-        out.println();
-        out.print("checking properties ...     ");
-        final StringBuilder msg = new StringBuilder();        
-        final String eol = System.getProperty("line.separator");        
-        if (aRows > 0) {
-            if (aStart > 0) {
-                msg.append("[ignored] aStart:           ");
-                msg.append(aStart);
-                msg.append(eol);
-            }
-            if (aEnd > 0) {
-                msg.append("[ignored] aEnd:             ");
-                msg.append(aEnd);
-                msg.append(eol);
-            }
-            if (aIncr > 0) {
-                msg.append("[ignored] aIncr:            ");
-                msg.append(aIncr);
-                msg.append(eol);
-            }
-            aStart = aRows;
-            aEnd = aRows;
-            aIncr = 2;
-        } else {
-            if (aStart <= 0) {
-                aStart = (1 << 8);
-                msg.append("[changed] aStart:           ");
-                msg.append(aStart);
-                msg.append(eol);
-            }
-            if (aEnd < aStart) {
-                aEnd = aStart;
-                msg.append("[changed] aEnd:             ");
-                msg.append(aEnd);
-                msg.append(eol);
-            }
-            if (aIncr <= 1) {
-                aIncr = 2;
-                msg.append("[changed] aIncr:            ");
-                msg.append(aIncr);
-                msg.append(eol);
-            }
-        }
-        if (bRows > 0) {
-            if (bRows < aRows) {
-                bRows = aRows;
-                msg.append("[changed] bRows:            ");
-                msg.append(bRows);
-                msg.append(eol);
-            }
-            if (bStart > 0) {
-                msg.append("[ignored] bStart:           ");
-                msg.append(bStart);
-                msg.append(eol);
-            }
-            if (bEnd > 0) {
-                msg.append("[ignored] bEnd:             ");
-                msg.append(bEnd);
-                msg.append(eol);
-            }
-            if (bIncr > 0) {
-                msg.append("[ignored] bIncr:            ");
-                msg.append(bIncr);
-                msg.append(eol);
-            }
-            bStart = bRows;
-            bEnd = bRows;
-            bIncr = 2;
-        } else {
-            if (bStart < aStart) {
-                bStart = aStart;
-                msg.append("[changed] bStart:           ");
-                msg.append(bStart);
-                msg.append(eol);
-            }
-            if (bEnd < bStart) {
-                bEnd = bStart;
-                msg.append("[changed] bEnd:             ");
-                msg.append(bEnd);
-                msg.append(eol);
-            }
-            if (bIncr <= 1) {
-                bIncr = 2;
-                msg.append("[changed] bIncr:            ");
-                msg.append(bIncr);
-                msg.append(eol);
-            }
-        }
-        if (msg.length() == 0) {
-            out.println("[ok]");
-        } else {
-            out.println();
-            out.print(msg.toString());
-        }
-        out.println("data range:                 "
-                    + "[A=" + aStart + ".." + aEnd
-                    + ", B=" + bStart + ".." + bEnd + "]");
-    }
-    
     /**
      * Opens the benchmark's data log file.
      */
@@ -578,9 +515,10 @@ abstract public class Driver {
         initConnection();
         initOperations();
 
-        for (int i = aStart; i <= aEnd; i *= aIncr) {
-            //for (int j = bBeg; j <= bEnd; j *= bIncr)
-            for (int j = (i > bStart ? i : bStart); j <= bEnd; j *= bIncr) {
+        assert (aStart <= aEnd && aScale > 1);
+        assert (bStart <= bEnd && bScale > 1);
+        for (int i = aStart; i <= aEnd; i *= aScale) {
+            for (int j = bStart; j <= bEnd; j *= bScale) {
                 try {
                     runOperations(i, j);
                 } catch (Exception ex) {
@@ -606,8 +544,14 @@ abstract public class Driver {
     protected void runOperations(int countA, int countB) throws Exception {
         out.println();
         out.println("------------------------------------------------------------");
-        out.println("countA = " + countA + ", countB = " + countB);
-        out.println();
+
+        if (countA > countB) {
+            out.println("skipping operations ...     "
+                        + "[A=" + countA + ", B=" + countB + "]");
+            return;
+        }
+        out.println("running operations ...      "
+                    + "[A=" + countA + ", B=" + countB + "]");
 
         // log buffers
         if (logRealTime) {
@@ -653,7 +597,8 @@ abstract public class Driver {
                 rtimes.append("\t" + ta);
                 out.println();
                 out.println("total");
-                out.println("tx real time      = " + ta + "\tms [begin..commit]");
+                out.println("tx real time\t\t= " + ta
+                            + "\tms [begin..commit]");
             }
             rtimes.append(endl);
         }
@@ -662,7 +607,7 @@ abstract public class Driver {
                 musage.append("\t" + ma);
                 out.println();
                 out.println("total");
-                out.println("net mem usage     = " + (ma >= 0 ? "+" : "") + ma
+                out.println("net mem usage\t\t= " + (ma >= 0 ? "+" : "") + ma
                             + "\tKiB");
             }
             musage.append(endl);
@@ -718,7 +663,8 @@ abstract public class Driver {
             //t1 = System.currentTimeMillis();
             t1 = System.nanoTime() / 1000000;
             final long t = t1 - t0;
-            out.println("tx real time      = " + t + "\tms [begin..commit]");
+            out.println("tx real time\t\t= " + t
+                        + "\tms [begin..commit]");
             //rtimes.append("\t" + (Math.round(t / 100.0) / 10.0));
             rtimes.append("\t" + t);
             ta += t;
@@ -731,16 +677,8 @@ abstract public class Driver {
             final long m0K = (m0 / 1024);
             final long m1K = (m1 / 1024);
             final long mK = m1K - m0K;
-            out.println("net mem usage     = " + (mK >= 0 ? "+" : "") + mK
+            out.println("net mem usage\t\t= " + (mK >= 0 ? "+" : "") + mK
                         + "\tKiB [" + m0K + "K->" + m1K + "K]");
-/*
-            out.println("allocated memory  = "
-                        + m1 + "\tK after commit");
-            out.println("total memory      = "
-                        + (rt.totalMemory() / 1024) + "\tK after commit");
-            out.println("max memory        = "
-                        + (rt.maxMemory() / 1024) + "\tK after commit");
-*/
             musage.append("\t" + mK);
             ma += mK;
         }

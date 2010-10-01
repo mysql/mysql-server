@@ -88,6 +88,8 @@ public:
 
     void rollbackTransaction();
 
+    void clearData();
+
     void delByScan(const NdbDictionary::Table* table, int& count,
                    bool batch);
 
@@ -100,10 +102,9 @@ public:
     void setByPK(const NdbDictionary::Table* table, int from, int to,
                  bool batch);
 
-    void getByPK(const NdbDictionary::Table* table, int from, int to,
-                 bool batch);
+    void getByPK_bb(const NdbDictionary::Table* table, int from, int to,
+                    bool batch);
 
-    // XXX
     void getByPK_ar(const NdbDictionary::Table* table, int from, int to,
                     bool batch);
 
