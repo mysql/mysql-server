@@ -474,7 +474,7 @@ private:
    */
   virtual void trp_deliver_signal(const NdbApiSignal* signal,
                                   const struct LinearSectionPtr ptr[3]);
-  virtual void trp_node_status(Uint32 nodeId, bool alive, bool nfCompleted);
+  virtual void trp_node_status(Uint32 nodeId, Uint32 event);
   
   /**
    * An event from <i>nodeId</i> has arrived
