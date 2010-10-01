@@ -408,7 +408,6 @@ TransporterFacade::doStop(){
    * and also uses theFacadeInstance to lock/unlock theMutexPtr
    */
   if (theClusterMgr != NULL) theClusterMgr->doStop();
-  if (theArbitMgr != NULL) theArbitMgr->doStop(NULL);
   
   /**
    * Now stop the send and receive threads
@@ -629,7 +628,6 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theOwnId(0),
   theStartNodeId(1),
   theClusterMgr(NULL),
-  theArbitMgr(NULL),
   checkCounter(4),
   currentSendLimit(1),
   theStopReceive(0),
@@ -719,7 +717,7 @@ TransporterFacade::configure(NodeId nodeId,
     DBUG_RETURN(false);
 
   // Configure cluster manager
-  theClusterMgr->configure(conf);
+  theClusterMgr->configure(nodeId, conf);
 
   ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_NODE);
   if(iter.find(CFG_NODE_ID, nodeId))
@@ -729,28 +727,6 @@ TransporterFacade::configure(NodeId nodeId,
   Uint32 total_send_buffer = 0;
   iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
   theTransporterRegistry->allocate_send_buffers(total_send_buffer);
-
-  // Configure arbitrator
-  Uint32 rank = 0;
-  iter.get(CFG_NODE_ARBIT_RANK, &rank);
-  if (rank > 0)
-  {
-    // The arbitrator should be active
-    if (!theArbitMgr)
-      theArbitMgr = new ArbitMgr(* this);
-    theArbitMgr->setRank(rank);
-
-    Uint32 delay = 0;
-    iter.get(CFG_NODE_ARBIT_DELAY, &delay);
-    theArbitMgr->setDelay(delay);
-  }
-  else if (theArbitMgr)
-  {
-    // No arbitrator should be started
-    theArbitMgr->doStop(NULL);
-    delete theArbitMgr;
-    theArbitMgr= NULL;
-  }
 
   Uint32 auto_reconnect=1;
   iter.get(CFG_AUTO_RECONNECT, &auto_reconnect);
@@ -888,7 +864,6 @@ TransporterFacade::~TransporterFacade()
 
   NdbMutex_Lock(theMutexPtr);
   delete theClusterMgr;  
-  delete theArbitMgr;
   delete theTransporterRegistry;
   NdbMutex_Unlock(theMutexPtr);
   NdbMutex_Destroy(theMutexPtr);

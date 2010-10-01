@@ -233,7 +233,6 @@ private:
   NodeId theStartNodeId;
 
   ClusterMgr* theClusterMgr;
-  ArbitMgr* theArbitMgr;
   
   // Improving the API response time
   int checkCounter;
