@@ -729,7 +729,7 @@ private:
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  bool uses_blob_value(const MY_BITMAP *bitmap);
+  bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
   static inline bool isManualBinlogExec(THD *thd);
 
