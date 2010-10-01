@@ -36,11 +36,11 @@ using std::flush;
  * Helper Macros & Functions
  ************************************************************/
 
-// gcc: crashes when printing source code file number:
-//               << ", line: " << (__LINE__)
+// JNI crashes with gcc & operator<<(ostream &, long/int)
 // so, we use C99's __func__ and also convert to string using sprintf()
 #define ABORT_ERROR(message)                                            \
-    do { char l[1024];                                                  \
+    do {                                                                \
+        char l[1024];                                                   \
         sprintf(l, "%d", __LINE__);                                     \
         cout << "!!! error, file: " << (__FILE__)                       \
              << ", function: " << (__func__)                            \

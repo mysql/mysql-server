@@ -182,12 +182,11 @@ public class NdbJTieLoad extends NdbBase {
 
         // instantiate NDB cluster singleton
         out.println();
-        out.print("creating cluster conn...");
+        out.print("creating cluster conn ...");
         out.flush();
         mgmd = Ndb_cluster_connection.create(mgmdConnect);
         assert mgmd != null;
-        //out.println("    [ok]");
-        out.println("    [ok, mgmd=" + mgmd + "]");
+        out.println("   [ok, mgmd=" + mgmd + "]");
 
         // connect to cluster management node (ndb_mgmd)
         out.print("connecting to mgmd ...");
@@ -222,7 +221,6 @@ public class NdbJTieLoad extends NdbBase {
         out.flush();
         final int initial_wait = 10; // secs to wait until first node detected
         final int final_wait = 0;    // secs to wait after first node detected
-
         // returns: 0 all nodes live, > 0 at least one node live, < 0 error
         if (mgmd.wait_until_ready(initial_wait, final_wait) < 0) {
             final String msg = ("data nodes were not ready within "
@@ -232,10 +230,9 @@ public class NdbJTieLoad extends NdbBase {
         }
         out.println("   [ok]");
 
-
         // connect to database
-        out.println();
-        out.println("connecting to database...");
+        out.print("connecting to database...");
+        out.flush();
         ndb = Ndb.create(mgmd, catalog, schema);
         final int max_no_tx = 10; // maximum number of parallel tx (<=1024)
         // note each scan or index scan operation uses one extra transaction
@@ -346,7 +343,7 @@ public class NdbJTieLoad extends NdbBase {
                     });
 
                 ops.add(
-                    new Op("clearVarbinary" + (batch ? "_batch" : "")) {
+                    new Op("clearVarbinary" + l + (batch ? "_batch" : "")) {
                         public void run(int countA, int countB) {
                             setVarbinary(meta.table_B0, 1, countB, batch, null);
                         }
@@ -368,6 +365,13 @@ public class NdbJTieLoad extends NdbBase {
                     new Op("getVarchar" + l + (batch ? "_batch" : "")) {
                         public void run(int countA, int countB) {
                             getVarchar(meta.table_B0, 1, countB, batch, s);
+                        }
+                    });
+
+                ops.add(
+                    new Op("clearVarchar" + l + (batch ? "_batch" : "")) {
+                        public void run(int countA, int countB) {
+                            setVarchar(meta.table_B0, 1, countB, batch, null);
                         }
                     });
             }

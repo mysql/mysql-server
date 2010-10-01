@@ -8,6 +8,7 @@
 
 //#include <cstdio>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <set>
 
@@ -20,6 +21,7 @@ namespace utils {
 using std::string;
 using std::wstring;
 using std::ostream;
+using std::wistringstream;
 using std::set;
 
 /************************************************************
@@ -59,14 +61,47 @@ toBool(const wstring& ws)
 }
 
 /**
+ * Parses a wide character string as a (signed) decimal integer.
+ *
+ * Returns the integral value of a wide character string, the default value
+ * if the string is empty, or the error value if the conversion has failed.
+ */
+template< typename I >
+inline I
+toI(const wstring& ws, I vdefault, I verror)
+{
+    I val;
+    if (ws.length() == 0) {
+        val = vdefault;
+    } else {
+        wistringstream wiss(ws);
+        wiss >> val;
+        if (wiss.fail() || !wiss.eof()) {
+            val = verror;
+        }
+    }
+    return val;
+}
+
+inline int
+toInt(const wstring& ws, int vdefault, int verror)
+{
+    return toI< int >(ws, vdefault, verror);
+}
+
+/**
  * Returns the character representation of an int.
  */
 inline string
 toString(int i)
 {
-    std::ostringstream o;
-    o << i;
-    return o.str();
+    // JNI crashes with gcc & operator<<(ostream &, long/int)
+    //std::ostringstream o;
+    //o << i;
+    //return o.str();
+    char s[256];
+    snprintf(s, 256, "%d", i);
+    return string(s);
 }
 
 /**
@@ -86,36 +121,6 @@ toString(const wstring& ws)
 }
 
 /**
- * Inserts all elements of a set s into the output stream os.
- */
-/*
-// neither matches operator<< in: set<string> s ; cout << s;
-
-inline ostream &
-operator<< (ostream & os, const set< string >& s)
-{
-    os << "{";
-    set< string >::iterator i = s.begin();
-    if (i != s.end()) {
-        os << *i;
-        while (++i != s.end())
-            os << "," << *i;
-    }
-    os << "}";
-    return os;
-}    
-
-template< typename T >
-inline ostream &
-operator<< (ostream& os, const set< T >& s)
-{
-    typename set< T >::iterator i = s.begin();
-...
-}    
-
-*/
-
-/**
  * Returns a string representation of all elements in the set.
  * 
  * This function is not very efficient in that it involves multiple
@@ -125,19 +130,19 @@ inline string
 toString(const set< string >& s)
 {
     string r;
-    r += "{";
+    r += "[";
     set< string >::iterator i = s.begin();
     if (i != s.end()) {
         r += "\"";
         r += *i;
         r += "\"";
         while (++i != s.end()) {
-            r += ",\"";
+            r += ", \"";
             r += *i;
             r += "\"";
         }
     }
-    r += "}";
+    r += "]";
     return r;
 }    
 
