@@ -86,9 +86,10 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
-enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
-                            SLAVE_EXEC_MODE_IDEMPOTENT,
-                            SLAVE_EXEC_MODE_LAST_BIT};
+
+#define SLAVE_EXEC_MODE_STRICT      (1U << 0)
+#define SLAVE_EXEC_MODE_IDEMPOTENT  (1U << 1)
+
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
@@ -415,12 +416,14 @@ struct system_variables
 };
 
 
-/* per thread status variables */
+/**
+  Per thread status variables.
+  Must be long/ulong up to last_system_status_var so that
+  add_to_status/add_diff_to_status can work.
+*/
 
 typedef struct system_status_var
 {
-  ulonglong bytes_received;
-  ulonglong bytes_sent;
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
   ulong created_tmp_disk_tables;
@@ -476,13 +479,14 @@ typedef struct system_status_var
     Number of statements sent from the client
   */
   ulong questions;
+
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
-    Below 'last_system_status_var' are all variables which doesn't make any
-    sense to add to the /global/ status variable counter.
-    Status variables which it does not make sense to add to
-    global status variable counter
+    Below 'last_system_status_var' are all variables that cannot be handled
+    automatically by add_to_status()/add_diff_to_status().
   */
   double last_query_cost;
 } STATUS_VAR;
@@ -1007,6 +1011,7 @@ public:
   bool enable_slow_log;
   bool last_insert_id_used;
   SAVEPOINT *savepoints;
+  enum enum_check_fields count_cuted_fields;
 };
 
 
@@ -1276,7 +1281,11 @@ struct Ha_data
     @sa trans_register_ha()
   */
   Ha_trx_info ha_info[2];
-
+  /**
+    NULL: engine is not bound to this thread
+    non-NULL: engine is bound to this thread, engine shutdown forbidden
+  */
+  plugin_ref lock;
   Ha_data() :ha_ptr(NULL) {}
 };
 
@@ -1730,8 +1739,15 @@ public:
   */
   ha_rows    sent_row_count;
 
-  /*
-    number of rows we read, sent or not, including in create_sort_index()
+  /**
+    Number of rows read and/or evaluated for a statement. Used for
+    slow log reporting.
+
+    An examined row is defined as a row that is read and/or evaluated
+    according to a statement condition, including in
+    create_sort_index(). Rows may be counted more than once, e.g., a
+    statement including ORDER BY could possibly evaluate the row in
+    filesort() before reading it for e.g. update.
   */
   ha_rows    examined_row_count;
 
@@ -2041,6 +2057,11 @@ public:
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
   }
+  /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
+  inline bool	is_valid_time() 
+  { 
+    return (start_time < (time_t) MY_TIME_T_MAX); 
+  }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }
   inline ulonglong found_rows(void)
@@ -2337,7 +2358,7 @@ public:
   /**
     Remove the error handler last pushed.
   */
-  void pop_internal_handler();
+  Internal_error_handler *pop_internal_handler();
 
   /** Overloaded to guard query/query_length fields */
   virtual void set_statement(Statement *stmt);
@@ -2347,6 +2368,18 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
+  void set_current_user_used() { current_user_used= TRUE; }
+  bool is_current_user_used() { return current_user_used; }
+  void clean_current_user_used() { current_user_used= FALSE; }
+  void get_definer(LEX_USER *definer);
+  void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
+  {
+    invoker_user= *user;
+    invoker_host= *host;
+  }
+  LEX_STRING get_invoker_user() { return invoker_user; }
+  LEX_STRING get_invoker_host() { return invoker_host; }
+  bool has_invoker() { return invoker_user.length > 0; }
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
@@ -2366,6 +2399,25 @@ private:
     tree itself is reused between executions and thus is stored elsewhere.
   */
   MEM_ROOT main_mem_root;
+
+  /**
+    It will be set TURE if CURRENT_USER() is called in account management
+    statements or default definer is set in CREATE/ALTER SP, SF, Event,
+    TRIGGER or VIEW statements.
+
+    Current user will be binlogged into Query_log_event if current_user_used
+    is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
+   */
+  bool current_user_used;
+
+  /**
+    It points to the invoker in the Query_log_event.
+    SQL thread use it as the default definer in CREATE/ALTER SP, SF, Event,
+    TRIGGER or VIEW statements or current user in account management
+    statements if it is not NULL.
+   */
+  LEX_STRING invoker_user;
+  LEX_STRING invoker_host;
 };
 
 
@@ -2425,7 +2477,7 @@ class select_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
-  uint nest_level;
+  int nest_level;
 public:
   select_result();
   virtual ~select_result() {};
@@ -2566,7 +2618,7 @@ public:
      Creates a select_export to represent INTO OUTFILE <filename> with a
      defined level of subquery nesting.
    */
-  select_export(sql_exchange *ex, uint nest_level_arg) :select_to_file(ex) 
+  select_export(sql_exchange *ex, int nest_level_arg) :select_to_file(ex) 
   {
     nest_level= nest_level_arg;
   }
@@ -2583,7 +2635,7 @@ public:
      Creates a select_export to represent INTO DUMPFILE <filename> with a
      defined level of subquery nesting.
    */  
-  select_dump(sql_exchange *ex, uint nest_level_arg) : 
+  select_dump(sql_exchange *ex, int nest_level_arg) : 
     select_to_file(ex) 
   {
     nest_level= nest_level_arg;
@@ -2942,12 +2994,15 @@ public:
                                             ulonglong max_in_memory_size)
   {
     register ulonglong max_elems_in_tree=
-      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
+      max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size);
     return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
   }
 
   void reset();
   bool walk(tree_walk_action action, void *walk_action_arg);
+
+  uint get_size() const { return size; }
+  ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
 
   friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
@@ -3057,7 +3112,7 @@ public:
      Creates a select_dumpvar to represent INTO <variable> with a defined 
      level of subquery nesting.
    */
-  select_dumpvar(uint nest_level_arg)
+  select_dumpvar(int nest_level_arg)
   {
     var_list.empty();
     row_count= 0;

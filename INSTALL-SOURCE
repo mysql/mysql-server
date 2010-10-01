@@ -17,8 +17,7 @@ Chapter 2. Installing and Upgrading MySQL
        platform.
        Please note that not all platforms are equally suitable for
        running MySQL, and that not all platforms on which MySQL is
-       known to run are officially supported by Sun Microsystems,
-       Inc.:
+       known to run are officially supported by Oracle Corporation:
 
     2. Choose which distribution to install.
        Several versions of MySQL are available, and most are
@@ -77,12 +76,11 @@ Chapter 2. Installing and Upgrading MySQL
 
 Important
 
-   Sun Microsystems, Inc. does not necessarily provide official
-   support for all the platforms listed in this section. For
-   information about those platforms that are officially supported,
-   see MySQL Server Supported Platforms
-   (http://www.mysql.com/support/supportedplatforms.html) on the
-   MySQL Web site.
+   Oracle Corporation does not necessarily provide official support
+   for all the platforms listed in this section. For information
+   about those platforms that are officially supported, see
+   http://www.mysql.com/support/supportedplatforms.html on the MySQL
+   Web site.
 
    We use GNU Autoconf, so it is possible to port MySQL to all modern
    systems that have a C++ compiler and a working implementation of
@@ -148,7 +146,7 @@ Important
        by the ability of the file system to deal with large files and
        dealing with them efficiently.
 
-     * Our level of expertise here at Sun Microsystems, Inc. with the
+     * Our level of expertise here at Oracle Corporation with the
        platform. If we know a platform well, we enable
        platform-specific optimizations and fixes at compile time. We
        can also provide advice on configuring your system optimally
@@ -184,17 +182,16 @@ Important
        new features are being added that could affect stability.
 
      * MySQL 5.0 is the previous stable (production-quality) release
-       series.
+       series. MySQL 5.0 is now at the end of the product lifecycle.
+       Active development and support for this version has ended.
+       Extended support for MySQL 5.0 remains available. According to
+       the http://www.mysql.com/about/legal/lifecycle/, only Security
+       and Severity Level 1 issues are still being fixed for MySQL
+       5.0.
 
      * MySQL 4.1, 4.0, and 3.23 are old stable (production-quality)
-       release series. MySQL 4.1 is now at the end of the product
-       lifecycle. Active development and support for these versions
-       has ended.
-       Extended support for MySQL 4.1 remains available. According to
-       the MySQL Lifecycle Policy
-       (http://www.mysql.com/about/legal/lifecycle/), only Security
-       and Severity Level 1 issues are still being fixed for MySQL
-       4.1.
+       release series. Active development and support for these
+       versions has ended.
 
    We do not believe in a complete code freeze because this prevents
    us from making bugfixes and other fixes that must be done. By
@@ -228,7 +225,7 @@ Important
    the code on which future releases are to be based.
 
    The MySQL naming scheme uses release names that consist of three
-   numbers and a suffix; for example, mysql-5.0.12-beta. The numbers
+   numbers and a suffix; for example, mysql-5.0.14-rc. The numbers
    within the release name are interpreted as follows:
 
      * The first number (5) is the major version and describes the
@@ -238,7 +235,7 @@ Important
        the major version and release level constitute the release
        series number.
 
-     * The third number (12) is the version number within the release
+     * The third number (14) is the version number within the release
        series. This is incremented for each new release. Usually you
        want the latest version for the series you have chosen.
 
@@ -306,11 +303,6 @@ Important
        to determine whether the latest batch of optimizations
        actually made the code faster. See Section 7.1.3, "The MySQL
        Benchmark Suite."
-
-     * The crash-me test
-       This test tries to determine what features the database
-       supports and what its capabilities and limitations are. See
-       Section 7.1.3, "The MySQL Benchmark Suite."
 
    We also test the newest MySQL version in our internal production
    environment, on at least one machine. We have more than 100GB of
@@ -475,8 +467,8 @@ Important
 shell> md5sum package_name
 
    Example:
-shell> md5sum mysql-standard-5.1.41-linux-i686.tar.gz
-aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.41-linux-i686.ta
+shell> md5sum mysql-standard-5.1.46-linux-i686.tar.gz
+aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.46-linux-i686.ta
 r.gz
 
    You should verify that the resulting checksum (the string of
@@ -520,8 +512,7 @@ Note
    named build@mysql.com. Alternatively, you can cut and paste the
    key directly from the following text:
 -----BEGIN PGP PUBLIC KEY BLOCK-----
-Version: GnuPG v1.0.6 (GNU/Linux)
-Comment: For info see http://www.gnupg.org
+Version: GnuPG v1.4.5 (GNU/Linux)
 
 mQGiBD4+owwRBAC14GIfUfCyEDSIePvEW3SAFUdJBtoQHH/nJKZyQT7h9bPlUWC3
 RODjQReyCITRrdwyrKUGku2FmeVGwn2u2WmDMNABLnpprWPkBdCk96+OmSLN9brZ
@@ -533,81 +524,26 @@ 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
-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
+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
-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
-=Xquv
+Eg2aLos+5zEYrB/LsrkCDQQ+PqMdEAgA7+GJfxbMdY4wslPnjH9rF4N2qfWsEN/l
+xaZoJYc3a6M02WCnHl6ahT2/tBK2w1QI4YFteR47gCvtgb6O1JHffOo2HfLmRDRi
+Rjd1DTCHqeyX7CHhcghj/dNRlW2Z0l5QFEcmV9U0Vhp3aFfWC4Ujfs3LU+hkAWzE
+7zaD5cH9J7yv/6xuZVw411x0h4UqsTcWMu0iM1BzELqX1DY7LwoPEb/O9Rkbf4fm
+Le11EzIaCa4PqARXQZc4dhSinMt6K3X4BrRsKTfozBu74F47D8Ilbf5vSYHbuE5p
+/1oIDznkg/p8kW+3FxuWrycciqFTcNz215yyX39LXFnlLzKUb/F5GwADBQf+Lwqq
+a8CGrRfsOAJxim63CHfty5mUc5rUSnTslGYEIOCR1BeQauyPZbPDsDD9MZ1ZaSaf
+anFvwFG6Llx9xkU7tzq+vKLoWkm4u5xf3vn55VjnSd1aQ9eQnUcXiL4cnBGoTbOW
+I39EcyzgslzBdC++MPjcQTcA7p6JUVsP6oAB3FQWg54tuUo0Ec8bsM8b3Ev42Lmu
+QT5NdKHGwHsXTPtl0klk4bQk4OajHsiy1BMahpT27jWjJlMiJc+IWJ0mghkKHt92
+6s/ymfdf5HkdQ1cyvsz5tryVI3Fx78XeSYfQvuuwqp2H139pXGEkg0n6KdUOetdZ
+Whe70YGNPw1yjWJT1IhMBBgRAgAMBQI+PqMdBQkJZgGAAAoJEIxxjTtQcuH17p4A
+n3r1QpVC9yhnW2cSAjq+kr72GX0eAJ4295kl6NxYEuFApmr1+0uUq/SlsQ==
+=Mski
+
 -----END PGP PUBLIC KEY BLOCK-----
 
    To import the build key into your personal public GPG keyring, use
@@ -650,8 +586,8 @@ pg-signature.html
    signature, which also is available from the download page. The
    signature file has the same name as the distribution file with an
    .asc extension, as shown by the examples in the following table.
-   Distribution file mysql-standard-5.1.41-linux-i686.tar.gz
-   Signature file    mysql-standard-5.1.41-linux-i686.tar.gz.asc
+   Distribution file mysql-standard-5.1.46-linux-i686.tar.gz
+   Signature file    mysql-standard-5.1.46-linux-i686.tar.gz.asc
 
    Make sure that both files are stored in the same directory and
    then run the following command to verify the signature for the
@@ -659,7 +595,7 @@ pg-signature.html
 shell> gpg --verify package_name.asc
 
    Example:
-shell> gpg --verify mysql-standard-5.1.41-linux-i686.tar.gz.asc
+shell> gpg --verify mysql-standard-5.1.46-linux-i686.tar.gz.asc
 gpg: Signature made Tue 12 Jul 2005 23:35:41 EST using DSA key ID 507
 2E1F5
 gpg: Good signature from "MySQL Package signing key (www.mysql.com) <
@@ -679,8 +615,8 @@ build@mysql.com>"
 shell> rpm --checksig package_name.rpm
 
    Example:
-shell> rpm --checksig MySQL-server-5.1.41-0.glibc23.i386.rpm
-MySQL-server-5.1.41-0.glibc23.i386.rpm: md5 gpg OK
+shell> rpm --checksig MySQL-server-5.1.46-0.glibc23.i386.rpm
+MySQL-server-5.1.46-0.glibc23.i386.rpm: md5 gpg OK
 
 Note
 
@@ -705,7 +641,7 @@ shell> rpm --import mysql_pubkey.asc
 
    This section describes the default layout of the directories
    created by installing binary or source distributions provided by
-   Sun Microsystems, Inc. A distribution provided by another vendor
+   Oracle Corporation. A distribution provided by another vendor
    might use a layout different from those shown here.
 
    Installations created from our Linux RPM distributions result in
@@ -773,9 +709,7 @@ shell> rpm --import mysql_pubkey.asc
 
    This section covers the installation of MySQL binary distributions
    that are provided for various platforms in the form of compressed
-   tar files (files with a .tar.gz extension). See Section 2.2,
-   "Installing MySQL from Generic Binaries on Unix/Linux," for a
-   detailed list.
+   tar files (files with a .tar.gz extension).
 
    To obtain MySQL, see Section 2.1.3, "How to Get MySQL."
 
@@ -793,7 +727,7 @@ shell> rpm --import mysql_pubkey.asc
 
    MySQL tar file binary distributions have names of the form
    mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
-   5.1.41), and OS indicates the type of operating system for which
+   5.1.46), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
    In addition to these generic packages, we also offer binaries in
@@ -818,7 +752,7 @@ shell> rpm --import mysql_pubkey.asc
        first.
 
    If you run into problems and need to file a bug report, please use
-   the instructions in Section 1.6, "How to Report Bugs or Problems."
+   the instructions in Section 1.7, "How to Report Bugs or Problems."
 
    The basic commands that you must execute to install and use a
    MySQL binary distribution are:
@@ -987,7 +921,7 @@ Note
 
    MySQL source distributions are provided as compressed tar archives
    and have names of the form mysql-VERSION.tar.gz, where VERSION is
-   a number like 5.1.41.
+   a number like 5.1.46.
 
    You need the following tools to build and install MySQL from
    source:
@@ -1005,15 +939,9 @@ Note
        systems with a deficient tar, you should install GNU tar
        first.
 
-     * A working ANSI C++ compiler. gcc 2.95.2 or later, SGI C++, and
-       SunPro C++ are some of the compilers that are known to work.
-       libg++ is not needed when using gcc. gcc 2.7.x has a bug that
-       makes it impossible to compile some perfectly legal C++ files,
-       such as sql/sql_base.cc. If you have only gcc 2.7.x, you must
-       upgrade your gcc to be able to compile MySQL. gcc 2.8.1 is
-       also known to have problems on some platforms, so it should be
-       avoided if a newer compiler exists for the platform. gcc
-       2.95.2 or later is recommended.
+     * A working ANSI C++ compiler. GCC 3.2 or later, Sun Studio 10
+       or later, Visual Studio 2005 or later, and many current
+       vendor-supplied compilers are known to work.
 
      * A good make program. GNU make is always recommended and is
        sometimes required. (BSD make fails, and vendor-provided make
@@ -1035,7 +963,7 @@ CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors \
    On most systems, this gives you a fast and stable binary.
 
    If you run into problems and need to file a bug report, please use
-   the instructions in Section 1.6, "How to Report Bugs or Problems."
+   the instructions in Section 1.7, "How to Report Bugs or Problems."
 
 2.3.1. Source Installation Overview
 
@@ -1121,7 +1049,7 @@ shell> make
        from config.log that you think can help solve the problem.
        Also include the last couple of lines of output from
        configure. To file a bug report, please use the instructions
-       in Section 1.6, "How to Report Bugs or Problems."
+       in Section 1.7, "How to Report Bugs or Problems."
        If the compile fails, see Section 2.3.4, "Dealing with
        Problems Compiling MySQL," for help.
 
@@ -1497,10 +1425,9 @@ shell> ./configure --with-charset=CHARSET
        cp1251, cp1256, cp1257, cp850, cp852, cp866, cp932, dec8,
        eucjpms, euckr, gb2312, gbk, geostd8, greek, hebrew, hp8,
        keybcs2, koi8r, koi8u, latin1, latin2, latin5, latin7, macce,
-       macroman, sjis, swe7, tis620, ucs2, ujis, utf8. See Section
-       9.2, "The Character Set Used for Data and Sorting."
-       (Additional character sets might be available. Check the
-       output from ./configure --help for the current list.)
+       macroman, sjis, swe7, tis620, ucs2, ujis, utf8. (Additional
+       character sets might be available. Check the output from
+       ./configure --help for the current list.)
        The default collation may also be specified. MySQL uses the
        latin1_swedish_ci collation by default. To change this, use
        the --with-collation option:
@@ -1602,7 +1529,7 @@ shell> ./configure --with-debug
      * When given with --enable-community-features, the
        --enable-profiling option enables the statement profiling
        capability exposed by the SHOW PROFILE and SHOW PROFILES
-       statements. (See Section 12.5.5.33, "SHOW PROFILES Syntax.")
+       statements. (See Section 12.4.5.33, "SHOW PROFILES Syntax.")
        This option was added in MySQL 5.1.24. It is enabled by
        default as of MySQL 5.1.28; to disable it, use
        --disable-profiling.
@@ -1610,7 +1537,7 @@ shell> ./configure --with-debug
      * See Section 2.1, "General Installation Guidance," for options
        that pertain to particular operating systems.
 
-     * See Section 5.5.7.2, "Using SSL Connections," for options that
+     * See Section 5.5.6.2, "Using SSL Connections," for options that
        pertain to configuring MySQL to support secure (encrypted)
        connections.
 
@@ -1664,12 +1591,12 @@ Caution
    (either a binary or source distribution).
 
    To obtain the most recent development source tree, you must have
-   Bazaar installed. You can obtain Bazaar from the Bazaar VCS
-   Website (http://bazaar-vcs.org). Bazaar is supported by any
-   platform that supports Python, and is therefore compatible with
-   any Linux, Unix, Windows or Mac OS X host. Instructions for
-   downloading and installing Bazaar on the different platforms are
-   available on the Bazaar website.
+   Bazaar installed. You can obtain Bazaar from the Bazaar VCS Web
+   site (http://bazaar-vcs.org). Bazaar is supported by any platform
+   that supports Python, and is therefore compatible with any Linux,
+   Unix, Windows or Mac OS X host. Instructions for downloading and
+   installing Bazaar on the different platforms are available on the
+   Bazaar Web site.
 
    All MySQL projects are hosted on Launchpad
    (http://launchpad.net/). MySQL projects, including MySQL server,
@@ -1752,7 +1679,7 @@ shell> bzr log
        page.
        If you see diffs (changes) or code that you have a question
        about, do not hesitate to send email to the MySQL internals
-       mailing list. See Section 1.5.1, "MySQL Mailing Lists." Also,
+       mailing list. See Section 1.6.1, "MySQL Mailing Lists." Also,
        if you think you have a better idea on how to do something,
        send an email message to the list with a patch.
 
@@ -1816,7 +1743,7 @@ shell> make
 
     6. If you have gotten to the make stage, but the distribution
        does not compile, please enter the problem into our bugs
-       database using the instructions given in Section 1.6, "How to
+       database using the instructions given in Section 1.7, "How to
        Report Bugs or Problems." If you have installed the latest
        versions of the required GNU tools, and they crash trying to
        process our configuration files, please report that also.
@@ -2092,7 +2019,7 @@ implicit declaration of function `int strtoul(...)'
 
      * Before any upgrade, back up your databases, including the
        mysql database that contains the grant tables. See Section
-       6.1, "Database Backup Methods."
+       6.2, "Database Backup Methods."
 
      * Read all the notes in Section 2.4.1.1, "Upgrading from MySQL
        5.0 to 5.1." These notes enable you to identify upgrade issues
@@ -2117,7 +2044,7 @@ implicit declaration of function `int strtoul(...)'
      * If you are running MySQL Server on Windows, see Section 2.5.7,
        "Upgrading MySQL on Windows."
 
-     * If you are using replication, see Section 16.3.3, "Upgrading a
+     * If you are using replication, see Section 16.4.3, "Upgrading a
        Replication Setup," for information on upgrading your
        replication setup.
 
@@ -2251,7 +2178,7 @@ Note
        done before upgrading. Use of this statement with a version of
        MySQL different from the one used to create the table (that
        is, using it after upgrading) may damage the table. See
-       Section 12.5.2.6, "REPAIR TABLE Syntax."
+       Section 12.4.2.6, "REPAIR TABLE Syntax."
 
      * After you upgrade to a new version of MySQL, run mysql_upgrade
        (see Section 4.4.8, "mysql_upgrade --- Check Tables for MySQL
@@ -2274,7 +2201,7 @@ Note
      * If you are running MySQL Server on Windows, see Section 2.5.7,
        "Upgrading MySQL on Windows."
 
-     * If you are using replication, see Section 16.3.3, "Upgrading a
+     * If you are using replication, see Section 16.4.3, "Upgrading a
        Replication Setup," for information on upgrading your
        replication setup.
 
@@ -2322,13 +2249,13 @@ Note
        upgrading, and reload them into MySQL 5.1 after upgrading.
 
      * Known issue: The fix for
-       Bug#23491: http://bugs.mysql.com/23491 introduced a problem
-       with SHOW CREATE VIEW, which is used by mysqldump. This causes
-       an incompatibility when upgrading from versions affected by
-       that bug fix (MySQL 5.0.40 through 5.0.43, MySQL 5.1.18
-       through 5.1.19): If you use mysqldump before upgrading from an
-       affected version and reload the data after upgrading to a
-       higher version, you must drop and recreate your views.
+       Bug#23491: http://bugs.mysql.com/bug.php?id=23491 introduced a
+       problem with SHOW CREATE VIEW, which is used by mysqldump.
+       This causes an incompatibility when upgrading from versions
+       affected by that bug fix (MySQL 5.0.40 through 5.0.43, MySQL
+       5.1.18 through 5.1.19): If you use mysqldump before upgrading
+       from an affected version and reload the data after upgrading
+       to a higher version, you must drop and recreate your views.
 
      * Known issue: Dumps performed by using mysqldump to generate a
        dump file before the upgrade and reloading the file after
@@ -2456,11 +2383,11 @@ RENAME TABLE table_b TO `table b`;
      * Incompatible change: MySQL 5.1 implements support for a plugin
        API that allows the loading and unloading of components at
        runtime, without restarting the server. Section 22.2, "The
-       MySQL Plugin Interface." The plugin API requires the
-       mysql.plugin table. After upgrading from an older version of
-       MySQL, you should run the mysql_upgrade command to create this
-       table. See Section 4.4.8, "mysql_upgrade --- Check Tables for
-       MySQL Upgrade."
+       MySQL Plugin API." The plugin API requires the mysql.plugin
+       table. After upgrading from an older version of MySQL, you
+       should run the mysql_upgrade command to create this table. See
+       Section 4.4.8, "mysql_upgrade --- Check Tables for MySQL
+       Upgrade."
        Plugins are installed in the directory named by the plugin_dir
        system variable. This variable also controls the location from
        which the server loads user-defined functions (UDFs), which is
@@ -2718,7 +2645,7 @@ REPAIR TABLE tbl_name QUICK;
        specifies the locale that controls the language used to
        display day and month names and abbreviations. This variable
        affects the output from the DATE_FORMAT(), DAYNAME() and
-       MONTHNAME() functions. See Section 9.8, "MySQL Server Locale
+       MONTHNAME() functions. See Section 9.7, "MySQL Server Locale
        Support."
 
      * As of MySQL 5.1.9, mysqld_safe no longer implicitly invokes
@@ -2749,7 +2676,7 @@ REPAIR TABLE tbl_name QUICK;
        to reload them into an upgraded server. Handlers that contain
        illegal label references will be rejected.
        For more information about condition handlers and writing them
-       to avoid invalid jumps, see Section 12.8.4.2, "DECLARE for
+       to avoid invalid jumps, see Section 12.7.4.2, "DECLARE for
        Handlers."
 
      * Incompatible change: The parser accepted statements that
@@ -2758,13 +2685,13 @@ REPAIR TABLE tbl_name QUICK;
        contain unclosed /*-comments now are rejected with a syntax
        error.
        This fix has the potential to cause incompatibilities. Because
-       of Bug#26302: http://bugs.mysql.com/26302, which caused the
-       trailing */ to be truncated from comments in views, stored
-       routines, triggers, and events, it is possible that objects of
-       those types may have been stored with definitions that now
-       will be rejected as syntactically invalid. Such objects should
-       be dropped and re-created so that their definitions do not
-       contain truncated comments.
+       of Bug#26302: http://bugs.mysql.com/bug.php?id=26302, which
+       caused the trailing */ to be truncated from comments in views,
+       stored routines, triggers, and events, it is possible that
+       objects of those types may have been stored with definitions
+       that now will be rejected as syntactically invalid. Such
+       objects should be dropped and re-created so that their
+       definitions do not contain truncated comments.
 
      * Incompatible change: Multiple-table DELETE statements
        containing ambiguous aliases could have unintended side
@@ -2851,21 +2778,20 @@ mysql> source /tmp/triggers.sql //
        mysqldump or mysqlhotcopy can be used as alternatives.
 
      * The LOAD DATA FROM MASTER and LOAD TABLE FROM MASTER
-       statements are deprecated. See Section 12.6.2.2, "LOAD DATA
+       statements are deprecated. See Section 12.5.2.2, "LOAD DATA
        FROM MASTER Syntax," for recommended alternatives.
 
      * The INSTALL PLUGIN and UNINSTALL PLUGIN statements that are
        used for the plugin API are new. So is the WITH PARSER clause
        for FULLTEXT index creation that associates a parser plugin
-       with a full-text index. Section 22.2, "The MySQL Plugin
-       Interface."
+       with a full-text index. Section 22.2, "The MySQL Plugin API."
 
    C API Changes:
 
      * Incompatible change: As of MySQL 5.1.7, the
        mysql_stmt_attr_get() C API function returns a boolean rather
        than an unsigned int for STMT_ATTR_UPDATE_MAX_LENGTH.
-       (Bug#16144: http://bugs.mysql.com/16144)
+       (Bug#16144: http://bugs.mysql.com/bug.php?id=16144)
 
 2.4.2. Downgrading MySQL
 
@@ -2930,10 +2856,10 @@ mysql> source /tmp/triggers.sql //
     5. Reload the dump file into the older server. Your tables should
        be accessible.
 
-   It might also be the case that the structure of the system tables
-   in the mysql database has changed and that downgrading introduces
-   some loss of functionality or requires some adjustments. Here are
-   some examples:
+   It might also be the case that system tables in the mysql database
+   have changed and that downgrading introduces some loss of
+   functionality or requires some adjustments. Here are some
+   examples:
 
      * Trigger creation requires the TRIGGER privilege as of MySQL
        5.1. In MySQL 5.0, there is no TRIGGER privilege and SUPER is
@@ -2943,6 +2869,12 @@ mysql> source /tmp/triggers.sql //
 
      * Triggers were added in MySQL 5.0, so if you downgrade from 5.0
        to 4.1, you cannot use triggers at all.
+
+     * The mysql.proc.comment column definition changed between MySQL
+       5.1 and 5.5. After a downgrade from 5.5 to 5.1, this table is
+       seen as corrupt and in need of repair. To workaround this
+       problem, execute mysql_upgrade from the version of MySQL to
+       which you downgraded.
 
 2.4.2.1. Downgrading to MySQL 5.0
 
@@ -2979,9 +2911,10 @@ mysql> source /tmp/triggers.sql //
        --all-databases option). Instead, you should run mysqldump
        --routines prior to performing the downgrade and run the
        stored routines DDL statements following the downgrade.
-       See Bug#11986: http://bugs.mysql.com/11986,
-       Bug#30029: http://bugs.mysql.com/30029, and
-       Bug#30660: http://bugs.mysql.com/30660, for more information.
+       See Bug#11986: http://bugs.mysql.com/bug.php?id=11986,
+       Bug#30029: http://bugs.mysql.com/bug.php?id=30029, and
+       Bug#30660: http://bugs.mysql.com/bug.php?id=30660, for more
+       information.
 
      * Triggers.  Trigger creation requires the TRIGGER privilege as
        of MySQL 5.1. In MySQL 5.0, there is no TRIGGER privilege and
@@ -3060,10 +2993,10 @@ mysql> source /tmp/triggers.sql //
    report, the bug number is given.
 
    The list applies both for binary upgrades and downgrades. For
-   example, Bug#27877: http://bugs.mysql.com/27877 was fixed in MySQL
-   5.1.24 and 5.4.0, so it applies to upgrades from versions older
-   than 5.1.24 to 5.1.24 or newer, and to downgrades from 5.1.24 or
-   newer to versions older than 5.1.24.
+   example, Bug#27877: http://bugs.mysql.com/bug.php?id=27877 was
+   fixed in MySQL 5.1.24 and 5.4.0, so it applies to upgrades from
+   versions older than 5.1.24 to 5.1.24 or newer, and to downgrades
+   from 5.1.24 or newer to versions older than 5.1.24.
 
    In many cases, you can use CHECK TABLE ... FOR UPGRADE to identify
    tables for which index rebuilding is required. (It will report:
@@ -3073,33 +3006,36 @@ mysql> source /tmp/triggers.sql //
    TABLE. However, the use of CHECK TABLE applies only after
    upgrades, not downgrades. Also, CHECK TABLE is not applicable to
    all storage engines. For details about which storage engines CHECK
-   TABLE supports, see Section 12.5.2.3, "CHECK TABLE Syntax."
+   TABLE supports, see Section 12.4.2.3, "CHECK TABLE Syntax."
 
    Changes that cause index rebuilding to be necessary:
 
-     * MySQL 5.0.48, 5.1.21 (Bug#29461: http://bugs.mysql.com/29461)
+     * MySQL 5.0.48, 5.1.21
+       (Bug#29461: http://bugs.mysql.com/bug.php?id=29461)
        Affects indexes for columns that use any of these character
        sets: eucjpms, euc_kr, gb2312, latin7, macce, ujis
        Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 5.1.29, 5.4.0 (see
-       Bug#39585: http://bugs.mysql.com/39585).
+       Bug#39585: http://bugs.mysql.com/bug.php?id=39585).
 
-     * MySQL 5.0.48, 5.1.23 (Bug#27562: http://bugs.mysql.com/27562)
+     * MySQL 5.0.48, 5.1.23
+       (Bug#27562: http://bugs.mysql.com/bug.php?id=27562)
        Affects indexes that use the ascii_general_ci collation for
        columns that contain any of these characters: '`' GRAVE
        ACCENT, '[' LEFT SQUARE BRACKET, '\' REVERSE SOLIDUS, ']'
        RIGHT SQUARE BRACKET, '~' TILDE
        Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 5.1.29, 5.4.0 (see
-       Bug#39585: http://bugs.mysql.com/39585).
+       Bug#39585: http://bugs.mysql.com/bug.php?id=39585).
 
-     * MySQL 5.1.24, 5.4.0 (Bug#27877: http://bugs.mysql.com/27877)
+     * MySQL 5.1.24, 5.4.0
+       (Bug#27877: http://bugs.mysql.com/bug.php?id=27877)
        Affects indexes that use the utf8_general_ci or
        ucs2_general_ci collation for columns that contain 'ß' LATIN
        SMALL LETTER SHARP S (German).
        Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 5.1.30, 5.4.0 (see
-       Bug#40053: http://bugs.mysql.com/40053).
+       Bug#40053: http://bugs.mysql.com/bug.php?id=40053).
 
 2.4.4. Rebuilding or Repairing Tables or Indexes
 
@@ -3107,10 +3043,12 @@ mysql> source /tmp/triggers.sql //
    necessitated by changes to MySQL such as how data types are
    handled or changes to character set handling. For example, an
    error in a collation might have been corrected, necessitating a
-   table rebuild to rebuild the indexes for character columns that
-   use the collation. It might also be that a table repair or upgrade
-   should be done as indicated by a table check operation such as
-   that performed by CHECK TABLE, mysqlcheck, or mysql_upgrade.
+   table rebuild to update the indexes for character columns that use
+   the collation. (For examples, see Section 2.4.3, "Checking Whether
+   Tables or Indexes Must Be Rebuilt.") It might also be that a table
+   repair or upgrade should be done as indicated by a table check
+   operation such as that performed by CHECK TABLE, mysqlcheck, or
+   mysql_upgrade.
 
    Methods for rebuilding a table include dumping and reloading it,
    or using ALTER TABLE or REPAIR TABLE.
@@ -3120,26 +3058,25 @@ Note
    If you are rebuilding tables because a different version of MySQL
    will not handle them after a binary (in-place) upgrade or
    downgrade, you must use the dump-and-reload method. Dump the
-   tables before upgrading or downgrading (using your original
-   version of MySQL), and reload the tables after upgrading or
-   downgrading (after installing the new version).
+   tables before upgrading or downgrading using your original version
+   of MySQL. Then reload the tables after upgrading or downgrading.
 
    If you use the dump-and-reload method of rebuilding tables only
    for the purpose of rebuilding indexes, you can perform the dump
    either before or after upgrading or downgrading. Reloading still
    must be done afterward.
 
-   To re-create a table by dumping and reloading it, use mysqldump to
+   To rebuild a table by dumping and reloading it, use mysqldump to
    create a dump file and mysql to reload the file:
 shell> mysqldump db_name t1 > dump.sql
 shell> mysql db_name < dump.sql
 
-   To recreate all the tables in a single database, specify the
+   To rebuild all the tables in a single database, specify the
    database name without any following table name:
 shell> mysqldump db_name > dump.sql
 shell> mysql db_name < dump.sql
 
-   To recreate all tables in all databases, use the --all-databases
+   To rebuild all tables in all databases, use the --all-databases
    option:
 shell> mysqldump --all-databases > dump.sql
 shell> mysql < dump.sql
@@ -3165,7 +3102,7 @@ mysql> REPAIR TABLE t1;
    the file, as described earlier.
 
    For specifics about which storage engines REPAIR TABLE supports,
-   see Section 12.5.2.6, "REPAIR TABLE Syntax."
+   see Section 12.4.2.6, "REPAIR TABLE Syntax."
 
    mysqlcheck --repair provides command-line access to the REPAIR
    TABLE statement. This can be a more convenient means of repairing
@@ -3447,7 +3384,7 @@ Note
    below for reference:
 
      * Windows Essentials --- this package has a file name similar to
-       mysql-essential-5.1.41-win32.msi and is supplied as a
+       mysql-essential-5.1.46-win32.msi and is supplied as a
        Microsoft Installer (MSI) package. The package includes the
        minimum set of files needed to install MySQL on Windows,
        including the MySQL Server Instance Config Wizard. This
@@ -3458,7 +3395,7 @@ Note
        MySQL with the MSI Package."
 
      * Windows MSI Installer (Complete) --- this package has a file
-       name similar to mysql-5.1.41-win32.zip and contains all files
+       name similar to mysql-5.1.46-win32.zip and contains all files
        needed for a complete Windows installation, including the
        MySQL Server Instance Config Wizard. This package includes
        optional components such as the embedded server and benchmark
@@ -3467,7 +3404,7 @@ Note
        MySQL with the MSI Package."
 
      * Without installer --- this package has a file name similar to
-       mysql-noinstall-5.1.41-win32.zip and contains all the files
+       mysql-noinstall-5.1.46-win32.zip and contains all the files
        found in the Complete install package, with the exception of
        the MySQL Server Instance Config Wizard. This package does not
        include an automated installer, and must be manually installed
@@ -3618,7 +3555,7 @@ Note
    feedback of users like you. If you find that the MySQL
    Installation Wizard is lacking some feature important to you, or
    if you discover a bug, please report it in our bugs database using
-   the instructions given in Section 1.6, "How to Report Bugs or
+   the instructions given in Section 1.7, "How to Report Bugs or
    Problems."
 
 2.5.3.1.1. Downloading and Starting the MySQL Installation Wizard
@@ -3720,7 +3657,7 @@ Note
    directory. In a default installation it contains C:\Program
    Files\MySQL\MySQL Server 5.1\. The Version string contains the
    release number. For example, for an installation of MySQL Server
-   5.1.41, the key contains a value of 5.1.41.
+   5.1.46, the key contains a value of 5.1.46.
 
    These registry keys are used to help external tools identify the
    installed location of the MySQL server, preventing a complete scan
@@ -3963,8 +3900,8 @@ shell> msiexec /x /quiet mysql-5.1.39.msi
    Apart from making changes to the my.ini file by running the MySQL
    Server Instance Config Wizard again, you can modify it by opening
    it with a text editor and making any necessary changes. You can
-   also modify the server configuration with the MySQL Administrator
-   (http://www.mysql.com/products/administrator/) utility. For more
+   also modify the server configuration with the
+   http://www.mysql.com/products/administrator/ utility. For more
    information about server configuration, see Section 5.1.2, "Server
    Command Options."
 
@@ -4262,17 +4199,31 @@ Warning
 
 2.5.4.11. The Security Options Dialog
 
-   It is strongly recommended that you set a root password for your
-   MySQL server, and the MySQL Server Instance Config Wizard requires
-   by default that you do so. If you do not wish to set a root
-   password, uncheck the box next to the Modify Security Settings
-   option.
-   MySQL Server Instance Config Wizard: Security
+   The content of the security options portion of the MySQL Server
+   Instance Configuration Wizard will depend on whether this is a new
+   installation, or modifying an existing installation.
 
-   To set the root password, enter the desired password into both the
-   New root password and Confirm boxes. If you are reconfiguring an
-   existing server, you need to enter the existing root password into
-   the Current root password box.
+     * Setting the root password for a new installation
+       It is strongly recommended that you set a root password for
+       your MySQL server, and the MySQL Server Instance Config Wizard
+       requires by default that you do so. If you do not wish to set
+       a root password, uncheck the box next to the Modify Security
+       Settings option.
+       MySQL Server Instance Config Wizard: Security
+
+     * To set the root password, enter the desired password into both
+       the New root password and Confirm boxes.
+       Setting the root password for an existing installation
+       If you are modifying the configuration of an existing
+       configuration, or you are installing an upgrade and the MySQL
+       Server Instance Configuration Wizard has detected an existing
+       MySQL system, then you must enter the existing password for
+       root before changing the configuration information.
+       MySQL Server Instance Config Wizard: Security (Existing
+       Installation)
+       If you want to change the current root password, enter the
+       desired new password into both the New root password and
+       Confirm boxes.
 
    To allow root logins from across the network, check the box next
    to the Enable root access from remote machines option. This
@@ -4718,7 +4669,7 @@ InnoDB: foreign key constraint system tables created
    something like this, which indicates that the server is ready to
    service client connections:
 mysqld: ready for connections
-Version: '5.1.41'  socket: ''  port: 3306
+Version: '5.1.46'  socket: ''  port: 3306
 
    The server continues to write to the console any further
    diagnostic output it produces. You can open a new console window
@@ -5104,7 +5055,7 @@ C:\> sc delete mysql
        Windows.
 
     2. You should always back up your current MySQL installation
-       before performing an upgrade. See Section 6.1, "Database
+       before performing an upgrade. See Section 6.2, "Database
        Backup Methods."
 
     3. Download the latest Windows distribution of MySQL from
@@ -5389,7 +5340,7 @@ ROM db" mysql
        names that are compatible with the current ANSI code pages.
        For example, the following Japanese directory name will not
        work in the Western locale (code page 1252):
-datadir="C:/维基百科关于中文维基百科"
+datadir="C:/私たちのプロジェクトのデータ"
        The same limitation applies to directory and file names
        referred to in SQL statements, such as the data file path name
        in LOAD DATA INFILE.
@@ -5451,10 +5402,9 @@ Note
    from the Bazaar tree. For production use, we do not advise using a
    MySQL server built by yourself from source. Normally, it is best
    to use precompiled binary distributions of MySQL that are built
-   specifically for optimal performance on Windows by Sun
-   Microsystems, Inc. Instructions for installing binary
-   distributions are available in Section 2.5, "Installing MySQL on
-   Windows."
+   specifically for optimal performance on Windows by Oracle
+   Corporation. Instructions for installing binary distributions are
+   available in Section 2.5, "Installing MySQL on Windows."
 
    To build MySQL on Windows from source, you must satisfy the
    following system, compiler, and resource requirements:
@@ -5514,8 +5464,8 @@ Note
    You also need a MySQL source distribution for Windows, which can
    be obtained two ways:
 
-     * Obtain a source distribution packaged by Sun Microsystems,
-       Inc. These are available from http://dev.mysql.com/downloads/.
+     * Obtain a source distribution packaged by Oracle Corporation.
+       These are available from http://dev.mysql.com/downloads/.
 
      * Package a source distribution yourself from the latest Bazaar
        developer source tree. For instructions on pulling the latest
@@ -5525,19 +5475,20 @@ Note
    If you find something not working as expected, or you have
    suggestions about ways to improve the current build process on
    Windows, please send a message to the win32 mailing list. See
-   Section 1.5.1, "MySQL Mailing Lists."
+   Section 1.6.1, "MySQL Mailing Lists."
 
 2.5.10.1. Building MySQL from Source Using CMake and Visual Studio
 
    You can build MySQL on Windows by using a combination of cmake and
    Microsoft Visual Studio .NET 2003 (7.1), Microsoft Visual Studio
-   2005 (8.0) or Microsoft Visual C++ 2005 Express Edition. You must
-   have the appropriate Microsoft Platform SDK installed.
+   2005 (8.0), Microsoft Visual Studio 2008 (9.0) or Microsoft Visual
+   C++ 2005 Express Edition. You must have the appropriate Microsoft
+   Platform SDK installed.
 
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.41.tar.gz).
+   standard source distribution (for example, mysql-5.1.46.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration
@@ -5551,8 +5502,19 @@ Note
        tool that can read .zip files. This directory is the work
        directory in the following instructions.
 
-    2. Using a command shell, navigate to the work directory and run
-       the following command:
+Note
+       You must run the commands in the win directory from the
+       top-level source directory. Do not change into the win
+       directory, as the commands will not be executed correctly.
+
+    2. Start a command shell. If you have not configured the PATH and
+       other environment variables for all command shells, you may be
+       able to start a command shell from the Start Menu within the
+       Windows Visual Studio menu that contains the necessary
+       environment changes.
+
+    3. Within the command shell, navigate to the work directory and
+       run the following command:
 C:\workdir>win\configure.js options
        If you have associated the .js file extension with an
        application such as a text editor, then you may need to use
@@ -5603,16 +5565,19 @@ C:\workdir>cscript win\configure.js options
 C:\workdir>win\configure.js WITH_INNOBASE_STORAGE_ENGINE
              WITH_PARTITION_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-pro
 
-    3. From the work directory, execute the win\build-vs8.bat or
-       win\build-vs71.bat file, depending on the version of Visual
+    4. From the work directory, execute the win\build-vs9.bat
+       (Windows Visual Studio 2008), win\build-vs8.bat (Windows
+       Visual Studio 2005), or win\build-vs71.bat (Windows Visual
+       Stidion 2003) script, depending on the version of Visual
        Studio you have installed. The script invokes CMake, which
        generates the mysql.sln solution file.
-       You can also use win\build-vs8_x64.bat to build the 64-bit
-       version of MySQL. However, you cannot build the 64-bit version
-       with Visual Studio Express Edition. You must use Visual Studio
-       2005 (8.0) or higher.
+       You can also use the corresponding 64-bit file (for example
+       win\build-vs8_x64.bat or win\build-vs9_x64.bat) to build the
+       64-bit version of MySQL. However, you cannot build the 64-bit
+       version with Visual Studio Express Edition. You must use
+       Visual Studio 2005 (8.0) or higher.
 
-    4. From the work directory, open the generated mysql.sln file
+    5. From the work directory, open the generated mysql.sln file
        with Visual Studio and select the proper configuration using
        the Configuration menu. The menu provides Debug, Release,
        RelwithDebInfo, MinRelInfo options. Then select Solution >
@@ -5621,7 +5586,7 @@ C:\workdir>win\configure.js WITH_INNOBASE_STORAGE_ENGINE
        important later when you run the test script because that
        script needs to know which configuration you used.
 
-    5. Test the server. The server built using the preceding
+    6. Test the server. The server built using the preceding
        instructions expects that the MySQL base directory and data
        directory are C:\mysql and C:\mysql\data by default. If you
        want to test your server using the source tree root directory
@@ -5681,29 +5646,36 @@ C:\> mkdir C:\mysql\sql-bench
        Installation Notes."
 
     2. From the work directory, copy into the C:\mysql directory the
-       following directories:
+       following files and directories:
 C:\> cd \workdir
-C:\workdir> copy client_release\*.exe C:\mysql\bin
-C:\workdir> copy client_debug\mysqld.exe C:\mysql\bin\mysqld-debug.ex
-e
+C:\workdir> mkdir C:\mysql
+C:\workdir> mkdir C:\mysql\bin
+C:\workdir> copy client\Release\*.exe C:\mysql\bin
+C:\workdir> copy sql\Release\mysqld.exe C:\mysql\bin\mysqld.exe
 C:\workdir> xcopy scripts\*.* C:\mysql\scripts /E
 C:\workdir> xcopy share\*.* C:\mysql\share /E
        If you want to compile other clients and link them to MySQL,
        you should also copy several libraries and header files:
-C:\workdir> copy lib_debug\mysqlclient.lib C:\mysql\lib\debug
-C:\workdir> copy lib_debug\libmysql.* C:\mysql\lib\debug
-C:\workdir> copy lib_debug\zlib.* C:\mysql\lib\debug
-C:\workdir> copy lib_release\mysqlclient.lib C:\mysql\lib\opt
-C:\workdir> copy lib_release\libmysql.* C:\mysql\lib\opt
-C:\workdir> copy lib_release\zlib.* C:\mysql\lib\opt
+C:\workdir> copy lib\Release\mysqlclient.lib C:\mysql\lib\debug
+C:\workdir> copy lib\Release\libmysql.* C:\mysql\lib\debug
+C:\workdir> copy lib\Release\zlib.* C:\mysql\lib\debug
+C:\workdir> copy lib\Release\mysqlclient.lib C:\mysql\lib\opt
+C:\workdir> copy lib\Release\libmysql.* C:\mysql\lib\opt
+C:\workdir> copy lib\Release\zlib.* C:\mysql\lib\opt
 C:\workdir> copy include\*.h C:\mysql\include
 C:\workdir> copy libmysql\libmysql.def C:\mysql\include
+
+Note
+       If you have compiled a Debug, rather than Release solution,
+       you can replace Release with Debug in the source file names
+       shown above.
        If you want to benchmark MySQL, you should also do this:
 C:\workdir> xcopy sql-bench\*.* C:\mysql\bench /E
 
    After installation, set up and start the server in the same way as
-   for binary Windows distributions. See Section 2.5, "Installing
-   MySQL on Windows."
+   for binary Windows distributions. This includes creating the
+   system tables by running mysql_install_db. For more information,
+   see Section 2.5, "Installing MySQL on Windows."
 
 2.5.11. Compiling MySQL Clients on Windows
 
@@ -6626,14 +6598,23 @@ DLTLIB LIB(MYSQLINST)
 
    Upgrading an existing MySQL instance
 
-   You need to execute the upgrade command, MYSQLINST/UPGMYSQL. You
-   must specify 6 parameters to perform an upgrade:
+   You need to execute the upgrade command, MYSQLINST/UPGMYSQL.
+
+Note
+
+   You cannot use MYSQLINST/UPGMYSQL to upgrade between major
+   versions of MySQL (for example from 5.0 to 5.1). For information
+   and advice on migrating between major versions you can use the
+   advice provided in Section 2.4.1.1, "Upgrading from MySQL 5.0 to
+   5.1."
+
+   You must specify 6 parameters to perform an upgrade:
 
      * DIR('/QOpenSys/usr/local/') --- sets the installation location
        for the MySQL files. The directory will be created if it does
        not already exist. This is the directory that the MySQL server
        will be installed into, inside a directory with a name
-       matching the version and release. For example if installing
+       matching the version and release. For example, if installing
        MySQL 5.1.39 with the DIR set to /QOpenSys/usr/local/ would
        result in /QOpenSys/usr/local/mysql-5.1.39-i5os-power64 and a
        symbolic link to this directory will be created in
@@ -7167,7 +7148,7 @@ shell> bin/mysqld_safe --user=mysql &
        logged in to the system as mysql, in which case you can omit
        the --user option from the command.
        Further instructions for running MySQL as an unprivileged user
-       are given in Section 5.3.5, "How to Run MySQL as a Normal
+       are given in Section 5.3.6, "How to Run MySQL as a Normal
        User."
        If you neglected to create the grant tables before proceeding
        to this step, the following message appears in the error log
@@ -7185,10 +7166,10 @@ shell> bin/mysqladmin variables
        on your platform and version of MySQL, but should be similar
        to that shown here:
 shell> bin/mysqladmin version
-mysqladmin  Ver 14.12 Distrib 5.1.41, for pc-linux-gnu on i686
+mysqladmin  Ver 14.12 Distrib 5.1.46, for pc-linux-gnu on i686
 ...
 
-Server version          5.1.41
+Server version          5.1.46
 Protocol version        10
 Connection              Localhost via UNIX socket
 UNIX socket             /var/lib/mysql/mysql.sock
@@ -7292,7 +7273,7 @@ shell> mysql -vvf test < ./tests/auto_increment.tst
 
    The MySQL 5.1 installation procedure creates time zone tables in
    the mysql database. However, you must populate the tables manually
-   using the instructions in Section 9.7, "MySQL Server Time Zone
+   using the instructions in Section 9.6, "MySQL Server Time Zone
    Support."
 
 2.13.1.1. Problems Running mysql_install_db
@@ -7323,7 +7304,7 @@ mysqld ended
        carefully. The log should be located in the directory XXXXXX
        named by the error message and should indicate why mysqld
        didn't start. If you do not understand what happened, include
-       the log when you post a bug report. See Section 1.6, "How to
+       the log when you post a bug report. See Section 1.7, "How to
        Report Bugs or Problems."
 
      * There is a mysqld process running
@@ -7972,7 +7953,7 @@ Note
    MYSQL_PS1 The command prompt to use in the mysql command-line
    client.
    MYSQL_PWD The default password when connecting to mysqld. Note
-   that using this is insecure. See Section 5.5.6.2, "End-User
+   that using this is insecure. See Section 5.3.2.2, "End-User
    Guidelines for Password Security."
    MYSQL_TCP_PORT The default TCP/IP port number.
    MYSQL_UNIX_PORT The default Unix socket file name; used for

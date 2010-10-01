@@ -1,0 +1,16 @@
+# Testcase for BUG#4552 (DROP on two tables, one of which does not
+# exist, must be binlogged with a non-zero error code)
+source include/master-slave.inc;
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (a int);
+--error 1051
+drop table t1, t2;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+# End of 4.1 tests
+
+

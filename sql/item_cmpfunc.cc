@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1021,12 +1021,12 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
   @return cache item or original value.
 */
 
-Item** Arg_comparator::cache_converted_constant(THD *thd, Item **value,
+Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
                                                 Item **cache_item,
                                                 Item_result type)
 {
   /* Don't need cache if doing context analysis only. */
-  if (!thd->is_context_analysis_only() &&
+  if (!thd_arg->is_context_analysis_only() &&
       (*value)->const_item() && type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
@@ -1189,12 +1189,21 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
   /*
     Coerce value to the 19XX form in order to correctly compare
     YEAR(2) & YEAR(4) types.
+    Here we are converting all item values but YEAR(4) fields since
+      1) YEAR(4) already has a regular YYYY form and
+      2) we don't want to convert zero/bad YEAR(4) values to the
+         value of 2000.
   */
-  if (value < 70)
-    value+= 100;
-  if (value <= 1900)
-    value+= 1900;
-
+  Item *real_item= item->real_item();
+  if (!(real_item->type() == Item::FIELD_ITEM &&
+        ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
+        ((Item_field *)real_item)->field->field_length == 4))
+  {
+    if (value < 70)
+      value+= 100;
+    if (value <= 1900)
+      value+= 1900;
+  }
   /* Convert year to DATETIME of form YYYY-00-00 00:00:00 (YYYY0000000000). */
   value*= 10000000000LL;
 
@@ -1367,12 +1376,12 @@ int Arg_comparator::compare_real()
 
 int Arg_comparator::compare_decimal()
 {
-  my_decimal value1;
-  my_decimal *val1= (*a)->val_decimal(&value1);
+  my_decimal decimal1;
+  my_decimal *val1= (*a)->val_decimal(&decimal1);
   if (!(*a)->null_value)
   {
-    my_decimal value2;
-    my_decimal *val2= (*b)->val_decimal(&value2);
+    my_decimal decimal2;
+    my_decimal *val2= (*b)->val_decimal(&decimal2);
     if (!(*b)->null_value)
     {
       if (set_null)
@@ -1396,9 +1405,9 @@ int Arg_comparator::compare_e_real()
 
 int Arg_comparator::compare_e_decimal()
 {
-  my_decimal value1, value2;
-  my_decimal *val1= (*a)->val_decimal(&value1);
-  my_decimal *val2= (*b)->val_decimal(&value2);
+  my_decimal decimal1, decimal2;
+  my_decimal *val1= (*a)->val_decimal(&decimal1);
+  my_decimal *val2= (*b)->val_decimal(&decimal2);
   if ((*a)->null_value || (*b)->null_value)
     return test((*a)->null_value && (*b)->null_value);
   return test(my_decimal_cmp(val1, val2) == 0);
@@ -2763,6 +2772,8 @@ Item *Item_func_case::find_item(String *str)
     /* Compare every WHEN argument with it and return the first match */
     for (uint i=0 ; i < ncases ; i+=2)
     {
+      if (args[i]->real_item()->type() == NULL_ITEM)
+        continue;
       cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
@@ -4001,9 +4012,17 @@ longlong Item_func_in::val_int()
     return (longlong) (!null_value && tmp != negated);
   }
 
+  if ((null_value= args[0]->real_item()->type() == NULL_ITEM))
+    return 0;
+
   have_null= 0;
   for (uint i= 1 ; i < arg_count ; i++)
   {
+    if (args[i]->real_item()->type() == NULL_ITEM)
+    {
+      have_null= TRUE;
+      continue;
+    }
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
     in_item= cmp_items[(uint)cmp_type];
     DBUG_ASSERT(in_item);
@@ -4567,13 +4586,14 @@ Item_func::optimize_type Item_func_like::select_optimize() const
   if (args[1]->const_item())
   {
     String* res2= args[1]->val_str((String *)&cmp.value2);
+    const char *ptr2;
 
-    if (!res2)
+    if (!res2 || !(ptr2= res2->ptr()))
       return OPTIMIZE_NONE;
 
-    if (*res2->ptr() != wild_many)
+    if (*ptr2 != wild_many)
     {
-      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
 	return OPTIMIZE_OP;
     }
   }
@@ -5410,13 +5430,13 @@ void Item_equal::merge(Item_equal *item)
   members follow in a wrong order they are swapped. This is performed
   again and again until we get all members in a right order.
 
-  @param cmp          function to compare field item
+  @param compare      function to compare field item
   @param arg          context extra parameter for the cmp function
 */
 
-void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
+void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  exchange_sort<Item_field>(&fields, cmp, arg);
+  exchange_sort<Item_field>(&fields, compare, arg);
 }
 
 
@@ -5487,7 +5507,7 @@ longlong Item_equal::val_int()
     return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item= const_item ? const_item : it++;
-  if ((null_value= item->null_value))
+  if ((null_value= item->is_null()))
     return 0;
   eval_item->store_value(item);
   while ((item_field= it++))
@@ -5495,7 +5515,7 @@ longlong Item_equal::val_int()
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table)
     {
-      if ((null_value= item_field->null_value) || eval_item->cmp(item_field))
+      if ((null_value= item_field->is_null()) || eval_item->cmp(item_field))
         return 0;
     }
   }

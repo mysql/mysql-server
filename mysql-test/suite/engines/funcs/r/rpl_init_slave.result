@@ -1,0 +1,27 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+show variables like 'init_slave';
+Variable_name	Value
+init_slave	set global max_connections=500
+show variables like 'max_connections';
+Variable_name	Value
+max_connections	500
+reset master;
+show variables like 'init_slave';
+Variable_name	Value
+init_slave	
+show variables like 'max_connections';
+Variable_name	Value
+max_connections	151
+set @my_global_init_connect= @@global.init_connect;
+set global init_connect="set @c=1";
+show variables like 'init_connect';
+Variable_name	Value
+init_connect	set @c=1
+stop slave;
+set global init_connect= @my_global_init_connect;
+set global max_connections= default;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -429,8 +429,9 @@ ibool
 rw_lock_own(
 /*========*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
-	ulint		lock_type);	/*!< in: lock type: RW_LOCK_SHARED,
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
 					RW_LOCK_EX */
+	__attribute__((warn_unused_result));
 #endif /* UNIV_SYNC_DEBUG */
 /******************************************************************//**
 Checks if somebody has locked the rw-lock in the specified mode. */
@@ -555,11 +556,12 @@ struct rw_lock_struct {
 	//unsigned	cline:14;	/*!< Line where created */
 	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
 	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
+#ifdef UNIV_DEBUG
 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
-};
-
 /** Value of rw_lock_struct::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
+#endif /* UNIV_DEBUG */
+};
 
 #ifdef UNIV_SYNC_DEBUG
 /** The structure for storing debug info of an rw-lock */

@@ -55,6 +55,10 @@
 #define USE_PRAGMA_INTERFACE
 #endif
 
+#if defined(__OpenBSD__) && (OpenBSD >= 200411)
+#define HAVE_ERRNO_AS_DEFINE
+#endif
+
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
@@ -89,6 +93,9 @@
 #else
 #define IF_WIN(A,B) (B)
 #endif
+
+/* Make it easier to print null strings */
+#define val_or_null(A) ((A) ? (const char*) (A) : "(null)")
 
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_NDB_BINLOG
@@ -545,8 +552,8 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #endif
 
 /* Does the system remember a signal handler after a signal ? */
-#ifndef HAVE_BSD_SIGNALS
-#define DONT_REMEMBER_SIGNAL
+#if !defined(HAVE_BSD_SIGNALS) && !defined(HAVE_SIGACTION)
+#define SIGNAL_HANDLER_RESET_ON_DELIVERY
 #endif
 
 /* Define void to stop lint from generating "null effekt" comments */
@@ -560,36 +567,34 @@ int	__void__;
 #endif
 #endif /* DONT_DEFINE_VOID */
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
-#define LINT_INIT(var)	var=0			/* No uninitialize-warning */
+/*
+  Deprecated workaround for false-positive uninitialized variables
+  warnings. Those should be silenced using tool-specific heuristics.
+
+  Enabled by default for g++ due to the bug referenced below.
+*/
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
+    (defined(__GNUC__) && defined(__cplusplus))
+#define LINT_INIT(var) var= 0
 #else
 #define LINT_INIT(var)
 #endif
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_valgrind)
-#define VALGRIND_OR_LINT_INIT(var) var=0
-#else
-#define VALGRIND_OR_LINT_INIT(var)
-#endif
-
-#ifdef HAVE_valgrind
-#define IF_VALGRIND(A,B) (A)
-#else
-#define IF_VALGRIND(A,B) (B)
-#endif
-
-/* 
+/*
    Suppress uninitialized variable warning without generating code.
 
    The _cplusplus is a temporary workaround for C++ code pending a fix
-   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772). 
+   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772).
 */
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(__cplusplus) || \
-  !defined(__GNUC__)
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
+    defined(__cplusplus) || !defined(__GNUC__)
 #define UNINIT_VAR(x) x= 0
 #else
+/* GCC specific self-initialization which inhibits the warning. */
 #define UNINIT_VAR(x) x= x
 #endif
+
+#include <my_valgrind.h>
 
 /* Define some useful general macros */
 #if !defined(max)
@@ -606,12 +611,12 @@ typedef unsigned short ushort;
 
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 #define sgn(a)		(((a) < 0) ? -1 : ((a) > 0) ? 1 : 0)
-#define swap_variables(t, a, b) { t swap_dummy; swap_dummy= a; a= b; b= swap_dummy; }
+#define swap_variables(t, a, b) { t dummy; dummy= a; a= b; b= dummy; }
 #define test(a)		((a) ? 1 : 0)
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
-#define test_all_bits(a,b) (((a) & (b)) == (b))
 #define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
+#define test_all_bits(a,b) (((a) & (b)) == (b))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 
 /* Define some general constants */
@@ -632,7 +637,7 @@ typedef unsigned short ushort;
 #define my_const_cast(A) (A)
 #endif
 
-#include <my_attribute.h>
+#include <my_compiler.h>
 
 /*
   Wen using the embedded library, users might run into link problems,
@@ -668,7 +673,7 @@ C_MODE_END
 #  endif
 #endif
 
-typedef char		my_bool; /* Small bool */
+typedef char		my_bool; /* Small bool; Needed by my_dbug.h */
 #include <my_dbug.h>
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
@@ -772,7 +777,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 #define MY_NFILE	64	/* This is only used to save filenames */
 #ifndef OS_FILE_LIMIT
-#define OS_FILE_LIMIT	65535
+#define OS_FILE_LIMIT	UINT_MAX
 #endif
 
 /* #define EXT_IN_LIBNAME     */
@@ -796,10 +801,10 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 	/* get memory in huncs */
 #define ONCE_ALLOC_INIT		(uint) (4096-MALLOC_OVERHEAD)
-	/* Typical record cash */
-#define RECORD_CACHE_SIZE	(uint) (64*1024-MALLOC_OVERHEAD)
-	/* Typical key cash */
-#define KEY_CACHE_SIZE		(uint) (8*1024*1024-MALLOC_OVERHEAD)
+	/* Typical record cache */
+#define RECORD_CACHE_SIZE	(uint) (128*1024-MALLOC_OVERHEAD)
+	/* Typical key cache */
+#define KEY_CACHE_SIZE		(uint) (128L*1024L*1024L-MALLOC_OVERHEAD)
 	/* Default size of a key cache block  */
 #define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 
@@ -947,12 +952,10 @@ typedef long long	my_ptrdiff_t;
 #define ALIGN_MAX_UNIT  (sizeof(double))
 /* Size to make adressable obj. */
 #define ALIGN_PTR(A, t) ((t*) MY_ALIGN((A), sizeof(double)))
+/* Offset of field f in structure t */
 #define OFFSET(t, f)	((size_t)(char *)&((t *)0)->f)
 #define ADD_TO_PTR(ptr,size,type) (type) ((uchar*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((uchar*) (A) - (uchar*) (B))
-
-#define MY_DIV_UP(A, B) (((A) + (B) - 1) / (B))
-#define MY_ALIGNED_BYTE_ARRAY(N, S, T) T N[MY_DIV_UP(S, sizeof(T))]
 
 /*
   Custom version of standard offsetof() macro which can be used to get

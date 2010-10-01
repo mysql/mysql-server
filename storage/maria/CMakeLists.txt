@@ -91,4 +91,7 @@ IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("maria_pack" "asInvoker")
 ENDIF(EMBED_MANIFESTS)
 
+INSTALL(TARGETS maria_ftdump maria_chk maria_read_log maria_pack maria_dump_log
+	DESTINATION bin COMPONENT runtime)
+
 ENDIF(NOT SOURCE_SUBLIBS)

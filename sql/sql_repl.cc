@@ -218,8 +218,7 @@ bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       pthread_mutex_lock(&linfo->lock);
-      result = !bcmp((uchar*) log_name, (uchar*) linfo->log_file_name,
-                     log_name_len);
+      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
       pthread_mutex_unlock(&linfo->lock);
       if (result)
 	break;
@@ -357,6 +356,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
+  int old_max_allowed_packet= thd->variables.max_allowed_packet;
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
@@ -762,6 +762,7 @@ end:
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_VOID_RETURN;
 
 err:
@@ -779,6 +780,7 @@ err:
   pthread_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     (void) my_close(file, MYF(MY_WME));
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
 
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
@@ -1134,6 +1136,10 @@ bool change_master(THD* thd, Master_info* mi)
   int thread_mask;
   const char* errmsg= 0;
   bool need_relay_log_purge= 1;
+  char saved_host[HOSTNAME_LENGTH + 1];
+  uint saved_port;
+  char saved_log_name[FN_REFLEN];
+  my_off_t saved_log_pos;
   DBUG_ENTER("change_master");
 
   lock_slave_threads(mi);
@@ -1161,6 +1167,14 @@ bool change_master(THD* thd, Master_info* mi)
     and we have the hold on the run locks which will keep all threads that
     could possibly modify the data structures from running
   */
+
+  /*
+    Before processing the command, save the previous state.
+  */
+  strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  saved_port= mi->port;
+  strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
+  saved_log_pos= mi->master_log_pos;
 
   /*
     If the user specified host or port without binlog or position,
@@ -1267,7 +1281,7 @@ bool change_master(THD* thd, Master_info* mi)
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
   */
-  if (flush_master_info(mi, 0))
+  if (flush_master_info(mi, FALSE, FALSE))
   {
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
     unlock_slave_threads(mi);
@@ -1325,6 +1339,15 @@ bool change_master(THD* thd, Master_info* mi)
   /* Clear the errors, for a clean start */
   mi->rli.clear_error();
   mi->rli.clear_until_condition();
+
+  sql_print_information("'CHANGE MASTER TO executed'. "
+    "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
+    "master_log_pos='%ld'. "
+    "New state master_host='%s', master_port='%u', master_log_file='%s', "
+    "master_log_pos='%ld'.", saved_host, saved_port, saved_log_name,
+    (ulong) saved_log_pos, mi->host, mi->port, mi->master_log_name,
+    (ulong) mi->master_log_pos);
+
   /*
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
@@ -1398,6 +1421,7 @@ bool mysql_show_binlog_events(THD* thd)
   bool ret = TRUE;
   IO_CACHE log;
   File file = -1;
+  int old_max_allowed_packet= thd->variables.max_allowed_packet;
   DBUG_ENTER("mysql_show_binlog_events");
 
   Log_event::init_show_field_list(&field_list);
@@ -1536,6 +1560,7 @@ err:
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_RETURN(ret);
 }
 
@@ -1711,7 +1736,6 @@ int log_loaded_block(IO_CACHE* file)
       if (mysql_bin_log.write(&b))
         DBUG_RETURN(1);
       lf_info->wrote_create_file= 1;
-      DBUG_SYNC_POINT("debug_lock.created_file_event",10);
     }
   }
   DBUG_RETURN(0);

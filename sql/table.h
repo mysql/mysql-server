@@ -55,7 +55,6 @@ typedef struct st_order {
   struct st_order *next;
   Item	 **item;			/* Point at item in select fields */
   Item	 *item_ptr;			/* Storage for initial item */
-  Item   **item_copy;			/* For SPs; the original item ptr */
   int    counter;                       /* position in SELECT list, correct
                                            only if counter_used is true*/
   bool	 asc;				/* true if ascending */
@@ -401,6 +400,11 @@ typedef struct st_table_share
   uint blob_ptr_size;			/* 4 or 8 */
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
+  /*
+    Same as null_bytes, except that if there is only a 'delete-marker' in
+    the record then this value is 0.
+  */
+  uint null_bytes_for_compare;
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys, key_parts;
@@ -432,6 +436,7 @@ typedef struct st_table_share
   bool name_lock, replace_with_name_lock;
   bool waiting_on_cond;                 /* Protection against free */
   bool deleting;                        /* going to delete this table */
+  bool can_cmp_whole_record;
   ulong table_map_id;                   /* for row-based replication */
 
   /*
@@ -445,7 +450,7 @@ typedef struct st_table_share
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /** @todo: Move into *ha_data for partitioning */
   bool auto_partitioned;
-  const char *partition_info;
+  char *partition_info;
   uint  partition_info_len;
   uint  partition_info_buffer_size;
   const char *part_state;
@@ -868,6 +873,7 @@ struct st_table {
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
+  void add_read_columns_used_by_index(uint index);
   void restore_column_maps_after_mark_index();
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(void);
@@ -904,6 +910,24 @@ struct st_table {
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
   bool is_children_attached(void);
+  inline void enable_keyread()
+  {
+    DBUG_ENTER("enable_keyread");
+    DBUG_ASSERT(key_read == 0);
+    key_read= 1;
+    file->extra(HA_EXTRA_KEYREAD);
+    DBUG_VOID_RETURN;
+  }
+  inline void disable_keyread()
+  {
+    DBUG_ENTER("disable_keyread");
+    if (key_read)
+    {
+      key_read= 0;
+      file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    DBUG_VOID_RETURN;
+  }
 };
 
 enum enum_schema_table_state
@@ -1153,7 +1177,7 @@ struct TABLE_LIST
   }
 
   /*
-    List of tables local to a subquery (used by SQL_LIST). Considers
+    List of tables local to a subquery (used by SQL_I_List). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
     in st_select_lex::add_table_to_list() -> table_list.link_in_list().
   */
@@ -1684,7 +1708,11 @@ typedef struct st_nested_join
   */
   table_map         used_tables;
   table_map         not_null_tables; /* tables that rejects nulls           */
-  struct st_join_table *first_nested;/* the first nested table in the plan  */
+  /**
+    Used for pointing out the first table in the plan being covered by this
+    join nest. It is used exclusively within make_outerjoin_info().
+   */
+  struct st_join_table *first_nested;
   /* 
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info(). 
@@ -1699,6 +1727,15 @@ typedef struct st_nested_join
   */
   uint              n_tables;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /**
+     True if this join nest node is completely covered by the query execution
+     plan. This means two things.
+
+     1. All tables on its @c join_list are covered by the plan.
+
+     2. All child join nest nodes are fully covered.
+   */
+  bool is_fully_covered() const { return join_list.elements == counter; }
 } NESTED_JOIN;
 
 

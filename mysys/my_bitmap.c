@@ -378,6 +378,24 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
   }
 }
 
+/* True if union of bitmaps have all bits set */
+
+my_bool bitmap_union_is_set_all(const MY_BITMAP *map1, const MY_BITMAP *map2)
+{
+  my_bitmap_map *m1= map1->bitmap, *m2= map2->bitmap, *end;
+
+  DBUG_ASSERT(map1->bitmap && map2->bitmap &&
+              map1->n_bits==map2->n_bits);
+  *map1->last_word_ptr|= map1->last_word_mask;
+
+  end= map1->last_word_ptr;
+  while ( m1 <= end)
+    if ((*m1++ | *m2++) != 0xFFFFFFFF)
+      return FALSE;
+  return TRUE;
+}
+
+
 
 /*
   Set/clear all bits above a bit.
@@ -532,7 +550,7 @@ uint bitmap_get_first(const MY_BITMAP *map)
     {
       byte_ptr= (uchar*)data_ptr;
       for (j=0; ; j++, byte_ptr++)
-      { 
+      {
         if (*byte_ptr != 0xFF)
         {
           for (k=0; ; k++)

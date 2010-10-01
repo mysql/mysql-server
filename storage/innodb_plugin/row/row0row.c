@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -294,7 +294,13 @@ row_build(
 
 	ut_ad(dtuple_check_typed(row));
 
-	if (j) {
+	if (!ext) {
+		/* REDUNDANT and COMPACT formats store a local
+		768-byte prefix of each externally stored
+		column. No cache is needed. */
+		ut_ad(dict_table_get_format(index->table)
+		      < DICT_TF_FORMAT_ZIP);
+	} else if (j) {
 		*ext = row_ext_create(j, ext_cols, row,
 				      dict_table_zip_size(index->table),
 				      heap);
@@ -915,6 +921,10 @@ row_raw_format(
 
 		ret = row_raw_format_int(data, data_len, prtype,
 					 buf, buf_size, &format_in_hex);
+		if (format_in_hex) {
+
+			goto format_in_hex;
+		}
 		break;
 	case DATA_CHAR:
 	case DATA_VARCHAR:
@@ -923,14 +933,15 @@ row_raw_format(
 
 		ret = row_raw_format_str(data, data_len, prtype,
 					 buf, buf_size, &format_in_hex);
+		if (format_in_hex) {
+
+			goto format_in_hex;
+		}
+
 		break;
 	/* XXX support more data types */
 	default:
-
-		format_in_hex = TRUE;
-	}
-
-	if (format_in_hex) {
+	format_in_hex:
 
 		if (UNIV_LIKELY(buf_size > 2)) {
 

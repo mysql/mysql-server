@@ -1,0 +1,41 @@
+DROP TABLE IF EXISTS t7;
+SET SQL_MODE='TRADITIONAL';
+CREATE TABLE t7(c1 SET('a','b','c') NULL);
+INSERT INTO t7(c1) VALUES('abc');
+ERROR 01000: Data truncated for column 'c1' at row 1
+SELECT * FROM t7;
+c1
+INSERT INTO t7(c1) VALUES(123);
+ERROR 01000: Data truncated for column 'c1' at row 1
+SELECT * FROM t7;
+c1
+INSERT INTO t7(c1) VALUES(0x878A);
+ERROR 01000: Data truncated for column 'c1' at row 1
+SELECT * FROM t7;
+c1
+INSERT INTO t7(c1) VALUES(NOW());
+ERROR 01000: Data truncated for column 'c1' at row 1
+SELECT * FROM t7;
+c1
+DROP TABLE t7;
+SET SQL_MODE='';
+SET SQL_MODE='TRADITIONAL';
+CREATE TABLE t7(c1 ENUM('a','b','c') NULL);
+INSERT INTO t7(c1) VALUES('abc');
+ERROR 01000: Data truncated for column 'c1' at row 1
+SELECT * FROM t7;
+c1
+INSERT INTO t7(c1) VALUES(123);
+ERROR 01000: Data truncated for column 'c1' at row 1
+SELECT * FROM t7;
+c1
+INSERT INTO t7(c1) VALUES(0x878A);
+ERROR 01000: Data truncated for column 'c1' at row 1
+SELECT * FROM t7;
+c1
+INSERT INTO t7(c1) VALUES(NOW());
+ERROR 01000: Data truncated for column 'c1' at row 1
+SELECT * FROM t7;
+c1
+DROP TABLE t7;
+SET SQL_MODE='';

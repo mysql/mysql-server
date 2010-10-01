@@ -1,0 +1,43 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1(a varchar(100),b int);
+set @@session.sql_mode=pipes_as_concat;
+insert into t1 values('My'||'SQL', 1);
+set @@session.sql_mode=default;
+insert into t1 values('1'||'2', 2);
+select * from t1 where b<3 order by a;
+a	b
+1	2
+MySQL	1
+select * from t1 where b<3 order by a;
+a	b
+1	2
+MySQL	1
+set @@session.sql_mode=ignore_space;
+insert into t1 values(password          ('MySQL'), 3);
+set @@session.sql_mode=ansi_quotes;
+create table "t2" ("a" int);
+drop table t1, t2;
+set @@session.sql_mode=default;
+create table t1(a int auto_increment primary key);
+create table t2(b int, a int);
+set @@session.sql_auto_is_null=1;
+insert into t1 values(null);
+insert into t2 select 1,a from t1 where a is null;
+set @@session.sql_auto_is_null=0;
+insert into t1 values(null);
+insert into t2 select 2,a from t1 where a is null;
+select * from t2 order by b;
+b	a
+1	1
+select * from t2 order by b;
+b	a
+1	1
+drop table t1,t2;

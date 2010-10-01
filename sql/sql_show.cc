@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -9,9 +9,9 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   You should have received a copy of the GNU General Public License along
+   with this program; if not, write to the Free Software Foundation, Inc.,
+   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Function with list databases, tables or fields */
@@ -30,6 +30,7 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
+#include "debug_sync.h"
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -479,8 +480,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       wild_length= strlen(wild);
   }
 
-
-
   bzero((char*) &table_list,sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
@@ -494,7 +493,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
-    char uname[NAME_LEN + 1];                   /* Unencoded name */
+    char uname[SAFE_NAME_LEN + 1];              /* Unencoded name */
     file=dirp->dir_entry+i;
     if (dir)
     {                                           /* Return databases */
@@ -522,9 +521,20 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         continue;
 
       file_name_len= filename_to_tablename(file->name, uname, sizeof(uname));
-      if (wild && wild_compare(uname, wild, 0))
-        continue;
-      if (!(file_name=
+      if (wild)
+      {
+	if (lower_case_table_names)
+	{
+          if (my_wildcmp(files_charset_info,
+                         uname, uname + file_name_len,
+                         wild, wild + wild_length,
+                         wild_prefix, wild_one, wild_many))
+            continue;
+	}
+	else if (wild_compare(uname, wild, 0))
+	  continue;
+      }
+      if (!(file_name= 
             thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
       {
         my_dirend(dirp);
@@ -2007,6 +2017,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         pthread_mutex_unlock(&mysys_var->mutex);
 
       /* INFO */
+      /* Lock THD mutex that protects its data when looking at it. */
+      pthread_mutex_lock(&tmp->LOCK_thd_data);
       if (tmp->query())
       {
         table->field[7]->store(tmp->query(),
@@ -2014,6 +2026,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                    tmp->query_length()), cs);
         table->field[7]->set_notnull();
       }
+      pthread_mutex_unlock(&tmp->LOCK_thd_data);
 
       /* TIME_MS */
       table->field[8]->store((double)(utime / 1000.0));
@@ -2217,8 +2230,8 @@ static bool show_status_array(THD *thd, const char *wild,
                               bool ucase_names,
                               COND *cond)
 {
-  MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
-  char * const buff= (char *) &buff_data;
+  my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE, MY_ALIGNOF(long)> buffer;
+  char * const buff= buffer.data;
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
@@ -2703,36 +2716,54 @@ bool get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
 {
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
+  bool rc= 0;
+
   bzero((char*) lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
   switch (lex->sql_command) {
   case SQLCOM_SHOW_DATABASES:
     if (wild)
     {
-      lookup_field_values->db_value.str= (char*) wild;
-      lookup_field_values->db_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->db_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_db_value= 1;
     }
-    return 0;
+    break;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_EVENTS:
-    lookup_field_values->db_value.str= lex->select_lex.db;
-    lookup_field_values->db_value.length=strlen(lex->select_lex.db);
+    thd->make_lex_string(&lookup_field_values->db_value, 
+                         lex->select_lex.db, strlen(lex->select_lex.db), 0);
     if (wild)
     {
-      lookup_field_values->table_value.str= (char*)wild;
-      lookup_field_values->table_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->table_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_table_value= 1;
     }
-    return 0;
+    break;
   default:
     /*
       The "default" is for queries over I_S.
       All previous cases handle SHOW commands.
     */
-    return calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    rc= calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    break;
   }
+
+  if (lower_case_table_names && !rc)
+  {
+    /* 
+      We can safely do in-place upgrades here since all of the above cases
+      are allocating a new memory buffer for these strings.
+    */  
+    if (lookup_field_values->db_value.str && lookup_field_values->db_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->db_value.str);
+    if (lookup_field_values->table_value.str && 
+        lookup_field_values->table_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->table_value.str);
+  }
+
+  return rc;
 }
 
 
@@ -2934,9 +2965,15 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   {
     if (with_i_schema)
     {
-      if (find_schema_table(thd, lookup_field_vals->table_value.str))
+      LEX_STRING *name;
+      ST_SCHEMA_TABLE *schema_table=
+        find_schema_table(thd, lookup_field_vals->table_value.str);
+      if (schema_table && !schema_table->hidden)
       {
-        if (table_names->push_back(&lookup_field_vals->table_value))
+        if (!(name= 
+              thd->make_lex_string(NULL, schema_table->table_name,
+                                   strlen(schema_table->table_name), TRUE)) ||
+            table_names->push_back(name))
           return 1;
       }
     }
@@ -2975,7 +3012,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
     */
     if (res == FIND_FILES_DIR)
     {
-      if (lex->sql_command != SQLCOM_SELECT)
+      if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
         return 1;
       thd->clear_error();
       return 2;
@@ -3011,8 +3048,7 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
   bool res;
   LEX_STRING tmp_lex_string, tmp_lex_string1, *db_name, *table_name;
   enum_sql_command save_sql_command= lex->sql_command;
-  TABLE_LIST *show_table_list= (TABLE_LIST*) tables->schema_select_lex->
-    table_list.first;
+  TABLE_LIST *show_table_list= tables->schema_select_lex->table_list.first;
   TABLE *table= tables->table;
   int error= 1;
   DBUG_ENTER("fill_schema_show");
@@ -3336,6 +3372,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     error= 0;
     goto err;
   }
+
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              STR_OR_NIL(lookup_field_vals.db_value.str),
                              STR_OR_NIL(lookup_field_vals.table_value.str)));
@@ -3458,12 +3495,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               goto err;
             if (make_table_list(thd, &sel, db_name, table_name))
               goto err;
-            TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
+            TABLE_LIST *show_table_list= sel.table_list.first;
             lex->all_selects_list= &sel;
             lex->derived_tables= 0;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
+            DEBUG_SYNC(thd, "before_open_in_get_all_tables");
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
             lex->sql_command= save_sql_command;
@@ -3560,9 +3598,9 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
 
   if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
     DBUG_RETURN(0);
-  DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
-                             lookup_field_vals.db_value.str,
-                             lookup_field_vals.table_value.str));
+  DBUG_PRINT("INDEX VALUES",("db_name: %s  table_name: %s",
+                             val_or_null(lookup_field_vals.db_value.str),
+                             val_or_null(lookup_field_vals.table_value.str)));
   if (make_db_list(thd, &db_names, &lookup_field_vals,
                    &with_i_schema))
     DBUG_RETURN(1);
@@ -3862,7 +3900,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     uint flags=field->flags;
     char tmp[MAX_FIELD_WIDTH];
     String type(tmp,sizeof(tmp), system_charset_info);
-    char *end;
     int decimals, field_length;
 
     if (wild && wild[0] &&
@@ -3883,7 +3920,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                                  field->field_name) & COL_ACLS;
     if (!tables->schema_table && !col_access)
       continue;
-    end= tmp;
+    char *end= tmp;
     for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
     {
       if (col_access & 1)
@@ -3959,9 +3996,12 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_INT24:
       field_length= field->max_display_length() - 1;
+      break;
+    case MYSQL_TYPE_LONGLONG:
+      field_length= field->max_display_length() - 
+        ((field->flags & UNSIGNED_FLAG) ? 0 : 1);
       break;
     case MYSQL_TYPE_BIT:
       field_length= field->max_display_length();
@@ -4006,7 +4046,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     table->field[15]->store((const char*) pos,
                             strlen((const char*) pos), cs);
 
-    end= tmp;
     if (field->unireg_check == Field::NEXT_NUMBER)
       table->field[16]->store(STRING_WITH_LEN("auto_increment"), cs);
     if (show_table->timestamp_field == field &&
@@ -4200,24 +4239,37 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
+static inline void copy_field_as_string(Field *to_field, Field *from_field)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String tmp_str(buff, sizeof(buff), system_charset_info);
+  from_field->val_str(&tmp_str);
+  to_field->store(tmp_str.ptr(), tmp_str.length(), system_charset_info);
+}
+
+
 bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                        const char *wild, bool full_access, const char *sp_user)
 {
-  String tmp_string;
-  String sp_db, sp_name, definer;
   MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
-  get_field(thd->mem_root, proc_table->field[0], &sp_db);
-  get_field(thd->mem_root, proc_table->field[1], &sp_name);
-  get_field(thd->mem_root, proc_table->field[11], &definer);
+  char sp_db_buff[SAFE_NAME_LEN + 1], sp_name_buff[SAFE_NAME_LEN + 1],
+    definer_buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 2];
+  String sp_db(sp_db_buff, sizeof(sp_db_buff), cs);
+  String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
+  String definer(definer_buff, sizeof(definer_buff), cs);
+
+  proc_table->field[0]->val_str(&sp_db);
+  proc_table->field[1]->val_str(&sp_name);
+  proc_table->field[11]->val_str(&definer);
+
   if (!full_access)
-    full_access= !strcmp(sp_user, definer.ptr());
-  if (!full_access && check_some_routine_access(thd, sp_db.ptr(),
-                                                sp_name.ptr(),
-                                                proc_table->field[2]->
-                                                val_int() ==
-                                                TYPE_ENUM_PROCEDURE))
+    full_access= !strcmp(sp_user, definer.c_ptr_safe());
+  if (!full_access &&
+      check_some_routine_access(thd, sp_db.c_ptr_safe(), sp_name.c_ptr_safe(),
+                                proc_table->field[2]->val_int() ==
+                                TYPE_ENUM_PROCEDURE))
     return 0;
 
   if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
@@ -4227,55 +4279,42 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
-    if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
+    if (!wild || !wild[0] || !wild_compare(sp_name.c_ptr_safe(), wild, 0))
     {
       int enum_idx= (int) proc_table->field[5]->val_int();
       table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
-      get_field(thd->mem_root, proc_table->field[3], &tmp_string);
-      table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[0], proc_table->field[3]);
       table->field[2]->store(sp_db.ptr(), sp_db.length(), cs);
-      get_field(thd->mem_root, proc_table->field[2], &tmp_string);
-      table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[4], proc_table->field[2]);
       if (proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION)
       {
-        get_field(thd->mem_root, proc_table->field[9], &tmp_string);
-        table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        copy_field_as_string(table->field[5], proc_table->field[9]);
         table->field[5]->set_notnull();
       }
       if (full_access)
       {
-        get_field(thd->mem_root, proc_table->field[19], &tmp_string);
-        table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        copy_field_as_string(table->field[7], proc_table->field[19]);
         table->field[7]->set_notnull();
       }
       table->field[6]->store(STRING_WITH_LEN("SQL"), cs);
       table->field[10]->store(STRING_WITH_LEN("SQL"), cs);
-      get_field(thd->mem_root, proc_table->field[6], &tmp_string);
-      table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      table->field[12]->store(sp_data_access_name[enum_idx].str,
+      copy_field_as_string(table->field[11], proc_table->field[6]);
+      table->field[12]->store(sp_data_access_name[enum_idx].str, 
                               sp_data_access_name[enum_idx].length , cs);
-      get_field(thd->mem_root, proc_table->field[7], &tmp_string);
-      table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[14], proc_table->field[7]);
+
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[12])->get_time(&time);
       table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[13])->get_time(&time);
       table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
-      get_field(thd->mem_root, proc_table->field[14], &tmp_string);
-      table->field[17]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      get_field(thd->mem_root, proc_table->field[15], &tmp_string);
-      table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[17], proc_table->field[14]);
+      copy_field_as_string(table->field[18], proc_table->field[15]);
       table->field[19]->store(definer.ptr(), definer.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[16], &tmp_string);
-      table->field[20]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[17], &tmp_string);
-      table->field[21]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[18], &tmp_string);
-      table->field[22]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[20], proc_table->field[16]);
+      copy_field_as_string(table->field[21], proc_table->field[17]);
+      copy_field_as_string(table->field[22], proc_table->field[18]);
 
       return schema_table_store_record(thd, table);
     }
@@ -6325,7 +6364,7 @@ ST_FIELD_INFO engines_fields_info[]=
 {
   {"ENGINE", 64, MYSQL_TYPE_STRING, 0, 0, "Engine", SKIP_OPEN_TABLE},
   {"SUPPORT", 8, MYSQL_TYPE_STRING, 0, 0, "Support", SKIP_OPEN_TABLE},
-  {"COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment", SKIP_OPEN_TABLE},
+  {"COMMENT", 160, MYSQL_TYPE_STRING, 0, 0, "Comment", SKIP_OPEN_TABLE},
   {"TRANSACTIONS", 3, MYSQL_TYPE_STRING, 0, 1, "Transactions", SKIP_OPEN_TABLE},
   {"XA", 3, MYSQL_TYPE_STRING, 0, 1, "XA", SKIP_OPEN_TABLE},
   {"SAVEPOINTS", 3 ,MYSQL_TYPE_STRING, 0, 1, "Savepoints", SKIP_OPEN_TABLE},
@@ -6550,8 +6589,8 @@ ST_FIELD_INFO table_names_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"TABLE_SCHEMA",NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Tables_in_",
-   SKIP_OPEN_TABLE},
+  {"TABLE_NAME", NAME_CHAR_LEN + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
+   MYSQL_TYPE_STRING, 0, 0, "Tables_in_", SKIP_OPEN_TABLE},
   {"TABLE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_type",
    OPEN_FRM_ONLY},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}

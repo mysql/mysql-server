@@ -17,6 +17,7 @@
 #include "mysys_err.h"
 #include <my_dir.h> /* for stat */
 #include <m_string.h>
+#include "mysys_err.h"
 #if defined(HAVE_UTIME_H)
 #include <utime.h>
 #elif defined(HAVE_SYS_UTIME_H)
@@ -57,7 +58,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
   File from_file,to_file;
   uchar buff[IO_SIZE];
   MY_STAT stat_buff,new_stat_buff;
-  int res;
+  my_bool file_created= 0;
   DBUG_ENTER("my_copy");
   DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
 
@@ -82,6 +83,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 			     MyFlags)) < 0)
       goto err;
 
+    file_created= 1;
     while ((Count=my_read(from_file, buff, sizeof(buff), MyFlags)) != 0)
     {
 	if (Count == (uint) -1 ||
@@ -99,15 +101,30 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     if (my_close(from_file,MyFlags) | my_close(to_file,MyFlags))
       DBUG_RETURN(-1);				/* Error on close */
 
+    from_file=to_file= -1;                      /* Files are closed */
+
     /* Copy modes if possible */
 
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
 	DBUG_RETURN(0);			/* File copyed but not stat */
-    res= chmod(to, stat_buff.st_mode & 07777); /* Copy modes */
+    /* Copy modes */
+    if (chmod(to, stat_buff.st_mode & 07777))
+    {
+      my_errno= errno;
+      if (MyFlags & MY_WME)
+        my_error(EE_CHANGE_PERMISSIONS, MYF(ME_BELL+ME_WAITTANG), to, errno);
+      if (MyFlags & MY_FAE)
+        goto err;
+    }
 #if !defined(__WIN__) && !defined(__NETWARE__)
+    /* Copy ownership */
     if (chown(to, stat_buff.st_uid,stat_buff.st_gid))
     {
-      my_error(EE_CANT_COPY_OWNERSHIP, MYF(ME_JUST_WARNING), to);
+      my_errno= errno;
+      if (MyFlags & MY_WME)
+        my_error(EE_CANT_COPY_OWNERSHIP, MYF(ME_JUST_WARNING), to, errno);
+      if (MyFlags & MY_FAE)
+        goto err;
     }
 #endif
 #if !defined(VMS) && !defined(__ZTC__)
@@ -124,11 +141,11 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 
 err:
   if (from_file >= 0) VOID(my_close(from_file,MyFlags));
-  if (to_file >= 0)
-  {
-    VOID(my_close(to_file, MyFlags));
-    /* attempt to delete the to-file we've partially written */
+  if (to_file >= 0)   VOID(my_close(to_file, MyFlags));
+
+  /* attempt to delete the to-file we've partially written */
+  if (file_created)
     VOID(my_delete(to, MyFlags));
-  }
+
   DBUG_RETURN(-1);
 } /* my_copy */

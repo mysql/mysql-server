@@ -28,13 +28,11 @@
 
 /* static variables */
 
-#undef MIN_SORT_MEMORY
 #undef MYF_RW
 #undef DISK_BUFFER_SIZE
 
 #define MERGEBUFF 15
 #define MERGEBUFF2 31
-#define MIN_SORT_MEMORY (4096-MALLOC_OVERHEAD)
 #define MYF_RW  MYF(MY_NABP | MY_WME | MY_WAIT_IF_FULL)
 #define DISK_BUFFER_SIZE (IO_SIZE*16)
 
@@ -131,12 +129,12 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   sort_keys= (uchar **) NULL; error= 1;
   maxbuffer=1;
 
-  memavl=max(sortbuff_size,MIN_SORT_MEMORY);
+  memavl= max(sortbuff_size, MIN_SORT_BUFFER);
   records=	info->sort_info->max_records;
   sort_length=	info->key_length;
   LINT_INIT(keys);
 
-  while (memavl >= MIN_SORT_MEMORY)
+  while (memavl >= MIN_SORT_BUFFER)
   {
     if ((records < UINT_MAX32) && 
        ((my_off_t) (records + 1) * 
@@ -171,10 +169,10 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	break;
     }
     old_memavl=memavl;
-    if ((memavl=memavl/4*3) < MIN_SORT_MEMORY && old_memavl > MIN_SORT_MEMORY)
-      memavl=MIN_SORT_MEMORY;
+    if ((memavl= memavl/4*3) < MIN_SORT_BUFFER && old_memavl > MIN_SORT_BUFFER)
+      memavl= MIN_SORT_BUFFER;
   }
-  if (memavl < MIN_SORT_MEMORY)
+  if (memavl < MIN_SORT_BUFFER)
   {
     mi_check_print_error(info->sort_info->param,"MyISAM sort buffer too small"); /* purecov: tested */
     goto err; /* purecov: tested */
@@ -348,12 +346,12 @@ pthread_handler_t thr_find_all_keys(void *arg)
     bzero((char*) &sort_param->unique,  sizeof(sort_param->unique));
     sort_keys= (uchar **) NULL;
 
-    memavl=       max(sort_param->sortbuff_size, MIN_SORT_MEMORY);
+    memavl=       max(sort_param->sortbuff_size, MIN_SORT_BUFFER);
     idx=          (uint)sort_param->sort_info->max_records;
     sort_length=  sort_param->key_length;
     maxbuffer=    1;
 
-    while (memavl >= MIN_SORT_MEMORY)
+    while (memavl >= MIN_SORT_BUFFER)
     {
       if ((my_off_t) (idx+1)*(sort_length+sizeof(char*)) <=
           (my_off_t) memavl)
@@ -391,11 +389,11 @@ pthread_handler_t thr_find_all_keys(void *arg)
           break;
       }
       old_memavl= memavl;
-      if ((memavl= memavl/4*3) < MIN_SORT_MEMORY &&
-          old_memavl > MIN_SORT_MEMORY)
-        memavl= MIN_SORT_MEMORY;
+      if ((memavl= memavl / 4 * 3) < MIN_SORT_BUFFER &&
+          old_memavl > MIN_SORT_BUFFER)
+        memavl= MIN_SORT_BUFFER;
     }
-    if (memavl < MIN_SORT_MEMORY)
+    if (memavl < MIN_SORT_BUFFER)
     {
       mi_check_print_error(sort_param->sort_info->param,
                            "MyISAM sort buffer too small");
@@ -506,7 +504,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 
   for (i= 0, sinfo= sort_param ;
        i < sort_info->total_keys ;
-       i++, rec_per_key_part+=sinfo->keyinfo->keysegs, sinfo++)
+       i++, sinfo++)
   {
     if (!sinfo->sort_keys)
     {
@@ -529,11 +527,6 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
             flush_ft_buf(sinfo) || flush_pending_blocks(sinfo))
           got_error=1;
       }
-      if (!got_error && param->testflag & T_STATISTICS)
-        update_key_parts(sinfo->keyinfo, rec_per_key_part, sinfo->unique,
-                         param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
-                         sinfo->notnull: NULL,
-                         (ulonglong) info->state->records);
     }
     my_free((uchar*) sinfo->sort_keys,MYF(0));
     my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff),
@@ -547,7 +540,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 	 delete_dynamic(&sinfo->buffpek),
 	 close_cached_file(&sinfo->tempfile),
 	 close_cached_file(&sinfo->tempfile_for_exceptions),
-	 sinfo++)
+         rec_per_key_part+= sinfo->keyinfo->keysegs, sinfo++)
   {
     if (got_error)
       continue;
@@ -569,7 +562,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
       if (!mergebuf)
       {
         length=param->sort_buffer_length;
-        while (length >= MIN_SORT_MEMORY)
+        while (length >= MIN_SORT_BUFFER)
         {
           if ((mergebuf= my_malloc(length, MYF(0))))
               break;
@@ -639,6 +632,11 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
           got_error=1;
       }
     }
+    if (!got_error && param->testflag & T_STATISTICS)
+      update_key_parts(sinfo->keyinfo, rec_per_key_part, sinfo->unique,
+                       param->stats_method == MI_STATS_METHOD_IGNORE_NULLS ?
+                       sinfo->notnull : NULL,
+                       (ulonglong) info->state->records);
   }
   my_free((uchar*) mergebuf,MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(got_error);

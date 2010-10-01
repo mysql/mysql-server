@@ -1025,9 +1025,15 @@ void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
 
 static int plugin_initialize(struct st_plugin_int *plugin)
 {
+  int ret= 1;
+  uint state;
   DBUG_ENTER("plugin_initialize");
 
   safe_mutex_assert_owner(&LOCK_plugin);
+  state= plugin->state;
+  DBUG_ASSERT(state == PLUGIN_IS_UNINITIALIZED);
+
+  pthread_mutex_unlock(&LOCK_plugin);
   if (plugin_type_initialize[plugin->plugin->type])
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
@@ -1046,8 +1052,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
       goto err;
     }
   }
-
-  plugin->state= PLUGIN_IS_READY;
+  state= PLUGIN_IS_READY; // plugin->init() succeeded
 
   if (plugin->plugin->status_vars)
   {
@@ -1066,7 +1071,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     if (add_status_vars(array)) // add_status_vars makes a copy
       goto err;
 #else
-    add_status_vars(plugin->plugin->status_vars); // add_status_vars makes a copy
+    if (add_status_vars(plugin->plugin->status_vars))
+      goto err;
 #endif /* FIX_LATER */
   }
 
@@ -1086,9 +1092,12 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     }
   }
 
-  DBUG_RETURN(0);
+  ret= 0;
+
 err:
-  DBUG_RETURN(1);
+  pthread_mutex_lock(&LOCK_plugin);
+  plugin->state= state;
+  DBUG_RETURN(ret);
 }
 
 
@@ -1677,6 +1686,12 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
 
+  if (opt_noacl)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
+
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
@@ -1754,9 +1769,17 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   struct st_plugin_int *plugin;
   DBUG_ENTER("mysql_uninstall_plugin");
 
+  if (opt_noacl)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
+
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
+  if (check_table_access(thd, DELETE_ACL, &tables, 1, FALSE))
+    DBUG_RETURN(TRUE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
@@ -1911,10 +1934,6 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_longlong_t, longlong);
 typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_uint_t, uint);
 typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_ulong_t, ulong);
 typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_ulonglong_t, ulonglong);
-
-#define SET_PLUGIN_VAR_RESOLVE(opt)\
-  *(mysql_sys_var_ptr_p*)&((opt)->resolve)= mysql_sys_var_ptr
-typedef uchar *(*mysql_sys_var_ptr_p)(void* a_thd, int offset);
 
 
 /****************************************************************************
@@ -2444,11 +2463,49 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   return (uchar*)thd->variables.dynamic_variables_ptr + offset;
 }
 
-static uchar *mysql_sys_var_ptr(void* a_thd, int offset)
+
+/**
+  For correctness and simplicity's sake, a pointer to a function
+  must be compatible with pointed-to type, that is, the return and
+  parameters types must be the same. Thus, a callback function is
+  defined for each scalar type. The functions are assigned in
+  construct_options to their respective types.
+*/
+
+static char *mysql_sys_var_char(THD* thd, int offset)
 {
-  return intern_sys_var_ptr((THD *)a_thd, offset, true);
+  return (char *) intern_sys_var_ptr(thd, offset, true);
 }
 
+static int *mysql_sys_var_int(THD* thd, int offset)
+{
+  return (int *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static long *mysql_sys_var_long(THD* thd, int offset)
+{
+  return (long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static unsigned long *mysql_sys_var_ulong(THD* thd, int offset)
+{
+  return (unsigned long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static long long *mysql_sys_var_longlong(THD* thd, int offset)
+{
+  return (long long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static unsigned long long *mysql_sys_var_ulonglong(THD* thd, int offset)
+{
+  return (unsigned long long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static char **mysql_sys_var_str(THD* thd, int offset)
+{
+  return (char **) intern_sys_var_ptr(thd, offset, true);
+}
 
 void plugin_thdvar_init(THD *thd)
 {
@@ -3019,25 +3076,25 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       continue;
     switch (opt->flags & PLUGIN_VAR_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_bool_t *) opt);
+      ((thdvar_bool_t *) opt)->resolve= mysql_sys_var_char;
       break;
     case PLUGIN_VAR_INT:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_int_t *) opt);
+      ((thdvar_int_t *) opt)->resolve= mysql_sys_var_int;
       break;
     case PLUGIN_VAR_LONG:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_long_t *) opt);
+      ((thdvar_long_t *) opt)->resolve= mysql_sys_var_long;
       break;
     case PLUGIN_VAR_LONGLONG:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_longlong_t *) opt);
+      ((thdvar_longlong_t *) opt)->resolve= mysql_sys_var_longlong;
       break;
     case PLUGIN_VAR_STR:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_str_t *) opt);
+      ((thdvar_str_t *) opt)->resolve= mysql_sys_var_str;
       break;
     case PLUGIN_VAR_ENUM:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_enum_t *) opt);
+      ((thdvar_enum_t *) opt)->resolve= mysql_sys_var_ulong;
       break;
     case PLUGIN_VAR_SET:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_set_t *) opt);
+      ((thdvar_set_t *) opt)->resolve= mysql_sys_var_ulonglong;
       break;
     default:
       sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",
@@ -3389,8 +3446,7 @@ void my_print_help_inc_plugins(my_option *main_options, uint size)
     {
       p= *dynamic_element(&plugin_array, idx, struct st_plugin_int **);
 
-      if (!p->plugin->system_vars ||
-          !(opt= construct_help_options(&mem_root, p)))
+      if (!(opt= construct_help_options(&mem_root, p)))
         continue;
 
       /* Only options with a non-NULL comment are displayed in help text */

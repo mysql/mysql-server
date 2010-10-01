@@ -1,0 +1,22 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+stop slave;
+change master to master_user='rpl',master_password='rpl';
+start slave;
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (1);
+select * from t1;
+n
+1
+drop user rpl@127.0.0.1;
+flush privileges;
+stop slave;
+start slave;
+drop table t1;
+drop table t1;

@@ -1,0 +1,32 @@
+#
+# Bug #39022: Mysql randomly crashing in lock_sec_rec_cons_read_sees
+#
+CREATE TABLE t1(a TINYINT NOT NULL,b TINYINT,PRIMARY KEY(b)) ENGINE=innodb;
+CREATE TABLE t2(d TINYINT NOT NULL,UNIQUE KEY(d)) ENGINE=innodb;
+INSERT INTO t1 VALUES (13,0),(8,1),(9,2),(6,3),
+(11,5),(11,6),(7,7),(7,8),(4,9),(6,10),(3,11),(11,12),
+(12,13),(7,14);
+INSERT INTO t2 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+(11),(12),(13),(14);
+# in thread1
+START TRANSACTION;
+# in thread2
+REPLACE INTO t2 VALUES (-17);
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE;
+d
+# in thread1
+REPLACE INTO t1(a,b) VALUES (67,20);
+# in thread2
+COMMIT;
+START TRANSACTION;
+REPLACE INTO t1(a,b) VALUES (65,-50);
+REPLACE INTO t2 VALUES (-91);
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE;
+# in thread1
+# should not crash
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# in thread2
+d
+# in thread1;
+DROP TABLE t1,t2;

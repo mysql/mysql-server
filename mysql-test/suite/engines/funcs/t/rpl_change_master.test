@@ -1,0 +1,50 @@
+# Verify that after CHANGE MASTER, replication (I/O thread and SQL
+# thread) restart from where SQL thread left, not from where
+# I/O thread left (some old bug fixed in 4.0.17)
+
+source include/master-slave.inc;
+
+connection master;
+# Make SQL slave thread advance a bit
+create table t1(n int);
+sync_slave_with_master;
+select * from t1;
+# Now stop it and make I/O slave thread be ahead
+stop slave sql_thread;
+connection master;
+insert into t1 values(1);
+insert into t1 values(2);
+save_master_pos;
+connection slave;
+--real_sleep 3 # wait for I/O thread to have read updates
+stop slave;
+source include/wait_for_slave_to_stop.inc;
+
+let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+if (`SELECT $read_pos = $exec_pos`)
+{
+  source include/show_rpl_debug_info.inc;
+  echo 'Read_Master_Log_Pos: $read_pos' == 'Exec_Master_Log_Pos: $exec_pos';
+  die Failed because Read_Master_Log_Pos is equal to Exec_Master_Log_Pos;
+} 
+change master to master_user='root';
+let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+if (`SELECT $read_pos <> $exec_pos`)
+{
+  source include/show_rpl_debug_info.inc;
+  echo 'Read_Master_Log_Pos: $read_pos' <> 'Exec_Master_Log_Pos: $exec_pos';
+  die Failed because Read_Master_Log_Pos is not equal to Exec_Master_Log_Pos;
+}
+
+start slave;
+sync_with_master;
+select * from t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+# End of 4.1 tests

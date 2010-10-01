@@ -213,7 +213,7 @@ id	name
 alter server s1 options (database 'db_bogus');
 flush tables;
 select * from federated.t1;
-ERROR HY000: There was a problem processing the query on the foreign data source. Data source error: : 1044 : Access denied for user 'test_fed'@'localhost' to databa
+ERROR 42000: Received error: 1044 : Access denied for user 'test_fed'@'localhost' to database 'db_bogus'
 drop server if exists 's1';
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
 create server 's1' foreign data wrapper 'mysql' options

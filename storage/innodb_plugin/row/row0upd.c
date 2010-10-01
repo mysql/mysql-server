@@ -92,6 +92,16 @@ the x-latch freed? The most efficient way for performing a
 searched delete is obviously to keep the x-latch for several
 steps of query graph execution. */
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -1344,9 +1354,6 @@ row_upd_copy_columns(
 		data = rec_get_nth_field(rec, offsets,
 					 column->field_nos[SYM_CLUST_FIELD_NO],
 					 &len);
-		if (len == UNIV_SQL_NULL) {
-			len = UNIV_SQL_NULL;
-		}
 		eval_node_copy_and_alloc_val(column, data, len);
 
 		column = UT_LIST_GET_NEXT(col_var_list, column);
@@ -1391,6 +1398,7 @@ row_upd_store_row(
 	dict_index_t*	clust_index;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
+	row_ext_t**	ext;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
 	rec_offs_init(offsets_);
@@ -1407,8 +1415,22 @@ row_upd_store_row(
 
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
+
+	if (dict_table_get_format(node->table) >= DICT_TF_FORMAT_ZIP) {
+		/* In DYNAMIC or COMPRESSED format, there is no prefix
+		of externally stored columns in the clustered index
+		record. Build a cache of column prefixes. */
+		ext = &node->ext;
+	} else {
+		/* REDUNDANT and COMPACT formats store a local
+		768-byte prefix of each externally stored column.
+		No cache is needed. */
+		ext = NULL;
+		node->ext = NULL;
+	}
+
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
-			      NULL, &node->ext, node->heap);
+			      NULL, ext, node->heap);
 	if (node->is_delete) {
 		node->upd_row = NULL;
 		node->upd_ext = NULL;
@@ -1456,7 +1478,6 @@ row_upd_sec_index_entry(
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
-	log_free_check();
 	mtr_start(&mtr);
 
 	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
@@ -1532,7 +1553,7 @@ Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-UNIV_INLINE
+static
 ulint
 row_upd_sec_step(
 /*=============*/
@@ -2018,6 +2039,7 @@ row_upd(
 	if (node->state == UPD_NODE_UPDATE_CLUSTERED
 	    || node->state == UPD_NODE_INSERT_CLUSTERED) {
 
+		log_free_check();
 		err = row_upd_clust_step(node, thr);
 
 		if (err != DB_SUCCESS) {
@@ -2032,6 +2054,8 @@ row_upd(
 	}
 
 	while (node->index != NULL) {
+
+		log_free_check();
 		err = row_upd_sec_step(node, thr);
 
 		if (err != DB_SUCCESS) {

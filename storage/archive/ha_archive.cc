@@ -293,7 +293,7 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
   DBUG_PRINT("ha_archive", ("Version %u", data_buffer[1]));
 
   if ((data_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) &&  
-      (data_buffer[1] != (uchar)ARCHIVE_VERSION))
+      (data_buffer[1] == 1 || data_buffer[1] == 2))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   DBUG_RETURN(0);
@@ -355,11 +355,24 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     */
     if (!(azopen(&archive_tmp, share->data_file_name, O_RDONLY|O_BINARY)))
     {
+      *rc= my_errno ? my_errno : -1;
+      pthread_mutex_unlock(&archive_mutex);
+      my_free(share, MYF(0));
       DBUG_RETURN(NULL);
     }
-    stats.auto_increment_value= archive_tmp.auto_increment + 1;
-    share->rows_recorded= (ha_rows)archive_tmp.rows;
-    share->crashed= archive_tmp.dirty;
+    share->version= archive_tmp.version;
+    if (archive_tmp.version == ARCHIVE_VERSION)
+    {
+      stats.auto_increment_value= archive_tmp.auto_increment + 1;
+      share->rows_recorded= (ha_rows)archive_tmp.rows;
+      share->crashed= archive_tmp.dirty;
+    }
+    else
+    {
+      /* Used by repair */
+      share->rows_recorded= ~(ha_rows) 0;
+      stats.auto_increment_value= 0;
+    }
     /*
       If archive version is less than 3, It should be upgraded before
       use.
@@ -504,16 +517,27 @@ int ha_archive::open(const char *name, int mode, uint open_options)
     For now we have to refuse to open such table to avoid
     potential data loss.
   */
-  if ((rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
-      ||  rc == HA_ERR_TABLE_NEEDS_UPGRADE)
+  switch (rc)
   {
-    /* purecov: begin inspected */
+  case 0:
+    break;
+  case HA_ERR_CRASHED_ON_USAGE:
+    DBUG_PRINT("ha_archive", ("archive table was crashed"));
+    if (open_options & HA_OPEN_FOR_REPAIR)
+    {
+      rc= 0;
+      break;
+    }
+    /* fall through */
+  case HA_ERR_TABLE_NEEDS_UPGRADE:
+    if (open_options & HA_OPEN_FOR_REPAIR)
+    {
+      rc= 0;
+      break;
+    }
     free_share();
-    DBUG_RETURN(rc);
-    /* purecov: end */    
-  }
-  else if (rc == HA_ERR_OUT_OF_MEM)
-  {
+    /* fall through */
+  default:
     DBUG_RETURN(rc);
   }
 
@@ -529,13 +553,6 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   }
 
   thr_lock_data_init(&share->lock, &lock, NULL);
-
-  DBUG_PRINT("ha_archive", ("archive table was crashed %s", 
-                      rc == HA_ERR_CRASHED_ON_USAGE ? "yes" : "no"));
-  if (rc == HA_ERR_CRASHED_ON_USAGE && open_options & HA_OPEN_FOR_REPAIR)
-  {
-    DBUG_RETURN(0);
-  }
 
   DBUG_RETURN(rc);
 }
@@ -1262,15 +1279,22 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
   DBUG_RETURN(get_row(&archive, buf));
 }
 
+int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
+{
+  if (share->version < ARCHIVE_VERSION)
+    return HA_ADMIN_NEEDS_ALTER;
+  return 0;
+}
+
+
 /*
   This method repairs the meta file. It does this by walking the datafile and 
-  rewriting the meta file. Currently it does this by calling optimize with
-  the extended flag.
+  rewriting the meta file. If EXTENDED repair is requested, we attempt to
+  recover as much data as possible.
 */
 int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("ha_archive::repair");
-  check_opt->flags= T_EXTEND;
   int rc= optimize(thd, check_opt);
 
   if (rc)
@@ -1364,7 +1388,14 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_PRINT("ha_archive", ("recovered %llu archive rows", 
                         (unsigned long long)share->rows_recorded));
 
-    if (rc && rc != HA_ERR_END_OF_FILE)
+    /*
+      If REPAIR ... EXTENDED is requested, try to recover as much data
+      from data file as possible. In this case if we failed to read a
+      record, we assume EOF. This allows massive data loss, but we can
+      hardly do more with broken zlib stream. And this is the only way
+      to restore at least what is still recoverable.
+    */
+    if (rc && rc != HA_ERR_END_OF_FILE && !(check_opt->flags & T_EXTEND))
       goto error;
   } 
 
@@ -1528,7 +1559,7 @@ void ha_archive::start_bulk_insert(ha_rows rows)
   Other side of start_bulk_insert, is end_bulk_insert. Here we turn off the bulk insert
   flag, and set the share dirty so that the next select will call sync for us.
 */
-int ha_archive::end_bulk_insert(bool table_will_be_deleted)
+int ha_archive::end_bulk_insert()
 {
   DBUG_ENTER("ha_archive::end_bulk_insert");
   bulk_insert= FALSE;

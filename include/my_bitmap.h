@@ -53,6 +53,8 @@ extern my_bool bitmap_is_overlapping(const MY_BITMAP *map1,
 extern my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
+extern my_bool bitmap_union_is_set_all(const MY_BITMAP *map1,
+                                       const MY_BITMAP *map2);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_get_first_set(const MY_BITMAP *map);
@@ -158,22 +160,6 @@ static inline my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
   { memset((MAP)->bitmap, 0, 4*no_words_in_map((MAP))); }
 #define bitmap_set_all(MAP) \
   (memset((MAP)->bitmap, 0xFF, 4*no_words_in_map((MAP))))
-
-/**
-   check, set and clear a bit of interest of an integer.
-
-   If the bit is out of range @retval -1. Otherwise
-   bit_is_set   @return 0 or 1 reflecting the bit is set or not;
-   bit_do_set   @return 1 (bit is set 1)
-   bit_do_clear @return 0 (bit is cleared to 0)
-*/
-
-#define bit_is_set(I,B)   (sizeof(I) * CHAR_BIT > (B) ?                 \
-                           (((I) & (ULL(1) << (B))) == 0 ? 0 : 1) : -1)
-#define bit_do_set(I,B)   (sizeof(I) * CHAR_BIT > (B) ?         \
-                           ((I) |= (ULL(1) << (B)), 1) : -1)
-#define bit_do_clear(I,B) (sizeof(I) * CHAR_BIT > (B) ?         \
-                           ((I) &= ~(ULL(1) << (B)), 0) : -1)
 
 #ifdef	__cplusplus
 }

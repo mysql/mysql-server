@@ -1,0 +1,96 @@
+-- source include/have_innodb_plugin.inc
+
+--echo #
+--echo # Bug#21704: Renaming column does not update FK definition.
+--echo #
+
+--echo
+--echo # Test that it's not possible to rename columns participating in a
+--echo # foreign key (either in the referencing or referenced table).
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT ENGINE=INNODB;
+
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT,
+                 CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES t1(a))
+ROW_FORMAT=COMPACT ENGINE=INNODB;
+
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT, KEY(b), C INT,
+  CONSTRAINT fk2 FOREIGN KEY (b) REFERENCES t3 (a))
+ROW_FORMAT=COMPACT ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t2 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t3 VALUES (1,1,1),(2,2,2),(3,3,3);
+
+--echo
+--echo # Test renaming the column in the referenced table.
+--echo
+
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t1 CHANGE a c INT;
+
+--echo # Ensure that online column rename works.
+
+--enable_info
+ALTER TABLE t1 CHANGE b c INT;
+--disable_info
+
+--echo
+--echo # Test renaming the column in the referencing table
+--echo
+
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t2 CHANGE a c INT;
+
+--echo # Ensure that online column rename works.
+
+--enable_info
+ALTER TABLE t2 CHANGE b c INT;
+--disable_info
+
+--echo
+--echo # Test with self-referential constraints
+--echo
+
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t3 CHANGE a d INT;
+
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t3 CHANGE b d INT;
+
+--echo # Ensure that online column rename works.
+
+--enable_info
+ALTER TABLE t3 CHANGE c d INT;
+--disable_info
+
+--echo
+--echo # Cleanup.
+--echo
+
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;

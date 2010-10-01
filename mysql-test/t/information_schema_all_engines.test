@@ -4,7 +4,8 @@
 
 --source include/not_embedded.inc
 --source include/have_pbxt.inc
--- source include/not_staging.inc
+--source include/have_innodb.inc
+--source include/not_staging.inc
 
 use INFORMATION_SCHEMA;
 --replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema

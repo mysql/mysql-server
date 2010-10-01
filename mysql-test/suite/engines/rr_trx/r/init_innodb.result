@@ -1,0 +1,81 @@
+SET @@storage_engine = 'InnoDB';
+SHOW VARIABLES LIKE 'storage_engine';
+Variable_name	Value
+storage_engine	InnoDB
+SHOW VARIABLES LIKE 'tx_isolation';
+Variable_name	Value
+tx_isolation	REPEATABLE-READ
+CREATE TABLE statistics (
+tx_errors INTEGER NOT NULL
+);
+INSERT INTO statistics (tx_errors) VALUES (0);
+CREATE TABLE t1 (
+`pk` INTEGER AUTO_INCREMENT NOT NULL,
+`id` INTEGER NOT NULL,
+`int1` INTEGER,
+`int1_key` INTEGER,
+`int1_unique` INTEGER,
+`int2` INTEGER,
+`int2_key` INTEGER,
+`int2_unique` INTEGER,
+`for_update` BOOLEAN DEFAULT 0,
+`timestamp` TIMESTAMP,
+`connection_id` INTEGER,
+`thread_id` INTEGER DEFAULT 0,
+`is_uncommitted` BOOLEAN DEFAULT 0,
+`is_consistent` BOOLEAN DEFAULT 0,
+KEY (`id`),
+KEY (`int1_key`),
+KEY (`int2_key`),
+UNIQUE (`int1_unique`),
+UNIQUE (`int2_unique`),
+PRIMARY KEY (`pk`)
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL,
+  `int1` int(11) DEFAULT NULL,
+  `int1_key` int(11) DEFAULT NULL,
+  `int1_unique` int(11) DEFAULT NULL,
+  `int2` int(11) DEFAULT NULL,
+  `int2_key` int(11) DEFAULT NULL,
+  `int2_unique` int(11) DEFAULT NULL,
+  `for_update` tinyint(1) DEFAULT '0',
+  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `connection_id` int(11) DEFAULT NULL,
+  `thread_id` int(11) DEFAULT '0',
+  `is_uncommitted` tinyint(1) DEFAULT '0',
+  `is_consistent` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `int1_unique` (`int1_unique`),
+  UNIQUE KEY `int2_unique` (`int2_unique`),
+  KEY `id` (`id`),
+  KEY `int1_key` (`int1_key`),
+  KEY `int2_key` (`int2_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE PROCEDURE insertRows(rows INT)
+BEGIN
+SET @n = 1;
+REPEAT
+INSERT INTO t1 (`id`, `int1`, `int1_key`, `int1_unique`, 
+`int2`, `int2_key`, `int2_unique`,
+`for_update`, `connection_id`, `thread_id`, 
+`is_uncommitted`, `is_consistent`) 
+VALUES (0, 1000, 1000, @n,
+-1000, -1000, -@n,
+0, CONNECTION_ID(), 0, 
+0, 1);
+SET @n = @n + 1;
+UNTIL @n > rows
+END REPEAT;
+END;
+//
+CALL insertRows(1000);
+SELECT SUM(`int1` + `int1_key` + `int1_unique`
+         + `int2` + `int2_key` + `int2_unique`) 
+AS TotalSum 
+FROM t1;
+TotalSum
+0

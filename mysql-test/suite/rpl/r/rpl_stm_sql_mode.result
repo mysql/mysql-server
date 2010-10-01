@@ -1,0 +1,18 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (pk integer auto_increment , primary key (pk));
+SET SESSION SQL_MODE='traditional';
+# **** [MASTER] *****
+# action: raise DUP KEY error (error code should be set in the 
+#                              query log event)
+INSERT INTO t1 (`pk`) VALUES (1), (1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+DROP TABLE t1;
+# **** [ sync slave with master ] ****
+# assertion: sync slave with master makes slave not to stop with
+#            duplicate key error (because it has received event
+#            with expected error code).

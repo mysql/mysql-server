@@ -63,13 +63,14 @@ nobase_test_DATA = \
 	lib/My/SafeProcess.pm \
 	lib/My/File/Path.pm \
 	lib/My/SysInfo.pm \
+	lib/My/Suite.pm \
 	lib/My/CoreDump.pm \
 	lib/My/SafeProcess/Base.pm \
 	lib/My/SafeProcess/safe_process.pl
 
 SUBDIRS =	lib/My/SafeProcess
 
-EXTRA_DIST =	README \
+EXTRA_DIST =	README README.suites \
 		$(test_SCRIPTS) \
 		$(nobase_test_DATA)
 
@@ -101,8 +102,15 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/ndb suite/ndb/t suite/ndb/r \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
 	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
-	suite/pbxt/t suite/pbxt/r \
-	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include
+	suite/pbxt/t suite/pbxt/r suite/pbxt \
+	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
+	suite/innodb_plugin suite/innodb_plugin/t suite/innodb_plugin/r \
+	suite/innodb_plugin/include \
+	suite/percona \
+	suite/engines suite/engines/funcs suite/engines/iuds suite/engines/rr_trx \
+	suite/engines/funcs/r suite/engines/funcs/t suite/engines/iuds/r \
+	suite/engines/iuds/t suite/engines/rr_trx/include suite/engines/rr_trx/r \
+	suite/engines/rr_trx/t
 
 # Used by dist-hook and install-data-local to copy all
 # test files into either dist or install directory
@@ -139,6 +147,3 @@ mtr:
 mysql-test-run:
 	$(RM) -f mysql-test-run
 	$(LN_S) mysql-test-run.pl mysql-test-run
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

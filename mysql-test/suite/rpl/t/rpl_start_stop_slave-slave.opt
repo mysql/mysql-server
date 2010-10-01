@@ -1,1 +1,1 @@
---innodb_lock_wait_timeout=60
+--loose-innodb-lock-wait-timeout=60

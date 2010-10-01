@@ -221,7 +221,7 @@ typedef struct XTPathStr {
  */
 
 #ifdef DEBUG
-//#define XT_USE_GLOBAL_DEBUG_SIZES
+#define XT_USE_GLOBAL_DEBUG_SIZES
 #endif
 
 /*
@@ -392,6 +392,29 @@ typedef struct XTPathStr {
 //#define XT_NO_ATOMICS
 #endif
 
+/* When pbxt_flush_log_at_trx_commit != 1, the transaction log is flushed
+ * at regular intervals. Set the interval here.
+ */
+#define XT_XLOG_FLUSH_FREQ				1000
+
+/*
+ * Define here if you want to check (and correct) the table free list
+ * counts. The free list counts are not durable, because they are not
+ * written to the log.
+ *
+ * The row free count is most critical because it can be used to
+ * estimate the the of rows in the record.
+ */
+#define XT_CHECK_ROW_FREE_COUNT
+#ifdef DEBUG
+#define XT_CHECK_RECORD_FREE_COUNT
+#endif
+#define XT_CORRECT_TABLE_FREE_COUNT 
+
+#if defined(XT_CHECK_ROW_FREE_COUNT) && defined(XT_CORRECT_TABLE_FREE_COUNT)
+#define XT_ROW_COUNT_CORRECTED
+#endif
+
 /* ----------------------------------------------------------------------
  * GLOBAL CONSTANTS
  */
@@ -457,21 +480,24 @@ typedef struct XTPathStr {
 #ifdef XT_USE_GLOBAL_DEBUG_SIZES
 
 //#undef XT_ROW_RWLOCKS
-//#define XT_ROW_RWLOCKS				2
+//#define XT_ROW_RWLOCKS					2
 
 //#undef XT_TAB_MIN_VAR_REC_LENGTH
-//#define XT_TAB_MIN_VAR_REC_LENGTH		20
+//#define XT_TAB_MIN_VAR_REC_LENGTH			20
 
 //#undef XT_ROW_LOCK_COUNT
-//#define XT_ROW_LOCK_COUNT				(XT_ROW_RWLOCKS * 2)
+//#define XT_ROW_LOCK_COUNT					(XT_ROW_RWLOCKS * 2)
 
 //#undef XT_INDEX_PAGE_SHIFTS
-//#define XT_INDEX_PAGE_SHIFTS			8	// 256
+//#define XT_INDEX_PAGE_SHIFTS				8	// 256
 //#undef XT_BLOCK_SIZE_FOR_DIRECT_IO
-//#define XT_BLOCK_SIZE_FOR_DIRECT_IO	256
+//#define XT_BLOCK_SIZE_FOR_DIRECT_IO		256
 
 //#undef XT_INDEX_WRITE_BUFFER_SIZE
-//#define XT_INDEX_WRITE_BUFFER_SIZE	(40 * 1024)
+//#define XT_INDEX_WRITE_BUFFER_SIZE		(40 * 1024)
+
+//#undef XT_XLOG_FLUSH_FREQ
+//#define XT_XLOG_FLUSH_FREQ				(30 * 1000)
 
 #endif
 
@@ -865,7 +891,11 @@ extern "C" void session_mark_transaction_to_rollback(Session *session, bool all)
 #define MX_ULONGLONG_T						ulonglong
 #define MX_LONGLONG_T						longlong
 #define MX_CHARSET_INFO						CHARSET_INFO
-#define MX_CONST_CHARSET_INFO				struct charset_info_st			
+#if defined(MARIADB_BASE_VERSION) && MYSQL_VERSION_ID > 50200
+#define MX_CONST_CHARSET_INFO				const struct charset_info_st
+#else
+#define MX_CONST_CHARSET_INFO				struct charset_info_st
+#endif			
 #define MX_CONST							
 #define MX_BITMAP							MY_BITMAP
 #define MX_BIT_SIZE()						n_bits

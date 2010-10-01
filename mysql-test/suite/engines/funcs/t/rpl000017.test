@@ -1,0 +1,22 @@
+source include/master-slave.inc;
+connection slave;
+stop slave;
+connection master;
+grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
+grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
+connection slave;
+start slave;
+connection master;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1(n int);
+insert into t1 values(24);
+sync_slave_with_master;
+select * from t1;
+connection master;
+drop table t1;
+delete from mysql.user where user="replicate";
+sync_slave_with_master;
+
+# End of 4.1 tests

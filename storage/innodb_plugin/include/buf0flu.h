@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,6 +39,16 @@ void
 buf_flush_remove(
 /*=============*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
+/********************************************************************//**
+Relocates a buffer control block on the flush_list.
+Note that it is assumed that the contents of bpage has already been
+copied to dpage. */
+UNIV_INTERN
+void
+buf_flush_relocate_on_flush_list(
+/*=============================*/
+	buf_page_t*	bpage,	/*!< in/out: control block being moved */
+	buf_page_t*	dpage);	/*!< in/out: destination block */
 /********************************************************************//**
 Updates the flush system data structures when a write is completed. */
 UNIV_INTERN
@@ -139,8 +149,8 @@ how much redo the workload is generating and at what rate. */
 
 struct buf_flush_stat_struct
 {
-	ib_uint64_t	redo;		/**< amount of redo generated. */
-	ulint		n_flushed;	/**< number of pages flushed. */
+	ib_uint64_t	redo;		/*!< amount of redo generated. */
+	ulint		n_flushed;	/*!< number of pages flushed. */
 };
 
 /** Statistics for selecting flush rate of dirty pages. */
@@ -174,6 +184,22 @@ ibool
 buf_flush_validate(void);
 /*====================*/
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+/******************************************************************//**
+Initialize the red-black tree to speed up insertions into the flush_list
+during recovery process. Should be called at the start of recovery
+process before any page has been read/written. */
+UNIV_INTERN
+void
+buf_flush_init_flush_rbt(void);
+/*==========================*/
+
+/******************************************************************//**
+Frees up the red-black tree. */
+UNIV_INTERN
+void
+buf_flush_free_flush_rbt(void);
+/*==========================*/
 
 /** When buf_flush_free_margin is called, it tries to make this many blocks
 available to replacement in the free list and at the end of the LRU list (to

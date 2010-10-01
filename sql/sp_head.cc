@@ -34,6 +34,36 @@
 
 extern "C" uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first);
 
+/**
+  Helper function which operates on a THD object to set the query start_time to
+  the current time.
+
+  @param[in, out] thd The session object
+
+*/
+
+static void reset_start_time_for_sp(THD *thd)
+{
+  /*
+    Do nothing if the context is a trigger or function because time should be
+    constant during the execution of those.
+  */
+  if (!thd->in_sub_stmt)
+  {
+    /*
+      First investigate if there is a cached time stamp
+    */
+    if (thd->user_time)
+    {
+      thd->start_time= thd->user_time;
+    }
+    else
+    {
+      my_micro_time_and_time(&thd->start_time);
+    }
+  }
+}
+
 Item_result
 sp_map_result_type(enum enum_field_types type)
 {
@@ -745,21 +775,12 @@ sp_head::create(THD *thd)
 
 sp_head::~sp_head()
 {
-  DBUG_ENTER("sp_head::~sp_head");
-  destroy();
-  delete m_next_cached_sp;
-  if (m_thd)
-    restore_thd_mem_root(m_thd);
-  DBUG_VOID_RETURN;
-}
-
-void
-sp_head::destroy()
-{
-  sp_instr *i;
   LEX *lex;
-  DBUG_ENTER("sp_head::destroy");
-  DBUG_PRINT("info", ("name: %s", m_name.str));
+  sp_instr *i;
+  DBUG_ENTER("sp_head::~sp_head");
+
+  /* sp_head::restore_thd_mem_root() must already have been called. */
+  DBUG_ASSERT(m_thd == NULL);
 
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
@@ -770,21 +791,22 @@ sp_head::destroy()
   /*
     If we have non-empty LEX stack then we just came out of parser with
     error. Now we should delete all auxilary LEXes and restore original
-    THD::lex (In this case sp_head::restore_thd_mem_root() was not called
-    too, so m_thd points to the current thread context).
-    It is safe to not update LEX::ptr because further query string parsing
-    and execution will be stopped anyway.
+    THD::lex. It is safe to not update LEX::ptr because further query
+    string parsing and execution will be stopped anyway.
   */
-  DBUG_ASSERT(m_lex.is_empty() || m_thd);
   while ((lex= (LEX *)m_lex.pop()))
   {
-    lex_end(m_thd->lex);
-    delete m_thd->lex;
-    m_thd->lex= lex;
+    THD *thd= lex->thd;
+    lex_end(thd->lex);
+    delete thd->lex;
+    thd->lex= lex;
   }
 
   hash_free(&m_sptabs);
   hash_free(&m_sroutines);
+
+  delete m_next_cached_sp;
+
   DBUG_VOID_RETURN;
 }
 
@@ -1063,7 +1085,7 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed= FALSE;
@@ -1233,10 +1255,13 @@ sp_head::execute(THD *thd)
 
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
-    /* Don't change NOW() in FUNCTION or TRIGGER */
-    if (!thd->in_sub_stmt)
-      thd->set_time();		// Make current_time() et al work
-    
+    /*
+      We need to reset start_time to allow for time to flow inside a stored
+      procedure. This is only done for SP since time is suppose to be constant
+      during execution of triggers and functions.
+    */
+    reset_start_time_for_sp(thd);
+
     /*
       We have to set thd->stmt_arena before executing the instruction
       to store in the instruction free_list all new items, created
@@ -2040,7 +2065,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   delete nctx;
   thd->spcont= save_spcont;
-
   DBUG_RETURN(err_status);
 }
 
@@ -3005,6 +3029,7 @@ int
 sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_set_trigger_field::execute");
+  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
 }
 
@@ -3826,7 +3851,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
   for (; table ; table= table->next_global)
     if (!table->derived && !table->schema_table)
     {
-      char tname[(NAME_LEN + 1) * 3];           // db\0table\0alias\0
+      char tname[(SAFE_NAME_LEN + 1) * 3];           // db\0table\0alias\0
       uint tlen, alen;
 
       tlen= table->db_length;

@@ -126,5 +126,22 @@ show status like "Qcache_inserts";
 show status like "Qcache_hits";
 drop table t1;
 
+--echo #
+--echo # Bug46615 Assertion in Query_cache::invalidate in INSERT in a VIEW of a MERGE table
+--echo #
+CREATE TABLE t1 (c1 INT, c2 INT);
+CREATE TABLE t2 LIKE t1;
+SET AUTOCOMMIT=OFF;
+CREATE VIEW t1_view AS SELECT c1 FROM t1 NATURAL JOIN t2 ;
+# Before the bug patch the below INSERT stmt used to 
+# crash when other fields than the ones listed in the
+# view definition were used.
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t1_view (c1, c2) SELECT c1, c2 FROM t1; 
+DROP TABLE t1;
+DROP TABLE t2;
+DROP VIEW t1_view;
+SET AUTOCOMMIT=DEFAULT;
+
 # Reset default environment.
 set GLOBAL query_cache_size=default;

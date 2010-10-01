@@ -20,43 +20,20 @@
 
 use strict;
 
-# These are not to be prefixed with "mtr_"
+sub gprof_collect ($@) {
+  my ($exe_mysqld, @gprof_dirs)= @_;
 
-sub gprof_prepare ();
-sub gprof_collect ();
+  print ("Collecting gprof reports.....\n");
 
-##############################################################################
-#
-#  
-#
-##############################################################################
-
-sub gprof_prepare () {
-
-  rmtree($::opt_gprof_dir);
-  mkdir($::opt_gprof_dir);
-}
-
-# FIXME what about master1 and slave1?!
-sub gprof_collect () {
-
-  if ( -f "$::master->[0]->{'path_myddir'}/gmon.out" )
+  foreach my $datadir (@gprof_dirs)
   {
-    # FIXME check result code?!
-    mtr_run("gprof",
-            [$::exe_master_mysqld,
-             "$::master->[0]->{'path_myddir'}/gmon.out"],
-            $::opt_gprof_master, "", "", "");
-    print "Master execution profile has been saved in $::opt_gprof_master\n";
-  }
-  if ( -f "$::slave->[0]->{'path_myddir'}/gmon.out" )
-  {
-    # FIXME check result code?!
-    mtr_run("gprof",
-            [$::exe_slave_mysqld,
-             "$::slave->[0]->{'path_myddir'}/gmon.out"],
-            $::opt_gprof_slave, "", "", "");
-    print "Slave execution profile has been saved in $::opt_gprof_slave\n";
+    my $gprof_msg= "$datadir/gprof.msg";
+    my $gprof_err= "$datadir/gprof.err";
+    if ( -f "$datadir/gmon.out" )
+    {
+      system("gprof $exe_mysqld $datadir/gmon.out 2>$gprof_err >$gprof_msg");
+      print ("GPROF output in $gprof_msg, errors in $gprof_err\n");
+    }
   }
 }
 

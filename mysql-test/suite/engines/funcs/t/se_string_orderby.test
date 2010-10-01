@@ -1,0 +1,214 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='a' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='a' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='b' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='b' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='c' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='c' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='d' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='d' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='e' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='e' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='f' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='f' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='y' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='y' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='a' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='a' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='b' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='b' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='c' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='c' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='d' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='d' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='e' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='e' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='f' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='f' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='y' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='y' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='a' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='a' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='b' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='b' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='c' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='c' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='d' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='d' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='e' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='e' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='f' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='f' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='y' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='y' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='a' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='a' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='b' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='b' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='c' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='c' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='d' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='d' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='e' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='e' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='f' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='f' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='y' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='y' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='a' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='a' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='b' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='b' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='c' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='c' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='d' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='d' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='e' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='e' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='f' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='f' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='y' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='y' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='a' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='a' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='b' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='b' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='c' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='c' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='d' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='d' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='e' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='e' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='f' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='f' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 WHERE c1='y' ORDER BY c1,c2,c3;
+SELECT * FROM t1 WHERE c2='y' ORDER BY c2,c1,c3 DESC;
+DROP TABLE t1;
+

@@ -1,0 +1,68 @@
+# Bug#16456 RBR: rpl_sp.test expects query to fail, but passes in RBR
+source include/master-slave.inc;
+# save status
+
+let $oblf=`select @@SESSION.BINLOG_FORMAT`;
+let $otfc=`select @@log_bin_trust_function_creators`;
+
+set global log_bin_trust_function_creators=0;
+
+
+
+# fail *on definition*
+
+set binlog_format=STATEMENT;
+
+delimiter |;
+--error ER_BINLOG_UNSAFE_ROUTINE
+create function fn16456()
+       returns int
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+
+
+
+# force in definition, so we can see whether we fail on call
+
+set global log_bin_trust_function_creators=1;
+
+delimiter |;
+create function fn16456()
+       returns int
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+
+set global log_bin_trust_function_creators=0;
+
+
+
+# allow funcall in RBR
+
+set binlog_format=ROW;
+
+--replace_column 1 timestamp
+select fn16456();
+
+
+
+# fail funcall in SBR
+
+set binlog_format=STATEMENT;
+
+--error ER_BINLOG_UNSAFE_ROUTINE
+select fn16456();
+
+
+
+# restore status
+
+drop function fn16456;
+
+--disable_query_log
+eval set binlog_format=$oblf;
+eval set global log_bin_trust_function_creators=$otfc;
+--enable_query_log

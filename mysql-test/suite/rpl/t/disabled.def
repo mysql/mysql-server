@@ -10,4 +10,4 @@
 #
 ##############################################################################
 
-rpl_row_create_table    : Bug#45576 2009-12-01 joro rpl_row_create_table fails on PB2
+rpl_row_create_table : Bug#51574 Feb 27 2010 andrei failed different way than earlier with bug#45576

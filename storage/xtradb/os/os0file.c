@@ -1,23 +1,6 @@
-/*****************************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
 /***********************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -231,7 +214,7 @@ static os_aio_array_t*	os_aio_sync_array	= NULL;	/*!< Synchronous I/O */
 /* Per thread buffer used for merged IO requests. Used by
 os_aio_simulated_handle so that a buffer doesn't have to be allocated
 for each request. */
-static char* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
+static byte* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
 static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
 
 /** Number of asynchronous I/O segments.  Set by os_aio_init(). */
@@ -846,7 +829,15 @@ next_file:
 #ifdef HAVE_READDIR_R
 	ret = readdir_r(dir, (struct dirent*)dirent_buf, &ent);
 
-	if (ret != 0) {
+	if (ret != 0
+#ifdef UNIV_AIX
+	    /* On AIX, only if we got non-NULL 'ent' (result) value and
+	    a non-zero 'ret' (return) value, it indicates a failed
+	    readdir_r() call. An NULL 'ent' with an non-zero 'ret'
+	    would indicate the "end of the directory" is reached. */
+	    && ent != NULL
+#endif
+	   ) {
 		fprintf(stderr,
 			"InnoDB: cannot read directory %s, error %lu\n",
 			dirname, (ulong)ret);
@@ -1388,7 +1379,11 @@ try_again:
 
 		/* When srv_file_per_table is on, file creation failure may not
 		be critical to the whole instance. Do not crash the server in
-		case of unknown errors. */
+		case of unknown errors.
+		Please note "srv_file_per_table" is a global variable with
+		no explicit synchronization protection. It could be
+		changed during this execution path. It might not have the
+		same value as the one when building the table definition */
 		if (srv_file_per_table) {
 			retry = os_file_handle_error_no_exit(name,
 						create_mode == OS_FILE_CREATE ?
@@ -1475,7 +1470,11 @@ try_again:
 
 		/* When srv_file_per_table is on, file creation failure may not
 		be critical to the whole instance. Do not crash the server in
-		case of unknown errors. */
+		case of unknown errors.
+		Please note "srv_file_per_table" is a global variable with
+		no explicit synchronization protection. It could be
+		changed during this execution path. It might not have the
+		same value as the one when building the table definition */
 		if (srv_file_per_table) {
 			retry = os_file_handle_error_no_exit(name,
 						create_mode == OS_FILE_CREATE ?
@@ -1500,6 +1499,11 @@ try_again:
 	if (type != OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 		
+		os_file_set_nocache(file, name, mode_str);
+	}
+
+	/* ALL_O_DIRECT: O_DIRECT also for transaction log file */
+	if (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
 		os_file_set_nocache(file, name, mode_str);
 	}
 
@@ -4029,6 +4033,9 @@ os_aio_simulated_handle(
 	ulint		n;
 	ulint		i;
 	time_t          now;
+
+	/* Fix compiler warning */
+	*consecutive_ios = NULL;
 
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 

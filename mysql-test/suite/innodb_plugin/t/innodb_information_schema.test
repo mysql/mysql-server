@@ -1,0 +1,149 @@
+# 
+# Test that user data is correctly "visualized" in
+# INFORMATION_SCHEMA.innodb_locks.lock_data
+#
+
+-- source include/have_innodb_plugin.inc
+
+-- disable_query_log
+-- disable_result_log
+
+SET storage_engine=InnoDB;
+
+-- disable_warnings
+DROP TABLE IF EXISTS t_min, t_max;
+-- enable_warnings
+
+let $table_def =
+(
+	c01 TINYINT,
+	c02 TINYINT UNSIGNED,
+	c03 SMALLINT,
+	c04 SMALLINT UNSIGNED,
+	c05 MEDIUMINT,
+	c06 MEDIUMINT UNSIGNED,
+	c07 INT,
+	c08 INT UNSIGNED,
+	c09 BIGINT,
+	c10 BIGINT UNSIGNED,
+	PRIMARY KEY(c01, c02, c03, c04, c05, c06, c07, c08, c09, c10)
+);
+
+-- eval CREATE TABLE t_min $table_def;
+INSERT INTO t_min VALUES
+(-128, 0,
+ -32768, 0,
+ -8388608, 0,
+ -2147483648, 0,
+ -9223372036854775808, 0);
+
+-- eval CREATE TABLE t_max $table_def;
+INSERT INTO t_max VALUES
+(127, 255,
+ 32767, 65535,
+ 8388607, 16777215,
+ 2147483647, 4294967295,
+ 9223372036854775807, 18446744073709551615);
+
+CREATE TABLE ```t'\"_str` (
+	c1 VARCHAR(32),
+	c2 VARCHAR(32),
+	c3 VARCHAR(32),
+	c4 VARCHAR(32),
+	c5 VARCHAR(32),
+	c6 VARCHAR(32),
+	c7 VARCHAR(32),
+	PRIMARY KEY(c1, c2, c3, c4, c5, c6, c7)
+);
+INSERT INTO ```t'\"_str` VALUES
+('1', 'abc', '''abc', 'abc''', 'a''bc', 'a''bc''', '''abc''''');
+INSERT INTO ```t'\"_str` VALUES
+('2', 'abc', '"abc', 'abc"', 'a"bc', 'a"bc"', '"abc""');
+INSERT INTO ```t'\"_str` VALUES
+('3', 'abc', '\\abc', 'abc\\', 'a\\bc', 'a\\bc\\', '\\abc\\\\');
+INSERT INTO ```t'\"_str` VALUES
+('4', 'abc', 0x00616263, 0x61626300, 0x61006263, 0x6100626300, 0x610062630000);
+
+-- connect (con_lock,localhost,root,,)
+-- connect (con_min_trylock,localhost,root,,)
+-- connect (con_max_trylock,localhost,root,,)
+-- connect (con_str_insert_supremum,localhost,root,,)
+-- connect (con_str_lock_row1,localhost,root,,)
+-- connect (con_str_lock_row2,localhost,root,,)
+-- connect (con_str_lock_row3,localhost,root,,)
+-- connect (con_str_lock_row4,localhost,root,,)
+-- connect (con_verify_innodb_locks,localhost,root,,)
+
+-- connection con_lock
+SET autocommit=0;
+SELECT * FROM t_min FOR UPDATE;
+SELECT * FROM t_max FOR UPDATE;
+SELECT * FROM ```t'\"_str` FOR UPDATE;
+
+-- connection con_min_trylock
+-- send
+SELECT * FROM t_min FOR UPDATE;
+
+-- connection con_max_trylock
+-- send
+SELECT * FROM t_max FOR UPDATE;
+
+-- connection con_str_insert_supremum
+-- send
+INSERT INTO ```t'\"_str` VALUES
+('z', 'z', 'z', 'z', 'z', 'z', 'z');
+
+-- connection con_str_lock_row1
+-- send
+SELECT * FROM ```t'\"_str` WHERE c1 = '1' FOR UPDATE;
+
+-- connection con_str_lock_row2
+-- send
+SELECT * FROM ```t'\"_str` WHERE c1 = '2' FOR UPDATE;
+
+-- connection con_str_lock_row3
+-- send
+SELECT * FROM ```t'\"_str` WHERE c1 = '3' FOR UPDATE;
+
+-- connection con_str_lock_row4
+-- send
+SELECT * FROM ```t'\"_str` WHERE c1 = '4' FOR UPDATE;
+
+-- enable_result_log
+-- connection con_verify_innodb_locks
+# Wait for the above queries to execute before continuing.
+# Without this, it sometimes happens that the SELECT from innodb_locks
+# executes before some of them, resulting in less than expected number
+# of rows being selected from innodb_locks. If there is a bug and there
+# are no 14 rows in innodb_locks then this test will fail with timeout.
+let $count = 14;
+let $table = INFORMATION_SCHEMA.INNODB_LOCKS;
+-- source include/wait_until_rows_count.inc
+# the above enables the query log, re-disable it
+-- disable_query_log
+SELECT lock_mode, lock_type, lock_table, lock_index, lock_rec, lock_data
+FROM INFORMATION_SCHEMA.INNODB_LOCKS ORDER BY lock_data;
+
+SELECT lock_table,COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
+GROUP BY lock_table;
+
+set @save_sql_mode = @@sql_mode;
+SET SQL_MODE='ANSI_QUOTES';
+SELECT lock_table,COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
+GROUP BY lock_table;
+SET @@sql_mode=@save_sql_mode;
+-- disable_result_log
+
+-- connection default
+
+-- disconnect con_lock
+-- disconnect con_min_trylock
+-- disconnect con_max_trylock
+-- disconnect con_str_insert_supremum
+-- disconnect con_str_lock_row1
+-- disconnect con_str_lock_row2
+-- disconnect con_str_lock_row3
+-- disconnect con_str_lock_row4
+-- disconnect con_verify_innodb_locks
+
+DROP TABLE t_min, t_max, ```t'\"_str`;

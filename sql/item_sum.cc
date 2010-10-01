@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -642,7 +642,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   default:
     DBUG_ASSERT(0);
   };
-  setup_item(args[0], NULL);
+  setup_hybrid(args[0], NULL);
   /* MIN/MAX can return NULL for empty set indepedent of the used column */
   maybe_null= 1;
   unsigned_flag=item->unsigned_flag;
@@ -676,7 +676,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     of the original MIN/MAX object and it is saved in this object's cache.
 */
 
-void Item_sum_hybrid::setup_item(Item *item, Item *value_arg)
+void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
@@ -1638,15 +1638,29 @@ void Item_sum_hybrid::cleanup()
 
 void Item_sum_hybrid::no_rows_in_result()
 {
-  was_values= FALSE;
-  clear();
+  /* We may be called here twice in case of ref field in function */
+  if (was_values)
+  {
+    was_values= FALSE;
+    was_null_value= value->null_value;
+    clear();
+  }
+}
+
+void Item_sum_hybrid::restore_to_before_no_rows_in_result()
+{
+  if (!was_values)
+  {
+    was_values= TRUE;
+    null_value= value->null_value= was_null_value;
+  }
 }
 
 
 Item *Item_sum_min::copy_or_same(THD* thd)
 {
   Item_sum_min *item= new (thd->mem_root) Item_sum_min(thd, this);
-  item->setup_item(args[0], value);
+  item->setup_hybrid(args[0], value);
   return item;
 }
 
@@ -1669,7 +1683,7 @@ bool Item_sum_min::add()
 Item *Item_sum_max::copy_or_same(THD* thd)
 {
   Item_sum_max *item= new (thd->mem_root) Item_sum_max(thd, this);
-  item->setup_item(args[0], value);
+  item->setup_hybrid(args[0], value);
   return item;
 }
 
@@ -2964,7 +2978,7 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_LIST *order_list, String *separator_arg)
+                       SQL_I_List<ORDER> *order_list, String *separator_arg)
   :tmp_table_param(0), warning(0),
    separator(separator_arg), tree(0), unique_filter(NULL), table(0),
    order(0), context(context_arg),
@@ -3008,7 +3022,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= (ORDER*) order_list->first;
+    for (ORDER *order_item= order_list->first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3029,7 +3043,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree(item->tree),
   unique_filter(item->unique_filter),
   table(item->table),
-  order(item->order),
   context(item->context),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
@@ -3042,8 +3055,25 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
 {
   quick_group= item->quick_group;
   result.set_charset(collation.collation);
-}
 
+  /*
+    Since the ORDER structures pointed to by the elements of the 'order' array
+    may be modified in find_order_in_list() called from
+    Item_func_group_concat::setup(), create a copy of those structures so that
+    such modifications done in this object would not have any effect on the
+    object being copied.
+  */
+  ORDER *tmp;
+  if (!(tmp= (ORDER *) thd->alloc(sizeof(ORDER *) * arg_count_order +
+                                     sizeof(ORDER) * arg_count_order)))
+    return;
+  order= (ORDER **)(tmp + arg_count_order);
+  for (uint i= 0; i < arg_count_order; i++, tmp++)
+  {
+    memcpy(tmp, item->order[i], sizeof(ORDER));
+    order[i]= tmp;
+  }
+}
 
 
 void Item_func_group_concat::cleanup()
@@ -3397,6 +3427,8 @@ String* Item_func_group_concat::val_str(String* str)
 
 void Item_func_group_concat::print(String *str, enum_query_type query_type)
 {
+  /* orig_args is not filled with valid values until fix_fields() */
+  Item **pargs= fixed ? orig_args : args;
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct)
     str->append(STRING_WITH_LEN("distinct "));
@@ -3404,7 +3436,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
   {
     if (i)
       str->append(',');
-    args[i]->print(str, query_type);
+    pargs[i]->print(str, query_type);
   }
   if (arg_count_order)
   {
@@ -3413,7 +3445,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     {
       if (i)
         str->append(',');
-      (*order[i]->item)->print(str, query_type);
+      pargs[i + arg_count_field]->print(str, query_type);
       if (order[i]->asc)
         str->append(STRING_WITH_LEN(" ASC"));
       else

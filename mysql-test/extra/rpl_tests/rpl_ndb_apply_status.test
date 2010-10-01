@@ -56,24 +56,23 @@ connection master;
 --echo # since insert is done with transactional engine, expect a BEGIN
 --echo # at <start_pos>
 --echo
---replace_result $start_pos <start_pos>
---replace_column 5 #
---eval show binlog events from $start_pos limit 1
+--let $binlog_start= $start_pos
+--let $binlog_limit= 1
+--source include/show_binlog_events.inc
 
 --echo
 --echo # Now the insert, one step after
 --echo
---replace_result $start_pos <start_pos>
---replace_column 2 # 5 #
---eval show binlog events from $start_pos limit 1,1
+--let $binlog_start= $start_pos
+--let $binlog_limit= 1,1
+--source include/show_binlog_events.inc
 
 --echo
 --echo # and the COMMIT should be at <end_pos>
 --echo
---replace_result $start_pos <start_pos> $end_pos <end_pos>
---replace_column 2 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
---eval show binlog events from $start_pos limit 2,1
+--let $binlog_start= $start_pos
+--let $binlog_limit= 2,1
+--source include/show_binlog_events.inc
 
 --echo
 
@@ -89,18 +88,17 @@ commit;
 --source include/select_ndb_apply_status.inc
 
 connection master;
---replace_result $start_pos <start_pos>
---replace_column 5 #
---eval show binlog events from $start_pos limit 1
+--let $binlog_start= $start_pos
+--let $binlog_limit= 1
+--source include/show_binlog_events.inc
 --echo
---replace_result $start_pos <start_pos>
---replace_column 2 # 4 # 5 #
---eval show binlog events from $start_pos limit 1,2
+--let $binlog_start= $start_pos
+--let $binlog_limit= 1,2
+--source include/show_binlog_events.inc
 --echo
---replace_result $start_pos <start_pos> $end_pos <end_pos>
---replace_column 2 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
---eval show binlog events from $start_pos limit 3,1
+--let $binlog_start= $start_pos
+--let $binlog_limit= 3,1
+--source include/show_binlog_events.inc
 
 --echo
 

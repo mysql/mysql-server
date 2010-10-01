@@ -45,7 +45,6 @@ struct XTIndex;
 #define XT_DD_KEY_PRIMARY			2
 #define XT_DD_KEY_FOREIGN			3
 
-#define XT_KEY_ACTION_DEFAULT		0
 #define XT_KEY_ACTION_RESTRICT		1
 #define XT_KEY_ACTION_CASCADE		2
 #define XT_KEY_ACTION_SET_NULL		3
@@ -259,7 +258,7 @@ class XTDDTable : public XTObject {
 	XTList<XTDDColumn>		dt_cols;
 	XTList<XTDDIndex>		dt_indexes;
 
-	xt_rwlock_type			dt_ref_lock;			/* The lock for adding and using references. */
+	XTRecurRWLockRec		dt_ref_lock;			/* The lock for adding and using references. */
 	XTList<XTDDForeignKey>	dt_fkeys;				/* The foreign keys on this table. */
 	XTDDTableRef			*dt_trefs;				/* A list of tables that reference this table. */
 

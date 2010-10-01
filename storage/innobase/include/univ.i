@@ -55,10 +55,10 @@ of the 32-bit x86 assembler in mutex operations. */
 #  define UNIV_CAN_USE_X86_ASSEMBLER
 # endif
 
-/* Enable explicit inlining of functions only for compilers known to
-support it. */
+/* We only try to do explicit inlining of functions with gcc and
+Microsoft Visual C++ */
 
-# if !defined(__GNUC__) && !defined(__SUNPRO_C)
+# if !defined(__GNUC__)
 #  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
 #  define UNIV_MUST_NOT_INLINE
 # endif
@@ -82,6 +82,9 @@ memory is read outside the allocated blocks. */
 
 /* Make a non-inline debug version */
 
+#if defined HAVE_VALGRIND
+# define UNIV_DEBUG_VALGRIND
+#endif /* HAVE_VALGRIND */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
@@ -107,7 +110,7 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 
-#ifdef HAVE_valgrind
+#ifdef HAVE_purify
 /* The following sets all new allocated memory to zero before use:
 this can be used to eliminate unnecessary Purify warnings, but note that
 it also masks many bugs Purify could detect. For detailed Purify analysis it
@@ -123,11 +126,6 @@ by one. */
 			/* the above option prevents forcing of log to disk
 			at a buffer page write: it should be tested with this
 			option off; also some ibuf tests are suppressed */
-/*
-#define UNIV_BASIC_LOG_DEBUG
-*/
-			/* the above option enables basic recovery debugging:
-			new allocated file pages are reset */
 
 #if (!defined(UNIV_DEBUG) && !defined(INSIDE_HA_INNOBASE_CC) && !defined(UNIV_MUST_NOT_INLINE))
 /* Definition for inline version */

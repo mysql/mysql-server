@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -368,7 +368,7 @@ public:
   */
   void no_rows_in_result() { clear(); }
 
-  virtual bool setup(THD *thd) {return 0;}
+  virtual bool setup(THD* thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table,
@@ -496,7 +496,7 @@ public:
   enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
   void reset_field() {} // not used
   void update_field() {} // not used
-  virtual void no_rows_in_result() {}
+  void no_rows_in_result() {}
   void fix_length_and_dec();
   enum Item_result result_type () const { return val.traits->type(); }
   virtual void calculate_val_and_count();
@@ -845,6 +845,7 @@ protected:
   enum_field_types hybrid_field_type;
   int cmp_sign;
   bool was_values;  // Set if we have found at least one row (for max/min only)
+  bool was_null_value;
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
@@ -858,7 +859,7 @@ protected:
     was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
-  void setup_item(Item *item, Item *value_arg);
+  void setup_hybrid(Item *item, Item *value_arg);
   void clear();
   double val_real();
   longlong val_int();
@@ -876,6 +877,7 @@ protected:
   void cleanup();
   bool any_value() { return was_values; }
   void no_rows_in_result();
+  void restore_to_before_no_rows_in_result();
   Field *create_tmp_field(bool group, TABLE *table,
 			  uint convert_blob_length);
 };
@@ -1236,7 +1238,7 @@ class Item_func_group_concat : public Item_sum
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
                          bool is_distinct, List<Item> *is_select,
-                         SQL_LIST *is_order, String *is_separator);
+                         SQL_I_List<ORDER> *is_order, String *is_separator);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat();

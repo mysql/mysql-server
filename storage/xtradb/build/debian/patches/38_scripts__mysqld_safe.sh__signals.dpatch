@@ -1,0 +1,43 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 38_scripts__mysqld_safe.sh__signals.dpatch by  <ch@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Executes /etc/init.d/mysql on signals
+## DP: Reported as http://bugs.mysql.com/bug.php?id=31361
+
+@DPATCH@
+
+--- old/scripts/mysqld_safe.sh	2006-07-29 13:12:34.000000000 +0200
++++ old/scripts/mysqld_safe.sh	2006-07-29 13:14:08.000000000 +0200
+@@ -16,8 +16,6 @@
+ # This command can be used as pipe to syslog. With "-s" it also logs to stderr.
+ ERR_LOGGER="logger -p daemon.err -t mysqld_safe -i"
+ 
+-trap '' 1 2 3 15			# we shouldn't let anyone kill us
+-
+ umask 007
+ 
+ defaults=
+@@ -122,7 +122,7 @@
+       # sed buffers output (only GNU sed supports a -u (unbuffered) option)
+       # which means that messages may not get sent to syslog until the
+       # mysqld process quits.
+-      cmd="$cmd 2>&1 | logger -t '$syslog_tag_mysqld' -p daemon.error"
++      cmd="$cmd 2>&1 | logger -t '$syslog_tag_mysqld' -p daemon.error & wait"
+       ;;
+     *)
+       echo "Internal program error (non-fatal):" \
+@@ -352,6 +350,13 @@
+ fi
+ 
+ #
++# From now on, we catch signals to do a proper shutdown of mysqld
++# when signalled to do so.
++#
++trap '/usr/bin/mysqladmin --defaults-extra-file=/etc/mysql/debian.cnf refresh' 1 # HUP
++trap '/usr/bin/mysqladmin --defaults-extra-file=/etc/mysql/debian.cnf shutdown' 2 3 15 # INT QUIT and TERM
++
++#
+ # Uncomment the following lines if you want all tables to be automatically
+ # checked and repaired during startup. You should add sensible key_buffer
+ # and sort_buffer values to my.cnf to improve check performance or require

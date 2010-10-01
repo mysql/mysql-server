@@ -1,0 +1,29 @@
+##########################################
+# 2006-02-07 By JBM: Added order by
+#########################################
+# Note that errors are ignored by opt file.
+source include/master-slave.inc;
+
+create table t1 (n int not null primary key);
+save_master_pos;
+connection slave;
+sync_with_master;
+insert into t1 values (1);
+connection master;
+# Here we expect (ignored) error, since 1 is already in slave table 
+insert into t1 values (1);
+
+# These should work fine
+insert into t1 values (2),(3);
+
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1 ORDER BY n;
+
+# Cleanup
+connection master;
+drop table t1;
+sync_slave_with_master;
+
+# End of 4.1 tests

@@ -1,0 +1,27 @@
+set GLOBAL query_cache_size=1355776;
+flush query cache;
+flush query cache;
+reset query cache;
+flush status;
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT, number INT);
+INSERT INTO t VALUES (0,1);
+INSERT INTO t VALUES (1,2);
+INSERT INTO t VALUES (2,3);
+SELECT number from t where id > 0;
+number
+2
+3
+SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
+SELECT number from t where id > 0;
+SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
+SELECT number from t where id > 0;
+SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+Id	root	localhost	test	Sleep	Time		NULL
+Id	root	localhost	test	Query	Time	Waiting on query cache mutex	SELECT number from t where id > 0
+Id	root	localhost	test	Query	Time	Waiting on query cache mutex	SELECT number from t where id > 0
+Id	root	localhost	test	Query	Time	NULL	SHOW PROCESSLIST
+DROP TABLE t;
+set GLOBAL query_cache_size=0;

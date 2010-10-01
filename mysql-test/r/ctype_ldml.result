@@ -49,6 +49,15 @@ SELECT * FROM t1 WHERE LOWER(a)=LOWER('N');
 a
 DROP TABLE t1;
 #
+# Bug#51976 LDML collations issue (cyrillic example)
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
+INSERT INTO t1 (a) VALUES ('Hello');
+SELECT a, UPPER(a), LOWER(a) FROM t1;
+a	UPPER(a)	LOWER(a)
+Hello	HELLO	hello
+DROP TABLE t1;
+#
 # Bug#43827 Server closes connections and restarts
 #
 CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);

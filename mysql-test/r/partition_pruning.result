@@ -270,7 +270,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
 SELECT * FROM t1 WHERE a > 1;
 a
 2
@@ -327,13 +327,13 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
 SELECT * FROM t1 WHERE a > 7;
 a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
 DROP TABLE t1;
 CREATE TABLE t1 (a INT PRIMARY KEY)
 PARTITION BY RANGE (a) (
@@ -556,7 +556,7 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
 SELECT * FROM t1 WHERE a > 1;
 a
 2
@@ -601,13 +601,13 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
 SELECT * FROM t1 WHERE a > 6;
 a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
 DROP TABLE t1;
 # test of RANGE and index
 CREATE TABLE t1 (a DATE, KEY(a))
@@ -757,10 +757,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	range	a	a	4	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p2001-01-01	range	a	a	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	pNULL,p2001-01-01	index	a	a	4	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p2001-01-01	range	a	a	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	pNULL,p2001-01-01	index	a	a	4	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
@@ -1086,10 +1086,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	range	a	a	4	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL	range	a	a	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	p2001-01-01,pNULL	index	a	a	4	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL	range	a	a	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	p2001-01-01,pNULL	index	a	a	4	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
@@ -1101,7 +1101,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	range	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0001-01-02' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p1001-01-01	range	a	a	4	NULL	2	Using where; Using index
+1	SIMPLE	t1	pNULL,p1001-01-01	index	a	a	4	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0001-01-01' AND '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p1001-01-01	range	a	a	4	NULL	3	Using where; Using index
@@ -2101,6 +2101,21 @@ insert into t7 values (10),(30),(50);
 explain partitions select * from t7 where a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a < 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a <= 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a >= 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a > 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -2110,7 +2125,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions select * from t7 where a = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p30	system	NULL	NULL	NULL	NULL	1	
+explain partitions select * from t7 where a >= 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a > 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a < 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a <= 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a = 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a > 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a >= 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t7 where a < 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a <= 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a = 90;
@@ -2120,6 +2159,9 @@ explain partitions select * from t7 where a > 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t7 where a >= 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a > 91;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t7 where a > 11 and a < 29;
@@ -2137,6 +2179,21 @@ insert into t7 values (10),(30),(50);
 explain partitions select * from t7 where a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a < 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a <= 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a >= 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a > 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -2146,7 +2203,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions select * from t7 where a = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p30	system	NULL	NULL	NULL	NULL	1	
+explain partitions select * from t7 where a >= 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a > 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a < 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a <= 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a = 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a > 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a >= 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t7 where a < 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a <= 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a = 90;
@@ -2156,6 +2237,9 @@ explain partitions select * from t7 where a > 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t7 where a >= 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t7 where a > 91;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t7 where a > 11 and a < 29;

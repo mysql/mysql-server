@@ -1,0 +1,52 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create database mysqltest;
+drop database if exists mysqltest;
+Warnings:
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
+show tables from mysqltest;
+ERROR 42000: Unknown database 'mysqltest'
+create table t1 (a int);
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t1 (a int, b int);
+insert into t1 values(1,1);
+delete from t1;
+select * from t1;
+a	b
+insert into t1 values(1,1);
+insert into t1 values(2,1);
+update t1 set a=2;
+select * from t1;
+a	b
+2	1
+2	1
+create table t2 (a int, b int);
+delete from t1;
+insert into t1 values(1,1);
+insert into t2 values(1,1);
+update t1 set a=2;
+UPDATE t1, t2 SET t1.a = t2.a;
+select * from t1;
+a	b
+1	1
+select * from t2;
+a	b
+1	1
+delete from t1;
+delete from t2;
+insert into t1 values(1,1);
+insert into t2 values(1,1);
+DELETE t1.*, t2.* from t1, t2;
+select * from t1;
+a	b
+select * from t2;
+a	b
+drop table t1, t2;

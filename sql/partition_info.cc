@@ -103,8 +103,8 @@ char *partition_info::create_default_partition_names(uint part_no,
   {
     do
     {
-      my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
-      move_ptr+=MAX_PART_NAME_SIZE;
+      sprintf(move_ptr, "p%u", (start_no + i));
+      move_ptr+= MAX_PART_NAME_SIZE;
     } while (++i < no_parts_arg);
   }
   else
@@ -135,7 +135,7 @@ char *partition_info::create_subpartition_name(uint subpart_no,
 
   if (likely(ptr != NULL))
   {
-    my_sprintf(ptr, (ptr, "%ssp%u", part_name, subpart_no));
+    my_snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
   }
   else
   {
@@ -972,7 +972,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           part_elem->engine_type= default_engine_type;
         }
         if (check_table_name(part_elem->partition_name,
-                             strlen(part_elem->partition_name)))
+                             strlen(part_elem->partition_name), FALSE))
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
           goto end;
@@ -990,7 +990,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
         {
           sub_elem= sub_it++;
           if (check_table_name(sub_elem->partition_name,
-                               strlen(sub_elem->partition_name)))
+                               strlen(sub_elem->partition_name), FALSE))
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
             goto end;

@@ -327,6 +327,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   TABLE *table;
   bool result= TRUE;
   String stmt_query;
+  Query_tables_list backup;
   bool need_start_waiting= FALSE;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
@@ -392,6 +393,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (!create)
   {
     bool if_exists= thd->lex->drop_if_exists;
+
+    /*
+      Protect the query table list from the temporary and potentially
+      destructive changes necessary to open the trigger's table.
+    */
+    thd->lex->reset_n_backup_query_tables_list(&backup);
 
     if (add_table_for_trigger(thd, thd->lex->spname, if_exists, & tables))
       goto end;
@@ -511,6 +518,10 @@ end:
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
+
+  /* Restore the query table list. Used only for drop trigger. */
+  if (!create)
+    thd->lex->restore_backup_query_tables_list(&backup);
 
   if (need_start_waiting)
     start_waiting_global_read_lock(thd);
@@ -642,7 +653,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   */
   old_field= new_field= table->field;
 
-  for (trg_field= (Item_trigger_field *)(lex->trg_table_fields.first);
+  for (trg_field= lex->trg_table_fields.first;
        trg_field; trg_field= trg_field->next_trg_field)
   {
     /*
@@ -1286,9 +1297,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
 
-        Parser_state parser_state(thd,
-                                  trg_create_str->str,
-                                  trg_create_str->length);
+        Parser_state parser_state;
+        if (parser_state.init(thd, trg_create_str->str, trg_create_str->length))
+          goto err_with_lex_cleanup;
 
         Trigger_creation_ctx *creation_ctx=
           Trigger_creation_ctx::create(thd,
@@ -1380,7 +1391,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           To remove this prefix we use check_n_cut_mysql50_prefix().
         */
 
-        char fname[NAME_LEN + 1];
+        char fname[SAFE_NAME_LEN + 1];
         DBUG_ASSERT((!my_strcasecmp(table_alias_charset, lex.query_tables->db, db) ||
                      (check_n_cut_mysql50_prefix(db, fname, sizeof(fname)) &&
                       !my_strcasecmp(table_alias_charset, lex.query_tables->db, fname))) &&
@@ -1402,7 +1413,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         */
         triggers->trigger_fields[lex.trg_chistics.event]
                                 [lex.trg_chistics.action_time]=
-          (Item_trigger_field *)(lex.trg_table_fields.first);
+          lex.trg_table_fields.first;
         /*
           Also let us bind these objects to Field objects in table being
           opened.
@@ -1412,8 +1423,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           SELECT)...
           Anyway some things can be checked only during trigger execution.
         */
-        for (Item_trigger_field *trg_field=
-               (Item_trigger_field *)(lex.trg_table_fields.first);
+        for (Item_trigger_field *trg_field= lex.trg_table_fields.first;
              trg_field;
              trg_field= trg_field->next_trg_field)
         {
@@ -1624,10 +1634,6 @@ bool add_table_for_trigger(THD *thd,
 
   if (load_table_name_for_trigger(thd, trg_name, &trn_path, &tbl_name))
     DBUG_RETURN(TRUE);
-
-  /* We need to reset statement table list to be PS/SP friendly. */
-  lex->query_tables= 0;
-  lex->query_tables_last= &lex->query_tables;
 
   *table= sp_add_to_query_tables(thd, lex, trg_name->m_db.str,
                                  tbl_name.str, TL_IGNORE);
@@ -1911,7 +1917,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
     */
     if (my_strcasecmp(table_alias_charset, db, new_db))
     {
-      char dbname[NAME_LEN + 1];
+      char dbname[SAFE_NAME_LEN + 1];
       if (check_n_cut_mysql50_prefix(db, dbname, sizeof(dbname)) && 
           !my_strcasecmp(table_alias_charset, dbname, new_db))
       {

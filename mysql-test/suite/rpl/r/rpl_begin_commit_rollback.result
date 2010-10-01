@@ -5,7 +5,9 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
 CREATE DATABASE db1;
+CREATE DATABASE db2;
 use db1;
 CREATE TABLE db1.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db1.t2 (s CHAR(255)) ENGINE=MyISAM;
@@ -102,8 +104,66 @@ SELECT * from db1.t2;
 s
 before call db1.p1()
 executed db1.p2()
+START SLAVE;
+#
+# SAVEPOINT and ROLLBACK TO have the same problem in BUG#43263
+# This was reported by BUG#50407
+[on master]
+SET SESSION AUTOCOMMIT=0
+BEGIN;
+INSERT INTO db1.t1 VALUES(20);
+# 
+# Verify whether this statement is binlogged correctly
+/*comment*/ SAVEPOINT has_comment;
+USE db1;
+INSERT INTO db1.t1 VALUES(30);
+INSERT INTO db1.t2 VALUES("in savepoint has_comment");
+USE db2;
+SavePoint mixed_cases;
+USE db1;
+INSERT INTO db1.t2 VALUES("in savepoint mixed_cases");
+INSERT INTO db1.t1 VALUES(40);
+USE db2;
+ROLLBACK TO mixed_cases;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+ROLLBACK TO has_comment;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+USE db1;
+INSERT INTO db1.t2 VALUES("after rollback to");
+INSERT INTO db1.t1 VALUES(50);
+USE db2;
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO db1.t1 VALUES(20)
+master-bin.000001	#	Query	#	#	SAVEPOINT has_comment
+master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t1 VALUES(30)
+master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t2 VALUES("in savepoint has_comment")
+master-bin.000001	#	Query	#	#	SAVEPOINT mixed_cases
+master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t2 VALUES("in savepoint mixed_cases")
+master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t1 VALUES(40)
+master-bin.000001	#	Query	#	#	ROLLBACK TO mixed_cases
+master-bin.000001	#	Query	#	#	ROLLBACK TO has_comment
+master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t2 VALUES("after rollback to")
+master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t1 VALUES(50)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+[on slave]
+#
+# Verify INSERT statements in savepoints are executed, for MyISAM table
+# is not effected by ROLLBACK TO
+SELECT * FROM db1.t2 WHERE s LIKE '% savepoint %';
+s
+in savepoint has_comment
+in savepoint mixed_cases
+#
+# Verify INSERT statements on the Innodb table are rolled back;
+SELECT * FROM db1.t1 WHERE a IN (30, 40);
+a
 #
 # Clean up
 #
 DROP DATABASE db1;
-DROP DATABASE db1;
+DROP DATABASE db2;

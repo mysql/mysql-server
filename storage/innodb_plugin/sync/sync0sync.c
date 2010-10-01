@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -315,6 +315,15 @@ mutex_free(
 	ut_a(mutex_get_lock_word(mutex) == 0);
 	ut_a(mutex_get_waiters(mutex) == 0);
 
+#ifdef UNIV_MEM_DEBUG
+	if (mutex == &mem_hash_mutex) {
+		ut_ad(UT_LIST_GET_LEN(mutex_list) == 1);
+		ut_ad(UT_LIST_GET_FIRST(mutex_list) == &mem_hash_mutex);
+		UT_LIST_REMOVE(list, mutex_list, mutex);
+		goto func_exit;
+	}
+#endif /* UNIV_MEM_DEBUG */
+
 	if (mutex != &mutex_list_mutex
 #ifdef UNIV_SYNC_DEBUG
 	    && mutex != &sync_thread_mutex
@@ -336,7 +345,9 @@ mutex_free(
 	}
 
 	os_event_free(mutex->event);
-
+#ifdef UNIV_MEM_DEBUG
+func_exit:
+#endif /* UNIV_MEM_DEBUG */
 #if !defined(HAVE_ATOMIC_BUILTINS)
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
 #endif
@@ -947,12 +958,62 @@ sync_thread_levels_contain(
 }
 
 /******************************************************************//**
-Checks that the level array for the current thread is empty.
-@return	TRUE if empty except the exceptions specified below */
+Checks if the level array for the current thread contains a
+mutex or rw-latch at the specified level.
+@return	a matching latch, or NULL if not found */
 UNIV_INTERN
-ibool
-sync_thread_levels_empty_gen(
-/*=========================*/
+void*
+sync_thread_levels_contains(
+/*========================*/
+	ulint	level)			/*!< in: latching order level
+					(SYNC_DICT, ...)*/
+{
+	sync_level_t*	arr;
+	sync_thread_t*	thread_slot;
+	sync_level_t*	slot;
+	ulint		i;
+
+	if (!sync_order_checks_on) {
+
+		return(NULL);
+	}
+
+	mutex_enter(&sync_thread_mutex);
+
+	thread_slot = sync_thread_level_arrays_find_slot();
+
+	if (thread_slot == NULL) {
+
+		mutex_exit(&sync_thread_mutex);
+
+		return(NULL);
+	}
+
+	arr = thread_slot->levels;
+
+	for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
+
+		slot = sync_thread_levels_get_nth(arr, i);
+
+		if (slot->latch != NULL && slot->level == level) {
+
+			mutex_exit(&sync_thread_mutex);
+			return(slot->latch);
+		}
+	}
+
+	mutex_exit(&sync_thread_mutex);
+
+	return(NULL);
+}
+
+/******************************************************************//**
+Checks that the level array for the current thread is empty.
+@return	a latch, or NULL if empty except the exceptions specified below */
+UNIV_INTERN
+void*
+sync_thread_levels_nonempty_gen(
+/*============================*/
 	ibool	dict_mutex_allowed)	/*!< in: TRUE if dictionary mutex is
 					allowed to be owned by the thread,
 					also purge_is_running mutex is
@@ -965,7 +1026,7 @@ sync_thread_levels_empty_gen(
 
 	if (!sync_order_checks_on) {
 
-		return(TRUE);
+		return(NULL);
 	}
 
 	mutex_enter(&sync_thread_mutex);
@@ -976,7 +1037,7 @@ sync_thread_levels_empty_gen(
 
 		mutex_exit(&sync_thread_mutex);
 
-		return(TRUE);
+		return(NULL);
 	}
 
 	arr = thread_slot->levels;
@@ -993,13 +1054,13 @@ sync_thread_levels_empty_gen(
 			mutex_exit(&sync_thread_mutex);
 			ut_error;
 
-			return(FALSE);
+			return(slot->latch);
 		}
 	}
 
 	mutex_exit(&sync_thread_mutex);
 
-	return(TRUE);
+	return(NULL);
 }
 
 /******************************************************************//**
@@ -1370,6 +1431,12 @@ sync_close(void)
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
 	while (mutex) {
+#ifdef UNIV_MEM_DEBUG
+		if (mutex == &mem_hash_mutex) {
+			mutex = UT_LIST_GET_NEXT(list, mutex);
+			continue;
+		}
+#endif /* UNIV_MEM_DEBUG */
 		mutex_free(mutex);
 		mutex = UT_LIST_GET_FIRST(mutex_list);
 	}

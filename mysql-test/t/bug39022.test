@@ -1,0 +1,63 @@
+-- source include/have_log_bin.inc
+-- source include/have_innodb.inc
+-- source include/not_binlog_format_row.inc
+
+--echo #
+--echo # Bug #39022: Mysql randomly crashing in lock_sec_rec_cons_read_sees
+--echo #
+
+CREATE TABLE t1(a TINYINT NOT NULL,b TINYINT,PRIMARY KEY(b)) ENGINE=innodb;
+CREATE TABLE t2(d TINYINT NOT NULL,UNIQUE KEY(d)) ENGINE=innodb;
+INSERT INTO t1 VALUES (13,0),(8,1),(9,2),(6,3),
+(11,5),(11,6),(7,7),(7,8),(4,9),(6,10),(3,11),(11,12),
+(12,13),(7,14);
+INSERT INTO t2 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+(11),(12),(13),(14);
+
+connect (thread1, localhost, root,,);
+connect (thread2, localhost, root,,);
+
+connection thread1;
+--echo # in thread1
+START TRANSACTION;
+
+connection thread2;
+--echo # in thread2
+REPLACE INTO t2 VALUES (-17);
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE;
+
+connection thread1;
+--echo # in thread1
+REPLACE INTO t1(a,b) VALUES (67,20);
+
+connection thread2;
+--echo # in thread2
+COMMIT;
+START TRANSACTION;
+REPLACE INTO t1(a,b) VALUES (65,-50);
+REPLACE INTO t2 VALUES (-91);
+send;
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE; #waits
+
+connection thread1;
+--echo # in thread1
+
+--echo # should not crash
+--error ER_LOCK_DEADLOCK
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE; #crashes
+
+connection thread2;
+--echo # in thread2
+REAP;
+
+disconnect thread2;
+--source include/wait_until_disconnected.inc
+
+connection thread1;
+--echo # in thread1;
+disconnect thread1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+
+DROP TABLE t1,t2;

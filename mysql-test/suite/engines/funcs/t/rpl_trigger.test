@@ -1,0 +1,482 @@
+#
+# Test of triggers with replication
+# Adding statement include due to Bug 12574
+# TODO: Remove statement include once 12574 is patched
+--source include/have_binlog_format_mixed_or_statement.inc 
+--source include/master-slave.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+
+--enable_warnings
+
+#
+# #12482: Triggers has side effects with auto_increment values
+#
+
+create table t1 (a int auto_increment, primary key (a), b int, rand_value double not null);
+create table t2 (a int auto_increment, primary key (a), b int);
+create table t3 (a int auto_increment, primary key (a), name varchar(64) not null, old_a int, old_b int, rand_value double not null);
+
+delimiter |;
+create trigger t1 before insert on t1 for each row
+begin
+ insert into t3 values (NULL, "t1", new.a, new.b, rand());
+end|
+
+create trigger t2 after insert on t2 for each row
+begin
+ insert into t3 values (NULL, "t2", new.a, new.b, rand());
+end|
+delimiter ;|
+
+insert into t3 values(100,"log",0,0,0);
+
+# Ensure we always have same random numbers
+SET @@RAND_SEED1=658490765, @@RAND_SEED2=635893186;
+
+# Emulate that we have rows 2-9 deleted on the slave
+--disable_warnings
+insert into t1 values(1,1,rand()),(NULL,2,rand());
+insert into t2 (b) values(last_insert_id());
+insert into t2 values(3,0),(NULL,0);
+insert into t2 values(NULL,0),(500,0);
+--enable_warnings
+
+select a,b, truncate(rand_value,4) from t1;
+select * from t2;
+select a,name, old_a, old_b, truncate(rand_value,4) from t3;
+save_master_pos;
+connection slave;
+sync_with_master;
+--disable_query_log
+select "--- On slave --" as "";
+--enable_query_log
+select a,b, truncate(rand_value,4) from t1;
+select * from t2;
+select a,name, old_a, old_b, truncate(rand_value,4) from t3;
+connection master;
+drop table t1,t2,t3;
+
+#
+# #12480: NOW() is not constant in a trigger
+# #12481: Using NOW() in a stored function breaks statement based replication
+#
+
+# Start by getting a lock on 'bug12480' to be able to use get_lock() as sleep()
+connect (con2,localhost,root,,);
+connection con2;
+select get_lock("bug12480",2);
+connection default;
+
+create table t1 (a datetime,b  datetime, c datetime);
+--disable_warnings
+drop function if exists bug12480;
+--enable_warnings
+
+delimiter |;
+
+create function bug12480() returns datetime
+begin
+  set @a=get_lock("bug12480",2);
+  return now();
+end|
+
+create trigger t1_first before insert on t1
+for each row begin
+  set @a=get_lock("bug12480",2);
+  set new.b= now();
+  set new.c= bug12480();
+end
+|
+
+delimiter ;|
+--disable_warnings
+insert into t1 set a = now();
+--enable_warnings
+select a=b && a=c from t1;
+let $time=`select a from t1`;
+
+# Check that definer attribute is replicated properly:
+#   - dump definers on the master;
+#   - wait for the slave to synchronize with the master;
+#   - dump definers on the slave;
+
+SELECT routine_name, definer
+FROM information_schema.routines;
+
+SELECT trigger_name, definer
+FROM information_schema.triggers;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+--disable_query_log
+select "--- On slave --" as "";
+--enable_query_log
+
+# XXX: Definers of stored procedures and functions are not replicated. WL#2897
+# (Complete definer support in the stored routines) addresses this issue. So,
+# the result file is expected to be changed after implementation of this WL
+# item.
+
+SELECT routine_name, definer
+FROM information_schema.routines;
+
+SELECT trigger_name, definer
+FROM information_schema.triggers;
+
+select a=b && a=c from t1;
+--disable_query_log
+eval select a='$time' as 'test' from t1;
+--enable_query_log
+
+connection master;
+disconnect con2;
+
+truncate table t1;
+drop trigger t1_first;
+--disable_warnings
+insert into t1 values ("2003-03-03","2003-03-03","2003-03-03"),(bug12480(),bug12480(),bug12480()),(now(),now(),now());
+--enable_warnings
+select a=b && a=c from t1;
+
+drop function bug12480;
+drop table t1;
+
+#
+# #14614: Replication of tables with trigger generates error message if databases is changed
+# Note. The error message is emitted by _myfree() using fprintf() to the stderr
+# and because of that does not fall into the .result file.
+#
+
+create table t1 (i int);
+create table t2 (i int);
+
+delimiter |;
+create trigger tr1 before insert on t1 for each row
+begin
+ insert into t2 values (1);
+end|
+delimiter ;|
+
+create database other;
+use other;
+insert into test.t1 values (1);
+
+save_master_pos;
+connection slave;
+sync_with_master;
+
+connection master;
+use test;
+drop table t1,t2;
+drop database other;
+
+
+#
+# Test specific triggers including SELECT into var with replication
+# BUG#13227:
+# slave performs an update to the replicatable table, t1, 
+# and modifies its local data, t3, by mean of its local trigger that uses
+# another local table t2.
+# Expected values are commented into queries.
+#
+# Body of the test executes in a loop since the problem occurred randomly.
+# 
+
+let $max_rows=5;
+let $rnd=10;
+
+--echo test case for BUG#13227
+while ($rnd)
+{
+  --echo -------------------
+    echo $rnd;
+  --echo -------------------
+
+### SETUP
+
+--disable_warnings
+  connection master;
+  eval drop table if exists t1$rnd;
+  connection slave;
+  eval drop table if exists t2$rnd,t3$rnd;
+--enable_warnings
+
+  connection master;
+  eval create table t1$rnd (f1 int)  /* 2 replicate */;  
+  let $i=$max_rows;
+  while ($i)
+  {
+    eval insert into t1$rnd values (-$i);
+    dec $i;
+  }
+
+  sync_slave_with_master;
+#connection slave;
+  eval select * from t1$rnd;
+  delimiter |;
+  eval create trigger trg1$rnd before update on t1$rnd /* slave local */
+  for each row
+  begin
+    DECLARE r integer;
+    SELECT f2 INTO r FROM t2$rnd where f1=NEW.f1;
+    INSERT INTO t3$rnd values (r);
+  end|
+  delimiter ;|
+  eval create table t2$rnd (f1 int, f2 int) /* slave local */;        
+  eval create table t3$rnd (f3 int) /* slave local */;                
+  let $i=$max_rows;
+  while ($i) 
+  {
+    eval insert into t2$rnd values ($i, $i*100);
+    dec $i;
+  }
+
+### Test
+
+#connection slave;
+
+# trigger works as specified when updates from slave
+  eval select * from t2$rnd;
+  eval UPDATE t1$rnd SET f1=$max_rows where f1=-$max_rows;
+  eval SELECT * from t1$rnd /* must be f1 $max_rows, 1 - $max_rows 2 - $max_rows ... -1 */;
+  eval SELECT * from t3$rnd /* must be f3 $max_rows*100 */;
+
+  connection master;
+  let $i=$max_rows;
+  while ($i)
+  {
+    eval UPDATE t1$rnd SET f1=$i where f1=-$i;
+    dec $i;
+  }
+  
+  sync_slave_with_master;
+#connection slave;
+  eval SELECT * from t1$rnd /* must be f1 $max_rows ... 1 */;
+  eval SELECT * from t3$rnd /* must be f3 $max_rows * 100 ...  100 */;
+  
+### CLEANUP
+#connection slave;
+  eval drop trigger trg1$rnd;
+  eval drop table t2$rnd,t3$rnd;
+  
+  connection master;
+  eval drop table t1$rnd;
+  
+  dec $rnd;
+}
+
+
+#
+# BUG#16266: Definer is not fully qualified error during replication.
+#
+# The idea of this test is to emulate replication of a trigger from the old
+# master (master w/o "DEFINER in triggers" support) to the new slave and check
+# that:
+#   1. the trigger on the slave will be replicated w/o errors;
+#   2. the trigger on the slave will be non-SUID (will have no DEFINER);
+#   3. the trigger can be activated later on the slave w/o errors.
+#
+# In order to emulate this kind of replication, we make the slave playing the binlog,
+# recorded by 5.0.16 master. This binlog contains the following statements:
+#   CREATE TABLE t1(c INT);
+#   CREATE TABLE t2(s CHAR(200));
+#   CREATE TRIGGER trg1 AFTER INSERT ON t1
+#     FOR EACH ROW
+#       INSERT INTO t2 VALUES(CURRENT_USER());
+#   INSERT INTO t1 VALUES(1);
+#
+
+# 1. Check that the trigger's replication is succeeded.
+
+# Stop the slave.
+
+connection slave;
+STOP SLAVE;
+
+# Replace master's binlog.
+
+connection master;
+FLUSH LOGS;
+let $DATADIR = `select @@datadir`;
+remove_file $DATADIR/master-bin.000001;
+copy_file $MYSQL_TEST_DIR/std_data/bug16266.000001 $DATADIR/master-bin.000001;
+
+# Make the slave to replay the new binlog.
+
+connection slave;
+RESET SLAVE;
+START SLAVE;
+
+SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
+
+# Check that the replication succeeded.
+SHOW TABLES LIKE 't_';
+SHOW TRIGGERS;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# 2. Check that the trigger is non-SUID on the slave;
+# 3. Check that the trigger can be activated on the slave.
+--disable_warnings
+INSERT INTO t1 VALUES(2);
+--enable_warnings
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# That's all, cleanup.
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+DROP TABLE t2;
+
+STOP SLAVE;
+RESET SLAVE;
+
+# The master should be clean.
+
+connection master;
+SHOW TABLES LIKE 't_';
+SHOW TRIGGERS;
+
+RESET MASTER;
+
+# Restart slave.
+
+connection slave;
+START SLAVE;
+
+
+#
+# BUG#20438: CREATE statements for views, stored routines and triggers can be
+# not replicable.
+#
+
+--echo
+--echo ---> Test for BUG#20438
+
+# Prepare environment.
+
+--echo
+--echo ---> Preparing environment...
+--echo ---> connection: master
+--connection master
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+--echo
+--echo ---> Synchronizing slave with master...
+
+--save_master_pos
+--connection slave
+--sync_with_master
+
+--echo
+--echo ---> connection: master
+--connection master
+
+# Test.
+
+--echo
+--echo ---> Creating objects...
+
+CREATE TABLE t1(c INT);
+CREATE TABLE t2(c INT);
+
+/*!50003 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(NEW.c * 10) */;
+
+--echo
+--echo ---> Inserting value...
+
+INSERT INTO t1 VALUES(1);
+
+--echo
+--echo ---> Checking on master...
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo
+--echo ---> Synchronizing slave with master...
+
+--save_master_pos
+--connection slave
+--sync_with_master
+
+--echo ---> connection: master
+
+--echo
+--echo ---> Checking on slave...
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# Cleanup.
+
+--echo
+--echo ---> connection: master
+--connection master
+
+--echo
+--echo ---> Cleaning up...
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--save_master_pos
+--connection slave
+--sync_with_master
+--connection master
+
+#
+# BUG#23703: DROP TRIGGER needs an IF EXISTS
+#
+
+connection master;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(a int, b varchar(50));
+
+-- error ER_TRG_DOES_NOT_EXIST
+drop trigger not_a_trigger;
+
+drop trigger if exists not_a_trigger;
+
+create trigger t1_bi before insert on t1
+for each row set NEW.b := "In trigger t1_bi";
+
+insert into t1 values (1, "a");
+drop trigger if exists t1_bi;
+insert into t1 values (2, "b");
+drop trigger if exists t1_bi;
+insert into t1 values (3, "c");
+
+select * from t1;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+
+select * from t1;
+
+connection master;
+
+drop table if exists t1,t11;
+#
+# End of tests
+#
+save_master_pos;
+connection slave;
+sync_with_master;

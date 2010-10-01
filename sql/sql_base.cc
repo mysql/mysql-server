@@ -233,8 +233,12 @@ static void check_unused(void)
 uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table)
 {
-  uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
-                                  table_list->table_name)-key)+1;
+  char *db_end= strnmov(key, table_list->db, MAX_DBKEY_LENGTH - 2);
+  *db_end++= '\0';
+  char *table_end= strnmov(db_end, table_list->table_name,
+                           key + MAX_DBKEY_LENGTH - 1 - db_end);
+  *table_end++= '\0';
+  uint key_length= (uint) (table_end-key);
   if (tmp_table)
   {
     int4store(key + key_length, thd->server_id);
@@ -609,7 +613,7 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
 
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 {
-  char key[NAME_LEN*2+2];
+  char key[SAFE_NAME_LEN*2+2];
   TABLE_LIST table_list;
   uint key_length;
   safe_mutex_assert_owner(&LOCK_open);
@@ -1244,6 +1248,12 @@ void close_thread_tables(THD *thd)
                           table->s->table_name.str, (long) table));
 #endif
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /* debug_sync may not be initialized for some slave threads */
+  if (thd->debug_sync_control)
+    DEBUG_SYNC(thd, "before_close_thread_tables");
+#endif
+
   /*
     We are assuming here that thd->derived_tables contains ONLY derived
     tables for this substatement. i.e. instead of approach which uses
@@ -1515,6 +1525,7 @@ void close_temporary_tables(THD *thd)
   {
     if (is_user_table(table))
     {
+      bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
@@ -1544,6 +1555,7 @@ void close_temporary_tables(THD *thd)
       thd->clear_error();
       CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
+      thd->thread_specific_used= TRUE;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
@@ -1556,6 +1568,7 @@ void close_temporary_tables(THD *thd)
                      "Failed to write the DROP statement for temporary tables to binary log");
       }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
+      thd->thread_specific_used= save_thread_specific_used;
     }
     else
     {
@@ -2172,6 +2185,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   proc_info=thd->proc_info;
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
+  DEBUG_SYNC(thd, "waiting_for_table");
   if (!thd->killed)
     (void) pthread_cond_wait(cond, mutex);
 
@@ -2501,7 +2515,7 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
                         put in the thread-open-list.
     flags               Bitmap of flags to modify how open works:
                           MYSQL_LOCK_IGNORE_FLUSH - Open table even if
-                          someone has done a flush or namelock on it.
+                          someone has done a flush on it.
                           No version number checking is done.
                           MYSQL_OPEN_TEMPORARY_ONLY - Open only temporary
                           table not the base table or view.
@@ -2791,8 +2805,10 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                  ("Found table '%s.%s' with different refresh version",
                   table_list->db, table_list->table_name));
 
-      if (flags & MYSQL_LOCK_IGNORE_FLUSH)
+      /* Ignore FLUSH, but not name locks! */
+      if (flags & MYSQL_LOCK_IGNORE_FLUSH && !table->open_placeholder)
       {
+        DBUG_ASSERT(table->db_stat);
         /* Force close at once after usage */
         thd->version= table->s->version;
         continue;
@@ -4424,7 +4440,8 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
   Return a appropriate read lock type given a table object.
 
   @param thd Thread context
-  @param table TABLE object for table to be locked
+  @param lex        LEX for the current statement.
+  @param table_list Table list element for table to be locked.
 
   @remark Due to a statement-based replication limitation, statements such as
           INSERT INTO .. SELECT FROM .. and CREATE TABLE .. SELECT FROM need
@@ -4433,19 +4450,32 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
           source table. If such a statement gets applied on the slave before
           the INSERT .. SELECT statement finishes, data on the master could
           differ from data on the slave and end-up with a discrepancy between
-          the binary log and table state. Furthermore, this does not apply to
-          I_S and log tables as it's always unsafe to replicate such tables
-          under statement-based replication as the table on the slave might
-          contain other data (ie: general_log is enabled on the slave). The
-          statement will be marked as unsafe for SBR in decide_logging_format().
+          the binary log and table state.
+          This also applies to SELECT/SET/DO statements which use stored
+          functions. Calls to such functions are going to be logged as a
+          whole and thus should be serialized against concurrent changes
+          to tables used by those functions. This can be avoided if functions
+          only read data but doing so requires more complex analysis than it
+          is done now (unfortunately, due to bug #53921 "Wrong locks for
+          SELECTs used stored functions may lead to broken SBR" this rule
+          is not followed in cases when stored function or trigger use
+          simple SELECT and not a subselect in their body).
+          Furthermore, this does not apply to I_S and log tables as it's
+          always unsafe to replicate such tables under statement-based
+          replication as the table on the slave might contain other data
+          (ie: general_log is enabled on the slave). The statement will
+          be marked as unsafe for SBR in decide_logging_format().
 */
 
-thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
+thr_lock_type read_lock_type_for_table(THD *thd, LEX *lex,
+                                       TABLE_LIST *table_list)
 {
   bool log_on= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
   ulong binlog_format= thd->variables.binlog_format;
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
-      (table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
+      (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
+      (lex->sql_command == SQLCOM_SELECT &&
+       ! table_list->prelocking_placeholder))
     return TL_READ;
   else
     return TL_READ_NO_INSERT;
@@ -4462,7 +4492,7 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
     counter - number of opened tables will be return using this parameter
     flags   - bitmap of flags to modify how the tables will be open:
               MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
-              done a flush or namelock on it.
+              done a flush on it.
 
   NOTE
     Unless we are already in prelocked mode, this function will also precache
@@ -4609,7 +4639,20 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         safe_to_ignore_table= prelock_handler.safely_trapped_errors();
       }
       else
+      {
         tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
+
+        /*
+          Skip further processing if there has been a fatal error while
+          trying to open a table. For example, this might happen due to
+          stack shortage, unknown definer in views, etc.
+        */
+        if (!tables->table && thd->is_error())
+        {
+          result= -1;
+          goto err;
+        }
+      }
     }
     else
       DBUG_PRINT("tcache", ("referenced table: '%s'.'%s' 0x%lx",
@@ -4728,7 +4771,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         tables->table->reginfo.lock_type= thd->update_lock_default;
       else if (tables->lock_type == TL_READ_DEFAULT)
         tables->table->reginfo.lock_type=
-          read_lock_type_for_table(thd, tables->table);
+          read_lock_type_for_table(thd, thd->lex, tables);
       else
         tables->table->reginfo.lock_type= tables->lock_type;
     }
@@ -5048,7 +5091,7 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
     tables	- list of tables for open
     flags       - bitmap of flags to modify how the tables will be open:
                   MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
-                  done a flush or namelock on it.
+                  done a flush on it.
 
   RETURN
     FALSE - ok
@@ -5147,53 +5190,75 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
       set with all the capabilities bits set and one with no
       capabilities bits set.
      */
-    handler::Table_flags flags_some_set= 0;
-    handler::Table_flags flags_all_set=
+    handler::Table_flags flags_write_some_set= 0;
+    handler::Table_flags flags_access_some_set= 0;
+    handler::Table_flags flags_write_all_set=
       HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 
-    my_bool multi_engine= FALSE;
-    void* prev_ht= NULL;
+    /*
+       If different types of engines are about to be updated.
+       For example: Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_write_engine= FALSE;
+    void* prev_write_ht= NULL;
+
+    /*
+       If different types of engines are about to be accessed
+       and any of them is about to be updated. For example:
+       Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_access_engine= FALSE;
+    void* prev_access_ht= NULL;
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (table->placeholder())
         continue;
       if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
         thd->lex->set_stmt_unsafe();
+      ulonglong const flags= table->table->file->ha_table_flags();
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
-        ulonglong const flags= table->table->file->ha_table_flags();
         DBUG_PRINT("info", ("table: %s; ha_table_flags: %s%s",
                             table->table_name,
                             FLAGSTR(flags, HA_BINLOG_STMT_CAPABLE),
                             FLAGSTR(flags, HA_BINLOG_ROW_CAPABLE)));
-        if (prev_ht && prev_ht != table->table->file->ht)
-          multi_engine= TRUE;
-        prev_ht= table->table->file->ht;
-        flags_all_set &= flags;
-        flags_some_set |= flags;
+        if (prev_write_ht && prev_write_ht != table->table->file->ht)
+          multi_write_engine= TRUE;
+        prev_write_ht= table->table->file->ht;
+        flags_write_all_set &= flags;
+        flags_write_some_set |= flags;
       }
+      if (prev_access_ht && prev_access_ht != table->table->file->ht)
+        multi_access_engine= TRUE;
+      prev_access_ht= table->table->file->ht;
+      flags_access_some_set |= flags;
     }
 
-    DBUG_PRINT("info", ("flags_all_set: %s%s",
-                        FLAGSTR(flags_all_set, HA_BINLOG_STMT_CAPABLE),
-                        FLAGSTR(flags_all_set, HA_BINLOG_ROW_CAPABLE)));
-    DBUG_PRINT("info", ("flags_some_set: %s%s",
-                        FLAGSTR(flags_some_set, HA_BINLOG_STMT_CAPABLE),
-                        FLAGSTR(flags_some_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("flags_write_all_set: %s%s",
+                        FLAGSTR(flags_write_all_set, HA_BINLOG_STMT_CAPABLE),
+                        FLAGSTR(flags_write_all_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("flags_write_some_set: %s%s",
+                        FLAGSTR(flags_write_some_set, HA_BINLOG_STMT_CAPABLE),
+                        FLAGSTR(flags_write_some_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("flags_access_some_set: %s%s",
+                        FLAGSTR(flags_access_some_set, HA_BINLOG_STMT_CAPABLE),
+                        FLAGSTR(flags_access_some_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("multi_write_engine: %s",
+                        multi_write_engine ? "TRUE" : "FALSE"));
+    DBUG_PRINT("info", ("multi_access_engine: %s",
+                        multi_access_engine ? "TRUE" : "FALSE"));
     DBUG_PRINT("info", ("thd->variables.binlog_format: %ld",
                         thd->variables.binlog_format));
-    DBUG_PRINT("info", ("multi_engine: %s",
-                        multi_engine ? "TRUE" : "FALSE"));
 
     int error= 0;
-    if (flags_all_set == 0)
+    if (flags_write_all_set == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                "Statement cannot be logged to the binary log in"
                " row-based nor statement-based format");
     }
     else if (thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
-             (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+             (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                 "Statement-based format required for this statement,"
@@ -5201,7 +5266,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     }
     else if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW ||
               thd->lex->is_stmt_unsafe()) &&
-             (flags_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
+             (flags_write_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                 "Row-based format required for this statement,"
@@ -5214,8 +5279,8 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
       statement cannot be logged atomically, so we generate an error
       rather than allowing the binlog to become corrupt.
      */
-    if (multi_engine &&
-        (flags_some_set & HA_HAS_OWN_BINLOGGING))
+    if (multi_write_engine &&
+        (flags_write_some_set & HA_HAS_OWN_BINLOGGING))
     {
       error= ER_BINLOG_LOGGING_IMPOSSIBLE;
       my_error(error, MYF(0),
@@ -5223,6 +5288,16 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
                " than one engine involved and at least one engine"
                " is self-logging");
     }
+    /*
+      Reading from a self-logging engine and updating another engine
+      generates changes that are written to the binary log in the
+      statement format and may make slaves to diverge. In the mixed
+      mode, such changes should be written to the binary log in the
+      row format.
+    */
+    else if (multi_access_engine &&
+             (flags_access_some_set & HA_HAS_OWN_BINLOGGING))
+      thd->lex->set_stmt_unsafe();
 
     DBUG_PRINT("info", ("error: %d", error));
 
@@ -5242,7 +5317,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
       here.
     */
     if (thd->lex->is_stmt_unsafe() ||
-        (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+        (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
     {
       thd->set_current_stmt_binlog_row_based_if_mixed();
     }
@@ -5349,6 +5424,8 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       }
       DBUG_RETURN(-1);
     }
+
+    DEBUG_SYNC(thd, "after_lock_tables_takes_lock");
 
     if (thd->lex->requires_prelocking() &&
         thd->lex->sql_command != SQLCOM_LOCK_TABLES)
@@ -5619,7 +5696,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
   DBUG_ENTER("update_field_dependencies");
   if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
-    MY_BITMAP *current_bitmap;
+    MY_BITMAP *bitmap;
 
     /*
       We always want to register the used keys, as the column bitmap may have
@@ -5630,9 +5707,9 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
     table->merge_keys.merge(field->part_of_key);
 
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
-      current_bitmap= table->read_set;
+      bitmap= table->read_set;
     else
-      current_bitmap= table->write_set;
+      bitmap= table->write_set;
 
     /* 
        The test-and-set mechanism in the bitmap is not reliable during
@@ -5641,7 +5718,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
        only those columns that are used in the SET clause. I.e they are being
        set here. See multi_update::prepare()
     */
-    if (bitmap_fast_test_and_set(current_bitmap, field->field_index))
+    if (bitmap_fast_test_and_set(bitmap, field->field_index))
     {
       if (thd->mark_used_columns == MARK_COLUMNS_WRITE)
       {
@@ -6234,7 +6311,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
   const char *table_name= item->table_name;
   const char *name= item->field_name;
   uint length=(uint) strlen(name);
-  char name_buff[NAME_LEN+1];
+  char name_buff[SAFE_NAME_LEN+1];
   TABLE_LIST *cur_table= first_table;
   TABLE_LIST *actual_table;
   bool allow_rowid;
@@ -6391,7 +6468,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       (report_error == REPORT_ALL_ERRORS ||
        report_error == REPORT_EXCEPT_NON_UNIQUE))
   {
-    char buff[NAME_LEN*2 + 2];
+    char buff[SAFE_NAME_LEN*2 + 2];
     if (db && db[0])
     {
       strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
@@ -7777,7 +7854,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 {
   Field_iterator_table_ref field_iterator;
   bool found;
-  char name_buff[NAME_LEN+1];
+  char name_buff[SAFE_NAME_LEN+1];
   DBUG_ENTER("insert_fields");
   DBUG_PRINT("arena", ("stmt arena: 0x%lx", (ulong)thd->stmt_arena));
 
@@ -8347,15 +8424,15 @@ my_bool mysql_rm_tmp_tables(void)
                                    (file->name[1] == '.' &&  !file->name[2])))
         continue;
 
-      if (!bcmp((uchar*) file->name, (uchar*) tmp_file_prefix,
-                tmp_file_prefix_length))
+      if (!memcmp(file->name, tmp_file_prefix,
+                  tmp_file_prefix_length))
       {
         char *ext= fn_ext(file->name);
         uint ext_len= strlen(ext);
         uint filePath_len= my_snprintf(filePath, sizeof(filePath),
                                        "%s%c%s", tmpdir, FN_LIBCHAR,
                                        file->name);
-        if (!bcmp((uchar*) reg_ext, (uchar*) ext, ext_len))
+        if (!strcmp(reg_ext, ext))
         {
           handler *handler_file= 0;
           /* We should cut file extention before deleting of table */
@@ -8723,7 +8800,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
 
 /*
   SYNOPSIS
-    abort_and_upgrade_lock()
+    abort_and_upgrade_lock_and_close_table()
     lpt                           Parameter passing struct
     All parameters passed through the ALTER_PARTITION_PARAM_TYPE object
   RETURN VALUE
@@ -8732,7 +8809,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     Remember old lock level (for possible downgrade later on), abort all
     waiting threads and ensure that all keeping locks currently are
     completed such that we own the lock exclusively and no other interaction
-    is ongoing.
+    is ongoing. Close the table and hold the name lock.
 
     thd                           Thread object
     table                         Table object
@@ -8741,18 +8818,26 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     old_lock_level                Old lock level
 */
 
-int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+int abort_and_upgrade_lock_and_close_table(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   uint flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
-  DBUG_ENTER("abort_and_upgrade_locks");
+  const char *db=         lpt->db;
+  const char *table_name= lpt->table_name;
+  THD *thd=               lpt->thd;
+  DBUG_ENTER("abort_and_upgrade_lock_and_close_table");
 
   lpt->old_lock_type= lpt->table->reginfo.lock_type;
+  safe_mutex_assert_not_owner(&LOCK_open);
   VOID(pthread_mutex_lock(&LOCK_open));
   /* If MERGE child, forward lock handling to parent. */
-  mysql_lock_abort(lpt->thd, lpt->table->parent ? lpt->table->parent :
-                   lpt->table, TRUE);
-  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags,
-                               FALSE));
+  mysql_lock_abort(thd, lpt->table->parent ? lpt->table->parent : lpt->table,
+                   TRUE);
+  if (remove_table_from_cache(thd, db, table_name, flags, FALSE))
+  {
+    VOID(pthread_mutex_unlock(&LOCK_open));
+    DBUG_RETURN(1);
+  }
+  close_data_files_and_morph_locks(thd, db, table_name);
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(0);
 }

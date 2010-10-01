@@ -1,0 +1,379 @@
+DROP DATABASE IF EXISTS d8;
+SHOW CHARACTER SET;
+Charset	Description	Default collation	Maxlen
+big5	Big5 Traditional Chinese	big5_chinese_ci	2
+dec8	DEC West European	dec8_swedish_ci	1
+cp850	DOS West European	cp850_general_ci	1
+hp8	HP West European	hp8_english_ci	1
+koi8r	KOI8-R Relcom Russian	koi8r_general_ci	1
+latin1	cp1252 West European	latin1_swedish_ci	1
+latin2	ISO 8859-2 Central European	latin2_general_ci	1
+swe7	7bit Swedish	swe7_swedish_ci	1
+ascii	US ASCII	ascii_general_ci	1
+ujis	EUC-JP Japanese	ujis_japanese_ci	3
+sjis	Shift-JIS Japanese	sjis_japanese_ci	2
+hebrew	ISO 8859-8 Hebrew	hebrew_general_ci	1
+tis620	TIS620 Thai	tis620_thai_ci	1
+euckr	EUC-KR Korean	euckr_korean_ci	2
+koi8u	KOI8-U Ukrainian	koi8u_general_ci	1
+gb2312	GB2312 Simplified Chinese	gb2312_chinese_ci	2
+greek	ISO 8859-7 Greek	greek_general_ci	1
+cp1250	Windows Central European	cp1250_general_ci	1
+gbk	GBK Simplified Chinese	gbk_chinese_ci	2
+latin5	ISO 8859-9 Turkish	latin5_turkish_ci	1
+armscii8	ARMSCII-8 Armenian	armscii8_general_ci	1
+utf8	UTF-8 Unicode	utf8_general_ci	3
+ucs2	UCS-2 Unicode	ucs2_general_ci	2
+cp866	DOS Russian	cp866_general_ci	1
+keybcs2	DOS Kamenicky Czech-Slovak	keybcs2_general_ci	1
+macce	Mac Central European	macce_general_ci	1
+macroman	Mac West European	macroman_general_ci	1
+cp852	DOS Central European	cp852_general_ci	1
+latin7	ISO 8859-13 Baltic	latin7_general_ci	1
+cp1251	Windows Cyrillic	cp1251_general_ci	1
+cp1256	Windows Arabic	cp1256_general_ci	1
+cp1257	Windows Baltic	cp1257_general_ci	1
+binary	Binary pseudo charset	binary	1
+geostd8	GEOSTD8 Georgian	geostd8_general_ci	1
+cp932	SJIS for Windows Japanese	cp932_japanese_ci	2
+eucjpms	UJIS for Windows Japanese	eucjpms_japanese_ci	3
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8   CHARACTER SET ascii;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	ascii	ascii_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8   CHARACTER SET utf8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	utf8	utf8_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8   CHARACTER SET binary;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	binary	binary	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8   CHARACTER SET swe7;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	swe7	swe7_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8   CHARACTER SET cp1251;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	cp1251	cp1251_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8 DEFAULT CHARACTER SET ascii;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	ascii	ascii_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8 DEFAULT CHARACTER SET utf8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	utf8	utf8_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8 DEFAULT CHARACTER SET binary;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	binary	binary	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8 DEFAULT CHARACTER SET swe7;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	swe7	swe7_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER DATABASE d8 DEFAULT CHARACTER SET cp1251;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	cp1251	cp1251_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8   CHARACTER SET ascii;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	ascii	ascii_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8   CHARACTER SET utf8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	utf8	utf8_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8   CHARACTER SET binary;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	binary	binary	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8   CHARACTER SET swe7;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	swe7	swe7_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8   CHARACTER SET cp1251;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	cp1251	cp1251_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8 DEFAULT CHARACTER SET ascii;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	ascii	ascii_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8 DEFAULT CHARACTER SET utf8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	utf8	utf8_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8 DEFAULT CHARACTER SET binary;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	binary	binary	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8 DEFAULT CHARACTER SET swe7;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	swe7	swe7_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;
+CREATE DATABASE d8;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	latin1	latin1_swedish_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+ALTER SCHEMA d8 DEFAULT CHARACTER SET cp1251;
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	d8	cp1251	cp1251_general_ci	NULL
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+DROP DATABASE d8;

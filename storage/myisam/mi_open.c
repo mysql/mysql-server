@@ -139,8 +139,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       my_errno= HA_ERR_NOT_A_TABLE;
       goto err;
     }
-    if (memcmp((uchar*) share->state.header.file_version,
-	       (uchar*) myisam_file_magic, 4))
+    if (bcmp(share->state.header.file_version, myisam_file_magic, 4))
     {
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
       DBUG_DUMP("error_dump", share->state.header.file_version,
@@ -663,6 +662,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   myisam_open_list=list_add(myisam_open_list,&m_info->open_list);
 
   pthread_mutex_unlock(&THR_LOCK_myisam);
+
+  bzero(info.buff, share->base.max_key_block_length * 2);
+
   if (myisam_log_file >= 0)
   {
     intern_filename(name_buff,share->index_file_name);

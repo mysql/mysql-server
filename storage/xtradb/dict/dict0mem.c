@@ -59,7 +59,7 @@ dict_mem_table_create(
 	mem_heap_t*	heap;
 
 	ut_ad(name);
-	ut_a(!(flags & (~0 << DICT_TF_BITS)));
+	ut_a(!(flags & (~0 << DICT_TF2_BITS)));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
@@ -68,7 +68,8 @@ dict_mem_table_create(
 	table->heap = heap;
 
 	table->flags = (unsigned int) flags;
-	table->name = mem_heap_strdup(heap, name);
+	table->name = ut_malloc(strlen(name) + 1);
+	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
 	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
 
@@ -85,6 +86,8 @@ dict_mem_table_create(
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
 	table->n_waiting_or_granted_auto_inc_locks = 0;
+
+	table->is_corrupt = FALSE;
 #endif /* !UNIV_HOTBACKUP */
 
 	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
@@ -106,6 +109,7 @@ dict_mem_table_free(
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */
+	ut_free(table->name);
 	mem_heap_free(table->heap);
 }
 

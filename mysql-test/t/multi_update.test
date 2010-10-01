@@ -589,7 +589,8 @@ reset master;
 UPDATE t2,t1 SET t2.a=t1.a+2;
 # check
 select * from t2 /* must be (3,1), (4,4) */;
-show master status /* there must be the UPDATE query event */;
+let wait_binlog_event= UPDATE;
+source include/wait_for_binlog_event.inc;
 
 # B. testing multi_update::send_error() ineffective update
 # (as there is a policy described at mysql_update() still go to binlog)
@@ -600,7 +601,8 @@ insert into t2 values (1,2),(3,4),(4,4);
 reset master;
 --error ER_DUP_ENTRY
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
-show master status /* there must be the UPDATE query event */;
+let wait_binlog_event= UPDATE;
+source include/wait_for_binlog_event.inc;
 
 # cleanup
 drop table t1, t2;
@@ -640,6 +642,18 @@ drop table t1, t2, t3;
 #
 # Add further tests from here
 #
+
+--echo #
+--echo # Bug#49534: multitable IGNORE update with sql_safe_updates error
+--echo # causes debug assertion
+--echo #
+CREATE TABLE t1( a INT, KEY( a ) );
+INSERT INTO t1 VALUES (1), (2), (3);
+SET SESSION sql_safe_updates = 1;
+--echo # Must not cause failed assertion
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+UPDATE IGNORE t1, t1 t1a SET t1.a = 1 WHERE t1a.a = 1;
+DROP TABLE t1;
 
 
 --echo end of tests

@@ -1,0 +1,15 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
+CREATE TABLE t1(b1 BIT(1), b2 BIT(2), b3 BIT(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (b'0', b'01', b'101');
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE t1;

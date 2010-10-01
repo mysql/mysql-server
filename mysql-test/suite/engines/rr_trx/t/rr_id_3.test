@@ -1,0 +1,31 @@
+################################################################################
+#
+# Insert a new record. Then delete the same record, in the same tx.
+# Mind any tx errors, ROLLBACK if needed to "equalize" different engines.
+#
+################################################################################
+
+SET autocommit = 0;
+START TRANSACTION;
+
+# Flag to indicate error (use this to decide if we are going to delete after insert).
+let $error= 0;
+
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT
+eval INSERT INTO t1 (`id`, `int1`, `connection_id`, `is_uncommitted`)
+             VALUES (3, 3, CONNECTION_ID(), 1);
+
+--source suite/engines/rr_trx/include/check_for_error_rollback.inc
+
+if(!$error)
+{
+    # Conditional, so skip query log
+    --disable_query_log
+    --error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT
+    DELETE FROM t1 WHERE `pk` = (SELECT @@last_insert_id) AND `id` = 3;
+
+    --source suite/engines/rr_trx/include/check_for_error_rollback.inc
+    --enable_query_log
+}
+
+COMMIT;

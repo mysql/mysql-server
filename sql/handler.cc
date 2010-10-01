@@ -58,6 +58,7 @@ static const LEX_STRING sys_table_aliases[]=
   { C_STRING_WITH_LEN("NDB") },       { C_STRING_WITH_LEN("NDBCLUSTER") },
   { C_STRING_WITH_LEN("HEAP") },      { C_STRING_WITH_LEN("MEMORY") },
   { C_STRING_WITH_LEN("MERGE") },     { C_STRING_WITH_LEN("MRG_MYISAM") },
+  { C_STRING_WITH_LEN("Aria") },      { C_STRING_WITH_LEN("Maria") },
   {NullS, 0}
 };
 
@@ -161,7 +162,7 @@ redo:
 }
 
 
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 {
   if (hton)
   {
@@ -603,9 +604,13 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
     there's no need to rollback here as all transactions must
     be rolled back already
   */
-  if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
-      thd_get_ha_data(thd, hton))
-    hton->close_connection(hton, thd);
+  if (hton->state == SHOW_OPTION_YES && thd_get_ha_data(thd, hton))
+  {
+    if (hton->close_connection)
+      hton->close_connection(hton, thd);
+    /* make sure ha_data is reset and ha_data_lock is released */
+    thd_set_ha_data(thd, hton, NULL);
+  }
   return FALSE;
 }
 
@@ -2084,6 +2089,10 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+
+  if (!new_handler)
+    return NULL;
+
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
@@ -2091,12 +2100,13 @@ handler *handler::clone(MEM_ROOT *mem_root)
   */
   if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
     return NULL;
-  if (new_handler && !new_handler->ha_open(table,
-                                           table->s->normalized_path.str,
-                                           table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
-    return new_handler;
-  return NULL;
+  if (new_handler->ha_open(table,
+                           table->s->normalized_path.str,
+                           table->db_stat,
+                           HA_OPEN_IGNORE_IF_LOCKED))
+    return NULL;
+  new_handler->cloned= 1;                      // Marker for debugging
+  return new_handler;
 }
 
 
@@ -3923,7 +3933,8 @@ ha_find_files(THD *thd,const char *db,const char *path,
   int error= 0;
   DBUG_ENTER("ha_find_files");
   DBUG_PRINT("enter", ("db: '%s'  path: '%s'  wild: '%s'  dir: %d", 
-		       db, path, wild ? wild : "NULL", dir));
+		       val_or_null(db), val_or_null(path),
+                       val_or_null(wild), dir));
   st_find_files_args args= {db, path, wild, dir, files};
 
   plugin_foreach(thd, find_files_handlerton,

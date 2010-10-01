@@ -1,0 +1,85 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 CHAR(10) NULL, c2 CHAR(10) NULL, c3 CHAR(10) NULL, UNIQUE(c1,c2,c3));
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc') ON DUPLICATE KEY UPDATE c1='abcdefg',c2='abcdefg',c3='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def') ON DUPLICATE KEY UPDATE c1='abcdefg',c2='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def') ON DUPLICATE KEY UPDATE c2='abcdefg',c3='abcdefg';
+SELECT * FROM t1;
+c1	c2	c3
+abc	abcdefg	abcdefg
+abc	def	abc
+abcdefg	abcdefg	abcdefg
+abcdefg	abcdefg	def
+def	abc	abc
+def	abc	def
+def	def	abc
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(10) NULL, c2 VARCHAR(10) NULL, c3 VARCHAR(10) NULL, UNIQUE(c1,c2,c3));
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc') ON DUPLICATE KEY UPDATE c1='abcdefg',c2='abcdefg',c3='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def') ON DUPLICATE KEY UPDATE c1='abcdefg',c2='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def') ON DUPLICATE KEY UPDATE c2='abcdefg',c3='abcdefg';
+SELECT * FROM t1;
+c1	c2	c3
+abc	abcdefg	abcdefg
+abc	def	abc
+abcdefg	abcdefg	abcdefg
+abcdefg	abcdefg	def
+def	abc	abc
+def	abc	def
+def	def	abc
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(10) NULL, c2 BINARY(10) NULL, c3 BINARY(10) NULL, UNIQUE(c1,c2,c3));
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc') ON DUPLICATE KEY UPDATE c1='abcdefg',c2='abcdefg',c3='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def') ON DUPLICATE KEY UPDATE c1='abcdefg',c2='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def') ON DUPLICATE KEY UPDATE c2='abcdefg',c3='abcdefg';
+SELECT hex(c1),hex(c2),hex(c3) FROM t1;
+hex(c1)	hex(c2)	hex(c3)
+61626300000000000000	61626364656667000000	61626364656667000000
+61626300000000000000	64656600000000000000	61626300000000000000
+61626364656667000000	61626364656667000000	61626364656667000000
+61626364656667000000	61626364656667000000	64656600000000000000
+64656600000000000000	61626300000000000000	61626300000000000000
+64656600000000000000	61626300000000000000	64656600000000000000
+64656600000000000000	64656600000000000000	61626300000000000000
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(10) NULL, c2 VARBINARY(10) NULL, c3 VARBINARY(10) NULL, UNIQUE(c1,c2,c3));
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc') ON DUPLICATE KEY UPDATE c1='abcdefg',c2='abcdefg',c3='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def') ON DUPLICATE KEY UPDATE c1='abcdefg',c2='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def') ON DUPLICATE KEY UPDATE c2='abcdefg',c3='abcdefg';
+SELECT * FROM t1;
+c1	c2	c3
+abc	abcdefg	abcdefg
+abc	def	abc
+abcdefg	abcdefg	abcdefg
+abcdefg	abcdefg	def
+def	abc	abc
+def	abc	def
+def	def	abc
+DROP TABLE t1;

@@ -1,0 +1,34 @@
+source include/master-slave.inc;
+
+#
+# Test of init_slave variable
+#
+
+save_master_pos;
+connection slave;
+sleep 1;
+show variables like 'init_slave';
+show variables like 'max_connections';
+sync_with_master;
+reset master;
+connection master;
+show variables like 'init_slave';
+show variables like 'max_connections';
+save_master_pos;
+connection slave;
+sync_with_master;
+# Save variable value
+set @my_global_init_connect= @@global.init_connect;
+set global init_connect="set @c=1";
+show variables like 'init_connect';
+connection master;
+save_master_pos;
+connection slave;
+sync_with_master;
+stop slave;
+
+# Restore changed global variable
+set global init_connect= @my_global_init_connect;
+set global max_connections= default;
+
+# End of 4.1 tests

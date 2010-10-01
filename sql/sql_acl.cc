@@ -194,6 +194,7 @@ static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
+static inline void get_grantor(THD *thd, char* grantor);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -312,7 +313,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   READ_RECORD read_record_info;
   my_bool return_val= TRUE;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  char tmp_name[NAME_LEN+1];
+  char tmp_name[SAFE_NAME_LEN+1];
   int password_length;
   ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("acl_load");
@@ -2452,7 +2453,7 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
                                     const char *user, const char *tname,
                                     bool exact, bool name_tolower)
 {
-  char helping [NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
+  char helping [SAFE_NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
@@ -2705,6 +2706,20 @@ end:
   DBUG_RETURN(result);
 }
 
+static inline void get_grantor(THD *thd, char *grantor)
+{
+  const char *user= thd->security_ctx->user;
+  const char *host= thd->security_ctx->host_or_ip;
+
+#if defined(HAVE_REPLICATION)
+  if (thd->slave_thread && thd->has_invoker())
+  {
+    user= thd->get_invoker_user().str;
+    host= thd->get_invoker_host().str;
+  }
+#endif
+  strxmov(grantor, user, "@", host, NullS);
+}
 
 static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       TABLE *table, const LEX_USER &combo,
@@ -2719,9 +2734,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   uchar user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_table_table");
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     The following should always succeed as new users are created before
     this function is called!
@@ -2851,9 +2864,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     DBUG_RETURN(-1);
   }
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     New users are created before this function is called.
 
@@ -3420,7 +3431,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 {
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str, *tmp_Str;
-  char tmp_db[NAME_LEN+1];
+  char tmp_db[SAFE_NAME_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
   bool save_binlog_row_based;
@@ -4305,7 +4316,7 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
 bool check_grant_db(THD *thd,const char *db)
 {
   Security_context *sctx= thd->security_ctx;
-  char helping [NAME_LEN+USERNAME_LENGTH+2];
+  char helping [SAFE_NAME_LEN + USERNAME_LENGTH+2];
   uint len;
   bool error= TRUE;
 
@@ -4442,8 +4453,10 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
   ulong privilege;
+#ifndef EMBEDDED_LIBRARY
   Security_context *sctx= thd->security_ctx;
   const char *db = table->db ? table->db : thd->db;
+#endif
   GRANT_TABLE *grant_table;
 
   rw_rdlock(&LOCK_grant);
@@ -6116,19 +6129,19 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  int binlog_error=
+  if (result)
+    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+
+  result= result |
     write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  /* error for writing binary log has already been reported */
-  if (result && !binlog_error)
-    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
   /* Restore the state of binlog format */
   thd->current_stmt_binlog_row_based= save_binlog_row_based;
 
-  DBUG_RETURN(result || binlog_error);
+  DBUG_RETURN(result);
 }
 
 

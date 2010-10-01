@@ -95,6 +95,10 @@ typedef struct st_table_ref
 } TABLE_REF;
 
 
+
+#define CACHE_BLOB      1        /* blob field  */
+#define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
+
 /**
   CACHE_FIELD and JOIN_CACHE is used on full join to cache records in outer
   table
@@ -103,8 +107,8 @@ typedef struct st_table_ref
 typedef struct st_cache_field {
   uchar *str;
   uint length, blob_length;
-  Field_blob *blob_field;
-  bool strip;
+  Field *field;
+  uint type;    /**< category of the of the copied field (CACHE_BLOB et al.) */
 } CACHE_FIELD;
 
 
@@ -150,7 +154,9 @@ typedef struct st_join_table {
   TABLE		*table;
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
-  COND		*select_cond;
+  COND          *select_cond;
+  COND          *on_precond;    /**< part of on condition to check before
+				     accessing the first inner table           */  
   QUICK_SELECT_I *quick;
   Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
@@ -361,8 +367,33 @@ public:
     the number of rows in it may vary from one subquery execution to another.
   */
   bool no_const_tables; 
+  /*
+    This flag is set if we call no_rows_in_result() as par of end_group().
+    This is used as a simple speed optimization to avoiding calling
+    restore_no_rows_in_result() in ::reinit()
+  */
+  bool no_rows_in_result_called;
   
-  JOIN *tmp_join; ///< copy of this JOIN to be used with temporary tables
+  /**
+    Copy of this JOIN to be used with temporary tables.
+
+    tmp_join is used when the JOIN needs to be "reusable" (e.g. in a
+    subquery that gets re-executed several times) and we know will use
+    temporary tables for materialization. The materialization to a
+    temporary table overwrites the JOIN structure to point to the
+    temporary table after the materialization is done. This is where
+    tmp_join is used : it's a copy of the JOIN before the
+    materialization and is used in restoring before re-execution by
+    overwriting the current JOIN structure with the saved copy.
+    Because of this we should pay extra care of not freeing up helper
+    structures that are referenced by the original contents of the
+    JOIN. We can check for this by making sure the "current" join is
+    not the temporary copy, e.g.  !tmp_join || tmp_join != join
+ 
+    We should free these sub-structures at JOIN::destroy() if the
+    "current" join has a copy is not that copy.
+  */
+  JOIN *tmp_join;
   ROLLUP rollup;				///< Used with rollup
 
   bool select_distinct;				///< Set if SELECT DISTINCT
@@ -490,6 +521,7 @@ public:
     optimized= 0;
     cond_equal= 0;
     group_optimized_away= 0;
+    no_rows_in_result_called= 0;
 
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
@@ -727,10 +759,11 @@ public:
      we need to check for errors executing it and react accordingly
     */
     if (!res && table->in_use->is_error())
-      res= 2;
+      res= 1; /* STORE_KEY_FATAL */
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null() || item->null_value;
-    return (err != 0 || res > 2 ? STORE_KEY_FATAL : (store_key_result) res); 
+    return ((err != 0 || res < 0 || res > 2) ? STORE_KEY_FATAL : 
+            (store_key_result) res);
   }
 };
 
@@ -759,17 +792,17 @@ protected:
       if ((res= item->save_in_field(to_field, 1)))
       {       
         if (!err)
-          err= res;
+          err= res < 0 ? 1 : res; /* 1=STORE_KEY_FATAL */
       }
       /*
         Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
         we need to check for errors executing it and react accordingly
         */
       if (!err && to_field->table->in_use->is_error())
-        err= 2;
+        err= 1; /* STORE_KEY_FATAL */
     }
     null_key= to_field->is_null() || item->null_value;
-    return (err > 2 ?  STORE_KEY_FATAL : (store_key_result) err);
+    return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
   }
 };
 

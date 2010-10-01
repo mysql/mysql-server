@@ -1,23 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
-/*****************************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -608,7 +591,9 @@ log_group_calc_lsn_offset(
 
 	offset = (gr_lsn_size_offset + difference) % group_size;
 
+	if (sizeof(ulint) == 4) {
 	ut_a(offset < (((ib_int64_t) 1) << 32)); /* offset must be < 4 GB */
+	}
 
 	/* fprintf(stderr,
 	"Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
@@ -1126,6 +1111,7 @@ log_io_complete(
 		group = (log_group_t*)((ulint)group - 1);
 
 		if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
+		    && srv_unix_file_flush_method != SRV_UNIX_ALL_O_DIRECT
 		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
 
 			fil_flush(group->space_id);
@@ -1147,6 +1133,7 @@ log_io_complete(
 			logs and cannot end up here! */
 
 	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
+	    && srv_unix_file_flush_method != SRV_UNIX_ALL_O_DIRECT
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
 	    && srv_flush_log_at_trx_commit != 2) {
 
@@ -1527,7 +1514,8 @@ loop:
 
 	mutex_exit(&(log_sys->mutex));
 
-	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
+	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC
+	    || srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
 		/* O_DSYNC means the OS did not buffer the log file at all:
 		so we have also flushed to disk what we have written */
 
@@ -1805,6 +1793,7 @@ log_group_checkpoint(
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, log_sys->buf_size);
 
 #ifdef UNIV_LOG_ARCHIVE
+#error "UNIV_LOG_ARCHIVE could not be enabled"
 	if (log_sys->archiving_state == LOG_ARCH_OFF) {
 		archived_lsn = IB_ULONGLONG_MAX;
 	} else {
@@ -1818,7 +1807,9 @@ log_group_checkpoint(
 
 	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
 #else /* UNIV_LOG_ARCHIVE */
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN,
+			(ib_uint64_t)log_group_calc_lsn_offset(
+				log_sys->next_checkpoint_lsn, group));
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
@@ -2040,7 +2031,7 @@ log_checkpoint(
 		return(TRUE);
 	}
 
-	ut_ad(log_sys->written_to_all_lsn >= oldest_lsn);
+	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
 
 	if (log_sys->n_pending_checkpoint_writes > 0) {
 		/* A checkpoint write is running */
@@ -3122,7 +3113,7 @@ loop:
 
 	if (srv_fast_shutdown < 2
 	   && (srv_error_monitor_active
-	      || srv_lock_timeout_and_monitor_active)) {
+	      || srv_lock_timeout_active || srv_monitor_active)) {
 
 		mutex_exit(&kernel_mutex);
 

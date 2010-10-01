@@ -730,23 +730,40 @@ page containing the descriptor bits for the file page; the bitmap page
 is x-latched */
 static
 page_t*
-ibuf_bitmap_get_map_page(
-/*=====================*/
-	ulint	space,	/*!< in: space id of the file page */
-	ulint	page_no,/*!< in: page number of the file page */
-	ulint	zip_size,/*!< in: compressed page size in bytes;
-			0 for uncompressed pages */
-	mtr_t*	mtr)	/*!< in: mtr */
+ibuf_bitmap_get_map_page_func(
+/*==========================*/
+	ulint		space,	/*!< in: space id of the file page */
+	ulint		page_no,/*!< in: page number of the file page */
+	ulint		zip_size,/*!< in: compressed page size in bytes;
+				0 for uncompressed pages */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	buf_block_t*	block;
 
-	block = buf_page_get(space, zip_size,
-			     ibuf_bitmap_page_no_calc(zip_size, page_no),
-			     RW_X_LATCH, mtr);
+	block = buf_page_get_gen(space, zip_size,
+				 ibuf_bitmap_page_no_calc(zip_size, page_no),
+				 RW_X_LATCH, NULL, BUF_GET,
+				 file, line, mtr);
 	buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
 
 	return(buf_block_get_frame(block));
 }
+
+/********************************************************************//**
+Gets the ibuf bitmap page where the bits describing a given file page are
+stored.
+@return bitmap page where the file page is mapped, that is, the bitmap
+page containing the descriptor bits for the file page; the bitmap page
+is x-latched
+@param space	in: space id of the file page
+@param page_no	in: page number of the file page
+@param zip_size	in: compressed page size in bytes; 0 for uncompressed pages
+@param mtr	in: mini-transaction */
+#define ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr)		\
+	ibuf_bitmap_get_map_page_func(space, page_no, zip_size,		\
+				      __FILE__, __LINE__, mtr)
 
 /************************************************************************//**
 Sets the free bits of the page in the ibuf bitmap. This is done in a separate

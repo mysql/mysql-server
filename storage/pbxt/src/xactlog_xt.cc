@@ -719,14 +719,14 @@ void XTDatabaseLog::xlog_exit(XTThreadPtr self)
 	}
 }
 
-#define WR_NO_SPACE		1
-#define WR_FLUSH		2
+#define WR_NO_SPACE		1			/* Write because there is no space, or some other reason */
+#define WR_FLUSH		2			/* Normal commit, write and flush */
 
 xtBool XTDatabaseLog::xlog_flush(XTThreadPtr thread)
 {
 	if (!xlog_flush_pending())
 		return OK;
-	return xlog_append(thread, 0, NULL, 0, NULL, TRUE, NULL, NULL);
+	return xlog_append(thread, 0, NULL, 0, NULL, XT_XLOG_WRITE_AND_FLUSH, NULL, NULL);
 }
 
 xtBool XTDatabaseLog::xlog_flush_pending()
@@ -754,7 +754,7 @@ xtBool XTDatabaseLog::xlog_flush_pending()
  * This function returns the log ID and offset of
  * the data write position.
  */
-xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *data1, size_t size2, xtWord1 *data2, xtBool commit, xtLogID *log_id, xtLogOffset *log_offset)
+xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *data1, size_t size2, xtWord1 *data2, int flush_log_at_trx_commit, xtLogID *log_id, xtLogOffset *log_offset)
 {
 	int			write_reason = 0;
 	xtLogID		req_flush_log_id;
@@ -763,19 +763,20 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 	xtWord8		flush_time;
 	xtWord2		sum;
 
+	/* The first size value must be set, of the second is set! */
+	ASSERT_NS(size1 || !size2);
+
 	if (!size1) {
 		/* Just flush the buffer... */
 		xt_lck_slock(&xl_buffer_lock);
-		write_reason = WR_FLUSH;
+		write_reason = flush_log_at_trx_commit == XT_XLOG_WRITE_AND_FLUSH ? WR_FLUSH : WR_NO_SPACE;
 		req_flush_log_id = xl_append_log_id;
 		req_flush_log_offset = xl_append_log_offset + xl_append_buf_pos;
 		xt_spinlock_unlock(&xl_buffer_lock);
 		goto write_log_to_file;
 	}
-	else {
-		req_flush_log_id = 0;
-		req_flush_log_offset = 0;
-	}
+	req_flush_log_id = 0;
+	req_flush_log_offset = 0;
 
 	/*
 	 * This is a dirty read, which will send us to the
@@ -866,10 +867,16 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 					return OK;
 				}
 			}
-			else {
+			else if (size1) {
 				/* It may be that there is now space in the append buffer: */
 				if (xl_append_buf_pos + size1 + size2 <= xl_size_of_buffers)
 					goto copy_to_log_buffer;
+			}
+			else {
+				/* We are just writing the buffer! */
+				ASSERT_NS(write_reason == WR_NO_SPACE);
+				if (xt_comp_log_pos(req_flush_log_id, req_flush_log_offset, xl_write_log_id, xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : xl_write_buf_pos_start)) <= 0)
+					return OK;
 			}
 
 			if (xt_trace_clock() >= then) {
@@ -922,12 +929,18 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 					ASSERT_NS(xt_comp_log_pos(xl_write_log_id, xl_write_log_offset, xl_append_log_id, xl_append_log_offset) <= 0);
 					return OK;
 				}
-				goto write_log_to_file;
 			}
-
-			/* It may be that there is now space in the append buffer: */
-			if (xl_append_buf_pos + size1 + size2 <= xl_size_of_buffers)
-				goto copy_to_log_buffer;
+			else if (size1) {
+				/* It may be that there is now space in the append buffer: */
+				if (xl_append_buf_pos + size1 + size2 <= xl_size_of_buffers)
+					goto copy_to_log_buffer;
+			}
+			else {
+				/* We are just writing the buffer! */
+				ASSERT_NS(write_reason == WR_NO_SPACE);
+				if (xt_comp_log_pos(req_flush_log_id, req_flush_log_offset, xl_write_log_id, xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : xl_write_buf_pos_start)) <= 0)
+					return OK;
+			}
 				
 			goto write_log_to_file;
 		}
@@ -952,7 +965,7 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 				return OK;
 			}
 			/* Not flushed, but what about written? */
-			if (xt_comp_log_pos(req_flush_log_id, req_flush_log_offset, xl_write_log_id, xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : 0)) <= 0) {
+			if (xt_comp_log_pos(req_flush_log_id, req_flush_log_offset, xl_write_log_id, xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : xl_write_buf_pos_start)) <= 0) {
 				/* The write position is after or equal to the required flush
 				 * position. This means that all we have to do is flush
 				 * to satisfy the writers condition.
@@ -960,7 +973,7 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 				xtBool ok = TRUE;
 
 				if (xl_log_id != xl_write_log_id)
-					ok = xlog_open_log(xl_write_log_id, xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : 0), thread);
+					ok = xlog_open_log(xl_write_log_id, xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : xl_write_buf_pos_start), thread);
 
 				if (ok) {
 					if (xl_db->db_co_busy) {
@@ -979,7 +992,7 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 
 						xt_lock_mutex_ns(&xl_db->db_wr_lock);
 						xl_flush_log_id = xl_write_log_id;
-						xl_flush_log_offset = xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : 0);
+						xl_flush_log_offset = xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : xl_write_buf_pos_start);
 						/*
 						 * We have written data to the log, wake the writer to commit
 						* the data to the database.
@@ -1000,8 +1013,11 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 				return ok;
 			}
 		}
-		else {
-			/* If there is space in the buffer, then we can go on
+		else if (size1) {
+			/* If the amounf of data to be written is 0, then we are just required
+			 * to write the transaction buffer.
+			 *
+			 * If there is space in the buffer, then we can go on
 			 * to copy our data into the buffer:
 			 */
 			if (xl_append_buf_pos + size1 + size2 <= xl_size_of_buffers) {
@@ -1014,6 +1030,21 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 				xt_cond_wakeall(&xl_write_cond);
 #endif
 				goto copy_to_log_buffer;
+			}
+		}
+		else {
+			/* We are just writing the buffer! */
+			ASSERT_NS(write_reason == WR_NO_SPACE);
+			if (xt_comp_log_pos(req_flush_log_id, req_flush_log_offset, xl_write_log_id, xl_write_log_offset + (xl_write_done ? xl_write_buf_pos : xl_write_buf_pos_start)) <= 0) {
+#ifdef XT_XLOG_WAIT_SPINS
+				xt_writing = 0;
+				if (xt_waiting)
+					xt_cond_wakeall(&xl_write_cond);
+#else
+				xt_writing = FALSE;
+				xt_cond_wakeall(&xl_write_cond);
+#endif
+				return OK;
 			}
 		}
 
@@ -1109,7 +1140,8 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 			part_size = 512 - part_size;
 			xl_write_buffer[xl_write_buf_pos] = XT_LOG_ENT_END_OF_LOG;
 #ifdef HAVE_valgrind
-			memset(xl_write_buffer + xl_write_buf_pos + 1, 0x66, part_size);
+			if (part_size > 1)
+				memset(xl_write_buffer + xl_write_buf_pos + 1, 0x66, part_size - 1);
 #endif
 			if (!xt_pwrite_file(xl_log_file, xl_write_log_offset, xl_write_buf_pos+part_size, xl_write_buffer, &thread->st_statistics.st_xlog, thread))
 				goto write_failed;			
@@ -1197,9 +1229,13 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 		xt_writing = FALSE;
 		xt_cond_wakeall(&xl_write_cond);
 #endif
+
+		if (size1 == 0)
+			return OK;
 	}
 
 	copy_to_log_buffer:
+	ASSERT_NS(size1);
 	xt_spinlock_lock(&xl_buffer_lock);
 	/* Now we have to check again. The check above was a dirty read!
 	 */
@@ -1291,11 +1327,14 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 	if (log_offset)
 		*log_offset = xl_append_log_offset + xl_append_buf_pos;
 	xl_append_buf_pos += size1 + size2;
-	if (commit) {
-		write_reason = WR_FLUSH;
+	if (flush_log_at_trx_commit != XT_XLOG_NO_WRITE_NO_FLUSH) {
+		write_reason = flush_log_at_trx_commit == XT_XLOG_WRITE_AND_FLUSH ? WR_FLUSH : WR_NO_SPACE;
 		req_flush_log_id = xl_append_log_id;
 		req_flush_log_offset = xl_append_log_offset + xl_append_buf_pos;
 		xt_spinlock_unlock(&xl_buffer_lock);
+		/* We have written the data already! */
+		size1 = 0;
+		size2 = 0;
 		goto write_log_to_file;
 	}
 
@@ -1485,9 +1524,9 @@ xtPublic xtBool xt_xlog_flush_log(struct XTDatabase *db, XTThreadPtr thread)
 	return db->db_xlog.xlog_flush(thread);
 }
 
-xtPublic xtBool xt_xlog_log_data(XTThreadPtr thread, size_t size, XTXactLogBufferDPtr log_entry, xtBool commit)
+xtPublic xtBool xt_xlog_log_data(XTThreadPtr thread, size_t size, XTXactLogBufferDPtr log_entry, int flush_log_at_trx_commit)
 {
-	return thread->st_database->db_xlog.xlog_append(thread, size, (xtWord1 *) log_entry, 0, NULL, commit, NULL, NULL);
+	return thread->st_database->db_xlog.xlog_append(thread, size, (xtWord1 *) log_entry, 0, NULL, flush_log_at_trx_commit, NULL, NULL);
 }
 
 /* Allocate a record from the free list. */
@@ -1498,7 +1537,7 @@ xtPublic xtBool xt_xlog_modify_table(xtTableID tab_id, u_int status, xtOpSeqNo o
 	xtWord4				sum = 0;
 	int					check_size = 1;
 	XTXactDataPtr		xact = NULL;
-	xtBool				commit = FALSE;
+	int					flush_log_at_trx_commit = XT_XLOG_NO_WRITE_NO_FLUSH;
 
 	switch (status) {
 		case XT_LOG_ENT_REC_MODIFIED:
@@ -1613,7 +1652,7 @@ xtPublic xtBool xt_xlog_modify_table(xtTableID tab_id, u_int status, xtOpSeqNo o
 			XT_SET_DISK_4(log_entry.xp.xp_xact_id_4, op_seq);
 			log_entry.xp.xp_xa_len_1 = (xtWord1) size;
 			len = offsetof(XTXactPrepareEntryDRec, xp_xa_data);
-			commit = TRUE;
+			flush_log_at_trx_commit = xt_db_flush_log_at_trx_commit;
 			break;
 		default:
 			ASSERT_NS(FALSE);
@@ -1652,9 +1691,9 @@ xtPublic xtBool xt_xlog_modify_table(xtTableID tab_id, u_int status, xtOpSeqNo o
 	xt_print_log_record(0, 0, &log_entry);
 #endif
 	if (xact)
-		return thread->st_database->db_xlog.xlog_append(thread, len, (xtWord1 *) &log_entry, size, data, commit, &xact->xd_begin_log, &xact->xd_begin_offset);
+		return thread->st_database->db_xlog.xlog_append(thread, len, (xtWord1 *) &log_entry, size, data, flush_log_at_trx_commit, &xact->xd_begin_log, &xact->xd_begin_offset);
 
-	return thread->st_database->db_xlog.xlog_append(thread, len, (xtWord1 *) &log_entry, size, data, commit, NULL, NULL);
+	return thread->st_database->db_xlog.xlog_append(thread, len, (xtWord1 *) &log_entry, size, data, flush_log_at_trx_commit, NULL, NULL);
 }
 
 /*

@@ -78,6 +78,7 @@ COMMIT;
 
 --echo 'CONNECTION con2'
 CONNECTION con2;
+reap;
 UNLOCK tables;
 
 DROP TABLE t1;

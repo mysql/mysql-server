@@ -564,6 +564,74 @@ page_cur_open_on_rnd_user_rec(
 	} while (rnd--);
 }
 
+UNIV_INTERN
+void
+page_cur_open_on_nth_user_rec(
+/*==========================*/
+	buf_block_t*	block,	/*!< in: page */
+	page_cur_t*	cursor,	/*!< out: page cursor */
+	ulint		nth)
+{
+	ulint	n_recs = page_get_n_recs(buf_block_get_frame(block));
+
+	page_cur_set_before_first(block, cursor);
+
+	if (UNIV_UNLIKELY(n_recs == 0)) {
+
+		return;
+	}
+
+	nth--;
+
+	if (nth >= n_recs) {
+		nth = n_recs - 1;
+	}
+
+	do {
+		page_cur_move_to_next(cursor);
+	} while (nth--);
+}
+
+UNIV_INTERN
+ibool
+page_cur_open_on_rnd_user_rec_after_nth(
+/*==========================*/
+	buf_block_t*	block,	/*!< in: page */
+	page_cur_t*	cursor,	/*!< out: page cursor */
+	ulint		nth)
+{
+	ulint	rnd;
+	ulint	n_recs = page_get_n_recs(buf_block_get_frame(block));
+	ibool	ret;
+
+	page_cur_set_before_first(block, cursor);
+
+	if (UNIV_UNLIKELY(n_recs == 0)) {
+
+		return (FALSE);
+	}
+
+	nth--;
+
+	if (nth >= n_recs) {
+		nth = n_recs - 1;
+	}
+
+	rnd = (ulint) (nth + page_cur_lcg_prng() % (n_recs - nth));
+
+	if (rnd == nth) {
+		ret = TRUE;
+	} else {
+		ret = FALSE;
+	}
+
+	do {
+		page_cur_move_to_next(cursor);
+	} while (rnd--);
+
+	return (ret);
+}
+
 /***********************************************************//**
 Writes the log record of a record insert on a page. */
 static

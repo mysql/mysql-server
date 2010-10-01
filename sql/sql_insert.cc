@@ -887,7 +887,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       auto_inc values from the delayed_insert thread as they share TABLE.
     */
     table->file->ha_release_auto_increment();
-    if (using_bulk_insert && table->file->ha_end_bulk_insert(0) && !error)
+    if (using_bulk_insert && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -1509,7 +1509,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
         info->touched++;
-        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+        if (((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) &&
              !bitmap_is_subset(table->write_set, table->read_set)) ||
             compare_record(table))
         {
@@ -3190,7 +3190,7 @@ bool select_insert::send_data(List<Item> &values)
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// Calculate cuted fields
   store_values(values);
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   if (thd->is_error())
   {
     table->auto_increment_field_not_null= FALSE;
@@ -3277,7 +3277,7 @@ bool select_insert::send_eof()
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
-  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert(0) : 0;
+  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert() : 0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3360,7 +3360,7 @@ void select_insert::abort() {
       before.
     */
     if (!thd->prelocked_mode)
-      table->file->ha_end_bulk_insert(0);
+      table->file->ha_end_bulk_insert();
 
     /*
       If at least one row has been inserted/modified and will stay in
@@ -3913,6 +3913,17 @@ void select_create::abort()
 
   if (table)
   {
+    if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+        thd->current_stmt_binlog_row_based &&
+        !(thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+        mysql_bin_log.is_open())
+    {
+      /*
+        This should be removed after BUG#47899.
+      */
+      mysql_bin_log.reset_gathered_updates(thd);
+    }
+
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     if (!create_info->table_existed)

@@ -29,6 +29,7 @@
 struct XTTable;
 struct XTOpenTable;
 struct XTTabCache;
+struct XTDatabase;
 
 #include "thread_xt.h"
 #include "filesys_xt.h"
@@ -226,6 +227,7 @@ typedef struct XTTabCacheMem {
 	size_t					tcm_cache_high;					/* The high water level of cache allocation. */
 	size_t					tcm_low_level;					/* This is the level to which the freeer will free, once it starts working. */
 	size_t					tcm_high_level;					/* This is the level at which the freeer will start to work (to avoid waiting)! */
+	size_t					tcm_mid_level;					/* At this level the freeer will not sleep if there are threads waiting. */
 
 	/* The free'er thread: */
 	struct XTThread			*tcm_freeer_thread;				/* The freeer thread . */
@@ -283,6 +285,6 @@ void	xt_check_table_cache(struct XTTable *tab);
 void	xt_quit_freeer(XTThreadPtr self);
 void	xt_stop_freeer(XTThreadPtr self);
 void	xt_start_freeer(XTThreadPtr self);
-void	xt_wr_wake_freeer(XTThreadPtr self);
+void	xt_wr_wake_freeer(XTThreadPtr self, struct XTDatabase *db);
 
 #endif

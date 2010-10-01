@@ -264,7 +264,8 @@ struct sql_ex_info
                                    1 + 2          /* type, lc_time_names_number */ + \
                                    1 + 2          /* type, charset_database_number */ + \
                                    1 + 8          /* type, table_map_for_update */ + \
-                                   1 + 4          /* type, master_data_written */)
+                                   1 + 4          /* type, master_data_written */ + \
+                                   1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
   QUERY_HEADER_LEN     + /* write_data */   \
@@ -333,6 +334,8 @@ struct sql_ex_info
 
 #define Q_MASTER_DATA_WRITTEN_CODE 10
 
+#define Q_INVOKER 11
+
 /* Intvar event post-header */
 
 /* Intvar event data */
@@ -395,7 +398,7 @@ struct sql_ex_info
 #define ELQ_DUP_HANDLING_OFFSET ELQ_FILE_ID_OFFSET + 12
 
 /* 4 bytes which all binlogs should begin with */
-#define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
+#define BINLOG_MAGIC        (const uchar*) "\xfe\x62\x69\x6e"
 
 /*
   The 2 flags below were useless :
@@ -463,9 +466,10 @@ struct sql_ex_info
 #define LOG_EVENT_SUPPRESS_USE_F    0x8
 
 /*
-  This used to be LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F, but is now unused.
+  Note: this is a place holder for the flag
+  LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F (0x10), which is not used any
+  more, please do not reused this value for other flags.
  */
-#define LOG_EVENT_UNUSED1_F 0x10
 
 /**
    @def LOG_EVENT_ARTIFICIAL_F
@@ -1545,6 +1549,8 @@ protected:
 */
 class Query_log_event: public Log_event
 {
+  LEX_STRING user;
+  LEX_STRING host;
 protected:
   Log_event::Byte* data_buf;
 public:
@@ -1681,6 +1687,28 @@ public:        /* !!! Public in this patch to allow old usage */
                        const char *query_arg,
                        uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
+  /*
+    If true, the event always be applied by slave SQL thread or be printed by
+    mysqlbinlog
+   */
+  bool is_trans_keyword()
+  {
+    /*
+      Before the patch for bug#50407, The 'SAVEPOINT and ROLLBACK TO'
+      queries input by user was written into log events directly.
+      So the keywords can be written in both upper case and lower case
+      together, strncasecmp is used to check both cases. they also could be
+      binlogged with comments in the front of these keywords. for examples:
+        / * bla bla * / SAVEPOINT a;
+        / * bla bla * / ROLLBACK TO a;
+      but we don't handle these cases and after the patch, both quiries are
+      binlogged in upper case with no comments.
+     */
+    return !strncmp(query, "BEGIN", q_len) ||
+      !strncmp(query, "COMMIT", q_len) ||
+      !strncasecmp(query, "SAVEPOINT", 9) ||
+      !strncasecmp(query, "ROLLBACK", 8);
+  }
 };
 
 
@@ -3297,16 +3325,14 @@ public:
   /* Special constants representing sets of flags */
   enum 
   {
-    TM_NO_FLAGS = 0U
+    TM_NO_FLAGS = 0U,
+    TM_BIT_LEN_EXACT_F = (1U << 0)
   };
 
-  void set_flags(flag_set flag) { m_flags |= flag; }
-  void clear_flags(flag_set flag) { m_flags &= ~flag; }
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifndef MYSQL_CLIENT
-  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, 
-		      bool is_transactional, uint16 flags);
+  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len, 
@@ -3319,7 +3345,7 @@ public:
   table_def *create_table_def()
   {
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
-                         m_field_metadata_size, m_null_bits);
+                         m_field_metadata_size, m_null_bits, m_flags);
   }
   ulong get_table_id() const        { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }

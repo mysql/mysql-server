@@ -1,0 +1,30 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+change master to master_log_pos=MASTER_LOG_POS;
+start slave;
+stop slave;
+change master to master_log_pos=MASTER_LOG_POS;
+start slave;
+stop slave;
+# impossible position leads to an error
+change master to master_log_pos=MASTER_LOG_POS;
+start slave;
+Last_IO_Error = Got fatal error 1236 from master when reading data from binary log: 'Client requested master to start replication from impossible position'
+create table if not exists t1 (n int);
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (1),(2),(3);
+stop slave;
+change master to master_log_pos=MASTER_LOG_POS;
+start slave;
+select * from t1 ORDER BY n;
+n
+1
+2
+3
+drop table t1;

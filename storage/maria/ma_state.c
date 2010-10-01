@@ -53,12 +53,16 @@
 
 my_bool _ma_setup_live_state(MARIA_HA *info)
 {
-  TRN *trn= info->trn;
+  TRN *trn;
   MARIA_SHARE *share= info->s;
   MARIA_USED_TABLES *tables;
   MARIA_STATE_HISTORY *history;
   DBUG_ENTER("_ma_setup_live_state");
 
+  if (maria_create_trn_hook(info))
+    DBUG_RETURN(1);
+
+  trn= info->trn;
   for (tables= (MARIA_USED_TABLES*) info->trn->used_tables;
        tables;
        tables= tables->next)
@@ -69,6 +73,7 @@ my_bool _ma_setup_live_state(MARIA_HA *info)
       goto end;
     }
   }
+
   /* Table was not used before, create new table state entry */
   if (!(tables= (MARIA_USED_TABLES*) my_malloc(sizeof(*tables),
                                                MYF(MY_WME | MY_ZEROFILL))))
@@ -566,7 +571,8 @@ void _ma_block_get_status(void* param, my_bool concurrent_insert)
 {
   MARIA_HA *info=(MARIA_HA*) param;
   DBUG_ENTER("_ma_block_get_status");
-  DBUG_PRINT("info", ("concurrent_insert %d", concurrent_insert));
+  DBUG_PRINT("enter", ("concurrent_insert %d", concurrent_insert));
+
   info->row_base_length= info->s->base_length;
   info->row_flag= info->s->base.default_row_flag;
   if (concurrent_insert)
@@ -588,6 +594,21 @@ void _ma_block_get_status(void* param, my_bool concurrent_insert)
       TODO: Fix this by having one extra state pre-allocated
     */
     (void) _ma_setup_live_state(info);
+  }
+  else
+  {
+    /*
+      Info->trn is set if this table is already handled and we are
+      called from maria_versioning()
+    */
+    if (info->s->base.born_transactional && !info->trn)
+    {
+      /*
+        Assume for now that this doesn't fail (It can only fail in
+        out of memory conditions)
+      */
+      (void) maria_create_trn_hook(info);
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -616,6 +637,30 @@ my_bool _ma_block_check_status(void *param __attribute__((unused)))
 }
 
 
+/* Get status when transactional but not versioned */
+
+void _ma_block_get_status_no_versioning(void* param,
+                                        my_bool concurrent_insert
+                                        __attribute__((unused)))
+{
+  MARIA_HA *info=(MARIA_HA*) param;
+  DBUG_ENTER("_ma_block_get_status_no_version");
+  DBUG_PRINT("enter", ("concurrent_insert %d", concurrent_insert));
+  DBUG_ASSERT(info->s->base.born_transactional);
+
+  info->state->changed= 0;              /* from _ma_reset_update_flag() */
+  if (!info->trn)
+  {
+    /*
+      Assume for now that this doesn't fail (It can only fail in
+      out of memory conditions)
+    */
+    (void) maria_create_trn_hook(info);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /**
   Enable/disable versioning
 */
@@ -633,6 +678,7 @@ void maria_versioning(MARIA_HA *info, my_bool versioning)
     info->lock.type= versioning ? TL_WRITE_CONCURRENT_INSERT : TL_WRITE;
     _ma_block_get_status((void*) info, versioning);
     info->lock.type= save_lock_type;
+    info->state= info->state_start= &info->s->state.common;
   }
 }
 

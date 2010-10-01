@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
 class Create_native_func : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with no arguments.
@@ -69,7 +69,7 @@ protected:
 class Create_func_arg0 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with no arguments.
@@ -93,7 +93,7 @@ protected:
 class Create_func_arg1 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with one argument.
@@ -118,7 +118,7 @@ protected:
 class Create_func_arg2 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with two arguments.
@@ -144,7 +144,7 @@ protected:
 class Create_func_arg3 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with three arguments.
@@ -194,7 +194,7 @@ protected:
 class Create_func_no_geom : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /** Singleton. */
   static Create_func_no_geom s_singleton;
@@ -2315,7 +2315,7 @@ static bool has_named_parameters(List<Item> *params)
 Create_func_no_geom Create_func_no_geom::s_singleton;
 
 Item*
-Create_func_no_geom::create(THD * /* unused */,
+Create_func_no_geom::create_func(THD * /* unused */,
                             LEX_STRING /* unused */,
                             List<Item> * /* unused */)
 {
@@ -2328,7 +2328,7 @@ Create_func_no_geom::create(THD * /* unused */,
 
 
 Item*
-Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_qfunc::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   LEX_STRING db;
 
@@ -2361,7 +2361,7 @@ Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 Create_udf_func Create_udf_func::s_singleton;
 
 Item*
-Create_udf_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_udf_func::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   udf_func *udf= find_udf(name.str, name.length);
   DBUG_ASSERT(udf);
@@ -2512,7 +2512,7 @@ Create_sp_func::create_with_db(THD *thd, LEX_STRING db, LEX_STRING name,
 
 
 Item*
-Create_native_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_native_func::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   if (has_named_parameters(item_list))
   {
@@ -2525,7 +2525,7 @@ Create_native_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg0::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg0::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2543,7 +2543,7 @@ Create_func_arg0::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg1::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg1::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2569,7 +2569,7 @@ Create_func_arg1::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg2::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg2::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2597,7 +2597,7 @@ Create_func_arg2::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg3::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg3::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -4185,8 +4185,11 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
     into a table, the order in which the rows are modified may differ
     between master and slave, because the order is undefined.  Hence,
     the statement is unsafe to log in statement format.
+
+    For normal INSERT's this is howevever safe
   */
-  thd->lex->set_stmt_unsafe();
+  if (thd->lex->sql_command != SQLCOM_INSERT)
+    thd->lex->set_stmt_unsafe();
 
   switch (arg_count) {
   case 0:
@@ -5051,8 +5054,6 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  CHARSET_INFO *cs)
 {
   Item *UNINIT_VAR(res);
-  ulong len;
-  uint dec;
 
   switch (cast_type) {
   case ITEM_CAST_BINARY:
@@ -5075,11 +5076,10 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     break;
   case ITEM_CAST_DECIMAL:
   {
-    if (c_len == NULL)
-    {
-      len= 0;
-    }
-    else
+    ulong len= 0;
+    uint dec= 0;
+
+    if (c_len)
     {
       ulong decoded_size;
       errno= 0;
@@ -5093,11 +5093,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       len= decoded_size;
     }
 
-    if (c_dec == NULL)
-    {
-      dec= 0;
-    }
-    else
+    if (c_dec)
     {
       ulong decoded_size;
       errno= 0;
@@ -5133,12 +5129,9 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   }
   case ITEM_CAST_CHAR:
   {
+    int len= -1;
     CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
-    if (c_len == NULL)
-    {
-      len= (ulong) -1L;
-    }
-    else
+    if (c_len)
     {
       ulong decoded_size;
       errno= 0;
@@ -5148,7 +5141,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
         return NULL;
       }
-      len= decoded_size;
+      len= (int) decoded_size;
     }
     res= new (thd->mem_root) Item_char_typecast(a, len, real_cs);
     break;

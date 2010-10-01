@@ -1,0 +1,65 @@
+# See if "LOAD DATA LOCAL INFILE" is well replicated
+# (LOAD DATA LOCAL INFILE is not written to the binlog
+# the same way as LOAD DATA INFILE : Append_blocks are smaller).
+# In MySQL 4.0 <4.0.12 there were 2 bugs with LOAD DATA LOCAL INFILE :
+# - the loaded file was not written entirely to the master's binlog,
+# only the first 4KB, 8KB or 16KB usually.
+# - the loaded file's first line was not written entirely to the
+# master's binlog (1st char was absent)
+source include/master-slave.inc;
+
+create table t1(a int);
+let $1=10000;
+disable_query_log;
+set SQL_LOG_BIN=0;
+while ($1)
+{
+ insert into t1 values(1);
+ dec $1;
+}
+set SQL_LOG_BIN=1;
+enable_query_log;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select * into outfile '$MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile' from t1;
+#This will generate a 20KB file, now test LOAD DATA LOCAL
+truncate table t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval load data local infile '$MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile' into table t1;
+remove_file $MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile;
+save_master_pos;
+connection slave;
+sync_with_master;
+select a,count(*) from t1 group by a;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+# End of 4.1 tests
+
+#
+# Now let us test how well we replicate LOAD DATA LOCAL in situation when
+# we met duplicates in tables to which we are adding rows.
+# (It supposed that LOAD DATA LOCAL ignores such errors)
+#
+connection master;
+create table t1(a int);
+insert into t1 values (1), (2), (2), (3);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select * into outfile '$MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile' from t1;
+drop table t1;
+create table t1(a int primary key);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval load data local infile '$MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile' into table t1;
+remove_file $MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile;
+SELECT * FROM t1 ORDER BY a;
+save_master_pos;
+connection slave;
+sync_with_master;
+SELECT * FROM t1 ORDER BY a;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

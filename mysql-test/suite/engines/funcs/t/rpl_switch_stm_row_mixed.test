@@ -1,0 +1,552 @@
+-- source include/not_ndb_default.inc
+-- source include/master-slave.inc
+
+connection default;
+set @saved_binlog_format = @@global.binlog_format;
+
+
+connection master;
+--disable_warnings
+drop database if exists mysqltest1;
+create database mysqltest1;
+--enable_warnings
+use mysqltest1;
+set session binlog_format=row;
+set global binlog_format=row;
+
+show global variables like "binlog_format%";
+show session variables like "binlog_format%";
+select @@global.binlog_format, @@session.binlog_format;
+
+CREATE TABLE t1 (a varchar(100));
+
+prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
+set @string="emergency_1_";
+insert into t1 values("work_2_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work_3_"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values(concat("for_4_",UUID()));
+insert into t1 select "yesterday_5_";
+
+# verify that temp tables prevent a switch to SBR
+create temporary table tmp(a char(100));
+insert into tmp values("see_6_");
+--error ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
+set binlog_format=statement;
+insert into t1 select * from tmp;
+drop temporary table tmp;
+
+# Now we go to SBR
+set binlog_format=statement;
+show global variables like "binlog_format%";
+show session variables like "binlog_format%";
+select @@global.binlog_format, @@session.binlog_format;
+set global binlog_format=statement;
+show global variables like "binlog_format%";
+show session variables like "binlog_format%";
+select @@global.binlog_format, @@session.binlog_format;
+
+prepare stmt1 from 'insert into t1 select ?';
+set @string="emergency_7_";
+insert into t1 values("work_8_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values("work_9_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values("for_10_");
+insert into t1 select "yesterday_11_";
+
+# test SET DEFAULT (=statement at this point of test)
+set binlog_format=default;
+select @@global.binlog_format, @@session.binlog_format;
+# due to cluster it's hard to set back to default
+#--error ER_NO_DEFAULT
+set global binlog_format=default;
+select @@global.binlog_format, @@session.binlog_format;
+
+prepare stmt1 from 'insert into t1 select ?';
+set @string="emergency_12_";
+insert into t1 values("work_13_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values("work_14_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values("for_15_");
+insert into t1 select "yesterday_16_";
+
+# and now the mixed mode
+
+set binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+set global binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+
+prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
+set @string="emergency_17_";
+insert into t1 values("work_18_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work_19_"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values(concat("for_20_",UUID()));
+insert into t1 select "yesterday_21_";
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work_22_"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values(concat("for_23_",UUID()));
+insert into t1 select "yesterday_24_";
+
+# Test of CREATE TABLE SELECT
+
+create table t2 select rpad(UUID(),100,' ');
+create table t3 select 1 union select UUID();
+create table t4 select * from t1 where 3 in (select 1 union select 2 union select UUID() union select 3);
+create table t5 select * from t1 where 3 in (select 1 union select 2 union select curdate() union select 3);
+# what if UUID() is first:
+insert into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3 union select * from t4);
+
+# inside a stored procedure
+
+delimiter |;
+create procedure foo()
+begin
+insert into t1 values("work_25_");
+insert into t1 values(concat("for_26_",UUID()));
+insert into t1 select "yesterday_27_";
+end|
+create procedure foo2()
+begin
+insert into t1 values(concat("emergency_28_",UUID()));
+insert into t1 values("work_29_");
+insert into t1 values(concat("for_30_",UUID()));
+set session binlog_format=row; # accepted for stored procs
+insert into t1 values("more work_31_");
+set session binlog_format=mixed;
+end|
+create function foo3() returns bigint unsigned
+begin
+  set session binlog_format=row; # rejected for stored funcs
+  insert into t1 values("alarm");
+  return 100;
+end|
+create procedure foo4(x varchar(100))
+begin
+insert into t1 values(concat("work_250_",x));
+insert into t1 select "yesterday_270_";
+end|
+delimiter ;|
+call foo();
+call foo2();
+call foo4("hello");
+call foo4(UUID());
+call foo4("world");
+
+# test that can't SET in a stored function
+--error ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT
+select foo3();
+select * from t1 where a="alarm";
+
+# Tests of stored functions/triggers/views for BUG#20930 "Mixed
+# binlogging mode does not work with stored functions, triggers,
+# views"
+
+# Function which calls procedure
+drop function foo3;
+delimiter |;
+create function foo3() returns bigint unsigned
+begin
+  insert into t1 values("foo3_32_");
+  call foo();
+  return 100;
+end|
+delimiter ;|
+insert into t2 select foo3();
+
+prepare stmt1 from 'insert into t2 select foo3()';
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+
+# Test if stored function calls stored function which calls procedure
+# which requires row-based.
+
+delimiter |;
+create function foo4() returns bigint unsigned
+begin
+  insert into t2 select foo3();
+  return 100;
+end|
+delimiter ;|
+select foo4();
+
+prepare stmt1 from 'select foo4()';
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+
+# A simple stored function
+delimiter |;
+create function foo5() returns bigint unsigned
+begin
+  insert into t2 select UUID();
+  return 100;
+end|
+delimiter ;|
+select foo5();
+
+prepare stmt1 from 'select foo5()';
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+
+# A simple stored function where UUID() is in the argument
+delimiter |;
+create function foo6(x varchar(100)) returns bigint unsigned
+begin
+  insert into t2 select x;
+  return 100;
+end|
+delimiter ;|
+select foo6("foo6_1_");
+select foo6(concat("foo6_2_",UUID()));
+
+prepare stmt1 from 'select foo6(concat("foo6_3_",UUID()))';
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+
+
+# Test of views using UUID()
+
+create view v1 as select uuid();
+create table t11 (data varchar(255));
+insert into t11 select * from v1;
+# Test of querying INFORMATION_SCHEMA which parses the view's body,
+# to verify that it binlogs statement-based (is not polluted by
+# the parsing of the view's body).
+insert into t11 select TABLE_NAME from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysqltest1' and TABLE_NAME IN ('v1','t11');
+prepare stmt1 from "insert into t11 select TABLE_NAME from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysqltest1' and TABLE_NAME IN ('v1','t11')";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+
+# Test of triggers with UUID()
+delimiter |;
+create trigger t11_bi before insert on t11 for each row
+begin
+  set NEW.data = concat(NEW.data,UUID());
+end|
+delimiter ;|
+insert into t11 values("try_560_");
+
+# DELAYED option not supported by table created
+# using innodb.
+# Test that INSERT DELAYED works in mixed mode (BUG#20649)
+#insert delayed into t2 values("delay_1_");
+#insert delayed into t2 values(concat("delay_2_",UUID()));
+#insert delayed into t2 values("delay_6_");
+
+# Test for BUG#20633 (INSERT DELAYED RAND()/user_variable does not
+# replicate fine in statement-based ; we test that in mixed mode it
+# works).
+#insert delayed into t2 values(rand());
+#set @a=2.345;
+#insert delayed into t2 values(@a);
+
+sleep 4; # time for the delayed inserts to reach disk
+
+# If you want to do manual testing of the mixed mode regarding UDFs (not
+# testable automatically as quite platform- and compiler-dependent),
+# you just need to set the variable below to 1, and to
+# "make udf_example.so" in sql/, and to copy sql/udf_example.so to
+# MYSQL_TEST_DIR/lib/mysql.
+let $you_want_to_test_UDF=0;
+if ($you_want_to_test_UDF)
+{
+  CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
+  prepare stmt1 from 'insert into t1 select metaphon(?)';
+  set @string="emergency_133_";
+  insert into t1 values("work_134_");
+  execute stmt1 using @string;
+  deallocate prepare stmt1;
+  prepare stmt1 from 'insert into t1 select ?';
+  insert into t1 values(metaphon("work_135_"));
+  execute stmt1 using @string;
+  deallocate prepare stmt1;
+  insert into t1 values(metaphon("for_136_"));
+  insert into t1 select "yesterday_137_";
+  create table t6 select metaphon("for_138_");
+  create table t7 select 1 union select metaphon("for_139_");
+  create table t8 select * from t1 where 3 in (select 1 union select 2 union select metaphon("for_140_") union select 3);
+  create table t9 select * from t1 where 3 in (select 1 union select 2 union select curdate() union select 3);
+}
+
+create table t20 select * from t1; # save for comparing later
+create table t21 select * from t2;
+create table t22 select * from t3;
+drop table t1,t2,t3;
+
+# This tests the fix to
+# BUG#19630 stored function inserting into two auto_increment breaks statement-based binlog
+# We verify that under the mixed binlog mode, a stored function
+# modifying at least two tables having an auto_increment column,
+# is binlogged row-based. Indeed in statement-based binlogging,
+# only the auto_increment value generated for the first table
+# is recorded in the binlog, the value generated for the 2nd table
+# lacking.
+
+create table t1 (a int primary key auto_increment, b varchar(100));
+create table t2 (a int primary key auto_increment, b varchar(100));
+create table t3 (b varchar(100));
+delimiter |;
+create function f (x varchar(100)) returns int deterministic
+begin
+ insert into t1 values(null,x);
+ insert into t2 values(null,x);
+ return 1;
+end|
+delimiter ;|
+select f("try_41_");
+# Two operations which compensate each other except that their net
+# effect is that they advance the auto_increment counter of t2 on slave:
+sync_slave_with_master;
+use mysqltest1;
+insert into t2 values(2,null),(3,null),(4,null);
+delete from t2 where a>=2;
+
+connection master;
+# this is the call which didn't replicate well
+select f("try_42_");
+sync_slave_with_master;
+
+# now use prepared statement and test again, just to see that the RBB
+# mode isn't set at PREPARE but at EXECUTE.
+
+insert into t2 values(3,null),(4,null);
+delete from t2 where a>=3;
+
+connection master;
+prepare stmt1 from 'select f(?)';
+set @string="try_43_";
+insert into t1 values(null,"try_44_"); # should be SBB
+execute stmt1 using @string; # should be RBB
+deallocate prepare stmt1;
+sync_slave_with_master;
+
+# verify that if only one table has auto_inc, it does not trigger RBB
+# (we'll check in binlog further below)
+
+connection master;
+create table t12 select * from t1; # save for comparing later
+drop table t1;
+create table t1 (a int, b varchar(100), key(a));
+select f("try_45_");
+
+# restore table's key
+create table t13 select * from t1;
+drop table t1;
+create table t1 (a int primary key auto_increment, b varchar(100));
+
+# now test if it's two functions, each of them inserts in one table
+
+drop function f;
+# we need a unique key to have sorting of rows by mysqldump
+create table t14 (unique (a)) select * from t2;
+truncate table t2;
+delimiter |;
+create function f1 (x varchar(100)) returns int deterministic
+begin
+ insert into t1 values(null,x);
+ return 1;
+end|
+create function f2 (x varchar(100)) returns int deterministic
+begin
+ insert into t2 values(null,x);
+ return 1;
+end|
+delimiter ;|
+select f1("try_46_"),f2("try_47_");
+
+sync_slave_with_master;
+insert into t2 values(2,null),(3,null),(4,null);
+delete from t2 where a>=2;
+
+connection master;
+# Test with SELECT and INSERT
+select f1("try_48_"),f2("try_49_");
+insert into t3 values(concat("try_50_",f1("try_51_"),f2("try_52_")));
+sync_slave_with_master;
+
+# verify that if f2 does only read on an auto_inc table, this does not
+# switch to RBB
+connection master;
+drop function f2;
+delimiter |;
+create function f2 (x varchar(100)) returns int deterministic
+begin
+ declare y int;
+ insert into t1 values(null,x);
+ set y = (select count(*) from t2);
+ return y;
+end|
+delimiter ;|
+select f1("try_53_"),f2("try_54_");
+sync_slave_with_master;
+
+# And now, a normal statement with a trigger (no stored functions)
+
+connection master;
+drop function f2;
+delimiter |;
+create trigger t1_bi before insert on t1 for each row
+begin
+  insert into t2 values(null,"try_55_");
+end|
+delimiter ;|
+insert into t1 values(null,"try_56_");
+# and now remove one auto_increment and verify SBB
+alter table t1 modify a int, drop primary key;
+insert into t1 values(null,"try_57_");
+sync_slave_with_master;
+
+# Test for BUG#20499 "mixed mode with temporary table breaks binlog"
+# Slave used to have only 2 rows instead of 3.
+connection master;
+CREATE TEMPORARY TABLE t15 SELECT UUID();
+create table t16 like t15;
+INSERT INTO t16 SELECT * FROM t15;
+# we'll verify that this one is done RBB
+insert into t16 values("try_65_");
+drop table t15;
+# we'll verify that this one is done SBB
+insert into t16 values("try_66_");
+sync_slave_with_master;
+
+# and now compare:
+
+connection master;
+
+# first check that data on master is sensible
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t3;
+select count(*) from t4;
+select count(*) from t5;
+select count(*) from t11;
+select count(*) from t20;
+select count(*) from t21;
+select count(*) from t22;
+select count(*) from t12;
+select count(*) from t13;
+select count(*) from t14;
+select count(*) from t16;
+if ($you_want_to_test_UDF)
+{
+  select count(*) from t6;
+  select count(*) from t7;
+  select count(*) from t8;
+  select count(*) from t9;
+}
+
+sync_slave_with_master;
+
+#
+# Bug#20863 If binlog format is changed between update and unlock of
+#           tables, wrong binlog
+#
+
+connection master;
+DROP TABLE IF EXISTS t11;
+SET SESSION BINLOG_FORMAT=STATEMENT;
+CREATE TABLE t11 (song VARCHAR(255));
+LOCK TABLES t11 WRITE;
+SET SESSION BINLOG_FORMAT=ROW;
+INSERT INTO t11 VALUES('Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict');
+SET SESSION BINLOG_FORMAT=STATEMENT;
+INSERT INTO t11 VALUES('Careful With That Axe, Eugene');
+UNLOCK TABLES;
+
+--query_vertical SELECT * FROM t11
+sync_slave_with_master;
+USE mysqltest1;
+--query_vertical SELECT * FROM t11
+
+connection master;
+DROP TABLE IF EXISTS t12;
+SET SESSION BINLOG_FORMAT=MIXED;
+CREATE TABLE t12 (data LONG);
+LOCK TABLES t12 WRITE;
+INSERT INTO t12 VALUES(UUID());
+UNLOCK TABLES;
+
+--disable_result_log
+source include/show_binlog_events.inc;
+--enable_result_log
+sync_slave_with_master;
+
+# as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
+
+# Let's compare. Note: If they match test will pass, if they do not match
+# the test will show that the diff statement failed and not reject file
+# will be created. You will need to go to the mysql-test dir and diff
+# the files your self to see what is not matching
+
+diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql;
+
+connection master;
+--disable_result_log
+source include/show_binlog_events.inc;
+--enable_result_log
+
+# Now test that mysqlbinlog works fine on a binlog generated by the
+# mixed mode
+
+# BUG#11312 "DELIMITER is not written to the binary log that causes
+# syntax error" makes that mysqlbinlog will fail if we pass it the
+# text of queries; this forces us to use --base64-output here.
+
+# BUG#20929 "BINLOG command causes invalid free plus assertion
+# failure" makes mysqld segfault when receiving --base64-output
+
+# So I can't enable this piece of test
+# SIGH
+
+if ($enable_when_11312_or_20929_fixed)
+{
+--exec $MYSQL_BINLOG --base64-output $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_mixed.sql
+drop database mysqltest1;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/mysqlbinlog_mixed.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql
+# the old mysqldump output on slave is the same as what it was on
+# master before restoring on master.
+diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql;
+}
+
+drop database mysqltest1;
+sync_slave_with_master;
+
+connection default;
+set global binlog_format= @saved_binlog_format;

@@ -158,6 +158,11 @@ for eng in $MARIA_BINARIES ; do
   cp storage/maria/$TARGET/$eng.{exe,pdb} $DESTDIR/bin
 done
 
+# PBXT
+if [ -f "storage/pbxt/bin/xtstat.exe" ] ; then
+  cp storage/pbxt/bin/xtstat.{exe,pdb} $DESTDIR/bin
+fi
+
 cp server-tools/instance-manager/$TARGET/*.{exe,map}     $DESTDIR/bin/
 if [ x"$TARGET" != x"release" ] ; then
   cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/

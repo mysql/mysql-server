@@ -58,6 +58,8 @@
 
 #include <mysql/plugin.h>
 
+#include "debug_sync.h"
+
 static const char *ha_par_ext= ".par";
 #ifdef NOT_USED
 static int free_share(PARTITION_SHARE * share);
@@ -86,7 +88,9 @@ static int partition_initialize(void *p)
   partition_hton->create= partition_create_handler;
   partition_hton->partition_flags= partition_flags;
   partition_hton->alter_table_flags= alter_table_flags;
-  partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  partition_hton->flags= HTON_NOT_USER_SELECTABLE |
+                         HTON_HIDDEN |
+                         HTON_TEMPORARY_NOT_SUPPORTED;
 
   return 0;
 }
@@ -355,7 +359,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
   }
   else if (get_from_handler_file(table_share->normalized_path.str, mem_root))
   {
-    mem_alloc_error(2);
+    my_message(ER_UNKNOWN_ERROR, "Failed to read from the .par file", MYF(0));
     DBUG_RETURN(1);
   }
   /*
@@ -690,6 +694,7 @@ int ha_partition::rename_partitions(const char *path)
   DBUG_ASSERT(!strcmp(path, get_canonical_filename(m_file[0], path,
                                                    norm_name_buff)));
 
+  DEBUG_SYNC(ha_thd(), "before_rename_partitions");
   if (temp_partitions)
   {
     /*
@@ -991,7 +996,7 @@ static bool print_admin_msg(THD* thd, const char* msg_type,
   Protocol *protocol= thd->protocol;
   uint length, msg_length;
   char msgbuf[HA_MAX_MSG_BUF];
-  char name[NAME_LEN*2+2];
+  char name[SAFE_NAME_LEN*2+2];
 
   va_start(args, fmt);
   msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
@@ -1746,13 +1751,23 @@ void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 
 void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
 {
-  handler **file_array= m_file;
+  handler **file_array;
   table= table_arg;
   table_share= share;
-  do
+  /*
+    m_file can be NULL when using an old cached table in DROP TABLE, when the
+    table just has REMOVED PARTITIONING, see Bug#42438
+  */
+  if (m_file)
   {
-    (*file_array)->change_table_ptr(table_arg, share);
-  } while (*(++file_array));
+    file_array= m_file;
+    DBUG_ASSERT(*file_array);
+    do
+    {
+      (*file_array)->change_table_ptr(table_arg, share);
+    } while (*(++file_array));
+  }
+
   if (m_added_file && m_added_file[0])
   {
     /* if in middle of a drop/rename etc */
@@ -1823,6 +1838,13 @@ uint ha_partition::del_ren_cre_table(const char *from,
   uint i;
   handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
+
+  /* Not allowed to create temporary partitioned tables */
+  if (create_info && create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   if (get_from_handler_file(from, ha_thd()->mem_root))
     DBUG_RETURN(TRUE);
@@ -2597,6 +2619,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 
 err_handler:
+  DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
     (*file)->close();
   bitmap_free(&m_bulk_insert_started);
@@ -3403,18 +3426,17 @@ ha_rows ha_partition::guess_bulk_insert_rows()
 
   SYNOPSIS
     end_bulk_insert()
-    abort		1 if table will be deleted (error condition)
 
   RETURN VALUE
     >0                      Error code
     0                       Success
 
   Note: end_bulk_insert can be called without start_bulk_insert
-        being called, see bug¤44108.
+        being called, see bug#44108.
 
 */
 
-int ha_partition::end_bulk_insert(bool abort)
+int ha_partition::end_bulk_insert()
 {
   int error= 0;
   uint i;
@@ -3427,7 +3449,7 @@ int ha_partition::end_bulk_insert(bool abort)
   {
     int tmp;
     if (bitmap_is_set(&m_bulk_insert_started, i) &&
-        (tmp= m_file[i]->ha_end_bulk_insert(abort)))
+        (tmp= m_file[i]->ha_end_bulk_insert()))
       error= tmp;
   }
   bitmap_clear_all(&m_bulk_insert_started);
@@ -4194,6 +4216,58 @@ int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
   m_start_key.keypart_map= keypart_map;
   m_start_key.flag= HA_READ_PREFIX_LAST;
   DBUG_RETURN(common_index_read(buf, TRUE));
+}
+
+
+/*
+  Optimization of the default implementation to take advantage of dynamic
+  partition pruning.
+*/
+int ha_partition::index_read_idx_map(uchar *buf, uint index,
+                                     const uchar *key,
+                                     key_part_map keypart_map,
+                                     enum ha_rkey_function find_flag)
+{
+  int error= HA_ERR_KEY_NOT_FOUND;
+  DBUG_ENTER("ha_partition::index_read_idx_map");
+
+  if (find_flag == HA_READ_KEY_EXACT)
+  {
+    uint part;
+    m_start_key.key= key;
+    m_start_key.keypart_map= keypart_map;
+    m_start_key.flag= find_flag;
+    m_start_key.length= calculate_key_len(table, index, m_start_key.key,
+                                          m_start_key.keypart_map);
+
+    get_partition_set(table, buf, index, &m_start_key, &m_part_spec);
+
+    /* How can it be more than one partition with the current use? */
+    DBUG_ASSERT(m_part_spec.start_part == m_part_spec.end_part);
+
+    for (part= m_part_spec.start_part; part <= m_part_spec.end_part; part++)
+    {
+      if (bitmap_is_set(&(m_part_info->used_partitions), part))
+      {
+        error= m_file[part]->index_read_idx_map(buf, index, key,
+                                                keypart_map, find_flag);
+        if (error != HA_ERR_KEY_NOT_FOUND &&
+            error != HA_ERR_END_OF_FILE)
+          break;
+      }
+    }
+  }
+  else
+  {
+    /*
+      If not only used with READ_EXACT, we should investigate if possible
+      to optimize for other find_flag's as well.
+    */
+    DBUG_ASSERT(0);
+    /* fall back on the default implementation */
+    error= handler::index_read_idx_map(buf, index, key, keypart_map, find_flag);
+  }
+  DBUG_RETURN(error);
 }
 
 
@@ -5081,6 +5155,7 @@ int ha_partition::info(uint flag)
 
     file= m_file[handler_instance];
     file->info(HA_STATUS_CONST);
+    stats.block_size= file->stats.block_size;
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;
   }
@@ -6054,7 +6129,13 @@ void ha_partition::print_error(int error, myf errflag)
   if (error == HA_ERR_NO_PARTITION_FOUND)
     m_part_info->print_no_partition_found(table);
   else
-    m_file[m_last_part]->print_error(error, errflag);
+  {
+    /* In case m_file has not been initialized, like in bug#42438 */
+    if (m_file)
+      m_file[m_last_part]->print_error(error, errflag);
+    else
+      handler::print_error(error, errflag);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -6064,7 +6145,12 @@ bool ha_partition::get_error_message(int error, String *buf)
   DBUG_ENTER("ha_partition::get_error_message");
 
   /* Should probably look for my own errors first */
-  DBUG_RETURN(m_file[m_last_part]->get_error_message(error, buf));
+
+  /* In case m_file has not been initialized, like in bug#42438 */
+  if (m_file)
+    DBUG_RETURN(m_file[m_last_part]->get_error_message(error, buf));
+  DBUG_RETURN(handler::get_error_message(error, buf));
+
 }
 
 
@@ -6432,9 +6518,22 @@ void ha_partition::release_auto_increment()
     ulonglong next_auto_inc_val;
     lock_auto_increment();
     next_auto_inc_val= ha_data->next_auto_inc_val;
+    /*
+      If the current auto_increment values is lower than the reserved
+      value, and the reserved value was reserved by this thread,
+      we can lower the reserved value.
+    */
     if (next_insert_id < next_auto_inc_val &&
         auto_inc_interval_for_cur_row.maximum() >= next_auto_inc_val)
-      ha_data->next_auto_inc_val= next_insert_id;
+    {
+      THD *thd= ha_thd();
+      /*
+        Check that we do not lower the value because of a failed insert
+        with SET INSERT_ID, i.e. forced/non generated values.
+      */
+      if (thd->auto_inc_intervals_forced.maximum() < next_insert_id)
+        ha_data->next_auto_inc_val= next_insert_id;
+    }
     DBUG_PRINT("info", ("ha_data->next_auto_inc_val: %lu",
                         (ulong) ha_data->next_auto_inc_val));
 

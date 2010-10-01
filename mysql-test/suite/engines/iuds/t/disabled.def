@@ -1,0 +1,1 @@
+insert_calendar : Bug #52283 Innodb reports extra warnings when SELECT/WHERE is performed using invalid value

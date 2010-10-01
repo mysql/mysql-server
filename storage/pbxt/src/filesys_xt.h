@@ -119,7 +119,7 @@ xtBool			xt_fs_rename(struct XTThread *self, char *from_path, char *to_path);
 #define FILE_MAP_INIT_LOCK(s, i)		xt_spinxslock_init_with_autoname(s, i)
 #define FILE_MAP_FREE_LOCK(s, i)		xt_spinxslock_free(s, i)	
 #define FILE_MAP_READ_LOCK(i, o)		xt_spinxslock_slock(i, o)
-#define FILE_MAP_WRITE_LOCK(i, o)		xt_spinxslock_xlock(i, o)
+#define FILE_MAP_WRITE_LOCK(i, o)		xt_spinxslock_xlock(i, FALSE, o)
 #define FILE_MAP_UNLOCK(i, o)			xt_spinxslock_unlock(i, o)
 #endif
 

@@ -1,0 +1,34 @@
+SET autocommit = 0;
+START TRANSACTION;
+*** Disabling result log
+SELECT @pk:=`pk`, @unique:=`int1_unique`
+    FROM t1
+WHERE `pk` MOD 5 <> 0
+AND `pk` > 200 + (CONNECTION_ID() MOD 1000)
+AND `int1_unique` NOT IN (SELECT `int1_unique` FROM t1 WHERE (`pk` < 1000 AND `pk` MOD 5 = 0) OR `is_consistent` = 0)
+AND -`int1_unique` NOT IN (SELECT `int2_unique` FROM t1 WHERE (`pk` < 1000 AND `pk` MOD 5 = 0) OR `is_consistent` = 0)
+AND `is_consistent`= 1
+LIMIT 1 FOR UPDATE;
+*** Enabling result log
+REPLACE INTO t1 SET `pk` = @pk,
+`id` = 7,
+`int1` = 7,
+`int1_key` = -7,
+`int1_unique` = @unique,
+`int2` = -7,
+`int2_key` = 7,
+`int2_unique` = -@unique,
+`connection_id` = CONNECTION_ID(),
+`is_consistent` = 1;
+COMMIT;
+START TRANSACTION;
+REPLACE INTO t1
+SELECT * FROM t1
+WHERE `pk` > 1000 + CONNECTION_ID() MOD 777
+AND `int1_unique` NOT IN (SELECT `int1_unique` FROM t1 WHERE `pk` < 1000 OR `is_consistent` = 0)
+AND `int2_unique` NOT IN (SELECT `int2_unique` FROM t1 WHERE `pk` < 1000 OR `is_consistent` = 0)
+AND `pk` MOD 5 <> 0
+AND `is_consistent` = 1
+ORDER BY `pk` LIMIT 1;
+*** Updating replaced row (if applicable)
+COMMIT;

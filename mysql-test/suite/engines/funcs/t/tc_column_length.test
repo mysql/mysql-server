@@ -1,0 +1,114 @@
+--disable_warnings
+DROP TABLE IF EXISTS t5;
+--enable_warnings
+CREATE TABLE t5(c1 BIT(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 TINYINT(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 SMALLINT(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 MEDIUMINT(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 INT(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 INTEGER(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 BIGINT(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 CHAR(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 VARCHAR(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 BINARY(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 VARBINARY(1) NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 BIT(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 TINYINT(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 SMALLINT(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 MEDIUMINT(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 INT(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 INTEGER(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 BIGINT(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 CHAR(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 VARCHAR(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 BINARY(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+CREATE TABLE t5(c1 VARBINARY(1) NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
+

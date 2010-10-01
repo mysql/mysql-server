@@ -183,6 +183,7 @@ parse_arguments() {
         ;;
       --nice=*) niceness="$val" ;;
       --open-files-limit=*) open_files="$val" ;;
+      --open_files_limit=*) open_files="$val" ;;
       --skip-kill-mysqld*) KILL_MYSQLD=0 ;;
       --syslog) want_syslog=1 ;;
       --skip-syslog) want_syslog=0 ;;
@@ -397,8 +398,12 @@ then
   if test -n "$open_files"
   then
     ulimit -n $open_files
-    append_arg_to_args "--open-files-limit=$open_files"
   fi
+fi
+
+if test -n "$open_files"
+then
+  append_arg_to_args "--open-files-limit=$open_files"
 fi
 
 safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}

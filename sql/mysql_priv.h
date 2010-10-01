@@ -119,13 +119,15 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
   do {                                                                               \
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
-    if (((uchar*)Thd) != NULL)                                                         \
+    if (((uchar*)Thd) != NULL)                                                       \
       push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
-                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER), \
-                        (Old), (Ver), (New));                                        \
+                        ER_WARN_DEPRECATED_SYNTAX,                                   \
+                        ER(ER_WARN_DEPRECATED_SYNTAX),                               \
+                        (Old), (New));                                               \
     else                                                                             \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
-                        "in a future release. Please use %s instead.", (Old), (New)); \
+      sql_print_warning("'%s' is deprecated and will be removed "                    \
+                        "in a future release. Please use '%s' instead.",             \
+                        (Old), (New));                                               \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -592,20 +594,6 @@ protected:
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
-#ifdef EXTRA_DEBUG
-/**
-  Sync points allow us to force the server to reach a certain line of code
-  and block there until the client tells the server it is ok to go on.
-  The client tells the server to block with SELECT GET_LOCK()
-  and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
-  concurrency problems
-*/
-#define DBUG_SYNC_POINT(lock_name,lock_timeout) \
- debug_sync_point(lock_name,lock_timeout)
-void debug_sync_point(const char* lock_name, uint lock_timeout);
-#else
-#define DBUG_SYNC_POINT(lock_name,lock_timeout)
-#endif /* EXTRA_DEBUG */
 
 /* BINLOG_DUMP options */
 
@@ -652,7 +640,8 @@ enum enum_parsing_place
   IN_HAVING,
   SELECT_LIST,
   IN_WHERE,
-  IN_ON
+  IN_ON,
+  IN_GROUP_BY
 };
 
 struct st_table;
@@ -666,49 +655,6 @@ enum enum_check_fields
   CHECK_FIELD_WARN,
   CHECK_FIELD_ERROR_FOR_NULL
 };
-
-                                  
-/** Struct to handle simple linked lists. */
-typedef struct st_sql_list {
-  uint elements;
-  uchar *first;
-  uchar **next;
-
-  st_sql_list() {}                              /* Remove gcc warning */
-  inline void empty()
-  {
-    elements=0;
-    first=0;
-    next= &first;
-  }
-  inline void link_in_list(uchar *element,uchar **next_ptr)
-  {
-    elements++;
-    (*next)=element;
-    next= next_ptr;
-    *next=0;
-  }
-  inline void save_and_clear(struct st_sql_list *save)
-  {
-    *save= *this;
-    empty();
-  }
-  inline void push_front(struct st_sql_list *save)
-  {
-    *save->next= first;				/* link current list last */
-    first= save->first;
-    elements+= save->elements;
-  }
-  inline void push_back(struct st_sql_list *save)
-  {
-    if (save->first)
-    {
-      *next= save->first;
-      next= save->next;
-      elements+= save->elements;
-    }
-  }
-} SQL_LIST;
 
 #if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
 extern "C" THD *_current_thd_noinline();
@@ -1095,7 +1041,7 @@ bool mysql_opt_change_db(THD *thd,
                          bool force_switch,
                          bool *cur_db_changed);
 
-void mysql_parse(THD *thd, const char *inBuf, uint length,
+void mysql_parse(THD *thd, char *rawbuf, uint length,
                  const char ** semicolon);
 
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
@@ -1293,7 +1239,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 void prepare_triggers_for_insert_stmt(TABLE *table);
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_LIST *order, ha_rows rows, ulonglong options,
+                  SQL_I_List<ORDER> *order, ha_rows rows, ulonglong options,
                   bool reset_auto_increment);
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
@@ -1319,7 +1265,8 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
                           TABLE_LIST *new_child_list, TABLE_LIST **new_last);
 bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
+thr_lock_type read_lock_type_for_table(THD *thd, LEX *lex,
+                                       TABLE_LIST *table_list);
 void close_data_files_and_morph_locks(THD *thd, const char *db,
                                       const char *table_name);
 void close_handle_and_leave_table_as_lock(TABLE *table);
@@ -1492,7 +1439,7 @@ Create_field * new_create_field(THD *thd, char *field_name, enum_field_types typ
 				List<String> *interval_list, CHARSET_INFO *cs,
 				uint uint_geom_type);
 void store_position_for_column(const char *name);
-bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc);
+bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *group,bool asc);
 bool push_new_name_resolution_context(THD *thd,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
@@ -1767,7 +1714,7 @@ extern pthread_mutex_t LOCK_gdl;
 #define WFRM_PACK_FRM 4
 #define WFRM_KEEP_SHARE 8
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
-int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
+int abort_and_upgrade_lock_and_close_table(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
@@ -1863,6 +1810,12 @@ void sql_perror(const char *message);
 
 bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
+/**
+  Test a file path to determine if the path is compatible with the secure file
+  path restriction.
+*/
+bool is_secure_file_path(char *path);
+
 #ifdef MYSQL_SERVER
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
@@ -2022,6 +1975,7 @@ extern my_bool opt_log, opt_slow_log;
 extern ulong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
+extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress;
@@ -2300,7 +2254,7 @@ void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
-bool check_table_name(const char *name, uint length);
+bool check_table_name(const char *name, uint length, bool check_for_path_chars);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
@@ -2324,6 +2278,7 @@ uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
+bool check_mysql50_prefix(const char *name);
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
@@ -2333,6 +2288,7 @@ const char *get_canonical_filename(handler *file, const char *path,
 
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
 #define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
+#define SAFE_NAME_LEN (NAME_LEN + MYSQL50_TABLE_NAME_PREFIX_LENGTH)
 
 uint build_table_shadow_filename(char *buff, size_t bufflen, 
                                  ALTER_PARTITION_PARAM_TYPE *lpt);

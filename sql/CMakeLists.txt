@@ -50,7 +50,7 @@ SET (SQL_SOURCE
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
-               key.cc log.cc lock.cc message.rc 
+               key.cc log.cc lock.cc  
                log_event.cc rpl_record.cc rpl_reporting.cc
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
@@ -90,7 +90,7 @@ ADD_LIBRARY(sql ${SQL_SOURCE})
 IF (NOT EXISTS cmake_dummy.cc)
   FILE (WRITE cmake_dummy.cc "")
 ENDIF (NOT EXISTS cmake_dummy.cc)
-ADD_EXECUTABLE(mysqld cmake_dummy.cc)
+ADD_EXECUTABLE(mysqld cmake_dummy.cc message.rc)
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
@@ -154,3 +154,8 @@ SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings GenError)
 TARGET_LINK_LIBRARIES(udf_example strings wsock32)
+
+INSTALL(TARGETS mysqld
+	RUNTIME DESTINATION bin COMPONENT runtime
+	LIBRARY DESTINATION lib COMPONENT runtime
+	ARCHIVE DESTINATION lib COMPONENT runtime)

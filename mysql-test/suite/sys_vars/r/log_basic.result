@@ -18,4 +18,4 @@ VARIABLE_VALUE
 OFF
 SET @@global.log= @start_log;
 Warnings:
-Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
+Warning	1287	'@@log' is deprecated and will be removed in a future release. Please use '@@general_log' instead

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Because of the function new_field() all field classes that have static
@@ -55,7 +55,11 @@ public:
   static void operator delete(void *ptr_arg, size_t size) { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
-  uchar		*null_ptr;		// Byte where null_bit is
+  /**
+     Byte where the @c NULL bit is stored inside a record. If this Field is a
+     @c NOT @c NULL field, this member is @c NULL.
+  */
+  uchar		*null_ptr;
   /*
     Note that you can use table->in_use as replacement for current_thd member 
     only inside of val_*() and store() members (e.g. you can't use it in cons)
@@ -165,7 +169,7 @@ public:
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
   virtual int compatible_field_size(uint field_metadata,
-                                    const Relay_log_info *);
+                                    const Relay_log_info *, uint16 mflags);
   virtual uint pack_length_from_metadata(uint field_metadata)
   { return field_metadata; }
   /*
@@ -261,6 +265,9 @@ public:
   inline void set_notnull(my_ptrdiff_t row_offset= 0)
     { if (null_ptr) null_ptr[row_offset]&= (uchar) ~null_bit; }
   inline bool maybe_null(void) { return null_ptr != 0 || table->maybe_null; }
+  /**
+     Signals that this field is NULL-able.
+  */
   inline bool real_maybe_null(void) { return null_ptr != 0; }
 
   enum {
@@ -803,7 +810,7 @@ public:
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() { return pack_length(); }
   int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
+                            const Relay_log_info *rli, uint16 mflags);
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
@@ -1499,7 +1506,7 @@ public:
     return (((field_metadata >> 4) & 0x300) ^ 0x300) + (field_metadata & 0x00ff);
   }
   int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
+                            const Relay_log_info *rli, uint16 mflags);
   uint row_pack_length() { return (field_length + 1); }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
@@ -1968,7 +1975,7 @@ public:
   uint row_pack_length()
   { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
   int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
+                            const Relay_log_info *rli, uint16 mflags);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);

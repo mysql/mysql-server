@@ -1,0 +1,52 @@
+--source include/master-slave.inc
+
+############################################################################
+# Test case for BUG#10780
+#
+# REQUIREMENT
+#   A slave without replication privileges should have Slave_IO_Running = No
+
+# 1. Create new replication user
+connection master;
+grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+
+connection slave;
+stop slave;
+change master to master_user='rpl',master_password='rpl';
+start slave;
+
+# 2. Do replication as new user
+connection master;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (n int);
+insert into t1 values (1);
+sync_slave_with_master;
+select * from t1;
+
+# 3. Delete new replication user
+connection master;
+drop user rpl@127.0.0.1;
+sleep 1;
+flush privileges;
+connection slave;
+
+# 4. Restart slave without privileges
+# (slave.err will contain access denied error for this START SLAVE command)
+stop slave;
+start slave;
+
+# 5. Make sure Slave_IO_Running = No
+let $slave_io_errno= 1045;
+source include/wait_for_slave_io_error.inc;
+
+# Cleanup (Note that slave IO thread is not running)
+connection slave;
+drop table t1;
+connection master;
+drop table t1;
+
+# end of test case for BUG#10780
+
+# end of 4.1 tests

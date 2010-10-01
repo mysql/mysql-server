@@ -1,0 +1,11 @@
+# This is the test for bug #54044. Special handle MYSQL_TYPE_NULL type
+# during create table, so it will not trigger assertion failure.
+
+--source include/have_innodb_plugin.inc
+
+# This 'create table' operation should fail because of
+# using NULL datatype
+--error ER_CANT_CREATE_TABLE
+CREATE TEMPORARY TABLE table_54044 ENGINE = INNODB
+ AS SELECT IF(NULL  IS NOT NULL, NULL, NULL); 
+

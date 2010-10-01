@@ -93,7 +93,10 @@
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
   If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, it means that to position()
-  uses a primary key. Without primary key, we can't call position().
+  uses a primary key given by the record argument.
+  Without primary key, we can't call position().
+  If not set, the position is returned as the current rows position
+  regardless of what argument is given.
 */ 
 #define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16) 
 #define HA_CAN_RTREEKEYS       (1 << 17)
@@ -1009,7 +1012,7 @@ typedef struct st_ha_create_information
   ulong avg_row_length;
   ulong used_fields;
   ulong key_block_size;
-  SQL_LIST merge_list;
+  SQL_I_List<TABLE_LIST> merge_list;
   handlerton *db_type;
   /**
     Row type of the table definition.
@@ -1216,6 +1219,7 @@ public:
   enum {NONE=0, INDEX, RND} inited;
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
+  bool cloned;                          /* 1 if this was created with clone */
   const COND *pushed_cond;
   /**
     next_insert_id is the next value which should be inserted into the
@@ -1253,7 +1257,7 @@ public:
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0),
+    locked(FALSE), implicit_emptied(0), cloned(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0)
     {}
@@ -1336,10 +1340,10 @@ public:
     estimation_rows_to_insert= rows;
     start_bulk_insert(rows);
   }
-  int ha_end_bulk_insert(bool abort)
+  int ha_end_bulk_insert()
   {
     estimation_rows_to_insert= 0;
-    return end_bulk_insert(abort);
+    return end_bulk_insert();
   }
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
@@ -1547,10 +1551,9 @@ public:
   virtual int rnd_next(uchar *buf)=0;
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
   /**
-    One has to use this method when to find
-    random position by record as the plain
-    position() call doesn't work for some
-    handlers for random position.
+    This function only works for handlers having
+    HA_PRIMARY_KEY_REQUIRED_FOR_POSITION set.
+    It will return the row with the PK given in the record argument.
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
@@ -1572,6 +1575,12 @@ public:
   virtual ha_rows records_in_range(uint inx, key_range *min_key,
                                    key_range *max_key)
     { return (ha_rows) 10; }
+  /*
+    If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, then it sets ref
+    (reference to the row, aka position, with the primary key given in
+    the record).
+    Otherwise it set ref to the current row.
+  */
   virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
@@ -1883,7 +1892,6 @@ protected:
 private:
   /* Private helpers */
   inline void mark_trx_read_write();
-private:
   /*
     Low-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
@@ -1966,7 +1974,7 @@ private:
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual void start_bulk_insert(ha_rows rows) {}
-  virtual int end_bulk_insert(bool abort) { return 0; }
+  virtual int end_bulk_insert() { return 0; }
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
@@ -2063,7 +2071,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton);
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
                          handlerton *db_type);

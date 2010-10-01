@@ -587,8 +587,8 @@ public:
   st_lex *parent_lex;
   enum olap_type olap;
   /* FROM clause - points to the beginning of the TABLE_LIST::next_local list. */
-  SQL_LIST	      table_list;
-  SQL_LIST	      group_list; /* GROUP BY clause. */
+  SQL_I_List<TABLE_LIST>  table_list;
+  SQL_I_List<ORDER>       group_list; /* GROUP BY clause. */
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list;
   bool	              is_item_list_lookup;
@@ -610,8 +610,8 @@ public:
   TABLE_LIST *leaf_tables;
   const char *type;               /* type of select for EXPLAIN          */
 
-  SQL_LIST order_list;                /* ORDER clause */
-  SQL_LIST *gorder_list;
+  SQL_I_List<ORDER> order_list;   /* ORDER clause */
+  SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
@@ -742,6 +742,7 @@ public:
   {
     return master_unit()->return_after_parsing();
   }
+  inline bool is_subquery_function() { return master_unit()->item != 0; }
 
   void mark_as_dependent(st_select_lex *last, Item *dependency);
 
@@ -772,7 +773,7 @@ public:
   {
     order_list.elements= 0;
     order_list.first= 0;
-    order_list.next= (uchar**) &order_list.first;
+    order_list.next= &order_list.first;
   }
   /*
     This method created for reiniting LEX in mysql_admin_table() and can be
@@ -951,6 +952,8 @@ enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
 
+struct Sroutine_hash_entry;
+
 /*
   Class representing list of all tables used by statement.
   It also contains information about stored functions used by statement
@@ -991,9 +994,9 @@ public:
     We use these two members for restoring of 'sroutines_list' to the state
     in which it was right after query parsing.
   */
-  SQL_LIST sroutines_list;
-  uchar    **sroutines_list_own_last;
-  uint     sroutines_list_own_elements;
+  SQL_I_List<Sroutine_hash_entry> sroutines_list;
+  Sroutine_hash_entry **sroutines_list_own_last;
+  uint sroutines_list_own_elements;
 
   /*
     These constructor and destructor serve for creation/destruction
@@ -1145,9 +1148,38 @@ enum enum_comment_state
 class Lex_input_stream
 {
 public:
-  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
-  ~Lex_input_stream();
+  Lex_input_stream() :
+    yylineno(1),
+    yytoklen(0),
+    yylval(NULL),
+    m_tok_start(NULL),
+    m_tok_end(NULL),
+    m_tok_start_prev(NULL),
+    m_echo(TRUE),
+    m_cpp_tok_start(NULL),
+    m_cpp_tok_start_prev(NULL),
+    m_cpp_tok_end(NULL),
+    m_body_utf8(NULL),
+    m_cpp_utf8_processed_ptr(NULL),
+    next_state(MY_LEX_START),
+    found_semicolon(NULL),
+    stmt_prepare_mode(FALSE),
+    in_comment(NO_COMMENT),
+    m_underscore_cs(NULL)
+  {
+  }
 
+  ~Lex_input_stream()
+  {
+  }
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, char *buff, unsigned int length);
   /**
     Set the echo mode.
 
@@ -1259,6 +1291,20 @@ public:
       m_cpp_ptr += n;
     }
     m_ptr += n;
+  }
+
+  /**
+    Puts a character back into the stream, canceling
+    the effect of the last yyGet() or yySkip().
+    Note that the echo mode should not change between calls
+    to unput, get, or skip from the stream.
+  */
+  char *yyUnput(char ch)
+  {
+    *--m_ptr= ch;
+    if (m_echo)
+      m_cpp_ptr--;
+    return m_ptr;
   }
 
   /**
@@ -1407,7 +1453,7 @@ public:
 
 private:
   /** Pointer to the current position in the raw input stream. */
-  const char *m_ptr;
+  char *m_ptr;
 
   /** Starting position of the last token parsed, in the raw buffer. */
   const char *m_tok_start;
@@ -1597,7 +1643,8 @@ typedef struct st_lex : public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_LIST	      proc_list, auxiliary_table_list, save_list;
+  SQL_I_List<ORDER> proc_list;
+  SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
   Create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;
@@ -1719,7 +1766,7 @@ typedef struct st_lex : public Query_tables_list
     fields to TABLE object at table open (altough for latter pointer to table
     being opened is probably enough).
   */
-  SQL_LIST trg_table_fields;
+  SQL_I_List<Item_trigger_field> trg_table_fields;
 
   /*
     stmt_definition_begin is intended to point to the next word after
@@ -1727,6 +1774,7 @@ typedef struct st_lex : public Query_tables_list
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
+      - CREATE EVENT (points to "EVENT")
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
@@ -1927,9 +1975,20 @@ public:
 class Parser_state
 {
 public:
-  Parser_state(THD *thd, const char* buff, unsigned int length)
-    : m_lip(thd, buff, length), m_yacc()
+  Parser_state()
+    : m_yacc()
   {}
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, char *buff, unsigned int length)
+  {
+    return m_lip.init(thd, buff, length);
+  }
 
   ~Parser_state()
   {}

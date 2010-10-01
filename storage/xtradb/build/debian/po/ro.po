@@ -1,0 +1,319 @@
+# Romanian translation of mysql-dfsg.
+# Copyright (C) 2006 THE mysql-dfsg'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the mysql-dfsg package.
+#
+# Stan Ioan-Eugen <stan.ieugen@gmail.com>, 2006.
+msgid ""
+msgstr ""
+"Project-Id-Version: po-debconf://mysql-dfsg\n"
+"Report-Msgid-Bugs-To: percona-xtradb-dfsg-5.1@packages.debian.org\n"
+"POT-Creation-Date: 2010-02-15 17:10-0500\n"
+"PO-Revision-Date: 2006-12-20 21:27+0200\n"
+"Last-Translator: stan ioan-eugen <stan.ieugen@gmail.com>\n"
+"Language-Team: romanian <debian-l10n-romanian@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+#, fuzzy
+#| msgid "Do you really want to downgrade?"
+msgid "Really proceed with downgrade?"
+msgstr "Sunteţi sigur că doriţi să instalaţi o versiune mai veche?"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+#, fuzzy
+#| msgid ""
+#| "WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates "
+#| "that a mysql-server package with a higher version has been installed "
+#| "before. It can not be guaranteed that this version can use its data."
+msgid ""
+"Such file is an indication that a mysql-server package with a higher version "
+"has been installed earlier."
+msgstr ""
+"AVERTISMENT: Fişierul /var/lib/mysql/debian-*.flag există. Acest lucru "
+"indică faptul că anterior a fost instalată o versiune nouă a pachetului "
+"mysql-server. Nu se poate garanta că versiunea instalată acum poate folosi "
+"datele versiunii instalate anterior."
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+#, fuzzy
+#| msgid "Important note for NIS/YP users!"
+msgid "Important note for NIS/YP users"
+msgstr "Notă importantă pentru utilizatorii NIS/YP!"
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid ""
+"To use MySQL, the following entries for users and groups should be added to "
+"the system:"
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid ""
+"You should also check the permissions and the owner of the /var/lib/mysql "
+"directory:"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+msgid "Remove all Percona SQL databases?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the Percona SQL databases is "
+"about to be removed."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+#, fuzzy
+#| msgid ""
+#| "The script is about to remove the data directory /var/lib/mysql. If it is "
+#| "planned to just install a higher MySQL version or if a different mysql-"
+#| "server package is already using it, the data should be kept."
+msgid ""
+"If you're removing the Percona SQL package in order to later install a more "
+"recent version or if a different mysql-server package is already using it, "
+"the data should be kept."
+msgstr ""
+"Scriptul urmează să şteargă directorul de date /var/lib/mysql. Dacă plănuiţi "
+"doar să instalaţi o versiune nouă MySQL sau datele sunt folosite de către un "
+"alt pachet mysql-server, atunci ar trebui păstraţi datele."
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:5001
+#, fuzzy
+#| msgid "Should MySQL start on boot?"
+msgid "Start the Percona SQL server on boot?"
+msgstr "Doriţi ca MySQL să pornească la initializarea sistemului?"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:5001
+#, fuzzy
+#| msgid ""
+#| "The MySQL can start automatically on boot time or only if you manually "
+#| "type '/etc/init.d/mysql start'."
+msgid ""
+"The Percona SQL server can be launched automatically at boot time or "
+"manually with the '/etc/init.d/mysql start' command."
+msgstr ""
+"MySQL poate porni automat la iniţializarea sistemului sau doar dacă rulaţi "
+"comanda „/etc/init.d/mysql start”."
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+#, fuzzy
+#| msgid "New password for MySQL \"root\" user:"
+msgid "New password for the Percona SQL \"root\" user:"
+msgstr "Noua parolă pentru utilizatorul „root” al MySQL:"
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+#, fuzzy
+#| msgid ""
+#| "It is highly recommended that you set a password for the MySQL "
+#| "administrative \"root\" user."
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the Percona SQL administrative \"root\" user."
+msgstr ""
+"Este recomandat să stabiliţi o parolă pentru utilizatorul administrativ "
+"„root” al MySQL."
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+msgid "If that field is left blank, the password will not be changed."
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:7001
+#, fuzzy
+#| msgid "New password for MySQL \"root\" user:"
+msgid "Repeat password for the Percona SQL \"root\" user:"
+msgstr "Noua parolă pentru utilizatorul „root” al MySQL:"
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+#, fuzzy
+#| msgid "Unable to set password for MySQL \"root\" user"
+msgid "Unable to set password for the Percona SQL \"root\" user"
+msgstr "Nu s-a putut stabili parola pentru utilizatorul „root” al MySQL"
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+#, fuzzy
+#| msgid ""
+#| "It seems an error occurred while setting the password for the MySQL "
+#| "administrative user.  This may have happened because the user already has "
+#| "a password, or because there was a problem communicating with the MySQL "
+#| "server."
+msgid ""
+"An error occurred while setting the password for the Percona SQL "
+"administrative user. This may have happened because the account already has "
+"a password, or because of a communication problem with the Percona SQL "
+"server."
+msgstr ""
+"Se pare că a intervenit o eroare în stabilirea parolei pentru utilizatorul "
+"administrativ al MySQL. Acest lucru se poate întâmpla dacă utilizatorul are "
+"deja o parolă, sau a existat o problemă în comunicarea cu serverul MySQL."
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+msgid "You should check the account's password after the package installation."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+msgid ""
+"Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for more "
+"information."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:10001
+msgid ""
+"Percona-SQL-5.1 has orphaned NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid "Cannot upgrade if ISAM tables are present!"
+#~ msgstr "Nu se poate face actualizarea dacă sunt prezente tabele ISAM!"
+
+#~ msgid ""
+#~ "Recent versions of MySQL can no longer use the old ISAM table format and "
+#~ "it is necessary to convert your tables to e.g. MyISAM before upgrading by "
+#~ "using \"mysql_convert_table_format\" or \"ALTER TABLE x ENGINE=MyISAM\". "
+#~ "The installation of mysql-server-5.1 will now abort. In case your old "
+#~ "mysql-server-4.1 gets removed nevertheless just reinstall it to convert "
+#~ "those tables."
+#~ msgstr ""
+#~ "Versiunile recente MySQL nu mai pot folosi vechiul format de tabele ISAM "
+#~ "şieste necesar să convertiţi tabelele dumneavoastră de ex. la formatul "
+#~ "MyISAM înainte de a face actualizarea folosind comanda "
+#~ "„mysql_convert_table_format” sau „ALTER TABLE x ENGINE=MyISAM”. "
+#~ "Instalarea mysql-server-5.1 va eşua. În caz că ştergeţiversiunea "
+#~ "anterioară mysql-server-4.1 va trebui reinstalată pentru a converti "
+#~ "tabelele."
+
+#~ msgid ""
+#~ "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+#~ msgstr ""
+#~ "Suportaţi conexiuni MySQL de la staţii ce rulează sistemul Debian „sarge” "
+#~ "sau mai vechi?"
+
+#, fuzzy
+#~| msgid ""
+#~| "The way passwords were stored was not very secure. This has been "
+#~| "improved with the drawback that clients (e.g. PHP) from hosts running "
+#~| "Debian 3.1 Sarge will not be able to connect to account which are new or "
+#~| "whose password have been changed. See /usr/share/doc/mysql-server-5.1/"
+#~| "README.Debian."
+#~ msgid ""
+#~ "In old versions of MySQL clients on Debian, passwords were not stored "
+#~ "securely. This has been improved since then, however clients (such as "
+#~ "PHP) from hosts running Debian 3.1 Sarge will not be able to connect to "
+#~ "recent accounts or accounts whose password have been changed."
+#~ msgstr ""
+#~ "Modul în care erau păstrate parolele nu era foarte sigur. Acest lucru a "
+#~ "fost îmbunătăţitcu dezajantajul că clienţii (de ex. PHP) de pe staţii ce "
+#~ "rulează sistemul Debian 3.1 Sargenu se vor putea conecta la conturi noi "
+#~ "sau ale căror parole au fost schimbate. Citiţi /usr/share/doc/mysql-"
+#~ "server-5.1/README.Debian."
+
+#~ msgid ""
+#~ "To use mysql you must install an equivalent user and group to the "
+#~ "following and ensure yourself that /var/lib/mysql has the right "
+#~ "permissions (the uid/gid may be different)."
+#~ msgstr ""
+#~ "Pentru a folosi mysql trebuie să adăugaţi un utilizator şi grup "
+#~ "echivalent şi să vă asiguraţi că /var/lib/mysql are permisiunile "
+#~ "stabilite corect (uid/gid pot aveavalori diferite)."
+
+#~ msgid ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+#~ msgstr ""
+#~ "/etc/passwd:\tmysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#~ msgid "/etc/group:       mysql:x:101:"
+#~ msgstr "/etc/group:\tmysql:x:101:"
+
+#~ msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+#~ msgstr "/var/lib/mysql:\tdrwxr-xr-x\tmysql\tmysql"
+
+#~ msgid "Remove the databases used by all MySQL versions?"
+#~ msgstr "Doriţi să ştergeţi bazele de date folosite de toate versiune MySQL?"
+
+#~ msgid ""
+#~ "If you do not provide a password no changes will be made to the account."
+#~ msgstr ""
+#~ "Dacă nu introduceţi nici o parolă, nici o schimbare nu va fi luată în "
+#~ "considerare."
+
+#~ msgid ""
+#~ "When installation finishes, you should verify that the account is "
+#~ "properly protected with a password (see README.Debian for more "
+#~ "information)."
+#~ msgstr ""
+#~ "După finalizarea instalării, ar trebui să verificaţi dacă contul este "
+#~ "protejat cu o parolă (citiţi fişierul README.Debian pentru informaţii "
+#~ "suplimentare)."

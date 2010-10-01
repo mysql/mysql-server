@@ -300,7 +300,7 @@ sub check_table_is_same
   $com.= "| grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" > $tmp/maria_chk_message.txt 2>&1";
   $res= `$com`;
   print MY_LOG $res;
-  $res= `$maria_exe_path/maria_chk$suffix -s -e --read-only $table`;
+  $res= `$maria_exe_path/maria_chk$suffix -ss -e --read-only $table`;
   print MY_LOG $res;
   $checksum2= `$maria_exe_path/maria_chk$suffix -dss $table`;
   if ("$checksum" ne "$checksum2")
@@ -415,7 +415,7 @@ sub physical_cmp
         # save original tables to restore them later
         copy("$table.MAD", "$tmp/before_zerofill$table_no.MAD") || die();
         copy("$table.MAI", "$tmp/before_zerofill$table_no.MAI") || die();
-        $com= "$maria_exe_path/maria_chk$suffix -s --zerofill-keep-lsn $table";
+        $com= "$maria_exe_path/maria_chk$suffix -ss --zerofill-keep-lsn $table";
         $res= `$com`;
         print MY_LOG $res;
         $table_no= $table_no + 1;

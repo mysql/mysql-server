@@ -1,0 +1,59 @@
+# drop table t1 t2 t3 are included int master-slave.inc
+#  meaningful only in statement-based:
+
+-- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/master-slave.inc
+
+
+create table t2 (n int, PRIMARY KEY(n));
+create temporary table t1 (n int);
+create temporary table t3 (n int not null);
+
+insert into t1 values(1),(2),(3),(100),(25),(26),(200),(300);
+insert into t2 select * from t1;
+alter table t3 add primary key(n);
+
+flush logs;
+insert into t3 values (1010);
+insert into t2 select * from t3;
+
+drop table if exists t3;
+insert into t2 values (1012);
+
+connection master1;
+create temporary table t1 (n int);
+insert into t1 values (4),(5);
+insert into t2 select * from t1;
+
+save_master_pos;
+disconnect master;
+
+connection slave;
+#add 1 to the saved position, so we will catch  drop table on disconnect
+#for sure
+sync_with_master 1;
+
+connection master1;
+insert into t2 values(61);
+
+save_master_pos;
+disconnect master1;
+
+connection slave;
+#same trick - make sure we catch drop of temporary table on disconnect
+sync_with_master 1;
+
+select * from t2;
+select count(*) from t2;
+select sum(n) from t2;
+show status like 'Slave_open_temp_tables';
+
+#
+# Clean up
+#
+connect (master2,localhost,root,,);
+connection master2;
+drop table if exists t1,t2;
+save_master_pos;
+connection slave;
+sync_with_master;

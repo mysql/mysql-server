@@ -1,0 +1,17 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (n int);
+reset master;
+stop slave;
+change master to master_port=SLAVE_PORT;
+start slave;
+Last_IO_Error = Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
+insert into t1 values (1);
+show status like "slave_running";
+Variable_name	Value
+Slave_running	OFF
+drop table t1;

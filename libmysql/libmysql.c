@@ -211,6 +211,7 @@ void STDCALL mysql_server_end()
   }
   else
   {
+    free_charsets();
     mysql_thread_end();
   }
 
@@ -327,7 +328,7 @@ sig_handler
 my_pipe_sig_handler(int sig __attribute__((unused)))
 {
   DBUG_PRINT("info",("Hit by signal %d",sig));
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   (void) signal(SIGPIPE, my_pipe_sig_handler);
 #endif
 }
@@ -2507,7 +2508,12 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   stmt->insert_id= mysql->insert_id;
   if (res)
   {
-    set_stmt_errmsg(stmt, net);
+    /* 
+      Don't set stmt error if stmt->mysql is NULL, as the error in this case 
+      has already been set by mysql_prune_stmt_list(). 
+    */
+    if (stmt->mysql)
+      set_stmt_errmsg(stmt, net);
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2718,7 +2724,12 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
                                             buff, sizeof(buff), (uchar*) 0, 0,
                                             1, stmt))
     {
-      set_stmt_errmsg(stmt, net);
+      /* 
+        Don't set stmt error if stmt->mysql is NULL, as the error in this case 
+        has already been set by mysql_prune_stmt_list(). 
+      */
+      if (stmt->mysql)
+        set_stmt_errmsg(stmt, net);
       return 1;
     }
     if ((*mysql->methods->read_rows_from_cursor)(stmt))
@@ -3399,7 +3410,12 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
                                             buff, sizeof(buff), (uchar*) data,
                                             length, 1, stmt))
     {
-      set_stmt_errmsg(stmt, &mysql->net);
+      /* 
+        Don't set stmt error if stmt->mysql is NULL, as the error in this case 
+        has already been set by mysql_prune_stmt_list(). 
+      */
+      if (stmt->mysql)
+        set_stmt_errmsg(stmt, &mysql->net);
       DBUG_RETURN(1);
     }
   }
@@ -4418,6 +4434,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_TIME:
     field->max_length= 15;                    /* 19:23:48.123456 */
     param->skip_result= skip_result_with_length;
+    break;
   case MYSQL_TYPE_DATE:
     field->max_length= 10;                    /* 2003-11-11 */
     param->skip_result= skip_result_with_length;
@@ -4834,7 +4851,12 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     if (cli_advanced_command(mysql, COM_STMT_FETCH, buff, sizeof(buff),
                              (uchar*) 0, 0, 1, stmt))
     {
-      set_stmt_errmsg(stmt, net);
+      /* 
+        Don't set stmt error if stmt->mysql is NULL, as the error in this case 
+        has already been set by mysql_prune_stmt_list(). 
+      */
+      if (stmt->mysql)
+        set_stmt_errmsg(stmt, net);
       DBUG_RETURN(1);
     }
   }

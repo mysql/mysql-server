@@ -1,0 +1,21 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int not null primary key);
+insert into  t1 values (1);
+create table t2 (a int);
+insert into  t2 values (1);
+update t1, t2 set t1.a = 0 where t1.a = t2.a;
+show tables;
+Tables_in_test
+t1
+select * from t1;
+a
+0
+drop table t1;
+insert into t1 values (1);
+Last_SQL_Error = Error 'Table 'test.t1' doesn't exist' on opening tables
+drop table t1, t2;

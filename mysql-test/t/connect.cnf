@@ -5,4 +5,4 @@ extra-port=        @mysqld.1.#extra-port
 extra-max-connections=1
 
 [ENV]
-MASTER_EXTRA_PORT= @mysqld.1.extra-port
+MASTER_EXTRA_PORT= @mysqld.1.#extra-port

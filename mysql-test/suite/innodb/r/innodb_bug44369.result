@@ -1,0 +1,18 @@
+create table bug44369 (DB_ROW_ID int) engine=innodb;
+ERROR 42000: Incorrect column name 'DB_ROW_ID'
+show warnings;
+Level	Code	Message
+Error	1166	Incorrect column name 'DB_ROW_ID'
+Error	1005	Can't create table 'test.bug44369' (errno: -1)
+create table bug44369 (db_row_id int) engine=innodb;
+ERROR 42000: Incorrect column name 'db_row_id'
+show warnings;
+Level	Code	Message
+Error	1166	Incorrect column name 'db_row_id'
+Error	1005	Can't create table 'test.bug44369' (errno: -1)
+create table bug44369 (db_TRX_Id int) engine=innodb;
+ERROR 42000: Incorrect column name 'db_TRX_Id'
+show warnings;
+Level	Code	Message
+Error	1166	Incorrect column name 'db_TRX_Id'
+Error	1005	Can't create table 'test.bug44369' (errno: -1)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -584,8 +584,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 						" recover the database"
 						" with the my.cnf\n"
 						"InnoDB: option:\n"
-						"InnoDB: set-variable="
-						"innodb_force_recovery=6\n");
+						"InnoDB:"
+						" innodb_force_recovery=6\n");
 					exit(1);
 				}
 
@@ -1535,6 +1535,7 @@ trx_sys_file_format_id_to_name(
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Shutdown/Close the transaction system. */
 UNIV_INTERN
@@ -1611,3 +1612,4 @@ trx_sys_close(void)
 	trx_sys = NULL;
 	mutex_exit(&kernel_mutex);
 }
+#endif /* !UNIV_HOTBACKUP */

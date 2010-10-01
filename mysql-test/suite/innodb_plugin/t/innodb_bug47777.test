@@ -1,0 +1,24 @@
+# This is the test for bug 47777. GEOMETRY
+# data is treated as BLOB data in innodb.
+# Consequently, its key value generation/storing
+# should follow the process for the BLOB
+# datatype as well.
+
+-- source include/have_innodb_plugin.inc
+
+create table bug47777(c2 linestring not null, primary key (c2(1))) engine=innodb;
+
+insert into bug47777 values (geomfromtext('linestring(1 2,3 4,5 6,7 8,9 10)'));
+
+# Verify correct row get inserted.
+select count(*) from bug47777 where c2 =geomfromtext('linestring(1 2,3 4,5 6,7 8,9 10)');
+
+# Update table bug47777 should be successful.
+update bug47777 set c2=GeomFromText('POINT(1 1)');
+
+# Verify the row get updated successfully. The original
+# c2 value should be changed to GeomFromText('POINT(1 1)').
+select count(*) from bug47777 where c2 =geomfromtext('linestring(1 2,3 4,5 6,7 8,9 10)');
+select count(*) from bug47777 where c2 = GeomFromText('POINT(1 1)');
+
+drop table bug47777;

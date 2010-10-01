@@ -2242,6 +2242,8 @@ void Item_func_min_max::fix_length_and_dec()
     max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
                                                              decimals, decimals,
                                                              unsigned_flag);
+  else if (cmp_type == REAL_RESULT)
+    max_length= float_length(decimals);
   cached_field_type= agg_field_type(args, arg_count);
 }
 
@@ -3360,80 +3362,6 @@ longlong Item_master_pos_wait::val_int()
   return event_count;
 }
 
-#ifdef EXTRA_DEBUG
-void debug_sync_point(const char* lock_name, uint lock_timeout)
-{
-  THD* thd=current_thd;
-  User_level_lock* ull;
-  struct timespec abstime;
-  size_t lock_name_len;
-  lock_name_len= strlen(lock_name);
-  pthread_mutex_lock(&LOCK_user_locks);
-
-  if (thd->ull)
-  {
-    item_user_lock_release(thd->ull);
-    thd->ull=0;
-  }
-
-  /*
-    If the lock has not been aquired by some client, we do not want to
-    create an entry for it, since we immediately release the lock. In
-    this case, we will not be waiting, but rather, just waste CPU and
-    memory on the whole deal
-  */
-  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks,
-                                             (uchar*) lock_name,
-                                             lock_name_len))))
-  {
-    pthread_mutex_unlock(&LOCK_user_locks);
-    return;
-  }
-  ull->count++;
-
-  /*
-    Structure is now initialized.  Try to get the lock.
-    Set up control struct to allow others to abort locks
-  */
-  thd_proc_info(thd, "User lock");
-  thd->mysys_var->current_mutex= &LOCK_user_locks;
-  thd->mysys_var->current_cond=  &ull->cond;
-
-  set_timespec(abstime,lock_timeout);
-  while (ull->locked && !thd->killed)
-  {
-    int error= pthread_cond_timedwait(&ull->cond, &LOCK_user_locks, &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
-      break;
-  }
-
-  if (ull->locked)
-  {
-    if (!--ull->count)
-      delete ull;				// Should never happen
-  }
-  else
-  {
-    ull->locked=1;
-    ull->set_thread(thd);
-    thd->ull=ull;
-  }
-  pthread_mutex_unlock(&LOCK_user_locks);
-  pthread_mutex_lock(&thd->mysys_var->mutex);
-  thd_proc_info(thd, 0);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond=  0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
-  pthread_mutex_lock(&LOCK_user_locks);
-  if (thd->ull)
-  {
-    item_user_lock_release(thd->ull);
-    thd->ull=0;
-  }
-  pthread_mutex_unlock(&LOCK_user_locks);
-}
-
-#endif
 
 /**
   Get a user level lock.  If the thread has an old lock this is first released.
@@ -4792,6 +4720,7 @@ bool Item_func_get_user_var::set_value(THD *thd,
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(thd->lex->exchange);
   if (Item::fix_fields(thd, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return TRUE;
@@ -4801,7 +4730,9 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
     of fields in LOAD DATA INFILE.
     (Since Item_user_var_as_out_param is used only there).
   */
-  entry->collation.set(thd->variables.collation_database);
+  entry->collation.set(thd->lex->exchange->cs ? 
+                       thd->lex->exchange->cs :
+                       thd->variables.collation_database);
   entry->update_query_id= thd->query_id;
   return FALSE;
 }

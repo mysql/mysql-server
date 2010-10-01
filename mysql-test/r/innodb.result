@@ -691,14 +691,16 @@ count(*)
 select count(*) from t1 where sca_pic is null;
 count(*)
 2
-alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
 select count(*) from t1 where cat_code='E';
 count(*)
 0
-alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
@@ -1508,7 +1510,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop index id2 on t2;
 drop index id on t2;
-Got one of the listed errors
+ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (

@@ -1,0 +1,76 @@
+set @saved_binlog_format = @@global.binlog_format;
+SET SESSION BINLOG_FORMAT=ROW;
+SET GLOBAL BINLOG_FORMAT=ROW;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+#
+# Generate a big enough master's binlog to cause relay log rotations
+#
+create table t1 (a int);
+drop table t1;
+reset slave;
+#
+# Test 1
+#
+set @my_max_binlog_size= @@global.max_binlog_size;
+set global max_binlog_size=8192;
+set global max_relay_log_size=8192-1;
+select @@global.max_relay_log_size;
+@@global.max_relay_log_size
+4096
+start slave;
+Checking that both slave threads are running.
+#
+# Test 2
+#
+stop slave;
+reset slave;
+set global max_relay_log_size=(5*4096);
+select @@global.max_relay_log_size;
+@@global.max_relay_log_size	20480
+start slave;
+Checking that both slave threads are running.
+#
+# Test 3: max_relay_log_size = 0
+#
+stop slave;
+reset slave;
+set global max_relay_log_size=0;
+select @@global.max_relay_log_size;
+@@global.max_relay_log_size	0
+start slave;
+Checking that both slave threads are running.
+#
+# Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
+#
+stop slave;
+reset slave;
+flush logs;
+#
+# Test 5
+#
+reset slave;
+start slave;
+flush logs;
+create table t1 (a int);
+Checking that both slave threads are running.
+#
+# Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
+#
+flush logs;
+drop table t1;
+Checking that both slave threads are running.
+flush logs;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000002	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
+set global max_binlog_size= @my_max_binlog_size;
+#
+# End of 4.1 tests
+# 
+SET GLOBAL BINLOG_FORMAT= @saved_binlog_format;

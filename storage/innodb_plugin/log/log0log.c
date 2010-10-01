@@ -1,23 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
-/*****************************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2013,7 +1996,7 @@ log_checkpoint(
 		return(TRUE);
 	}
 
-	ut_ad(log_sys->written_to_all_lsn >= oldest_lsn);
+	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
 
 	if (log_sys->n_pending_checkpoint_writes > 0) {
 		/* A checkpoint write is running */
@@ -3095,7 +3078,7 @@ loop:
 
 	if (srv_fast_shutdown < 2
 	   && (srv_error_monitor_active
-	      || srv_lock_timeout_and_monitor_active)) {
+	      || srv_lock_timeout_active || srv_monitor_active)) {
 
 		mutex_exit(&kernel_mutex);
 

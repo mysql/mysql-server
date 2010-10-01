@@ -1,0 +1,118 @@
+Source: percona-xtradb-dfsg-5.1
+Section: misc
+Priority: optional
+Maintainer: Percona SQL Development Team <mysql-dev@percona.com>
+Uploaders: Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
+Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper (>= 4.1.16), file (>= 3.28-1), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), libreadline5-dev | libreadline-dev, psmisc, po-debconf, chrpath, automake1.9, doxygen, gs, dpatch, gawk, bison, lsb-release, fakeroot
+Standards-Version: 3.8.0
+Homepage: http://www.percona.com/
+Vcs-Browser: http://bazaar.launchpad.net/~percona-dev/percona-xtradb/release-1.0/files
+Vcs-Bzr: bzr+ssh://bazaar.launchpad.net/~percona-dev/percona-xtradb/release-1.0/
+
+Package: libpercona-xtradb-client16
+Section: libs
+Architecture: any
+Depends: percona-xtradb-common (>= ${source:Version}), ${shlibs:Depends}
+Description: Percona SQL database client library
+ Percona SQL is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of Percona SQL are speed, robustness and
+ ease of use.
+ .
+ This package includes the client library.
+
+Package: libpercona-xtradb-client15-dev
+Architecture: all
+Section: libdevel
+Depends: libpercona-xtradb-client-dev (>= ${source:Version})
+Description: Percona SQL database development files - empty transitional package
+ This is an empty package that depends on libpercona-xtradb-client-dev to ease the
+ transition for packages with versioned build-deps on libpercona-xtradb-client15-dev.
+
+Package: libpercona-xtradb-client-dev
+Architecture: any
+Section: libdevel
+Depends: libpercona-xtradb-client16 (>= ${source:Version}), zlib1g-dev, , ${shlibs:Depends}
+Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libmysqlclient16-dev
+Replaces: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libmysqlclient16-dev
+Description: Percona SQL database development files
+ Percona SQL is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of Percona SQL are speed, robustness and
+ ease of use.
+ .
+ This package includes development libraries and header files.
+
+Package: percona-xtradb-common
+Section: database
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common
+Provides: mysql-common
+Replaces: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common
+Description: Percona SQL database common files (e.g. /etc/mysql/my.cnf)
+ Percona SQL is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of Percona SQL are speed, robustness and
+ ease of use.
+ .
+ This package includes files needed by all versions of the client library
+ (e.g. /etc/mysql/my.cnf).
+
+Package: percona-xtradb-client-5.1
+Architecture: any
+Depends: debianutils (>=1.6), libdbi-perl, percona-xtradb-common (>= ${source:Version}), libpercona-xtradb-client16 (>= ${source:Version}), ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Provides: virtual-mysql-client, mysql-client, mysql-client-4.1, percona-xtradb-client, percona-xtradb-client-5.1
+Conflicts: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0
+Replaces: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0
+Description: Percona SQL database client binaries
+ Percona SQL is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of Percona SQL are speed, robustness and
+ ease of use.
+ .
+ This package includes the client binaries and the additional tools
+ innotop and mysqlreport.
+
+Package: percona-xtradb-server-5.1
+Architecture: any                                                               
+Suggests: tinyca
+Recommends: mailx, libhtml-template-perl
+Pre-Depends: percona-xtradb-common (>= ${source:Version}), adduser (>= 3.40), debconf
+Depends: percona-xtradb-client-5.1 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10)
+Conflicts: mysql-server (<< ${source:Version}), mysql-server-4.1, percona-xtradb-server-5.0
+Provides: mysql-server, virtual-mysql-server, mysql-server-5.0, percona-xtradb-server-5.1
+Replaces: mysql-server (<< ${source:Version}), mysql-server-5.0, percona-xtradb-server-5.0
+Description: Percona SQL database server binaries                                     
+ Percona SQL is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of Percona SQL are speed, robustness and
+ ease of use.
+ .
+ This package includes the server binaries.
+
+Package: percona-xtradb-server
+Section: database
+Architecture: all
+Depends: percona-xtradb-server-5.1
+Description: Percona SQL database server (metapackage depending on the latest version)
+ This is an empty package that depends on the current "best" version of
+ percona-xtradb-server (currently percona-xtradb-server-5.1), as determined by the Percona SQL
+ maintainers. Install this package if in doubt about which Percona SQL
+ version you need. That will install the version recommended by the
+ package maintainers.
+ .
+ Percona SQL is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of Percona SQL are speed, robustness and
+ ease of use.
+
+Package: percona-xtradb-client
+Section: database
+Architecture: all
+Depends: percona-xtradb-client-5.1
+Description: Percona SQL database client (metapackage depending on the latest version)
+ This is an empty package that depends on the current "best" version of
+ percona-xtradb-client (currently percona-xtradb-client-5.1), as determined by the Percona SQL
+ maintainers.  Install this package if in doubt about which Percona SQL version
+ you want, as this is the one we consider to be in the best shape.

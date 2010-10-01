@@ -1,0 +1,56 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP PROCEDURE IF EXISTS test.p3;
+DROP PROCEDURE IF EXISTS test.p4;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+CREATE PROCEDURE test.p1()
+BEGIN
+INSERT INTO test.t1 VALUES(2);
+END|
+CREATE PROCEDURE test.p2()
+BEGIN
+DROP TEMPORARY TABLE IF EXISTS test.t1;
+CREATE TEMPORARY TABLE test.t1 (a int, PRIMARY KEY(a));
+INSERT INTO test.t1 VALUES(1);
+CALL test.p1();
+END|
+CALL test.p2();
+SELECT * FROM test.t1 ORDER BY a;
+a
+1
+2
+show tables;
+Tables_in_test
+CREATE PROCEDURE test.p3()
+BEGIN
+INSERT INTO test.t2 VALUES(7);
+END|
+CREATE PROCEDURE test.p4()
+BEGIN
+DROP TABLE IF EXISTS test.t2;
+CREATE TABLE test.t2 (a int, PRIMARY KEY(a));
+INSERT INTO test.t2 VALUES(6);
+CALL test.p3();
+END|
+CALL test.p4();
+SELECT * FROM test.t2 ORDER BY a;
+a
+6
+7
+SELECT * FROM test.t2 ORDER BY a;
+a
+6
+7
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP PROCEDURE IF EXISTS test.p3;
+DROP PROCEDURE IF EXISTS test.p4;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;

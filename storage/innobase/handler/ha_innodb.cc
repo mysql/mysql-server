@@ -238,7 +238,7 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
   /* default */ TRUE);
 
 static handler *innobase_create_handler(handlerton *hton,
-                                        TABLE_SHARE *table, 
+                                        TABLE_SHARE *table,
                                         MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_innobase(hton, table);
@@ -350,7 +350,7 @@ int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
 			/* out: 0 */
-	handlerton* hton, /* in: Innodb handlerton */ 
+	handlerton* hton, /* in: Innodb handlerton */
 	THD*	thd);	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 /********************************************************************
@@ -583,13 +583,13 @@ thd_is_select(
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
 inline
-trx_t*&
+trx_t*
 thd_to_trx(
 /*=======*/
 			/* out: reference to transaction pointer */
 	THD*	thd)	/* in: MySQL thread */
 {
-	return(*(trx_t**) thd_ha_data(thd, innodb_hton_ptr));
+	return((trx_t*) thd_get_ha_data(thd, innodb_hton_ptr));
 }
 
 /************************************************************************
@@ -759,6 +759,10 @@ convert_error_code_to_mysql(
 	} else if (error == DB_UNSUPPORTED) {
 
 		return(HA_ERR_UNSUPPORTED);
+	} else if (error == DB_INTERRUPTED) {
+
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		return(-1);
     	} else {
     		return(-1);			// Unknown error
     	}
@@ -1140,6 +1144,15 @@ innobase_next_autoinc(
 	return(next_value);
 }
 
+/** Copy the current SQL statement.
+* @param[in] thd	MySQL client connection
+* @param[in/out] trx	InnoDB transaction */
+#define INNOBASE_COPY_STMT(thd, trx) do {		\
+	LEX_STRING* stmt = thd_query_string(thd);	\
+	(trx)->mysql_query_str = &stmt->str;		\
+	(trx)->mysql_query_len = &stmt->length;		\
+} while (0)
+
 /*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
@@ -1151,7 +1164,7 @@ check_trx_exists(
 			/* out: InnoDB transaction handle */
 	THD*	thd)	/* in: user thread handle */
 {
-	trx_t*&	trx = thd_to_trx(thd);
+	trx_t*	trx = thd_to_trx(thd);
 
 	ut_ad(thd == current_thd);
 
@@ -1160,11 +1173,14 @@ check_trx_exists(
 		trx = trx_allocate_for_mysql();
 
 		trx->mysql_thd = thd;
-		trx->mysql_query_str = thd_query(thd);
+		INNOBASE_COPY_STMT(thd, trx);
 
 		/* Update the info whether we should skip XA steps that eat
 		CPU time */
 		trx->support_xa = THDVAR(thd, support_xa);
+
+		/* We have a new trx, register with the thread handle */
+		thd_set_ha_data(thd, innodb_hton_ptr, trx);
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
@@ -1714,9 +1730,6 @@ innobase_init(
 	int		err;
 	bool		ret;
 	char		*default_path;
-#ifdef SAFE_MUTEX
-	my_bool         old_safe_mutex_deadlock_detector;
-#endif
 
 	DBUG_ENTER("innobase_init");
         handlerton *innobase_hton= (handlerton *)p;
@@ -1971,15 +1984,8 @@ innobase_init(
 
 	srv_sizeof_trx_t_in_ha_innodb_cc = sizeof(trx_t);
 
-#ifdef SAFE_MUTEX
-	/* Disable deadlock detection as it's very slow for the buffer pool */
-	old_safe_mutex_deadlock_detector= safe_mutex_deadlock_detector;
-	safe_mutex_deadlock_detector= 0;
-#endif
 	err = innobase_start_or_create_for_mysql();
-#ifdef SAFE_MUTEX
-	safe_mutex_deadlock_detector= old_safe_mutex_deadlock_detector;
-#endif
+
 	if (err != DB_SUCCESS) {
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
@@ -2479,6 +2485,9 @@ innobase_close_connection(
 
 	innobase_rollback_trx(trx);
 
+	/* Release the lock in thread handler */
+	thd_set_ha_data(thd, hton, NULL);
+
 	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);
 
@@ -2662,9 +2671,9 @@ ha_innobase::innobase_initialize_autoinc()
 		auto_inc = innobase_get_int_col_max_value(field);
 	} else {
 		/* We have no idea what's been passed in to us as the
-		autoinc column. We set it to the MAX_INT of our table
-		autoinc type. */
-		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
+		autoinc column. We set it to the 0, effectively disabling
+		updates to the table. */
+		auto_inc = 0;
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Unable to determine the AUTOINC "
@@ -2673,7 +2682,7 @@ ha_innobase::innobase_initialize_autoinc()
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 		/* If the recovery level is set so high that writes
-		are disabled we force the AUTOINC counter to the MAX
+		are disabled we force the AUTOINC counter to 0
 		value effectively disabling writes to the table.
 		Secondly, we avoid reading the table in case the read
 		results in failure due to a corrupted table/index.
@@ -2682,7 +2691,10 @@ ha_innobase::innobase_initialize_autoinc()
 		tables can be dumped with minimal hassle.  If an error
 		were returned in this case, the first attempt to read
 		the table would fail and subsequent SELECTs would succeed. */
+		auto_inc = 0;
 	} else if (field == NULL) {
+		/* This is a far more serious error, best to avoid
+		opening the table and return failure. */
 		my_error(ER_AUTOINC_READ_FAILED, MYF(0));
 	} else {
 		dict_index_t*	index;
@@ -2711,7 +2723,7 @@ ha_innobase::innobase_initialize_autoinc()
 				"InnoDB: Unable to find the AUTOINC column "
 				"%s in the InnoDB table %s.\n"
 				"InnoDB: We set the next AUTOINC column "
-				"value to the maximum possible value,\n"
+				"value to 0,\n"
 				"InnoDB: in effect disabling the AUTOINC "
 				"next value generation.\n"
 				"InnoDB: You can either set the next "
@@ -2720,7 +2732,13 @@ ha_innobase::innobase_initialize_autoinc()
 				"recreating the table.\n",
 				col_name, index->table->name);
 
-			my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+			/* This will disable the AUTOINC generation. */
+			auto_inc = 0;
+
+			/* We want the open to succeed, so that the user can
+			take corrective action. ie. reads should succeed but
+			updates should fail. */
+			err = DB_SUCCESS;
 			break;
 		default:
 			/* row_search_max_autoinc() should only return
@@ -3224,6 +3242,11 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_BLOB:
 	case MYSQL_TYPE_LONG_BLOB:
 		return(DATA_BLOB);
+	case MYSQL_TYPE_NULL:
+		/* MySQL currently accepts "NULL" datatype, but will
+		reject such datatype in the next release. We will cope
+		with it and not trigger assertion failure in 5.1 */
+		break;
 	default:
 		assert(0);
 	}
@@ -3978,11 +4001,17 @@ no_commit:
 		prebuilt->autoinc_error = DB_SUCCESS;
 
 		if ((error = update_auto_increment())) {
-
 			/* We don't want to mask autoinc overflow errors. */
-			if (prebuilt->autoinc_error != DB_SUCCESS) {
-				error = (int) prebuilt->autoinc_error;
 
+			/* Handle the case where the AUTOINC sub-system
+			failed during initialization. */
+			if (prebuilt->autoinc_error == DB_UNSUPPORTED) {
+				error_result = ER_AUTOINC_READ_FAILED;
+				/* Set the error message to report too. */
+				my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+				goto func_exit;
+			} else if (prebuilt->autoinc_error != DB_SUCCESS) {
+				error = (int) prebuilt->autoinc_error;
 				goto report_error;
 			}
 
@@ -4430,7 +4459,7 @@ ha_innobase::unlock_row(void)
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
 		    && prebuilt->trx->isolation_level
-		    != TRX_ISO_READ_COMMITTED) {
+		    > TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
@@ -4467,7 +4496,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 
 	if (yes
 	    && (srv_locks_unsafe_for_binlog
-		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
+		|| prebuilt->trx->isolation_level <= TRX_ISO_READ_COMMITTED)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 	} else {
 		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
@@ -5239,7 +5268,22 @@ create_table_def(
 		field = form->field[i];
 
 		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
-									field);
+							     field);
+
+		if (!col_type) {
+			push_warning_printf(
+				(THD*) trx->mysql_thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_CANT_CREATE_TABLE,
+				"Error creating table '%s' with "
+				"column '%s'. Please check its "
+				"column type and try to re-create "
+				"the table with an appropriate "
+				"column type.",
+				table->name, (char*) field->field_name);
+			goto err_col;
+		}
+
 		if (field->null_ptr) {
 			nulls_allowed = 0;
 		} else {
@@ -5296,7 +5340,7 @@ create_table_def(
 				"different column name.",
 				table->name, (char*) field->field_name,
 				(char*) field->field_name);
-
+err_col:
 			dict_mem_table_free(table);
 			trx_commit_for_mysql(trx);
 
@@ -5573,7 +5617,7 @@ ha_innobase::create(
 	trx = trx_allocate_for_mysql();
 
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	INNOBASE_COPY_STMT(thd, trx);
 
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		trx->check_foreigns = FALSE;
@@ -5669,8 +5713,10 @@ ha_innobase::create(
 	}
 
 	if (*trx->mysql_query_str) {
-		error = row_table_add_foreign_constraints(trx,
-			*trx->mysql_query_str, norm_name,
+		error = row_table_add_foreign_constraints(
+			trx,
+			*trx->mysql_query_str, *trx->mysql_query_len,
+			norm_name,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
 		error = convert_error_code_to_mysql(error, NULL);
@@ -5861,7 +5907,7 @@ ha_innobase::delete_table(
 	trx = trx_allocate_for_mysql();
 
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	INNOBASE_COPY_STMT(thd, trx);
 
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		trx->check_foreigns = FALSE;
@@ -5950,7 +5996,7 @@ innobase_drop_database(
 #endif
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	INNOBASE_COPY_STMT(thd, trx);
 
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		trx->check_foreigns = FALSE;
@@ -6020,7 +6066,7 @@ ha_innobase::rename_table(
 
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	INNOBASE_COPY_STMT(thd, trx);
 
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		trx->check_foreigns = FALSE;
@@ -7763,7 +7809,7 @@ ha_innobase::store_lock(
 		isolation_level = trx->isolation_level;
 
 		if ((srv_locks_unsafe_for_binlog
-		     || isolation_level == TRX_ISO_READ_COMMITTED)
+		     || isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && isolation_level != TRX_ISO_SERIALIZABLE
 		    && (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
 		    && (sql_command == SQLCOM_INSERT_SELECT
@@ -7893,7 +7939,10 @@ ha_innobase::innobase_get_autoinc(
 		*value = dict_table_autoinc_read(prebuilt->table);
 
 		/* It should have been initialized during open. */
-		ut_a(*value != 0);
+		if (*value == 0) {
+			prebuilt->autoinc_error = DB_UNSUPPORTED;
+			dict_table_autoinc_unlock(prebuilt->table);
+		}
 	}
   
 	return(ulong(prebuilt->autoinc_error));
@@ -7973,6 +8022,11 @@ ha_innobase::get_auto_increment(
 	invoking this method. So we are not sure if it's guaranteed to
 	be 0 or not. */
 
+	/* We need the upper limit of the col type to check for
+	whether we update the table autoinc counter or not. */
+	ulonglong	col_max_value = innobase_get_int_col_max_value(
+		table->next_number_field);
+
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
@@ -7989,6 +8043,11 @@ ha_innobase::get_auto_increment(
 	/* Not in the middle of a mult-row INSERT. */
 	} else if (prebuilt->autoinc_last_value == 0) {
 		set_if_bigger(*first_value, autoinc);
+	/* Check for -ve values. */
+	} else if (*first_value > col_max_value && trx->n_autoinc_rows > 0) {
+		/* Set to next logical value. */
+		ut_a(autoinc > trx->n_autoinc_rows);
+		*first_value = (autoinc - trx->n_autoinc_rows) - 1;
 	}
 
 	*nb_reserved_values = trx->n_autoinc_rows;
@@ -7999,12 +8058,6 @@ ha_innobase::get_auto_increment(
 		ulonglong	need;
 		ulonglong	current;
 		ulonglong	next_value;
-		ulonglong	col_max_value;
-
-		/* We need the upper limit of the col type to check for
-		whether we update the table autoinc counter or not. */
-		col_max_value = innobase_get_int_col_max_value(
-			table->next_number_field);
 
 		current = *first_value > col_max_value ? autoinc : *first_value;
 		need = *nb_reserved_values * increment;
@@ -8477,6 +8530,44 @@ innobase_set_cursor_view(
 				  (cursor_view_t*) curview);
 }
 
+/***********************************************************************
+If col_name is not NULL, check whether the named column is being
+renamed in the table. If col_name is not provided, check
+whether any one of columns in the table is being renamed. */
+static
+bool
+check_column_being_renamed(
+/*=======================*/
+					/* out: true if find the column
+					being renamed */
+	const TABLE*	table,		/* in: MySQL table */
+	const char*	col_name)	/* in: name of the column */
+{
+	uint		k;
+	Field*		field;
+
+	for (k = 0; k < table->s->fields; k++) {
+		field = table->field[k];
+
+		if (field->flags & FIELD_IS_RENAMED) {
+
+			/* If col_name is not provided, return
+			if the field is marked as being renamed. */
+			if (!col_name) {
+				return(true);
+			}
+
+			/* If col_name is provided, return only
+			if names match */
+			if (innobase_strcasecmp(field->field_name,
+						col_name) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
 
 /***********************************************************************
 Check whether any of the given columns is being renamed in the table. */
@@ -8491,19 +8582,10 @@ column_is_being_renamed(
 	const char**	col_names)	/* in: names of the columns */
 {
 	uint		j;
-	uint		k;
-	Field*		field;
-	const char*	col_name;
 
 	for (j = 0; j < n_cols; j++) {
-		col_name = col_names[j];
-		for (k = 0; k < table->s->fields; k++) {
-			field = table->field[k];
-			if ((field->flags & FIELD_IS_RENAMED)
-			    && innobase_strcasecmp(field->field_name,
-						   col_name) == 0) {
-				return(true);
-			}
+		if (check_column_being_renamed(table, col_names[j])) {
+			return(true);
 		}
 	}
 
@@ -8582,6 +8664,15 @@ bool ha_innobase::check_if_incompatible_data(
 	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
 		info->auto_increment_value != 0) {
 
+		return COMPATIBLE_DATA_NO;
+	}
+
+	/* For column rename operation, MySQL does not supply enough
+	information (new column name etc.) for InnoDB to make appropriate
+	system metadata change. To avoid system metadata inconsistency,
+	currently we can just request a table rebuild/copy by returning
+	COMPATIBLE_DATA_NO */
+	if (check_column_being_renamed(table, NULL)) {
 		return COMPATIBLE_DATA_NO;
 	}
 

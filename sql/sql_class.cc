@@ -287,6 +287,37 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
 
+
+/**
+  Provide a handler data getter to simplify coding
+*/
+extern "C"
+void *thd_get_ha_data(const THD *thd, const struct handlerton *hton)
+{
+  return *thd_ha_data(thd, hton);
+}
+
+
+/**
+  Provide a handler data setter to simplify coding
+  @see thd_set_ha_data() definition in plugin.h
+*/
+extern "C"
+void thd_set_ha_data(THD *thd, const struct handlerton *hton,
+                     const void *ha_data)
+{
+  plugin_ref *lock= &thd->ha_data[hton->slot].lock;
+  if (ha_data && !*lock)
+    *lock= ha_lock_engine(NULL, (handlerton*) hton);
+  else if (!ha_data && *lock)
+  {
+    plugin_unlock(NULL, *lock);
+    *lock= NULL;
+  }
+  *thd_ha_data(thd, hton)= (void*) ha_data;
+}
+
+
 extern "C"
 long long thd_test_options(const THD *thd, long long test_options)
 {
@@ -718,6 +749,9 @@ THD::THD()
   thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
+  current_user_used= FALSE;
+  memset(&invoker_user, 0, sizeof(invoker_user));
+  memset(&invoker_host, 0, sizeof(invoker_host));
 }
 
 
@@ -740,7 +774,7 @@ bool THD::handle_error(uint sql_errno, const char *message,
 {
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
-       error_handler= m_internal_handler->m_prev_internal_handler)
+       error_handler= error_handler->m_prev_internal_handler)
   {
     if (error_handler->handle_error(sql_errno, message, level, this))
       return TRUE;
@@ -749,10 +783,12 @@ bool THD::handle_error(uint sql_errno, const char *message,
 }
 
 
-void THD::pop_internal_handler()
+Internal_error_handler *THD::pop_internal_handler()
 {
   DBUG_ASSERT(m_internal_handler != NULL);
+  Internal_error_handler *popped_handler= m_internal_handler;
   m_internal_handler= m_internal_handler->m_prev_internal_handler;
+  return popped_handler;
 }
 
 extern "C"
@@ -1043,6 +1079,9 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 
   while (to != end)
     *(to++)+= *(from++);
+
+  to_var->bytes_received+= from_var->bytes_received;
+  to_var->bytes_sent+= from_var->bytes_sent;
 }
 
 /*
@@ -1068,6 +1107,9 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 
   while (to != end)
     *(to++)+= *(from++) - *(dec++);
+
+  to_var->bytes_received+= from_var->bytes_received - dec_var->bytes_received;;
+  to_var->bytes_sent+= from_var->bytes_sent - dec_var->bytes_sent;
 }
 
 #define SECONDS_TO_WAIT_FOR_KILL 2
@@ -1274,6 +1316,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
+  clean_current_user_used();
 }
 
 
@@ -1869,8 +1912,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   else
     (void) fn_format(path, exchange->file_name, mysql_real_data_home, "", option);
 
-  if (opt_secure_file_priv &&
-      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+  if (!is_secure_file_path(path))
   {
     /* Write only allowed to dir or subdir specified by secure_file_priv */
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
@@ -2037,9 +2079,21 @@ bool select_export::send_data(List<Item> &items)
       const char *from_end_pos;
       const char *error_pos;
       uint32 bytes;
-      bytes= well_formed_copy_nchars(write_cs, cvt_buff, sizeof(cvt_buff),
+      uint64 estimated_bytes=
+        ((uint64) res->length() / res->charset()->mbminlen + 1) *
+        write_cs->mbmaxlen + 1;
+      set_if_smaller(estimated_bytes, UINT_MAX32);
+      if (cvt_str.realloc((uint32) estimated_bytes))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(0), (uint32) estimated_bytes);
+        goto err;
+      }
+
+      bytes= well_formed_copy_nchars(write_cs, (char *) cvt_str.ptr(),
+                                     cvt_str.alloced_length(),
                                      res->charset(), res->ptr(), res->length(),
-                                     sizeof(cvt_buff),
+                                     UINT_MAX32, // copy all input chars,
+                                                 // i.e. ignore nchars parameter
                                      &well_formed_error_pos,
                                      &cannot_convert_error_pos,
                                      &from_end_pos);
@@ -2056,6 +2110,15 @@ bool select_export::send_data(List<Item> &items)
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
                             item->name, (ulong) row_count);
+      }
+      else if (from_end_pos < res->ptr() + res->length())
+      { 
+        /*
+          result is longer than UINT_MAX32 and doesn't fit into String
+        */
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                            item->full_name(), row_count);
       }
       cvt_str.length(bytes);
       res= &cvt_str;
@@ -3169,6 +3232,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   }
 #endif
   
+  backup->count_cuted_fields= count_cuted_fields;
   backup->options=         options;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
@@ -3207,6 +3271,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
+  DBUG_ENTER("THD::restore_sub_statement_state");
 #ifndef EMBEDDED_LIBRARY
   /* BUG#33029, if we are replicating from a buggy master, restore
      auto_inc_intervals_forced so that the top statement can use the
@@ -3233,6 +3298,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     /* ha_release_savepoint() never returns error. */
     (void)ha_release_savepoint(this, sv);
   }
+  count_cuted_fields= backup->count_cuted_fields;
   transaction.savepoints= backup->savepoints;
   options=          backup->options;
   in_sub_stmt=      backup->in_sub_stmt;
@@ -3263,6 +3329,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   examined_row_count+= backup->examined_row_count;
   cuted_fields+=       backup->cuted_fields;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3281,6 +3348,22 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
   pthread_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg);
   pthread_mutex_unlock(&LOCK_thd_data);
+}
+
+void THD::get_definer(LEX_USER *definer)
+{
+  set_current_user_used();
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  if (slave_thread && has_invoker())
+  {
+    definer->user = invoker_user;
+    definer->host= invoker_host;
+    definer->password.str= NULL;
+    definer->password.length= 0;
+  }
+  else
+#endif
+    get_default_definer(this, definer);
 }
 
 
@@ -3381,9 +3464,13 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(hash_search(&xid_cache, xid_state->xid.key(),
-                          xid_state->xid.key_length())==0);
-  my_bool res=my_hash_insert(&xid_cache, (uchar*)xid_state);
+  if (hash_search(&xid_cache, xid_state->xid.key(), xid_state->xid.key_length()))
+  {
+    pthread_mutex_unlock(&LOCK_xid_cache);
+    my_error(ER_XAER_DUPID, MYF(0));
+    return TRUE;
+  }
+  my_bool res= my_hash_insert(&xid_cache, (uchar*)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
 }

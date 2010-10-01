@@ -642,6 +642,18 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     goto exit2;
   }
 
+  /*
+    Close and mark for re-open all HANDLER tables which are marked for flush
+    or which there are pending conflicing locks against. This is needed to
+    prevent deadlocks.
+  */
+  if (thd->handler_tables_hash.records)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    mysql_ha_flush(thd);
+    pthread_mutex_unlock(&LOCK_open);
+  }
+
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* Check directory */
@@ -788,6 +800,18 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
 
+  /*
+    Close and mark for re-open all HANDLER tables which are marked for flush
+    or which there are pending conflicing locks against. This is needed to
+    prevent deadlocks.
+  */
+  if (thd->handler_tables_hash.records)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    mysql_ha_flush(thd);
+    pthread_mutex_unlock(&LOCK_open);
+  }
+
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* 
@@ -884,6 +908,18 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     error= -1;
     goto exit2;
+  }
+
+  /*
+    Close and mark for re-open all HANDLER tables which are marked for flush
+    or which there are pending conflicing locks against. This is needed to
+    prevent deadlocks.
+  */
+  if (thd->handler_tables_hash.records)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    mysql_ha_flush(thd);
+    pthread_mutex_unlock(&LOCK_open);
   }
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -1539,12 +1575,9 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   Security_context *sctx= thd->security_ctx;
   ulong db_access= sctx->db_access;
   CHARSET_INFO *db_default_cl;
-
   DBUG_ENTER("mysql_change_db");
-  DBUG_PRINT("enter",("name: '%s'", new_db_name->str));
 
-  if (new_db_name == NULL ||
-      new_db_name->length == 0)
+  if (new_db_name->length == 0)
   {
     if (force_switch)
     {
@@ -1553,8 +1586,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
         after loading stored program. The thing is that loading of stored
         program can happen when there is no current database.
 
-        TODO: actually, new_db_name and new_db_name->str seem to be always
-        non-NULL. In case of stored program, new_db_name->str == "" and
+        In case of stored program, new_db_name->str == "" and
         new_db_name->length == 0.
       */
 
@@ -1569,6 +1601,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
       DBUG_RETURN(TRUE);
     }
   }
+  DBUG_PRINT("enter",("name: '%s'", new_db_name->str));
 
   if (is_schema_db(new_db_name->str, new_db_name->length))
   {

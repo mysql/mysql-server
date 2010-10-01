@@ -1,0 +1,214 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='a' AND c2 = 'a';
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='b' AND c2 = 'b';
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='c' AND c2 = 'c';
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='d' AND c2 = 'd';
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='e' AND c2 = 'e';
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='f' AND c2 = 'f';
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='y' AND c2 = 'y';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='a' AND c2 = 'a';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='b' AND c2 = 'b';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='c' AND c2 = 'c';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='d' AND c2 = 'd';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='e' AND c2 = 'e';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='f' AND c2 = 'f';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='y' AND c2 = 'y';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='a' AND c2 = 'a';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='b' AND c2 = 'b';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='c' AND c2 = 'c';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='d' AND c2 = 'd';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='e' AND c2 = 'e';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='f' AND c2 = 'f';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='y' AND c2 = 'y';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='a' AND c2 = 'a';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='b' AND c2 = 'b';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='c' AND c2 = 'c';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='d' AND c2 = 'd';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='e' AND c2 = 'e';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='f' AND c2 = 'f';
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='y' AND c2 = 'y';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='a' AND c2 = 'a';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='b' AND c2 = 'b';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='c' AND c2 = 'c';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='d' AND c2 = 'd';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='e' AND c2 = 'e';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='f' AND c2 = 'f';
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='y' AND c2 = 'y';
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='a' AND c2 = 'a';
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='b' AND c2 = 'b';
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='c' AND c2 = 'c';
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='d' AND c2 = 'd';
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='e' AND c2 = 'e';
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='f' AND c2 = 'f';
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE c1='y' AND c2 = 'y';
+DROP TABLE t1;
+

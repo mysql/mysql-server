@@ -1,0 +1,208 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (c1 TINYINT,name VARCHAR(30), purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+    );
+INSERT INTO t1 VALUES(1,'abc','1994-01-01');
+INSERT INTO t1 VALUES(2,'abc','1995-01-01');
+INSERT INTO t1 VALUES(3,'abc','1996-01-01');
+INSERT INTO t1 VALUES(4,'abc','1997-01-01');
+INSERT INTO t1 VALUES(5,'abc','1998-01-01');
+INSERT INTO t1 VALUES(6,'abc','1999-01-01');
+INSERT INTO t1 VALUES(7,'abc','2000-01-01');
+INSERT INTO t1 VALUES(8,'abc','2001-01-01');
+INSERT INTO t1 VALUES(9,'abc','2002-01-01');
+INSERT INTO t1 VALUES(10,'abc','2003-01-01');
+INSERT INTO t1 VALUES(11,'abc','2004-01-01');
+INSERT INTO t1 VALUES(12,'abc','2005-01-01');
+INSERT INTO t1 VALUES(13,'abc','2006-01-01');
+SELECT * FROM t1 ORDER BY c1;
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+CREATE TABLE t1 (c1 SMALLINT,name VARCHAR(30), purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+    );
+INSERT INTO t1 VALUES(1,'abc','1994-01-01');
+INSERT INTO t1 VALUES(2,'abc','1995-01-01');
+INSERT INTO t1 VALUES(3,'abc','1996-01-01');
+INSERT INTO t1 VALUES(4,'abc','1997-01-01');
+INSERT INTO t1 VALUES(5,'abc','1998-01-01');
+INSERT INTO t1 VALUES(6,'abc','1999-01-01');
+INSERT INTO t1 VALUES(7,'abc','2000-01-01');
+INSERT INTO t1 VALUES(8,'abc','2001-01-01');
+INSERT INTO t1 VALUES(9,'abc','2002-01-01');
+INSERT INTO t1 VALUES(10,'abc','2003-01-01');
+INSERT INTO t1 VALUES(11,'abc','2004-01-01');
+INSERT INTO t1 VALUES(12,'abc','2005-01-01');
+INSERT INTO t1 VALUES(13,'abc','2006-01-01');
+SELECT * FROM t1 ORDER BY c1;
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+CREATE TABLE t1 (c1 MEDIUMINT,name VARCHAR(30), purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+    );
+INSERT INTO t1 VALUES(1,'abc','1994-01-01');
+INSERT INTO t1 VALUES(2,'abc','1995-01-01');
+INSERT INTO t1 VALUES(3,'abc','1996-01-01');
+INSERT INTO t1 VALUES(4,'abc','1997-01-01');
+INSERT INTO t1 VALUES(5,'abc','1998-01-01');
+INSERT INTO t1 VALUES(6,'abc','1999-01-01');
+INSERT INTO t1 VALUES(7,'abc','2000-01-01');
+INSERT INTO t1 VALUES(8,'abc','2001-01-01');
+INSERT INTO t1 VALUES(9,'abc','2002-01-01');
+INSERT INTO t1 VALUES(10,'abc','2003-01-01');
+INSERT INTO t1 VALUES(11,'abc','2004-01-01');
+INSERT INTO t1 VALUES(12,'abc','2005-01-01');
+INSERT INTO t1 VALUES(13,'abc','2006-01-01');
+SELECT * FROM t1 ORDER BY c1;
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+CREATE TABLE t1 (c1 INT,name VARCHAR(30), purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+    );
+INSERT INTO t1 VALUES(1,'abc','1994-01-01');
+INSERT INTO t1 VALUES(2,'abc','1995-01-01');
+INSERT INTO t1 VALUES(3,'abc','1996-01-01');
+INSERT INTO t1 VALUES(4,'abc','1997-01-01');
+INSERT INTO t1 VALUES(5,'abc','1998-01-01');
+INSERT INTO t1 VALUES(6,'abc','1999-01-01');
+INSERT INTO t1 VALUES(7,'abc','2000-01-01');
+INSERT INTO t1 VALUES(8,'abc','2001-01-01');
+INSERT INTO t1 VALUES(9,'abc','2002-01-01');
+INSERT INTO t1 VALUES(10,'abc','2003-01-01');
+INSERT INTO t1 VALUES(11,'abc','2004-01-01');
+INSERT INTO t1 VALUES(12,'abc','2005-01-01');
+INSERT INTO t1 VALUES(13,'abc','2006-01-01');
+SELECT * FROM t1 ORDER BY c1;
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+CREATE TABLE t1 (c1 INTEGER,name VARCHAR(30), purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+    );
+INSERT INTO t1 VALUES(1,'abc','1994-01-01');
+INSERT INTO t1 VALUES(2,'abc','1995-01-01');
+INSERT INTO t1 VALUES(3,'abc','1996-01-01');
+INSERT INTO t1 VALUES(4,'abc','1997-01-01');
+INSERT INTO t1 VALUES(5,'abc','1998-01-01');
+INSERT INTO t1 VALUES(6,'abc','1999-01-01');
+INSERT INTO t1 VALUES(7,'abc','2000-01-01');
+INSERT INTO t1 VALUES(8,'abc','2001-01-01');
+INSERT INTO t1 VALUES(9,'abc','2002-01-01');
+INSERT INTO t1 VALUES(10,'abc','2003-01-01');
+INSERT INTO t1 VALUES(11,'abc','2004-01-01');
+INSERT INTO t1 VALUES(12,'abc','2005-01-01');
+INSERT INTO t1 VALUES(13,'abc','2006-01-01');
+SELECT * FROM t1 ORDER BY c1;
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+CREATE TABLE t1 (c1 BIGINT,name VARCHAR(30), purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+    );
+INSERT INTO t1 VALUES(1,'abc','1994-01-01');
+INSERT INTO t1 VALUES(2,'abc','1995-01-01');
+INSERT INTO t1 VALUES(3,'abc','1996-01-01');
+INSERT INTO t1 VALUES(4,'abc','1997-01-01');
+INSERT INTO t1 VALUES(5,'abc','1998-01-01');
+INSERT INTO t1 VALUES(6,'abc','1999-01-01');
+INSERT INTO t1 VALUES(7,'abc','2000-01-01');
+INSERT INTO t1 VALUES(8,'abc','2001-01-01');
+INSERT INTO t1 VALUES(9,'abc','2002-01-01');
+INSERT INTO t1 VALUES(10,'abc','2003-01-01');
+INSERT INTO t1 VALUES(11,'abc','2004-01-01');
+INSERT INTO t1 VALUES(12,'abc','2005-01-01');
+INSERT INTO t1 VALUES(13,'abc','2006-01-01');
+SELECT * FROM t1 ORDER BY c1;
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+

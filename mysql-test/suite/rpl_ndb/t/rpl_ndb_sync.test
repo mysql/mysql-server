@@ -70,10 +70,7 @@ START SLAVE;
 #
 --connection master
 --sync_slave_with_master
---connection slave
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error>
-query_vertical SHOW SLAVE STATUS;
+--source include/check_slave_is_running.inc
 
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
@@ -85,7 +82,6 @@ SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
 --connection master
 DROP DATABASE ndbsynctest;
 --sync_slave_with_master
---connection slave
 STOP SLAVE;
 
 #

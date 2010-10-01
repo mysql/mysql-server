@@ -1,0 +1,155 @@
+################################################################################
+#
+# DELETE
+#
+# DELETE existing rows and commit. Above 900 (initial insert inserted 1000 pk's).
+#
+# DO NOT DELETE ROWS WITH (PK MOD 5) = 0 (PK's evenly divisible by 5). We
+# count these as a consistency check in other tests.
+#
+# This test runs a number of consecutive transactions (to allow for high 
+# concurrency):
+#
+# Tx 1:
+#  - DELETE a row and INSERT it immediately with same pk.
+# Tx 2:
+#  - DELETE a row and INSERT it immediately with pk = NULL.
+#
+# Tx 3:
+#  - DELETE two rows so that the total table sum does not change.
+#
+# Net effect: 2 fewer rows (if no errors)
+#
+# Roll back the entire transaction if a statement upon subsequent statements
+# depend result in error. This is to maintain consistency (zero-sum tx).
+#
+################################################################################
+SET autocommit = 0;
+START TRANSACTION;
+--echo
+--echo *** Delete a row and re-insert with same `pk`:
+--echo
+#
+# Get pk and unique ints of an existing row that is internally consistent.
+# (Note: If any int field values may be NULL, handle this by e.g. using COALESCE)
+# Re-using unique values in an effort to avoid rollbacks due to duplicate keys.
+#
+# NOTE: Because we maintain 0-sum consistency by "cancelling out" the deleted row with a new
+#       row later, we need to make sure we knoe exactly what we are deleting, thus using
+#       FOR UPDATE clause.
+--echo *** Disabling result log
+--disable_result_log
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+SELECT @pk:=`pk`,
+       @unique1:=`int1_unique`,
+       @unique2:=`int2_unique`
+    FROM t1 WHERE `pk` MOD 5 = 4 AND `pk` > 900 AND `is_consistent` = 1 LIMIT 1 FOR UPDATE;
+--echo *** Enabling result log
+--enable_result_log
+
+--source suite/engines/rr_trx/include/check_for_error_rollback_skip.inc
+
+# Delete the row. We maintain 0-sum tx consistency by inserting ints that will cancel out
+# the unique values (which we are keeping) later in this transaction.
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+DELETE FROM t1 WHERE `pk` = @pk;
+
+--source suite/engines/rr_trx/include/check_for_error_rollback_skip.inc
+
+--echo *** Doing insert of row with pk = @pk if above statement succeeded (query log disabled)...
+# Note that affected rows may be 0 if some other thread changed the row in the meantime - still
+# we get no error. We work around this by using FOR UPDATE to lock the row (see above).
+
+if(!$error)
+{
+    # Insert a new row with the same sum of integers.
+    # This is conditional, so skip it the query log.
+    --disable_query_log
+
+    # If some other thread is doing the same thing at the same time, we may get duplicate key error
+    --error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_DUP_ENTRY
+    INSERT INTO t1 (`pk`, `id`, `int1`, `int1_key`, `int1_unique`,
+                    `int2`, `int2_key`, `int2_unique`,
+                    `for_update`, `connection_id`, `thread_id`, `is_uncommitted`, `is_consistent`)
+            VALUES (@pk, 900, 900, -900, @unique1,
+                    -(@unique1+@unique2), 0, @unique2,
+                    0, CONNECTION_ID(), 0, 0, 1);
+                    
+    --source suite/engines/rr_trx/include/check_for_error_rollback_skip.inc
+    --enable_query_log
+}
+
+COMMIT;
+
+########################
+# TRANSACTION 2
+########################
+
+START TRANSACTION;
+
+--echo
+--echo *** Delete a row and re-insert with `pk` = NULL:
+--echo
+--echo *** Disabling result log
+--disable_result_log
+# In order not to pick the same row as above, try to pick a different pk.
+# Use FOR UPDATE to make sure we maintain 0-sum consistency througout the transaction.
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+SELECT @pk:=`pk`,
+       @unique1:=`int1_unique`,
+       @unique2:=`int2_unique`
+    FROM t1 WHERE `pk` MOD 5 = 4 AND `pk` > 901 AND `is_consistent` = 1 LIMIT 1 FOR UPDATE;
+--echo *** Enabling result log
+--enable_result_log
+
+--source suite/engines/rr_trx/include/check_for_error_rollback_skip.inc
+
+# Delete the row. We maintain 0-sum tx consistency by inserting ints that will cancel out
+# the unique values (which we are keeping) later in this transaction.
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+DELETE FROM t1 WHERE `pk` = @pk;
+
+--source suite/engines/rr_trx/include/check_for_error_rollback.inc
+
+--echo *** Doing insert of row with pk = NULL if above statement succeeded (query log disabled)...
+
+if(!$error)
+{
+    # Insert a new row with the same sum of integers.
+    # This is conditional, so skip it the query log.
+    --disable_query_log
+    
+    --error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_DUP_ENTRY
+    INSERT INTO t1 (`pk`, `id`, `int1`, `int1_key`, `int1_unique`,
+                    `int2`, `int2_key`, `int2_unique`,
+                    `for_update`, `connection_id`, `thread_id`, `is_uncommitted`, `is_consistent`)
+            VALUES (NULL, 901, 901, -901, @unique1,
+                    -(@unique1+@unique2), 0, @unique2,
+                    0, CONNECTION_ID(), 0, 0, 1);
+    --source suite/engines/rr_trx/include/check_for_error_rollback.inc
+    --enable_query_log
+}
+COMMIT;
+
+########################
+# TRANSACTION 3
+########################
+
+START TRANSACTION;
+
+# By identifying rows with total row sum = 0, we know that deleting such rows
+# won't affect the total table sum (used for consistency check). 
+# Such rows should have been marked with `is_consistent` = 0;
+
+--echo
+--echo *** Delete up to two (2) "consistent" rows (zero-sum; table sum unchanged)
+--echo
+# We get Warning "1592: Statement is not safe to log in statement mode" with server 5.1
+# due to LIMIT (see Bug#42415 and Bug#42851).
+--disable_warnings
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+DELETE FROM t1 WHERE `pk` > 902 AND `pk` MOD 5 = 3 AND `is_consistent` = 1 LIMIT 2;
+--enable_warnings
+
+COMMIT;
+

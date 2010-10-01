@@ -1444,7 +1444,7 @@ xtPublic void xt_spinxslock_free(struct XTThread *XT_UNUSED(self), XTSpinXSLockP
 #endif
 }
 
-xtPublic xtBool xt_spinxslock_xlock(XTSpinXSLockPtr sxs, xtThreadID XT_NDEBUG_UNUSED(thd_id))
+xtPublic xtBool xt_spinxslock_xlock(XTSpinXSLockPtr sxs, xtBool try_lock, xtThreadID XT_NDEBUG_UNUSED(thd_id))
 {
 	register xtWord2 set;
 
@@ -1453,6 +1453,8 @@ xtPublic xtBool xt_spinxslock_xlock(XTSpinXSLockPtr sxs, xtThreadID XT_NDEBUG_UN
 		set = xt_atomic_tas2(&sxs->sxs_xlocked, 1);
 		if (!set)
 			break;
+		if (try_lock)
+			return FALSE;
 		xt_yield();
 	}
 
@@ -1460,9 +1462,25 @@ xtPublic xtBool xt_spinxslock_xlock(XTSpinXSLockPtr sxs, xtThreadID XT_NDEBUG_UN
 	sxs->sxs_locker = thd_id;
 #endif
 
-	/* Wait for all the reader to wait! */
-	while (sxs->sxs_wait_count < sxs->sxs_rlock_count)
-		xt_yield();
+	/* Wait for all the readers to wait! */
+	while (sxs->sxs_wait_count < sxs->sxs_rlock_count) {
+		sxs->sxs_xwaiter = 1;
+		xt_yield(); //*
+		/* This should not be required, because there is only one thread
+		 * accessing this value. However, the lock fails if this
+		 * is not done with an atomic op.
+		 *
+		 * This is because threads on other processors have the
+		 * value in processor cache. So they do not
+		 * notice that the value has been set to zero.
+		 * They think it is still 1 and march through
+		 * the barrier (sxs->sxs_xwaiter < sxs->sxs_xlocked) below.
+		 *
+		 * In the meantime, this X locker has gone on thinking
+		 * all is OK.
+		 */
+		xt_atomic_tas2(&sxs->sxs_xwaiter, 0);
+	}
 
 #ifdef XT_THREAD_LOCK_INFO
 	xt_thread_lock_info_add_owner(&sxs->sxs_lock_info);
@@ -1474,12 +1492,12 @@ xtPublic xtBool xt_spinxslock_slock(XTSpinXSLockPtr sxs)
 {
 	xt_atomic_inc2(&sxs->sxs_rlock_count);
 
-	/* Check if there could be an X locker: */
-	if (sxs->sxs_xlocked) {
-		/* I am waiting... */
+	/* Wait as long as the locker is not waiting: */
+	while (sxs->sxs_xwaiter < sxs->sxs_xlocked) {
 		xt_atomic_inc2(&sxs->sxs_wait_count);
-		while (sxs->sxs_xlocked)
+		while (sxs->sxs_xwaiter < sxs->sxs_xlocked) {
 			xt_yield();
+		}
 		xt_atomic_dec2(&sxs->sxs_wait_count);
 	}
 
@@ -1493,12 +1511,17 @@ xtPublic xtBool xt_spinxslock_unlock(XTSpinXSLockPtr sxs, xtBool xlocked)
 {
 	if (xlocked) {
 #ifdef DEBUG
+		ASSERT_NS(sxs->sxs_locker && sxs->sxs_xlocked);
 		sxs->sxs_locker = 0;
 #endif
 		sxs->sxs_xlocked = 0;
 	}
-	else
+	else {
+#ifdef DEBUG
+		ASSERT_NS(sxs->sxs_rlock_count > 0);
+#endif
 		xt_atomic_dec2(&sxs->sxs_rlock_count);
+	}
 
 #ifdef XT_THREAD_LOCK_INFO
 	xt_thread_lock_info_release_owner(&sxs->sxs_lock_info);
@@ -1698,7 +1721,7 @@ xtPublic void xt_atomicrwlock_free(struct XTThread *, XTAtomicRWLockPtr XT_UNUSE
 #endif
 }
 
-xtPublic xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr arw, xtThreadID XT_NDEBUG_UNUSED(thr_id))
+xtPublic xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr arw, xtBool try_lock, xtThreadID XT_NDEBUG_UNUSED(thr_id))
 {
 	register xtWord2 set;
 
@@ -1707,6 +1730,8 @@ xtPublic xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr arw, xtThreadID XT_NDEBU
 		set = xt_atomic_tas2(&arw->arw_xlock_set, 1);
 		if (!set)
 			break;
+		if (try_lock)
+			return FALSE;
 		xt_yield();
 	}
 
@@ -1721,7 +1746,7 @@ xtPublic xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr arw, xtThreadID XT_NDEBU
 #ifdef XT_THREAD_LOCK_INFO
 	xt_thread_lock_info_add_owner(&arw->arw_lock_info);
 #endif
-	return OK;
+	return TRUE;
 }
 
 xtPublic xtBool xt_atomicrwlock_slock(XTAtomicRWLockPtr arw)
@@ -1799,7 +1824,7 @@ xtPublic void xt_skewrwlock_free(struct XTThread *, XTSkewRWLockPtr XT_UNUSED(sr
 #endif
 }
 
-xtPublic xtBool xt_skewrwlock_xlock(XTSkewRWLockPtr srw, xtThreadID XT_NDEBUG_UNUSED(thr_id))
+xtPublic xtBool xt_skewrwlock_xlock(XTSkewRWLockPtr srw, xtBool try_lock, xtThreadID XT_NDEBUG_UNUSED(thr_id))
 {
 	register xtWord2 set;
 
@@ -1808,6 +1833,8 @@ xtPublic xtBool xt_skewrwlock_xlock(XTSkewRWLockPtr srw, xtThreadID XT_NDEBUG_UN
 		set = xt_atomic_tas2(&srw->srw_xlock_set, 1);
 		if (!set)
 			break;
+		if (try_lock)
+			return FALSE;
 		xt_yield();
 	}
 
@@ -1822,7 +1849,7 @@ xtPublic xtBool xt_skewrwlock_xlock(XTSkewRWLockPtr srw, xtThreadID XT_NDEBUG_UN
 #ifdef XT_THREAD_LOCK_INFO
 	xt_thread_lock_info_add_owner(&srw->srw_lock_info);
 #endif
-	return OK;
+	return TRUE;
 }
 
 xtPublic xtBool xt_skewrwlock_slock(XTSkewRWLockPtr srw)
@@ -1865,6 +1892,124 @@ xtPublic xtBool xt_skewrwlock_unlock(XTSkewRWLockPtr srw, xtBool xlocked)
 #endif
 
 	return OK;
+}
+
+/*
+ * -----------------------------------------------------------------------
+ * RECURSIVE R/W LOCK (allows X lockers to lock again)
+ */
+
+#ifdef XT_THREAD_LOCK_INFO
+void xt_recursivemutex_init(XTThreadPtr self, XTRecursiveMutexPtr rm, const char *name)
+{
+	rm->rm_locker = NULL;
+	rm->rm_lock_count = 0;
+	xt_init_mutex(self, &rm->rm_mutex, name);
+}
+#else
+xtPublic void xt_recursivemutex_init(XTThreadPtr self, XTRecursiveMutexPtr rm)
+{
+	rm->rm_locker = NULL;
+	rm->rm_lock_count = 0;
+	xt_init_mutex(self, &rm->rm_mutex);
+}
+#endif
+
+xtPublic void xt_recursivemutex_free(XTRecursiveMutexPtr rm)
+{
+	xt_free_mutex(&rm->rm_mutex);
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_free(&rm->rm_lock_info);
+#endif
+}
+
+xtPublic void xt_recursivemutex_lock(XTThreadPtr self, XTRecursiveMutexPtr rm)
+{
+	if (self != rm->rm_locker) {
+		xt_lock_mutex(self, &rm->rm_mutex);
+		rm->rm_locker = self;
+	}
+	rm->rm_lock_count++;
+}
+
+xtPublic void xt_recursivemutex_unlock(XTThreadPtr self, XTRecursiveMutexPtr rm)
+{
+	ASSERT(self == rm->rm_locker);
+	ASSERT(rm->rm_lock_count > 0);
+	rm->rm_lock_count--;
+	if (!rm->rm_lock_count) {
+		rm->rm_locker = NULL;
+		xt_unlock_mutex(self, &rm->rm_mutex);
+	}
+}
+
+/*
+ * -----------------------------------------------------------------------
+ * RECURSIVE MUTEX (allows lockers to lock again)
+ */
+
+#ifdef XT_THREAD_LOCK_INFO
+void xt_recurrwlock_init(struct XTThread *self, XTRecurRWLockPtr rrw, const char *name)
+{
+	rrw->rrw_locker = NULL;
+	rrw->rrw_lock_count = 0;
+	xt_init_rwlock(self, &rrw->rrw_lock, name);
+}
+#else
+void xt_recurrwlock_init(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	rrw->rrw_locker = NULL;
+	rrw->rrw_lock_count = 0;
+	xt_init_rwlock(self, &rrw->rrw_lock);
+}
+#endif
+
+void xt_recurrwlock_free(XTRecurRWLockPtr rrw)
+{
+	xt_free_rwlock(&rrw->rrw_lock);
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_free(&rrw->rrw_lock_info);
+#endif
+}
+
+void xt_recurrwlock_xlock(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	if (self != rrw->rrw_locker) {
+		xt_xlock_rwlock(self, &rrw->rrw_lock);
+		rrw->rrw_locker = self;
+	}
+	rrw->rrw_lock_count++;
+}
+
+void xt_recurrwlock_slock(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	xt_slock_rwlock(self, &rrw->rrw_lock);
+}
+
+void xt_recurrwlock_slock_ns(XTRecurRWLockPtr rrw)
+{
+	xt_slock_rwlock_ns(&rrw->rrw_lock);
+}
+
+void xt_recurrwlock_unxlock(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	ASSERT(self == rrw->rrw_locker);
+	ASSERT(rrw->rrw_lock_count > 0);
+	rrw->rrw_lock_count--;
+	if (!rrw->rrw_lock_count) {
+		rrw->rrw_locker = NULL;
+		xt_unlock_rwlock(self, &rrw->rrw_lock);
+	}
+}
+
+void xt_recurrwlock_unslock(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	xt_unlock_rwlock(self, &rrw->rrw_lock);
+}
+
+void xt_recurrwlock_unslock_ns(XTRecurRWLockPtr rrw)
+{
+	xt_unlock_rwlock_ns(&rrw->rrw_lock);
 }
 
 /*
@@ -2031,7 +2176,7 @@ static void *lck_run_writer(XTThreadPtr self)
 			xt_rwmutex_unlock(&data->xs_lock, self->t_id);
 		}
 		else if (data->xs_which_lock == LOCK_SPINXSLOCK) {
-			xt_spinxslock_xlock(&data->xs_spinrwlock, self->t_id);
+			xt_spinxslock_xlock(&data->xs_spinrwlock, FALSE, self->t_id);
 			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_spinxslock_unlock(&data->xs_spinrwlock, TRUE);
 		}
@@ -2041,12 +2186,12 @@ static void *lck_run_writer(XTThreadPtr self)
 			xt_xsmutex_unlock(&data->xs_fastrwlock, self->t_id);
 		}
 		else if (data->xs_which_lock == LOCK_ATOMICRWLOCK) {
-			xt_atomicrwlock_xlock(&data->xs_atomicrwlock, self->t_id);
+			xt_atomicrwlock_xlock(&data->xs_atomicrwlock, FALSE, self->t_id);
 			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_atomicrwlock_unlock(&data->xs_atomicrwlock, TRUE);
 		}
 		else if (data->xs_which_lock == LOCK_SKEWRWLOCK) {
-			xt_skewrwlock_xlock(&data->xs_skewrwlock, self->t_id);
+			xt_skewrwlock_xlock(&data->xs_skewrwlock, FALSE, self->t_id);
 			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_skewrwlock_unlock(&data->xs_skewrwlock, TRUE);
 		}

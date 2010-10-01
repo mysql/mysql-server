@@ -26,7 +26,7 @@ AC_DEFUN([MYSQL_PLUGIN],[
   [__MYSQL_PLUGIN_]AS_TR_CPP([$1])[__],
   m4_default([$2], [$1 plugin]),
   m4_default([$3], [plugin for $1]),
-  m4_default([$4], []),
+  m4_default([[$4]], []),
  )
 ])
 
@@ -60,7 +60,7 @@ dnl
 dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_STORAGE_ENGINE],[
- MYSQL_PLUGIN([$1], [$3], [$4], [[$5]])
+ MYSQL_PLUGIN([$1], [$3], [$4], [$5])
  MYSQL_PLUGIN_DEFINE([$1], [WITH_]AS_TR_CPP([$1])[_STORAGE_ENGINE])
  ifelse([$2],[no],[],[
   _MYSQL_LEGACY_STORAGE_ENGINE(
@@ -390,6 +390,14 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
 	   fi
      ;;
    esac
+   # Similarly, disable shared plugins when configured with --disable-shared
+   # as libtool will not be able to produce them
+   if test "X[$enable_shared]" = Xno; then
+     if test "X[$mysql_plugin_]$2" != Xyes -a \
+             "X[$with_plugin_]$2" != Xyes; then
+       [with_plugin_]$2=no
+     fi
+   fi
   ])
 
 

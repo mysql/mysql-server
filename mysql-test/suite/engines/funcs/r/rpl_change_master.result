@@ -1,0 +1,20 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1(n int);
+select * from t1;
+n
+stop slave sql_thread;
+insert into t1 values(1);
+insert into t1 values(2);
+stop slave;
+change master to master_user='root';
+start slave;
+select * from t1;
+n
+1
+2
+drop table t1;

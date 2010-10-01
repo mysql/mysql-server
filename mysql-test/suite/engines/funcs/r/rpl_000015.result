@@ -1,0 +1,43 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+reset master;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	106		
+stop slave;
+reset slave;
+Master_Log_File	
+Read_Master_Log_Pos	4
+Relay_Master_Log_File	
+Exec_Master_Log_Pos	0
+change master to master_host='127.0.0.1';
+Master_Log_File	
+Read_Master_Log_Pos	4
+Relay_Master_Log_File	
+Exec_Master_Log_Pos	0
+change master to master_host='127.0.0.1',master_user='root',
+master_password='',master_port=MASTER_PORT;
+Master_Log_File	
+Read_Master_Log_Pos	4
+Relay_Master_Log_File	
+Exec_Master_Log_Pos	0
+start slave;
+Master_Log_File	master-bin.000001
+Relay_Master_Log_File	master-bin.000001
+Checking that both slave threads are running.
+drop table if exists t1;
+create table t1 (n int, PRIMARY KEY(n));
+insert into t1 values (10),(45),(90);
+SELECT * FROM t1 ORDER BY n;
+n	10
+n	45
+n	90
+SELECT * FROM t1 ORDER BY n;
+n	10
+n	45
+n	90
+drop table t1;

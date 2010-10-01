@@ -1,0 +1,66 @@
+##########
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
+
+#
+# Testing of setting slave to wrong log position with master_log_pos
+#
+
+# Passes with rbr no problem, removed statement include [jbm]
+
+source include/master-slave.inc;
+let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+sync_slave_with_master;
+stop slave;
+
+--replace_result $master_log_pos MASTER_LOG_POS
+eval change master to master_log_pos=$master_log_pos;
+start slave;
+sleep 5;
+stop slave;
+
+--replace_result $master_log_pos MASTER_LOG_POS
+eval change master to master_log_pos=$master_log_pos;
+--let $slave_param= Read_Master_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/wait_for_slave_param.inc
+
+start slave;
+sleep 5;
+--let $slave_param= Read_Master_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/wait_for_slave_param.inc
+--source include/check_slave_no_error.inc
+
+stop slave;
+--echo # impossible position leads to an error
+--replace_result 177 MASTER_LOG_POS
+change master to master_log_pos=177;
+start slave;
+sleep 2;
+let $slave_io_errno= 1236;
+let $show_slave_io_error= 1;
+source include/wait_for_slave_io_error.inc;
+connection master;
+
+let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+create table if not exists t1 (n int);
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (1),(2),(3);
+save_master_pos;
+connection slave;
+stop slave;
+
+--replace_result $master_log_pos MASTER_LOG_POS
+eval change master to master_log_pos=$master_log_pos;
+start slave;
+sync_with_master;
+select * from t1 ORDER BY n;
+connection master;
+drop table t1;
+sync_slave_with_master;
+
+# End of 4.1 tests

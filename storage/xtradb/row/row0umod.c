@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,12 +58,22 @@ delete marked clustered index record was delete unmarked and possibly also
 some of its fields were changed. Now, it is possible that the delete marked
 version has become obsolete at the time the undo is started. */
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***********************************************************//**
 Checks if also the previous version of the clustered index record was
 modified or inserted by the same transaction, and its undo number is such
 that it should be undone in the same rollback.
 @return	TRUE if also previous modify or insert of this row should be undone */
-UNIV_INLINE
+static
 ibool
 row_undo_mod_undo_also_prev_vers(
 /*=============================*/
@@ -144,13 +154,17 @@ row_undo_mod_clust_low(
 
 /***********************************************************//**
 Removes a clustered index record after undo if possible.
+This is attempted when the record was inserted by updating a
+delete-marked record and there no longer exist transactions
+that would see the delete-marked record.  In other words, we
+roll back the insert by purging the record.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static
 ulint
 row_undo_mod_remove_clust_low(
 /*==========================*/
 	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr __attribute__((unused)), /*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
@@ -159,6 +173,7 @@ row_undo_mod_remove_clust_low(
 	ulint		err;
 	ibool		success;
 
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
@@ -190,11 +205,13 @@ row_undo_mod_remove_clust_low(
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		/* Note that since this operation is analogous to purge,
-		we can free also inherited externally stored fields:
-		hence the RB_NONE in the call below */
+		/* This operation is analogous to purge, we can free also
+		inherited externally stored fields */
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, RB_NONE, mtr);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+					   thr_is_recv(thr)
+					   ? RB_RECOVERY_PURGE_REC
+					   : RB_NONE, mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -223,6 +240,8 @@ row_undo_mod_clust(
 	undo_no_t	new_undo_no;
 
 	ut_ad(node && thr);
+
+	log_free_check();
 
 	/* Check if also the previous version of the clustered index record
 	should be undone in this same rollback operation */
@@ -370,10 +389,11 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 
-			/* No need to distinguish RB_RECOVERY here, because we
-			are deleting a secondary index record: the distinction
-			between RB_NORMAL and RB_RECOVERY only matters when
-			deleting a record that contains externally stored
+			/* No need to distinguish RB_RECOVERY_PURGE here,
+			because we are deleting a secondary index record:
+			the distinction between RB_NORMAL and
+			RB_RECOVERY_PURGE only matters when deleting a
+			record that contains externally stored
 			columns. */
 			ut_ad(!dict_index_is_clust(index));
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
@@ -438,7 +458,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 				BTR_MODIFY_TREE */
 	que_thr_t*	thr,	/*!< in: query thread */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry */
+	const dtuple_t*	entry)	/*!< in: index entry */
 {
 	mem_heap_t*	heap;
 	btr_pcur_t	pcur;
@@ -533,6 +553,7 @@ row_undo_mod_upd_del_sec(
 	dict_index_t*	index;
 	ulint		err	= DB_SUCCESS;
 
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
@@ -550,7 +571,7 @@ row_undo_mod_upd_del_sec(
 			does not exist.  However, this situation may
 			only occur during the rollback of incomplete
 			transactions. */
-			ut_a(trx_is_recv(thr_get_trx(thr)));
+			ut_a(thr_is_recv(thr));
 		} else {
 			err = row_undo_mod_del_mark_or_remove_sec(
 				node, thr, index, entry);
@@ -648,24 +669,55 @@ row_undo_mod_upd_exist_sec(
 			/* Build the newest version of the index entry */
 			entry = row_build_index_entry(node->row, node->ext,
 						      index, heap);
-			ut_a(entry);
-			/* NOTE that if we updated the fields of a
-			delete-marked secondary index record so that
-			alphabetically they stayed the same, e.g.,
-			'abc' -> 'aBc', we cannot return to the original
-			values because we do not know them. But this should
-			not cause problems because in row0sel.c, in queries
-			we always retrieve the clustered index record or an
-			earlier version of it, if the secondary index record
-			through which we do the search is delete-marked. */
+			if (UNIV_UNLIKELY(!entry)) {
+				/* The server must have crashed in
+				row_upd_clust_rec_by_insert(), in
+				row_ins_index_entry_low() before
+				btr_store_big_rec_extern_fields()
+				has written the externally stored columns
+				(BLOBs) of the new clustered index entry. */
 
-			err = row_undo_mod_del_mark_or_remove_sec(node, thr,
-								  index,
-								  entry);
-			if (err != DB_SUCCESS) {
-				mem_heap_free(heap);
+				/* The table must be in DYNAMIC or COMPRESSED
+				format.  REDUNDANT and COMPACT formats
+				store a local 768-byte prefix of each
+				externally stored column. */
+				ut_a(dict_table_get_format(index->table)
+				     >= DICT_TF_FORMAT_ZIP);
 
-				return(err);
+				/* This is only legitimate when
+				rolling back an incomplete transaction
+				after crash recovery. */
+				ut_a(thr_get_trx(thr)->is_recovered);
+
+				/* The server must have crashed before
+				completing the insert of the new
+				clustered index entry and before
+				inserting to the secondary indexes.
+				Because node->row was not yet written
+				to this index, we can ignore it.  But
+				we must restore node->undo_row. */
+			} else {
+				/* NOTE that if we updated the fields of a
+				delete-marked secondary index record so that
+				alphabetically they stayed the same, e.g.,
+				'abc' -> 'aBc', we cannot return to the
+				original values because we do not know them.
+				But this should not cause problems because
+				in row0sel.c, in queries we always retrieve
+				the clustered index record or an earlier
+				version of it, if the secondary index record
+				through which we do the search is
+				delete-marked. */
+
+				err = row_undo_mod_del_mark_or_remove_sec(
+					node, thr, index, entry);
+				if (err != DB_SUCCESS) {
+					mem_heap_free(heap);
+
+					return(err);
+				}
+
+				mem_heap_empty(heap);
 			}
 
 			/* We may have to update the delete mark in the
@@ -674,7 +726,6 @@ row_undo_mod_upd_exist_sec(
 			the secondary index record if we updated its fields
 			but alphabetically they stayed the same, e.g.,
 			'abc' -> 'aBc'. */
-			mem_heap_empty(heap);
 			entry = row_build_index_entry(node->undo_row,
 						      node->undo_ext,
 						      index, heap);

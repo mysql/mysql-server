@@ -1,0 +1,94 @@
+################################################################################
+#
+# Purpose: Execute changes to t1 and roll back to potentially mess up
+#          REPEATABLE READ queries in other transactions.
+#
+#  - Start transaction
+#  - Do "bogus" updates
+#  - ROLLBACK
+#  - Do "bogus" inserts
+#  - Do bogus deletes
+#  - ROLLBACK
+#
+# Handles rows with pk between 500 and 550.
+#
+################################################################################
+
+# TODO: Handle tx errors (possible deadlocks?)
+
+SET autocommit = 0;
+
+START TRANSACTION;
+--echo *** All changes done in this test / transaction will be rolled back.
+
+let $conn_id= `SELECT CONNECTION_ID()`;
+
+# "Bogus" updates:
+
+# Disabling query log to avoid complex filtering of output in order to keep
+# result file diffing clean.
+--echo *** Disabling query log.
+--disable_query_log
+
+--echo *** Executing UPDATE on rows 501 -- 549 with id = 50, single statement.
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+eval UPDATE t1 SET `int1` = 50, 
+                   `int1_key` = `int1_key` + 50, 
+                   `int2` = `int2` - 50,
+                   `id` = 50,
+                   `is_consistent` = 0,
+                   `is_uncommitted` = 1,
+                   `connection_id` = $conn_id
+    WHERE `pk` > 500 AND `pk` < 550;
+
+--echo *** Executing UPDATE on rows 526 -- 549 with id = 50, single statement.
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+eval UPDATE t1 SET `int2_key` = 50,
+                   `id` = 50,
+                   `is_consistent` = 0,
+                   `is_uncommitted` = 1,
+                   `connection_id` = $conn_id
+    WHERE `pk` > 525 AND `pk` < 550;
+
+# Still "bogus" updates... Now update 25 rows in succession, single field:
+--echo *** Executing UPDATE on rows 501 -- 525 with id = 50, multiple statements.
+
+let $updates= 25;
+while ($updates)
+{
+    --error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+    eval UPDATE t1 SET `int2_key` = 50, 
+                       `id` = 50,
+                       `is_consistent` = 0,
+                       `is_uncommitted` = 1,
+                       `connection_id` = $conn_id
+             WHERE `pk` = (SELECT 526 - $updates);
+    dec $updates;
+}
+
+--echo *** ROLLBACK
+ROLLBACK;
+
+--echo *** START TRANSACTION
+START TRANSACTION;
+# Now do some "bogus" inserts:
+--echo *** Executing INSERTs of rows with id = 50, 2 statements.
+
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_DUP_ENTRY
+eval INSERT INTO t1 (`id`, `int1`, `int1_key`, `int1_unique`, `connection_id`)
+        VALUES (50, 505050, -505050, 505050, $conn_id);
+
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_DUP_ENTRY
+eval INSERT INTO t1 (`id`, `int2`, `int2_key`, `int2_unique`, `connection_id`)
+        VALUES (50, -505050, 505050, -505050, $conn_id);
+
+# And some "bogus" deletes:
+--echo *** Executing DELETE of rows with pk between 449 and 540, single statement.
+--error 0, ER_LOCK_DEADLOCK, ER_LOCK_WAIT_TIMEOUT, ER_CHECKREAD
+DELETE FROM t1 WHERE `pk` BETWEEN 449 AND 540;
+
+--echo *** Enabling query log.
+--enable_query_log
+
+ROLLBACK;
+

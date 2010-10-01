@@ -22,17 +22,30 @@
 # 
 # $master_connection
 #   See wait_for_slave_param.inc for description.
+#
+# $slave_skip_counter
+#   If set, skip this number of events. If not set, skip one event.
+#
+# $not_switch_connection If set, don't switch to slave and don't switch back
+# master.
+#
 
 echo --source include/wait_for_slave_sql_error_and_skip.inc;
-connection slave;
-source include/wait_for_slave_sql_error.inc;
-if ($show_sql_error)
+if (!$not_switch_connection)
 {
-  let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-  echo Last_SQL_Error = $error;
+  connection slave;
 }
+source include/wait_for_slave_sql_error.inc;
 
 # skip the erroneous statement
-set global sql_slave_skip_counter=1;
+if ($slave_skip_counter) {
+  eval SET GLOBAL SQL_SLAVE_SKIP_COUNTER= $slave_skip_counter;
+}
+if (!$slave_skip_counter) {
+  SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+}
 source include/start_slave.inc;
-connection master;
+if (!$not_switch_connection)
+{
+  connection master;
+}

@@ -152,6 +152,7 @@ ut_hash_ulint(
 	ulint	 key,		/*!< in: value to be hashed */
 	ulint	 table_size)	/*!< in: hash table size */
 {
+	ut_ad(table_size);
 	key = key ^ UT_HASH_RANDOM_MASK2;
 
 	return(key % table_size);
@@ -224,6 +225,31 @@ ut_fold_binary(
 		fold = ut_fold_ulint_pair(fold, (ulint)(*str));
 
 		str++;
+	}
+
+	return(fold);
+}
+
+UNIV_INLINE
+ulint
+ut_fold_binary_32(
+/*==============*/
+	const byte*	str,	/*!< in: string of bytes */
+	ulint		len)	/*!< in: length */
+{
+	const ib_uint32_t*	str_end = (const ib_uint32_t*) (str + len);
+	const ib_uint32_t*	str_32 = (const ib_uint32_t*) str;
+	ulint			fold = 0;
+
+	ut_ad(str);
+	/* This function is only for word-aligned data */
+	ut_ad(len % 4 == 0);
+	ut_ad((ulint)str % 4 == 0);
+
+	while (str_32 < str_end) {
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str_32));
+
+		str_32++;
 	}
 
 	return(fold);

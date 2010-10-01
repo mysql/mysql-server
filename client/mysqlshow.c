@@ -160,41 +160,42 @@ int main(int argc, char **argv)
 static struct my_option my_long_options[] =
 {
 #ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"character-sets-dir", 'c', "Directory where character sets are.",
-   (uchar**) &charsets_dir, (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
+  {"character-sets-dir", 'c', "Directory for character set files.",
+   (char**) &charsets_dir, (char**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (uchar**) &default_charset,
-   (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Set the default character set.", &default_charset,
+   &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"count", OPT_COUNT,
-   "Show number of rows per table (may be slow for not MyISAM tables)",
-   (uchar**) &opt_count, (uchar**) &opt_count, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   "Show number of rows per table (may be slow for non-MyISAM tables).",
+   &opt_count, &opt_count, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
-   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
-   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
+  {"host", 'h', "Connect to host.", &host, &host, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"status", 'i', "Shows a lot of extra information about each table.",
-   (uchar**) &opt_status, (uchar**) &opt_status, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   &opt_status, &opt_status, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"keys", 'k', "Show keys for table.", (uchar**) &opt_show_keys,
-   (uchar**) &opt_show_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"keys", 'k', "Show keys for table.", &opt_show_keys,
+   &opt_show_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
-   "Password to use when connecting to server. If password is not given it's asked from the tty.",
+   "Password to use when connecting to server. If password is not given, it's "
+   "solicited on the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -202,33 +203,36 @@ static struct my_option my_long_options[] =
    "/etc/services, "
 #endif
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-   (uchar**) &opt_mysql_port,
-   (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
+   &opt_mysql_port,
+   &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
+  {"protocol", OPT_MYSQL_PROTOCOL, 
+   "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
-   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Base name of shared memory.", &shared_memory_base_name,
+   &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
 #endif
   {"show-table-type", 't', "Show table type column.",
-   (uchar**) &opt_table_type, (uchar**) &opt_table_type, 0, GET_BOOL,
+   &opt_table_type, &opt_table_type, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"socket", 'S', "Socket file to use for connection.",
-   (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
+  {"socket", 'S', "The socket file to use for connection.",
+   &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user.", (uchar**) &user,
-   (uchar**) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", &user,
+   &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v',
-   "More verbose output; You can use this multiple times to get even more verbose output.",
+   "More verbose output; you can use this multiple times to get even more "
+   "verbose output.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -250,16 +254,16 @@ static void usage(void)
 {
   print_version();
   puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
-  puts("Shows the structure of a mysql database (databases,tables and columns)\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
+  puts("Shows the structure of a MySQL database (databases, tables, and columns).\n");
   printf("Usage: %s [OPTIONS] [database [table [column]]]\n",my_progname);
   puts("\n\
 If last argument contains a shell or SQL wildcard (*,?,% or _) then only\n\
 what\'s matched by the wildcard is shown.\n\
 If no database is given then all matching databases are shown.\n\
-If no table is given then all matching tables in database are shown\n\
-If no column is given then all matching columns and columntypes in table\n\
-are shown");
+If no table is given, then all matching tables in database are shown.\n\
+If no column is given, then all matching columns and column types in table\n\
+are shown.");
   print_defaults("my",load_default_groups);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
@@ -665,8 +669,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   char query[1024],*end;
   MYSQL_RES *result;
   MYSQL_ROW row;
-  ulong rows;
-  LINT_INIT(rows);
+  ulong UNINIT_VAR(rows);
 
   if (mysql_select_db(mysql,db))
   {

@@ -20,6 +20,11 @@ class Relay_log_info;
 
 class Format_description_log_event;
 
+bool ending_trans(const THD* thd, const bool all);
+bool trans_has_updated_non_trans_table(const THD* thd);
+bool trans_has_no_stmt_committed(const THD* thd, const bool all);
+bool stmt_has_updated_non_trans_table(const THD* thd);
+
 /*
   Transaction Coordinator log - a base abstract class
   for two different implementations
@@ -531,12 +536,13 @@ public:
   /* Use this to start writing a new log file */
   void new_file();
 
+  void reset_gathered_updates(THD *thd);
   bool write(Log_event* event_info); // binary log write
   bool write_transaction_to_binlog(THD *thd, binlog_trx_data *trx_data,
                                    Log_event *end_ev);
   bool trx_group_commit_finish(binlog_trx_data *trx_data);
-  bool write_incident(THD *thd);
 
+  bool write_incident(THD *thd);
   int  write_cache(IO_CACHE *cache);
   void set_write_error(THD *thd);
   bool check_write_error(THD *thd);

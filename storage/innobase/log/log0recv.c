@@ -167,7 +167,7 @@ recv_sys_init(
 	recv_sys->len = 0;
 	recv_sys->recovered_offset = 0;
 
-	recv_sys->addr_hash = hash_create(available_memory / 64);
+	recv_sys->addr_hash = hash_create(available_memory / 512);
 	recv_sys->n_addrs = 0;
 
 	recv_sys->apply_log_recs = FALSE;
@@ -207,7 +207,7 @@ recv_sys_empty_hash(void)
 	hash_table_free(recv_sys->addr_hash);
 	mem_heap_empty(recv_sys->heap);
 
-	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 256);
+	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 512);
 }
 
 #ifndef UNIV_LOG_DEBUG

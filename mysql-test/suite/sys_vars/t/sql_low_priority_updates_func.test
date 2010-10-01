@@ -127,6 +127,7 @@ connection con0;
 SET SESSION low_priority_updates = OFF;
 --echo ** Connection con1 **
 connection con1;
+reap;
 SET SESSION low_priority_updates = OFF;
 --echo ** Connection default**
 connection default;

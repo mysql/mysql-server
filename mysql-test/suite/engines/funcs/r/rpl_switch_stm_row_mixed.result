@@ -1,0 +1,382 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+set @saved_binlog_format = @@global.binlog_format;
+drop database if exists mysqltest1;
+create database mysqltest1;
+use mysqltest1;
+set session binlog_format=row;
+set global binlog_format=row;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	ROW
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	ROW
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+ROW	ROW
+CREATE TABLE t1 (a varchar(100));
+prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
+set @string="emergency_1_";
+insert into t1 values("work_2_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work_3_"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values(concat("for_4_",UUID()));
+insert into t1 select "yesterday_5_";
+create temporary table tmp(a char(100));
+insert into tmp values("see_6_");
+set binlog_format=statement;
+ERROR HY000: Cannot switch out of the row-based binary log format when the session has open temporary tables
+insert into t1 select * from tmp;
+drop temporary table tmp;
+set binlog_format=statement;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	ROW
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	STATEMENT
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+ROW	STATEMENT
+set global binlog_format=statement;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	STATEMENT
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	STATEMENT
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+STATEMENT	STATEMENT
+prepare stmt1 from 'insert into t1 select ?';
+set @string="emergency_7_";
+insert into t1 values("work_8_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values("work_9_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values("for_10_");
+insert into t1 select "yesterday_11_";
+set binlog_format=default;
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+STATEMENT	STATEMENT
+set global binlog_format=default;
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+MIXED	STATEMENT
+prepare stmt1 from 'insert into t1 select ?';
+set @string="emergency_12_";
+insert into t1 values("work_13_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values("work_14_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values("for_15_");
+insert into t1 select "yesterday_16_";
+set binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+MIXED	MIXED
+set global binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+MIXED	MIXED
+prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
+set @string="emergency_17_";
+insert into t1 values("work_18_");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work_19_"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values(concat("for_20_",UUID()));
+insert into t1 select "yesterday_21_";
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work_22_"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values(concat("for_23_",UUID()));
+insert into t1 select "yesterday_24_";
+create table t2 select rpad(UUID(),100,' ');
+create table t3 select 1 union select UUID();
+create table t4 select * from t1 where 3 in (select 1 union select 2 union select UUID() union select 3);
+create table t5 select * from t1 where 3 in (select 1 union select 2 union select curdate() union select 3);
+insert into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3 union select * from t4);
+create procedure foo()
+begin
+insert into t1 values("work_25_");
+insert into t1 values(concat("for_26_",UUID()));
+insert into t1 select "yesterday_27_";
+end|
+create procedure foo2()
+begin
+insert into t1 values(concat("emergency_28_",UUID()));
+insert into t1 values("work_29_");
+insert into t1 values(concat("for_30_",UUID()));
+set session binlog_format=row; # accepted for stored procs
+insert into t1 values("more work_31_");
+set session binlog_format=mixed;
+end|
+create function foo3() returns bigint unsigned
+begin
+set session binlog_format=row; # rejected for stored funcs
+insert into t1 values("alarm");
+return 100;
+end|
+create procedure foo4(x varchar(100))
+begin
+insert into t1 values(concat("work_250_",x));
+insert into t1 select "yesterday_270_";
+end|
+call foo();
+call foo2();
+call foo4("hello");
+call foo4(UUID());
+call foo4("world");
+select foo3();
+ERROR HY000: Cannot change the binary logging format inside a stored function or trigger
+select * from t1 where a="alarm";
+a
+drop function foo3;
+create function foo3() returns bigint unsigned
+begin
+insert into t1 values("foo3_32_");
+call foo();
+return 100;
+end|
+insert into t2 select foo3();
+prepare stmt1 from 'insert into t2 select foo3()';
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+create function foo4() returns bigint unsigned
+begin
+insert into t2 select foo3();
+return 100;
+end|
+select foo4();
+foo4()
+100
+prepare stmt1 from 'select foo4()';
+execute stmt1;
+foo4()
+100
+execute stmt1;
+foo4()
+100
+deallocate prepare stmt1;
+create function foo5() returns bigint unsigned
+begin
+insert into t2 select UUID();
+return 100;
+end|
+select foo5();
+foo5()
+100
+prepare stmt1 from 'select foo5()';
+execute stmt1;
+foo5()
+100
+execute stmt1;
+foo5()
+100
+deallocate prepare stmt1;
+create function foo6(x varchar(100)) returns bigint unsigned
+begin
+insert into t2 select x;
+return 100;
+end|
+select foo6("foo6_1_");
+foo6("foo6_1_")
+100
+select foo6(concat("foo6_2_",UUID()));
+foo6(concat("foo6_2_",UUID()))
+100
+prepare stmt1 from 'select foo6(concat("foo6_3_",UUID()))';
+execute stmt1;
+foo6(concat("foo6_3_",UUID()))
+100
+execute stmt1;
+foo6(concat("foo6_3_",UUID()))
+100
+deallocate prepare stmt1;
+create view v1 as select uuid();
+create table t11 (data varchar(255));
+insert into t11 select * from v1;
+insert into t11 select TABLE_NAME from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysqltest1' and TABLE_NAME IN ('v1','t11');
+prepare stmt1 from "insert into t11 select TABLE_NAME from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysqltest1' and TABLE_NAME IN ('v1','t11')";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+create trigger t11_bi before insert on t11 for each row
+begin
+set NEW.data = concat(NEW.data,UUID());
+end|
+insert into t11 values("try_560_");
+create table t20 select * from t1;
+create table t21 select * from t2;
+create table t22 select * from t3;
+drop table t1,t2,t3;
+create table t1 (a int primary key auto_increment, b varchar(100));
+create table t2 (a int primary key auto_increment, b varchar(100));
+create table t3 (b varchar(100));
+create function f (x varchar(100)) returns int deterministic
+begin
+insert into t1 values(null,x);
+insert into t2 values(null,x);
+return 1;
+end|
+select f("try_41_");
+f("try_41_")
+1
+use mysqltest1;
+insert into t2 values(2,null),(3,null),(4,null);
+delete from t2 where a>=2;
+select f("try_42_");
+f("try_42_")
+1
+insert into t2 values(3,null),(4,null);
+delete from t2 where a>=3;
+prepare stmt1 from 'select f(?)';
+set @string="try_43_";
+insert into t1 values(null,"try_44_");
+execute stmt1 using @string;
+f(?)
+1
+deallocate prepare stmt1;
+create table t12 select * from t1;
+drop table t1;
+create table t1 (a int, b varchar(100), key(a));
+select f("try_45_");
+f("try_45_")
+1
+create table t13 select * from t1;
+drop table t1;
+create table t1 (a int primary key auto_increment, b varchar(100));
+drop function f;
+create table t14 (unique (a)) select * from t2;
+truncate table t2;
+create function f1 (x varchar(100)) returns int deterministic
+begin
+insert into t1 values(null,x);
+return 1;
+end|
+create function f2 (x varchar(100)) returns int deterministic
+begin
+insert into t2 values(null,x);
+return 1;
+end|
+select f1("try_46_"),f2("try_47_");
+f1("try_46_")	f2("try_47_")
+1	1
+insert into t2 values(2,null),(3,null),(4,null);
+delete from t2 where a>=2;
+select f1("try_48_"),f2("try_49_");
+f1("try_48_")	f2("try_49_")
+1	1
+insert into t3 values(concat("try_50_",f1("try_51_"),f2("try_52_")));
+drop function f2;
+create function f2 (x varchar(100)) returns int deterministic
+begin
+declare y int;
+insert into t1 values(null,x);
+set y = (select count(*) from t2);
+return y;
+end|
+select f1("try_53_"),f2("try_54_");
+f1("try_53_")	f2("try_54_")
+1	3
+drop function f2;
+create trigger t1_bi before insert on t1 for each row
+begin
+insert into t2 values(null,"try_55_");
+end|
+insert into t1 values(null,"try_56_");
+alter table t1 modify a int, drop primary key;
+insert into t1 values(null,"try_57_");
+CREATE TEMPORARY TABLE t15 SELECT UUID();
+create table t16 like t15;
+INSERT INTO t16 SELECT * FROM t15;
+insert into t16 values("try_65_");
+drop table t15;
+insert into t16 values("try_66_");
+select count(*) from t1;
+count(*)
+7
+select count(*) from t2;
+count(*)
+5
+select count(*) from t3;
+count(*)
+1
+select count(*) from t4;
+count(*)
+29
+select count(*) from t5;
+count(*)
+58
+select count(*) from t11;
+count(*)
+8
+select count(*) from t20;
+count(*)
+66
+select count(*) from t21;
+count(*)
+14
+select count(*) from t22;
+count(*)
+2
+select count(*) from t12;
+count(*)
+4
+select count(*) from t13;
+count(*)
+1
+select count(*) from t14;
+count(*)
+4
+select count(*) from t16;
+count(*)
+3
+DROP TABLE IF EXISTS t11;
+SET SESSION BINLOG_FORMAT=STATEMENT;
+CREATE TABLE t11 (song VARCHAR(255));
+LOCK TABLES t11 WRITE;
+SET SESSION BINLOG_FORMAT=ROW;
+INSERT INTO t11 VALUES('Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict');
+SET SESSION BINLOG_FORMAT=STATEMENT;
+INSERT INTO t11 VALUES('Careful With That Axe, Eugene');
+UNLOCK TABLES;
+SELECT * FROM t11;
+song	Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict
+song	Careful With That Axe, Eugene
+USE mysqltest1;
+SELECT * FROM t11;
+song	Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict
+song	Careful With That Axe, Eugene
+DROP TABLE IF EXISTS t12;
+SET SESSION BINLOG_FORMAT=MIXED;
+CREATE TABLE t12 (data LONG);
+LOCK TABLES t12 WRITE;
+INSERT INTO t12 VALUES(UUID());
+UNLOCK TABLES;
+show binlog events from <binlog_start>;
+show binlog events from <binlog_start>;
+drop database mysqltest1;
+set global binlog_format= @saved_binlog_format;

@@ -30,7 +30,9 @@ sub mtr_script_exists(@);
 sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
-
+sub mtr_milli_sleep($);
+sub start_timer($);
+sub has_expired($);
 
 ##############################################################################
 #
@@ -147,6 +149,28 @@ sub mtr_exe_maybe_exists (@) {
 
 #
 # NOTE! More specific paths should be given before less specific.
+#
+sub mtr_pl_maybe_exists (@) {
+  my @path= @_;
+
+  map {$_.= ".pl"} @path if IS_WINDOWS;
+  foreach my $path ( @path )
+  {
+    if(IS_WINDOWS)
+    {
+      return $path if -f $path;
+    }
+    else
+    {
+      return $path if -x $path;
+    }
+  }
+  return "";
+}
+
+
+#
+# NOTE! More specific paths should be given before less specific.
 # For example /client/debug should be listed before /client
 #
 sub mtr_exe_exists (@) {
@@ -167,7 +191,7 @@ sub mtr_exe_exists (@) {
 }
 
 
-sub mtr_milli_sleep {
+sub mtr_milli_sleep ($) {
   die "usage: mtr_milli_sleep(milliseconds)" unless @_ == 1;
   my ($millis)= @_;
 
@@ -193,5 +217,12 @@ sub mtr_wait_lock_file {
   }
   return ($waited);
 }
+
+# Simple functions to start and check timers (have to be actively polled)
+# Timer can be "killed" by setting it to 0
+
+sub start_timer ($) { return time + $_[0]; }
+
+sub has_expired ($) { return $_[0] && time gt $_[0]; }
 
 1;

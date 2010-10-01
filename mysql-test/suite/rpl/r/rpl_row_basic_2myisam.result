@@ -436,8 +436,7 @@ DELETE FROM t1;
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
 set @@global.slave_exec_mode= default;
-Last_SQL_Error
-
+Checking that both slave threads are running.
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
 **** Test for BUG#37076 ****
@@ -487,8 +486,7 @@ Comparing tables master:test.t2 and slave:test.t2
 [expecting slave to stop]
 INSERT INTO t3 VALUES (1, "", 1);
 INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
-Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 384, test.t3 on slave has size 49. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 1 size mismatch - master has size 384, test.t3 on slave has size 49. Master's column size should be <= the slave's column size.
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;
@@ -500,8 +498,7 @@ Comparing tables master:test.t4 and slave:test.t4
 [expecting slave to stop]
 INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
-Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t5 on slave has size 49. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t5 on slave has size 49. Master's column size should be <= the slave's column size.
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;
@@ -509,8 +506,7 @@ START SLAVE;
 [expecting slave to stop]
 INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
-Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t6 on slave has size 385. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t6 on slave has size 385. Master's column size should be <= the slave's column size.
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;

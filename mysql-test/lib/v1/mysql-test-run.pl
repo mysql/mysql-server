@@ -920,6 +920,11 @@ sub command_line_setup () {
   mtr_report("Using default engine '$used_default_engine'")
     if defined $used_default_engine;
 
+  if ($glob_win32 and defined $opt_mem) {
+    mtr_report("--mem not supported on Windows, ignored");
+    $opt_mem= undef;
+  }
+
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
   # --------------------------------------------------------------------------
@@ -2954,7 +2959,7 @@ sub run_benchmarks ($) {
 
   if ( ! $benchmark )
   {
-    mtr_add_arg($args, "--log");
+    mtr_add_arg($args, "--general-log");
     mtr_run("$glob_mysql_bench_dir/run-all-tests", $args, "", "", "", "");
     # FIXME check result code?!
   }
@@ -3965,7 +3970,7 @@ sub mysqld_arguments ($$$$) {
     }
   }
 
-  mtr_add_arg($args, "%s--character-set-server-set=latin1", $prefix);
+  mtr_add_arg($args, "%s--character-set-server=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 

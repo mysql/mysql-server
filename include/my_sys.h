@@ -37,7 +37,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
-#define MY_INIT(name);		{ my_progname= name; my_init(); }
+#define MY_INIT(name)   { my_progname= name; my_init(); }
 
 #define MY_FILE_ERROR	((size_t) -1)
 
@@ -145,7 +145,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define my_memdup(A,B,C) _my_memdup((A),(B), __FILE__,__LINE__,C)
 #define my_strdup(A,C) _my_strdup((A), __FILE__,__LINE__,C)
 #define my_strndup(A,B,C) _my_strndup((A),(B),__FILE__,__LINE__,C)
-#define TRASH(A,B) bfill(A, B, 0x8F)
 #define QUICK_SAFEMALLOC sf_malloc_quick=1
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
@@ -173,7 +172,6 @@ extern char *my_strndup(const char *from, size_t length,
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */
 #define ORIG_CALLER_INFO    /* nothing */
-#define TRASH(A,B) /* nothing */
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -268,6 +266,7 @@ extern size_t sf_malloc_cur_memory, sf_malloc_max_memory;
 extern ulong	my_default_record_cache_size;
 extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
                NEAR my_disable_flush_key_blocks, NEAR my_disable_symlinks;
+extern my_bool my_disable_sync;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 /* from default.c */
@@ -998,7 +997,7 @@ extern my_bool resolve_charset(const char *cs_name,
 extern my_bool resolve_collation(const char *cl_name,
                                  CHARSET_INFO *default_cl,
                                  CHARSET_INFO **cl);
-
+extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);

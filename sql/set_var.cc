@@ -95,14 +95,13 @@ TYPELIB delay_key_write_typelib=
   delay_key_write_type_names, NULL
 };
 
-const char *slave_exec_mode_names[]=
-{ "STRICT", "IDEMPOTENT", NullS };
-static const unsigned int slave_exec_mode_names_len[]=
-{ sizeof("STRICT") - 1, sizeof("IDEMPOTENT") - 1, 0 };
+static const char *slave_exec_mode_names[]= { "STRICT", "IDEMPOTENT", NullS };
+static unsigned int slave_exec_mode_names_len[]= { sizeof("STRICT") - 1,
+                                                   sizeof("IDEMPOTENT") - 1, 0 };
 TYPELIB slave_exec_mode_typelib=
 {
   array_elements(slave_exec_mode_names)-1, "",
-  slave_exec_mode_names, (unsigned int *) slave_exec_mode_names_len
+  slave_exec_mode_names, slave_exec_mode_names_len
 };
 
 static int  sys_check_ftb_syntax(THD *thd,  set_var *var);
@@ -559,6 +558,10 @@ static sys_var_const    sys_skip_networking(&vars, "skip_networking",
 static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
                                             OPT_GLOBAL, SHOW_BOOL,
                                             (uchar*) &opt_skip_show_db);
+
+static sys_var_const    sys_skip_name_resolve(&vars, "skip_name_resolve",
+                                            OPT_GLOBAL, SHOW_BOOL,
+                                            (uchar*) &opt_skip_name_resolve);
 
 static sys_var_const    sys_socket(&vars, "socket",
                                    OPT_GLOBAL, SHOW_CHAR_PTR,
@@ -1263,7 +1266,7 @@ uchar *sys_var_set::value_ptr(THD *thd, enum_var_type type,
 
 void sys_var_set_slave_mode::set_default(THD *thd, enum_var_type type)
 {
-  slave_exec_mode_options= (ULL(1) << SLAVE_EXEC_MODE_STRICT);
+  slave_exec_mode_options= SLAVE_EXEC_MODE_STRICT;
 }
 
 bool sys_var_set_slave_mode::check(THD *thd, set_var *var)
@@ -1271,8 +1274,7 @@ bool sys_var_set_slave_mode::check(THD *thd, set_var *var)
   bool rc=  sys_var_set::check(thd, var);
   if (!rc &&
       test_all_bits(var->save_result.ulong_value,
-                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
-                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
+                    SLAVE_EXEC_MODE_STRICT | SLAVE_EXEC_MODE_IDEMPOTENT))
   {
     rc= true;
     my_error(ER_SLAVE_AMBIGOUS_EXEC_MODE, MYF(0), "");
@@ -1289,21 +1291,18 @@ bool sys_var_set_slave_mode::update(THD *thd, set_var *var)
   return rc;
 }
 
-void fix_slave_exec_mode(enum_var_type type)
+void fix_slave_exec_mode(void)
 {
   DBUG_ENTER("fix_slave_exec_mode");
-  compile_time_assert(sizeof(slave_exec_mode_options) * CHAR_BIT
-                      > SLAVE_EXEC_MODE_LAST_BIT - 1);
+
   if (test_all_bits(slave_exec_mode_options,
-                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
-                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
+                    SLAVE_EXEC_MODE_STRICT | SLAVE_EXEC_MODE_IDEMPOTENT))
   {
-    sql_print_error("Ambiguous slave modes combination."
-                    " STRICT will be used");
-    slave_exec_mode_options&= ~(ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT);
+    sql_print_error("Ambiguous slave modes combination. STRICT will be used");
+    slave_exec_mode_options&= ~SLAVE_EXEC_MODE_IDEMPOTENT;
   }
-  if (!(slave_exec_mode_options & (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT)))
-    slave_exec_mode_options|= (ULL(1)<< SLAVE_EXEC_MODE_STRICT);
+  if (!(slave_exec_mode_options & SLAVE_EXEC_MODE_IDEMPOTENT))
+    slave_exec_mode_options|= SLAVE_EXEC_MODE_STRICT;
   DBUG_VOID_RETURN;
 }
 
@@ -2815,10 +2814,26 @@ int set_var_collation_client::update(THD *thd)
 
 /****************************************************************************/
 
+bool sys_var_timestamp::check(THD *thd, set_var *var)
+{
+  time_t val;
+  var->save_result.ulonglong_value= var->value->val_int();
+  val= (time_t) var->save_result.ulonglong_value;
+  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  {
+    my_message(ER_UNKNOWN_ERROR, 
+               "This version of MySQL doesn't support dates later than 2038",
+               MYF(0));
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 bool sys_var_timestamp::update(THD *thd,  set_var *var)
 {
   thd->set_time((time_t) var->save_result.ulonglong_value);
-  return 0;
+  return FALSE;
 }
 
 
@@ -3179,6 +3194,13 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
+      if (thd->transaction.xid_state.xa_state != XA_NOTR)
+      {
+        thd->options= org_options;
+        my_error(ER_XAER_RMFAIL, MYF(0),
+                 xa_state_names[thd->transaction.xid_state.xa_state]);
+        return 1;
+      }
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
@@ -4286,8 +4308,14 @@ bool sys_var_thd_dbug::check(THD *thd, set_var *var)
 
 bool sys_var_thd_dbug::update(THD *thd, set_var *var)
 {
-#ifndef DBUG_OFF
-  const char *command= var ? var->value->str_value.c_ptr() : "";
+  char buf[256];
+  String str(buf, sizeof(buf), system_charset_info), *res;
+  const char *command;
+ 
+  res= var->value->val_str(&str);
+  command= res ? res->c_ptr(): 0;
+  if (!command)
+    command= "";
 
   if (var->type == OPT_GLOBAL)
     DBUG_SET_INITIAL(command);
@@ -4307,7 +4335,6 @@ bool sys_var_thd_dbug::update(THD *thd, set_var *var)
       DBUG_PUSH(command);
     }
   }
-#endif
   return 0;
 }
 

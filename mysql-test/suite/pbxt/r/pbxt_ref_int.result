@@ -14,7 +14,7 @@ set foreign_key_checks = 0;
 drop table t1;
 set foreign_key_checks = 1;
 INSERT INTO t2 VALUES(2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Referenced table `t1` not found)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Referenced table `test.t1` not found)
 drop table if exists parent, child, child_child;
 CREATE TABLE parent (
 id INT NOT NULL,
@@ -370,7 +370,7 @@ set foreign_key_checks = 0;
 CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
 set foreign_key_checks = 1;
 insert into t2 values (1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Referenced table `t1` not found)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Referenced table `test.t1` not found)
 set foreign_key_checks = 0;
 insert into t2 values (1);
 CREATE TABLE t1 (s1 INT PRIMARY KEY);
