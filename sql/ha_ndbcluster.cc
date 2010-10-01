@@ -4671,18 +4671,14 @@ int ha_ndbcluster::delete_row(const uchar *record)
 bool ha_ndbcluster::start_bulk_delete()
 {
   DBUG_ENTER("start_bulk_delete");
-  DBUG_RETURN(FALSE);
-}
-
-int ha_ndbcluster::bulk_delete_row(const uchar *record)
-{
-  DBUG_ENTER("bulk_delete_row");
-  DBUG_RETURN(ndb_delete_row(record, FALSE, TRUE));
+  m_is_bulk_delete = true;
+  DBUG_RETURN(0); // Bulk delete used by handler
 }
 
 int ha_ndbcluster::end_bulk_delete()
 {
   DBUG_ENTER("end_bulk_delete");
+  assert(m_is_bulk_delete); // Don't allow end() without start()
   if (m_thd_ndb->m_unsent_bytes &&
       !(table->in_use->options & OPTION_ALLOW_BATCH) &&
       !m_thd_ndb->m_handler)
@@ -4697,6 +4693,7 @@ int ha_ndbcluster::end_bulk_delete()
     }
     m_rows_deleted-= ignore_count;
   }
+  m_is_bulk_delete = false;
   DBUG_RETURN(0);
 }
 
@@ -4706,8 +4703,7 @@ int ha_ndbcluster::end_bulk_delete()
 */
 
 int ha_ndbcluster::ndb_delete_row(const uchar *record,
-                                  bool primary_key_update,
-                                  bool is_bulk_delete)
+                                  bool primary_key_update)
 {
   THD *thd= table->in_use;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -4716,7 +4712,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   const NdbOperation *op;
   uint32 part_id= ~uint32(0);
   int error;
-  bool allow_batch= is_bulk_delete || (thd->options & OPTION_ALLOW_BATCH);
+  bool allow_batch= m_is_bulk_delete || (thd->options & OPTION_ALLOW_BATCH);
   DBUG_ENTER("ndb_delete_row");
   DBUG_ASSERT(trans);
 
@@ -5856,6 +5852,9 @@ int ha_ndbcluster::reset()
   m_rows_to_insert= (ha_rows) 1;
   m_delete_cannot_batch= FALSE;
   m_update_cannot_batch= FALSE;
+
+  assert(m_is_bulk_delete == false);
+  m_is_bulk_delete = false;
 
   DBUG_RETURN(0);
 }
@@ -8693,6 +8692,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_update_cannot_batch(FALSE),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
+  m_is_bulk_delete(false),
   m_blobs_row_total_size(0),
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
