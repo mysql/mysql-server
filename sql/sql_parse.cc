@@ -177,8 +177,7 @@ static bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
   for (TABLE_LIST *table= tables; table; table= table->next_global)
   {
     DBUG_ASSERT(table->db && table->table_name);
-    if (table->updating &&
-        !find_temporary_table(thd, table->db, table->table_name))
+    if (table->updating && !find_temporary_table(thd, table))
       return 1;
   }
   return 0;
@@ -402,6 +401,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
@@ -415,7 +415,6 @@ void init_update_queries(void)
 
   sql_command_flags[SQLCOM_FLUSH]=              CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RESET]=              CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CHECK]=              CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SERVER]=      CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_SERVER]=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_SERVER]=        CF_AUTO_COMMIT_TRANS;
@@ -642,45 +641,6 @@ end:
   return;
 }
 
-
-/**
-  @brief Check access privs for a MERGE table and fix children lock types.
-
-  @param[in]        thd         thread handle
-  @param[in]        db          database name
-  @param[in,out]    table_list  list of child tables (merge_list)
-                                lock_type and optionally db set per table
-
-  @return           status
-    @retval         0           OK
-    @retval         != 0        Error
-
-  @detail
-    This function is used for write access to MERGE tables only
-    (CREATE TABLE, ALTER TABLE ... UNION=(...)). Set TL_WRITE for
-    every child. Set 'db' for every child if not present.
-*/
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
-{
-  int error= 0;
-
-  if (table_list)
-  {
-    /* Check that all tables use the current database */
-    TABLE_LIST *tlist;
-
-    for (tlist= table_list; tlist; tlist= tlist->next_local)
-    {
-      if (!tlist->db || !tlist->db[0])
-        tlist->db= db; /* purecov: inspected */
-    }
-    error= check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                              table_list, FALSE, UINT_MAX, FALSE);
-  }
-  return error;
-}
-#endif
 
 /* This works because items are allocated with sql_alloc() */
 
@@ -6964,10 +6924,16 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
                    &create_table->grant.m_internal,
-                   0, 0) ||
-      check_merge_table_access(thd, create_table->db,
-                               lex->create_info.merge_list.first))
+                   0, 0))
     goto err;
+
+  /* If it is a merge table, check privileges for merge children. */
+  if (lex->create_info.merge_list.first &&
+      check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                         lex->create_info.merge_list.first,
+                         FALSE, UINT_MAX, FALSE))
+    goto err;
+
   if (want_priv != CREATE_TMP_ACL &&
       check_grant(thd, want_priv, create_table, FALSE, 1, FALSE))
     goto err;
