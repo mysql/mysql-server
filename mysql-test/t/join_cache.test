@@ -2076,5 +2076,33 @@ SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 set join_cache_level = default;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # BUG#54359 "Extra rows with join_cache_level=7,8 and two joins
+--echo # --and multi-column index"
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  a int DEFAULT NULL,
+  b varchar(16) DEFAULT NULL,
+  c varchar(16) DEFAULT NULL,
+  INDEX idx (b,a))
+;
+
+INSERT INTO t1 VALUES (4,9,'k','k');
+INSERT INTO t1 VALUES (12,5,'k','k');
+
+set join_cache_level = 8;
+
+EXPLAIN
+SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
+  WHERE s.pk AND s.a  >= t.pk AND  s.b  = t.c;
+
+SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
+  WHERE s.pk AND s.a  >= t.pk AND  s.b  = t.c;
+
+set join_cache_level = default;
+DROP TABLE t1;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

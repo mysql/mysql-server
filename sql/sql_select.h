@@ -2449,7 +2449,8 @@ inline bool optimizer_flag(THD *thd, uint flag)
 void eliminate_tables(JOIN *join);
 
 /* Index Condition Pushdown entry point function */
-void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok);
+void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
+                     bool factor_out);
 
 /****************************************************************************
   Temporary table support for SQL Runtime
