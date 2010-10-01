@@ -478,6 +478,8 @@ int ha_myisammrg::add_children_list(void)
     /* Set the expected table version, to not cause spurious re-prepare. */
     child_l->set_table_ref_id(mrg_child_def->get_child_table_ref_type(),
                               mrg_child_def->get_child_def_version());
+    /* Use the same metadata lock type for children. */
+    child_l->mdl_request.set_type(parent_l->mdl_request.type);
     /* Link TABLE_LIST object into the children list. */
     if (this->children_last_l)
       child_l->prev_global= this->children_last_l;
