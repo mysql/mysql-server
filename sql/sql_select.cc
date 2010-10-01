@@ -7211,8 +7211,6 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
 static bool
 only_eq_ref_tables(JOIN *join,ORDER *order,table_map tables)
 {
-  if (specialflag &  SPECIAL_SAFE_MODE)
-    return 0;			// skip this optimize /* purecov: inspected */
   tables&= ~PSEUDO_TABLE_BITS;
   for (JOIN_TAB **tab=join->map2table ; tables ; tab++, tables>>=1)
   {

@@ -1469,7 +1469,7 @@ static my_bool wait_pidfile(char *pidfile, time_t last_modified,
 			    struct stat *pidfile_status)
 {
   char buff[FN_REFLEN];
-  int error= 1;
+  my_bool error= 1;
   uint count= 0;
   DBUG_ENTER("wait_pidfile");
 

@@ -4409,8 +4409,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
         goto err;
       }
     }
-    share->state.state.data_file_length= share->state.state.data_file_length=
-      sort_param->filepos;
+    share->state.state.data_file_length= sort_param->filepos;
     /* Only whole records */
     share->state.version= (ulong) time((time_t*) 0);
     /*

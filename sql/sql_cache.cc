@@ -740,7 +740,7 @@ inline void Query_cache_query::lock_writing()
   remove it.
 */
 
-my_bool Query_cache_query::try_lock_writing()
+bool Query_cache_query::try_lock_writing()
 {
   DBUG_ENTER("Query_cache_block::try_lock_writing");
   if (rw_trywrlock(&lock)!=0)

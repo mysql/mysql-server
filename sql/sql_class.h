@@ -296,6 +296,9 @@ struct system_variables
     When attempting to access a dynamic variable, if the session version
     is out of date, then the session version is updated and realloced if
     neccessary and bytes copied from global to make up for missing data.
+
+    Note that one should use my_bool instead of bool here, as the variables
+    are used with my_getopt.c
   */
   ulong dynamic_variables_version;
   char* dynamic_variables_ptr;
@@ -1890,7 +1893,7 @@ public:
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
-  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
+  bool       tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
 
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
@@ -2992,10 +2995,10 @@ class user_var_entry
   Item_result type;
   bool unsigned_flag;
 
-  double val_real(my_bool *null_value);
-  longlong val_int(my_bool *null_value) const;
-  String *val_str(my_bool *null_value, String *str, uint decimals);
-  my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
+  double val_real(bool *null_value);
+  longlong val_int(bool *null_value) const;
+  String *val_str(bool *null_value, String *str, uint decimals);
+  my_decimal *val_decimal(bool *null_value, my_decimal *result);
   DTCollation collation;
 };
 

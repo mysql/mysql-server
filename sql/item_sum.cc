@@ -2637,8 +2637,10 @@ void Item_udf_sum::clear()
 
 bool Item_udf_sum::add()
 {
+  my_bool tmp_null_value;
   DBUG_ENTER("Item_udf_sum::add");
-  udf.add(&null_value);
+  udf.add(&tmp_null_value);
+  null_value= tmp_null_value;
   DBUG_RETURN(0);
 }
 
@@ -2674,11 +2676,15 @@ Item *Item_sum_udf_float::copy_or_same(THD* thd)
 
 double Item_sum_udf_float::val_real()
 {
+  my_bool tmp_null_value;
+  double res;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_float::val");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
-  DBUG_RETURN(udf.val(&null_value));
+  res= udf.val(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -2714,12 +2720,16 @@ longlong Item_sum_udf_decimal::val_int()
 
 my_decimal *Item_sum_udf_decimal::val_decimal(my_decimal *dec_buf)
 {
+  my_decimal *res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_decimal::val_decimal");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
                      args[0]->result_type(), arg_count));
 
-  DBUG_RETURN(udf.val_decimal(&null_value, dec_buf));
+  res= udf.val_decimal(&tmp_null_value, dec_buf);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -2736,11 +2746,15 @@ Item *Item_sum_udf_int::copy_or_same(THD* thd)
 
 longlong Item_sum_udf_int::val_int()
 {
+  my_bool tmp_null_value;
+  longlong res;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_int::val_int");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
-  DBUG_RETURN(udf.val_int(&null_value));
+  res= udf.val_int(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 

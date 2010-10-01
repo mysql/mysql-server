@@ -3122,11 +3122,15 @@ void Item_udf_func::print(String *str, enum_query_type query_type)
 
 double Item_func_udf_float::val_real()
 {
+  double res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_float::val");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
-  DBUG_RETURN(udf.val(&null_value));
+  res= udf.val(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -3143,9 +3147,13 @@ String *Item_func_udf_float::val_str(String *str)
 
 longlong Item_func_udf_int::val_int()
 {
+  longlong res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_int::val_int");
-  DBUG_RETURN(udf.val_int(&null_value));
+  res= udf.val_int(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -3162,8 +3170,10 @@ String *Item_func_udf_int::val_str(String *str)
 
 longlong Item_func_udf_decimal::val_int()
 {
-  my_decimal dec_buf, *dec= udf.val_decimal(&null_value, &dec_buf);
+  my_bool tmp_null_value;
   longlong result;
+  my_decimal dec_buf, *dec= udf.val_decimal(&tmp_null_value, &dec_buf);
+  null_value= tmp_null_value;
   if (null_value)
     return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, dec, unsigned_flag, &result);
@@ -3173,8 +3183,10 @@ longlong Item_func_udf_decimal::val_int()
 
 double Item_func_udf_decimal::val_real()
 {
-  my_decimal dec_buf, *dec= udf.val_decimal(&null_value, &dec_buf);
+  my_bool tmp_null_value;
   double result;
+  my_decimal dec_buf, *dec= udf.val_decimal(&tmp_null_value, &dec_buf);
+  null_value= tmp_null_value;
   if (null_value)
     return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, dec, &result);
@@ -3184,18 +3196,24 @@ double Item_func_udf_decimal::val_real()
 
 my_decimal *Item_func_udf_decimal::val_decimal(my_decimal *dec_buf)
 {
+  my_decimal *res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_decimal::val_decimal");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
                      args[0]->result_type(), arg_count));
 
-  DBUG_RETURN(udf.val_decimal(&null_value, dec_buf));
+  res= udf.val_decimal(&tmp_null_value, dec_buf);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
 String *Item_func_udf_decimal::val_str(String *str)
 {
-  my_decimal dec_buf, *dec= udf.val_decimal(&null_value, &dec_buf);
+  my_bool tmp_null_value;
+  my_decimal dec_buf, *dec= udf.val_decimal(&tmp_null_value, &dec_buf);
+  null_value= tmp_null_value;
   if (null_value)
     return 0;
   if (str->length() < DECIMAL_MAX_STR_LENGTH)
@@ -3956,7 +3974,7 @@ Item_func_set_user_var::update_hash(void *ptr, uint length,
 
 /** Get the value of a variable as a double. */
 
-double user_var_entry::val_real(my_bool *null_value)
+double user_var_entry::val_real(bool *null_value)
 {
   if ((*null_value= (value == 0)))
     return 0.0;
@@ -3985,7 +4003,7 @@ double user_var_entry::val_real(my_bool *null_value)
 
 /** Get the value of a variable as an integer. */
 
-longlong user_var_entry::val_int(my_bool *null_value) const
+longlong user_var_entry::val_int(bool *null_value) const
 {
   if ((*null_value= (value == 0)))
     return LL(0);
@@ -4017,7 +4035,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
 
 /** Get the value of a variable as a string. */
 
-String *user_var_entry::val_str(my_bool *null_value, String *str,
+String *user_var_entry::val_str(bool *null_value, String *str,
 				uint decimals)
 {
   if ((*null_value= (value == 0)))
@@ -4050,7 +4068,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
 /** Get the value of a variable as a decimal. */
 
-my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
+my_decimal *user_var_entry::val_decimal(bool *null_value, my_decimal *val)
 {
   if ((*null_value= (value == 0)))
     return 0;

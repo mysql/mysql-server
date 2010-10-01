@@ -2188,7 +2188,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
                                       lex->prepared_stmt_code.length))
         && entry->value)
     {
-      my_bool is_var_null;
+      bool is_var_null;
       var_value= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
       /*
         NULL value of variable checked early as entry->value so here

@@ -30,7 +30,7 @@ class Item_bool_func2;
 
 class Item_subselect :public Item_result_field
 {
-  my_bool value_assigned; /* value already assigned to subselect */
+  bool value_assigned; 		/* value already assigned to subselect */
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
@@ -432,9 +432,9 @@ protected:
 
 class subselect_single_select_engine: public subselect_engine
 {
-  my_bool prepared; /* simple subselect is prepared */
-  my_bool optimized; /* simple subselect is optimized */
-  my_bool executed; /* simple subselect is executed */
+  bool prepared; /* simple subselect is prepared */
+  bool optimized; /* simple subselect is optimized */
+  bool executed; /* simple subselect is executed */
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:

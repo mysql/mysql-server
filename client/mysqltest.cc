@@ -4735,11 +4735,11 @@ char *get_string(char **to_ptr, char **from_ptr,
 }
 
 
-void set_reconnect(MYSQL* mysql, int val)
+void set_reconnect(MYSQL* mysql, my_bool val)
 {
   my_bool reconnect= val;
   DBUG_ENTER("set_reconnect");
-  DBUG_PRINT("info", ("val: %d", val));
+  DBUG_PRINT("info", ("val: %d", (int) val));
 #if MYSQL_VERSION_ID < 50000
   mysql->reconnect= reconnect;
 #else
@@ -8599,15 +8599,15 @@ void free_replace()
 
 
 typedef struct st_replace {
-  my_bool found;
+  int found;
   struct st_replace *next[256];
 } REPLACE;
 
 typedef struct st_replace_found {
-  my_bool found;
-  char *replace_string;
+  int found;
   uint to_offset;
   int from_offset;
+  char *replace_string;
 } REPLACE_STRING;
 
 
@@ -8639,7 +8639,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
     }
 
     /* Found a string that needs to be replaced */
-    DBUG_PRINT("info", ("found: %d, to_offset: %d, from_offset: %d, string: %s",
+    DBUG_PRINT("info", ("found: %d, to_offset: %u, from_offset: %d, string: %s",
                         rep_str->found, rep_str->to_offset,
                         rep_str->from_offset, rep_str->replace_string));
 
