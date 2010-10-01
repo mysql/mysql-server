@@ -515,11 +515,16 @@ int DbugParse(CODE_STATE *cs, const char *control)
     stack->maxdepth= stack->next->maxdepth;
     stack->sub_level= stack->next->sub_level;
     strcpy(stack->name, stack->next->name);
-    stack->out_file= stack->next->out_file;
     stack->prof_file= stack->next->prof_file;
     if (stack->next == &init_settings)
     {
-      /* never share with the global parent - it can change under your feet */
+      /*
+        Never share with the global parent - it can change under your feet.
+
+        Reset out_file to stderr to prevent sharing of trace files between
+        global and session settings.
+      */
+      stack->out_file= stderr;
       stack->functions= ListCopy(init_settings.functions);
       stack->p_functions= ListCopy(init_settings.p_functions);
       stack->keywords= ListCopy(init_settings.keywords);
@@ -527,6 +532,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
     }
     else
     {
+      stack->out_file= stack->next->out_file;
       stack->functions= stack->next->functions;
       stack->p_functions= stack->next->p_functions;
       stack->keywords= stack->next->keywords;
