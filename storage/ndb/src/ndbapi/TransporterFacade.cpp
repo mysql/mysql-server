@@ -918,7 +918,7 @@ TransporterFacade::connected()
 }
 
 void
-TransporterFacade::ReportNodeDead(NodeId tNodeId)
+TransporterFacade::trp_node_status(NodeId tNodeId, Uint32 event)
 {
   DBUG_ENTER("TransporterFacade::ReportNodeDead");
   DBUG_PRINT("enter",("nodeid= %d", tNodeId));
@@ -936,59 +936,10 @@ TransporterFacade::ReportNodeDead(NodeId tNodeId)
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0)
     {
-      clnt->trp_node_status(tNodeId, NS_NODE_FAILED);
+      clnt->trp_node_status(tNodeId, event);
     }
   }
   DBUG_VOID_RETURN;
-}
-
-void
-TransporterFacade::ReportNodeFailureComplete(NodeId tNodeId)
-{
-  /**
-   * When a node fails we must report this to each Ndb object. 
-   * The function that is used for communicating node failures is called.
-   * This is to ensure that the Ndb objects do not think their connections 
-   * are correct after a failure followed by a restart. 
-   * After the restart the node is up again and the Ndb object 
-   * might not have noticed the failure.
-   */
-
-  DBUG_ENTER("TransporterFacade::ReportNodeFailureComplete");
-  DBUG_PRINT("enter",("nodeid= %d", tNodeId));
-  Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++)
-  {
-    trp_client * clnt = m_threads.m_objectExecute[i];
-    if (clnt != 0)
-    {
-      clnt->trp_node_status(tNodeId, NS_NODE_NF_COMPLETE);
-    }
-  }
-  DBUG_VOID_RETURN;
-}
-
-void
-TransporterFacade::ReportNodeAlive(NodeId tNodeId)
-{
-  /**
-   * When a node fails we must report this to each Ndb object. 
-   * The function that is used for communicating node failures is called.
-   * This is to ensure that the Ndb objects do not think there connections 
-   * are correct after a failure
-   * followed by a restart. 
-   * After the restart the node is up again and the Ndb object 
-   * might not have noticed the failure.
-   */
-  Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++)
-  {
-    trp_client * clnt = m_threads.m_objectExecute[i];
-    if (clnt != 0)
-    {
-      clnt->trp_node_status(tNodeId, NS_NODE_ALIVE);
-    }
-  }
 }
 
 int 
