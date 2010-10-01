@@ -911,7 +911,7 @@ TransporterFacade::connected()
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0)
     {
-      clnt->trp_node_status(numberToRef(indexToNumber(i), theOwnId), true, true);
+      clnt->trp_node_status(numberToRef(indexToNumber(i), theOwnId), NS_CONNECTED);
     }
   }
   DBUG_VOID_RETURN;
@@ -936,7 +936,7 @@ TransporterFacade::ReportNodeDead(NodeId tNodeId)
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0)
     {
-      clnt->trp_node_status(tNodeId, false, false);
+      clnt->trp_node_status(tNodeId, NS_NODE_FAILED);
     }
   }
   DBUG_VOID_RETURN;
@@ -962,7 +962,7 @@ TransporterFacade::ReportNodeFailureComplete(NodeId tNodeId)
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0)
     {
-      clnt->trp_node_status(tNodeId, false, true);
+      clnt->trp_node_status(tNodeId, NS_NODE_NF_COMPLETE);
     }
   }
   DBUG_VOID_RETURN;
@@ -986,7 +986,7 @@ TransporterFacade::ReportNodeAlive(NodeId tNodeId)
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0)
     {
-      clnt->trp_node_status(tNodeId, true, false);
+      clnt->trp_node_status(tNodeId, NS_NODE_ALIVE);
     }
   }
 }
@@ -1030,7 +1030,7 @@ TransporterFacade::open(trp_client * clnt, int blockNo)
 #if 1
   if (theOwnId > 0)
   {
-    clnt->trp_node_status(numberToRef(r, theOwnId), true, true);
+    clnt->trp_node_status(numberToRef(r, theOwnId), NS_CONNECTED);
   }
 #endif
   DBUG_RETURN(r);

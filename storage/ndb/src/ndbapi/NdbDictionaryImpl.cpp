@@ -2205,17 +2205,17 @@ NdbDictInterface::execSignal(void* dictImpl,
 }
 
 void
-NdbDictInterface::execNodeStatus(void* dictImpl, Uint32 aNode,
-				 bool alive, bool nfCompleted)
+NdbDictInterface::execNodeStatus(void* dictImpl, Uint32 aNode, Uint32 ns_event)
 {
   NdbDictInterface * tmp = (NdbDictInterface*)dictImpl;
+  NS_Event event = (NS_Event)ns_event;
   
-  if(!alive && !nfCompleted){
-    return;
-  }
-  
-  if (!alive && nfCompleted){
+  switch(event){
+  case NS_NODE_FAILED:
     tmp->m_waiter.nodeFail(aNode);
+    break;
+  default:
+    break;
   }
 }
 
