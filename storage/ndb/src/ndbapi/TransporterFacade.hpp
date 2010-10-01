@@ -116,14 +116,13 @@ public:
   void reportDisconnected(int NodeId);
 
   NodeId get_an_alive_node();
-  void ReportNodeAlive(NodeId nodeId);
-  void ReportNodeDead(NodeId nodeId);
-  void ReportNodeFailureComplete(NodeId nodeId);
+  void trp_node_status(NodeId, Uint32 event);
 
   /**
    * Send signal to each registered object
    */
-  void for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3]);
+  void for_each(trp_client* clnt,
+                const NdbApiSignal* aSignal, const LinearSectionPtr ptr[3]);
   
   void lock_mutex();
   void unlock_mutex();
@@ -234,7 +233,6 @@ private:
   NodeId theStartNodeId;
 
   ClusterMgr* theClusterMgr;
-  ArbitMgr* theArbitMgr;
   
   // Improving the API response time
   int checkCounter;

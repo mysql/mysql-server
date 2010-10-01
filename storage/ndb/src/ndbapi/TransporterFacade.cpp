@@ -293,113 +293,6 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
     }
     return;
   }
-  else if (tRecBlockNo == API_CLUSTERMGR)
-  {
-    /**
-     * The signal was aimed for the Cluster Manager. 
-     * We handle it immediately here.
-     */     
-    ClusterMgr * clusterMgr = theClusterMgr;
-    const Uint32 gsn = header->theVerId_signalNumber;
-    
-    switch (gsn){
-    case GSN_API_REGREQ:
-      clusterMgr->execAPI_REGREQ(theData);
-      break;
-      
-    case GSN_API_REGCONF:
-    {
-      clusterMgr->execAPI_REGCONF(theData);
-      
-      // Distribute signal to all threads/blocks
-      NdbApiSignal tSignal(* header);
-      tSignal.setDataPtr(theData);
-      for_each(&tSignal, ptr);
-      break;
-    }
-    
-    case GSN_API_REGREF:
-      clusterMgr->execAPI_REGREF(theData);
-      break;
-      
-    case GSN_NODE_FAILREP:
-      clusterMgr->execNODE_FAILREP(theData);
-      break;
-      
-    case GSN_NF_COMPLETEREP:
-      clusterMgr->execNF_COMPLETEREP(theData);
-      break;
-      
-    case GSN_ARBIT_STARTREQ:
-      if (theArbitMgr != NULL)
-        theArbitMgr->doStart(theData);
-      break;
-      
-    case GSN_ARBIT_CHOOSEREQ:
-      if (theArbitMgr != NULL)
-        theArbitMgr->doChoose(theData);
-      break;
-      
-    case GSN_ARBIT_STOPORD:
-      if(theArbitMgr != NULL)
-        theArbitMgr->doStop(theData);
-      break;
-      
-    case GSN_ALTER_TABLE_REP:
-    {
-      if (m_globalDictCache == NULL)
-        break;
-      const AlterTableRep* rep = (const AlterTableRep*)theData;
-      m_globalDictCache->lock();
-      m_globalDictCache->
-        alter_table_rep((const char*)ptr[0].p, 
-                        rep->tableId,
-                        rep->tableVersion,
-                        rep->changeType == AlterTableRep::CT_ALTERED);
-      m_globalDictCache->unlock();
-      break;
-    }
-    case GSN_SUB_GCP_COMPLETE_REP:
-    {
-      /**
-       * Report
-       */
-      NdbApiSignal tSignal(* header);
-      tSignal.setDataPtr(theData);
-      for_each(&tSignal, ptr);
-      
-      /**
-       * Reply
-       */
-      {
-        Uint32* send= tSignal.getDataPtrSend();
-        memcpy(send, theData, tSignal.getLength() << 2);
-        CAST_PTR(SubGcpCompleteAck, send)->rep.senderRef = 
-          numberToRef(API_CLUSTERMGR, theOwnId);
-        Uint32 ref= header->theSendersBlockRef;
-        Uint32 aNodeId= refToNode(ref);
-        tSignal.theReceiversBlockNumber= refToBlock(ref);
-        tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
-        sendSignalUnCond(&tSignal, aNodeId);
-      }
-      break;
-    }
-    case GSN_TAKE_OVERTCCONF:
-    {
-      /**
-       * Report
-       */
-      NdbApiSignal tSignal(* header);
-      tSignal.setDataPtr(theData);
-      for_each(&tSignal, ptr);
-      return;
-    }
-    default:
-      break;
-      
-    }
-    return;
-  }
   else if (tRecBlockNo >= MIN_API_FIXED_BLOCK_NO &&
            tRecBlockNo <= MAX_API_FIXED_BLOCK_NO) 
   {
@@ -515,7 +408,6 @@ TransporterFacade::doStop(){
    * and also uses theFacadeInstance to lock/unlock theMutexPtr
    */
   if (theClusterMgr != NULL) theClusterMgr->doStop();
-  if (theArbitMgr != NULL) theArbitMgr->doStop(NULL);
   
   /**
    * Now stop the send and receive threads
@@ -736,7 +628,6 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theOwnId(0),
   theStartNodeId(1),
   theClusterMgr(NULL),
-  theArbitMgr(NULL),
   checkCounter(4),
   currentSendLimit(1),
   theStopReceive(0),
@@ -826,7 +717,7 @@ TransporterFacade::configure(NodeId nodeId,
     DBUG_RETURN(false);
 
   // Configure cluster manager
-  theClusterMgr->configure(conf);
+  theClusterMgr->configure(nodeId, conf);
 
   ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_NODE);
   if(iter.find(CFG_NODE_ID, nodeId))
@@ -836,28 +727,6 @@ TransporterFacade::configure(NodeId nodeId,
   Uint32 total_send_buffer = 0;
   iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
   theTransporterRegistry->allocate_send_buffers(total_send_buffer);
-
-  // Configure arbitrator
-  Uint32 rank = 0;
-  iter.get(CFG_NODE_ARBIT_RANK, &rank);
-  if (rank > 0)
-  {
-    // The arbitrator should be active
-    if (!theArbitMgr)
-      theArbitMgr = new ArbitMgr(* this);
-    theArbitMgr->setRank(rank);
-
-    Uint32 delay = 0;
-    iter.get(CFG_NODE_ARBIT_DELAY, &delay);
-    theArbitMgr->setDelay(delay);
-  }
-  else if (theArbitMgr)
-  {
-    // No arbitrator should be started
-    theArbitMgr->doStop(NULL);
-    delete theArbitMgr;
-    theArbitMgr= NULL;
-  }
 
   Uint32 auto_reconnect=1;
   iter.get(CFG_AUTO_RECONNECT, &auto_reconnect);
@@ -888,13 +757,15 @@ TransporterFacade::configure(NodeId nodeId,
 }
 
 void
-TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
+TransporterFacade::for_each(trp_client* sender,
+                            const NdbApiSignal* aSignal, 
+                            const LinearSectionPtr ptr[3])
 {
   Uint32 sz = m_threads.m_statusNext.size();
   for (Uint32 i = 0; i < sz ; i ++) 
   {
     trp_client * clnt = m_threads.m_objectExecute[i];
-    if (clnt != 0)
+    if (clnt != 0 && clnt != sender)
     {
       clnt->trp_deliver_signal(aSignal, ptr);
     }
@@ -918,7 +789,7 @@ TransporterFacade::connected()
 }
 
 void
-TransporterFacade::ReportNodeDead(NodeId tNodeId)
+TransporterFacade::trp_node_status(NodeId tNodeId, Uint32 event)
 {
   DBUG_ENTER("TransporterFacade::ReportNodeDead");
   DBUG_PRINT("enter",("nodeid= %d", tNodeId));
@@ -936,59 +807,10 @@ TransporterFacade::ReportNodeDead(NodeId tNodeId)
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0)
     {
-      clnt->trp_node_status(tNodeId, NS_NODE_FAILED);
+      clnt->trp_node_status(tNodeId, event);
     }
   }
   DBUG_VOID_RETURN;
-}
-
-void
-TransporterFacade::ReportNodeFailureComplete(NodeId tNodeId)
-{
-  /**
-   * When a node fails we must report this to each Ndb object. 
-   * The function that is used for communicating node failures is called.
-   * This is to ensure that the Ndb objects do not think their connections 
-   * are correct after a failure followed by a restart. 
-   * After the restart the node is up again and the Ndb object 
-   * might not have noticed the failure.
-   */
-
-  DBUG_ENTER("TransporterFacade::ReportNodeFailureComplete");
-  DBUG_PRINT("enter",("nodeid= %d", tNodeId));
-  Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++)
-  {
-    trp_client * clnt = m_threads.m_objectExecute[i];
-    if (clnt != 0)
-    {
-      clnt->trp_node_status(tNodeId, NS_NODE_NF_COMPLETE);
-    }
-  }
-  DBUG_VOID_RETURN;
-}
-
-void
-TransporterFacade::ReportNodeAlive(NodeId tNodeId)
-{
-  /**
-   * When a node fails we must report this to each Ndb object. 
-   * The function that is used for communicating node failures is called.
-   * This is to ensure that the Ndb objects do not think there connections 
-   * are correct after a failure
-   * followed by a restart. 
-   * After the restart the node is up again and the Ndb object 
-   * might not have noticed the failure.
-   */
-  Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++)
-  {
-    trp_client * clnt = m_threads.m_objectExecute[i];
-    if (clnt != 0)
-    {
-      clnt->trp_node_status(tNodeId, NS_NODE_ALIVE);
-    }
-  }
 }
 
 int 
@@ -1042,7 +864,6 @@ TransporterFacade::~TransporterFacade()
 
   NdbMutex_Lock(theMutexPtr);
   delete theClusterMgr;  
-  delete theArbitMgr;
   delete theTransporterRegistry;
   NdbMutex_Unlock(theMutexPtr);
   NdbMutex_Destroy(theMutexPtr);
