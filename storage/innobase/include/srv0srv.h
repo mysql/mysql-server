@@ -227,6 +227,8 @@ extern ulong	srv_thread_sleep_delay;
 extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 
+extern ulint	srv_n_lock_wait_count;
+
 extern ulint	srv_truncated_status_writes;
 
 extern	ulint	srv_mem_pool_size;
