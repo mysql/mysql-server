@@ -111,7 +111,7 @@ LOCK TABLE t1 READ;
 --echo # Third attempt: says that the table does not exist
 --error ER_LOCK_WAIT_TIMEOUT
 ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
---echo # Check table returns the same
+--echo # Check table returns the same (not after fixing bug#56172!)
 CHECK TABLE t1;
 
 --connection con1
