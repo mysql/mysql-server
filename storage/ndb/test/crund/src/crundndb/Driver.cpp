@@ -18,6 +18,9 @@
 #include "hrt_utils.h"
 #include "Operations.hpp"
 
+// global type aliases
+typedef const NdbDictionary::Table* NdbTable;
+
 namespace crund_ndb {
 
 //using namespace std;
@@ -31,18 +34,18 @@ using std::set;
 using utils::Properties;
 
 class Driver {
-    
+
 public:
     /**
      * Creates a Driver instance.
      */
     Driver();
-    
+
     /**
      * Parses the benchmark's command-line arguments.
      */
     void parseArguments(int argc, const char* argv[]);
-    
+
     /**
      * Runs the entire benchmark.
      */
@@ -87,7 +90,7 @@ protected:
      */
     struct Op {
         const string name;
-        
+
         virtual void run(int countA, int countB) const = 0;
         //void (*run)(int countA, int countB);
 
@@ -129,7 +132,7 @@ protected:
      * Reads and initializes the benchmark's properties from a file.
      */
     void initProperties();
-    
+
     /**
      * Prints the benchmark's properties.
      */
@@ -139,12 +142,12 @@ protected:
      * Opens the benchmark's data log file.
      */
     void openLogFile();
-    
+
     /**
      * Closes the benchmark's data log file.
      */
     void closeLogFile();
-    
+
     /**
      * Initializes the benchmark's resources.
      */
@@ -169,7 +172,7 @@ protected:
      * Runs a series of benchmark operations.
      */
     void runOperations(int countA, int countB);
-    
+
     /**
      * Runs a benchmark operation.
      */
@@ -179,7 +182,7 @@ protected:
      * Begins a benchmarked transaction.
      */
     void begin(const string& name);
-    
+
     /**
      * Closes a benchmarked transaction.
      */
@@ -192,7 +195,7 @@ protected:
     void closeConnection();
 
     void initOperations();
-    
+
     template< bool feat > void initOperationsFeat();
 
     void closeOperations();
@@ -208,27 +211,29 @@ protected:
 
     template< bool, bool > struct B0InsOp;
 
-    template< const char** opName,
-              void (crund_ndb::Operations::*OP)(const NdbDictionary::Table*,
-                                                int,int,bool),
-              bool batch >
+    template< const char**,
+              void (crund_ndb::Operations::*)(NdbTable,int,int,bool),
+              bool >
     struct AByPKOp;
 
-    template< const char** opName,
-              void (crund_ndb::Operations::*OP)(const NdbDictionary::Table*,
-                                                int,int,bool),
-              bool batch >
+    template< const char**,
+              void (crund_ndb::Operations::*)(NdbTable,int,int,bool),
+              bool >
     struct B0ByPKOp;
 
-    template< const char** opName,
-              void (crund_ndb::Operations::*OP)(const NdbDictionary::Table*,
-                                                int,int,bool,int),
-              bool batch >
+    template< const char**,
+              void (crund_ndb::Operations::*)(NdbTable,int,int,bool,int),
+              bool >
     struct LengthOp;
 
-    template< const char** opName,
-              void (crund_ndb::Operations::*OP)(int,int,bool),
-              bool forceSend >
+    template< const char**,
+              void (crund_ndb::Operations::*)(NdbTable,int,int,bool,int),
+              bool >
+    struct ZeroLengthOp;
+
+    template< const char**,
+              void (crund_ndb::Operations::*)(int,int,bool),
+              bool >
     struct RelOp;
 };
 
@@ -268,7 +273,7 @@ Driver::run() {
     for (int i = 0; i < warmupRuns; i++) {
         runTests();
     }
-    
+
     // truncate log file, reset log buffers
     cout << endl
          << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
@@ -283,7 +288,7 @@ Driver::run() {
     // hot runs
     for (int i = 0; i < hotRuns; i++) {
         runTests();
-    }    
+    }
 
     // write log buffers
     if (logRealTime) {
@@ -462,7 +467,7 @@ Driver::initProperties() {
         const wstring& s = estr.substr(beg, len - beg);
         exclude.insert(toString(s));
     }
-    
+
     // string properties
     mgmdConnect = toString(props[L"ndb.mgmdConnect"]);
     catalog = toString(props[L"ndb.catalog"]);
@@ -483,11 +488,11 @@ Driver::initProperties() {
 
 void
 Driver::printProperties() {
-    const ios_base::fmtflags f = cout.flags();    
+    const ios_base::fmtflags f = cout.flags();
     // no effect calling manipulator function, not sure why
     //cout << ios_base::boolalpha;
     cout.flags(ios_base::boolalpha);
-    
+
     cout << endl << "main settings:" << endl;
     cout << "logRealTime:                " << logRealTime << endl;
     cout << "logCpuTime:                 " << logCpuTime << endl;
@@ -558,14 +563,14 @@ void
 Driver::runOperations(int countA, int countB) {
     cout << endl
          << "------------------------------------------------------------" << endl;
-    
+
     if (countA > countB) {
         cout << "skipping operations ...     "
              << "[A=" << countA << ", B=" << countB << "]" << endl;
         return;
     }
     cout << "running operations ...      "
-         << "[A=" << countA << ", B=" << countB << "]" << endl;            
+         << "[A=" << countA << ", B=" << countB << "]" << endl;
 
     // log buffers
     if (logRealTime) {
@@ -576,7 +581,7 @@ Driver::runOperations(int countA, int countB) {
         ctimes << "A=" << countA << ", B=" << countB;
         cta = 0L;
     }
-    
+
     // pre-run cleanup
     if (renewConnection) {
         closeOperations();
@@ -638,7 +643,7 @@ Driver::runOp(const Op& op, int countA, int countB) {
         commit(name);
     }
 }
-    
+
 void
 Driver::begin(const string& name) {
     cout << endl;
@@ -717,7 +722,7 @@ Driver::initOperations() {
 
     const bool feat = true;
     initOperationsFeat< !feat >();
-    initOperationsFeat< feat >();    
+    initOperationsFeat< feat >();
 
     cout << " [Op: " << operations.size() << "]" << endl;
 }
@@ -725,111 +730,121 @@ Driver::initOperations() {
 // the operation invocation templates look a bit complex, but they help
 // a lot to factorize code over the operations' parameter signatures
 
-template< bool batch >
+template< bool OB >
 struct Driver::ADelAllOp : Op {
     ADelAllOp() : Op(string("delAllA")
-                     + (batch ? "_batch" : "")) {
+                     + (OB ? "_batch" : "")) {
     }
-            
+
     virtual void run(int countA, int countB) const {
         int count;
-        ops->delByScan(ops->meta->table_A, count, batch);
+        ops->delByScan(ops->meta->table_A, count, OB);
         assert (count == countA);
     }
 };
 
-template< bool batch >
+template< bool OB >
 struct Driver::B0DelAllOp : Op {
     B0DelAllOp() : Op(string("delAllB0")
-                      + (batch ? "_batch" : "")) {
+                      + (OB ? "_batch" : "")) {
     }
-            
+
     virtual void run(int countA, int countB) const {
         int count;
-        ops->delByScan(ops->meta->table_B0, count, batch);
+        ops->delByScan(ops->meta->table_B0, count, OB);
         assert (count == countB);
     }
 };
 
-template< bool setAttrs, bool batch >
+template< bool OSA, bool OB >
 struct Driver::AInsOp : Op {
     AInsOp() : Op(string("insA")
-                  + (setAttrs ? "_attr" : "")
-                  + (batch ? "_batch" : "")) {
+                  + (OSA ? "_attr" : "")
+                  + (OB ? "_batch" : "")) {
     }
-            
+
     virtual void run(int countA, int countB) const {
-        ops->ins(ops->meta->table_A, 1, countA, setAttrs, batch);
+        ops->ins(ops->meta->table_A, 1, countA, OSA, OB);
     }
 };
 
-template< bool setAttrs, bool batch >
+template< bool OSA, bool OB >
 struct Driver::B0InsOp : Op {
     B0InsOp() : Op(string("insB0")
-                   + (setAttrs ? "_attr" : "")
-                   + (batch ? "_batch" : "")) {
+                   + (OSA ? "_attr" : "")
+                   + (OB ? "_batch" : "")) {
     }
-            
+
     virtual void run(int countA, int countB) const {
-        ops->ins(ops->meta->table_B0, 1, countB, setAttrs, batch);
+        ops->ins(ops->meta->table_B0, 1, countB, OSA, OB);
     }
 };
 
-template< const char** opName,
-          void (crund_ndb::Operations::*OP)(const NdbDictionary::Table*,
-                                            int,int,bool),
-          bool batch >
+template< const char** ON,
+          void (crund_ndb::Operations::*OF)(NdbTable,int,int,bool),
+          bool OB >
 struct Driver::AByPKOp : Op {
-    AByPKOp() : Op(string(*opName)
-                   + (batch ? "_batch" : "")) {
+    AByPKOp() : Op(string(*ON)
+                   + (OB ? "_batch" : "")) {
     }
-            
+
     virtual void run(int countA, int countB) const {
-        (ops->*OP)(ops->meta->table_A, 1, countA, batch);
+        (ops->*OF)(ops->meta->table_A, 1, countA, OB);
     }
 };
 
-template< const char** opName,
-          void (crund_ndb::Operations::*OP)(const NdbDictionary::Table*,
-                                            int,int,bool),
-          bool batch >
+template< const char** ON,
+          void (crund_ndb::Operations::*OF)(NdbTable,int,int,bool),
+          bool OB >
 struct Driver::B0ByPKOp : Op {
-    B0ByPKOp() : Op(string(*opName)
-                    + (batch ? "_batch" : "")) {
+    B0ByPKOp() : Op(string(*ON)
+                    + (OB ? "_batch" : "")) {
     }
-            
+
     virtual void run(int countA, int countB) const {
-        (ops->*OP)(ops->meta->table_B0, 1, countB, batch);
+        (ops->*OF)(ops->meta->table_B0, 1, countB, OB);
     }
 };
 
-template< const char** opName,
-          void (crund_ndb::Operations::*OP)(const NdbDictionary::Table*,
-                                            int,int,bool,int),
-          bool batch >
+template< const char** ON,
+          void (crund_ndb::Operations::*OF)(NdbTable,int,int,bool,int),
+          bool OB >
 struct Driver::LengthOp : Op {
     const int length;
 
-    LengthOp(int length) : Op(string(*opName)
+    LengthOp(int length) : Op(string(*ON)
                               + toString(length)
-                              + (batch ? "_batch" : "")),
+                              + (OB ? "_batch" : "")),
                            length(length) {
     }
-            
+
     virtual void run(int countA, int countB) const {
-        (ops->*OP)(ops->meta->table_B0, 1, countB, batch, length);
+        (ops->*OF)(ops->meta->table_B0, 1, countB, OB, length);
     }
 };
 
-template< const char** opName,
-          void (crund_ndb::Operations::*OP)(int x,int y,bool z),
-          bool forceSend >
-struct Driver::RelOp : Op {
-    RelOp() : Op(string(*opName) + (forceSend ? "_forceSend" : "")) {
+template< const char** ON,
+          void (crund_ndb::Operations::*OF)(NdbTable,int,int,bool,int),
+          bool OB >
+struct Driver::ZeroLengthOp : LengthOp< ON, OF, OB > {
+    ZeroLengthOp(int length) : LengthOp< ON, OF, OB >(length) {
     }
-            
+
     virtual void run(int countA, int countB) const {
-        (ops->*OP)(countA, countB, forceSend);
+        (ops->*OF)(ops->meta->table_B0, 1, countB, OB, 0);
+    }
+};
+
+template< const char** ON,
+          void (crund_ndb::Operations::*OF)(int,int,bool),
+          bool OFS >
+struct Driver::RelOp : Op {
+    RelOp() : Op(string(*ON)
+                 + (OFS ? "_forceSend" : "")) {
+    }
+
+    virtual void run(int countA, int countB) const {
+        (ops->*OF)(countA, countB, OFS);
     }
 };
 
@@ -900,9 +915,9 @@ Driver::initOperationsFeat() {
             new LengthOp< &getVarbinary_s, &crund_ndb::Operations::getVarbinary, feat >(length));
 
         operations.push_back(
-            new LengthOp< &clearVarbinary_s, &crund_ndb::Operations::setVarbinary, feat >(0));
+            new ZeroLengthOp< &clearVarbinary_s, &crund_ndb::Operations::setVarbinary, feat >(length));
     }
-    
+
     for (int i = 1; i <= maxVarcharChars; i *= 10) {
         const int length = i;
 
@@ -913,7 +928,7 @@ Driver::initOperationsFeat() {
             new LengthOp< &getVarchar_s, &crund_ndb::Operations::getVarchar, feat >(length));
 
         operations.push_back(
-            new LengthOp< &clearVarchar_s, &crund_ndb::Operations::setVarchar, feat >(0));
+            new ZeroLengthOp< &clearVarchar_s, &crund_ndb::Operations::setVarchar, feat >(length));
     }
 
     operations.push_back(
@@ -1005,17 +1020,17 @@ Driver::parseArguments(int argc, const char* argv[])
             exitUsage();
         }
     }
-    
+
     if (logFileName.empty()) {
         logFileName = "log_";
 
         // format, destination strings (static size)
-        const char format[] = "%Y%m%d_%H%M%S"; 
+        const char format[] = "%Y%m%d_%H%M%S";
         const int size = sizeof("yyyymmdd_HHMMSS");
         char dest[size];
-     
+
         // get time, convert to timeinfo (statically allocated) then to string
-        const time_t now = time(0); 
+        const time_t now = time(0);
         const int nchars = strftime(dest, size, format, localtime(&now));
         assert (nchars == size-1);
         (void)nchars;
@@ -1030,7 +1045,7 @@ int
 main(int argc, const char* argv[])
 {
     TRACE("main()");
-    
+
     Driver d;
     d.parseArguments(argc, argv);
     d.run();

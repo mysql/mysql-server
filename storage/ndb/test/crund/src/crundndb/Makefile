@@ -58,8 +58,13 @@ run.driver:	Driver
 	LD_LIBRARY_PATH=${NDB_LIBDIR} ./Driver \
 	-p ../../crundRun.properties -p ../../crundNdbapi.properties
 
+# for JVM processes, try running valgrind with
+# --smc-check=all --trace-children=yes --leak-check=full --show-reachable=yes
 valgrind.driver:	Driver
-	LD_LIBRARY_PATH=${NDB_LIBDIR} valgrind --leak-check=full --show-reachable=yes ./Driver -p ../../crund.properties
+	LD_LIBRARY_PATH=${NDB_LIBDIR} valgrind \
+	--leak-check=full --show-reachable=yes --trace-children=yes \
+	./Driver \
+	-p ../../crundRun.properties -p ../../crundNdbapi.properties
 
 Driver:	libcrundndb.a
 

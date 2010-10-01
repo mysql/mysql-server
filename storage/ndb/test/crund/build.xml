@@ -277,10 +277,6 @@
   <!-- sets to run with optimizations -->
   <target name="set.run.opt">
     <property name="jvmflags" value="-da ${jvm-args}"/>
-    <java classname="dummy" fork="true" failonerror="true">
-      <jvmarg line="${jvmflags}"/>
-      <jvmarg line="-version"/>
-    </java>
   </target>
 
   <!-- runs all benchmarks -->
@@ -353,7 +349,7 @@
   <!-- runs the benchmark against NDBAPI -->
   <target name="run.ndbapi" depends="set.run,set.paths.ndbapi.run">
     <echo message="using:" />
-    <echo message="  ndb.libdir: ${ndb.libdir}" />
+    <echo message="  ndb.libdir: ${ndb.libdir}:./src/crundndb" />
     <echo message="  classpath.ndbapi.run: ${toString:classpath.ndbapi.run}" />
     <echo message="" />
 
@@ -361,7 +357,6 @@
      fork="true" failonerror="true" classpathref="classpath.ndbapi.run">
       <jvmarg line="${jvmflags}"/>
       <!-- path to NDB client lib, native benchmark backend -->
-      <!--<jvmarg line="-Djava.library.path='${ndb.libdir}:${build}'"/>-->
       <jvmarg line="-Djava.library.path='${ndb.libdir}:./src/crundndb'"/>
       <arg line="-p crundRun.properties"/>
       <arg line="-p crundNdbapi.properties"/>
