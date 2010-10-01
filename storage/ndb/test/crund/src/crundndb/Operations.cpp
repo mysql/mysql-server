@@ -708,7 +708,7 @@ Operations::setVar(const NdbDictionary::Table* table, int attr_cvar,
         //CDBG << "!!! buf[1]=" << toString(buf[1]) << endl;
         //CDBG << "!!! buf[" << toString(slen) << "]=" << toString(buf[slen]) << endl;
     }
-    
+
     beginTransaction();
     for (int i = from; i <= to; i++) {
         // get an insert operation for the table
@@ -797,7 +797,7 @@ Operations::getVar(const NdbDictionary::Table* table, int attr_cvar,
         // move and 0-terminated string
         memmove(s, s + 1, n);
         s[n] = 0;
-        
+
         // check fetched values
         VERIFY(strcmp(s, str) == 0);
     }

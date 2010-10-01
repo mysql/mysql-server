@@ -34,7 +34,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_ndbinit(JNIEnv* env,
     // location of cluster management server (ndb_mgmd)
     // get a native string from the Java string
     const char* mgmd_cstr = env->GetStringUTFChars(mgmd_jstr, NULL);
-    
+
     // initialize the benchmark's resources
     ops = new Operations();
     ops->init(mgmd_cstr);
