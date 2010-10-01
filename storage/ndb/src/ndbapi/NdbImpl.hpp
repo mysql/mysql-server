@@ -29,6 +29,7 @@
 #include "ndb_cluster_connection_impl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "ObjectMap.hpp"
+#include "trp_client.hpp"
 
 template <class T>
 struct Ndb_free_list_t 
@@ -49,7 +50,8 @@ struct Ndb_free_list_t
 /**
  * Private parts of the Ndb object (corresponding to Ndb.hpp in public API)
  */
-class NdbImpl {
+class NdbImpl : public trp_client
+{
 public:
   NdbImpl(Ndb_cluster_connection *, Ndb&);
   ~NdbImpl();
@@ -142,6 +144,13 @@ public:
   Ndb_free_list_t<NdbOperation>  theOpIdleList;  
   Ndb_free_list_t<NdbIndexOperation> theIndexOpIdleList;
   Ndb_free_list_t<NdbTransaction> theConIdleList; 
+
+  /**
+   * trp_client interface
+   */
+  virtual void trp_deliver_signal(const NdbApiSignal*,
+                                  const LinearSectionPtr p[3]);
+  virtual void trp_node_status(Uint32, bool nodeAlive, bool nfComplete);
 };
 
 #ifdef VM_TRACE
