@@ -1997,7 +1997,6 @@ int partition_info::fix_partition_values(THD *thd,
     }
     else if (item_expr->result_type() != INT_RESULT)
     {
-      /* VALUES clause only allowed on partitions, not subpartitions */
       my_error(ER_VALUES_IS_NOT_INT_TYPE_ERROR, MYF(0),
                part_elem->partition_name);
       DBUG_RETURN(TRUE);
