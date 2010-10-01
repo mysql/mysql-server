@@ -6346,3 +6346,7 @@ ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
 ER_FAILED_READ_FROM_PAR_FILE
   eng "Failed to read from the .par file"
   swe "Misslyckades läsa från .par filen"
+
+ER_VALUES_IS_NOT_INT_TYPE_ERROR
+  eng "VALUES value for partition '%-.64s' must have type INT"
+  swe "Värden i VALUES för partition '%-.64s' måste ha typen INT"
