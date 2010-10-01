@@ -121,7 +121,8 @@ public:
   /**
    * Send signal to each registered object
    */
-  void for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3]);
+  void for_each(trp_client* clnt,
+                const NdbApiSignal* aSignal, const LinearSectionPtr ptr[3]);
   
   void lock_mutex();
   void unlock_mutex();

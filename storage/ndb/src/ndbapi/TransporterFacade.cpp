@@ -293,113 +293,6 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
     }
     return;
   }
-  else if (tRecBlockNo == API_CLUSTERMGR)
-  {
-    /**
-     * The signal was aimed for the Cluster Manager. 
-     * We handle it immediately here.
-     */     
-    ClusterMgr * clusterMgr = theClusterMgr;
-    const Uint32 gsn = header->theVerId_signalNumber;
-    
-    switch (gsn){
-    case GSN_API_REGREQ:
-      clusterMgr->execAPI_REGREQ(theData);
-      break;
-      
-    case GSN_API_REGCONF:
-    {
-      clusterMgr->execAPI_REGCONF(theData);
-      
-      // Distribute signal to all threads/blocks
-      NdbApiSignal tSignal(* header);
-      tSignal.setDataPtr(theData);
-      for_each(&tSignal, ptr);
-      break;
-    }
-    
-    case GSN_API_REGREF:
-      clusterMgr->execAPI_REGREF(theData);
-      break;
-      
-    case GSN_NODE_FAILREP:
-      clusterMgr->execNODE_FAILREP(theData);
-      break;
-      
-    case GSN_NF_COMPLETEREP:
-      clusterMgr->execNF_COMPLETEREP(theData);
-      break;
-      
-    case GSN_ARBIT_STARTREQ:
-      if (theArbitMgr != NULL)
-        theArbitMgr->doStart(theData);
-      break;
-      
-    case GSN_ARBIT_CHOOSEREQ:
-      if (theArbitMgr != NULL)
-        theArbitMgr->doChoose(theData);
-      break;
-      
-    case GSN_ARBIT_STOPORD:
-      if(theArbitMgr != NULL)
-        theArbitMgr->doStop(theData);
-      break;
-      
-    case GSN_ALTER_TABLE_REP:
-    {
-      if (m_globalDictCache == NULL)
-        break;
-      const AlterTableRep* rep = (const AlterTableRep*)theData;
-      m_globalDictCache->lock();
-      m_globalDictCache->
-        alter_table_rep((const char*)ptr[0].p, 
-                        rep->tableId,
-                        rep->tableVersion,
-                        rep->changeType == AlterTableRep::CT_ALTERED);
-      m_globalDictCache->unlock();
-      break;
-    }
-    case GSN_SUB_GCP_COMPLETE_REP:
-    {
-      /**
-       * Report
-       */
-      NdbApiSignal tSignal(* header);
-      tSignal.setDataPtr(theData);
-      for_each(&tSignal, ptr);
-      
-      /**
-       * Reply
-       */
-      {
-        Uint32* send= tSignal.getDataPtrSend();
-        memcpy(send, theData, tSignal.getLength() << 2);
-        CAST_PTR(SubGcpCompleteAck, send)->rep.senderRef = 
-          numberToRef(API_CLUSTERMGR, theOwnId);
-        Uint32 ref= header->theSendersBlockRef;
-        Uint32 aNodeId= refToNode(ref);
-        tSignal.theReceiversBlockNumber= refToBlock(ref);
-        tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
-        sendSignalUnCond(&tSignal, aNodeId);
-      }
-      break;
-    }
-    case GSN_TAKE_OVERTCCONF:
-    {
-      /**
-       * Report
-       */
-      NdbApiSignal tSignal(* header);
-      tSignal.setDataPtr(theData);
-      for_each(&tSignal, ptr);
-      return;
-    }
-    default:
-      break;
-      
-    }
-    return;
-  }
   else if (tRecBlockNo >= MIN_API_FIXED_BLOCK_NO &&
            tRecBlockNo <= MAX_API_FIXED_BLOCK_NO) 
   {
@@ -888,13 +781,15 @@ TransporterFacade::configure(NodeId nodeId,
 }
 
 void
-TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
+TransporterFacade::for_each(trp_client* sender,
+                            const NdbApiSignal* aSignal, 
+                            const LinearSectionPtr ptr[3])
 {
   Uint32 sz = m_threads.m_statusNext.size();
   for (Uint32 i = 0; i < sz ; i ++) 
   {
     trp_client * clnt = m_threads.m_objectExecute[i];
-    if (clnt != 0)
+    if (clnt != 0 && clnt != sender)
     {
       clnt->trp_deliver_signal(aSignal, ptr);
     }

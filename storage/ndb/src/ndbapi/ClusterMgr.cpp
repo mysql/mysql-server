@@ -34,6 +34,8 @@
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
+#include <signaldata/AlterTable.hpp>
+#include <signaldata/SumaImpl.hpp>
 
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
@@ -69,6 +71,13 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   clusterMgrThreadMutex = NdbMutex_Create();
   waitForHBCond= NdbCondition_Create();
   m_auto_reconnect = -1;
+
+  int ret = theFacade.open(this, API_CLUSTERMGR);
+  if (unlikely(ret < 0))
+  {
+    ndbout_c("Failed to register ClusterMgr! ret: %d", ret);
+    abort();
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -323,6 +332,111 @@ ClusterMgr::threadMain( ){
   }
 }
 
+void
+ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
+                               const LinearSectionPtr ptr[3])
+{
+  const Uint32 gsn = sig->theVerId_signalNumber;
+  const Uint32 * theData = sig->getDataPtr();
+
+  switch (gsn){
+  case GSN_API_REGREQ:
+    execAPI_REGREQ(theData);
+    break;
+
+  case GSN_API_REGCONF:
+  {
+    execAPI_REGCONF(theData);
+
+    // Distribute signal to all threads/blocks
+    theFacade.for_each(this, sig, ptr);
+    break;
+  }
+
+  case GSN_API_REGREF:
+    execAPI_REGREF(theData);
+    break;
+
+  case GSN_NODE_FAILREP:
+    execNODE_FAILREP(theData);
+    break;
+
+  case GSN_NF_COMPLETEREP:
+    execNF_COMPLETEREP(theData);
+    break;
+
+  case GSN_ARBIT_STARTREQ:
+    if (theFacade.theArbitMgr != NULL)
+      theFacade.theArbitMgr->doStart(theData);
+    break;
+
+  case GSN_ARBIT_CHOOSEREQ:
+    if (theFacade.theArbitMgr != NULL)
+      theFacade.theArbitMgr->doChoose(theData);
+    break;
+
+  case GSN_ARBIT_STOPORD:
+    if(theFacade.theArbitMgr != NULL)
+      theFacade.theArbitMgr->doStop(theData);
+    break;
+
+  case GSN_ALTER_TABLE_REP:
+  {
+    if (theFacade.m_globalDictCache == NULL)
+      break;
+    const AlterTableRep* rep = (const AlterTableRep*)theData;
+    theFacade.m_globalDictCache->lock();
+    theFacade.m_globalDictCache->
+      alter_table_rep((const char*)ptr[0].p,
+                      rep->tableId,
+                      rep->tableVersion,
+                      rep->changeType == AlterTableRep::CT_ALTERED);
+    theFacade.m_globalDictCache->unlock();
+    break;
+  }
+  case GSN_SUB_GCP_COMPLETE_REP:
+  {
+    /**
+     * Report
+     */
+    theFacade.for_each(this, sig, ptr);
+
+    /**
+     * Reply
+     */
+    {
+      BlockReference ownRef = numberToRef(API_CLUSTERMGR, theFacade.ownId());
+      NdbApiSignal tSignal(* sig);
+      Uint32* send= tSignal.getDataPtrSend();
+      memcpy(send, theData, tSignal.getLength() << 2);
+      ((SubGcpCompleteAck*)send)->rep.senderRef = ownRef;
+      Uint32 ref= sig->theSendersBlockRef;
+      Uint32 aNodeId= refToNode(ref);
+      tSignal.theReceiversBlockNumber= refToBlock(ref);
+      tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
+      theFacade.sendSignalUnCond(&tSignal, aNodeId);
+    }
+    break;
+  }
+  case GSN_TAKE_OVERTCCONF:
+  {
+    /**
+     * Report
+     */
+    theFacade.for_each(this, sig, ptr);
+    return;
+  }
+  default:
+    break;
+
+  }
+  return;
+}
+
+void
+ClusterMgr::trp_node_status(Uint32 nodeId, Uint32 event)
+{
+}
 
 ClusterMgr::Node::Node()
   : m_state(NodeState::SL_NOTHING),
