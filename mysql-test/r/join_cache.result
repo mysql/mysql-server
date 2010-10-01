@@ -4823,7 +4823,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer
 set join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -4836,7 +4836,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer
 drop table t1,t2;
 set join_cache_level=default;
 #
@@ -5303,4 +5303,31 @@ NULL
 NULL
 set join_cache_level = default;
 DROP TABLE t1,t2;
+#
+# BUG#54359 "Extra rows with join_cache_level=7,8 and two joins
+# --and multi-column index"
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+a int DEFAULT NULL,
+b varchar(16) DEFAULT NULL,
+c varchar(16) DEFAULT NULL,
+INDEX idx (b,a))
+;
+INSERT INTO t1 VALUES (4,9,'k','k');
+INSERT INTO t1 VALUES (12,5,'k','k');
+set join_cache_level = 8;
+EXPLAIN
+SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
+WHERE s.pk AND s.a  >= t.pk AND  s.b  = t.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	s	ref	idx	idx	19	test.t.c	1	Using index condition(BKA); Using where; Using join buffer
+SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
+WHERE s.pk AND s.a  >= t.pk AND  s.b  = t.c;
+a
+9
+9
+set join_cache_level = default;
+DROP TABLE t1;
 set @@optimizer_switch=@save_optimizer_switch;
