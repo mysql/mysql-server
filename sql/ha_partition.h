@@ -44,6 +44,7 @@ typedef struct st_partition_share
 typedef struct st_ha_data_partition
 {
   ulonglong next_auto_inc_val;                 /**< first non reserved value */
+  pthread_mutex_t LOCK_auto_inc;
   bool auto_inc_initialized;
 } HA_DATA_PARTITION;
 
@@ -948,8 +949,9 @@ private:
     DBUG_ASSERT(table_share->ha_data && !auto_increment_lock);
     if(table_share->tmp_table == NO_TMP_TABLE)
     {
+      HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
       auto_increment_lock= TRUE;
-      pthread_mutex_lock(&table_share->mutex);
+      pthread_mutex_lock(&ha_data->LOCK_auto_inc);
     }
   }
   virtual void unlock_auto_increment()
@@ -962,7 +964,8 @@ private:
     */
     if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
     {
-      pthread_mutex_unlock(&table_share->mutex);
+      HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
+      pthread_mutex_unlock(&ha_data->LOCK_auto_inc);
       auto_increment_lock= FALSE;
     }
   }
