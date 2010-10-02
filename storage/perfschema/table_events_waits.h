@@ -137,7 +137,7 @@ protected:
   void clear_object_columns();
 
   void make_row(bool thread_own_wait, PFS_thread *pfs_thread,
-                PFS_events_waits *wait);
+                volatile PFS_events_waits *wait);
 
   /** Current row. */
   row_events_waits m_row;
