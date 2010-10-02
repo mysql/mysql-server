@@ -5699,7 +5699,6 @@ int ha_partition::extra(enum ha_extra_function operation)
     DBUG_RETURN(prepare_for_rename());
     break;
   case HA_EXTRA_PREPARE_FOR_UPDATE:
-    DBUG_ASSERT(m_extra_cache);
     /*
       Needs to be run on the first partition in the range now, and 
       later in late_extra_cache, when switching to a new partition to scan.
@@ -5707,6 +5706,8 @@ int ha_partition::extra(enum ha_extra_function operation)
     m_extra_prepare_for_update= TRUE;
     if (m_part_spec.start_part != NO_CURRENT_PART_ID)
     {
+      if (!m_extra_cache)
+        m_extra_cache_part_id= m_part_spec.start_part;
       DBUG_ASSERT(m_extra_cache_part_id == m_part_spec.start_part);
       (void) m_file[m_part_spec.start_part]->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
     }
@@ -5978,19 +5979,22 @@ void ha_partition::late_extra_cache(uint partition_id)
 {
   handler *file;
   DBUG_ENTER("ha_partition::late_extra_cache");
-  DBUG_PRINT("info", ("extra_cache %u partid %u size %u", m_extra_cache,
+  DBUG_PRINT("info", ("extra_cache %u prepare %u partid %u size %u",
+                      m_extra_cache, m_extra_prepare_for_update,
                       partition_id, m_extra_cache_size));
 
   if (!m_extra_cache && !m_extra_prepare_for_update)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
-  if (m_extra_cache_size == 0)
-    (void) file->extra(HA_EXTRA_CACHE);
-  else
-    (void) file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size);
+  if (m_extra_cache)
+  {
+    if (m_extra_cache_size == 0)
+      (void) file->extra(HA_EXTRA_CACHE);
+    else
+      (void) file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size);
+  }
   if (m_extra_prepare_for_update)
   {
-    DBUG_ASSERT(m_extra_cache);
     (void) file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
   }
   m_extra_cache_part_id= partition_id;

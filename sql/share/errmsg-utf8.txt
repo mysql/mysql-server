@@ -6342,9 +6342,19 @@ ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 ER_BINLOG_UNSAFE_MIXED_STATEMENT
   eng "Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them."
 
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot modify @@session.sql_log_bin inside a transaction"
+
+ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot change the sql_log_bin inside a stored function or trigger"
+
 ER_FAILED_READ_FROM_PAR_FILE
   eng "Failed to read from the .par file"
   swe "Misslyckades läsa från .par filen"
+
+ER_VALUES_IS_NOT_INT_TYPE_ERROR
+  eng "VALUES value for partition '%-.64s' must have type INT"
+  swe "Värden i VALUES för partition '%-.64s' måste ha typen INT"
 
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
@@ -6353,12 +6363,6 @@ ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 ER_CANNOT_LOAD_FROM_TABLE_V2
   eng "Cannot load from %s.%s. The table is probably corrupted"
   ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
-
-ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
-  eng "Cannot modify @@session.sql_log_bin inside a transaction"
-
-ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
-  eng "Cannot change the sql_log_bin inside a stored function or trigger"
 
 
 ER_MASTER_DELAY_VALUE_OUT_OF_RANGE

@@ -15,7 +15,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 # Handy macro to parse macro arguments
-MACRO(CMAKE_PARSE_ARGUMENTS prefix arg_names option_names)
+MACRO(MYSQL_PARSE_ARGUMENTS prefix arg_names option_names)
   SET(DEFAULT_ARGS)
   FOREACH(arg_name ${arg_names})    
     SET(${prefix}_${arg_name})
