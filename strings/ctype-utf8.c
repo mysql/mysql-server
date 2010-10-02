@@ -4887,7 +4887,13 @@ my_strxfrm_pad_unicode(uchar *str, uchar *strend)
 
 
 /*
-  This function is shared between utf8mb3/utf8mb4/ucs2/utf16/utf32
+  Store sorting weights using 2 bytes per character.
+
+  This function is shared between
+  - utf8mb3_general_ci, utf8_bin, ucs2_general_ci, ucs2_bin
+    which support BMP only (U+0000..U+FFFF).
+  - utf8mb4_general_ci, utf16_general_ci, utf32_general_ci,
+    which map all supplementary characters to weight 0xFFFD.
 */
 size_t
 my_strnxfrm_unicode(CHARSET_INFO *cs,
@@ -4929,6 +4935,88 @@ my_strnxfrm_unicode(CHARSET_INFO *cs,
 }
 
 
+/*
+  Store sorting weights using 3 bytes per character.
+  This function is shared between utf8mb4_bin, utf16_bin, utf32_bin.
+*/
+size_t
+my_strnxfrm_unicode_full_bin(CHARSET_INFO *cs,
+                             uchar *dst, size_t dstlen, uint nweights,
+                             const uchar *src, size_t srclen, uint flags)
+{
+  my_wc_t wc;
+  uchar *dst0= dst;
+  uchar *de= dst + dstlen;
+  const uchar *se = src + srclen;
+
+  LINT_INIT(wc);
+  DBUG_ASSERT(src);
+  DBUG_ASSERT(cs->state & MY_CS_BINSORT);
+
+  for ( ; dst < de && nweights; nweights--)
+  {
+    int res;
+    if ((res= cs->cset->mb_wc(cs, &wc, src, se)) <= 0)
+      break;
+    src+= res;
+    if (cs->mbminlen == 2) /* utf16_bin */
+    {
+      /*
+        Reorder code points to weights as follows:
+        U+0000..U+D7FF    -> [00][00][00]..[00][D7][FF] BMP part #1
+        U+10000..U+10FFFF -> [01][00][00]..[10][FF][FF] Supplementary
+        U+E000..U+FFFF    -> [20][E0][00]..[20][FF][FF] BMP part #2
+      */
+      if (wc >= 0xE000 && wc <= 0xFFFF)
+        wc+= 0x200000;
+    }
+    *dst++= (uchar) (wc >> 16);
+    if (dst < de)
+    {
+      *dst++= (uchar) ((wc >> 8) & 0xFF);
+      if (dst < de)
+        *dst++= (uchar) (wc & 0xFF);
+    }
+  }
+
+  if (flags & MY_STRXFRM_PAD_WITH_SPACE)
+  {
+    for ( ; dst < de && nweights; nweights--)
+    {
+      *dst++= 0x00;
+      if (dst < de)
+      {
+        *dst++= 0x00;
+        if (dst < de)
+          *dst++= 0x20;
+      }
+    }
+  }
+  
+  my_strxfrm_desc_and_reverse(dst0, dst, flags, 0);
+
+  if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
+  {
+    while (dst < de)
+    {
+      *dst++= 0x00;
+      if (dst < de)
+      {
+        *dst++= 0x00;
+        if (dst < de)
+          *dst++= 0x20;
+      }
+    }
+  }
+  return dst - dst0;
+}
+
+
+size_t
+my_strnxfrmlen_unicode_full_bin(CHARSET_INFO *cs, size_t len)
+{
+  return ((len + 3) / cs->mbmaxlen) * 3;
+}
 #endif /* HAVE_UNIDATA */
 
 
@@ -8099,8 +8187,8 @@ static MY_COLLATION_HANDLER my_collation_utf8mb4_bin_handler =
     NULL,		/* init */
     my_strnncoll_mb_bin,
     my_strnncollsp_mb_bin,
-    my_strnxfrm_unicode,
-    my_strnxfrmlen_utf8mb4,
+    my_strnxfrm_unicode_full_bin,
+    my_strnxfrmlen_unicode_full_bin,
     my_like_range_mb,
     my_wildcmp_mb_bin,
     my_strcasecmp_mb_bin,

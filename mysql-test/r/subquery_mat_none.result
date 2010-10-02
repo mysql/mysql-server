@@ -517,404 +517,7 @@ a1	a2
 /******************************************************************************
 * Column types/sizes that affect materialization.
 ******************************************************************************/
-/*
-Test that BLOBs are not materialized (except when arguments of some functions).
-*/
-# restore default
-# force materialization to be always considered
-set @prefix_len = 6;
-set @blob_len = 16;
-set @suffix_len = @blob_len - @prefix_len;
-create table t1_16 (a1 blob(16), a2 blob(16));
-create table t2_16 (b1 blob(16), b2 blob(16));
-create table t3_16 (c1 blob(16), c2 blob(16));
-insert into t1_16 values
-(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
-insert into t1_16 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t1_16 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_16 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t2_16 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_16 values
-(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_16 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t3_16 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t3_16 values
-(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_16 values
-(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select b1 from t2_16 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`))))
-select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select b1 from t2_16 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`))))
-select left(a1,7), left(a2,7)
-from t1_16
-where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = substr(`test`.`t2_16`.`b1`,1,16)))))
-select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select group_concat(b1) from t2_16 group by b2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
-select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select group_concat(b1) from t2_16 group by b2);
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-set @@group_concat_max_len = 256;
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select group_concat(b1) from t2_16 group by b2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
-select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select group_concat(b1) from t2_16 group by b2);
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended
-select * from t1
-where concat(a1,'x') IN
-(select left(a1,8) from t1_16
-where (a1, a2) IN
-(select t2_16.b1, t2_16.b2 from t2_16, t2
-where t2.b2 = substring(t2_16.b2,1,6) and
-t2.b1 IN (select c1 from t3 where c2 > '0')));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-3	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
-4	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(concat(`test`.`t1`.`a1`,'x'),<exists>(select 1 from `test`.`t1_16` where (<in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` join `test`.`t2` where ((`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and <in_optimizer>(`test`.`t2`.`b1`,<exists>(select 1 from `test`.`t3` where ((`test`.`t3`.`c2` > '0') and (<cache>(`test`.`t2`.`b1`) = `test`.`t3`.`c1`)))) and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`)))) and (<cache>(concat(`test`.`t1`.`a1`,'x')) = left(`test`.`t1_16`.`a1`,8)))))
-drop table t1_16, t2_16, t3_16;
-set @blob_len = 512;
-set @suffix_len = @blob_len - @prefix_len;
-create table t1_512 (a1 blob(512), a2 blob(512));
-create table t2_512 (b1 blob(512), b2 blob(512));
-create table t3_512 (c1 blob(512), c2 blob(512));
-insert into t1_512 values
-(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
-insert into t1_512 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t1_512 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_512 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t2_512 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_512 values
-(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_512 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t3_512 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t3_512 values
-(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_512 values
-(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select b1 from t2_512 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select 1 from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = `test`.`t2_512`.`b1`))))
-select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select b1 from t2_512 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>((`test`.`t1_512`.`a1`,`test`.`t1_512`.`a2`),<exists>(select `test`.`t2_512`.`b1`,`test`.`t2_512`.`b2` from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = `test`.`t2_512`.`b1`) and (<cache>(`test`.`t1_512`.`a2`) = `test`.`t2_512`.`b2`))))
-select left(a1,7), left(a2,7)
-from t1_512
-where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select 1 from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = substr(`test`.`t2_512`.`b1`,1,512)))))
-select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select group_concat(b1) from t2_512 group by b2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
-select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select group_concat(b1) from t2_512 group by b2);
-left(a1,7)	left(a2,7)
-set @@group_concat_max_len = 256;
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select group_concat(b1) from t2_512 group by b2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
-select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select group_concat(b1) from t2_512 group by b2);
-left(a1,7)	left(a2,7)
-drop table t1_512, t2_512, t3_512;
-set @blob_len = 1024;
-set @suffix_len = @blob_len - @prefix_len;
-create table t1_1024 (a1 blob(1024), a2 blob(1024));
-create table t2_1024 (b1 blob(1024), b2 blob(1024));
-create table t3_1024 (c1 blob(1024), c2 blob(1024));
-insert into t1_1024 values
-(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
-insert into t1_1024 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t1_1024 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_1024 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t2_1024 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_1024 values
-(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_1024 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t3_1024 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t3_1024 values
-(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_1024 values
-(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select b1 from t2_1024 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select 1 from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = `test`.`t2_1024`.`b1`))))
-select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select b1 from t2_1024 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>((`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a2`),<exists>(select `test`.`t2_1024`.`b1`,`test`.`t2_1024`.`b2` from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = `test`.`t2_1024`.`b1`) and (<cache>(`test`.`t1_1024`.`a2`) = `test`.`t2_1024`.`b2`))))
-select left(a1,7), left(a2,7)
-from t1_1024
-where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select 1 from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = substr(`test`.`t2_1024`.`b1`,1,1024)))))
-select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select group_concat(b1) from t2_1024 group by b2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
-select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select group_concat(b1) from t2_1024 group by b2);
-left(a1,7)	left(a2,7)
-set @@group_concat_max_len = 256;
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select group_concat(b1) from t2_1024 group by b2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
-select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select group_concat(b1) from t2_1024 group by b2);
-left(a1,7)	left(a2,7)
-drop table t1_1024, t2_1024, t3_1024;
-set @blob_len = 1025;
-set @suffix_len = @blob_len - @prefix_len;
-create table t1_1025 (a1 blob(1025), a2 blob(1025));
-create table t2_1025 (b1 blob(1025), b2 blob(1025));
-create table t3_1025 (c1 blob(1025), c2 blob(1025));
-insert into t1_1025 values
-(concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
-insert into t1_1025 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t1_1025 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_1025 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t2_1025 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_1025 values
-(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_1025 values
-(concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t3_1025 values
-(concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t3_1025 values
-(concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_1025 values
-(concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select b1 from t2_1025 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select 1 from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = `test`.`t2_1025`.`b1`))))
-select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select b1 from t2_1025 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>((`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a2`),<exists>(select `test`.`t2_1025`.`b1`,`test`.`t2_1025`.`b2` from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = `test`.`t2_1025`.`b1`) and (<cache>(`test`.`t1_1025`.`a2`) = `test`.`t2_1025`.`b2`))))
-select left(a1,7), left(a2,7)
-from t1_1025
-where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select 1 from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = substr(`test`.`t2_1025`.`b1`,1,1025)))))
-select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
-left(a1,7)	left(a2,7)
-1 - 01x	2 - 01x
-1 - 02x	2 - 02x
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select group_concat(b1) from t2_1025 group by b2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
-select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select group_concat(b1) from t2_1025 group by b2);
-left(a1,7)	left(a2,7)
-set @@group_concat_max_len = 256;
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select group_concat(b1) from t2_1025 group by b2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
-select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select group_concat(b1) from t2_1025 group by b2);
-left(a1,7)	left(a2,7)
-drop table t1_1025, t2_1025, t3_1025;
+# test for BIT fields
 create table t1bit (a1 bit(3), a2 bit(3));
 create table t2bit (b1 bit(3), b2 bit(3));
 insert into t1bit values (b'000', b'100');
@@ -1354,6 +957,35 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 # Cleanup for BUG#46680
 #
 DROP TABLE IF EXISTS t1,t2,t3,empty1;
+#
+# BUG#52344 - Subquery materialization: 
+#  	     Assertion if subquery in on-clause of outer join
+#
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (10);
+CREATE TABLE t2 (j INTEGER);
+INSERT INTO t2 VALUES (5);
+CREATE TABLE t3 (k INTEGER);
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+i
+10
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+i
+10
+DROP TABLE t1, t2, t3;
+# End BUG#52344
 CREATE TABLE t1 (
 pk INTEGER AUTO_INCREMENT,
 col_int_nokey INTEGER,
@@ -1444,4 +1076,24 @@ IN (SELECT t2.c FROM (t2 JOIN t3));
 COUNT( i )	i
 DROP TABLE t1,t2,t3;
 # End BUG#54511
+#
+# BUG#56367 - Assertion exec_method != EXEC_MATERIALIZATION...
+#             on subquery in FROM
+#
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+explain SELECT a FROM (
+SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
+) table1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT a FROM (
+SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
+) table1;
+a
+DROP TABLE t1, t2;
+# End BUG#56367
 set optimizer_switch=default;
