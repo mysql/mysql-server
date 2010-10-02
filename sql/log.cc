@@ -5288,11 +5288,8 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
                                            const struct timespec *timeout)
 {
   int ret= 0;
-  const char* old_msg = thd->proc_info;
   DBUG_ENTER("wait_for_update_bin_log");
-  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           "Master has sent all binlog to slave; "
-                           "waiting for binlog to be updated");
+
   if (!timeout)
     mysql_cond_wait(&update_cond, &LOCK_log);
   else
