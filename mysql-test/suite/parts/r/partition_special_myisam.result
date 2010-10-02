@@ -214,7 +214,7 @@ SET lock_wait_timeout = 2;
 ALTER TABLE t1 COALESCE PARTITION 2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Connection 3 tries to load into the table:
-LOAD DATA LOCAL INFILE '/tmp/load.in' INTO TABLE t1 (f);
+LOAD DATA INFILE 'load.in' INTO TABLE t1 (f);
 # Connection 1 commits the transaction
 COMMIT;
 # Connection 3...

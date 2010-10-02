@@ -153,7 +153,7 @@ int handle_options(int *argc, char ***argv,
 		   const struct my_option *longopts,
                    my_get_one_option get_one_option)
 {
-  uint opt_found, argvpos= 0, length;
+  uint UNINIT_VAR(opt_found), argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
@@ -163,7 +163,6 @@ int handle_options(int *argc, char ***argv,
   int error, i;
   my_bool is_cmdline_arg= 1;
 
-  LINT_INIT(opt_found);
   /* handle_options() assumes arg0 (program name) always exists */
   DBUG_ASSERT(argc && *argc >= 1);
   DBUG_ASSERT(argv && *argv);
@@ -188,6 +187,7 @@ int handle_options(int *argc, char ***argv,
   {
     char **first= pos;
     char *cur_arg= *pos;
+    opt_found= 0;
     if (!is_cmdline_arg && (cur_arg == args_separator))
     {
       is_cmdline_arg= 1;

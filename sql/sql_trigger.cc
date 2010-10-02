@@ -458,7 +458,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   DBUG_ASSERT(tables->next_global == 0);
 
   /* We do not allow creation of triggers on temporary tables. */
-  if (create && find_temporary_table(thd, tables->db, tables->table_name))
+  if (create && find_temporary_table(thd, tables))
   {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
     goto end;
@@ -1874,6 +1874,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *old_db_name,
 
   @param[in,out] thd Thread context
   @param[in] db Old database of subject table
+  @param[in] old_alias Old alias of subject table
   @param[in] old_table Old name of subject table
   @param[in] new_db New database for subject table
   @param[in] new_table New name of subject table
@@ -1890,6 +1891,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *old_db_name,
 */
 
 bool Table_triggers_list::change_table_name(THD *thd, const char *db,
+                                            const char *old_alias,
                                             const char *old_table,
                                             const char *new_db,
                                             const char *new_table)
@@ -1911,7 +1913,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
                                              MDL_EXCLUSIVE));
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
-              my_strcasecmp(table_alias_charset, old_table, new_table));
+              my_strcasecmp(table_alias_charset, old_alias, new_table));
 
   if (Table_triggers_list::check_n_load(thd, db, old_table, &table, TRUE))
   {
@@ -1920,7 +1922,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   }
   if (table.triggers)
   {
-    LEX_STRING old_table_name= { (char *) old_table, strlen(old_table) };
+    LEX_STRING old_table_name= { (char *) old_alias, strlen(old_alias) };
     LEX_STRING new_table_name= { (char *) new_table, strlen(new_table) };
     /*
       Since triggers should be in the same schema as their subject tables
@@ -2006,6 +2008,7 @@ bool Table_triggers_list::process_triggers(THD *thd,
   bool err_status;
   Sub_statement_state statement_state;
   sp_head *sp_trigger= bodies[event][time_type];
+  SELECT_LEX *save_current_select;
 
   if (sp_trigger == NULL)
     return FALSE;
@@ -2029,11 +2032,19 @@ bool Table_triggers_list::process_triggers(THD *thd,
 
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
 
+  /*
+    Reset current_select before call execute_trigger() and
+    restore it after return from one. This way error is set
+    in case of failure during trigger execution.
+  */
+  save_current_select= thd->lex->current_select;
+  thd->lex->current_select= NULL;
   err_status=
     sp_trigger->execute_trigger(thd,
                                 &trigger_table->s->db,
                                 &trigger_table->s->table_name,
                                 &subject_table_grants[event][time_type]);
+  thd->lex->current_select= save_current_select;
 
   thd->restore_sub_statement_state(&statement_state);
 
