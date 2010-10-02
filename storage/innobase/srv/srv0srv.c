@@ -424,6 +424,7 @@ UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
 UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
 UNIV_INTERN ulint		srv_n_lock_max_wait_time	= 0;
 
+UNIV_INTERN ulint		srv_truncated_status_writes	= 0;
 
 /*
   Set the following to 0 if you want InnoDB to write messages on
@@ -1592,6 +1593,18 @@ srv_suspend_mysql_thread(
 		row_mysql_unfreeze_data_dictionary(trx);
 		break;
 	case RW_X_LATCH:
+		/* There should never be a lock wait when the
+		dictionary latch is reserved in X mode.  Dictionary
+		transactions should only acquire locks on dictionary
+		tables, not other tables. All access to dictionary
+		tables should be covered by dictionary
+		transactions. */
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Error: dict X latch held in "
+		      "srv_suspend_mysql_thread\n", stderr);
+		/* This should never occur. This incorrect handling
+		was added in the early development of
+		ha_innobase::add_index() in InnoDB Plugin 1.0. */
 		/* Release fast index creation latch */
 		row_mysql_unlock_data_dictionary(trx);
 		break;
@@ -1613,6 +1626,9 @@ srv_suspend_mysql_thread(
 		row_mysql_freeze_data_dictionary(trx);
 		break;
 	case RW_X_LATCH:
+		/* This should never occur. This incorrect handling
+		was added in the early development of
+		ha_innobase::add_index() in InnoDB Plugin 1.0. */
 		row_mysql_lock_data_dictionary(trx);
 		break;
 	}
@@ -2017,6 +2033,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -2622,7 +2639,9 @@ loop:
 	when there is database activity */
 
 	srv_last_log_flush_time = time(NULL);
-	next_itr_time = ut_time_ms();
+
+	/* Sleep for 1 second on entrying the for loop below the first time. */
+	next_itr_time = ut_time_ms() + 1000;
 
 	for (i = 0; i < 10; i++) {
 		ulint	cur_time = ut_time_ms();

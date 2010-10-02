@@ -208,8 +208,8 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   ha_create_table(thd, share->normalized_path.str, share->db.str,
                   share->table_name.str, &create_info, 1);
 
-  if (open_temporary_table(thd, share->path.str, share->db.str,
-                           share->table_name.str, 1))
+  if (open_table_uncached(thd, share->path.str, share->db.str,
+                          share->table_name.str, TRUE))
   {
     error= FALSE;
     thd->thread_specific_used= TRUE;

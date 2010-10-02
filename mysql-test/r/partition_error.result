@@ -1,4 +1,125 @@
-drop table if exists t1;
+drop table if exists t1, t2;
+#
+# Bug#50036: Inconsistent errors when using TIMESTAMP
+#            columns/expressions
+# 1. correct and appropriate errors in light of
+#    the fix for BUG#42849:
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE (TO_DAYS(c))
+(PARTITION p0 VALUES LESS THAN (10000),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t2 (c TIMESTAMP);
+ALTER TABLE t2
+PARTITION BY RANGE (TO_DAYS(c))
+(PARTITION p0 VALUES LESS THAN (10000),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE COLUMNS(c)
+(PARTITION p0 VALUES LESS THAN ('2000-01-01 00:00:00'),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: Field 'c' is of a not allowed type for this type of partitioning
+ALTER TABLE t2 PARTITION BY RANGE COLUMNS(c)
+(PARTITION p0 VALUES LESS THAN ('2000-01-01 00:00:00'),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: Field 'c' is of a not allowed type for this type of partitioning
+DROP TABLE t2;
+# 2. These errors where questionable before the fix:
+# VALUES clause are checked first, clearified the error message.
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE (c)
+(PARTITION p0 VALUES LESS THAN ('2000-01-01 00:00:00'),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: VALUES value for partition 'p0' must have type INT
+# TIMESTAMP is not INT (e.g. UNIX_TIMESTAMP).
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE (UNIX_TIMESTAMP(c))
+(PARTITION p0 VALUES LESS THAN ('2000-01-01 00:00:00'),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: VALUES value for partition 'p0' must have type INT
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE (UNIX_TIMESTAMP(c))
+(PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP('2000-01-01 00:00:00')),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+DROP TABLE t1;
+# Changed error from ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY HASH (c) PARTITIONS 4;
+ERROR HY000: Field 'c' is of a not allowed type for this type of partitioning
+# Added test with existing TIMESTAMP partitioning (when it was allowed).
+CREATE TABLE t1 (a TIMESTAMP)
+PARTITION BY HASH (UNIX_TIMESTAMP(a));
+INSERT INTO t1 VALUES ('2000-01-02 03:04:05');
+SELECT * FROM t1;
+a
+2000-01-02 03:04:05
+FLUSH TABLES;
+# replacing t1.frm with TO_DAYS(a) which was allowed earlier.
+# Disable warnings, since the result would differ when running with
+# --ps-protocol (only for the 'SELECT * FROM t1' statement).
+SELECT * FROM t1;
+a
+2000-01-02 03:04:05
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (TO_DAYS(a)) */
+INSERT INTO t1 VALUES ('2001-02-03 04:05:06');
+SELECT * FROM t1;
+a
+2000-01-02 03:04:05
+2001-02-03 04:05:06
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+Warnings:
+Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+ALTER TABLE t1
+PARTITION BY RANGE (TO_DAYS(a))
+(PARTITION p0 VALUES LESS THAN (10000),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (TO_DAYS(a))
+PARTITIONS 3 */
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (TO_DAYS(a))
+PARTITIONS 3 */
+Warnings:
+Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+DROP TABLE t2;
+CREATE TABLE t2 SELECT * FROM t1;
+DROP TABLE t2;
+ALTER TABLE t1 PARTITION BY HASH (UNIX_TIMESTAMP(a));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a)) */
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
+PARTITIONS 3 */
+SELECT * FROM t1;
+a
+2000-01-02 03:04:05
+2001-02-03 04:05:06
+DROP TABLE t1;
 #
 # Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
 #
@@ -497,7 +618,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than (4.0) tablespace ts1,
 partition x2 values less than (8) tablespace ts2);
-ERROR HY000: VALUES value must be of same type as partition function
+ERROR HY000: VALUES value for partition 'x1' must have type INT
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -736,7 +857,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4.0, 12+8),
 partition x2 values in (3, 21));
-ERROR HY000: VALUES value must be of same type as partition function
+ERROR HY000: VALUES value for partition 'x1' must have type INT
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -796,12 +917,12 @@ CREATE TABLE new (a TIMESTAMP NOT NULL PRIMARY KEY)
 PARTITION BY RANGE (a) (
 PARTITION p VALUES LESS THAN (20080819),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
-ERROR HY000: The PARTITION function returns the wrong type
+ERROR HY000: Field 'a' is of a not allowed type for this type of partitioning
 ALTER TABLE old
 PARTITION BY RANGE (a) (
 PARTITION p VALUES LESS THAN (20080819),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
-ERROR HY000: The PARTITION function returns the wrong type
+ERROR HY000: Field 'a' is of a not allowed type for this type of partitioning
 CREATE TABLE new (a TIMESTAMP NOT NULL PRIMARY KEY)
 PARTITION BY RANGE (a+0) (
 PARTITION p VALUES LESS THAN (20080819),
@@ -1075,4 +1196,14 @@ PARTITION p VALUES LESS THAN (1219089600),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
 ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 DROP TABLE old;
+#
+# Bug #56709: Memory leaks at running the 5.1 test suite
+# 
+CREATE TABLE t1 (a TIMESTAMP NOT NULL PRIMARY KEY);
+ALTER TABLE t1
+PARTITION BY RANGE (EXTRACT(DAY FROM a)) (
+PARTITION p VALUES LESS THAN (18),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+DROP TABLE t1;
 End of 5.1 tests

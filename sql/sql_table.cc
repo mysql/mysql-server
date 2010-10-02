@@ -22,7 +22,7 @@
 #include "sql_rename.h" // do_rename
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_cache.h"                          // query_cache_*
-#include "sql_base.h"   // open_temporary_table, lock_table_names
+#include "sql_base.h"   // open_table_uncached, lock_table_names
 #include "lock.h"       // wait_if_global_read_lock
                         // start_waiting_global_read_lock,
                         // mysql_unlock_tables
@@ -1725,8 +1725,6 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                   CHF_DELETE_FLAG, NULL) ||
         deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos) ||
         (sync_ddl_log(), FALSE) ||
-#endif
-#ifdef WITH_PARTITION_STORAGE_ENGINE
         mysql_file_rename(key_file_frm,
                           shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->ha_create_handler_files(path, shadow_path,
@@ -2008,7 +2006,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       for (table= tables; table; table= table->next_local)
         if (table->open_type != OT_BASE_ONLY &&
-	    find_temporary_table(thd, table->db, table->table_name))
+	    find_temporary_table(thd, table))
         {
           /*
             A temporary table.
@@ -3536,6 +3534,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
       if (!((*db_options) & HA_OPTION_NO_PACK_KEYS) &&
+          !((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
 	  (length >= KEY_DEFAULT_PACK_LENGTH &&
 	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
@@ -4224,9 +4223,14 @@ bool mysql_create_table_no_lock(THD *thd,
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    TABLE *table= NULL;
-    /* Open table and put in temporary table list */
-    if (!(table= open_temporary_table(thd, path, db, table_name, 1)))
+    /*
+      Open a table (skipping table cache) and add it into
+      THD::temporary_tables list.
+    */
+
+    TABLE *table= open_table_uncached(thd, path, db, table_name, TRUE);
+
+    if (!table)
     {
       (void) rm_temporary_table(create_info->db_type, path);
       goto err;
@@ -5599,7 +5603,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   handlerton *old_db_type, *new_db_type, *save_old_db_type;
   enum_alter_table_change_level need_copy_table= ALTER_TABLE_METADATA_ONLY;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  uint fast_alter_partition= 0;
+  TABLE *table_for_fast_alter_partition= NULL;
   bool partition_changed= FALSE;
 #endif
   bool need_lock_for_indexes= TRUE;
@@ -5913,7 +5917,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         *fn_ext(new_name)=0;
         if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias, 0))
           error= -1;
-        else if (Table_triggers_list::change_table_name(thd, db, table_name,
+        else if (Table_triggers_list::change_table_name(thd, db,
+                                                        alias, table_name,
                                                         new_db, new_alias))
         {
           (void) mysql_rename_table(old_db_type, new_db, new_alias, db,
@@ -5968,7 +5973,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (prep_alter_part_table(thd, table, alter_info, create_info, old_db_type,
-                            &partition_changed, &fast_alter_partition))
+                            &partition_changed,
+                            db, table_name, path,
+                            &table_for_fast_alter_partition))
     goto err;
 #endif
   /*
@@ -6201,12 +6208,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->frm_only= 1;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (fast_alter_partition)
+  if (table_for_fast_alter_partition)
   {
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
                                            db, table_name,
-                                           fast_alter_partition));
+                                           table_for_fast_alter_partition));
   }
 #endif
 
@@ -6301,8 +6308,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       /* table is a normal table: Create temporary table in same directory */
       build_table_filename(path, sizeof(path) - 1, new_db, tmp_name, "",
                            FN_IS_TMP);
-      /* Open our intermediate table */
-      new_table= open_temporary_table(thd, path, new_db, tmp_name, 1);
+      /* Open our intermediate table. */
+      new_table= open_table_uncached(thd, path, new_db, tmp_name, TRUE);
     }
     if (!new_table)
       goto err_new_table_cleanup;
@@ -6550,7 +6557,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
            (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
             mysql_rename_table(save_old_db_type, db, table_name, new_db,
                                new_alias, NO_FRM_RENAME)) &&
-           Table_triggers_list::change_table_name(thd, db, table_name,
+           Table_triggers_list::change_table_name(thd, db, alias, table_name,
                                                   new_db, new_alias)))
   {
     /* Try to get everything back. */
@@ -6642,7 +6649,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     char path[FN_REFLEN];
     TABLE *t_table;
     build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
-    t_table= open_temporary_table(thd, path, new_db, tmp_name, 0);
+    t_table= open_table_uncached(thd, path, new_db, tmp_name, FALSE);
     if (t_table)
     {
       intern_close_table(t_table);
@@ -6686,6 +6693,11 @@ err_new_table_cleanup:
                           create_info->frm_only ? FN_IS_TMP | FRM_ONLY : FN_IS_TMP);
 
 err:
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* If prep_alter_part_table created an intermediate table, destroy it. */
+  if (table_for_fast_alter_partition)
+    close_temporary(table_for_fast_alter_partition, 1, 0);
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /*
     No default value was provided for a DATE/DATETIME field, the
     current sql_mode doesn't allow the '0000-00-00' value and

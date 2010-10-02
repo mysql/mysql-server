@@ -1523,6 +1523,15 @@ JOIN::optimize()
     if (order)
     {
       /*
+        Do we need a temporary table due to the ORDER BY not being equal to
+        the GROUP BY? The call to test_if_skip_sort_order above tests for the
+        GROUP BY clause only and hence is not valid in this case. So the
+        estimated number of rows to be read from the first table is not valid.
+        We clear it here so that it doesn't show up in EXPLAIN.
+       */
+      if (need_tmp && (select_options & SELECT_DESCRIBE) != 0)
+        join_tab[const_tables].limit= 0;
+      /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
       */
@@ -16704,7 +16713,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (tab->select && tab->select->quick)
           examined_rows= tab->select->quick->records;
         else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-          examined_rows= tab->limit ? tab->limit : tab->table->file->records();
+        {
+          if (tab->limit)
+            examined_rows= tab->limit;
+          else
+          {
+            tab->table->file->info(HA_STATUS_VARIABLE);
+            examined_rows= tab->table->file->stats.records;
+          }
+        }
         else
           examined_rows=(ha_rows)join->best_positions[i].records_read; 
  
