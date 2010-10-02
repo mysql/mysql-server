@@ -102,8 +102,6 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::GetValueSpec,
                                c_m_n_n_NdbOperation_GetValueSpecArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::OperationOptions,
                                c_m_n_n_NdbOperation_OperationOptions)
-JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::OperationOptions,
-                               c_m_n_n_NdbOperation_OperationOptionsArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::SetValueSpec,
                                c_m_n_n_NdbOperation_SetValueSpec)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::SetValueSpec,
@@ -118,8 +116,6 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(NdbScanOperation,
                                c_m_n_n_NdbScanOperation)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbScanOperation::ScanOptions,
                                c_m_n_n_NdbScanOperation_ScanOptions)
-JTIE_DEFINE_PEER_CLASS_MAPPING(NdbScanOperation::ScanOptions,
-                               c_m_n_n_NdbScanOperation_ScanOptionsArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbTransaction,
                                c_m_n_n_NdbTransaction)
 JTIE_DEFINE_PEER_CLASS_MAPPING(Ndb::Key_part_ptr,
@@ -8229,46 +8225,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptions_delete(JNIEnv *
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsArray.h"
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsArray
- * Method:    create
- * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsArray;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_create(JNIEnv * env, jclass cls, jint p0)
-{
-    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_create(JNIEnv *, jclass, jint)");
-    return gcreateArray< ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r, ttrait_int32 >(env, cls, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsArray
- * Method:    delete
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsArray;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_delete(JNIEnv * env, jclass cls, jobject p0)
-{
-    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_delete(JNIEnv *, jclass, jobject)");
-    gdeleteArray< ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r >(env, cls, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsArray
- * Method:    at
- * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptions;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_at(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_NdbOperation_OperationOptions_r, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r, ttrait_int32 >(env, NULL, obj, p0);
-}
-
-// ---------------------------------------------------------------------------
-
 //#include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpec.h"
 
 /*
@@ -9238,48 +9194,48 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_nd
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    lockCurrentTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jbyteArray p3, jobjectArray p4, jint p5)
+Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jbyteArray p3, jobject p4, jint p5)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv *, jobject, jobject, jobject, jobject, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv *, jobject, jobject, jobject, jobject, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbScanOperation::lockCurrentTuple >(env, obj, p0, p1, p2, p3, p4, p5);
+    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbScanOperation::lockCurrentTuple >(env, obj, p0, p1, p2, p3, p4, p5);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbScanOperation__lockCurrentTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbScanOperation__lockCurrentTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    updateCurrentTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jstring p2, jbyteArray p3, jobjectArray p4, jint p5)
+Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jstring p2, jbyteArray p3, jobject p4, jint p5)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv *, jobject, jobject, jobject, jstring, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv *, jobject, jobject, jobject, jstring, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbScanOperation::updateCurrentTuple >(env, obj, p0, p1, p2, p3, p4, p5);
+    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbScanOperation::updateCurrentTuple >(env, obj, p0, p1, p2, p3, p4, p5);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbScanOperation__updateCurrentTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbScanOperation__updateCurrentTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    deleteCurrentTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jbyteArray p3, jobjectArray p4, jint p5)
+Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jbyteArray p3, jobject p4, jint p5)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv *, jobject, jobject, jobject, jobject, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv *, jobject, jobject, jobject, jobject, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbScanOperation::deleteCurrentTuple >(env, obj, p0, p1, p2, p3, p4, p5);
+    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbScanOperation::deleteCurrentTuple >(env, obj, p0, p1, p2, p3, p4, p5);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbScanOperation__deleteCurrentTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbScanOperation__deleteCurrentTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -9501,46 +9457,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptions_delete(JNIEnv * 
 {
     TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptions_delete(JNIEnv *, jclass, jobject)");
     gdelete< ttrait_c_m_n_n_NdbScanOperation_ScanOptions_r >(env, cls, p0);
-}
-
-// ---------------------------------------------------------------------------
-
-//#include "com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptionsArray.h"
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptionsArray
- * Method:    create
- * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptionsArray;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_create(JNIEnv * env, jclass cls, jint p0)
-{
-    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_create(JNIEnv *, jclass, jint)");
-    return gcreateArray< ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r, ttrait_int32 >(env, cls, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptionsArray
- * Method:    delete
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptionsArray;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_delete(JNIEnv * env, jclass cls, jobject p0)
-{
-    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_delete(JNIEnv *, jclass, jobject)");
-    gdeleteArray< ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r >(env, cls, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptionsArray
- * Method:    at
- * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptions;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_at(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_NdbScanOperation_ScanOptions_r, ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -9774,128 +9690,128 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbErrorLine(JNIEnv * env, jobje
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    readTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;I[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;I[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_readTuple(JNIEnv * env, jobject obj, jobject p0, jstring p1, jobject p2, jobject p3, jint p4, jbyteArray p5, jobjectArray p6, jint p7)
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_readTuple(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jobject p3, jint p4, jbyteArray p5, jobject p6, jint p7)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_readTuple(JNIEnv *, jobject, jobject, jstring, jobject, jobject, jint, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_readTuple(JNIEnv *, jobject, jobject, jobject, jobject, jobject, jint, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbTransaction::readTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6, p7);
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbTransaction::readTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6, p7);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__readTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6, p7);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__readTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6, p7);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    insertTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv * env, jobject obj, jobject p0, jstring p1, jobject p2, jstring p3, jbyteArray p4, jobjectArray p5, jint p6)
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jobject p3, jbyteArray p4, jobject p5, jint p6)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv *, jobject, jobject, jstring, jobject, jstring, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv *, jobject, jobject, jobject, jobject, jobject, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbTransaction::insertTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbTransaction::insertTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__insertTuple__0 >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__insertTuple__0 >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    insertTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv * env, jobject obj, jobject p0, jstring p1, jbyteArray p2, jobjectArray p3, jint p4)
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jbyteArray p2, jobject p3, jint p4)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_lang_String_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsConstArray_2I(JNIEnv *, jobject, jobject, jstring, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Ljava_nio_ByteBuffer_2_3BLcom_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsConst_2I(JNIEnv *, jobject, jobject, jobject, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbTransaction::insertTuple >(env, obj, p0, p1, p2, p3, p4);
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbTransaction::insertTuple >(env, obj, p0, p1, p2, p3, p4);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__insertTuple__1 >(env, NULL, obj, p0, p1, p2, p3, p4);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__insertTuple__1 >(env, NULL, obj, p0, p1, p2, p3, p4);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    updateTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_updateTuple(JNIEnv * env, jobject obj, jobject p0, jstring p1, jobject p2, jstring p3, jbyteArray p4, jobjectArray p5, jint p6)
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_updateTuple(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jobject p3, jbyteArray p4, jobject p5, jint p6)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_updateTuple(JNIEnv *, jobject, jobject, jstring, jobject, jstring, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_updateTuple(JNIEnv *, jobject, jobject, jobject, jobject, jobject, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbTransaction::updateTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbTransaction::updateTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__updateTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__updateTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    writeTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_writeTuple(JNIEnv * env, jobject obj, jobject p0, jstring p1, jobject p2, jstring p3, jbyteArray p4, jobjectArray p5, jint p6)
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_writeTuple(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jobject p3, jbyteArray p4, jobject p5, jint p6)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_writeTuple(JNIEnv *, jobject, jobject, jstring, jobject, jstring, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_writeTuple(JNIEnv *, jobject, jobject, jobject, jobject, jobject, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbTransaction::writeTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbTransaction::writeTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__writeTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__writeTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    deleteTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/lang/String;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Ljava/nio/ByteBuffer;[BLcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_deleteTuple(JNIEnv * env, jobject obj, jobject p0, jstring p1, jobject p2, jobject p3, jbyteArray p4, jobjectArray p5, jint p6)
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_deleteTuple(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jobject p3, jbyteArray p4, jobject p5, jint p6)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_deleteTuple(JNIEnv *, jobject, jobject, jstring, jobject, jobject, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_deleteTuple(JNIEnv *, jobject, jobject, jobject, jobject, jobject, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbTransaction::deleteTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbTransaction::deleteTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_cp_jutf8null, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__deleteTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1cp_bb, ttrait_c_m_n_n_NdbRecord_cp, ttrait_char_1p_bb, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__deleteTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    scanTable
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;I[BLcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;I[BLcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanTable(JNIEnv * env, jobject obj, jobject p0, jint p1, jbyteArray p2, jobjectArray p3, jint p4)
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanTable(JNIEnv * env, jobject obj, jobject p0, jint p1, jbyteArray p2, jobject p3, jint p4)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanTable(JNIEnv *, jobject, jobject, jint, jbyteArray, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanTable(JNIEnv *, jobject, jobject, jint, jbyteArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbScanOperation_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_cp/*_const NdbScanOperation.ScanOptions *_*/, ttrait_Uint32, &NdbTransaction::scanTable >(env, obj, p0, p1, p2, p3, p4);
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbScanOperation_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbScanOperation_ScanOptions_cp, ttrait_Uint32, &NdbTransaction::scanTable >(env, obj, p0, p1, p2, p3, p4);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbScanOperation_p, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_cp/*_const NdbScanOperation.ScanOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__scanTable >(env, NULL, obj, p0, p1, p2, p3, p4);
+    return gcall_fr< ttrait_c_m_n_n_NdbScanOperation_p, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbScanOperation_ScanOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__scanTable >(env, NULL, obj, p0, p1, p2, p3, p4);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    scanIndex
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;I[BLcom/mysql/ndbjtie/ndbapi/NdbIndexScanOperation/IndexBoundConst;Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptionsConstArray;I)Lcom/mysql/ndbjtie/ndbapi/NdbIndexScanOperation;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;I[BLcom/mysql/ndbjtie/ndbapi/NdbIndexScanOperation/IndexBoundConst;Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptionsConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbIndexScanOperation;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanIndex(JNIEnv * env, jobject obj, jobject p0, jobject p1, jint p2, jbyteArray p3, jobject p4, jobjectArray p5, jint p6)
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanIndex(JNIEnv * env, jobject obj, jobject p0, jobject p1, jint p2, jbyteArray p3, jobject p4, jobject p5, jint p6)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanIndex(JNIEnv *, jobject, jobject, jobject, jint, jbyteArray, jobject, jobjectArray, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanIndex(JNIEnv *, jobject, jobject, jobject, jint, jbyteArray, jobject, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbIndexScanOperation_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_cp, ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_cp/*_const NdbScanOperation.ScanOptions *_*/, ttrait_Uint32, &NdbTransaction::scanIndex >(env, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbIndexScanOperation_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_cp, ttrait_c_m_n_n_NdbScanOperation_ScanOptions_cp, ttrait_Uint32, &NdbTransaction::scanIndex >(env, obj, p0, p1, p2, p3, p4, p5, p6);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbIndexScanOperation_p, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_cp, ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_cp/*_const NdbScanOperation.ScanOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__scanIndex >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
+    return gcall_fr< ttrait_c_m_n_n_NdbIndexScanOperation_p, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_cp, ttrait_c_m_n_n_NdbScanOperation_ScanOptions_cp, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__scanIndex >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
