@@ -1829,63 +1829,47 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
     of this Item's execution. The method creates a new engine for
     materialized execution, and initializes the engine.
 
-    If this initialization fails
-    - either because it wasn't possible to create the needed temporary table
-      and its index,
-    - or because of a memory allocation error,
-    then we revert back to execution via the IN=>EXISTS tranformation.
-
     The initialization of the new engine is divided in two parts - a permanent
     one that lives across prepared statements, and one that is repeated for each
     execution.
 
   @returns
-    @retval TRUE  memory allocation error occurred
+    @retval TRUE  memory allocation error occurred, or was not able to create
+                  temporary table
     @retval FALSE an execution method was chosen successfully
 */
 
 bool Item_in_subselect::setup_engine()
 {
-  subselect_hash_sj_engine *new_engine= NULL;
-  bool res= FALSE;
-
+  subselect_hash_sj_engine *hash_engine;
   DBUG_ENTER("Item_in_subselect::setup_engine");
 
   if (engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE)
   {
     /* Create/initialize objects in permanent memory. */
-    subselect_single_select_engine *old_engine;
-    Query_arena *arena= thd->stmt_arena, backup;
-
-    old_engine= (subselect_single_select_engine*) engine;
-
+    Query_arena *arena= thd->stmt_arena;
+    Query_arena backup;
     if (arena->is_conventional())
       arena= 0;
     else
       thd->set_n_backup_active_arena(arena, &backup);
 
-    if (!(new_engine= new subselect_hash_sj_engine(thd, this,
-                                                   old_engine)) ||
-        new_engine->init_permanent(unit->get_unit_column_types()))
+    subselect_single_select_engine *old_engine= 
+      static_cast<subselect_single_select_engine*>(engine);
+    if (!(hash_engine= new subselect_hash_sj_engine(thd, this,
+                                                    old_engine)) ||
+        hash_engine->init_permanent(unit->get_unit_column_types()))
     {
-      Item_subselect::trans_res trans_res;
       /*
-        If for some reason we cannot use materialization for this IN predicate,
-        delete all materialization-related objects, and apply the IN=>EXISTS
-        transformation.
+        For some reason we cannot use materialization for this IN predicate.
+        Delete all materialization-related objects, and return error.
       */
-      delete new_engine;
-      new_engine= NULL;
-      exec_method= EXEC_UNSPECIFIED;
-      if (left_expr->cols() == 1)
-        trans_res= single_value_in_to_exists_transformer(old_engine->join,
-                                                         &eq_creator);
-      else
-        trans_res= row_value_in_to_exists_transformer(old_engine->join);
-      res= (trans_res != Item_subselect::RES_OK);
+      delete hash_engine;
+      if (arena)
+        thd->restore_active_arena(arena, &backup);
+      DBUG_RETURN(TRUE);
     }
-    if (new_engine)
-      engine= new_engine;
+    engine= hash_engine;
 
     if (arena)
       thd->restore_active_arena(arena, &backup);
@@ -1893,24 +1877,21 @@ bool Item_in_subselect::setup_engine()
   else
   {
     DBUG_ASSERT(engine->engine_type() == subselect_engine::HASH_SJ_ENGINE);
-    new_engine= (subselect_hash_sj_engine*) engine;
+    hash_engine= static_cast<subselect_hash_sj_engine*>(engine);
   }
 
-  /* Initilizations done in runtime memory, repeated for each execution. */
-  if (new_engine)
-  {
-    /*
-      Reset the LIMIT 1 set in Item_exists_subselect::fix_length_and_dec.
-      TODO:
-      Currently we set the subquery LIMIT to infinity, and this is correct
-      because we forbid at parse time LIMIT inside IN subqueries (see
-      Item_in_subselect::test_limit). However, once we allow this, here
-      we should set the correct limit if given in the query.
-    */
-    unit->global_parameters->select_limit= NULL;
-    if ((res= new_engine->init_runtime()))
-      DBUG_RETURN(res);
-  }
+  /*
+    Reset the LIMIT 1 set in Item_exists_subselect::fix_length_and_dec.
+    TODO:
+    Currently we set the subquery LIMIT to infinity, and this is correct
+    because we forbid at parse time LIMIT inside IN subqueries (see
+    Item_in_subselect::test_limit). However, once we allow this, here
+    we should set the correct limit if given in the query.
+  */
+  unit->global_parameters->select_limit= NULL;
+
+  /* Initializations done in runtime memory, repeated for each execution. */
+  const bool res= hash_engine->init_runtime();
 
   DBUG_RETURN(res);
 }

@@ -4925,9 +4925,9 @@ period
 9410
 drop table if exists t1,t2,t3,t4;
 Warnings:
-Note	1051	Unknown table 't2'
-Note	1051	Unknown table 't3'
-Note	1051	Unknown table 't4'
+Note	1051	Unknown table 'test.t2'
+Note	1051	Unknown table 'test.t3'
+Note	1051	Unknown table 'test.t4'
 DROP TABLE IF EXISTS bug13894;
 CREATE TABLE bug13894 ( val integer not null ) ENGINE = CSV;
 INSERT INTO bug13894 VALUES (5);

@@ -4176,9 +4176,10 @@ str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
 set SQL_MODE=TRADITIONAL;
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-0
+NULL
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
+Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
 0
@@ -4186,17 +4187,16 @@ Warnings:
 Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
-0
+NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34:00'
+Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
 select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01'
                                                 and '2007/10/20';
 str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01'
                                                 and '2007/10/20'
-0
+NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '2007-10-00' for column '2007/09/01' at row 1
-Warning	1292	Incorrect datetime value: '2007-10-00' for column '2007/10/20' at row 1
+Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 set SQL_MODE=DEFAULT;
 select str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20';
 str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20'
@@ -4343,6 +4343,7 @@ SHOW STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	2
+Handler_read_last	0
 Handler_read_next	10
 Handler_read_prev	0
 Handler_read_rnd	10

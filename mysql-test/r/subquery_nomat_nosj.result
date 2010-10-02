@@ -4311,6 +4311,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -5881,6 +5882,24 @@ SHOW STATUS LIKE '%Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	18
 DROP TABLE t1,t2;
+#
+# Bug#54568: create view cause Assertion failed: 0, 
+# file .\item_subselect.cc, line 836
+#
+EXPLAIN SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+DESCRIBE SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+# None of the below should crash
+CREATE VIEW v1 AS SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+CREATE VIEW v2 AS SELECT 1 LIKE '%' ESCAPE ( 1 IN ( SELECT 1 ) );
+DROP VIEW v1, v2;
 End of 5.1 tests.
 Set up test tables.
 CREATE TABLE t1 (
@@ -6083,6 +6102,40 @@ ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
 DROP TABLE t1,t2;
 End of 5.1 tests
 #
+# BUG#50257: Missing info in REF column of the EXPLAIN 
+#            lines for subselects
+#
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	ref	a	a	5	const	1	
+
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t1	ref	a	a	5	const	1	Using index
+
+DROP TABLE t1;
+#
+# BUG#52317: Assertion failing in Field_varstring::store() 
+# 	    at field.cc:6833
+#
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i INTEGER, KEY k(i));
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN  
+SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	index_subquery	k	k	5	const	2	Using index
+DROP TABLE t2;
+DROP TABLE t1;
+End of 5.5 tests.
+#
 # BUG#48920: COUNT DISTINCT returns 1 for NULL values when in a subquery 
 #            in the select list
 #
@@ -6210,4 +6263,29 @@ SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
 );
 pk
 DROP TABLE t1;
+#
+# Bug#53236 Segfault in DTCollation::set(DTCollation&)
+#
+CREATE TABLE t1 (
+pk INTEGER AUTO_INCREMENT,
+col_varchar VARCHAR(1),
+PRIMARY KEY (pk)
+)
+;
+INSERT INTO t1 (col_varchar) 
+VALUES
+('w'),
+('m')
+;
+SELECT  table1.pk
+FROM ( t1 AS table1 JOIN t1 AS table2 ON (table1.col_varchar =
+table2.col_varchar) ) 
+WHERE ( 1, 2 ) IN ( SELECT SUBQUERY1_t1.pk AS SUBQUERY1_field1,
+SUBQUERY1_t1.pk AS SUBQUERY1_field2
+FROM ( t1 AS SUBQUERY1_t1 JOIN t1 AS SUBQUERY1_t2
+ON (SUBQUERY1_t2.col_varchar =
+SUBQUERY1_t1.col_varchar) ) ) 
+;
+pk
+drop table t1;
 set optimizer_switch=default;

@@ -256,9 +256,9 @@ set storage_engine= @save_storage_engine;
 drop table mysql.slow_log;
 drop table mysql.general_log;
 drop table mysql.general_log;
-ERROR 42S02: Unknown table 'general_log'
+ERROR 42S02: Unknown table 'mysql.general_log'
 drop table mysql.slow_log;
-ERROR 42S02: Unknown table 'slow_log'
+ERROR 42S02: Unknown table 'mysql.slow_log'
 use mysql;
 CREATE TABLE `general_log` (
 `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
