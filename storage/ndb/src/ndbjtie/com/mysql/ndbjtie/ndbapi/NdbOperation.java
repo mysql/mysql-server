@@ -116,15 +116,6 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
         static public final native SetValueSpec create();
         static public final native void delete(SetValueSpec p0);
     }
-    static public interface OperationOptionsConstArray extends ArrayWrapper< OperationOptionsConst >
-    {
-    }
-    static public class OperationOptionsArray extends Wrapper implements OperationOptionsConstArray 
-    {
-        static public native OperationOptionsArray create(int length);
-        static public native void delete(OperationOptionsArray e);
-        public native OperationOptions at(int i);
-    }
     public interface /*_struct_*/ OperationOptionsConst
     {
         long/*_Uint64_*/ optionsPresent();
