@@ -110,8 +110,6 @@ JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_GetValueSpecArray,
                                     "com/mysql/ndbjtie/ndbapi/NdbOperation$GetValueSpecArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_OperationOptions,
                                     "com/mysql/ndbjtie/ndbapi/NdbOperation$OperationOptions")
-JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_OperationOptionsArray,
-                                    "com/mysql/ndbjtie/ndbapi/NdbOperation$OperationOptionsArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_SetValueSpec,
                                     "com/mysql/ndbjtie/ndbapi/NdbOperation$SetValueSpec")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_SetValueSpecArray,
@@ -126,8 +124,6 @@ JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbScanOperation,
                                     "com/mysql/ndbjtie/ndbapi/NdbScanOperation")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbScanOperation_ScanOptions,
                                     "com/mysql/ndbjtie/ndbapi/NdbScanOperation$ScanOptions")
-JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbScanOperation_ScanOptionsArray,
-                                    "com/mysql/ndbjtie/ndbapi/NdbScanOperation$ScanOptionsArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbTransaction,
                                     "com/mysql/ndbjtie/ndbapi/NdbTransaction")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_Ndb_Key_part_ptr,

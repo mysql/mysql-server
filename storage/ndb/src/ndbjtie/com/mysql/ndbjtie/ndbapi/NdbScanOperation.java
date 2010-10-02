@@ -39,15 +39,6 @@ public class NdbScanOperation extends NdbOperation implements NdbScanOperationCo
             SF_MultiRange = 8<<24,
             SF_KeyInfo = 1;
     }
-    static public interface ScanOptionsConstArray extends ArrayWrapper< ScanOptionsConst >
-    {
-    }
-    static public class ScanOptionsArray extends Wrapper implements ScanOptionsConstArray 
-    {
-        static public native ScanOptionsArray create(int length);
-        static public native void delete(ScanOptionsArray e);
-        public native ScanOptions at(int i);
-    }
     public interface /*_struct_*/ ScanOptionsConst
     {
         long/*_Uint64_*/ optionsPresent();
@@ -103,7 +94,7 @@ public class NdbScanOperation extends NdbOperation implements NdbScanOperationCo
     public final native NdbOperation/*_NdbOperation *_*/ updateCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ updateTrans);
     public final native int deleteCurrentTuple();
     public final native int deleteCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTransaction);
-    public final native NdbOperationConst/*_const NdbOperation *_*/ lockCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ result_rec, ByteBuffer/*_char *_*/ result_row /*_= 0_*/, byte[]/*_const unsigned char *_*/ result_mask /*_= 0_*/, NdbOperation.OperationOptionsConstArray/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
-    public final native NdbOperationConst/*_const NdbOperation *_*/ updateCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ attr_rec, String/*_const char *_*/ attr_row, byte[]/*_const unsigned char *_*/ mask /*_= 0_*/, NdbOperation.OperationOptionsConstArray/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
-    public final native NdbOperationConst/*_const NdbOperation *_*/ deleteCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ result_rec, ByteBuffer/*_char *_*/ result_row /*_= 0_*/, byte[]/*_const unsigned char *_*/ result_mask /*_= 0_*/, NdbOperation.OperationOptionsConstArray/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
+    public final native NdbOperationConst/*_const NdbOperation *_*/ lockCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ result_rec, ByteBuffer/*_char *_*/ result_row /*_= 0_*/, byte[]/*_const unsigned char *_*/ result_mask /*_= 0_*/, NdbOperation.OperationOptionsConst/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
+    public final native NdbOperationConst/*_const NdbOperation *_*/ updateCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ attr_rec, String/*_const char *_*/ attr_row, byte[]/*_const unsigned char *_*/ mask /*_= 0_*/, NdbOperation.OperationOptionsConst/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
+    public final native NdbOperationConst/*_const NdbOperation *_*/ deleteCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ result_rec, ByteBuffer/*_char *_*/ result_row /*_= 0_*/, byte[]/*_const unsigned char *_*/ result_mask /*_= 0_*/, NdbOperation.OperationOptionsConst/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
 }
