@@ -112,40 +112,17 @@ public:
   virtual void reset() = 0;
   virtual uchar *end_of_space() = 0;
 protected:
-  bool have_data(size_t bytes)
-  {
-    return (used_size() >= bytes);
-  }
   virtual bool have_space_for(size_t bytes) = 0;
   virtual size_t used_size() = 0;
-
+  
+  /* To be used only by iterator class: */
+  virtual uchar *get_pos()= 0;
+  virtual bool read(uchar **position)= 0;
+  friend class Lifo_buffer_iterator;
 public:
-
   virtual void remove_unused_space(uchar **unused_start, uchar **unused_end)=0;
-  virtual uchar *used_area() = 0;
-   
-  /** Iterator to walk over contents of the buffer without reading it. */
-  class Iterator
-  {
-  public:
-    virtual void init(Lifo_buffer *buf) = 0;
-    /*
-      Read the next value. The calling convention is the same as buf->read()
-      has.
-
-      @retval FALSE - ok
-      @retval TRUE  - EOF, reached the end of the buffer
-    */
-    virtual bool read_next()= 0;
-    virtual ~Iterator() {}
-  protected:
-    Lifo_buffer *buf;
-    virtual uchar *get_next(size_t nbytes)=0;
-  };
+  virtual uchar *used_area() = 0; 
   virtual ~Lifo_buffer() {};
-
-  friend class Forward_iterator;
-  friend class Backward_iterator;
 };
 
 
@@ -196,19 +173,24 @@ public:
     memcpy(pos, data, bytes);
     pos += bytes;
   }
-  uchar *read_bytes(size_t bytes)
+  bool have_data(uchar *position, size_t bytes)
   {
-    DBUG_ASSERT(have_data(bytes));
-    pos= pos - bytes;
-    return pos;
+    return ((position - start) >= (ptrdiff_t)bytes);
   }
-  bool read()
+  uchar *read_bytes(uchar **position, size_t bytes)
   {
-    if (!have_data(size1 + (read_ptr2 ? size2 : 0)))
+    DBUG_ASSERT(have_data(*position, bytes));
+    *position= (*position) - bytes;
+    return *position;
+  }
+  bool read() { return read(&pos); }
+  bool read(uchar **position)
+  {
+    if (!have_data(*position, size1 + (read_ptr2 ? size2 : 0)))
       return TRUE;
     if (read_ptr2)
-      *read_ptr2= read_bytes(size2);
-    *read_ptr1= read_bytes(size1);
+      *read_ptr2= read_bytes(position, size2);
+    *read_ptr1= read_bytes(position, size1);
     return FALSE;
   }
   void remove_unused_space(uchar **unused_start, uchar **unused_end)
@@ -231,57 +213,10 @@ public:
   }
   /* Return pointer to start of the memory area that is occupied by the data */
   uchar *used_area() { return start; }
-  friend class Forward_iterator;
+  friend class Lifo_buffer_iterator;
+  uchar *get_pos() { return pos; }
 };
 
-
-/**
-  Iterator for Forward_lifo_buffer
-*/
-
-class Forward_iterator : public Lifo_buffer::Iterator
-{
-  uchar *pos;
-
-  /** Return pointer to next chunk of nbytes bytes and avance over it */
-  uchar *get_next(size_t nbytes)
-  {
-    if (pos - nbytes < ((Forward_lifo_buffer*)buf)->start)
-      return NULL;
-    pos -= nbytes;
-    return pos;
-  }
-public:
-  bool read_next()
-  {
-    uchar *res;
-    if (buf->read_ptr2)
-    {
-      if ((res= get_next(buf->size2)))
-      {
-        *(buf->read_ptr2)= res;
-        *buf->read_ptr1= get_next(buf->size1);
-        return FALSE;
-      }
-    }
-    else
-    {
-      if ((res= get_next(buf->size1)))
-      {
-        *(buf->read_ptr1)= res;
-        return FALSE;
-      }
-    }
-    return TRUE; /* EOF */
-  }
-
-  void init(Lifo_buffer *buf_arg)
-  {
-    DBUG_ASSERT(buf_arg->type() == Lifo_buffer::FORWARD);
-    buf= buf_arg;
-    pos= ((Forward_lifo_buffer*)buf)->pos;
-  }
-};
 
 
 /**
@@ -332,18 +267,26 @@ public:
   }
   bool read()
   {
-    if (!have_data(size1 + (read_ptr2 ? size2 : 0)))
+    return read(&pos);
+  }
+  bool read(uchar **position)
+  {
+    if (!have_data(*position, size1 + (read_ptr2 ? size2 : 0)))
       return TRUE;
-    *read_ptr1= read_bytes(size1);
+    *read_ptr1= read_bytes(position, size1);
     if (read_ptr2)
-      *read_ptr2= read_bytes(size2);
+      *read_ptr2= read_bytes(position, size2);
     return FALSE;
   }
-  uchar *read_bytes(size_t bytes)
+  bool have_data(uchar *position, size_t bytes)
   {
-    DBUG_ASSERT(have_data(bytes));
-    uchar *ret= pos;
-    pos= pos + bytes;
+    return ((end - position) >= (ptrdiff_t)bytes);
+  }
+  uchar *read_bytes(uchar **position, size_t bytes)
+  {
+    DBUG_ASSERT(have_data(*position, bytes));
+    uchar *ret= *position;
+    *position= *position + bytes;
     return ret;
   }
   /**
@@ -363,50 +306,34 @@ public:
   }
   /* Return pointer to start of the memory area that is occupied by the data */
   uchar *used_area() { return pos; }
-  friend class Backward_iterator;
+  friend class Lifo_buffer_iterator;
+  uchar *get_pos() { return pos; }
 };
 
 
-/**
-  Iterator for Backward_lifo_buffer
-*/
 
-class Backward_iterator : public Lifo_buffer::Iterator
+/** Iterator to walk over contents of the buffer without reading it. */
+class Lifo_buffer_iterator
 {
   uchar *pos;
-  /* Return pointer to next chunk of nbytes bytes and advance over it */
-  uchar *get_next(size_t nbytes)
-  {
-    if (pos + nbytes > ((Backward_lifo_buffer*)buf)->end)
-      return NULL;
-    uchar *res= pos;
-    pos += nbytes;
-    return res;
-  }
+  Lifo_buffer *buf;
 public:
-  bool read_next()
-  {
-    /*
-      Always read the first component first (if the buffer is backwards, we
-      have written the second component first).
-    */
-    uchar *res;
-    if ((res= get_next(buf->size1)))
-    {
-      *(buf->read_ptr1)= res;
-      if (buf->read_ptr2)
-        *buf->read_ptr2= get_next(buf->size2);
-      return FALSE;
-    }
-    return TRUE; /* EOF */
-  }
   void init(Lifo_buffer *buf_arg)
   {
-    DBUG_ASSERT(buf_arg->type() == Lifo_buffer::BACKWARD);
     buf= buf_arg;
-    pos= ((Backward_lifo_buffer*)buf)->pos;
+    pos= buf->get_pos();
+  }
+  /*
+    Read the next value. The calling convention is the same as buf->read()
+    has.
+
+    @retval FALSE - ok
+    @retval TRUE  - EOF, reached the end of the buffer
+  */
+  bool read() 
+  {
+    return buf->read(&pos);
   }
 };
-
 
 

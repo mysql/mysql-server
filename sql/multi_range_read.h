@@ -48,6 +48,37 @@
 
 #include "sql_lifo_buffer.h"
 
+class DsMrr_impl;
+
+/**
+  Iterator over (record, range_id) pairs that match given key value.
+  
+  We may need to scan multiple (key_val, range_id) pairs with the same 
+  key value. A key value may have multiple matching records, so we'll need to
+  produce a cross-product of sets of matching records and range_id-s.
+*/
+
+class Key_value_records_iterator
+{
+  /* Scan parameters */
+  DsMrr_impl *dsmrr;
+  Lifo_buffer_iterator identical_key_it;
+  uchar *last_identical_key_ptr;
+  bool get_next_row;
+public:
+  /*
+  */
+  bool init(DsMrr_impl *dsmrr);
+
+  /*
+    Get next (key_val, range_id) pair.
+  */
+  int get_next();
+
+  void close();
+};
+
+
 /*
   DS-MRR implementation for one table. Create/use one object of this class for
   each ha_{myisam/innobase/etc} object. That object will be further referred to
@@ -196,17 +227,6 @@ private:
   uchar *rowid_buffer_end;
  
   /** Index scaning and key buffer-related members **/
-  
-
-  enum enum_index_scan_state {
-    REFILL_KEY_BUFFER,
-    GET_NEXT_RANGE,
-    GET_NEXT_RECORD,
-    GET_NEXT_IDENTICAL_KEY,
-    SCAN_FINISHED
-  };
-
-  enum enum_index_scan_state index_scan_state;
 
   /* TRUE <=> We can get at most one index tuple for a lookup key */
   bool index_ranges_unique;
@@ -220,25 +240,26 @@ private:
     buffers.
   */
   Forward_lifo_buffer forward_key_buf;
-  Forward_iterator forward_key_it;
   Backward_lifo_buffer backward_key_buf;
-  Backward_iterator backward_key_it;
 
   /* Buffer to store (key, range_id) pairs */
   Lifo_buffer *key_buffer;
-   
-  /* key_buffer.read() reads */
-  uchar *cur_index_tuple;
-
-  /* if in_index_range==TRUE: range_id of the range we're enumerating */
-  char *cur_range_info;
-
+  
+  /* Index scan state */
+  bool scanning_key_val_iter;
   /* 
     TRUE <=> we've got index tuples/rowids for all keys (need this flag because 
     we may have a situation where we've read everything from the key buffer but 
     haven't finished with getting index tuples for the last key)
   */
-  //bool key_eof;
+  bool index_scan_eof;  
+  Key_value_records_iterator kv_it;
+  
+  /* key_buffer.read() reads to here */
+  uchar *cur_index_tuple;
+
+  /* if in_index_range==TRUE: range_id of the range we're enumerating */
+  char *cur_range_info;
 
   /* Initially FALSE, becomes TRUE when we've set key_tuple_xxx members */
   bool know_key_tuple_params;
@@ -255,28 +276,6 @@ private:
   /* = key_size_in_keybuf [ + sizeof(range_assoc_info) ] */
   uint key_buff_elem_size;
   
-  /* 
-    TRUE <=> we're doing key-ordered index scan and right now several
-    subsequent key values are the same as the one we've already retrieved and
-    returned index tuple for.
-  */
-  //bool in_identical_keys_range;
-
-  /* range_id of the first of the identical keys */
-  char *first_identical_range_info;
-
-  /* Pointer to the last of the identical key values */
-  uchar *last_identical_key_ptr;
-
-  /* 
-    key_buffer iterator for walking the identical key range (we need to
-    enumerate the set of (identical_key, range_id) pairs multiple times,
-    and do that by walking from current buffer read position until we get
-    last_identical_key_ptr.
-  */
-  Lifo_buffer::Iterator *identical_key_it;
-
-
   /** rnd_pos() scan and rowid buffer-related members **/
 
   /*
@@ -288,12 +287,7 @@ private:
   /* rowid_buffer.read() will set the following:  */
   uchar *rowid;
   uchar *rowids_range_id;
-  
-  /*
-    not-NULL: we're traversing a group of (rowid, range_id) pairs with
-              identical rowid values, and this is the pointer to the last one.
-    NULL: we're not in the group of indentical rowids.
-  */
+
   uchar *last_identical_rowid;
 
   bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
@@ -315,10 +309,9 @@ private:
   void setup_buffer_sizes(key_range *sample_key);
   void reallocate_buffer_space();
   
-  void read_out_identical_ranges();
-
   static range_seq_t key_buf_seq_init(void *init_param, uint n_ranges, uint flags);
   static uint key_buf_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
+  friend class Key_value_records_iterator;
 };
 
 /**

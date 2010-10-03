@@ -682,7 +682,7 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
   {
     /* Give all space to forward key buffer. */
     key_buffer= &forward_key_buf;
-    identical_key_it= &forward_key_it;
+    //identical_key_it= &forward_key_it;
     key_buffer->set_buffer_space(full_buf, full_buf_end);
 
     /* Just in case, tell rowid buffer that it has zero size: */
@@ -731,7 +731,7 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
   rowid_buffer_end= full_buf + bytes_for_rowids;
   rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
   key_buffer= &backward_key_buf;
-  identical_key_it= &backward_key_it;
+  //identical_key_it= &backward_key_it;
   key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end); 
 }
 
@@ -771,7 +771,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
       */
       rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
       key_buffer= &backward_key_buf;
-      identical_key_it= &backward_key_it;
+      //identical_key_it= &backward_key_it;
       key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end);
     }
     key_buffer->reset();
@@ -815,9 +815,12 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
                             is_mrr_assoc? (uchar**)&cur_range_info: NULL,
                             sizeof(void*));
 
-  last_identical_key_ptr= NULL;
+  //last_identical_key_ptr= NULL;
   //in_identical_keys_range= FALSE;
-  index_scan_state= GET_NEXT_RANGE;
+  //index_scan_state= GET_NEXT_RANGE;
+  scanning_key_val_iter= FALSE;
+  index_scan_eof= FALSE; 
+
   DBUG_VOID_RETURN;
 }
 
@@ -834,22 +837,88 @@ void DsMrr_impl::reallocate_buffer_space()
 }
 
 
-/**
-  Read out ranges from the buffer until we've reached the range with 
-  last_identical_key_ptr. 
-*/
-
-void DsMrr_impl::read_out_identical_ranges()
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+bool Key_value_records_iterator::init(DsMrr_impl *dsmrr_arg)
 {
-  if (last_identical_key_ptr)
+  int res;
+  dsmrr= dsmrr_arg;
+  handler *file= dsmrr->do_rndpos_scan? dsmrr->h2 : dsmrr->h;
+
+  identical_key_it.init(dsmrr->key_buffer);
+  /* Get the first pair into (cur_index_tuple, cur_range_info) */ 
+  if (identical_key_it.read())
+    return TRUE;
+
+  uchar *key_in_buf= dsmrr->cur_index_tuple;
+
+  if (dsmrr->use_key_pointers)
+    dsmrr->cur_index_tuple= *((uchar**)dsmrr->cur_index_tuple);
+  
+  /* Check out how many more identical keys are following */
+  //char *save_cur_range_info= cur_range_info;
+  uchar *save_cur_index_tuple= dsmrr->cur_index_tuple;
+  last_identical_key_ptr= dsmrr->cur_index_tuple;
+  while (!identical_key_it.read())
   {
-    /* key_buffer.read() reads to (cur_index_tuple, cur_range_info) */
-    while (!key_buffer->read() && (cur_index_tuple != last_identical_key_ptr)) {}
-    last_identical_key_ptr= NULL;
+    if (DsMrr_impl::key_tuple_cmp(dsmrr, key_in_buf, dsmrr->cur_index_tuple))
+      break;
+    last_identical_key_ptr= dsmrr->cur_index_tuple;
   }
+  identical_key_it.init(dsmrr->key_buffer);
+  dsmrr->cur_index_tuple= save_cur_index_tuple;
+  //cur_range_info= save_cur_range_info;
+  res= file->ha_index_read_map(dsmrr->table->record[0], 
+                               dsmrr->cur_index_tuple, 
+                               dsmrr->key_tuple_map, 
+                               HA_READ_KEY_EXACT);
+
+  if (res)
+  {
+    close();
+    return res; /* Fatal error */
+  }
+  get_next_row= FALSE;
+  return 0;
 }
 
 
+int Key_value_records_iterator::get_next()
+{
+  handler *file= dsmrr->do_rndpos_scan? dsmrr->h2 : dsmrr->h;
+  int res;
+
+  if (get_next_row)
+  {
+    if (dsmrr->index_ranges_unique)
+      return HA_ERR_END_OF_FILE;  /* Max one match */
+
+    if ((res= file->ha_index_next_same(dsmrr->table->record[0], 
+                                       dsmrr->cur_index_tuple, 
+                                       dsmrr->key_tuple_length)))
+    {
+      /* EOF is EOF for iterator, also, any error means EOF on the iterator */
+      return res;
+    }
+    identical_key_it.init(dsmrr->key_buffer);
+  }
+
+  identical_key_it.read(); // This gets us next range_id.
+  if (!last_identical_key_ptr || (dsmrr->cur_index_tuple == last_identical_key_ptr))
+  {
+    get_next_row= TRUE;
+  }
+  return 0;
+}
+
+void Key_value_records_iterator::close()
+{
+  while (!dsmrr->key_buffer->read() && 
+         (dsmrr->cur_index_tuple != last_identical_key_ptr)) {}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 /**
   DS-MRR/CPK: multi_range_read_next() function
@@ -871,154 +940,55 @@ void DsMrr_impl::read_out_identical_ranges()
   @retval HA_ERR_END_OF_FILE  End of records
   @retval Other               Some other error
 */
-
 int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
 {
   DBUG_ENTER("DsMrr_impl::dsmrr_next_from_index");
-  int res;
-  handler *file= do_rndpos_scan? h2: h;
-  
+  //handler *file= do_rndpos_scan? h2: h;
+
   while (1)
   {
     bool have_record= FALSE;
-    switch (index_scan_state)
+    if (scanning_key_val_iter)
     {
-      case GET_NEXT_IDENTICAL_KEY:
+      if (kv_it.get_next())
       {
-        /* Get the next range_id for the current record */ 
-
-        /* read to (cur_index_tuple, cur_range_info) */
-        bool bres= identical_key_it->read_next();
-        DBUG_ASSERT(!bres);
-
-        if (cur_index_tuple == last_identical_key_ptr)
-        {
-          /* 
-            We've just got to the last of identical ranges. Next step is to
-            go next record
-          */
-          index_scan_state= index_ranges_unique? GET_NEXT_RANGE : GET_NEXT_RECORD;
-        }
+        kv_it.close();
+        scanning_key_val_iter= FALSE;
+      }
+      else
         have_record= TRUE;
-        break;
-      }
-      case GET_NEXT_RECORD:
+    }
+    else
+    {
+      while (kv_it.init(this))
       {
-        /* Get the next record from the range */
-        res= file->ha_index_next_same(table->record[0], cur_index_tuple, 
-                                      key_tuple_length);
-        if (res)
-        {
-          if (res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
-            DBUG_RETURN(res);  /* Fatal error */
-
-          /* Got EOF for this range, go get the next range */
-          index_scan_state= GET_NEXT_RANGE;
-          break;
-        }
-        
-        have_record= TRUE;
-        if (last_identical_key_ptr)
-        {
-          /* 
-            If the range we're scanning is one of the set of identical ranges,
-            return this record with range_id of each range
-          */
-          index_scan_state= GET_NEXT_IDENTICAL_KEY;
-          identical_key_it->init(key_buffer);
-          cur_range_info= first_identical_range_info;
-          have_record= FALSE; //psergey4
-        }
-        break;
-      }
-      case GET_NEXT_RANGE:
-      {
-        read_out_identical_ranges();
-        if (do_rndpos_scan)
-          reallocate_buffer_space();
-
-        /* Get the next range to scan */
-        if (key_buffer->read()) /* read to (cur_index_tuple,cur_range_info) */
-        {
-          index_scan_state= REFILL_KEY_BUFFER;
-          break;
-        }
-        uchar *key_in_buf= cur_index_tuple;
-
-        if (use_key_pointers)
-          cur_index_tuple= *((uchar**)cur_index_tuple);
-
-        res= file->ha_index_read_map(table->record[0], cur_index_tuple, 
-                                     key_tuple_map, HA_READ_KEY_EXACT);
-
-        if (res && res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
-          DBUG_RETURN(res); /* Fatal error */
-        
-        /* 
-          Check if subsequent elements in the key buffer are the same as this
-          one
-        */
-        char *save_cur_range_info= cur_range_info;
-        identical_key_it->init(key_buffer);
-        last_identical_key_ptr= NULL;
-        while (!identical_key_it->read_next())
-        {
-          if (key_tuple_cmp(this, key_in_buf, cur_index_tuple))
-            break;
-          last_identical_key_ptr= cur_index_tuple;
-        }
-        cur_range_info= save_cur_range_info;
-
-        if (last_identical_key_ptr)
-        {
-          index_scan_state= GET_NEXT_IDENTICAL_KEY;
-          identical_key_it->init(key_buffer);
-          first_identical_range_info= cur_range_info;
-          have_record= FALSE; //psergey4
-        }
-        else
-        {
-          index_scan_state= index_ranges_unique? GET_NEXT_RANGE : GET_NEXT_RECORD;
-          have_record= TRUE;
-        }
-
-        if (res)
-        {
-          read_out_identical_ranges();
-          index_scan_state= GET_NEXT_RANGE;
-          have_record= FALSE;
-        }
-
-        break;
-      }
-      case REFILL_KEY_BUFFER:
-      {
-        if (dsmrr_eof)
-        {
-          index_scan_state= SCAN_FINISHED;
-          DBUG_RETURN(HA_ERR_END_OF_FILE);
-        }
-
-        /*
-          When rowid fetching is used, it controls all buffer refills. When we're
-          on our own, try refilling our buffer.
-        */
-        if (!do_rndpos_scan)
-          dsmrr_fill_key_buffer();
-
+        /* Failed to initialize iterator */
         if (key_buffer->is_empty())
         {
-          index_scan_state= SCAN_FINISHED;
-          DBUG_RETURN(HA_ERR_END_OF_FILE);
-        }
+          if (dsmrr_eof)
+          {
+            index_scan_eof= TRUE;
+            DBUG_RETURN(HA_ERR_END_OF_FILE);
+          }
 
-        index_scan_state= GET_NEXT_RANGE;
+          /*
+            When rowid fetching is used, it controls all buffer refills. When we're
+            on our own, try refilling our buffer.
+          */
+          if (!do_rndpos_scan)
+            dsmrr_fill_key_buffer();
+
+          if (key_buffer->is_empty())
+          {
+            index_scan_eof= TRUE;
+            DBUG_RETURN(HA_ERR_END_OF_FILE);
+          }
+        }
       }
-      default:
-        DBUG_ASSERT(0);
-        break;
+      /* if we got here, it means iterator was successfully initialized */
+      scanning_key_val_iter= TRUE;
     }
-    
+
     if (have_record &&
         (!h->mrr_funcs.skip_index_tuple ||
          !h->mrr_funcs.skip_index_tuple(h->mrr_iter, *(char**)cur_range_info)) 
@@ -1030,155 +1000,10 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
     }
     /* Go get another (record, range_id) combination */
   } /* while */
-  
+
   memcpy(range_info_arg, cur_range_info, sizeof(void*));
   DBUG_RETURN(0);
 }
-
-#if 0
-int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
-{
-  int res;
-  uchar *key_in_buf;
-  handler *file= do_rndpos_scan? h2: h;
-  bool res2;
-
-  while (in_identical_keys_range)
-  {
-    /* This will read to (cur_index_tuple, cur_range_info): */
-    res2= identical_key_it->read_next();
-    DBUG_ASSERT(!res2);
-
-    if (cur_index_tuple == last_identical_key_ptr)
-    {
-      /* We're looking at the last of the identical keys */
-      in_identical_keys_range= FALSE;
-    }
-check_record:
-    if ((h->mrr_funcs.skip_index_tuple &&
-         h->mrr_funcs.skip_index_tuple(h->mrr_iter, *(char**)cur_range_info)) || 
-        (h->mrr_funcs.skip_record &&
-         h->mrr_funcs.skip_record(h->mrr_iter, *(char**)cur_range_info, NULL)))
-    {
-      continue;
-    }
-    memcpy(range_info_arg, cur_range_info, sizeof(void*));
-    return 0;
-  }
-  
-  /* Try returrning next record from the current range */
-  while (in_index_range)
-  {
-    res= file->ha_index_next_same(table->record[0], cur_index_tuple, 
-                                  key_tuple_length);
-    
-    if (res)
-    {
-      if (res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
-        return res;  /* Fatal error */
-
-      in_index_range= FALSE; /* no more records here */
-      break;
-    }
-    
-    if (last_identical_key_ptr)
-    {
-      in_identical_keys_range= TRUE;
-      identical_key_it->init(key_buffer);
-      cur_range_info= first_identical_range_info;
-    }
-
-    goto check_record;
-  }
-
-  while(1)
-  {
-    DBUG_ASSERT(!in_identical_keys_range && !in_index_range);
-
-    /* Jump over the keys that were handled by identical key processing */
-    if (last_identical_key_ptr)
-    {
-      /* key_buffer.read() reads to (cur_index_tuple, cur_range_info) */
-      while (!key_buffer->read() && (cur_index_tuple != last_identical_key_ptr)) {}
-      last_identical_key_ptr= NULL;
-    }
-
-    /* First, make sure we have a range at start of the buffer */
-    if (key_buffer->is_empty())
-    {
-      if (dsmrr_eof)
-      {
-        res= HA_ERR_END_OF_FILE;
-        goto end;
-      }
-      /*
-        When rowid fetching is used, it controls all buffer refills. When we're
-        on our own, try refilling our buffer.
-      */
-      if (!do_rndpos_scan)
-        dsmrr_fill_key_buffer();
-
-      if (key_buffer->is_empty())
-      {
-        res= HA_ERR_END_OF_FILE;
-        goto end;
-      }
-    }
-    
-    /*
-      At this point we're not using anything what we've read from key
-      buffer. Cut off unused key buffer space and give it to the rowid
-      buffer.
-    */
-    if (do_rndpos_scan)
-      reallocate_buffer_space();
-
-    /* Get the next range to scan */
-    key_buffer->read(); // reads to (cur_index_tuple, cur_range_info)
-    key_in_buf= cur_index_tuple;
-
-    if (use_key_pointers)
-      cur_index_tuple= *((uchar**)cur_index_tuple);
-
-    /* Do index lookup */
-    if ((res= file->ha_index_read_map(table->record[0], cur_index_tuple, 
-                                      key_tuple_map, HA_READ_KEY_EXACT)))
-    {
-      if (res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
-        return res;
-      continue; /* to next key and make another lookup */
-    }
-
-    /* Check if subsequent keys in the key buffer are the same as this one */
-    {
-      char *save_cur_range_info= cur_range_info;
-      identical_key_it->init(key_buffer);
-      last_identical_key_ptr= NULL;
-      while (!identical_key_it->read_next())
-      {
-        if (key_tuple_cmp(this, key_in_buf, cur_index_tuple))
-          break;
-
-        last_identical_key_ptr= cur_index_tuple;
-      }
-      cur_range_info= save_cur_range_info;
-      if (last_identical_key_ptr)
-      {
-        in_identical_keys_range= TRUE;
-        identical_key_it->init(key_buffer);
-        first_identical_range_info= cur_range_info;
-      }
-    }
-
-    in_index_range= !index_ranges_unique;
-    goto check_record;
-  }
- 
-end:
-  return res;
-}
-#endif
-
 
 /**
   DS-MRR implementation: multi_range_read_next() function.
@@ -1227,7 +1052,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     {
       if (do_sort_keys)
       {
-        if (index_scan_state != SCAN_FINISHED) 
+        if (index_scan_eof) 
         {
           /* There are some sorted keys left. Use them to get rowids */
           if ((res= dsmrr_fill_rowid_buffer()))
@@ -1288,9 +1113,9 @@ int DsMrr_impl::dsmrr_next(char **range_info)
         Note: this implies that SQL layer doesn't touch table->record[0]
         between calls.
       */
-      Forward_iterator it;
+      Lifo_buffer_iterator it;
       it.init(&rowid_buffer);
-      while (!it.read_next()) // reads to (rowid, ...)
+      while (!it.read()) // reads to (rowid, ...)
       {
         if (h2->cmp_ref(rowid, cur_rowid))
           break;
