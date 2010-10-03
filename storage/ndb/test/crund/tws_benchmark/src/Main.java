@@ -1,6 +1,29 @@
+/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
+ *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
+ *
+ *  Copyright (C) 2010 MySQL
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+//package com.mysql.cluster.crund.tws;
+
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.SessionFactory;
 import com.mysql.clusterj.Session;
+import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.annotation.Index;
 import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.annotation.PrimaryKey;
@@ -62,6 +85,7 @@ public class Main
     static protected boolean doSingle;
     static protected boolean doBulk;
     static protected boolean doBatch;
+    static protected LockMode lockMode;
     static protected int nRows;
     static protected int nRuns;
 
@@ -80,6 +104,7 @@ public class Main
     protected Ndb_cluster_connection mgmd;
     protected Ndb ndb;
     protected NdbTransaction tx;
+    protected int ndbOpLockMode;
 
     // NDB JTie metadata resources
     protected TableConst table_t0;
@@ -132,7 +157,7 @@ public class Main
     // NDB JTie data resources
     protected ByteBuffer bb_r;
 
-    // static resources
+    // NDB JTie static resources
     static protected final ByteOrder bo = ByteOrder.nativeOrder();
     static protected final Charset cs;
     static protected final CharsetEncoder csEncoder;
@@ -153,7 +178,7 @@ public class Main
     }
 
     static public void main(String[] args) throws SQLException, IOException {
-        parse();
+        parseProperties();
 
         Main main = new Main();
         main.init();
@@ -163,7 +188,7 @@ public class Main
 
     // ----------------------------------------------------------------------
 
-    static public void parse() throws IOException {
+    static public void parseProperties() throws IOException {
         out.println("reading properties file " + propsFileName + " ...");
         InputStream is = null;
         try {
@@ -184,6 +209,7 @@ public class Main
         doSingle = parseBoolean("doSingle", false);
         doBulk = parseBoolean("doBulk", false);
         doBatch = parseBoolean("doBatch", false);
+        lockMode = parseLockMode("lockMode", LockMode.READ_COMMITTED);
         nRows = parseInt("nRows", 50000);
         nRuns = parseInt("nRuns", 5);
 
@@ -197,6 +223,7 @@ public class Main
         out.println("doSingle   : " + doSingle);
         out.println("doBulk     : " + doBulk);
         out.println("doBatch    : " + doBatch);
+        out.println("lockMode   : " + lockMode);
         out.println("nRows      : " + nRows);
         out.println("nRuns      : " + nRuns);
     }
@@ -216,6 +243,19 @@ public class Main
                 + v + "').");
             nfe.initCause(e);
             throw nfe;
+        }
+    }
+
+    static protected LockMode parseLockMode(String k, LockMode vdefault) {
+        final String v = props.getProperty(k);
+        try {
+            return (v == null ? vdefault : LockMode.valueOf(v));
+        } catch (IllegalArgumentException e) {
+            final IllegalArgumentException iae = new IllegalArgumentException(
+                "invalid value of benchmark property ('" + k + "', '"
+                + v + "').");
+            iae.initCause(e);
+            throw iae;
         }
     }
 
@@ -281,6 +321,30 @@ public class Main
         }
         out.println("     [ok: " + url + "]");
 
+        out.print("setting isolation level ...");
+        out.flush();
+        // ndb storage engine only supports READ_COMMITTED
+        final int il = Connection.TRANSACTION_READ_COMMITTED;
+        connection.setTransactionIsolation(il);
+        out.print("      [ok: ");
+        switch (connection.getTransactionIsolation()) {
+        case Connection.TRANSACTION_READ_UNCOMMITTED:
+            out.print("READ_UNCOMMITTED");
+            break;
+        case Connection.TRANSACTION_READ_COMMITTED:
+            out.print("READ_COMMITTED");
+            break;
+        case Connection.TRANSACTION_REPEATABLE_READ:
+            out.print("REPEATABLE_READ");
+            break;
+        case Connection.TRANSACTION_SERIALIZABLE:
+            out.print("SERIALIZABLE");
+            break;
+        default:
+            assert false;
+        }
+        out.println("]");
+        
         initJdbcPreparedStatements();
     }
 
@@ -306,16 +370,29 @@ public class Main
         assert (upd0 == null);
         assert (del0 == null);
 
-        //out.print("preparing jdbc statements ...");
         out.print("compiling jdbc statements ...");
         out.flush();
 
         final String sqlIns0 = "INSERT INTO mytable (c0, c1, c2, c3, c5, c6, c7, c8) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         ins0 = connection.prepareStatement(sqlIns0);
 
-        final String sqlSel0 = "SELECT * FROM mytable where c0=? LOCK IN share mode";
-        //final String sqlSel0 = "SELECT * FROM mytable where c0=? FOR UPDATE";
-        //final String sqlSel0 = "SELECT * FROM mytable where c0=?";
+        final String lm;
+        switch (lockMode) {
+        case READ_COMMITTED:
+            lm = "";
+            break;
+        case SHARED:
+            lm = " LOCK IN share mode";
+            break;
+        case EXCLUSIVE:
+            lm = " FOR UPDATE";
+            break;
+        default:
+            lm = "";
+            assert false;
+        }
+
+        final String sqlSel0 = ("SELECT * FROM mytable where c0=?" + lm);
         sel0 = connection.prepareStatement(sqlSel0);
 
         final String sqlUpd0 = "UPDATE mytable SET c1 = ?, c2 = ?, c3 = ?, c5 = ?, c6 = ?, c7 = ?, c8 = ? WHERE c0=?";
@@ -365,6 +442,10 @@ public class Main
         sessionFactory = ClusterJHelper.getSessionFactory(props);
         session = sessionFactory.getSession();
         out.println("    [ok]");
+
+        out.print("setting session lock mode ...");
+        session.setLockMode(lockMode);
+        out.println("    [ok: " + lockMode + "]");
     }
 
     protected void closeClusterjConnection() {
@@ -404,9 +485,9 @@ public class Main
                                 "testdb");
         final String schema
             = "def";
-        assert mgmdConnect != null;
-        assert catalog != null;
-        assert schema != null;
+        assert (mgmdConnect != null);
+        assert (catalog != null);
+        assert (schema != null);
 
         // instantiate NDB cluster singleton
         out.print("creating cluster connection ...");
@@ -436,7 +517,6 @@ public class Main
         out.flush();
         final int initial_wait = 10; // secs to wait until first node detected
         final int final_wait = 0;    // secs to wait after first node detected
-
         // returns: 0 all nodes live, > 0 at least one node live, < 0 error
         if (mgmd.wait_until_ready(initial_wait, final_wait) < 0) {
             final String msg = ("data nodes were not ready within "
@@ -460,6 +540,26 @@ public class Main
         initNdbjtieMeta();
 
         initNdbjtieBuffers();
+
+        out.print("using lock mode for reads ...    [ok: ");
+        switch (lockMode) {
+        case READ_COMMITTED:
+            ndbOpLockMode = NdbOperation.LockMode.LM_CommittedRead;
+            out.print("LM_CommittedRead");
+            break;
+        case SHARED:
+            ndbOpLockMode = NdbOperation.LockMode.LM_Read;
+            out.print("LM_Read");
+            break;
+        case EXCLUSIVE:
+            ndbOpLockMode = NdbOperation.LockMode.LM_Exclusive;
+            out.print("LM_Exclusive");
+            break;
+        default:
+            ndbOpLockMode = NdbOperation.LockMode.LM_CommittedRead;
+            assert false;
+        }
+        out.println("]");
     }
 
     protected void closeNdbjtieConnection() {
@@ -773,7 +873,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("insert " + nRows + " rows by JDBC " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         connection.setAutoCommit(mode == XMode.SINGLE);
         for(int i = 0; i < nRows; i++) {
             jdbcInsert(i, mode);
@@ -782,8 +882,7 @@ public class Main
             ins0.executeBatch();
         if (mode != XMode.SINGLE)
             connection.commit();
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("jdbc_insert_" + m + "    \t: " + time + " ms");
     }
@@ -792,7 +891,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("insert " + nRows + " rows by ClusterJ " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         if (mode != XMode.SINGLE)
             session.currentTransaction().begin();
         for(int i = 0; i < nRows; i++) {
@@ -800,8 +899,7 @@ public class Main
         }
         if (mode != XMode.SINGLE)
             session.currentTransaction().commit();
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("clusterj_insert_" + m + "  \t: " + time + " ms");
     }
@@ -810,7 +908,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("insert " + nRows + " rows by NDB JTie " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         if (mode == XMode.SINGLE) {
             for(int i = 0; i < nRows; i++) {
                 ndbjtieBeginTransaction();
@@ -829,8 +927,7 @@ public class Main
             ndbjtieCommitTransaction();
             ndbjtieCloseTransaction();
         }
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("ndbjtie_insert_" + m + "  \t: " + time + " ms");
     }
@@ -952,15 +1049,14 @@ public class Main
             return;
         }
         
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         connection.setAutoCommit(mode == XMode.SINGLE);
         for(int i = 0; i < nRows; i++) {
             jdbcLookup(i);
         }
         if (mode != XMode.SINGLE)
             connection.commit();
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("jdbc_lookup_" + m + "    \t: " + time + " ms");
     }
@@ -969,7 +1065,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("lookup " + nRows + " rows by ClusterJ " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         if (mode != XMode.SINGLE)
             session.currentTransaction().begin();
         for(int i = 0; i < nRows; i++) {
@@ -977,8 +1073,7 @@ public class Main
         }
         if (mode != XMode.SINGLE)
             session.currentTransaction().commit();
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("clusterj_lookup_" + m + "  \t: " + time + " ms");
     }
@@ -987,7 +1082,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("lookup " + nRows + " rows by NDB JTie " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         if (mode == XMode.SINGLE) {
             for(int i = 0; i < nRows; i++) {
                 ndbjtieBeginTransaction();
@@ -1010,8 +1105,7 @@ public class Main
                 ndbjtieRead(i);
             }
         }
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("ndbjtie_lookup_" + m + "  \t: " + time + " ms");
     }
@@ -1076,8 +1170,7 @@ public class Main
         NdbOperation op = tx.getNdbOperation(table_t0);
         if (op == null)
             throw new RuntimeException(toStr(tx.getNdbError()));
-        //if (op.readTuple(NdbOperation.LockMode.LM_CommittedRead) != 0)
-        if (op.readTuple(NdbOperation.LockMode.LM_Read) != 0)
+        if (op.readTuple(ndbOpLockMode) != 0)
             throw new RuntimeException(toStr(tx.getNdbError()));
 
         int p = bb_r.position();
@@ -1194,7 +1287,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("update " + nRows + " rows by JDBC " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         connection.setAutoCommit(mode == XMode.SINGLE);
         for(int i = 0; i < nRows; i++) {
             jdbcUpdate(i, mode);
@@ -1203,8 +1296,7 @@ public class Main
             upd0.executeBatch();
         if (mode != XMode.SINGLE)
             connection.commit();
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("jdbc_update_" + m + "    \t: " + time + " ms");
     }
@@ -1213,7 +1305,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("update " + nRows + " rows by ClusterJ " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         if (mode != XMode.SINGLE)
             session.currentTransaction().begin();
         for(int i = 0; i < nRows; i++) {
@@ -1221,8 +1313,7 @@ public class Main
         }
         if (mode != XMode.SINGLE)
             session.currentTransaction().commit();
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("clusterj_update_" + m + "  \t: " + time + " ms");
     }
@@ -1231,7 +1322,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("update " + nRows + " rows by NDB JTie " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         if (mode == XMode.SINGLE) {
             for(int i = 0; i < nRows; i++) {
                 ndbjtieBeginTransaction();
@@ -1250,8 +1341,7 @@ public class Main
             ndbjtieCommitTransaction();
             ndbjtieCloseTransaction();
         }
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("ndbjtie_update_" + m + "  \t: " + time + " ms");
     }
@@ -1376,7 +1466,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("delete " + nRows + " rows by JDBC " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         connection.setAutoCommit(mode == XMode.SINGLE);
         for(int i = 0; i < nRows; i++) {
             jdbcDelete(i, mode);
@@ -1385,8 +1475,7 @@ public class Main
             del0.executeBatch();
         if (mode != XMode.SINGLE)
             connection.commit();
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("jdbc_delete_" + m + "    \t: " + time + " ms");
     }
@@ -1395,7 +1484,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("delete " + nRows + " rows by ClusterJ " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         if (mode != XMode.SINGLE)
             session.currentTransaction().begin();
         for(int i = 0; i < nRows; i++) {
@@ -1403,8 +1492,7 @@ public class Main
         }
         if (mode != XMode.SINGLE)
             session.currentTransaction().commit();
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("clusterj_delete_" + m + "  \t: " + time + " ms");
     }
@@ -1413,7 +1501,7 @@ public class Main
         final String m = mode.toString().toLowerCase();
         //out.println("delete " + nRows + " rows by NDB JTie " + m + " tx ...");
 
-        long start = System.currentTimeMillis();
+        long time = -System.currentTimeMillis();
         if (mode == XMode.SINGLE) {
             for(int i = 0; i < nRows; i++) {
                 ndbjtieBeginTransaction();
@@ -1432,8 +1520,7 @@ public class Main
             ndbjtieCommitTransaction();
             ndbjtieCloseTransaction();
         }
-        long stop = System.currentTimeMillis();
-        long time = stop - start;
+        time += System.currentTimeMillis();
 
         out.println("ndbjtie_delete_" + m + "  \t: " + time + " ms");
     }
