@@ -370,12 +370,7 @@ public class Main
         assert (upd0 == null);
         assert (del0 == null);
 
-        out.print("compiling jdbc statements ...");
-        out.flush();
-
-        final String sqlIns0 = "INSERT INTO mytable (c0, c1, c2, c3, c5, c6, c7, c8) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        ins0 = connection.prepareStatement(sqlIns0);
-
+        out.print("using lock mode for reads ...    [ok: ");
         final String lm;
         switch (lockMode) {
         case READ_COMMITTED:
@@ -391,6 +386,13 @@ public class Main
             lm = "";
             assert false;
         }
+        out.println("SELECT" + lm + ";]");
+
+        out.print("compiling jdbc statements ...");
+        out.flush();
+
+        final String sqlIns0 = "INSERT INTO mytable (c0, c1, c2, c3, c5, c6, c7, c8) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        ins0 = connection.prepareStatement(sqlIns0);
 
         final String sqlSel0 = ("SELECT * FROM mytable where c0=?" + lm);
         sel0 = connection.prepareStatement(sqlSel0);
