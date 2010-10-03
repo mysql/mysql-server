@@ -1526,3 +1526,54 @@ eval explain $query_i;
 eval $query_i;
 
 drop table t1;
+
+--echo #
+--echo # BUG#54481 "GROUP BY loses effect with JOIN + ORDER BY + LIMIT
+--echo # and join_cache_level=5-8"
+--echo #
+
+CREATE TABLE t1 (
+  `col_int_key` int,
+  `col_datetime` datetime,
+  KEY `col_int_key` (`col_int_key`)
+);
+
+INSERT INTO t1 VALUES (2,'2003-02-11 21:19:41');
+INSERT INTO t1 VALUES (3,'2009-10-18 02:27:49');
+INSERT INTO t1 VALUES (0,'2000-09-26 07:45:57');
+
+CREATE TABLE t2 (
+  `col_int` int,
+  `col_int_key` int,
+  KEY `col_int_key` (`col_int_key`)
+);
+
+INSERT INTO t2 VALUES (14,1);
+INSERT INTO t2 VALUES (98,1);
+
+# The WHERE clause is true for all rows of t2
+# but is needed to trigger the desired plan.
+# Query uses BKA.
+let $query=SELECT t1.col_int_key, t1.col_datetime 
+FROM t1,t2
+WHERE t2.col_int_key = 1 AND t2.col_int >= 3
+GROUP BY t1.col_int_key
+ORDER BY t1.col_int_key, t1.col_datetime
+LIMIT 2;
+
+eval explain $query;
+eval $query;
+
+# by disabling one index and forcing another, we hit 
+# block-nested-loop join and see the same bug
+let $query=SELECT t1.col_int_key, t1.col_datetime 
+FROM t1 force index (col_int_key), t2 ignore index (col_int_key)
+WHERE t2.col_int_key = 1 AND t2.col_int >= 3
+GROUP BY t1.col_int_key
+ORDER BY t1.col_int_key, t1.col_datetime
+LIMIT 2;
+
+eval explain $query;
+eval $query;
+
+drop table t1,t2;

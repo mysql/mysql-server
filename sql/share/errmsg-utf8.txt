@@ -6387,3 +6387,8 @@ ER_TABLES_DIFFERENT_METADATA
 ER_ROW_DOES_NOT_MATCH_PARTITION
   eng "Found row that does not match the partition"
   swe "Hittade rad som inte passar i partitionen"
+ER_WARN_INDEX_NOT_APPLICABLE
+  eng "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'"
+
+ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
+  eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."

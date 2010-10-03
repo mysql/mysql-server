@@ -2365,9 +2365,16 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
           . ./sql/datadict.cc +32 /Alfranio - TODO: We need to test this.
       */
       if (if_exists)
+      {
+        String tbl_name;
+        tbl_name.append(String(db,system_charset_info));
+        tbl_name.append('.');
+        tbl_name.append(String(table->table_name,system_charset_info));
+
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    table->table_name);
+			    tbl_name.c_ptr());
+      }
       else
       {
         non_tmp_error = (drop_temporary ? non_tmp_error : TRUE);
@@ -2425,6 +2432,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (wrong_tables.length())
 	wrong_tables.append(',');
+
+      wrong_tables.append(String(db,system_charset_info));
+      wrong_tables.append('.');
       wrong_tables.append(String(table->table_name,system_charset_info));
     }
     DBUG_PRINT("table", ("table: 0x%lx  s: 0x%lx", (long) table->table,

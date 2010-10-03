@@ -621,6 +621,32 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 
 
 /**
+  Create a new query string for removing DELAYED keyword for
+  multi INSERT DEALAYED statement.
+
+  @param[in] thd                 Thread handler
+  @param[in] buf                 Query string
+
+  @return
+             0           ok
+             1           error
+*/
+static int
+create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
+{
+  /* Append the part of thd->query before "DELAYED" keyword */
+  if (buf->append(thd->query(),
+                  thd->lex->keyword_delayed_begin - thd->query()))
+    return 1;
+  /* Append the part of thd->query after "DELAYED" keyword */
+  if (buf->append(thd->lex->keyword_delayed_begin + 7))
+    return 1;
+
+  return 0;
+}
+
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -999,13 +1025,28 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	such case the flag is ignored for constructing binlog event.
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			      thd->query(), thd->query_length(),
-			      transactional_table, FALSE, FALSE,
-                              errcode))
+        if (was_insert_delayed && table_list->lock_type ==  TL_WRITE)
         {
+          /* Binlog multi INSERT DELAYED as INSERT without DELAYED. */
+          String log_query;
+          if (create_insert_stmt_from_insert_delayed(thd, &log_query))
+          {
+            sql_print_error("Event Error: An error occurred while creating query string"
+                            "for INSERT DELAYED stmt, before writing it into binary log.");
+
+            error= 1;
+          }
+          else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                                     log_query.c_ptr(), log_query.length(),
+                                     transactional_table, FALSE, FALSE,
+                                     errcode))
+            error= 1;
+        }
+        else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+			           thd->query(), thd->query_length(),
+			           transactional_table, FALSE, FALSE,
+                                   errcode))
 	  error= 1;
-	}
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
@@ -1797,7 +1838,7 @@ public:
   time_t start_time;
   ulong sql_mode;
   bool auto_increment_field_not_null;
-  bool query_start_used, ignore, log_query;
+  bool query_start_used, ignore, log_query, binlog_rows_query_log_events;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
   MY_BITMAP write_set;
   ulonglong first_successful_insert_id_in_prev_stmt;
@@ -1811,7 +1852,8 @@ public:
   delayed_row(LEX_STRING const query_arg, enum_duplicates dup_arg,
               bool ignore_arg, bool log_query_arg)
     : record(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg),
-      forced_insert_id(0), query(query_arg), time_zone(0)
+      forced_insert_id(0), query(query_arg), time_zone(0),
+      binlog_rows_query_log_events(FALSE)
     {}
   ~delayed_row()
   {
@@ -2376,6 +2418,7 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   row->auto_increment_offset=    thd->variables.auto_increment_offset;
   row->sql_mode=                 thd->variables.sql_mode;
   row->auto_increment_field_not_null= table->auto_increment_field_not_null;
+  row->binlog_rows_query_log_events= thd->variables.binlog_rows_query_log_events;
 
   /* Copy the next forced auto increment value, if any. */
   if ((forced_auto_inc= thd->auto_inc_intervals_forced.get_next()))
@@ -2834,6 +2877,16 @@ bool Delayed_insert::handle_inserts(void)
                            (ulong) row->query.length));
     if (log_query)
     {
+      if (thd.is_current_stmt_binlog_format_row())
+      {
+        /* Flush rows of previous statement*/
+        if (thd.binlog_flush_pending_rows_event(TRUE, FALSE))
+          goto err;
+        /* Set query for Rows_query_log event in RBR*/
+        thd.set_query(row->query.str, row->query.length);
+        thd.variables.binlog_rows_query_log_events= row->binlog_rows_query_log_events;
+      }
+
       /*
         This is the first value of an INSERT statement.
         It is the right place to clear a forced insert_id.
@@ -2901,7 +2954,8 @@ bool Delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     }
 
-    if (log_query && mysql_bin_log.is_open())
+    if (log_query && mysql_bin_log.is_open() &&
+        !thd.is_current_stmt_binlog_format_row())
     {
       bool backup_time_zone_used = thd.time_zone_used;
       Time_zone *backup_time_zone = thd.variables.time_zone;
@@ -2916,16 +2970,12 @@ bool Delayed_insert::handle_inserts(void)
       int errcode= 0;
       if (thd.killed == THD::NOT_KILLED)
         errcode= query_error_code(&thd, TRUE);
-      
+
       /*
-        If the query has several rows to insert, only the first row will come
-        here. In row-based binlogging, this means that the first row will be
-        written to binlog as one Table_map event and one Rows event (due to an
-        event flush done in binlog_query()), then all other rows of this query
-        will be binlogged together as one single Table_map event and one
-        single Rows event.
+        In SBR, only the query which has one single value
+        will be binlogged here.
       */
-      if (thd.binlog_query(THD::ROW_QUERY_TYPE,
+      if (thd.binlog_query(THD::STMT_QUERY_TYPE,
                            row->query.str, row->query.length,
                            FALSE, FALSE, FALSE, errcode))
         goto err;
@@ -2946,6 +2996,8 @@ bool Delayed_insert::handle_inserts(void)
     */
     table->auto_increment_field_not_null= FALSE;
 
+    if (log_query && thd.is_current_stmt_binlog_format_row())
+      thd.set_query(NULL, 0);
     delete row;
     /*
       Let READ clients do something once in a while

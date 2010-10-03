@@ -1336,7 +1336,7 @@ enum enum_open_type
   OT_TEMPORARY_OR_BASE= 0, OT_TEMPORARY_ONLY, OT_BASE_ONLY
 };
 
-class SJ_MATERIALIZATION_INFO;
+class Semijoin_mat_exec;
 class Index_hint;
 class Item_exists_subselect;
 
@@ -1423,7 +1423,7 @@ struct TABLE_LIST
   */
   table_map     sj_inner_tables;
   Item_exists_subselect  *sj_subq_pred;
-  SJ_MATERIALIZATION_INFO *sj_mat_info;
+  Semijoin_mat_exec *sj_mat_exec;
 
   /*
     The structure of ON expression presented in the member above
@@ -1843,8 +1843,6 @@ private:
 };
 
 struct st_position;
-
-class SJ_MATERIALIZATION_INFO;
   
 class Item;
 
@@ -1968,6 +1966,29 @@ public:
   Natural_join_column *get_natural_column_ref();
 };
 
+/**
+  Semijoin_mat_optimize collects data used when calculating the cost of
+  executing a semijoin operation using a materialization strategy.
+  It is used during optimization phase only.
+*/
+
+struct Semijoin_mat_optimize
+{
+  /* Optimal join order calculated for inner tables of this semijoin op. */
+  struct st_position *positions;
+  /** True if data types allow the MaterializeLookup semijoin strategy */
+  bool lookup_allowed;
+  /** True if data types allow the MaterializeScan semijoin strategy */
+  bool scan_allowed;
+  /* Expected #rows in the materialized table */
+  double expected_rowcount;
+  /* Materialization cost - execute sub-join and write rows to temp.table */
+  COST_VECT materialization_cost;
+  /* Cost to make one lookup in the temptable */
+  COST_VECT lookup_cost;
+  /* Cost of scanning the materialized table */
+  COST_VECT scan_cost;
+};
 
 typedef struct st_nested_join
 {
@@ -2000,6 +2021,7 @@ typedef struct st_nested_join
     of the semi-join, respectively.
   */
   List<Item>        sj_outer_exprs, sj_inner_exprs;
+  Semijoin_mat_optimize sjm;
   /**
      True if this join nest node is completely covered by the query execution
      plan. This means two things.
