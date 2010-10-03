@@ -852,13 +852,13 @@ bool Key_value_records_iterator::init(DsMrr_impl *dsmrr_arg)
 
   uchar *key_in_buf= dsmrr->cur_index_tuple;
 
+  last_identical_key_ptr= dsmrr->cur_index_tuple;
   if (dsmrr->use_key_pointers)
     dsmrr->cur_index_tuple= *((uchar**)dsmrr->cur_index_tuple);
   
   /* Check out how many more identical keys are following */
   //char *save_cur_range_info= cur_range_info;
   uchar *save_cur_index_tuple= dsmrr->cur_index_tuple;
-  last_identical_key_ptr= dsmrr->cur_index_tuple;
   while (!identical_key_it.read())
   {
     if (DsMrr_impl::key_tuple_cmp(dsmrr, key_in_buf, dsmrr->cur_index_tuple))
@@ -901,6 +901,7 @@ int Key_value_records_iterator::get_next()
       return res;
     }
     identical_key_it.init(dsmrr->key_buffer);
+    get_next_row= FALSE;
   }
 
   identical_key_it.read(); // This gets us next range_id.
@@ -1052,7 +1053,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     {
       if (do_sort_keys)
       {
-        if (index_scan_eof) 
+        if (!index_scan_eof) 
         {
           /* There are some sorted keys left. Use them to get rowids */
           if ((res= dsmrr_fill_rowid_buffer()))
