@@ -1289,8 +1289,9 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
-insert delayed into t1 values (null),(null),(null),(null);
-insert delayed into t1 values (null),(null),(400),(null);
+RESET MASTER;
+insert /* before delayed */ delayed /* after delayed */ into t1 values (null),(null),(null),(null);
+insert  /*! delayed */ into t1 values (null),(null),(400),(null);
 select * from t1;
 a
 207

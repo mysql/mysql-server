@@ -256,6 +256,7 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
+#define IGNORABLE_HEADER_LEN   0
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -497,6 +498,17 @@ struct sql_ex_info
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
 /**
+   @def LOG_EVENT_IGNORABLE_F
+
+   For an event, 'e', carrying a type code, that a slave,
+   's', does not recognize, 's' will check 'e' for
+   LOG_EVENT_IGNORABLE_F, and if the flag is set, then 'e'
+   is ignored. Otherwise, 's' acknowledges that it has
+   found an unknown event in the relay log.
+*/
+#define LOG_EVENT_IGNORABLE_F 0x80
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -593,7 +605,16 @@ enum Log_event_type
     to ensure master's online status to slave 
   */
   HEARTBEAT_LOG_EVENT= 27,
-  
+
+  /*
+    In some situations, it is necessary to send over ignorable
+    data to the slave: data that a slave can handle in case there
+    is code for handling it, but which can be ignored if it is not
+    recognized.
+  */
+  IGNORABLE_LOG_EVENT= 28,
+  ROWS_QUERY_LOG_EVENT= 29,
+
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -1071,6 +1092,7 @@ public:
   void set_relay_log_event() { flags |= LOG_EVENT_RELAY_LOG_F; }
   bool is_artificial_event() const { return flags & LOG_EVENT_ARTIFICIAL_F; }
   bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
+  bool is_ignorable_event() const { return flags & LOG_EVENT_IGNORABLE_F; }
   inline bool use_trans_cache() const
   { 
     return (cache_type == Log_event::EVENT_TRANSACTIONAL_CACHE);
@@ -4080,6 +4102,96 @@ private:
   LEX_STRING m_message;
 };
 
+
+/**
+  @class Ignorable_log_event
+
+  Base class for ignorable log events. Events deriving from
+  this class can be safely ignored by slaves that cannot
+  recognize them. Newer slaves, will be able to read and
+  handle them. This has been designed to be an open-ended
+  architecture, so adding new derived events shall not harm
+  the old slaves that support ignorable log event mechanism
+  (they will just ignore unrecognized ignorable events).
+**/
+class Ignorable_log_event : public Log_event {
+public:
+#ifndef MYSQL_CLIENT
+  Ignorable_log_event(THD *thd_arg)
+      : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, FALSE)
+  {
+    DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
+    DBUG_VOID_RETURN;
+  }
+#endif
+
+  Ignorable_log_event(const char *buf,
+                      const Format_description_log_event *descr_event);
+
+  virtual ~Ignorable_log_event();
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+  virtual Log_event_type get_type_code() { return IGNORABLE_LOG_EVENT; }
+
+  virtual bool is_valid() const { return 1; }
+
+  virtual int get_data_size() { return IGNORABLE_HEADER_LEN; }
+};
+
+
+class Rows_query_log_event : public Ignorable_log_event {
+public:
+#ifndef MYSQL_CLIENT
+  Rows_query_log_event(THD *thd_arg, const char * query, ulong query_len)
+    : Ignorable_log_event(thd_arg)
+  {
+    DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
+    if (!(m_rows_query= (char*) my_malloc(query_len + 1, MYF(MY_WME))))
+      return;
+    my_snprintf(m_rows_query, query_len + 1, "%s", query);
+    DBUG_PRINT("enter", ("%s", m_rows_query));
+    DBUG_VOID_RETURN;
+  }
+#endif
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+  Rows_query_log_event(const char *buf, uint event_len,
+                     const Format_description_log_event *descr_event);
+
+  virtual ~Rows_query_log_event();
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+  virtual bool write_data_body(IO_CACHE *file);
+
+  virtual Log_event_type get_type_code() { return ROWS_QUERY_LOG_EVENT; }
+
+  virtual int get_data_size()
+  {
+    return IGNORABLE_HEADER_LEN + 1 + (uint) strlen(m_rows_query);
+  }
+
+private:
+#if !defined(MYSQL_CLIENT)
+  virtual int do_apply_event(Relay_log_info const* rli);
+#endif
+
+  char * m_rows_query;
+};
+
+
+
 static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
                                                        FILE *file)
 {
@@ -4127,6 +4239,7 @@ private:
 int append_query_string(CHARSET_INFO *csinfo,
                         String const *from, String *to);
 bool sqlcom_can_generate_row_events(const THD *thd);
+void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli);
 
 /**
   @} (end of group Replication)

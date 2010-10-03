@@ -301,351 +301,6 @@ select * from t1 order by (select col from columns limit 1);
 * Column types/sizes that affect materialization.
 ******************************************************************************/
 
-/*
-  Test that BLOBs are not materialized (except when arguments of some functions).
-*/
-# restore default
-# force materialization to be always considered
-set @prefix_len = 6;
-
-# BLOB == 16 (small blobs that could be stored in HEAP tables)
-set @blob_len = 16;
-set @suffix_len = @blob_len - @prefix_len;
-
-create table t1_16 (a1 blob(16), a2 blob(16));
-create table t2_16 (b1 blob(16), b2 blob(16));
-create table t3_16 (c1 blob(16), c2 blob(16));
-
-insert into t1_16 values
- (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
-insert into t1_16 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t1_16 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-
-insert into t2_16 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t2_16 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_16 values
- (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-
-insert into t3_16 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t3_16 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t3_16 values
- (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_16 values
- (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
-# single value transformer
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select b1 from t2_16 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select b1 from t2_16 where b1 > '0');
-
-# row value transformer
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_16
-where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
-
-# string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
-
-# group_concat with a blob argument - depends on
-# the variable group_concat_max_len, and
-# convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select group_concat(b1) from t2_16 group by b2);
-
-select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select group_concat(b1) from t2_16 group by b2);
-
-set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
-
-explain extended select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select group_concat(b1) from t2_16 group by b2);
-
-select left(a1,7), left(a2,7)
-from t1_16
-where a1 in (select group_concat(b1) from t2_16 group by b2);
-
-# BLOB column at the second (intermediate) level of nesting
-explain extended
-select * from t1
-where concat(a1,'x') IN
-      (select left(a1,8) from t1_16
-       where (a1, a2) IN
-             (select t2_16.b1, t2_16.b2 from t2_16, t2
-              where t2.b2 = substring(t2_16.b2,1,6) and
-                    t2.b1 IN (select c1 from t3 where c2 > '0')));
-
-
-drop table t1_16, t2_16, t3_16;
-
-
-# BLOB == 512 (CONVERT_IF_BIGGER_TO_BLOB == 512)
-set @blob_len = 512;
-set @suffix_len = @blob_len - @prefix_len;
-
-create table t1_512 (a1 blob(512), a2 blob(512));
-create table t2_512 (b1 blob(512), b2 blob(512));
-create table t3_512 (c1 blob(512), c2 blob(512));
-
-insert into t1_512 values
- (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
-insert into t1_512 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t1_512 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-
-insert into t2_512 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t2_512 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_512 values
- (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-
-insert into t3_512 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t3_512 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t3_512 values
- (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_512 values
- (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
-# single value transformer
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select b1 from t2_512 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select b1 from t2_512 where b1 > '0');
-
-# row value transformer
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_512
-where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
-
-# string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
-
-# group_concat with a blob argument - depends on
-# the variable group_concat_max_len, and
-# convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select group_concat(b1) from t2_512 group by b2);
-
-select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select group_concat(b1) from t2_512 group by b2);
-
-set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
-
-explain extended select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select group_concat(b1) from t2_512 group by b2);
-
-select left(a1,7), left(a2,7)
-from t1_512
-where a1 in (select group_concat(b1) from t2_512 group by b2);
-
-drop table t1_512, t2_512, t3_512;
-
-
-# BLOB == 1024 (group_concat_max_len == 1024)
-set @blob_len = 1024;
-set @suffix_len = @blob_len - @prefix_len;
-
-create table t1_1024 (a1 blob(1024), a2 blob(1024));
-create table t2_1024 (b1 blob(1024), b2 blob(1024));
-create table t3_1024 (c1 blob(1024), c2 blob(1024));
-
-insert into t1_1024 values
- (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
-insert into t1_1024 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t1_1024 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-
-insert into t2_1024 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t2_1024 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_1024 values
- (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-
-insert into t3_1024 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t3_1024 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t3_1024 values
- (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_1024 values
- (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
-# single value transformer
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select b1 from t2_1024 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select b1 from t2_1024 where b1 > '0');
-
-# row value transformer
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_1024
-where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
-
-# string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
-
-# group_concat with a blob argument - depends on
-# the variable group_concat_max_len, and
-# convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select group_concat(b1) from t2_1024 group by b2);
-
-select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select group_concat(b1) from t2_1024 group by b2);
-
-set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 1024)
-
-explain extended select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select group_concat(b1) from t2_1024 group by b2);
-
-select left(a1,7), left(a2,7)
-from t1_1024
-where a1 in (select group_concat(b1) from t2_1024 group by b2);
-
-drop table t1_1024, t2_1024, t3_1024;
-
-
-# BLOB == 1025
-set @blob_len = 1025;
-set @suffix_len = @blob_len - @prefix_len;
-
-create table t1_1025 (a1 blob(1025), a2 blob(1025));
-create table t2_1025 (b1 blob(1025), b2 blob(1025));
-create table t3_1025 (c1 blob(1025), c2 blob(1025));
-
-insert into t1_1025 values
- (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
-insert into t1_1025 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t1_1025 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-
-insert into t2_1025 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t2_1025 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t2_1025 values
- (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-
-insert into t3_1025 values
- (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
-insert into t3_1025 values
- (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
-insert into t3_1025 values
- (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
-insert into t3_1025 values
- (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
-# single value transformer
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select b1 from t2_1025 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select b1 from t2_1025 where b1 > '0');
-
-# row value transformer
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_1025
-where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
-
-# string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
-
-select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
-
-# group_concat with a blob argument - depends on
-# the variable group_concat_max_len, and
-# convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select group_concat(b1) from t2_1025 group by b2);
-
-select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select group_concat(b1) from t2_1025 group by b2);
-
-set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 1025)
-
-explain extended select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select group_concat(b1) from t2_1025 group by b2);
-
-select left(a1,7), left(a2,7)
-from t1_1025
-where a1 in (select group_concat(b1) from t2_1025 group by b2);
-
-drop table t1_1025, t2_1025, t3_1025;
-
 # test for BIT fields
 create table t1bit (a1 bit(3), a2 bit(3));
 create table t2bit (b1 bit(3), b2 bit(3));
@@ -659,7 +314,6 @@ insert into t2bit values (b'010', b'110');
 insert into t2bit values (b'110', b'111');
 
 
-# restore default
 explain extended select bin(a1), bin(a2)
 from t1bit
 where (a1, a2) in (select b1, b2 from t2bit);
@@ -1008,6 +662,33 @@ FROM t2);
 --echo #
 DROP TABLE IF EXISTS t1,t2,t3,empty1;
 
+
+--echo #
+--echo # BUG#52344 - Subquery materialization: 
+--echo #  	     Assertion if subquery in on-clause of outer join
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (10);
+
+CREATE TABLE t2 (j INTEGER);
+INSERT INTO t2 VALUES (5);
+
+CREATE TABLE t3 (k INTEGER);
+
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+
+DROP TABLE t1, t2, t3;
+
+--echo # End BUG#52344
+
+
 #
 # Bug #52538 Valgrind bug: Item_in_subselect::init_left_expr_cache()
 #
@@ -1112,4 +793,25 @@ HAVING ('c')
 DROP TABLE t1,t2,t3;
 
 --echo # End BUG#54511
+
+--echo #
+--echo # BUG#56367 - Assertion exec_method != EXEC_MATERIALIZATION...
+--echo #             on subquery in FROM
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+
+let $query =
+SELECT a FROM (
+  SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
+) table1;
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End BUG#56367
 

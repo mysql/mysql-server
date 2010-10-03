@@ -5595,6 +5595,7 @@ static int write_locked_table_maps(THD *thd)
       if (lock == NULL)
         continue;
 
+      bool need_binlog_rows_query= thd->variables.binlog_rows_query_log_events;
       TABLE **const end_ptr= lock->table + lock->table_count;
       for (TABLE **table_ptr= lock->table ; 
            table_ptr != end_ptr ;
@@ -5620,7 +5621,12 @@ static int write_locked_table_maps(THD *thd)
           */
           bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
                                 table->file->has_transactions();
-          int const error= thd->binlog_write_table_map(table, has_trans);
+          int const error= thd->binlog_write_table_map(table, has_trans,
+                                                       need_binlog_rows_query);
+          /* Binlog Rows_query log event once for one statement which updates
+             two or more tables.*/
+          if (need_binlog_rows_query)
+            need_binlog_rows_query= FALSE;
           /*
             If an error occurs, it is the responsibility of the caller to
             roll back the transaction.

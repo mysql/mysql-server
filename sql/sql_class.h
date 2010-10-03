@@ -476,6 +476,7 @@ typedef struct system_variables
   Time_zone *time_zone;
 
   my_bool sysdate_is_now;
+  my_bool binlog_rows_query_log_events;
 
   double long_query_time_double;
 
@@ -1544,7 +1545,8 @@ public:
   */
   void binlog_start_trans_and_stmt();
   void binlog_set_stmt_begin();
-  int binlog_write_table_map(TABLE *table, bool is_transactional);
+  int binlog_write_table_map(TABLE *table, bool is_transactional,
+                             bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
                        const uchar *new_data);
   int binlog_delete_row(TABLE* table, bool is_transactional,
@@ -3234,63 +3236,32 @@ public:
 struct st_table_ref;
 
 
-/*
-  Optimizer and executor structure for the materialized semi-join info. This
-  structure contains
+/**
+  Executor structure for the materialized semi-join info, which contains
    - The sj-materialization temporary table
    - Members needed to make index lookup or a full scan of the temptable.
 */
-class SJ_MATERIALIZATION_INFO : public Sql_alloc
+class Semijoin_mat_exec : public Sql_alloc
 {
 public:
-  /* Optimal join sub-order */
-  struct st_position *positions;
+  Semijoin_mat_exec(uint table_count, bool is_scan)
+    :table_count(table_count), is_scan(is_scan),
+    materialized(FALSE), table_param(), table_cols(),
+    table(NULL), tab_ref(NULL), in_equality(NULL),
+    join_cond(NULL), copy_field(NULL)
+  {}
+  ~Semijoin_mat_exec() {}
 
-  uint tables; /* Number of tables in the sj-nest */
-
-  /* Expected #rows in the materialized table */
-  double rows;
-
-  /* 
-    Cost to materialize - execute the sub-join and write rows into temp.table
-  */
-  COST_VECT materialization_cost;
-
-  /* Cost to make one lookup in the temptable */
-  COST_VECT lookup_cost;
-  
-  /* Cost of scanning the materialized table */
-  COST_VECT scan_cost;
-
-  /* --- Execution structures ---------- */
-  
-  /*
-    TRUE <=> This structure is used for execution. We don't necessarily pick
-    sj-materialization, so some of SJ_MATERIALIZATION_INFO structures are not
-    used by materialization
-  */
-  bool is_used;
-  
-  bool materialized; /* TRUE <=> materialization already performed */
-  /*
-    TRUE  - the temptable is read with full scan
-    FALSE - we use the temptable for index lookups
-  */
-  bool is_sj_scan; 
-  
-  /* The temptable and its related info */
-  TMP_TABLE_PARAM sjm_table_param;
-  List<Item> sjm_table_cols;
-  TABLE *table;
-
-  /* Structure used to make index lookups */
-  struct st_table_ref *tab_ref;
-  Item *in_equality; /* See create_subquery_equalities() */
-  /* True if data types allow the MaterializeScan semijoin strategy */
-  bool sjm_scan_allowed;
-
-  Item *join_cond; /* See comments in make_join_select() */
-  Copy_field *copy_field; /* Needed for SJ_Materialization scan */
+  const uint table_count;       // Number of tables in the sj-nest
+  const bool is_scan;           // TRUE if executing as a scan, FALSE if lookup
+  bool materialized;            // TRUE <=> materialization has been performed
+  TMP_TABLE_PARAM table_param;  // The temptable and its related info
+  List<Item> table_cols;        // List of columns describing temp. table
+  TABLE *table;                 // Reference to temporary table
+  struct st_table_ref *tab_ref; // Structure used to make index lookups
+  Item *in_equality;            // See create_subquery_equalities()
+  Item *join_cond;              // See comments in make_join_select()
+  Copy_field *copy_field;       // Needed for materialization scan
 };
 
 

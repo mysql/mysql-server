@@ -76,6 +76,8 @@ The following options may be given as the first argument:
  the table) is logged in the before image, and only
  changed columns are logged in the after image. (Default:
  FULL).
+ --binlog-rows-query-log-events 
+ Allow writing of Rows_query_log events into binary log.
  --bootstrap         Used by mysql installation scripts.
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
@@ -744,6 +746,7 @@ binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
 binlog-row-image FULL
+binlog-rows-query-log-events FALSE
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
 character-set-filesystem binary
