@@ -386,7 +386,7 @@ public class Main
             lm = "";
             assert false;
         }
-        out.println("SELECT ..." + lm + ";]");
+        out.println("SELECT" + lm + ";]");
 
         out.print("compiling jdbc statements ...");
         out.flush();
