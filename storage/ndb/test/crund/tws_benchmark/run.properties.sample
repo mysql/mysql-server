@@ -10,6 +10,11 @@ doSingle=true
 doBulk=true
 doBatch=true
 
+# lock mode for lookup and read scans
+lockMode=READ_COMMITTED
+#lockMode=SHARED
+#lockMode=EXCLUSIVE,
+
 # nRows >= 40000
 #   jdbc bulk: 1217 'Out of operation records in local data manager
 #   (increase MaxNoOfLocalOperations)' from NDBCLUSTER
