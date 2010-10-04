@@ -667,6 +667,11 @@ struct handlerton
      full transaction is committed, not for each commit of statement
      transaction in a multi-statement transaction.
 
+     Not that like prepare(), commit_ordered() is only called when 2-phase
+     commit takes place. Ie. when no binary log and only a single engine
+     participates in a transaction, one commit() is called, no
+     commit_orderd(). So engines must be prepared for this.
+
      The calls to commit_ordered() in multiple parallel transactions is
      guaranteed to happen in the same order in every participating
      handler. This can be used to ensure the same commit order among multiple
@@ -684,11 +689,9 @@ struct handlerton
      doing any time-consuming or blocking operations in commit_ordered() will
      limit scalability.
 
-     Handlers can rely on commit_ordered() calls for transactions that updated
-     data to be serialised (no two calls can run in parallel, so no extra
-     locking on the handler part is required to ensure this). However, calls
-     for SELECT-only transactions are not serialised, so can occur in parallel
-     with each other and with at most one write-transaction.
+     Handlers can rely on commit_ordered() calls to be serialised (no two
+     calls can run in parallel, so no extra locking on the handler part is
+     required to ensure this).
 
      Note that commit_ordered() can be called from a different thread than the
      one handling the transaction! So it can not do anything that depends on
@@ -700,7 +703,8 @@ struct handlerton
      must be saved and returned from the commit() method instead.
 
      The commit_ordered method is optional, and can be left unset if not
-     needed in a particular handler.
+     needed in a particular handler (then there will be no ordering guarantees
+     wrt. other engines and binary log).
    */
    void (*commit_ordered)(handlerton *hton, THD *thd, bool all);
    int  (*rollback)(handlerton *hton, THD *thd, bool all);

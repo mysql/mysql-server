@@ -1251,32 +1251,7 @@ int ha_commit_one_phase(THD *thd, bool all)
     enclosing 'all' transaction is rolled back.
   */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
-  Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_commit_one_phase");
-#ifdef USING_TRANSACTIONS
-  if (ha_info)
-  {
-    if (is_real_trans)
-    {
-      bool locked= false;
-      for (; ha_info; ha_info= ha_info->next())
-      {
-        handlerton *ht= ha_info->ht();
-        if (ht->commit_ordered)
-        {
-          if (ha_info->is_trx_read_write() && !locked)
-          {
-            pthread_mutex_lock(&LOCK_commit_ordered);
-            locked= 1;
-          }
-          ht->commit_ordered(ht, thd, all);
-        }
-      }
-      if (locked)
-        pthread_mutex_unlock(&LOCK_commit_ordered);
-    }
-  }
-#endif /* USING_TRANSACTIONS */
   DBUG_RETURN(commit_one_phase_2(thd, all, trans, is_real_trans));
 }
 
@@ -1901,7 +1876,13 @@ int ha_start_consistent_snapshot(THD *thd)
 {
   bool warn= true;
 
+  /*
+    Holding the LOCK_commit_ordered mutex ensures that for any transaction
+    we either see it committed in all engines, or in none.
+  */
+  pthread_mutex_lock(&LOCK_commit_ordered);
   plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);
+  pthread_mutex_unlock(&LOCK_commit_ordered);
 
   /*
     Same idea as when one wants to CREATE TABLE in one engine which does not

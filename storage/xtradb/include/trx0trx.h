@@ -511,9 +511,10 @@ struct trx_struct{
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	ulint		active_trans;	/*!< 1 - if a transaction in MySQL
-					is active. 2 - if prepare_commit_mutex
-					was taken */
+	ulint		active_trans;	/*!< TRX_ACTIVE_IN_MYSQL  - set if a
+					transaction in MySQL is active.
+					TRX_ACTIVE_COMMIT_ORDERED - set if
+					innobase_commit_ordered has run */
 	ulint		has_search_latch;
 					/* TRUE if this trx has latched the
 					search system latch in S-mode */
@@ -823,6 +824,10 @@ Multiple flags can be combined with bitwise OR. */
 					session */
 #define TRX_SIG_OTHER_SESS	1	/* sent by another session (which
 					must hold rights to this) */
+
+/* Flag bits for trx_struct.active_trans */
+#define TRX_ACTIVE_IN_MYSQL       (1<<0)
+#define TRX_ACTIVE_COMMIT_ORDERED (1<<1)
 
 /** Commit node states */
 enum commit_node_state {

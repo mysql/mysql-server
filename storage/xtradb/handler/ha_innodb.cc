@@ -1700,10 +1700,10 @@ innobase_query_caching_of_table_permitted(
 	/* The call of row_search_.. will start a new transaction if it is
 	not yet started */
 
-	if (trx->active_trans == 0) {
+	if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0) {
 
 		innobase_register_trx_and_stmt(innodb_hton_ptr, thd);
-		trx->active_trans = 1;
+		trx->active_trans |= TRX_ACTIVE_IN_MYSQL;
 	}
 
 	if (row_search_check_if_query_cache_permitted(trx, norm_name)) {
@@ -1973,11 +1973,11 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
-	if (prebuilt->trx->active_trans == 0) {
+	if ((prebuilt->trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0) {
 
 		innobase_register_trx_and_stmt(ht, user_thd);
 
-		prebuilt->trx->active_trans = 1;
+		prebuilt->trx->active_trans |= TRX_ACTIVE_IN_MYSQL;
 	}
 
 	/* We did the necessary inits in this function, no need to repeat them
@@ -2704,58 +2704,21 @@ innobase_start_trx_and_assign_read_view(
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
-	if (trx->active_trans == 0) {
+	if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0) {
 		innobase_register_trx_and_stmt(hton, thd);
-		trx->active_trans = 1;
+		trx->active_trans |= TRX_ACTIVE_IN_MYSQL;
 	}
 
 	DBUG_RETURN(0);
 }
 
-/*****************************************************************//**
-Perform the first, fast part of InnoDB commit.
-
-Doing it in this call ensures that we get the same commit order here
-as in binlog and any other participating transactional storage engines.
-
-Note that we want to do as little as really needed here, as we run
-under a global mutex. The expensive fsync() is done later, in
-innobase_commit(), without a lock so group commit can take place.
-
-Note also that this method can be called from a different thread than
-the one handling the rest of the transaction. */
 static
 void
-innobase_commit_ordered(
+innobase_commit_ordered_2(
 /*============*/
-	handlerton *hton, /*!< in: Innodb handlerton */
-	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
-			the transaction should be committed */
-	bool	all)	/*!< in:	TRUE - commit transaction
-				FALSE - the current SQL statement ended */
+	trx_t*	trx) /*!< in: Innodb transaction */
 {
-	trx_t*		trx;
 	DBUG_ENTER("innobase_commit_ordered");
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	trx = check_trx_exists(thd);
-
-	if (trx->active_trans == 0
-		&& trx->conc_state != TRX_NOT_STARTED) {
-		/* We cannot throw error here; instead we will catch this error
-		again in innobase_commit() and report it from there. */
-		DBUG_VOID_RETURN;
-	}
-	/* Since we will reserve the kernel mutex, we have to release
-	the search system latch first to obey the latching order. */
-
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
-
-	/* commit_ordered is only called when committing the whole transaction
-	(or an SQL statement when autocommit is on). */
-	DBUG_ASSERT(all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
 
 	/* We need current binlog position for ibbackup to work.
 	Note, the position is current because commit_ordered is guaranteed
@@ -2808,6 +2771,60 @@ retry:
 }
 
 /*****************************************************************//**
+Perform the first, fast part of InnoDB commit.
+
+Doing it in this call ensures that we get the same commit order here
+as in binlog and any other participating transactional storage engines.
+
+Note that we want to do as little as really needed here, as we run
+under a global mutex. The expensive fsync() is done later, in
+innobase_commit(), without a lock so group commit can take place.
+
+Note also that this method can be called from a different thread than
+the one handling the rest of the transaction. */
+static
+void
+innobase_commit_ordered(
+/*============*/
+	handlerton *hton, /*!< in: Innodb handlerton */
+	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+	bool	all)	/*!< in:	TRUE - commit transaction
+				FALSE - the current SQL statement ended */
+{
+	trx_t*		trx;
+	DBUG_ENTER("innobase_commit_ordered");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+
+	/* Since we will reserve the kernel mutex, we have to release
+	the search system latch first to obey the latching order. */
+
+	if (trx->has_search_latch) {
+		trx_search_latch_release_if_reserved(trx);
+	}
+
+	if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0
+		&& trx->conc_state != TRX_NOT_STARTED) {
+		/* We cannot throw error here; instead we will catch this error
+		again in innobase_commit() and report it from there. */
+		DBUG_VOID_RETURN;
+	}
+
+	/* commit_ordered is only called when committing the whole transaction
+	(or an SQL statement when autocommit is on). */
+	DBUG_ASSERT(all ||
+		(!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
+
+	innobase_commit_ordered_2(trx);
+
+	trx->active_trans |= TRX_ACTIVE_COMMIT_ORDERED;
+
+	DBUG_VOID_RETURN;
+}
+
+/*****************************************************************//**
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended.
 @return	0 */
@@ -2829,7 +2846,15 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
-	/* The flag trx->active_trans is set to 1 in
+	/* Since we will reserve the kernel mutex, we have to release
+	the search system latch first to obey the latching order. */
+
+	if (trx->has_search_latch &&
+		(trx->active_trans & TRX_ACTIVE_COMMIT_ORDERED) == 0) {
+		trx_search_latch_release_if_reserved(trx);
+	}
+
+	/* The flag TRX_ACTIVE_IN_MYSQL in trx->active_trans is set in
 
 	1. ::external_lock(),
 	2. ::start_stmt(),
@@ -2839,19 +2864,25 @@ innobase_commit(
 	6. innobase_start_trx_and_assign_read_view(),
 	7. ::transactional_table_lock()
 
-	and it is only set to 0 in a commit or a rollback. If it is 0 we know
+	and it is only cleared in a commit or a rollback. If it is unset we know
 	there cannot be resources to be freed and we could return immediately.
 	For the time being, we play safe and do the cleanup though there should
 	be nothing to clean up. */
 
-	if (trx->active_trans == 0
+	if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0
 		&& trx->conc_state != TRX_NOT_STARTED) {
 
 		sql_print_error("trx->active_trans == 0, but"
 			" trx->conc_state != TRX_NOT_STARTED");
 	}
+
 	if (all
 		|| (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+
+		/* Run the fast part of commit if we did not already. */
+		if ((trx->active_trans & TRX_ACTIVE_COMMIT_ORDERED) == 0) {
+			innobase_commit_ordered_2(trx);
+		}
 
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
@@ -3076,7 +3107,7 @@ innobase_savepoint(
 	innobase_release_stat_resources(trx);
 
 	/* cannot happen outside of transaction */
-	DBUG_ASSERT(trx->active_trans);
+	DBUG_ASSERT(trx->active_trans & TRX_ACTIVE_IN_MYSQL);
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 	char name[64];
@@ -3106,7 +3137,7 @@ innobase_close_connection(
 
 	ut_a(trx);
 
-	if (trx->active_trans == 0
+	if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0
 		&& trx->conc_state != TRX_NOT_STARTED) {
 
 		sql_print_error("trx->active_trans == 0, but"
@@ -5021,10 +5052,9 @@ no_commit:
 			no need to re-acquire locks on it. */
 
 			/* Altering to InnoDB format */
-			innobase_commit_ordered(ht, user_thd, 1);
 			innobase_commit(ht, user_thd, 1);
 			/* Note that this transaction is still active. */
-			prebuilt->trx->active_trans = 1;
+			prebuilt->trx->active_trans |= TRX_ACTIVE_IN_MYSQL;
 			/* We will need an IX lock on the destination table. */
 			prebuilt->sql_stat_start = TRUE;
 		} else {
@@ -5038,10 +5068,9 @@ no_commit:
 
 			/* Commit the transaction.  This will release the table
 			locks, so they have to be acquired again. */
-			innobase_commit_ordered(ht, user_thd, 1);
 			innobase_commit(ht, user_thd, 1);
 			/* Note that this transaction is still active. */
-			prebuilt->trx->active_trans = 1;
+			prebuilt->trx->active_trans |= TRX_ACTIVE_IN_MYSQL;
 			/* Re-acquire the table lock on the source table. */
 			row_lock_table_for_mysql(prebuilt, src_table, mode);
 			/* We will need an IX lock on the destination table. */
@@ -8929,10 +8958,10 @@ ha_innobase::start_stmt(
 	trx->detailed_error[0] = '\0';
 
 	/* Set the MySQL flag to mark that there is an active transaction */
-	if (trx->active_trans == 0) {
+	if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0) {
 
 		innobase_register_trx_and_stmt(ht, thd);
-		trx->active_trans = 1;
+		trx->active_trans |= TRX_ACTIVE_IN_MYSQL;
 	} else {
 		innobase_register_stmt(ht, thd);
 	}
@@ -9030,10 +9059,10 @@ ha_innobase::external_lock(
 
 		/* Set the MySQL flag to mark that there is an active
 		transaction */
-		if (trx->active_trans == 0) {
+		if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0) {
 
 			innobase_register_trx_and_stmt(ht, thd);
-			trx->active_trans = 1;
+			trx->active_trans |= TRX_ACTIVE_IN_MYSQL;
 		} else if (trx->n_mysql_tables_in_use == 0) {
 			innobase_register_stmt(ht, thd);
 		}
@@ -9131,8 +9160,7 @@ ha_innobase::external_lock(
 		prebuilt->used_in_HANDLER = FALSE;
 
 		if (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
-			if (trx->active_trans != 0) {
-				innobase_commit_ordered(ht, thd, TRUE);
+			if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) != 0) {
 				innobase_commit(ht, thd, TRUE);
 			}
 		} else {
@@ -9217,10 +9245,10 @@ ha_innobase::transactional_table_lock(
 	/* MySQL is setting a new transactional table lock */
 
 	/* Set the MySQL flag to mark that there is an active transaction */
-	if (trx->active_trans == 0) {
+	if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0) {
 
 		innobase_register_trx_and_stmt(ht, thd);
-		trx->active_trans = 1;
+		trx->active_trans |= TRX_ACTIVE_IN_MYSQL;
 	}
 
 	if (THDVAR(thd, table_locks) && thd_in_lock_tables(thd)) {
@@ -10272,7 +10300,8 @@ innobase_xa_prepare(
 
 	innobase_release_stat_resources(trx);
 
-	if (trx->active_trans == 0 && trx->conc_state != TRX_NOT_STARTED) {
+	if ((trx->active_trans & TRX_ACTIVE_IN_MYSQL) == 0 &&
+	    trx->conc_state != TRX_NOT_STARTED) {
 
 	  sql_print_error("trx->active_trans == 0, but trx->conc_state != "
 			  "TRX_NOT_STARTED");
@@ -10284,7 +10313,7 @@ innobase_xa_prepare(
 		/* We were instructed to prepare the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		ut_ad(trx->active_trans);
+		ut_ad(trx->active_trans & TRX_ACTIVE_IN_MYSQL);
 
 		error = (int) trx_prepare_for_mysql(trx);
 	} else {
