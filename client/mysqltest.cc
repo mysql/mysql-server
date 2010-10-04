@@ -447,7 +447,7 @@ struct st_command
   char *query, *query_buf,*first_argument,*last_argument,*end;
   DYNAMIC_STRING content;
   int first_word_len, query_len;
-  my_bool abort_on_error;
+  my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char require_file[FN_REFLEN];
   enum enum_commands type;
@@ -3414,7 +3414,7 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
     if (ds_wild && ds_wild->length &&
         wild_compare(file->name, ds_wild->str, 0))
       continue;
-    dynstr_append(ds, file->name);
+    replace_dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
   }
   set_wild_chars(0);
@@ -3444,6 +3444,7 @@ static void do_list_files(struct st_command *command)
     {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files");
+  command->used_replace= 1;
 
   check_command_args(command, command->first_argument,
                      list_files_args,
@@ -3485,6 +3486,7 @@ static void do_list_files_write_file_command(struct st_command *command,
     {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files_write_file");
+  command->used_replace= 1;
 
   check_command_args(command, command->first_argument,
                      list_files_args,
@@ -5631,6 +5633,8 @@ int read_line(char *buf, int size)
   char c, UNINIT_VAR(last_quote), last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
+  my_bool have_slash= FALSE;
+  
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
@@ -5702,9 +5706,13 @@ int read_line(char *buf, int size)
       }
       else if (c == '\'' || c == '"' || c == '`')
       {
-        last_quote= c;
-	state= R_Q;
+        if (! have_slash) 
+        {
+	  last_quote= c;
+	  state= R_Q;
+	}
       }
+      have_slash= (c == '\\');
       break;
 
     case R_COMMENT:
@@ -8473,7 +8481,7 @@ int main(int argc, char **argv)
       memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
     }
 
-    if (command_executed != last_command_executed)
+    if (command_executed != last_command_executed || command->used_replace)
     {
       /*
         As soon as any command has been executed,
