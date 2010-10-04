@@ -2283,6 +2283,9 @@ static auth_plugin_t native_password_client_plugin=
   "R.J.Silk, Sergei Golubchik",
   "Native MySQL authentication",
   {1, 0, 0},
+  "GPL",
+  NULL,
+  NULL,
   NULL,
   NULL,
   native_password_auth_client
@@ -2296,6 +2299,9 @@ static auth_plugin_t old_password_client_plugin=
   "R.J.Silk, Sergei Golubchik",
   "Old MySQL-3.23 authentication",
   {1, 0, 0},
+  "GPL",
+  NULL,
+  NULL,
   NULL,
   NULL,
   old_password_auth_client

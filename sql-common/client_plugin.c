@@ -322,6 +322,9 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
   char dlpath[FN_REFLEN+1];
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
+#ifdef WIN32
+  char win_errormsg[2048];
+#endif
 
   DBUG_ENTER ("mysql_load_plugin_v");
   DBUG_PRINT ("entry", ("name=%s type=%d int argc=%d", name, type, argc));
@@ -359,8 +362,15 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
     if ((dlhandle= dlopen(dlpath, RTLD_NOW)))
       goto have_plugin;
 #endif
+
     DBUG_PRINT ("info", ("failed to dlopen"));
+#ifdef WIN32
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                  0, GetLastError(), 0, win_errormsg, 2048, NULL);
+    errormsg= win_errormsg;
+#else
     errmsg= dlerror();
+#endif
     goto err;
   }
 
@@ -451,3 +461,15 @@ mysql_client_find_plugin(MYSQL *mysql, const char *name, int type)
   DBUG_RETURN (p);
 }
 
+
+/* see <mysql/client_plugin.h> for a full description */
+int STDCALL mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+                                 const char *option,
+                                 const void *value)
+{
+  DBUG_ENTER("mysql_plugin_options");
+  /* does the plugin support options call? */
+  if (!plugin || !plugin->options)
+    DBUG_RETURN(1);
+  DBUG_RETURN(plugin->options(option, value));
+}
