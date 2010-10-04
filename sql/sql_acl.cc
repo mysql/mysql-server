@@ -4490,7 +4490,8 @@ end:
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
                  bool any_combination_will_do, uint number, bool no_errors)
 {
-  TABLE_LIST *table, *first_not_own_table= thd->lex->first_not_own_table();
+  TABLE_LIST *tl;
+  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
   Security_context *sctx= thd->security_ctx;
   uint i;
   ulong orig_want_access= want_access;
@@ -4507,34 +4508,32 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (i= 0, table= tables;
-       i < number  && table != first_not_own_table;
-       table= table->next_global, i++)
+  for (i= 0, tl= tables;
+       i < number  && tl != first_not_own_table;
+       tl= tl->next_global, i++)
   {
     /*
       Save a copy of the privileges without the SHOW_VIEW_ACL attribute.
       It will be checked during making view.
     */
-    table->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
+    tl->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
   }
 
   mysql_rwlock_rdlock(&LOCK_grant);
-  for (table= tables;
-       table && number-- && table != first_not_own_table;
-       table= table->next_global)
+  for (tl= tables;
+       tl && number-- && tl != first_not_own_table;
+       tl= tl->next_global)
   {
-    GRANT_TABLE *grant_table;
-    sctx = test(table->security_ctx) ?
-      table->security_ctx : thd->security_ctx;
+    sctx = test(tl->security_ctx) ? tl->security_ctx : thd->security_ctx;
 
-    const ACL_internal_table_access *access;
-    access= get_cached_table_access(&table->grant.m_internal,
-                                    table->get_db_name(),
-                                    table->get_table_name());
+    const ACL_internal_table_access *access=
+      get_cached_table_access(&tl->grant.m_internal,
+                              tl->get_db_name(),
+                              tl->get_table_name());
 
     if (access)
     {
-      switch(access->check(orig_want_access, &table->grant.privilege))
+      switch(access->check(orig_want_access, &tl->grant.privilege))
       {
       case ACL_INTERNAL_ACCESS_GRANTED:
         /*
@@ -4558,29 +4557,33 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (!want_access)
       continue;                                 // ok
 
-    if (!(~table->grant.privilege & want_access) ||
-        table->is_anonymous_derived_table() || table->schema_table)
+    if (!(~tl->grant.privilege & want_access) ||
+        tl->is_anonymous_derived_table() || tl->schema_table)
     {
       /*
-        It is subquery in the FROM clause. VIEW set table->derived after
+        It is subquery in the FROM clause. VIEW set tl->derived after
         table opening, but this function always called before table opening.
       */
-      if (!table->referencing_view)
+      if (!tl->referencing_view)
       {
         /*
           If it's a temporary table created for a subquery in the FROM
           clause, or an INFORMATION_SCHEMA table, drop the request for
           a privilege.
         */
-        table->grant.want_privilege= 0;
+        tl->grant.want_privilege= 0;
       }
       continue;
     }
-    if (!(grant_table= table_hash_search(sctx->host, sctx->ip,
-                                         table->get_db_name(), sctx->priv_user,
-                                         table->get_table_name(), FALSE)))
+    GRANT_TABLE *grant_table= table_hash_search(sctx->host, sctx->ip,
+                                                tl->get_db_name(),
+                                                sctx->priv_user,
+                                                tl->get_table_name(),
+                                                FALSE);
+
+    if (!grant_table)
     {
-      want_access &= ~table->grant.privilege;
+      want_access &= ~tl->grant.privilege;
       goto err;					// No grants
     }
 
@@ -4591,18 +4594,17 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (any_combination_will_do)
       continue;
 
-    table->grant.grant_table=grant_table;	// Remember for column test
-    table->grant.version=grant_version;
-    table->grant.privilege|= grant_table->privs;
-    table->grant.want_privilege= ((want_access & COL_ACLS)
-				  & ~table->grant.privilege);
+    tl->grant.grant_table= grant_table; // Remember for column test
+    tl->grant.version= grant_version;
+    tl->grant.privilege|= grant_table->privs;
+    tl->grant.want_privilege= ((want_access & COL_ACLS) & ~tl->grant.privilege);
 
-    if (!(~table->grant.privilege & want_access))
+    if (!(~tl->grant.privilege & want_access))
       continue;
 
-    if (want_access & ~(grant_table->cols | table->grant.privilege))
+    if (want_access & ~(grant_table->cols | tl->grant.privilege))
     {
-      want_access &= ~(grant_table->cols | table->grant.privilege);
+      want_access &= ~(grant_table->cols | tl->grant.privilege);
       goto err;					// impossible
     }
   }
@@ -4619,7 +4621,7 @@ err:
              command,
              sctx->priv_user,
              sctx->host_or_ip,
-             table ? table->get_table_name() : "unknown");
+             tl ? tl->get_table_name() : "unknown");
   }
   DBUG_RETURN(TRUE);
 }

@@ -6347,6 +6347,10 @@ ER_FAILED_READ_FROM_PAR_FILE
   eng "Failed to read from the .par file"
   swe "Misslyckades läsa från .par filen"
 
+ER_VALUES_IS_NOT_INT_TYPE_ERROR
+  eng "VALUES value for partition '%-.64s' must have type INT"
+  swe "Värden i VALUES för partition '%-.64s' måste ha typen INT"
+
 ER_ACCESS_DENIED_NO_PASSWORD_ERROR 28000 
         cze "P-Břístup pro uživatele '%-.48s'@'%-.64s'"
         dan "Adgang nægtet bruger: '%-.48s'@'%-.64s'"
