@@ -36,6 +36,7 @@ let $ID= `select connection_id()`;
 # `reset master' problem is to be addressed by bug#15580 fixes.
 #
 reset master;
+let $start_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
 send insert into t2 values (null, null), (null, get_lock("a", 10));
 
 
@@ -51,9 +52,8 @@ connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
 let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
-
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --start-position=175 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$start_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
@@ -66,6 +66,14 @@ eval set @result= $rows- $error_code - $insert_binlogged;
 enable_abort_on_error;
 enable_query_log;
 enable_result_log;
+
+if (`SELECT @result != 0`)
+{
+  -- echo error_code:$error_code, insert:$insert_binlogged, rows:$rows
+  SELECT * FROM t2;
+  
+  -- die
+}
 
 select @result /* must be zero either way */;
 

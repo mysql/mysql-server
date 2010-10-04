@@ -515,7 +515,7 @@ select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 drop table if exists t1;
 create table t1 (a int) ENGINE=MEMORY;
 --> client 2

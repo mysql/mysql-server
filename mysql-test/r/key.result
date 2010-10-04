@@ -273,7 +273,7 @@ t
 drop table t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (
 c1 int,
 c2 varbinary(240),

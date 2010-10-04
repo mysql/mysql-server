@@ -2191,6 +2191,26 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 }
 
 
+/**
+  Sleep for the given amount of time. If the sleep is interrupted,
+  continue sleeping unless the THD has been killed.
+
+  @param thd The THD object passed as first parameter to
+  (*thread_killed).
+
+  @param sec The number of seconds to sleep.
+
+  @param thread_killed Pointer to function that checks if the thread
+  has been killed or not.
+
+  @param thread_killed_arg Pointer passed as second parameter to
+  (*thread_killed).
+
+  @retval 0 If we slept the given number of seconds and THD was not
+  killed.
+
+  @retval 1 If sleep was interrupted and THD killed.
+*/
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
                       void* thread_killed_arg)
 {
@@ -2389,17 +2409,21 @@ static int has_temporary_error(THD *thd)
 /**
   If this is a lagging slave (specified with CHANGE MASTER TO MASTER_DELAY = X), delays accordingly. Also unlocks rli->data_lock.
 
-  Design note: this is the place to unlock rli->data_lock here since
-  it should be held when reading delay info from rli, but it should
-  not be held while sleeping.
+  Design note: this is the place to unlock rli->data_lock. The lock
+  must be held when reading delay info from rli, but it should not be
+  held while sleeping.
 
   @param ev Event that is about to be executed.
 
   @param thd The sql thread's THD object.
 
   @param rli The sql thread's Relay_log_info structure.
+
+  @retval 0 If the delay timed out and the event shall be executed.
+
+  @retval nonzero If the delay was interrupted and the event shall be skipped.
 */
-static void sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
+static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
 {
   long sql_delay= rli->get_sql_delay();
 
@@ -2437,15 +2461,14 @@ static void sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
                           nap_time));
       rli->start_sql_delay(sql_delay_end);
       mysql_mutex_unlock(&rli->data_lock);
-      safe_sleep(thd, nap_time, (CHECK_KILLED_FUNC)sql_slave_killed,
-                 (void*)rli);
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(safe_sleep(thd, nap_time,
+                             (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli));
     }
   }
 
   mysql_mutex_unlock(&rli->data_lock);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
@@ -2548,7 +2571,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   if (reason == Log_event::EVENT_SKIP_NOT)
   {
     // Sleeps if needed, and unlocks rli->data_lock.
-    sql_delay_event(ev, thd, rli);
+    if (sql_delay_event(ev, thd, rli))
+      DBUG_RETURN(0);
     exec_res= ev->apply_event(rli);
   }
   else
@@ -2680,16 +2704,17 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   {
     int exec_res;
 
-    /* 
+    /*
       Even if we don't execute this event, we keep the master timestamp,
       so that seconds behind master shows correct delta (there are events
       that are not replayed, so we keep falling behind).
 
       If it is an artificial event, or a relay log event (IO thread generated
-      event) or ev->when is set to 0, we don't update the 
+      event) or ev->when is set to 0, or a FD from master, we don't update the
       last_master_timestamp.
-     */
-    if (!(ev->is_artificial_event() || ev->is_relay_log_event() || (ev->when == 0)))
+    */
+    if (!(ev->is_artificial_event() || ev->is_relay_log_event() ||
+          (ev->when == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
     {
       rli->last_master_timestamp= ev->when + (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
@@ -2744,8 +2769,15 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     */
     if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
     {
+      if (thd->variables.binlog_rows_query_log_events)
+        handle_rows_query_log_event(ev, rli);
+
       DBUG_PRINT("info", ("Deleting the event after it has been executed"));
-      delete ev;
+      if (ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+      {
+        delete ev;
+        ev= NULL;
+      }
     }
 
     /*
@@ -4428,18 +4460,19 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
           mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
                              mi->port, 0, client_flag) == 0))
   {
-    /* Don't repeat last error */
-    if ((int)mysql_errno(mysql) != last_errno)
-    {
-      last_errno=mysql_errno(mysql);
-      suppress_warnings= 0;
-      mi->report(ERROR_LEVEL, last_errno,
-                 "error %s to master '%s@%s:%d'"
-                 " - retry-time: %d  retries: %lu",
-                 (reconnect ? "reconnecting" : "connecting"),
-                 mi->user, mi->host, mi->port,
-                 mi->connect_retry, mi->retry_count);
-    }
+    /*
+       SHOW SLAVE STATUS will display the number of retries which
+       would be real retry counts instead of mi->retry_count for
+       each connection attempt by 'Last_IO_Error' entry.
+    */
+    last_errno=mysql_errno(mysql);
+    suppress_warnings= 0;
+    mi->report(ERROR_LEVEL, last_errno,
+               "error %s to master '%s@%s:%d'"
+               " - retry-time: %d  retries: %lu",
+               (reconnect ? "reconnecting" : "connecting"),
+               mi->user, mi->host, mi->port,
+               mi->connect_retry, err_count + 1);
     /*
       By default we try forever. The reason is that failure will trigger
       master election, so if the user did not set mi->retry_count we
