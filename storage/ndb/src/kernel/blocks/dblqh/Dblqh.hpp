@@ -2241,7 +2241,7 @@ private:
   // Statement blocks
 
   void init_acc_ptr_list(ScanRecord*);
-  bool seize_acc_ptr_list(ScanRecord*, Uint32);
+  bool seize_acc_ptr_list(ScanRecord*, Uint32, Uint32);
   void release_acc_ptr_list(ScanRecord*);
   Uint32 get_acc_ptr_from_scan_record(ScanRecord*, Uint32, bool);
   void set_acc_ptr_in_scan_record(ScanRecord*, Uint32, Uint32);

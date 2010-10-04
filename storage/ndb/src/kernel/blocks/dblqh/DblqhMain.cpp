@@ -9261,7 +9261,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     jam();
     DEBUG(senderData << 
 	  " Received SCAN_NEXTREQ in LQH with close flag when closed");
-    ndbrequire(nextReq->closeFlag == ZTRUE);
+    ndbrequire(nextReq->requestInfo == ScanFragNextReq::ZCLOSE);
     return;
   }
 
@@ -9315,7 +9315,8 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
    * continue execution else set flags and wait until the scan 
    * completes itself
    * ------------------------------------------------------------------ */
-  if (nextReq->closeFlag == ZTRUE){
+  if (nextReq->requestInfo == ScanFragNextReq::ZCLOSE)
+  {
     jam();
     if(ERROR_INSERTED(5034)){
       CLEAR_ERROR_INSERT_VALUE;
@@ -9337,9 +9338,32 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
    */
   const Uint32 max_rows = nextReq->batch_size_rows;
   const Uint32 max_bytes = nextReq->batch_size_bytes;
-  ndbrequire(scanptr.p->m_max_batch_size_rows == max_rows);
-  ndbrequire(scanptr.p->m_max_batch_size_bytes == max_bytes);  
+  scanptr.p->m_max_batch_size_bytes = max_bytes;
 
+  if (max_rows > scanptr.p->m_max_batch_size_rows)
+  {
+    jam();
+    /**
+     * Extend list...
+     */
+    if (!seize_acc_ptr_list(scanptr.p, 
+                            scanptr.p->m_max_batch_size_rows, max_rows))
+    {
+      jam();
+      tcConnectptr.p->errorCode = ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
+      closeScanRequestLab(signal);
+      return;
+    }
+    cbookedAccOps += (max_rows - scanptr.p->m_max_batch_size_rows);
+    scanptr.p->m_max_batch_size_rows = max_rows;
+  }
+  else if (unlikely(max_rows < scanptr.p->m_max_batch_size_rows))
+  {
+    jam();
+    cbookedAccOps -= (scanptr.p->m_max_batch_size_rows - max_rows);
+    scanptr.p->m_max_batch_size_rows = max_rows;
+  }
+  
   /* --------------------------------------------------------------------
    * If scanLockHold = TRUE we need to unlock previous round of 
    * scanned records.
@@ -9610,17 +9634,22 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
 }//Dblqh::scanLockReleasedLab()
 
 bool
-Dblqh::seize_acc_ptr_list(ScanRecord* scanP, Uint32 batch_size)
+Dblqh::seize_acc_ptr_list(ScanRecord* scanP, 
+                          Uint32 curr_batch_size, 
+                          Uint32 new_batch_size)
 {
-  Uint32 i;
   /*  1 maps to 0 segments
    * >1 maps to enough segments to store
    */
-  Uint32 segments= (batch_size + (SectionSegment::DataLength -2 )) / 
+  Uint32 segments= (new_batch_size + (SectionSegment::DataLength -2 )) / 
     SectionSegment::DataLength;
 
-  if (batch_size > 1) {
-    for (i= 1; i <= segments; i++) {
+  ndbassert(segments >= scanP->scan_acc_segments);
+
+  if (new_batch_size > 1)
+  {
+    for (Uint32 i = 1 + scanP->scan_acc_segments; i <= segments; i++)
+    {
       Uint32 seg= seizeSegment();
       if (unlikely(seg == RNIL))
       {
@@ -9634,7 +9663,6 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP, Uint32 batch_size)
     }
   }
   scanP->scan_acc_segments= segments;
-  scanP->scan_acc_index = 0;
   return true;
 }
 
@@ -11004,10 +11032,13 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
     return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
   }
 
-  if (!seize_acc_ptr_list(scanptr.p, max_rows)){
+  scanptr.p->scan_acc_segments = 0;
+  if (!seize_acc_ptr_list(scanptr.p, 0, max_rows)){
     jam();
     return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
   }
+  init_acc_ptr_list(scanptr.p);
+
   /**
    * Used for scan take over
    */
@@ -11080,7 +11111,6 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
 #endif
     c_scanTakeOverHash.add(scanptr);
   }
-  init_acc_ptr_list(scanptr.p);
   return ZOK;
 }
 

@@ -229,11 +229,16 @@ public:
   
 public:
   Uint32 senderData;
-  Uint32 closeFlag;
+  Uint32 requestInfo; // 1 == close
   Uint32 transId1;
   Uint32 transId2;
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
+
+  STATIC_CONST( ZCLOSE = 1 );
+
+  Uint32 getCloseFlag(const Uint32&);
+  void setCloseFlag(Uint32&, Uint32);
 };
 
 /**
