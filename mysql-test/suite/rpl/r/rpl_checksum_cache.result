@@ -5,11 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t2 set data=repeat.*'a', @act_size.*");
-Warnings:
-Warning	1265	Data truncated for column 'pattern' at row 2
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t1 values.* NAME_CONST.*'n',.*, @data .*");
-Warnings:
-Warning	1265	Data truncated for column 'pattern' at row 1
 set @save_binlog_cache_size = @@global.binlog_cache_size;
 set @save_binlog_checksum = @@global.binlog_checksum;
 set @save_master_verify_checksum = @@global.master_verify_checksum;
