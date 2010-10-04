@@ -73,6 +73,9 @@ connection slave;
 source include/stop_slave.inc;
 delete from t1 where a=2;
 
+
+exit;
+
 # start replication from the second insert, after fix of BUG#12190,
 # relay_log_file does not use absolute path, only the filename is
 # required

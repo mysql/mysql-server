@@ -468,5 +468,28 @@ DROP TABLE t1;
 SET NAMES latin1;
 
 --echo #
+--echo # Bug#56271: Wrong comparison result with STR_TO_DATE function
+--echo #
+CREATE TABLE t1 (
+  `year` int(4) NOT NULL,
+  `month` int(2) NOT NULL
+);
+
+INSERT INTO t1 VALUES (2010,3),(2010,4),(2009,8),(2008,9);
+
+SELECT *
+FROM t1
+WHERE STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') >=
+STR_TO_DATE('1/1/2010', '%m/%d/%Y');
+
+create table t2(f1 datetime primary key);
+insert into t2 select STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') from t1;
+select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
+--echo t2 should be const
+explain select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
+
+DROP TABLE t1,t2;
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

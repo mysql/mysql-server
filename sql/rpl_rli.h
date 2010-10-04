@@ -370,6 +370,8 @@ public:
   RPL_TABLE_LIST *tables_to_lock;           /* RBR: Tables to lock  */
   uint tables_to_lock_count;        /* RBR: Count of tables to lock */
   table_mapping m_table_map;      /* RBR: Mapping table-id to table */
+  /* RBR: Record Rows_query log event */
+  Rows_query_log_event* rows_query_ev;
 
   bool get_table_data(TABLE *table_arg, table_def **tabledef_var, TABLE **conv_table_var) const
   {

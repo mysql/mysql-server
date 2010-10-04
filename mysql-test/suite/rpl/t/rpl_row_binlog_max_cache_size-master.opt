@@ -1,1 +1,1 @@
---binlog_cache_size=4096 --max_binlog_cache_size=7680 --default-storage-engine=MyISAM
+--binlog_cache_size=15360 --max_binlog_cache_size=7680 --default-storage-engine=MyISAM

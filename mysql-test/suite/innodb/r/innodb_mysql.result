@@ -435,7 +435,7 @@ set global query_cache_size=10*1024*1024;
 set global query_cache_type=1;
 drop table if exists `test`;
 Warnings:
-Note	1051	Unknown table 'test'
+Note	1051	Unknown table 'test.test'
 CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
 `test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
 ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -633,7 +633,7 @@ select * from bug29807;
 ERROR 42S02: Table 'test.bug29807' doesn't exist
 drop table t1;
 drop table bug29807;
-ERROR 42S02: Unknown table 'bug29807'
+ERROR 42S02: Unknown table 'test.bug29807'
 create table bug29807 (a int);
 drop table bug29807;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
@@ -710,12 +710,12 @@ CREATE TABLE t2 (primary key (a)) select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);

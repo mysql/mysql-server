@@ -1395,6 +1395,12 @@ static void mysqld_exit(int exit_code)
   mysql_audit_finalize();
   clean_up_mutexes();
   clean_up_error_log_mutex();
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /*
+    Bug#56666 needs to be fixed before calling:
+    shutdown_performance_schema();
+  */
+#endif
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
 }
@@ -1486,6 +1492,7 @@ void clean_up(bool print_message)
   cleanup_errmsgs();
   MYSQL_CALLBACK(thread_scheduler, end, ());
   finish_client_errs();
+  (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
@@ -2728,6 +2735,11 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       if (!abort_loop)
       {
 	abort_loop=1;				// mark abort for threads
+#ifdef HAVE_PSI_INTERFACE
+        /* Delete the instrumentation for the signal thread */
+        if (likely(PSI_server != NULL))
+          PSI_server->delete_current_thread();
+#endif
 #ifdef USE_ONE_SIGNAL_HAND
 	pthread_t tmp;
         if (mysql_thread_create(0, /* Not instrumented */
@@ -4662,6 +4674,8 @@ int mysqld_main(int argc, char **argv)
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
     opt_skip_slave_start= 1;
 
+  check_binlog_cache_size(NULL);
+
   binlog_unsafe_map_init();
   /*
     init_slave() must be called after the thread keys are created.
@@ -4748,6 +4762,15 @@ int mysqld_main(int argc, char **argv)
 #endif
 #endif /* __WIN__ */
 
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Disable the main thread instrumentation,
+    to avoid recording events during the shutdown.
+  */
+  if (PSI_server)
+    PSI_server->delete_current_thread();
+#endif
+
   /* Wait until cleanup is done */
   mysql_mutex_lock(&LOCK_thread_count);
   while (!ready_to_exit)
@@ -4765,18 +4788,6 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
   clean_up(1);
-#ifdef HAVE_PSI_INTERFACE
-  /*
-    Disable the instrumentation, to avoid recording events
-    during the shutdown.
-  */
-  if (PSI_server)
-  {
-    PSI_server->delete_current_thread();
-    PSI_server= NULL;
-  }
-  shutdown_performance_schema();
-#endif
   mysqld_exit(0);
 }
 
