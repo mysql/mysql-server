@@ -259,6 +259,7 @@ struct st_connection
   pthread_mutex_t result_mutex;
   pthread_cond_t result_cond;
   int query_done;
+  my_bool has_thread;
 #endif /*EMBEDDED_LIBRARY*/
 };
 
@@ -770,7 +771,7 @@ end_thread:
 
 static void wait_query_thread_done(struct st_connection *con)
 {
-  DBUG_ASSERT(con->tid);
+  DBUG_ASSERT(con->has_thread);
   if (!con->query_done)
   {
     pthread_mutex_lock(&con->result_mutex);
@@ -783,7 +784,7 @@ static void wait_query_thread_done(struct st_connection *con)
 
 static void signal_connection_thd(struct st_connection *cn, int command)
 {
-  DBUG_ASSERT(cn->tid);
+  DBUG_ASSERT(cn->has_thread);
   cn->query_done= 0;
   cn->command= command;
   pthread_mutex_lock(&cn->query_mutex);
@@ -795,13 +796,13 @@ static void signal_connection_thd(struct st_connection *cn, int command)
 /*
   Sometimes we try to execute queries when the connection is closed.
   It's done to make sure it was closed completely.
-  So that if our connection is closed (cn->tid == 0), we just return
+  So that if our connection is closed (cn->has_thread == 0), we just return
   the mysql_send_query() result which is an error in this case.
 */
 
 static int do_send_query(struct st_connection *cn, const char *q, int q_len)
 {
-  if (!cn->tid)
+  if (!cn->has_thread)
     return mysql_send_query(&cn->mysql, q, q_len);
   cn->cur_query= q;
   cn->cur_query_len= q_len;
@@ -811,7 +812,7 @@ static int do_send_query(struct st_connection *cn, const char *q, int q_len)
 
 static int do_read_query_result(struct st_connection *cn)
 {
-  DBUG_ASSERT(cn->tid);
+  DBUG_ASSERT(cn->has_thread);
   wait_query_thread_done(cn);
   signal_connection_thd(cn, EMB_READ_QUERY_RESULT);
   wait_query_thread_done(cn);
@@ -822,12 +823,12 @@ static int do_read_query_result(struct st_connection *cn)
 
 static void emb_close_connection(struct st_connection *cn)
 {
-  if (!cn->tid)
+  if (!cn->has_thread)
     return;
   wait_query_thread_done(cn);
   signal_connection_thd(cn, EMB_END_CONNECTION);
   pthread_join(cn->tid, NULL);
-  cn->tid= 0;
+  cn->has_thread= FALSE;
   pthread_mutex_destroy(&cn->query_mutex);
   pthread_cond_destroy(&cn->query_cond);
   pthread_mutex_destroy(&cn->result_mutex);
@@ -845,6 +846,7 @@ static void init_connection_thd(struct st_connection *cn)
       pthread_cond_init(&cn->result_cond, NULL) ||
       pthread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
     die("Error in the thread library");
+  cn->has_thread=TRUE;
 }
 
 #else /*EMBEDDED_LIBRARY*/
