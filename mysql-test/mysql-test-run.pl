@@ -131,6 +131,9 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
 
+my $auth_filename;              # the name of the authentication test plugin
+my $auth_plugin;                # the path to the authentication test plugin
+
 END {
   if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
   {
@@ -1057,6 +1060,22 @@ sub command_line_setup {
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
 
+  # Look for client test plugin 
+  if (IS_WINDOWS)
+  {
+    $auth_filename = "auth_test_plugin.dll";
+  }
+  else
+  {
+    $auth_filename = "auth_test_plugin.so";
+  }
+  $auth_plugin=
+  mtr_file_exists(vs_config_dirs('plugin/auth/',$auth_filename),
+    "$basedir/plugin/auth/.libs/" . $auth_filename,
+    "$basedir/lib/mysql/plugin/" . $auth_filename,
+    "$basedir/lib/plugin/" . $auth_filename);
+
+
   if (using_extern())
   {
     # Connect to the running mysqld and find out what it supports
@@ -1942,6 +1961,24 @@ sub environment_setup {
     ($lib_udf_example ? basename($lib_udf_example) : "");
   $ENV{'UDF_EXAMPLE_LIB_OPT'}= "--plugin-dir=".
     ($lib_udf_example ? dirname($lib_udf_example) : "");
+
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find the auth test plugin (dialog.so/dll)
+  # --------------------------------------------------------------------------
+  if ($auth_plugin)
+  {
+    $ENV{'PLUGIN_AUTH'}= basename($auth_plugin);
+    $ENV{'PLUGIN_AUTH_OPT'}= "--plugin-dir=".dirname($auth_plugin);
+
+    $ENV{'PLUGIN_AUTH_LOAD'}="--plugin_load=test_plugin_server=".$auth_filename;
+  }
+  else
+  {
+    $ENV{'PLUGIN_AUTH'}= "";
+    $ENV{'PLUGIN_AUTH_OPT'}="--plugin-dir=";
+    $ENV{'PLUGIN_AUTH_LOAD'}="";
+  }
+  
 
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
@@ -5038,6 +5075,10 @@ sub start_mysqltest ($) {
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
+  if ($auth_plugin)
+  {
+    mtr_add_arg($args, "--plugin_dir=%s", dirname($auth_plugin));
+  }
 
   # Log line number and time  for each line in .test file
   mtr_add_arg($args, "--mark-progress")
