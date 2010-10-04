@@ -5250,42 +5250,40 @@ buf_all_freed(void)
 		if (!buf_all_freed_instance(buf_pool)) {
 			return(FALSE);
 		}
- 	}
+	}
 
 	return(TRUE);
 }
-  
+
 /*********************************************************************//**
 Checks that there currently are no pending i/o-operations for the buffer
 pool.
-@return	TRUE if there is no pending i/o */
+@return	number of pending i/o */
 UNIV_INTERN
-ibool
+ulint
 buf_pool_check_no_pending_io(void)
 /*==============================*/
 {
 	ulint		i;
-	ibool		ret = TRUE;
+	ulint		pending_io = 0;
 
 	buf_pool_mutex_enter_all();
 
-	for (i = 0; i < srv_buf_pool_instances && ret; i++) {
+	for (i = 0; i < srv_buf_pool_instances; i++) {
 		const buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
 
-		if (buf_pool->n_pend_reads
-		    + buf_pool->n_flush[BUF_FLUSH_LRU]
-		    + buf_pool->n_flush[BUF_FLUSH_LIST]
-		    + buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]) {
+		pending_io += buf_pool->n_pend_reads
+			      + buf_pool->n_flush[BUF_FLUSH_LRU]
+			      + buf_pool->n_flush[BUF_FLUSH_LIST]
+			      + buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE];
 
-			ret = FALSE;
-		}
 	}
 
 	buf_pool_mutex_exit_all();
 
-	return(ret);
+	return(pending_io);
 }
 
 #if 0
