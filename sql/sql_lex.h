@@ -847,6 +847,9 @@ public:
     some SQL statements as DELETE do not have a corresponding JOIN object.
   */
   bool optimize_unflattened_subqueries();
+  /* Set the EXPLAIN type for this subquery. */
+  void set_explain_type();
+
 private:  
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;

@@ -3100,11 +3100,20 @@ bool st_select_lex::optimize_unflattened_subqueries()
       {
         JOIN *inner_join= sl->join;
         SELECT_LEX *save_select= un->thd->lex->current_select;
+        ulonglong save_options;
         int res;
         /* We need only 1 row to determine existence */
         un->set_limit(un->global_parameters);
         un->thd->lex->current_select= sl;
+        save_options= inner_join->select_options;
+        if (un->outer_select()->options & SELECT_DESCRIBE)
+        {
+          /* Optimize the subquery in the context of EXPLAIN. */
+          set_explain_type();
+          inner_join->select_options= options;
+        }
         res= inner_join->optimize();
+        inner_join->select_options= save_options;
         un->thd->lex->current_select= save_select;
         if (res)
           return TRUE;
@@ -3112,7 +3121,35 @@ bool st_select_lex::optimize_unflattened_subqueries()
     }
   }
   return FALSE;
-} 
+}
+
+
+/**
+  Set the EXPLAIN type for this subquery.
+*/
+
+void st_select_lex::set_explain_type()
+{
+  SELECT_LEX *first= master_unit()->first_select();
+  /* drop UNCACHEABLE_EXPLAIN, because it is for internal usage only */
+  uint8 is_uncacheable= (uncacheable & ~UNCACHEABLE_EXPLAIN);
+
+  type= ((&master_unit()->thd->lex->select_lex == this) ?
+         (first_inner_unit() || next_select() ?
+          "PRIMARY" : "SIMPLE") :
+         ((this == first) ?
+          ((linkage == DERIVED_TABLE_TYPE) ?
+           "DERIVED" :
+           ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
+            "DEPENDENT SUBQUERY" :
+            (is_uncacheable ? "UNCACHEABLE SUBQUERY" :
+             "SUBQUERY"))) :
+          ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
+           "DEPENDENT UNION":
+           is_uncacheable ? "UNCACHEABLE UNION":
+           "UNION")));
+  options|= SELECT_DESCRIBE;
+}
 
 
 /**
