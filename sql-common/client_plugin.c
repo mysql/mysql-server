@@ -322,7 +322,7 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
   char dlpath[FN_REFLEN+1];
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
-#ifdef WIN32
+#ifdef _WIN32
   char win_errormsg[2048];
 #endif
 
@@ -364,10 +364,12 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
 #endif
 
     DBUG_PRINT ("info", ("failed to dlopen"));
-#ifdef WIN32
-    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
-                  0, GetLastError(), 0, win_errormsg, 2048, NULL);
-    errormsg= win_errormsg;
+#ifdef _WIN32
+    if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                  0, GetLastError(), 0, win_errormsg, 2048, NULL))
+      errmsg= win_errormsg;
+    else
+      errmsg= "";
 #else
     errmsg= dlerror();
 #endif
