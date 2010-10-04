@@ -373,7 +373,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if (do_sort_keys)
   {
     know_key_tuple_params= FALSE;
-    //in_index_range= FALSE;
     h->mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
     h->mrr_funcs= *seq_funcs;
     keyno= (h->inited == handler::INDEX)? h->active_index : h2->active_index;
@@ -771,7 +770,6 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
       */
       rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
       key_buffer= &backward_key_buf;
-      //identical_key_it= &backward_key_it;
       key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end);
     }
     key_buffer->reset();
@@ -815,9 +813,6 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
                             is_mrr_assoc? (uchar**)&cur_range_info: NULL,
                             sizeof(void*));
 
-  //last_identical_key_ptr= NULL;
-  //in_identical_keys_range= FALSE;
-  //index_scan_state= GET_NEXT_RANGE;
   scanning_key_val_iter= FALSE;
   index_scan_eof= FALSE; 
 
@@ -857,7 +852,6 @@ bool Key_value_records_iterator::init(DsMrr_impl *dsmrr_arg)
     dsmrr->cur_index_tuple= *((uchar**)dsmrr->cur_index_tuple);
   
   /* Check out how many more identical keys are following */
-  //char *save_cur_range_info= cur_range_info;
   uchar *save_cur_index_tuple= dsmrr->cur_index_tuple;
   while (!identical_key_it.read())
   {
@@ -867,7 +861,6 @@ bool Key_value_records_iterator::init(DsMrr_impl *dsmrr_arg)
   }
   identical_key_it.init(dsmrr->key_buffer);
   dsmrr->cur_index_tuple= save_cur_index_tuple;
-  //cur_range_info= save_cur_range_info;
   res= file->ha_index_read_map(dsmrr->table->record[0], 
                                dsmrr->cur_index_tuple, 
                                dsmrr->key_tuple_map, 
@@ -918,8 +911,6 @@ void Key_value_records_iterator::close()
          (dsmrr->cur_index_tuple != last_identical_key_ptr)) {}
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
 
 /**
   DS-MRR/CPK: multi_range_read_next() function
@@ -941,10 +932,10 @@ void Key_value_records_iterator::close()
   @retval HA_ERR_END_OF_FILE  End of records
   @retval Other               Some other error
 */
+
 int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
 {
   DBUG_ENTER("DsMrr_impl::dsmrr_next_from_index");
-  //handler *file= do_rndpos_scan? h2: h;
 
   while (1)
   {
@@ -963,7 +954,6 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
     {
       while (kv_it.init(this))
       {
-        /* Failed to initialize iterator */
         if (key_buffer->is_empty())
         {
           if (dsmrr_eof)
@@ -986,7 +976,6 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
           }
         }
       }
-      /* if we got here, it means iterator was successfully initialized */
       scanning_key_val_iter= TRUE;
     }
 
@@ -1005,6 +994,7 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
   memcpy(range_info_arg, cur_range_info, sizeof(void*));
   DBUG_RETURN(0);
 }
+
 
 /**
   DS-MRR implementation: multi_range_read_next() function.

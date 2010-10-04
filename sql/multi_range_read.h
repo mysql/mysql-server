@@ -66,8 +66,6 @@ class Key_value_records_iterator
   uchar *last_identical_key_ptr;
   bool get_next_row;
 public:
-  /*
-  */
   bool init(DsMrr_impl *dsmrr);
 
   /*
