@@ -205,7 +205,7 @@ DROP TABLE `t1`;
 
 -- echo === Using mysqlbinlog to detect failure. Before the patch mysqlbinlog would find a corrupted event, thence would fail.
 
--- let $MYSQLD_DATADIR= `SELECT @@datadir`;
+-- let $MYSQLD_DATADIR= `SELECT @@datadir`
 -- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug42749.binlog
 -- remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug42749.binlog
 
@@ -330,7 +330,7 @@ while($ntables)
 -- echo ### assertion: check that binlog is not corrupt. Using mysqlbinlog to 
 -- echo ###            detect failure. Before the patch mysqlbinlog would find 
 -- echo ###            a corrupted event, thence would fail.
--- let $MYSQLD_DATADIR= `SELECT @@datadir`;
+-- let $MYSQLD_DATADIR= `SELECT @@datadir`
 -- exec $MYSQL_BINLOG -v --hex $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug50018.binlog
 
 ## clean up
