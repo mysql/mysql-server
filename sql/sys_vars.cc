@@ -1404,6 +1404,14 @@ static Sys_var_uint Sys_protocol_version(
        READ_ONLY GLOBAL_VAR(protocol_version), NO_CMD_LINE,
        VALID_RANGE(0, ~0), DEFAULT(PROTOCOL_VERSION), BLOCK_SIZE(1));
 
+static Sys_var_proxy_user Sys_proxy_user(
+       "proxy_user", "The proxy user account name used when logging in",
+       IN_SYSTEM_CHARSET);
+
+static Sys_var_external_user Sys_exterenal_user(
+       "external_user", "The external user account used when logging in",
+       IN_SYSTEM_CHARSET);
+
 static Sys_var_ulong Sys_read_buff_size(
        "read_buffer_size",
        "Each thread that does a sequential scan allocates a buffer of "

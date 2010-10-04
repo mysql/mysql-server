@@ -88,6 +88,7 @@ host
 plugin
 proc
 procs_priv
+proxy_priv
 servers
 slow_log
 tables_priv
@@ -684,6 +685,7 @@ Alter_routine_priv	select,insert,update,references
 max_questions	select,insert,update,references
 max_connections	select,insert,update,references
 max_user_connections	select,insert,update,references
+authentication_string	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;
@@ -870,7 +872,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	30
-mysql	22
+mysql	23
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
