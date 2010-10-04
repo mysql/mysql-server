@@ -1754,11 +1754,11 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   if (unlikely(!m_scan_request_hash.find(requestPtr, key)))
   {
     jam();
-    ndbrequire(req->closeFlag == ZTRUE);
+    ndbrequire(req->requestInfo == ScanFragNextReq::ZCLOSE);
     return;
   }
 
-  if (req->closeFlag == ZTRUE)  // Requested close scan
+  if (req->requestInfo == ScanFragNextReq::ZCLOSE)  // Requested close scan
   {
     jam();
     abort(signal, requestPtr, 0);
@@ -3779,7 +3779,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
   ScanFragNextReq* req = 
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
   req->senderData = treeNodePtr.i;
-  req->closeFlag = 0;
+  req->requestInfo = 0;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
   req->batch_size_rows = org->batch_size_rows;
@@ -3813,7 +3813,7 @@ Dbspj::scanFrag_abort(Signal* signal,
     ScanFragNextReq* req = 
       reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
     req->senderData = treeNodePtr.i;
-    req->closeFlag = ZTRUE;
+    req->requestInfo = ScanFragNextReq::ZCLOSE;
     req->transId1 = requestPtr.p->m_transId[0];
     req->transId2 = requestPtr.p->m_transId[1];
     req->batch_size_rows = 0;
@@ -4790,7 +4790,7 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   ScanFragNextReq* req = 
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
   req->senderData = treeNodePtr.i;
-  req->closeFlag = 0;
+  req->requestInfo = 0;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
   req->batch_size_rows = org->batch_size_rows;

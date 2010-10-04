@@ -132,7 +132,14 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   HugoOperations hugoOps(*ctx->getTab());
   NdbRestarter restarter;
 
-  int restartGCI = pNdb->NdbTamper(Ndb::ReadRestartGCI, 0);    
+  Uint32 restartGCI;
+  int res = pNdb->getDictionary()->getRestartGCI(&restartGCI);
+  if (res != 0)
+  {
+    ndbout << "Failed to retreive restart gci" << endl;
+    ndbout << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
 
   ndbout << "restartGCI = " << restartGCI << endl;
   int count = 0;
@@ -145,7 +152,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   int recordsWithLowerOrSameGci = 0;
   unsigned i; 
   for (i = 0; i < savedRecords.size(); i++){
-    if (savedRecords[i].m_gci <= restartGCI)
+    if (savedRecords[i].m_gci <= (int)restartGCI)
       recordsWithLowerOrSameGci++;
   }
   if (recordsWithLowerOrSameGci != count){
@@ -173,7 +180,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
       // Record was not found in db'
 
       // Check record gci
-      if (savedRecords[i].m_gci <= restartGCI){
+      if (savedRecords[i].m_gci <= (int)restartGCI){
 	ndbout << "ERR: Record "<<i<<" should have existed" << endl;
 	result = NDBT_FAILED;
       }
@@ -194,7 +201,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
 	result = NDBT_FAILED;
       }
       // Check record gci in range
-      if (savedRecords[i].m_gci > restartGCI){
+      if (savedRecords[i].m_gci > (int)restartGCI){
 	ndbout << "ERR: Record "<<i<<" should not have existed" << endl;
 	result = NDBT_FAILED;
       }

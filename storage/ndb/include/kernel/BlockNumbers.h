@@ -28,14 +28,14 @@
 /* 2047 */
 #define API_PACKED     0x07ff
 
+/* Fixed block numbers in API */
+#define NO_API_FIXED_BLOCKS    2
+
 /* 4002 */
 #define API_CLUSTERMGR 0x0FA2
+#define MGM_CONFIG_MAN 0x0FA3
 
-/* Fixed block numbers in API */
-#define NO_API_FIXED_BLOCKS    1
-#define MIN_API_FIXED_BLOCK_NO (API_CLUSTERMGR+1)
-#define MGM_CONFIG_MAN MIN_API_FIXED_BLOCK_NO
-
+#define MIN_API_FIXED_BLOCK_NO (API_CLUSTERMGR)
 #define MAX_API_FIXED_BLOCK_NO (MIN_API_FIXED_BLOCK_NO + NO_API_FIXED_BLOCKS)
 
 

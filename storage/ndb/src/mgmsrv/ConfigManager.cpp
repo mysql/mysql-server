@@ -20,6 +20,7 @@
 
 #include <NdbConfig.h>
 #include <NdbSleep.h>
+#include <kernel/GlobalSignalNumbers.h>
 #include <SignalSender.hpp>
 #include <NdbApiSignal.hpp>
 #include <signaldata/NFCompleteRep.hpp>
@@ -27,6 +28,8 @@
 #include <signaldata/ApiRegSignalData.hpp>
 #include <ndb_version.h>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 extern "C" const char* opt_ndb_connectstring;
 extern "C" int opt_ndb_nodeid;

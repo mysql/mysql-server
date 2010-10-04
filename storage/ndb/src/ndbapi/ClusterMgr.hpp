@@ -19,7 +19,6 @@
 #ifndef ClusterMgr_H
 #define ClusterMgr_H
 
-#include "API.hpp"
 #include <ndb_limits.h>
 #include <NdbThread.h>
 #include <NdbMutex.h>
@@ -28,6 +27,7 @@
 #include <signaldata/NodeStateSignalData.hpp>
 #include <NodeInfo.hpp>
 #include <NodeState.hpp>
+#include "trp_client.hpp"
 
 extern "C" void* runClusterMgr_C(void * me);
 
@@ -35,13 +35,14 @@ extern "C" void* runClusterMgr_C(void * me);
 /**
  * @class ClusterMgr
  */
-class ClusterMgr {
+class ClusterMgr : public trp_client
+{
   friend class TransporterFacade;
   friend void* runClusterMgr_C(void * me);
 public:
   ClusterMgr(class TransporterFacade &);
-  ~ClusterMgr();
-  void configure(const ndb_mgm_configuration* config);
+  virtual ~ClusterMgr();
+  void configure(Uint32 nodeId, const ndb_mgm_configuration* config);
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
@@ -61,7 +62,8 @@ private:
   
   int  theStop;
   class TransporterFacade & theFacade;
-  
+  class ArbitMgr * theArbitMgr;
+
 public:
   enum Cluster_state {
     CS_waiting_for_clean_cache = 0,
@@ -173,6 +175,14 @@ private:
 
   void print_nodes(const char* where, NdbOut& out = ndbout);
   void recalcMinDbVersion();
+
+public:
+  /**
+   * trp_client interface
+   */
+  virtual void trp_deliver_signal(const NdbApiSignal*,
+                                  const LinearSectionPtr p[3]);
+  virtual void trp_node_status(Uint32, Uint32);
 };
 
 inline

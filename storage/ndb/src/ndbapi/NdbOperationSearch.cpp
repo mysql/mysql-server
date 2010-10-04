@@ -31,18 +31,10 @@ Adjust:  971022  UABMNST   First version.
  *****************************************************************************/
 #include "API.hpp"
 
-#include <NdbOperation.hpp>
-#include "NdbApiSignal.hpp"
-#include <NdbTransaction.hpp>
-#include <Ndb.hpp>
-#include "NdbImpl.hpp"
-#include <NdbOut.hpp>
-#include "NdbBlob.hpp"
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
 #include <signaldata/KeyInfo.hpp>
-#include "NdbDictionaryImpl.hpp"
 #include <md5_hash.hpp>
 
 /******************************************************************************

@@ -26,8 +26,6 @@
 #include <NdbOut.hpp>
 
 #include "NdbApiSignal.hpp"
-
-#include "NdbImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "NdbRecord.hpp"
 #include "NdbUtil.hpp"
@@ -41,9 +39,17 @@
 #include <NdbRecAttr.hpp>
 #include <NdbReceiver.hpp>
 #include <NdbBlob.hpp>
+#include <NdbBlobImpl.hpp>
 #include <NdbInterpretedCode.hpp>
 
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
+
+#include "NdbQueryOperationImpl.hpp"
+
+#include <NdbReceiver.hpp>
+#include "NdbImpl.hpp"
+
+#include "TransporterFacade.hpp"
 
 #endif

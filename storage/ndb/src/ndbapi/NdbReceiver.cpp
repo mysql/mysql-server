@@ -140,7 +140,7 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 */
 //static
 void
-NdbReceiver::calculate_batch_size(const TransporterFacade *tp,
+NdbReceiver::calculate_batch_size(const NdbImpl& theImpl,
                                   const NdbRecord *record,
                                   const NdbRecAttr *first_rec_attr,
                                   Uint32 key_size,
@@ -149,9 +149,10 @@ NdbReceiver::calculate_batch_size(const TransporterFacade *tp,
                                   Uint32& batch_byte_size,
                                   Uint32& first_batch_size)
 {
-  const Uint32 max_scan_batch_size= tp->get_scan_batch_size();
-  const Uint32 max_batch_byte_size= tp->get_batch_byte_size();
-  const Uint32 max_batch_size= tp->get_batch_size();
+  const NdbApiConfig & cfg = theImpl.get_ndbapi_config_parameters();
+  const Uint32 max_scan_batch_size= cfg.m_scan_batch_size;
+  const Uint32 max_batch_byte_size= cfg.m_batch_byte_size;
+  const Uint32 max_batch_size= cfg.m_batch_size;
 
   Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
   if (record)
@@ -209,7 +210,7 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
                                   Uint32& first_batch_size,
                                   const NdbRecord *record) const
 {
-  calculate_batch_size(m_ndb->theImpl->m_transporter_facade,
+  calculate_batch_size(* m_ndb->theImpl,
                        record,
                        theFirstRecAttr,
                        key_size, parallelism, batch_size, batch_byte_size,
