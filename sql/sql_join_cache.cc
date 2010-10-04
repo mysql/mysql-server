@@ -2295,34 +2295,10 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       /* The outer row is complemented by nulls for each inner table */
       restore_record(join_tab->table, s->default_values);
       mark_as_null_row(join_tab->table);  
-      /* Check all pushdown conditions attached to the inner table */
-      join_tab->first_unmatched->found= 1;
-      if (join_tab->select && join_tab->select->skip_record(join->thd) <= 0)
-        continue;
-      if (is_last_inner)
-      { 
-        JOIN_TAB *first_upper= join_tab->first_unmatched->first_upper;
-        while (first_upper && first_upper->last_inner == join_tab)
-        {
-          set_match_flag_if_none(first_upper, get_curr_rec());
-          for (JOIN_TAB* tab= first_upper; tab <= join_tab; tab++)
-          {
-            if (tab->select && tab->select->skip_record(join->thd) <= 0)
-              goto next;
-          }
-          first_upper= first_upper->first_upper;
-        }
-      }
-      /* Find all matches for the remaining join tables */
-      rc= (*join_tab->next_select)(join, join_tab+1, 0);
+      rc= generate_full_extensions(get_curr_rec());
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-      {
-        reset(TRUE);
         goto finish;
-      }
     }
-  next:
-    ;
   }
 
 finish:

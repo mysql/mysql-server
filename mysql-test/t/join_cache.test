@@ -2104,5 +2104,37 @@ SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
 set join_cache_level = default;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#54235 Extra rows with join_cache_level=6,8 and two LEFT JOINs
+--echo #
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE TABLE t4 (a int);
+
+INSERT INTO t1 VALUES (null), (2), (null), (1);
+
+set join_cache_level = 6;
+EXPLAIN
+SELECT t1.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a) ON 0 
+    WHERE t1.a OR t3.a;
+SELECT t1.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a) ON 0 
+    WHERE t1.a OR t3.a;
+
+EXPLAIN
+SELECT t1.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a) ON 0
+    WHERE t1.a OR t4.a;
+SELECT t1.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a) ON 0
+    WHERE t1.a OR t4.a;
+
+set join_cache_level = default;
+DROP TABLE t1,t2,t3,t4;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

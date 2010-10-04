@@ -5330,4 +5330,44 @@ a
 9
 set join_cache_level = default;
 DROP TABLE t1;
+#
+# Bug#54235 Extra rows with join_cache_level=6,8 and two LEFT JOINs
+#
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE TABLE t4 (a int);
+INSERT INTO t1 VALUES (null), (2), (null), (1);
+set join_cache_level = 6;
+EXPLAIN
+SELECT t1.a 
+FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a) ON 0 
+WHERE t1.a OR t3.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer
+SELECT t1.a 
+FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a) ON 0 
+WHERE t1.a OR t3.a;
+a
+2
+1
+EXPLAIN
+SELECT t1.a 
+FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a) ON 0
+WHERE t1.a OR t4.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer
+SELECT t1.a 
+FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a) ON 0
+WHERE t1.a OR t4.a;
+a
+2
+1
+set join_cache_level = default;
+DROP TABLE t1,t2,t3,t4;
 set @@optimizer_switch=@save_optimizer_switch;
