@@ -1639,14 +1639,15 @@ TransporterFacade::get_active_ndb_objects() const
   return m_threads.m_use_cnt;
 }
 
-PollGuard::PollGuard(TransporterFacade *tp, NdbWaiter *aWaiter,
-                     Uint32 block_no)
+#include "NdbImpl.hpp"
+
+PollGuard::PollGuard(NdbImpl& impl)
 {
-  m_tp= tp;
-  m_waiter= aWaiter;
+  m_tp= impl.m_transporter_facade;
+  m_waiter= &impl.theWaiter;
   m_locked= true;
-  m_block_no= block_no;
-  tp->lock_mutex();
+  m_block_no= impl.m_ndb.theNdbBlockNumber;
+  m_tp->lock_mutex();
 }
 
 /*

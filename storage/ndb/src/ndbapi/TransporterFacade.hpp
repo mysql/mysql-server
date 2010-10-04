@@ -297,7 +297,7 @@ public:
 class PollGuard
 {
   public:
-  PollGuard(TransporterFacade *tp, NdbWaiter *aWaiter, Uint32 block_no);
+  PollGuard(NdbImpl&);
   ~PollGuard() { unlock_and_signal(); }
   int wait_n_unlock(int wait_time, NodeId nodeId, Uint32 state,
                     bool forceSend= false);
