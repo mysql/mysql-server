@@ -1,0 +1,97 @@
+######### mysql-test\t\binlog_rows_query_log_events.test ########### 
+#                                                                             #
+# Variable Name: binlog_rows_query_log_events                      #
+# Scope: Global & Session                                                     #
+# Access Type: Static                                                         #
+# Data Type: bool                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             binlog_rows_query_log_events                         #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+SELECT @@GLOBAL.binlog_rows_query_log_events;
+
+--echo '#---------------------BS_STVARS_002_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SET @start_value= @@global.binlog_rows_query_log_events;
+
+SELECT COUNT(@@GLOBAL.binlog_rows_query_log_events);
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.binlog_rows_query_log_events);
+--echo 1 Expected
+
+--echo '#---------------------BS_STVARS_002_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+SET @@GLOBAL.binlog_rows_query_log_events=TRUE;
+SELECT @@GLOBAL.binlog_rows_query_log_events;
+
+SET @@SESSION.binlog_rows_query_log_events=TRUE;
+SELECT @@SESSION.binlog_rows_query_log_events;
+
+--echo '#---------------------BS_STVARS_002_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT
+IF(@@GLOBAL.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlog_rows_query_log_events';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.binlog_rows_query_log_events);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlog_rows_query_log_events';
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_04----------------------#'
+#################################################################
+# Check if the value in SESSION Table matches value in variable #
+#################################################################
+
+SELECT
+IF(@@SESSION.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='binlog_rows_query_log_events';
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.binlog_rows_query_log_events);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='binlog_rows_query_log_events';
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_05----------------------#'
+################################################################################
+#   Check if binlog_format can be accessed with and without @@ sign            #
+################################################################################
+
+SELECT COUNT(@@binlog_rows_query_log_events);
+--echo 1 Expected
+SELECT COUNT(@@local.binlog_rows_query_log_events);
+--echo 1 Expected
+SELECT COUNT(@@SESSION.binlog_rows_query_log_events);
+--echo 1 Expected
+SELECT COUNT(@@GLOBAL.binlog_rows_query_log_events);
+--echo 1 Expected
+
+SET @@global.binlog_rows_query_log_events= @start_value;
