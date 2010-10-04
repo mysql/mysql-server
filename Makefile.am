@@ -24,7 +24,7 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@pstack_dir@ libservices \
+			libservices \
 			@sql_union_dirs@ \
 			unittest/mytap \
 			@sql_server@ unittest @man_dirs@ tests \
@@ -35,7 +35,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			cmake
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
-			pstack libservices \
+			libservices \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
 			libmysqld \
