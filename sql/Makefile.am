@@ -86,7 +86,6 @@ LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
 mysqld_LDADD =		libndb.la \
 			$(RPL_LIBS) \
 			@MYSQLD_EXTRA_LDFLAGS@ \
-			@pstack_libs@ \
 			@mysql_plugin_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
 			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
