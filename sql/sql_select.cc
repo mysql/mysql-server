@@ -5846,7 +5846,6 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
-  KEYUSE keyuse;
 
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS))
   {
@@ -5862,20 +5861,21 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
 	{
-	  keyuse.table= field->table;
-	  keyuse.val =  key_field->val;
-	  keyuse.key =  key;
-	  keyuse.keypart=part;
-	  keyuse.keypart_map= (key_part_map) 1 << part;
-	  keyuse.used_tables=key_field->val->used_tables();
-	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
-          keyuse.null_rejecting= key_field->null_rejecting;
-          keyuse.cond_guard= key_field->cond_guard;
-          keyuse.sj_pred_no= key_field->sj_pred_no;
-	  if (insert_dynamic(keyuse_array,(uchar*) &keyuse))
-            return TRUE;
+          KEYUSE keyuse;
+          keyuse.table=          field->table;
+          keyuse.val=            key_field->val;
+          keyuse.used_tables=    key_field->val->used_tables();
+          keyuse.key=            key;
+          keyuse.keypart=        part;
+          keyuse.optimize=       key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+          keyuse.keypart_map=    (key_part_map) 1 << part;
           /* This will be set accordingly in optimize_keyuse */
           keyuse.ref_table_rows= ~(ha_rows) 0;
+          keyuse.null_rejecting= key_field->null_rejecting;
+          keyuse.cond_guard=     key_field->cond_guard;
+          keyuse.sj_pred_no=     key_field->sj_pred_no;
+          if (insert_dynamic(keyuse_array, (uchar*) &keyuse))
+            return TRUE;
 	}
       }
     }
@@ -10689,7 +10689,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       temptable.
     */
     TABLE_REF *tab_ref;
-    if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
+    if (!(tab_ref= new (thd->mem_root) TABLE_REF))
       DBUG_RETURN(TRUE); /* purecov: inspected */
     tab_ref->key= 0; /* The only temp table index. */
     tab_ref->key_length= tmp_key->key_length;
@@ -10702,10 +10702,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
           (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
 
-    tab_ref->key_buff2=tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
-    tab_ref->key_err=1;
+    tab_ref->key_buff2= tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
     tab_ref->null_rejecting= 1;
-    tab_ref->disable_cache= FALSE;
 
     KEY_PART_INFO *cur_key_part= tmp_key->key_part;
     store_key **ref_key= tab_ref->key_copy;
@@ -10896,7 +10894,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     {
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
                                                          loosescan_key_len)))
-        return TRUE; /* purecov: inspected */
+        DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
@@ -10909,7 +10907,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
        tab[-1].next_select= sub_select_sjm;
 
       if (setup_sj_materialization(tab))
-        return TRUE;
+        DBUG_RETURN(TRUE);
     }
     switch (tab->type) {
     case JT_EQ_REF:
