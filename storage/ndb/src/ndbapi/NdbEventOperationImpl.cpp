@@ -2248,8 +2248,10 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
       Gci_container* tmp = find_bucket(array[pos]);
       assert((tmp->m_state & Gci_container::GC_CHANGE_CNT) == 0);
       tmp->m_gcp_complete_rep_count -= cnt;
-      ndbout_c(" - decreasing cnt on %u/%u by %u",
-               Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), cnt);
+      ndbout_c(" - decreasing cnt on %u/%u by %u to: %u",
+               Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), 
+               cnt,
+               tmp->m_gcp_complete_rep_count);
     }
   }
 }
