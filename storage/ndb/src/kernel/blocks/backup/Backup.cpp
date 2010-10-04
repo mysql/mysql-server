@@ -4458,7 +4458,7 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     op.closeScan();
     ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
     req->senderData = filePtr.i;
-    req->closeFlag = 1;
+    req->requestInfo = ScanFragNextReq::ZCLOSE;
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
     sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
@@ -4471,7 +4471,7 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     
     ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
     req->senderData = filePtr.i;
-    req->closeFlag = 0;
+    req->requestInfo = 0;
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
     req->batch_size_rows= 16;
