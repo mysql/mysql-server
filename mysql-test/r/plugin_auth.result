@@ -17,7 +17,7 @@ plug@localhost	plug_dest@%
 ## test SET PASSWORD
 SET PASSWORD = PASSWORD('plug_dest');
 Warnings:
-Note	1698	SET PASSWORD has no significance for users authenticating via plugins
+Note	1699	SET PASSWORD has no significance for users authenticating via plugins
 ## test bad credentials
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 ## test bad default plugin : should get CR_AUTH_PLUGIN_CANNOT_LOAD
