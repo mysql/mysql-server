@@ -1307,8 +1307,7 @@ Ndb::sendPollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup, int forceSen
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
-  PollGuard pg(theImpl->m_transporter_facade, &theImpl->theWaiter,
-               theNdbBlockNumber);
+  PollGuard pg(* theImpl);
   sendPrepTrans(forceSend);
   return poll_trans(aMillisecondNumber, minNoOfEventsToWakeup, &pg);
 }
@@ -1351,8 +1350,7 @@ Ndb::pollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup)
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
-  PollGuard pg(theImpl->m_transporter_facade, &theImpl->theWaiter,
-               theNdbBlockNumber);
+  PollGuard pg(* theImpl);
   return poll_trans(aMillisecondNumber, minNoOfEventsToWakeup, &pg);
 }
 
@@ -1384,7 +1382,7 @@ Ndb::sendRecSignal(Uint16 node_id,
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
-  PollGuard poll_guard(tp,&theImpl->theWaiter,theNdbBlockNumber);
+  PollGuard poll_guard(* theImpl);
   read_conn_seq= tp->getNodeSequence(node_id);
   if (ret_conn_seq)
     *ret_conn_seq= read_conn_seq;
