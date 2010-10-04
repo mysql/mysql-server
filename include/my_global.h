@@ -1382,6 +1382,7 @@ do { doubleget_union _tmp; \
 #else
 #define dlerror() "No support for dynamic loading (static build?)"
 #endif
+#endif
 
 
 /*
