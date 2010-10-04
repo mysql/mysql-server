@@ -16,25 +16,34 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "NdbDictionaryImpl.hpp"
 #include "API.hpp"
 #include <NdbOut.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
 #include <SimpleProperties.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
-#include <NdbEventOperation.hpp>
-#include "NdbEventOperationImpl.hpp"
-#include <NdbBlob.hpp>
-#include "NdbBlobImpl.hpp"
-#include <NdbInterpretedCode.hpp>
 #include <AttributeHeader.hpp>
 #include <my_sys.h>
 #include <NdbEnv.h>
 #include <NdbMem.h>
 #include <util/version.h>
 #include <NdbSleep.h>
+
+#include <signaldata/GetTabInfo.hpp>
+#include <signaldata/DictTabInfo.hpp>
+#include <signaldata/CreateTable.hpp>
+#include <signaldata/CreateIndx.hpp>
+#include <signaldata/CreateEvnt.hpp>
+#include <signaldata/SumaImpl.hpp>
+#include <signaldata/DropTable.hpp>
+#include <signaldata/AlterTable.hpp>
+#include <signaldata/DropIndx.hpp>
+#include <signaldata/ListTables.hpp>
+#include <signaldata/DropFilegroup.hpp>
+#include <signaldata/CreateFilegroup.hpp>
+#include <signaldata/WaitGCP.hpp>
+#include <signaldata/SchemaTrans.hpp>
+#include <signaldata/CreateHashMap.hpp>
+#include <signaldata/ApiRegSignalData.hpp>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -2196,17 +2205,17 @@ NdbDictInterface::execSignal(void* dictImpl,
 }
 
 void
-NdbDictInterface::execNodeStatus(void* dictImpl, Uint32 aNode,
-				 bool alive, bool nfCompleted)
+NdbDictInterface::execNodeStatus(void* dictImpl, Uint32 aNode, Uint32 ns_event)
 {
   NdbDictInterface * tmp = (NdbDictInterface*)dictImpl;
+  NS_Event event = (NS_Event)ns_event;
   
-  if(!alive && !nfCompleted){
-    return;
-  }
-  
-  if (!alive && nfCompleted){
+  switch(event){
+  case NS_NODE_FAILED:
     tmp->m_waiter.nodeFail(aNode);
+    break;
+  default:
+    break;
   }
 }
 
@@ -4597,7 +4606,7 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
                        errCodes, -1);
   if (ret == 0)
   {
-    buckets =m_sub_start_conf.m_buckets;
+    buckets = m_data.m_sub_start_conf.m_buckets;
   }
 
   DBUG_RETURN(ret);
@@ -4912,7 +4921,7 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
 
   if (signal->getLength() == SubStartConf::SignalLength)
   {
-    m_sub_start_conf.m_buckets = subStartConf->bucketCount;
+    m_data.m_sub_start_conf.m_buckets = subStartConf->bucketCount;
   }
   else
   {
@@ -4920,7 +4929,7 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
      * 6.3 doesn't send required bucketCount.  
      * ~0 indicates no bucketCount received
      */
-    m_sub_start_conf.m_buckets = ~0;
+    m_data.m_sub_start_conf.m_buckets = ~0;
   }
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subscriptionId,subscriptionKey,subscriberData));
@@ -5095,7 +5104,6 @@ NdbDictInterface::execDROP_EVNT_REF(const NdbApiSignal * signal,
   DBUG_VOID_RETURN;
 }
 
-#include <NdbScanOperation.hpp>
 static int scanEventTable(Ndb* pNdb, 
                           const NdbDictionary::Table* pTab,
                           NdbDictionary::Dictionary::List &list)
@@ -5770,12 +5778,15 @@ int
 NdbDictInterface::forceGCPWait(int type)
 {
   NdbApiSignal tSignal(m_reference);
-  if (type == 0)
+  if (type == 0 || type == 2)
   {
     WaitGCPReq* const req = CAST_PTR(WaitGCPReq, tSignal.getDataPtrSend());
     req->senderRef = m_reference;
     req->senderData = 0;
-    req->requestType = WaitGCPReq::CompleteForceStart;
+    req->requestType = 
+      type == 0 ? 
+      WaitGCPReq::CompleteForceStart : WaitGCPReq::RestartGCI;
+      
     tSignal.theReceiversBlockNumber = DBDIH;
     tSignal.theVerId_signalNumber = GSN_WAIT_GCP_REQ;
     tSignal.theLength = WaitGCPReq::SignalLength;
@@ -5800,7 +5811,7 @@ NdbDictInterface::forceGCPWait(int type)
       m_waiter.m_state = WAIT_LIST_TABLES_CONF;
       m_waiter.wait(DICT_WAITFOR_TIMEOUT);
       m_transporter->unlock_mutex();
-      return 0;
+      return m_error.code == 0 ? 0 : -1;
     }
     return -1;
   }
@@ -5829,15 +5840,34 @@ NdbDictInterface::forceGCPWait(int type)
       m_transporter->forceSend(refToBlock(m_reference));
       m_transporter->unlock_mutex();
     }
-    return 0;
+    return m_error.code == 0 ? 0 : -1;
+  }
+  else
+  {
+    m_error.code = 4003;
   }
   return -1;
+}
+
+int
+NdbDictionaryImpl::getRestartGCI(Uint32 * gci)
+{
+  int res = m_receiver.forceGCPWait(2);
+  if (res == 0 && gci != 0)
+  {
+    * gci = m_receiver.m_data.m_wait_gcp_conf.gci_hi;
+  }
+  return res;
 }
 
 void
 NdbDictInterface::execWAIT_GCP_CONF(const NdbApiSignal* signal,
 				    const LinearSectionPtr ptr[3])
 {
+  const WaitGCPConf* conf = CAST_CONSTPTR(WaitGCPConf, signal->getDataPtr());
+
+  m_data.m_wait_gcp_conf.gci_lo = conf->gci_lo;
+  m_data.m_wait_gcp_conf.gci_hi = conf->gci_hi;
   m_waiter.signal(NO_WAIT);
 }
 
@@ -5845,6 +5875,9 @@ void
 NdbDictInterface::execWAIT_GCP_REF(const NdbApiSignal* signal,
                                    const LinearSectionPtr ptr[3])
 {
+  const WaitGCPRef* ref = CAST_CONSTPTR(WaitGCPRef, signal->getDataPtr());
+  m_error.code = ref->errorCode;
+
   m_waiter.signal(NO_WAIT);
 }
 

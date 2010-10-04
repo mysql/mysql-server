@@ -962,7 +962,6 @@ private:
   Uint32        get_send_size();                  // Get size to send
   void          set_send_size(Uint32);            // Set size to send;
   
-  int  receiveDIHNDBTAMPER(const NdbApiSignal* anApiSignal);
   int  receiveTCSEIZECONF(const NdbApiSignal* anApiSignal);
   int  receiveTCSEIZEREF(const NdbApiSignal* anApiSignal);
   int  receiveTCRELEASECONF(const NdbApiSignal* anApiSignal);

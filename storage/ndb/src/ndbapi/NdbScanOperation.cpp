@@ -1829,6 +1829,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
 
   /* Now we have to wait for more rows (or end-of-file on all receivers). */
   Uint32 nodeId = theNdbCon->theDBnode;
+  Uint32 timeout= theNdb->theImpl->get_waitfor_timeout();
   TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
   int retVal= 2;
   Uint32 idx, last;
@@ -1851,7 +1852,6 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
   {
     idx= m_current_api_receiver;
     last= m_api_receivers_count;
-    Uint32 timeout= tp->m_waitfor_timeout;
 
     do {
       if (theError.code){
@@ -3690,6 +3690,7 @@ NdbIndexScanOperation::ordered_insert_receiver(Uint32 start,
 int
 NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
 {
+  Uint32 timeout= theNdb->theImpl->get_waitfor_timeout();
   TransporterFacade* tp= theNdb->theImpl->m_transporter_facade;
 
   PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
@@ -3699,7 +3700,6 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
 
   Uint32 seq= theNdbCon->theNodeSequence;
   Uint32 nodeId= theNdbCon->theDBnode;
-  Uint32 timeout= tp->m_waitfor_timeout;
   if (seq == tp->getNodeSequence(nodeId) &&
       !send_next_scan_ordered(m_current_api_receiver))
   {
@@ -3789,6 +3789,7 @@ int
 NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
                              PollGuard *poll_guard)
 {
+  Uint32 timeout= theNdb->theImpl->get_waitfor_timeout();
   Uint32 seq = theNdbCon->theNodeSequence;
   Uint32 nodeId = theNdbCon->theDBnode;
   
@@ -3798,7 +3799,6 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
     return -1;
   }
   
-  Uint32 timeout = tp->m_waitfor_timeout;
   /**
    * Wait for outstanding
    */

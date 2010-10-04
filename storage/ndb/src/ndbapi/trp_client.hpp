@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +15,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef NDB_INTERNAL_HPP
-#define NDB_INTERNAL_HPP
+#ifndef trp_client_hpp
+#define trp_client_hpp
 
-/**
- * This class exposes non-public funcionality to various test/utility programs
- */
-class Ndb_internal
+#include <ndb_global.h>
+
+class NdbApiSignal;
+struct LinearSectionPtr;
+
+class trp_client
 {
 public:
-  Ndb_internal() {}
-  virtual ~Ndb_internal() {}
+  virtual ~trp_client() {}
 
-  static int send_event_report(bool has_lock, Ndb *ndb, Uint32*data,Uint32 len);
-  static void setForceShortRequests(Ndb*, bool val);
+  virtual void trp_deliver_signal(const NdbApiSignal *,
+                                  const LinearSectionPtr ptr[3]) = 0;
+  virtual void trp_node_status(Uint32, Uint32 event) = 0;
 };
 
 #endif

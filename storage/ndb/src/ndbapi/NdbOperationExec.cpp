@@ -17,14 +17,7 @@
 */
 
 #include <ndb_global.h>
-#include <NdbOperation.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbBlob.hpp>
-#include "NdbApiSignal.hpp"
-#include <Ndb.hpp>
-#include <NdbRecAttr.hpp>
-#include "NdbUtil.hpp"
-#include "NdbInterpretedCode.hpp"
+#include "API.hpp"
 
 #include "Interpreter.hpp"
 #include <AttributeHeader.hpp>

@@ -278,6 +278,7 @@ NdbApiSignal::set(Uint8  trace,
 
 void
 NdbApiSignal::copyFrom(const NdbApiSignal * src){
+  theSignalId             = src->theSignalId;
   theVerId_signalNumber   = src->theVerId_signalNumber;
   theReceiversBlockNumber = src->theReceiversBlockNumber;
   theSendersBlockRef      = src->theSendersBlockRef;
@@ -292,11 +293,4 @@ NdbApiSignal::copyFrom(const NdbApiSignal * src){
     dstData[i] = srcData[i];
 
   setDataPtr(dstData);
-  
-  /**
-   * NOTE that theSignalId is used as data ptr
-   *   and should not be copied
-   * NOTE that theSendersSignalId is used as next pointer
-   *   and should not be copied
-   */
 }

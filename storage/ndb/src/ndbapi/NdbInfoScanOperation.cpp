@@ -18,7 +18,7 @@
 
 #include "NdbInfo.hpp"
 #include "SignalSender.hpp"
-
+#include <kernel/GlobalSignalNumbers.h>
 #include <AttributeHeader.hpp>
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>

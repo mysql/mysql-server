@@ -16,16 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-#include <NdbError.hpp>
-#include "NdbImpl.hpp"
-#include "NdbDictionaryImpl.hpp"
-#include <NdbOperation.hpp>
-#include <NdbTransaction.hpp>
-#include "NdbQueryBuilderImpl.hpp"
-#include "NdbQueryOperationImpl.hpp"
-#include <NdbBlob.hpp>
-#include "NdbEventOperationImpl.hpp"
+#include "API.hpp"
 
 static void
 update(const NdbError & _err){

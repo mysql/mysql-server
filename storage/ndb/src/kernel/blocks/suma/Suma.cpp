@@ -2512,7 +2512,6 @@ Suma::SyncRecord::nextScan(Signal* signal)
   ScanFragReq::setLockMode(req->requestInfo, 0);
   ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
-  ScanFragReq::setAttrLen(req->requestInfo, attrLen);
   if (m_requestInfo & SubSyncReq::LM_Exclusive)
   {
     ScanFragReq::setLockMode(req->requestInfo, 1);
@@ -2644,7 +2643,7 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
 
   ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
   req->senderData = syncPtrI;
-  req->closeFlag = 0;
+  req->requestInfo = 0;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (getOwnNodeId() << 8);
   req->batch_size_rows = 16;

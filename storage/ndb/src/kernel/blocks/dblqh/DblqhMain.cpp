@@ -9308,7 +9308,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     jam();
     DEBUG(senderData << 
 	  " Received SCAN_NEXTREQ in LQH with close flag when closed");
-    ndbrequire(nextReq->closeFlag == ZTRUE);
+    ndbrequire(nextReq->requestInfo == ScanFragNextReq::ZCLOSE);
     return;
   }
 
@@ -9370,7 +9370,8 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
    * continue execution else set flags and wait until the scan 
    * completes itself
    * ------------------------------------------------------------------ */
-  if (nextReq->closeFlag == ZTRUE){
+  if (nextReq->requestInfo == ScanFragNextReq::ZCLOSE)
+  {
     jam();
     if(ERROR_INSERTED(5034)){
       CLEAR_ERROR_INSERT_VALUE;
@@ -9414,12 +9415,8 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   else if (unlikely(max_rows < scanptr.p->m_max_batch_size_rows))
   {
     jam();
-    /**
-     * Don't support for now...too much hassle
-     */
-    tcConnectptr.p->errorCode = ScanFragRef::ZWRONG_BATCH_SIZE;
-    closeScanRequestLab(signal);
-    return;
+    cbookedAccOps -= (scanptr.p->m_max_batch_size_rows - max_rows);
+    scanptr.p->m_max_batch_size_rows = max_rows;
   }
   
   /* --------------------------------------------------------------------
@@ -9699,12 +9696,10 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP,
   /*  1 maps to 0 segments
    * >1 maps to enough segments to store
    */
-  Uint32 curr_segments = (curr_batch_size + (SectionSegment::DataLength -2 )) / 
-    SectionSegment::DataLength;
   Uint32 segments= (new_batch_size + (SectionSegment::DataLength -2 )) / 
     SectionSegment::DataLength;
 
-  ndbassert(curr_segments == scanP->scan_acc_segments);
+  ndbassert(segments >= scanP->scan_acc_segments);
 
   if (new_batch_size > 1)
   {
