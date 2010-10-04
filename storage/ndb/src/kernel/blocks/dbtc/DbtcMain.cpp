@@ -10198,7 +10198,6 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   ScanFragReq::setRangeScanFlag(tmp, ScanTabReq::getRangeScanFlag(ri));
   ScanFragReq::setDescendingFlag(tmp, ScanTabReq::getDescendingFlag(ri));
   ScanFragReq::setTupScanFlag(tmp, ScanTabReq::getTupScanFlag(ri));
-  ScanFragReq::setAttrLen(tmp, aiLength);
   ScanFragReq::setNoDiskFlag(tmp, ScanTabReq::getNoDiskFlag(ri));
   
   scanptr.p->scanRequestInfo = tmp;
@@ -11361,7 +11360,6 @@ void Dbtc::sendScanFragReq(Signal* signal,
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
   Uint32 requestInfo = scanP->scanRequestInfo;
   ScanFragReq::setScanPrio(requestInfo, 1);
-  ScanFragReq::setAttrLen(requestInfo, reqAttrLen);
   apiConnectptr.i = scanP->scanApiRec;
   req->tableId = scanP->scanTableref;
   req->schemaVersion = scanP->scanSchemaVersion;
@@ -11451,6 +11449,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
     /* Short SCANFRAGREQ with separate KeyInfo and AttrInfo trains 
      * Sent to older NDBD nodes during upgrade
      */
+    ScanFragReq::setAttrLen(requestInfo, reqAttrLen);
     sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
                ScanFragReq::SignalLength, JBB);
     if(scanP->scanKeyLen > 0)

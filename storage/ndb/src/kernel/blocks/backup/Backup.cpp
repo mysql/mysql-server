@@ -4092,7 +4092,6 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     ScanFragReq::setLockMode(req->requestInfo, 0);
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
-    ScanFragReq::setAttrLen(req->requestInfo, attrLen);
     ScanFragReq::setTupScanFlag(req->requestInfo, 1);
     if (ptr.p->is_lcp())
     {
@@ -4113,25 +4112,19 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
       ndbrequire(instanceKey != 0);
       lqhRef = numberToRef(DBLQH, instanceKey, getOwnNodeId());
     }
+
+    Uint32 attrInfo[25];
+    attrInfo[0] = table.attrInfoLen;
+    attrInfo[1] = 0;
+    attrInfo[2] = 0;
+    attrInfo[3] = 0;
+    attrInfo[4] = 0;
+    memcpy(attrInfo + 5, table.attrInfo, 4*table.attrInfoLen);
+    LinearSectionPtr ptr[3];
+    ptr[0].p = attrInfo;
+    ptr[0].sz = 5 + table.attrInfoLen;
     sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal,
-               ScanFragReq::SignalLength, JBB);
-    
-    signal->theData[0] = filePtr.i;
-    signal->theData[1] = 0;
-    signal->theData[2] = (BACKUP << 20) + (getOwnNodeId() << 8);
-    
-    // Return all
-    signal->theData[3] = table.attrInfoLen;
-    signal->theData[4] = 0;
-    signal->theData[5] = 0;
-    signal->theData[6] = 0;
-    signal->theData[7] = 0;
-    
-    Uint32 dataPos = 8;
-    memcpy(signal->theData + dataPos, table.attrInfo, 4*table.attrInfoLen);
-    dataPos += table.attrInfoLen;
-    ndbassert(dataPos < 25);
-    sendSignal(lqhRef, GSN_ATTRINFO, signal, dataPos, JBB);
+               ScanFragReq::SignalLength, JBB, ptr, 1);
   }
 }
 

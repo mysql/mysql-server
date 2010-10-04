@@ -2512,7 +2512,6 @@ Suma::SyncRecord::nextScan(Signal* signal)
   ScanFragReq::setLockMode(req->requestInfo, 0);
   ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
-  ScanFragReq::setAttrLen(req->requestInfo, attrLen);
   if (m_requestInfo & SubSyncReq::LM_Exclusive)
   {
     ScanFragReq::setLockMode(req->requestInfo, 1);
@@ -2533,32 +2532,25 @@ Suma::SyncRecord::nextScan(Signal* signal)
   req->batch_size_rows= parallelism;
 
   req->batch_size_bytes= 0;
-  suma.sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal, 
-		  ScanFragReq::SignalLength, JBB);
+
+  Uint32 * attrInfo = signal->theData + 25;
+  attrInfo[0] = attrBuf.getSize();
+  attrInfo[1] = 0;
+  attrInfo[2] = 0;
+  attrInfo[3] = 0;
+  attrInfo[4] = 0;
   
-  signal->theData[0] = ptrI;
-  signal->theData[1] = 0;
-  signal->theData[2] = (SUMA << 20) + (suma.getOwnNodeId() << 8);
-  
-  // Return all
-  signal->theData[3] = attrBuf.getSize();
-  signal->theData[4] = 0;
-  signal->theData[5] = 0;
-  signal->theData[6] = 0;
-  signal->theData[7] = 0;
-  
-  Uint32 dataPos = 8;
+  Uint32 pos = 5;
   DataBuffer<15>::DataBufferIterator it;
-  for(attrBuf.first(it); !it.curr.isNull(); attrBuf.next(it)){
-    AttributeHeader::init(&signal->theData[dataPos++], * it.data, 0);
-    if(dataPos == 25){
-      suma.sendSignal(lqhRef, GSN_ATTRINFO, signal, 25, JBB);
-      dataPos = 3;
-    }
+  for(attrBuf.first(it); !it.curr.isNull(); attrBuf.next(it))
+  {
+    AttributeHeader::init(&attrInfo[pos++], * it.data, 0);
   }
-  if(dataPos != 3){
-    suma.sendSignal(lqhRef, GSN_ATTRINFO, signal, dataPos, JBB);
-  }
+  LinearSectionPtr ptr[3];
+  ptr[0].p = attrInfo;
+  ptr[0].sz = pos;
+  suma.sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal, 
+		  ScanFragReq::SignalLength, JBB, ptr, 1);
   
   m_currentNoOfAttributes = attrBuf.getSize();        
 
