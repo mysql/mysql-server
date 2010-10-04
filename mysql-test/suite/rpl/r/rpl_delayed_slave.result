@@ -7,145 +7,135 @@ start slave;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
 [on master]
-CREATE TABLE t1 (a VARCHAR(100), b INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t1 (a VARCHAR(100), b INT);
+INSERT INTO t1 VALUES ("zero", 0);
 ==== Normal setup ====
 [on slave]
 include/stop_slave.inc
 # CHANGE MASTER TO MASTER_DELAY = 2*T
-# Checking that delay is what we set it to
-# Expect status to be ''
-SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY ID DESC LIMIT 1;
-STATE
-
 include/start_slave.inc
+# Asserted this: SHOW SLAVE STATUS should return the same delay that we set with CHANGE MASTER
 [on master]
-INSERT INTO t1(a) VALUES ('normal setup');
+INSERT INTO t1 VALUES ('normal setup', 1);
 [on slave]
 # sleep 1*T
-# Expect query not executed and status is 'Waiting until MASTER_DELAY...'
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-Slave_SQL_Running_State='Waiting until MASTER_DELAY seconds after master executed event'; SQL_Remaining_Delay is greater than zero; SQL thread is behind IO thread
+# Asserted this: Query 1 should not be executed
+# Asserted this: Status should be 'Waiting until MASTER_DELAY...'
 # sleep 1*T
 # sync with master (with timeout 1*T)
-# Expect query executed and status is 'Has read all relay log...'
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-normal setup	1
-Slave_SQL_Running_State='Slave has read all relay log; waiting for the slave I/O thread to update it'; SQL_Remaining_Delay is NULL; SQL thread is in sync with IO thread
+# Asserted this: Query 1 should be executed
+# Asserted this: Status should be 'Has read all relay log...'
 Checking that both slave threads are running.
 ==== Slave lags "naturally" after master ====
 [on master]
 # CREATE FUNCTION delay_on_slave(time_units INT) RETURNS INT BEGIN IF @@server_id = 2 THEN RETURN SLEEP(time_units * T); ELSE RETURN 0; END IF; END
-INSERT INTO t1(a) SELECT delay_on_slave(3);
+INSERT INTO t1 SELECT delay_on_slave(3), 2;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-INSERT INTO t1(a) VALUES ('slave is already lagging: this statement should execute immediately');
-INSERT INTO t1(a) SELECT delay_on_slave(2);
+INSERT INTO t1 VALUES ('slave is already lagging: this statement should execute immediately', 3);
+INSERT INTO t1 SELECT delay_on_slave(2), 4;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 [on slave]
 # sleep 1*T
-# Expect no query executed and status is 'Waiting until MASTER_DELAY...'
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-normal setup	1
-Slave_SQL_Running_State='Waiting until MASTER_DELAY seconds after master executed event'; SQL_Remaining_Delay is greater than zero; SQL thread is behind IO thread
+# Asserted this: No query executed
+# Asserted this: Status should be 'Waiting until MASTER_DELAY...'
 # wait for first query to execute
 # sleep 1*T
-# Expect second query executed and status is executing third query (i.e., 'User sleep')
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-slave is already lagging: this statement should execute immediately	3
-Slave_SQL_Running_State='User sleep'; SQL_Remaining_Delay is NULL; SQL thread is behind IO thread
+# Asserted this: Second query executed
+# Asserted this: Status should be executing third query (i.e., 'User sleep')
 # sleep 2*T
-# Expect query executed and status is 'Has read all relay log...'
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-0	4
-Slave_SQL_Running_State='Slave has read all relay log; waiting for the slave I/O thread to update it'; SQL_Remaining_Delay is NULL; SQL thread is in sync with IO thread
+# Asserted this: Third query executed
+# Asserted this: Status should be 'Has read all relay log...'
 ==== Seconds_Behind_Master ====
 # Bring slave to sync.
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_DELAY = 0;
 include/start_slave.inc
-INSERT INTO t1(a) VALUES ('Syncing slave');
+INSERT INTO t1 VALUES ('Syncing slave', 5);
 include/stop_slave.inc
 # CHANGE MASTER TO MASTER_DELAY = 2*T
 include/start_slave.inc
-INSERT INTO t1(a) VALUES (delay_on_slave(1));
+INSERT INTO t1 VALUES (delay_on_slave(1), 6);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 # sleep 1*T
+# Asserted this: Seconds_Behind_Master should be between 0 and the 2*T
 # sleep 1*T
-==== STOP SLAVE and START SLAVE ====
+# Asserted this: Seconds_Behind_Master should be at least 2*T
+==== STOP SLAVE / START SLAVE + DML ====
 include/stop_slave.inc
 # CHANGE MASTER TO MASTER_DELAY = 3*T
 include/start_slave.inc
-# Checking that delay is what we set it to
 [on master]
-INSERT INTO t1(a) VALUES ('stop slave and start slave');
+INSERT INTO t1 VALUES ('stop slave and start slave: DML', 7);
 [on slave]
 # sleep 1*T
-SET @before_stop_slave= UNIX_TIMESTAMP();
 include/stop_slave.inc
-# STOP SLAVE finished in time.
-# Expect query not executed and status is ''
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-0	6
-Slave_SQL_Running_State=''; SQL_Remaining_Delay is NULL; SQL thread is behind IO thread
+# Asserted this: STOP SLAVE should finish quickly, not wait for the ongoing sleep to finish
+# Asserted this: SQL thread position should not increase after STOP SLAVE
+# Asserted this: Query should not be executed after STOP SLAVE
+# Asserted this: Status should be '' after STOP SLAVE
 include/start_slave.inc
-# START SLAVE finished in time.
+# Asserted this: START SLAVE should finish quickly
 [on slave]
 # sleep 1*T
-# Expect query not executed and status is 'Waiting until MASTER_DELAY...'
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-0	6
-Slave_SQL_Running_State='Waiting until MASTER_DELAY seconds after master executed event'; SQL_Remaining_Delay is greater than zero; SQL thread is behind IO thread
+# Asserted this: Query 7 should not be executed
+# Asserted this: Status should be 'Waiting until MASTER_DELAY...'
 # sleep 1*T
 # sync with master (with timeout 1*T)
-# Expect query executed and status is 'Has read all relay log...'
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-stop slave and start slave	7
-Slave_SQL_Running_State='Slave has read all relay log; waiting for the slave I/O thread to update it'; SQL_Remaining_Delay is NULL; SQL thread is in sync with IO thread
+# Asserted this: Query 7 should be executed
+# Asserted this: Status should be 'Has read all relay log...'
+Checking that both slave threads are running.
+==== STOP SLAVE / START SLAVE + DDL ====
+This verifies BUG#56442
+[on master]
+CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
+[on slave]
+# sleep 1*T
+include/stop_slave.inc
+# Asserted this: STOP SLAVE should finish quickly, not wait for the ongoing sleep to finish
+# Asserted this: SQL thread position should not increase after STOP SLAVE
+# Asserted this: Query should not be executed after STOP SLAVE
+# Asserted this: Status should be '' after STOP SLAVE
+include/start_slave.inc
+# Asserted this: START SLAVE should finish quickly
+# sleep 1*T
+# Asserted this: DDL Query should not be executed after START SLAVE
+# Asserted this: Status should be 'Waiting until MASTER_DELAY...'
+# sleep 1*T
+# sync with master (with timeout 1*T)
+# Asserted this: DDL Query should be executed
+# Asserted this: Status should be 'Has read all relay log...'
 Checking that both slave threads are running.
 ==== Change back to no delay ====
 [on slave]
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_DELAY = 0;
-# Expect delay is 0.
-SQL_Delay='0'
+# Asserted this: Delay should be 0 when we set it to 0
 include/start_slave.inc
 [on master]
-INSERT INTO t1(a) VALUES ('change back to no delay');
+INSERT INTO t1 VALUES ('change back to no delay', 8);
 [on slave]
 # sleep 1*T
-# Expect query executed and status is 'Has read all relay log...'
-SELECT * FROM t1 ORDER BY b DESC LIMIT 1;
-a	b
-change back to no delay	8
-Slave_SQL_Running_State='Slave has read all relay log; waiting for the slave I/O thread to update it'; SQL_Remaining_Delay is NULL; SQL thread is in sync with IO thread
+# Asserted this: Query should be executed
+# Asserted this: Status should be 'Slave has read all relay log...'
 ==== Reset delay with RESET SLAVE ====
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_DELAY = 71;
 include/start_slave.inc
-# Expect delay is 71
-SQL_Delay='71'
+# Asserted this: Delay should be 71 when we set it to 71
 include/stop_slave.inc
 RESET SLAVE;
 [on master]
 RESET MASTER;
 [on slave]
 include/start_slave.inc
-# Expect delay is 0
-SQL_Delay='0'
-==== Set a bad value for the delay ====
+# Asserted this: Delay should be 0 after RESET SLAVE
+==== Set an invalid value for the delay ====
 include/stop_slave.inc
 # Expect error for setting negative delay
 CHANGE MASTER TO MASTER_DELAY = -1;
@@ -162,6 +152,6 @@ CHANGE MASTER TO MASTER_DELAY = 0;
 include/start_slave.inc
 ==== Clean up ====
 [on master]
-DROP TABLE t1;
+DROP TABLE t1, t_check_dml_not_executed_prematurely;
 DROP FUNCTION delay_on_slave;
 [on slave]

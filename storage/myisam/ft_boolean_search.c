@@ -92,6 +92,8 @@ static double *nwghts=_nwghts+5; /* nwghts[i] = -0.5*1.5**i */
 #define FTB_FLAG_NO    4
 #define FTB_FLAG_WONLY 8
 
+#define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
+
 typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr
 {
@@ -608,7 +610,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   return ftb;
 err:
   free_root(& ftb->mem_root, MYF(0));
-  my_free((uchar*)ftb,MYF(0));
+  my_free(ftb);
   return 0;
 }
 
@@ -1032,7 +1034,7 @@ void ft_boolean_close_search(FT_INFO *ftb)
     delete_tree(& ftb->no_dupes);
   }
   free_root(& ftb->mem_root, MYF(0));
-  my_free((uchar*)ftb,MYF(0));
+  my_free(ftb);
 }
 
 

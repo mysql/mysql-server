@@ -27,7 +27,9 @@
   allocations - they are better served with my_malloc.
 */
 
+#ifndef MYSQL_ABI_CHECK
 #include <stdlib.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

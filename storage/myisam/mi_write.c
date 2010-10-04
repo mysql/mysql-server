@@ -61,11 +61,6 @@ int mi_write(MI_INFO *info, uchar *record)
   if (_mi_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
   dont_break();				/* Dont allow SIGHUP or SIGINT */
-#if !defined(NO_LOCKING) && defined(USE_RECORD_LOCK)
-  if (!info->locked && my_lock(info->dfile,F_WRLCK,0L,F_TO_EOF,
-			       MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
-    goto err;
-#endif
   filepos= ((share->state.dellink != HA_OFFSET_ERROR &&
              !info->append_insert_at_end) ?
 	    share->state.dellink :
@@ -286,7 +281,7 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
     if (!error)
       error= _mi_ft_convert_to_ft2(info, keynr, key);
     delete_dynamic(info->ft1_to_ft2);
-    my_free((uchar*)info->ft1_to_ft2, MYF(0));
+    my_free(info->ft1_to_ft2);
     info->ft1_to_ft2=0;
   }
   DBUG_RETURN(error);
@@ -1045,7 +1040,7 @@ void mi_end_bulk_insert(MI_INFO *info)
         delete_tree(& info->bulk_insert[i]);
       }
     }
-    my_free((void *)info->bulk_insert, MYF(0));
+    my_free(info->bulk_insert);
     info->bulk_insert=0;
   }
 }

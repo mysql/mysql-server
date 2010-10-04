@@ -1701,3 +1701,24 @@ SELECT * FROM t1;
 REPAIR TABLE t1 EXTENDED;
 SELECT * FROM t1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#45377: ARCHIVE tables aren't discoverable after OPTIMIZE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a int) ENGINE=ARCHIVE;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1);
+OPTIMIZE TABLE t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/t1.frm;
+FLUSH TABLES;
+INSERT INTO t1 VALUES (2);
+SELECT * FROM t1 ORDER BY a;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

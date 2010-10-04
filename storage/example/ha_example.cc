@@ -180,7 +180,7 @@ static int example_done_func(void *p)
   my_hash_free(&example_open_tables);
   mysql_mutex_destroy(&example_mutex);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
@@ -232,7 +232,7 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   mysql_mutex_destroy(&share->mutex);
-  my_free(share, MYF(0));
+  my_free(share);
 
   return NULL;
 }
@@ -252,7 +252,7 @@ static int free_share(EXAMPLE_SHARE *share)
     my_hash_delete(&example_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
-    my_free(share, MYF(0));
+    my_free(share);
   }
   mysql_mutex_unlock(&example_mutex);
 

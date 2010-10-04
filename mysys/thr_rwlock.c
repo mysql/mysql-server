@@ -71,6 +71,9 @@ int my_rw_init(my_rw_lock_t *rwp, my_bool *prefer_readers_attr)
 
   rwp->state	= 0;
   rwp->waiters	= 0;
+#ifdef SAFE_MUTEX
+  rwp->write_thread   = 0;
+#endif
   /* If attribute argument is NULL use default value - prefer writers. */
   rwp->prefer_readers= prefer_readers_attr ? *prefer_readers_attr : FALSE;
 
@@ -80,6 +83,7 @@ int my_rw_init(my_rw_lock_t *rwp, my_bool *prefer_readers_attr)
 
 int my_rw_destroy(my_rw_lock_t *rwp)
 {
+  DBUG_ASSERT(rwp->state == 0);
   pthread_mutex_destroy( &rwp->lock );
   pthread_cond_destroy( &rwp->readers );
   pthread_cond_destroy( &rwp->writers );
@@ -123,10 +127,15 @@ int my_rw_wrlock(my_rw_lock_t *rwp)
   pthread_mutex_lock(&rwp->lock);
   rwp->waiters++;				/* another writer queued */
 
+  my_rw_lock_assert_not_write_owner(rwp);
+
   while (rwp->state)
     pthread_cond_wait(&rwp->writers, &rwp->lock);
   rwp->state	= -1;
   rwp->waiters--;
+#ifdef SAFE_MUTEX
+  rwp->write_thread= pthread_self();
+#endif
   pthread_mutex_unlock(&rwp->lock);
   return(0);
 }
@@ -142,6 +151,9 @@ int my_rw_trywrlock(my_rw_lock_t *rwp)
   {
     res=0;
     rwp->state	= -1;
+#ifdef SAFE_MUTEX
+  rwp->write_thread= pthread_self();
+#endif
   }
   pthread_mutex_unlock(&rwp->lock);
   return(res);
@@ -154,9 +166,15 @@ int my_rw_unlock(my_rw_lock_t *rwp)
 	     ("state: %d waiters: %d", rwp->state, rwp->waiters));
   pthread_mutex_lock(&rwp->lock);
 
+  DBUG_ASSERT(rwp->state != 0);
+
   if (rwp->state == -1)		/* writer releasing */
   {
+    my_rw_lock_assert_write_owner(rwp);
     rwp->state= 0;		/* mark as available */
+#ifdef SAFE_MUTEX
+    rwp->write_thread= 0;
+#endif
 
     if ( rwp->waiters )		/* writers queued */
       pthread_cond_signal( &rwp->writers );

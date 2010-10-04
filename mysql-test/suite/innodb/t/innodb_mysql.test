@@ -500,11 +500,7 @@ INSERT INTO t2 VALUES (),();
 CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2 
   WHERE b =(SELECT a FROM t1 LIMIT 1);
 
---disable_query_log
---disable_result_log
 CONNECT (con1, localhost, root,,);
---enable_query_log
---enable_result_log
 CONNECTION default;
 
 DELIMITER |;
@@ -676,6 +672,106 @@ UPDATE t1 SET d = 0 WHERE b = 77 AND c = 25;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#50389 Using intersect does not return all rows
+--echo #
+
+CREATE TABLE t1 (
+  f1 INT(10) NOT NULL,
+  f2 INT(10),
+  f3 INT(10),
+  f4 TINYINT(4),
+  f5 VARCHAR(50),
+  PRIMARY KEY (f1),
+  KEY idx1 (f2,f5,f4),
+  KEY idx2 (f2,f4)
+) ENGINE=InnoDB;
+
+LOAD DATA INFILE '../../std_data/intersect-bug50389.tsv' INTO TABLE t1;
+
+SELECT * FROM t1 WHERE f1 IN
+(3305028,3353871,3772880,3346860,4228206,3336022,
+ 3470988,3305175,3329875,3817277,3856380,3796193,
+ 3784744,4180925,4559596,3963734,3856391,4494153)
+AND f5 = 'abcdefghijklmnopwrst' AND f2 = 1221457 AND f4 = 0 ;
+
+EXPLAIN SELECT * FROM t1 WHERE f1 IN
+(3305028,3353871,3772880,3346860,4228206,3336022,
+ 3470988,3305175,3329875,3817277,3856380,3796193,
+ 3784744,4180925,4559596,3963734,3856391,4494153)
+AND f5 = 'abcdefghijklmnopwrst' AND f2 = 1221457 AND f4 = 0 ;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#51431 Wrong sort order after import of dump file
+--echo #
+
+CREATE TABLE t1 (
+  f1 INT(11) NOT NULL,
+  f2 int(11) NOT NULL,
+  f3 int(11) NOT NULL,
+  f4 tinyint(1) NOT NULL,
+  PRIMARY KEY (f1),
+  UNIQUE KEY (f2, f3),
+  KEY (f4)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+(1,1,991,1), (2,1,992,1), (3,1,993,1), (4,1,994,1), (5,1,995,1),
+(6,1,996,1), (7,1,997,1), (8,1,998,1), (10,1,999,1), (11,1,9910,1),
+(16,1,9911,1), (17,1,9912,1), (18,1,9913,1), (19,1,9914,1), (20,1,9915,1),
+(21,1,9916,1), (22,1,9917,1), (23,1,9918,1), (24,1,9919,1), (25,1,9920,1),
+(26,1,9921,1), (27,1,9922,1);
+
+FLUSH TABLES;
+
+SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
+ORDER BY f1 DESC LIMIT 5;
+EXPLAIN SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
+ORDER BY f1 DESC LIMIT 5;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#54117 crash in thr_multi_unlock, temporary table
+--echo #
+
+CREATE TEMPORARY TABLE t1(a INT) ENGINE = InnoDB;
+
+LOCK TABLES t1 READ;
+ALTER TABLE t1 COMMENT 'test';
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#55656: mysqldump can be slower after bug #39653 fix
+--echo #
+
+CREATE TABLE t1 (a INT , b INT, c INT, d INT,
+  KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c,d);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP TABLE t1;
+
+--echo #
+
+
 --echo End of 5.1 tests
 
 
@@ -695,6 +791,40 @@ create table t2 (fk int, key x (fk),
                  constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
 show create table t2;
 drop table t2, t1;
+
+
+--echo #
+--echo # Bug#49604 "6.0 processing compound WHERE clause incorrectly 
+--echo #            with Innodb - extra rows"
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT NOT NULL,
+  c2 INT,
+  PRIMARY KEY (c1),
+  KEY k1 (c2)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (12,1);
+INSERT INTO t1 VALUES (15,1);
+INSERT INTO t1 VALUES (16,1);
+INSERT INTO t1 VALUES (22,1);
+INSERT INTO t1 VALUES (20,2);
+
+CREATE TABLE t2 (
+  c1 INT NOT NULL,
+  c2 INT,
+  PRIMARY KEY (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,2);
+INSERT INTO t2 VALUES (2,9);
+
+SELECT STRAIGHT_JOIN t2.c2, t1.c2, t2.c1
+FROM t1 JOIN t2 ON t1.c2 = t2.c1  
+WHERE t2.c1 IN (2, 1, 6) OR t2.c1 NOT IN (1);
+
+DROP TABLE t1, t2;
 
 
 --echo #
@@ -734,3 +864,74 @@ connection default;
 COMMIT;
 DROP TABLE t1;
 DROP FUNCTION f1;
+--echo #
+--echo # BUG#42744: Crash when using a join buffer to join a table with a blob
+--echo # column and an additional column used for duplicate elimination.
+--echo #
+
+CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
+CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('1'), (NULL);
+INSERT INTO t2 VALUES (1, '1');
+ 
+set optimizer_join_cache_level=1;
+
+EXPLAIN
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+
+set optimizer_join_cache_level=default;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#48093: 6.0 Server not processing equivalent IN clauses properly 
+--echo #            with Innodb tables
+--echo #
+
+CREATE TABLE t1 (
+  i int(11) DEFAULT NULL,
+  v1 varchar(1) DEFAULT NULL,
+  v2 varchar(20) DEFAULT NULL,
+  KEY i (i),
+  KEY v (v1,i)
+) ENGINE=innodb;
+
+INSERT INTO t1 VALUES (1,'f','no');
+INSERT INTO t1 VALUES (2,'u','yes-u');
+INSERT INTO t1 VALUES (2,'h','yes-h');
+INSERT INTO t1 VALUES (3,'d','no');
+
+--echo
+SELECT v2  
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+
+--echo
+--echo # Should not use index_merge
+EXPLAIN
+SELECT v2  
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#54606 innodb fast alter table + pack_keys=0 
+--echo #           prevents adding new indexes
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
+  ENGINE=InnoDB 
+  PACK_KEYS=0;
+CREATE INDEX a ON t1 (a);
+CREATE INDEX c on t1 (c);
+
+DROP TABLE t1;
+
+--echo End of 6.0 tests

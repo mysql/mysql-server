@@ -262,7 +262,6 @@ DROP TABLE IF EXISTS t2;
 
 CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
 INSERT INTO t1 VALUES (4,4);
---error ER_DUP_ENTRY
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 SELECT * from t2;
 TRUNCATE table t2;
@@ -277,11 +276,9 @@ CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
 INSERT INTO t1 values (7,7);
 ROLLBACK;
 INSERT INTO t1 values (8,8);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 COMMIT;
 INSERT INTO t1 values (9,9);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 ROLLBACK;
 SELECT * from t2;
@@ -291,11 +288,9 @@ INSERT INTO t1 values (10,10);
 INSERT INTO t2 select * from t1;
 SELECT * from t1;
 INSERT INTO t2 values (100,100);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 COMMIT;
 INSERT INTO t2 values (101,101);
---error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 ROLLBACK;
 SELECT * from t2;
@@ -320,6 +315,16 @@ disconnect con3;
 
 connection con4;
 select get_lock("a",10); # wait for rollback to finish
+if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+{
+ --let $binlog_rollback= query_get_value(SHOW BINLOG EVENTS, Pos, 7)
+ --let $binlog_query= query_get_value(SHOW BINLOG EVENTS, Info, 7)
+ if (`SELECT 'ROLLBACK' != '$binlog_query'`) {
+  --echo Wrong query from SHOW BINLOG EVENTS. Expected ROLLBACK, got '$binlog_query'
+  --source include/show_rpl_debug_info.inc
+  --die Wrong value for slave parameter
+ }
+}
 flush logs;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -328,13 +333,12 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # and does not make slave to stop)
 if (`select @@binlog_format = 'ROW'`)
 {
-  --echo This does not matter in ROW mode as the rolled back changes do not contain transactional changes as these 
-  --echo were previously flushed upon committing/rolling back each statement.
+  --echo There is nothing to roll back; transactional changes are removed from the trans cache.
 }
 
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
-  --exec $MYSQL_BINLOG --start-position=556 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --exec $MYSQL_BINLOG --start-position=$binlog_rollback $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 
   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval select
@@ -368,7 +372,8 @@ reset master;
 
 begin; 
 insert into ti values (1); 
-insert into ti values (2) ; 
+insert into ti values (2) ;
+# This is SAFE because --binlog-direct-non-transactional-updates=FALSE
 insert into tt select * from ti;
 rollback;
 

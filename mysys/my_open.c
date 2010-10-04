@@ -49,8 +49,8 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   fd = open((char *) FileName, Flags);
 #endif
 
-  DBUG_RETURN(my_register_filename(fd, FileName, FILE_BY_OPEN,
-				   EE_FILENOTFOUND, MyFlags));
+  fd= my_register_filename(fd, FileName, FILE_BY_OPEN, EE_FILENOTFOUND, MyFlags);
+  DBUG_RETURN(fd);
 } /* my_open */
 
 
@@ -88,7 +88,7 @@ int my_close(File fd, myf MyFlags)
   }
   if ((uint) fd < my_file_limit && my_file_info[fd].type != UNOPEN)
   {
-    my_free(my_file_info[fd].name, MYF(0));
+    my_free(my_file_info[fd].name);
 #if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
     mysql_mutex_destroy(&my_file_info[fd].mutex);
 #endif

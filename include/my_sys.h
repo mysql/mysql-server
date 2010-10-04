@@ -42,7 +42,7 @@ typedef struct my_aio_result {
 #endif /* HAVE_VALGRIND */
 
 #ifndef THREAD
-extern int NEAR my_errno;		/* Last error in mysys */
+extern int my_errno;  /* Last error in mysys */
 #else
 #include <my_pthread.h>
 #endif
@@ -78,7 +78,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
 #define MY_SYNC_DIR     8192    /* my_create/delete/rename: sync directory */
-#define MY_RAID         64      /* Support for RAID */
+#define MY_UNUSED       64      /* Unused (was support for RAID) */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32	/* my_redel() gives warning if links */
@@ -100,10 +100,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
 #define MY_DONT_FREE_DBUG 4     /* Do not call DBUG_END() in my_end() */
-
-#define MY_REMOVE_NONE    0     /* Params for modify_defaults_file */
-#define MY_REMOVE_OPTION  1
-#define MY_REMOVE_SECTION 2
 
 #define ME_HIGHBYTE	8	/* Shift for colours */
 #define ME_NOCUR	1	/* Don't use curses message */
@@ -158,46 +154,15 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define GETDATE_FIXEDLENGTH	16
 
 	/* defines when allocating data */
-#ifdef SAFEMALLOC
-#define my_malloc(SZ,FLAG) _mymalloc((SZ), __FILE__, __LINE__, FLAG )
-#define my_malloc_ci(SZ,FLAG) _mymalloc((SZ), sFile, uLine, FLAG )
-#define my_realloc(PTR,SZ,FLAG) _myrealloc((PTR), (SZ), __FILE__, __LINE__, FLAG )
-#define my_checkmalloc() _sanity( __FILE__, __LINE__ )
-#define my_free(PTR,FLAG) _myfree((PTR), __FILE__, __LINE__,FLAG)
-#define my_memdup(A,B,C) _my_memdup((A),(B), __FILE__,__LINE__,C)
-#define my_strdup(A,C) _my_strdup((A), __FILE__,__LINE__,C)
-#define my_strndup(A,B,C) _my_strndup((A),(B),__FILE__,__LINE__,C)
-#define TRASH(A,B) do { bfill(A, B, 0x8F); MEM_UNDEFINED(A, B); } while (0)
-#define QUICK_SAFEMALLOC sf_malloc_quick=1
-#define NORMAL_SAFEMALLOC sf_malloc_quick=0
-extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
-extern ulonglong sf_malloc_mem_limit;
-
-#define CALLER_INFO_PROTO   , const char *sFile, uint uLine
-#define CALLER_INFO         , __FILE__, __LINE__
-#define ORIG_CALLER_INFO    , sFile, uLine
-#else
-#define my_checkmalloc()
-#undef TERMINATE
-#define TERMINATE(A,B) {}
-#define QUICK_SAFEMALLOC
-#define NORMAL_SAFEMALLOC
 extern void *my_malloc(size_t Size,myf MyFlags);
-#define my_malloc_ci(SZ,FLAG) my_malloc( SZ, FLAG )
+extern void *my_multi_malloc(myf MyFlags, ...);
 extern void *my_realloc(void *oldpoint, size_t Size, myf MyFlags);
-extern void my_no_flags_free(void *ptr);
+extern void my_free(void *ptr);
 extern void *my_memdup(const void *from,size_t length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
 extern char *my_strndup(const char *from, size_t length,
 				   myf MyFlags);
-/* we do use FG (as a no-op) in below so that a typo on FG is caught */
-#define my_free(PTR,FG) ((void)FG,my_no_flags_free(PTR))
-#define CALLER_INFO_PROTO   /* nothing */
-#define CALLER_INFO         /* nothing */
-#define ORIG_CALLER_INFO    /* nothing */
 #define TRASH(A,B) do{MEM_CHECK_ADDRESSABLE(A,B);MEM_UNDEFINED(A,B);} while (0)
-#endif
-
 #if defined(ENABLED_DEBUG_SYNC)
 extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C(_sync_point_name_) do {                            \
@@ -211,11 +176,11 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #ifdef HAVE_LARGE_PAGES
 extern uint my_get_large_page_size(void);
 extern uchar * my_large_malloc(size_t size, myf my_flags);
-extern void my_large_free(uchar * ptr, myf my_flags);
+extern void my_large_free(uchar *ptr);
 #else
 #define my_get_large_page_size() (0)
 #define my_large_malloc(A,B) my_malloc_lock((A),(B))
-#define my_large_free(A,B) my_free_lock((A),(B))
+#define my_large_free(A) my_free_lock((A))
 #endif /* HAVE_LARGE_PAGES */
 
 #ifdef HAVE_ALLOCA
@@ -233,7 +198,7 @@ extern void my_large_free(uchar * ptr, myf my_flags);
 #define my_afree(PTR) {}
 #else
 #define my_alloca(SZ) my_malloc(SZ,MYF(0))
-#define my_afree(PTR) my_free(PTR,MYF(MY_WME))
+#define my_afree(PTR) my_free(PTR)
 #endif /* HAVE_ALLOCA */
 
 #ifndef errno				/* did we already get it? */
@@ -245,7 +210,7 @@ extern int errno;			/* declare errno */
 #endif					/* #ifndef errno */
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
-extern char NEAR curr_dir[];		/* Current directory for user */
+extern char curr_dir[];		/* Current directory for user */
 extern void (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
@@ -278,17 +243,16 @@ extern void (*my_sigtstp_cleanup)(void),
 	    (*my_sigtstp_restart)(void),
 	    (*my_abort_hook)(int);
 					/* Executed when comming from shell */
-extern MYSQL_PLUGIN_IMPORT int NEAR my_umask;		/* Default creation mask  */
-extern int NEAR my_umask_dir,
-	   NEAR my_recived_signals,	/* Signals we have got */
-	   NEAR my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
-	   NEAR my_dont_interrupt;	/* call remember_intr when set */
-extern my_bool NEAR my_use_symdir;
-extern size_t sf_malloc_cur_memory, sf_malloc_max_memory;
+extern MYSQL_PLUGIN_IMPORT int my_umask;		/* Default creation mask  */
+extern int my_umask_dir,
+	   my_recived_signals,	/* Signals we have got */
+	   my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
+	   my_dont_interrupt;	/* call remember_intr when set */
+extern my_bool my_use_symdir;
 
 extern ulong	my_default_record_cache_size;
-extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
-               NEAR my_disable_flush_key_blocks, NEAR my_disable_symlinks;
+extern my_bool  my_disable_locking, my_disable_async_io,
+                my_disable_flush_key_blocks, my_disable_symlinks;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 /* from default.c */
@@ -297,13 +261,6 @@ extern const char *my_defaults_group_suffix;
 extern const char *my_defaults_file;
 
 extern my_bool timed_mutexes;
-
-typedef struct wild_file_pack	/* Struct to hold info when selecting files */
-{
-  uint		wilds;		/* How many wildcards */
-  uint		not_pos;	/* Start of not-theese-files */
-  char *	*wild;		/* Pointer to wildcards */
-} WF_PACK;
 
 enum loglevel {
    ERROR_LEVEL,
@@ -600,7 +557,6 @@ typedef int (*Process_option_func)(void *ctx, const char *group_name,
 	/* Prototypes for mysys and my_func functions */
 
 extern int my_copy(const char *from,const char *to,myf MyFlags);
-extern int my_append(const char *from,const char *to,myf MyFlags);
 extern int my_delete(const char *name,myf MyFlags);
 extern int my_getwd(char * buf,size_t size,myf MyFlags);
 extern int my_setwd(const char *dir,myf MyFlags);
@@ -616,7 +572,6 @@ extern File my_register_filename(File fd, const char *FileName,
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccessFlags, myf MyFlags);
 extern int my_close(File Filedes,myf MyFlags);
-extern File my_dup(File file, myf MyFlags);
 extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
 extern int my_is_symlink(const char *filename);
@@ -642,20 +597,6 @@ extern size_t my_fwrite(FILE *stream,const uchar *Buffer,size_t Count,
 		      myf MyFlags);
 extern my_off_t my_fseek(FILE *stream,my_off_t pos,int whence,myf MyFlags);
 extern my_off_t my_ftell(FILE *stream,myf MyFlags);
-extern void *_mymalloc(size_t uSize,const char *sFile,
-                       uint uLine, myf MyFlag);
-extern void *_myrealloc(void *pPtr,size_t uSize,const char *sFile,
-		       uint uLine, myf MyFlag);
-extern void * my_multi_malloc _VARARGS((myf MyFlags, ...));
-extern void _myfree(void *pPtr,const char *sFile,uint uLine, myf MyFlag);
-extern int _sanity(const char *sFile, uint uLine);
-extern void *_my_memdup(const void *from, size_t length,
-                        const char *sFile, uint uLine,myf MyFlag);
-extern char * _my_strdup(const char *from, const char *sFile, uint uLine,
-                         myf MyFlag);
-extern char *_my_strndup(const char *from, size_t length,
-                         const char *sFile, uint uLine,
-                         myf MyFlag);
 
 /* implemented in my_memmem.c */
 extern void *my_memmem(const void *haystack, size_t haystacklen,
@@ -684,9 +625,6 @@ extern HANDLE   my_get_osfhandle(File fd);
 extern void     my_osmaperr(unsigned long last_error);
 #endif
 
-#ifndef TERMINATE
-extern void TERMINATE(FILE *file, uint flag);
-#endif
 extern void init_glob_errs(void);
 extern const char** get_global_errmsgs();
 extern void wait_for_free_space(const char *filename, int errors);
@@ -698,10 +636,10 @@ extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_sync(File fd, myf my_flags);
 extern int my_sync_dir(const char *dir_name, myf my_flags);
 extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
-extern void my_error _VARARGS((int nr,myf MyFlags, ...));
-extern void my_printf_error _VARARGS((uint my_err, const char *format,
-                                     myf MyFlags, ...))
-                                     ATTRIBUTE_FORMAT(printf, 2, 4);
+extern void my_error(int nr,myf MyFlags, ...);
+extern void my_printf_error(uint my_err, const char *format,
+                            myf MyFlags, ...)
+                            ATTRIBUTE_FORMAT(printf, 2, 4);
 extern void my_printv_error(uint error, const char *format, myf MyFlags,
                             va_list ap);
 extern int my_error_register(const char** (*get_errmsgs) (),
@@ -762,9 +700,6 @@ extern char * my_load_path(char * to, const char *path,
 			      const char *own_path_prefix);
 extern int wild_compare(const char *str,const char *wildstr,
                         pbool str_is_pattern);
-extern WF_PACK *wf_comp(char * str);
-extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
-extern void wf_end(struct wild_file_pack *buffer);
 extern my_bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
@@ -778,8 +713,6 @@ extern int end_record_cache(RECORD_CACHE *info);
 extern int write_cache_record(RECORD_CACHE *info,my_off_t filepos,
 			      const uchar *record,size_t length);
 extern int flush_write_cache(RECORD_CACHE *info);
-extern long my_clock(void);
-extern sig_handler sigtstp_handler(int signal_number);
 extern void handle_recived_signals(void);
 
 extern sig_handler my_set_alarm_variable(int signo);
@@ -835,18 +768,16 @@ extern my_bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
-#define my_init_dynamic_array(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D CALLER_INFO)
-#define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D ORIG_CALLER_INFO)
-#define my_init_dynamic_array2(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E CALLER_INFO)
-#define my_init_dynamic_array2_ci(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E ORIG_CALLER_INFO)
-extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array,uint element_size,
-                                   void *init_buffer, uint init_alloc, 
-                                   uint alloc_increment
-                                   CALLER_INFO_PROTO);
+#define my_init_dynamic_array(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D)
+#define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D)
+#define my_init_dynamic_array2(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
+#define my_init_dynamic_array2_ci(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
+extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
+                                   void *init_buffer, uint init_alloc,
+                                   uint alloc_increment);
 /* init_dynamic_array() function is deprecated */
-extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
-                                  uint init_alloc,uint alloc_increment
-                                  CALLER_INFO_PROTO);
+extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+                                  uint init_alloc, uint alloc_increment);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,uchar * element);
 extern uchar *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern uchar *pop_dynamic(DYNAMIC_ARRAY*);
@@ -876,10 +807,10 @@ extern my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
 extern void dynstr_free(DYNAMIC_STRING *str);
 #ifdef HAVE_MLOCK
 extern void *my_malloc_lock(size_t length,myf flags);
-extern void my_free_lock(void *ptr,myf flags);
+extern void my_free_lock(void *ptr);
 #else
 #define my_malloc_lock(A,B) my_malloc((A),(B))
-#define my_free_lock(A,B) my_free((A),(B))
+#define my_free_lock(A) my_free((A))
 #endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
 #define ALLOC_ROOT_MIN_BLOCK_SIZE (MALLOC_OVERHEAD + sizeof(USED_MEM) + 8)
@@ -903,9 +834,6 @@ extern int my_load_defaults(const char *conf_file, const char **groups,
                             int *argc, char ***argv, const char ***);
 extern int load_defaults(const char *conf_file, const char **groups,
                          int *argc, char ***argv);
-extern int modify_defaults_file(const char *file_location, const char *option,
-                                const char *option_value,
-                                const char *section_name, int remove_option);
 extern int my_search_option_files(const char *conf_file, int *argc,
                                   char ***argv, uint *args_used,
                                   Process_option_func func, void *func_ctx,
@@ -963,10 +891,7 @@ extern int my_getncpus();
 #define MAP_FAILED       ((void *)-1)
 #define MS_SYNC          0x0000
 
-#ifndef __NETWARE__
 #define HAVE_MMAP
-#endif
-
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
 int my_munmap(void *, size_t);
 #endif
@@ -1030,10 +955,6 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 /* implemented in my_conio.c */
 char* my_cgets(char *string, size_t clen, size_t* plen);
 
-#endif
-#ifdef __NETWARE__
-void netware_reg_user(const char *ip, const char *user,
-		      const char *application);
 #endif
 
 #include <mysql/psi/psi.h>

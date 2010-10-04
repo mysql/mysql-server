@@ -35,10 +35,14 @@
 
 ######################################################################## 
 # Saving initial value of max_binlog_cache_size in a temporary variable#
+# We also save binlog_cache_size because its value cannot be greater   #
+# than max_binlog_cache_size. (BUG#55377)                              #
 ######################################################################## 
 
-SET @start_value = @@global.max_binlog_cache_size;
-SELECT @start_value;
+SET @start_max_binlog_cache_size = @@global.max_binlog_cache_size;
+SELECT @start_max_binlog_cache_size;
+SET @start_binlog_cache_size = @@global.binlog_cache_size;
+SELECT @start_binlog_cache_size;
 
 
 --echo '#--------------------FN_DYNVARS_072_01------------------------#'
@@ -56,7 +60,7 @@ SELECT @@global.max_binlog_cache_size;
 #     Verify default value of variable        #
 ############################################### 
 
-SET @@global.max_binlog_cache_size = @start_value;
+SET @@global.max_binlog_cache_size = @start_max_binlog_cache_size;
 SELECT @@global.max_binlog_cache_size = 4294967295;
 
 --echo '#--------------------FN_DYNVARS_072_03------------------------#'
@@ -174,8 +178,10 @@ SELECT max_binlog_cache_size = @@session.max_binlog_cache_size;
 #   Restore initial value    #
 ##############################
 
-SET @@global.max_binlog_cache_size = @start_value;
+SET @@global.max_binlog_cache_size = @start_max_binlog_cache_size;
 SELECT @@global.max_binlog_cache_size;
+SET @@global.binlog_cache_size= @start_binlog_cache_size;
+SELECT @@global.binlog_cache_size;
 
 
 ######################################################################## 

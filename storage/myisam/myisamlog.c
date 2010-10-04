@@ -248,7 +248,6 @@ static void get_options(register int *argc, register char ***argv)
 	/* Fall through */
       case 'I':
       case '?':
-#include <help_start.h>
 	printf("%s  Ver 1.4 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	       MACHINE_TYPE);
 	puts("By Monty, for your professional use\n");
@@ -270,7 +269,6 @@ static void get_options(register int *argc, register char ***argv)
 	puts("If a recover is done all writes and all possibly updates and deletes is done\nand errors are only counted.");
 	puts("If one gives table names as arguments only these tables will be updated\n");
 	help=1;
-#include <help_end.h>
 	break;
       default:
 	printf("illegal option: \"-%c\"\n",*pos);
@@ -616,12 +614,12 @@ static int examine_log(char * file_name, char **table_names)
 	  }
 	}
       }
-      my_free(buff,MYF(0));
+      my_free(buff);
       break;
     case MI_LOG_LOCK:
       if (my_b_read(&cache,(uchar*) head,sizeof(lock_command)))
 	goto err;
-      memcpy_fixed(&lock_command,head,sizeof(lock_command));
+      memcpy(&lock_command, head, sizeof(lock_command));
       if (verbose && !record_pos_file &&
 	  (!table_names[0] || (curr_file_info && curr_file_info->used)))
 	printf_log("%s: %s(%d) -> %d\n",FILENAME(curr_file_info),
@@ -683,12 +681,12 @@ static int read_string(IO_CACHE *file, register uchar* *to, register uint length
   DBUG_ENTER("read_string");
 
   if (*to)
-    my_free((uchar*) *to,MYF(0));
+    my_free(*to);
   if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
       my_b_read(file,(uchar*) *to,length))
   {
     if (*to)
-      my_free(*to,MYF(0));
+      my_free(*to);
     *to= 0;
     DBUG_RETURN(1);
   }
@@ -730,7 +728,7 @@ static void fix_blob_pointers(MI_INFO *info, uchar *record)
        blob != end ;
        blob++)
   {
-    memcpy_fixed(record+blob->offset+blob->pack_length,&pos,sizeof(char*));
+    memcpy(record+blob->offset+blob->pack_length, &pos, sizeof(char*));
     pos+=_mi_calc_blob_length(blob->pack_length,record+blob->offset);
   }
 }
@@ -759,10 +757,10 @@ static void file_info_free(struct file_info *fileinfo)
     if (!fileinfo->closed)
       (void) mi_close(fileinfo->isam);
     if (fileinfo->record)
-      my_free(fileinfo->record,MYF(0));
+      my_free(fileinfo->record);
   }
-  my_free(fileinfo->name,MYF(0));
-  my_free(fileinfo->show_name,MYF(0));
+  my_free(fileinfo->name);
+  my_free(fileinfo->show_name);
   DBUG_VOID_RETURN;
 }
 

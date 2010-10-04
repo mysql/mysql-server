@@ -40,11 +40,7 @@ size_t dirname_length(const char *name)
       continue;
     }
 #endif
-    if (*pos == FN_LIBCHAR || *pos == '/'
-#ifdef FN_C_AFTER_DIR
-	|| *pos == FN_C_AFTER_DIR || *pos == FN_C_AFTER_DIR_2
-#endif
-	)
+    if (*pos == FN_LIBCHAR || *pos == '/')
       gpos=pos;
   }
   return (size_t) (gpos+1-(char*) name);
@@ -88,8 +84,7 @@ size_t dirname_part(char *to, const char *name, size_t *to_res_length)
     from_end			Pointer at end of filename (normally end \0)
 
   IMPLEMENTATION
-    If MSDOS converts '/' to '\'
-    If VMS converts '<' to '[' and '>' to ']'
+    If Windows converts '/' to '\'
     Adds a FN_LIBCHAR to end if the result string if there isn't one
     and the last isn't dev_char.
     Copies data from 'from' until ASCII(0) for until from == from_end
@@ -118,18 +113,12 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
   if (!from_end || (from_end - from) > FN_REFLEN-2)
     from_end=from+FN_REFLEN -2;
 
-#if FN_LIBCHAR != '/' || defined(FN_C_BEFORE_DIR_2)
+#if FN_LIBCHAR != '/'
   {
     for (; from != from_end && *from ; from++)
     {
       if (*from == '/')
 	*to++= FN_LIBCHAR;
-#ifdef FN_C_BEFORE_DIR_2
-      else if (*from == FN_C_BEFORE_DIR_2)
-	*to++= FN_C_BEFORE_DIR;
-      else if (*from == FN_C_AFTER_DIR_2)
-	*to++= FN_C_AFTER_DIR;
-#endif
       else
       {
 #ifdef BACKSLASH_MBTAIL

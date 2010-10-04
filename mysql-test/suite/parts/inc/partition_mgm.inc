@@ -20,10 +20,12 @@
 ################################################################################
 --enable_abort_on_error
 
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
 let $old_db= `SELECT DATABASE()`;
 --echo # Creating database MySQL_TEST_DB
 CREATE DATABASE MySQL_Test_DB;
 USE MySQL_Test_DB;
+let $MYSQL_TEST_DB_NAME = `SELECT DATABASE()`;
 --echo # 1.0 KEY partitioning mgm
 --echo # Creating KEY partitioned table
 eval CREATE TABLE TableA (a INT)
@@ -56,6 +58,30 @@ ALTER TABLE TableA COALESCE PARTITION 4;
 --sorted_result
 SELECT * FROM TableA;
 SHOW CREATE TABLE TableA;
+
+--echo # Test of EXCHANGE PARTITION WITH TABLE
+if (!$native_partitioning)
+{
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA ='MySQL_Test_DB' AND TABLE_NAME = 'TableA';
+CREATE TABLE TableB LIKE TableA;
+ALTER TABLE TableB REMOVE PARTITIONING;
+ALTER TABLE TableA EXCHANGE PARTITION parta WITH TABLE TableB;
+--sorted_result
+SELECT * FROM TableA;
+SHOW CREATE TABLE TableA;
+--sorted_result
+SELECT * FROM TableB;
+SHOW CREATE TABLE TableB;
+SELECT PARTITION_NAME, IF(TABLE_ROWS, 'YES', 'NO') AS HAVE_TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA ='MySQL_Test_DB' AND TABLE_NAME = 'TableA';
+ALTER TABLE TableA EXCHANGE PARTITION parta WITH TABLE TableB;
+INSERT INTO TableB VALUES (11);
+--error ER_ROW_DOES_NOT_MATCH_PARTITION
+ALTER TABLE TableA EXCHANGE PARTITION Partc WITH TABLE TableB;
+DROP TABLE TableB;
+--sorted_result
+SELECT * FROM TableA;
+SHOW CREATE TABLE TableA;
+}
 
 --echo # Test of REORGANIZE PARTITIONS
 --echo # Should not work on HASH/KEY
@@ -533,6 +559,8 @@ PARTITION BY KEY (a)
 INSERT INTO t1 VALUES (NULL, "First"), (NULL, "Second"), (999, "Last in LT1000"), (NULL, "First in LT2000"), (NULL, "Second in LT2000"), (1999, "Last in LT2000"), (NULL, "First in MAX"), (NULL, "Second in MAX");
 --error ER_PARTITION_MGMT_ON_NONPARTITIONED, ER_ILLEGAL_HA
 ALTER TABLE t1 TRUNCATE PARTITION MAX;
+--sorted_result
+SELECT * FROM t1;
 }
 if (!$no_truncate)
 {

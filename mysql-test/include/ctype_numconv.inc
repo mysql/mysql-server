@@ -1606,3 +1606,143 @@ drop function f1;
 --echo # End of WL#2649 Number-to-string conversions
 --echo #
 
+--echo #
+--echo # Bug#54668 User variable assignments get wrong type
+--echo #
+SET @x=md5('a');
+SELECT charset(@x), collation(@x);
+SET @x=old_password('a');
+SELECT charset(@x), collation(@x);
+SET @x=password('a');
+SELECT charset(@x), collation(@x);
+SET @x=sha('a');
+SELECT charset(@x), collation(@x);
+SET @x=sha1('a');
+SELECT charset(@x), collation(@x);
+SET @x=astext(point(1,2));
+SELECT charset(@x), collation(@x);
+SET @x=aswkt(point(1,2));
+SELECT charset(@x), collation(@x);
+
+
+--echo #
+--echo # Bug#54916 GROUP_CONCAT + IFNULL truncates output
+--echo #
+SELECT @@collation_connection;
+# ENGINE=MYISAM is very important to make sure "SYSTEM" join type
+# is in use, which will create instances of Item_copy.
+CREATE TABLE t1 (a MEDIUMINT NULL) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1234567);
+SELECT GROUP_CONCAT(IFNULL(a,'')) FROM t1;
+SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
+if (`SELECT @@character_set_connection != 'ucs2'`)
+{
+  # Temporarily disable for ucs2
+  # For details, see Bug#55744 GROUP_CONCAT + CASE + ucs return garbage
+  SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
+}
+--enable_metadata
+SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
+--disable_metadata
+--echo # All columns must be VARCHAR(9) with the same length:
+--disable_warnings
+CREATE TABLE t2 AS
+SELECT
+  CONCAT(a),
+  IFNULL(a,''),
+  IF(a,a,''),
+  CASE WHEN a THEN a ELSE '' END,
+  COALESCE(a,'')
+FROM t1;
+--enable_warnings
+# The above query is expected to send a warning
+# in case of ucs2 character set, until Bug#55744 is fixed.
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT CONCAT_WS(1,2,3) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT INSERT(1133,3,0,22) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT LCASE(a) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT UCASE(a) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT REPEAT(1,2) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT LEFT(123,2) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT RIGHT(123,2) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT LTRIM(123) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT RTRIM(123) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT ELT(1,111,222,333) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT REPLACE(111,2,3) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT SUBSTRING_INDEX(111,111,1) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT MAKE_SET(111,222,3) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT SOUNDEX(1) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT EXPORT_SET(1,'Y','N','',8);
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # End of Bug#54916
+--echo #
+
+
+--echo #
+--echo # Bug#52159 returning time type from function and empty left join causes debug assertion
+--echo #
+CREATE FUNCTION f1() RETURNS TIME RETURN 1;
+CREATE TABLE t1 (b INT);
+INSERT INTO t1 VALUES (0);
+SELECT f1() FROM t1 LEFT JOIN (SELECT 1 AS a FROM t1 LIMIT 0) AS d ON 1 GROUP BY a;
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+SET NAMES latin1;
+SET sql_mode='';
+CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
+INSERT INTO t1 VALUES ();
+--disable_warnings
+SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
+--enable_warnings
+DROP TABLE t1;
+SET sql_mode=default;

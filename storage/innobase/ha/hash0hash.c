@@ -91,6 +91,28 @@ hash_mutex_exit_all(
 		mutex_exit(table->mutexes + i);
 	}
 }
+
+/************************************************************//**
+Releases all but the passed in mutex of a hash table. */
+UNIV_INTERN
+void
+hash_mutex_exit_all_but(
+/*====================*/
+	hash_table_t*	table,		/*!< in: hash table */
+	mutex_t*	keep_mutex)	/*!< in: mutex to keep */
+{
+	ulint	i;
+
+	for (i = 0; i < table->n_mutexes; i++) {
+
+		mutex_t* mutex = table->mutexes + i;
+		if (UNIV_LIKELY(keep_mutex != mutex)) {
+			mutex_exit(mutex);
+		}
+	}
+
+	ut_ad(mutex_own(keep_mutex));
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**
@@ -142,9 +164,6 @@ hash_table_free(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-#ifndef UNIV_HOTBACKUP
-	ut_a(table->mutexes == NULL);
-#endif /* !UNIV_HOTBACKUP */
 
 	ut_free(table->array);
 	mem_free(table);

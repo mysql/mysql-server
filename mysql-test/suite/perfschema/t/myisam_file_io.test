@@ -52,7 +52,8 @@ select event_name,
   operation, number_of_bytes,
   substring(object_name, locate("no_index_tab", object_name)) as short_name
   from performance_schema.EVENTS_WAITS_HISTORY_LONG
-  where operation not like "tell"
+  where event_name like 'wait/io/file/%'
+  and operation not like "tell"
   order by thread_id, event_id;
 
 # In case of failures, this will tell if file io are lost.

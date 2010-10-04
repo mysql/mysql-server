@@ -115,7 +115,7 @@ if we are compiling on Windows. */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 # include <sys/stat.h>
-# if !defined(__NETWARE__) && !defined(__WIN__)
+# if !defined(__WIN__)
 #  include <sys/mman.h> /* mmap() for os0proc.c */
 # endif
 
@@ -254,8 +254,10 @@ by one. */
 			option off; also some ibuf tests are suppressed */
 
 /* Linkage specifier for non-static InnoDB symbols (variables and functions)
-that are only referenced from within InnoDB, not from MySQL */
-#if defined(__GNUC__) && (__GNUC__ >= 4) || defined(__INTEL_COMPILER)
+that are only referenced from within InnoDB, not from MySQL. We disable the
+GCC visibility directive on all Sun operating systems because there is no
+easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
+#if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(sun) || defined(__INTEL_COMPILER)
 # define UNIV_INTERN __attribute__((visibility ("hidden")))
 #else
 # define UNIV_INTERN
@@ -309,6 +311,12 @@ management to ensure correct alignment for doubles etc. */
 
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
+
+/* The maximum length of a table name. This is the MySQL limit and is
+defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
+number does not include a terminating '\0'. InnoDB probably can handle
+longer names internally */
+#define MAX_TABLE_NAME_LEN	192
 
 /*
 			UNIVERSAL TYPE DEFINITIONS
@@ -365,14 +373,19 @@ typedef unsigned long long int	ullint;
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
+/** The bitmask of 32-bit unsigned integer */
+#define ULINT32_MASK		0xFFFFFFFF
 /* The undefined 32-bit unsigned integer */
-#define	ULINT32_UNDEFINED	0xFFFFFFFF
+#define	ULINT32_UNDEFINED	ULINT32_MASK
 
 /* Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
 
 /* Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
+
+/** The generic InnoDB system object identifier data type */
+typedef ib_uint64_t	ib_id_t;
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
 #include "my_sys.h"
@@ -85,7 +85,7 @@ public:
 
   SQL_I_List() { empty(); }
 
-  SQL_I_List(const SQL_I_List &tmp)
+  SQL_I_List(const SQL_I_List &tmp) : Sql_alloc()
   {
     elements= tmp.elements;
     first= tmp.first;
@@ -534,7 +534,7 @@ struct ilink
   }
   static void operator delete(void* ptr_arg, size_t size)
   {
-     my_free((uchar*)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+     my_free(ptr_arg);
   }
 
   inline ilink()

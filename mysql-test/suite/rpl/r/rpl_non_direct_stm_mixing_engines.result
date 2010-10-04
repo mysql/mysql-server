@@ -391,8 +391,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 #
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 23, 1, COUNT(*) FROM tt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 23, 1, COUNT(*) FROM tt_1
@@ -407,8 +405,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 24, 1, COUNT(*) FROM nt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 24, 1, COUNT(*) FROM nt_1
@@ -423,8 +419,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 25 --> 1", tt_3.info= "new text 25 --> 1" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE nt_3, tt_3 SET nt_3.info= "new text 25 --> 1", tt_3.info= "new text 25 --> 1" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1
@@ -439,8 +433,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (26, 1);
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (26, 1)
@@ -455,8 +447,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (27, 1, fc_i_tt_5_suc(27, 1));
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (27, 1, fc_i_tt_5_suc(27, 1))
@@ -471,8 +461,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 28 --> 1", nt_4.info= "new text 28 --> 1" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE tt_4, nt_4 SET tt_4.info= "new text 28 --> 1", nt_4.info= "new text 28 --> 1" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1
@@ -487,8 +475,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (29, 1);
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (29, 1)
@@ -503,8 +489,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (30, 1, fc_i_nt_5_suc(30, 1));
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (30, 1, fc_i_nt_5_suc(30, 1))
@@ -3677,6 +3661,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (135, 4);
 fc_i_nt_5_suc (135, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3705,6 +3691,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (136, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3797,6 +3785,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (139, 4);
 fc_i_nt_5_suc (139, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3825,6 +3815,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (140, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3923,6 +3915,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (143, 4);
 fc_i_nt_5_suc (143, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3953,6 +3947,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (144, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4049,6 +4045,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (147, 4);
 fc_i_nt_5_suc (147, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4079,6 +4077,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (148, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4311,6 +4311,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (155, 4);
 fc_i_nt_5_suc (155, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4341,6 +4343,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (156, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4439,6 +4443,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (159, 4);
 fc_i_nt_5_suc (159, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4469,6 +4475,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (160, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4573,6 +4581,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (163, 4);
 fc_i_nt_5_suc (163, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4605,6 +4615,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (164, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4707,6 +4719,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (167, 4);
 fc_i_nt_5_suc (167, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4739,6 +4753,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (168, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5307,6 +5323,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (185, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',185),  NAME_CONST('in_stmt_id',1))
@@ -5345,6 +5363,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (186, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',186),  NAME_CONST('in_stmt_id',1))
@@ -5383,6 +5403,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (187, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',187),  NAME_CONST('in_stmt_id',1))
@@ -5423,6 +5445,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (188, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',188),  NAME_CONST('in_stmt_id',1))
@@ -5901,6 +5925,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (201, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',201),  NAME_CONST('in_stmt_id',1))
@@ -5941,6 +5967,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (202, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',202),  NAME_CONST('in_stmt_id',1))
@@ -5983,6 +6011,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (203, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',203),  NAME_CONST('in_stmt_id',1))
@@ -6023,6 +6053,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (204, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',204),  NAME_CONST('in_stmt_id',1))
@@ -6076,8 +6108,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 205, 2, COUNT(*) FROM tt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 205, 2, COUNT(*) FROM tt_1
@@ -6518,8 +6548,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 219, 2, COUNT(*) FROM tt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 219, 2, COUNT(*) FROM tt_1
@@ -7845,8 +7873,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 261, 2, COUNT(*) FROM tt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 261, 2, COUNT(*) FROM tt_1
@@ -8311,8 +8337,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 275, 2, COUNT(*) FROM tt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 275, 2, COUNT(*) FROM tt_1
@@ -8811,8 +8835,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 289, 4, COUNT(*) FROM tt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 289, 4, COUNT(*) FROM tt_1
@@ -9297,8 +9319,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 303, 4, COUNT(*) FROM tt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 303, 4, COUNT(*) FROM tt_1
@@ -9858,9 +9878,9 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 4)
-master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N T S1 T R1 C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9870,9 +9890,9 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 4)
-master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T S1 T R1 C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -9910,9 +9930,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4)
-master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N S1 T R1 C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9920,9 +9940,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4)
-master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N S1 T R1 C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -9959,20 +9979,20 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 2)
-master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 N T R1 C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 2)
-master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 N T R1 C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -9992,12 +10012,12 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE tt_xx_1 (PRIMARY KEY(tran
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_1, nt_xx_1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_1, nt_xx_1
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_1`,`nt_xx_1` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->T CS-T->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE tt_xx_1 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_1, nt_xx_1
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_1`,`nt_xx_1` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->T CS-T->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->N << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10013,12 +10033,12 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_2 (PRIMARY KEY(tran
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_2, nt_xx_2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_2, nt_xx_2
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_2`,`nt_xx_2` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->N CS-N->N drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_2 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM nt_1
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_2, nt_xx_2
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_2`,`nt_xx_2` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->N CS-N->N drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->N << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10034,12 +10054,12 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE tt_xx_3 (PRIMARY KEY(tran
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_3, nt_xx_3;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_3, nt_xx_3
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_3`,`nt_xx_3` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->N CS-T->N drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE tt_xx_3 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM nt_1
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_3, nt_xx_3
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_3`,`nt_xx_3` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->N CS-T->N drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10055,12 +10075,12 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_4 (PRIMARY KEY(tran
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_4, nt_xx_4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_4, nt_xx_4
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_4`,`nt_xx_4` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_4 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_4, nt_xx_4
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_4`,`nt_xx_4` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10076,12 +10096,12 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_5 (PRIMARY KEY(tran
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_5, nt_xx_5;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_5, nt_xx_5
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_5`,`nt_xx_5` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_5 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_5, nt_xx_5
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_5`,`nt_xx_5` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10097,12 +10117,12 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_6 (PRIMARY KEY(tran
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_6, nt_xx_6;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_6, nt_xx_6
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_6`,`nt_xx_6` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_6 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_6, nt_xx_6
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_6`,`nt_xx_6` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 ###################################################################################
@@ -10273,11 +10293,11 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_7, nt_xx_7;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_7, nt_xx_7
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_7`,`nt_xx_7` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_7, nt_xx_7
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_7`,`nt_xx_7` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10443,11 +10463,11 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_8, nt_xx_8;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_8, nt_xx_8
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_8`,`nt_xx_8` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_8, nt_xx_8
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_8`,`nt_xx_8` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10557,7 +10577,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1
@@ -10627,11 +10646,11 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_9, nt_xx_9;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_9, nt_xx_9
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_9`,`nt_xx_9` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_9, nt_xx_9
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_9`,`nt_xx_9` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10810,11 +10829,11 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_10, nt_xx_10;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_10, nt_xx_10
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_10`,`nt_xx_10` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_10, nt_xx_10
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_10`,`nt_xx_10` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 ###################################################################################
@@ -10851,11 +10870,11 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_11;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_11
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_11` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_11
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_11` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10889,31 +10908,31 @@ ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
-master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 T CT R1 R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
-master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 T CT R1 R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_12;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_12
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_12` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_12
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_12` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10953,11 +10972,11 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_13;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_13
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_13` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_13
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_13` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10966,8 +10985,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 357, 2, COUNT(*) FROM tt_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 357, 2, COUNT(*) FROM tt_1
@@ -11005,11 +11022,11 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_14;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_14
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_14` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_14
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_14` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11043,11 +11060,11 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_15;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_15
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_15` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_15
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_15` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11093,11 +11110,11 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_16;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_16
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_16` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS tt_xx_16
+master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_16` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
 ###################################################################################

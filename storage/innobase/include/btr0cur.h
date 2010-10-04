@@ -558,7 +558,7 @@ btr_copy_externally_stored_field_prefix(
 	ulint		local_len);/*!< in: length of data, in bytes */
 /*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
-@return	the field copied to heap */
+@return	the field copied to heap, or NULL if the field is incomplete */
 UNIV_INTERN
 byte*
 btr_rec_copy_externally_stored_field(
@@ -615,6 +615,11 @@ struct btr_path_struct{
 				order); value ULINT_UNDEFINED
 				denotes array end */
 	ulint	n_recs;		/*!< number of records on the page */
+	ulint	page_no;	/*!< no of the page containing the record */
+	ulint	page_level;	/*!< level of the page, if later we fetch
+				the page under page_no and it is no different
+				level then we know that the tree has been
+				reorganized */
 };
 
 #define BTR_PATH_ARRAY_N_SLOTS	250	/*!< size of path array (in slots) */

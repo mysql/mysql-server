@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -264,7 +264,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
-      x_free(table_sort.buffpek);
+      my_free(table_sort.buffpek);
       table_sort.buffpek= 0;
     }
     if (!(table_sort.buffpek=
@@ -304,13 +304,12 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   error =0;
 
  err:
-  if (param.tmp_buffer)
-    x_free(param.tmp_buffer);
+  my_free(param.tmp_buffer);
   if (!subselect || !subselect->is_uncacheable())
   {
-    x_free((uchar*) sort_keys);
+    my_free(sort_keys);
     table_sort.sort_keys= 0;
-    x_free((uchar*) buffpek);
+    my_free(buffpek);
     table_sort.buffpek= 0;
     table_sort.buffpek_len= 0;
   }
@@ -347,32 +346,22 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
 void filesort_free_buffers(TABLE *table, bool full)
 {
-  if (table->sort.record_pointers)
-  {
-    my_free((uchar*) table->sort.record_pointers,MYF(0));
-    table->sort.record_pointers=0;
-  }
+  my_free(table->sort.record_pointers);
+  table->sort.record_pointers= NULL;
+
   if (full)
   {
-    if (table->sort.sort_keys )
-    {
-      x_free((uchar*) table->sort.sort_keys);
-      table->sort.sort_keys= 0;
-    }
-    if (table->sort.buffpek)
-    {
-      x_free((uchar*) table->sort.buffpek);
-      table->sort.buffpek= 0;
-      table->sort.buffpek_len= 0;
-    }
+    my_free(table->sort.sort_keys);
+    table->sort.sort_keys= NULL;
+    my_free(table->sort.buffpek);
+    table->sort.buffpek= NULL;
+    table->sort.buffpek_len= 0;
   }
-  if (table->sort.addon_buf)
-  {
-    my_free((char *) table->sort.addon_buf, MYF(0));
-    my_free((char *) table->sort.addon_field, MYF(MY_ALLOW_ZERO_PTR));
-    table->sort.addon_buf=0;
-    table->sort.addon_field=0;
-  }
+
+  my_free(table->sort.addon_buf);
+  my_free(table->sort.addon_field);
+  table->sort.addon_buf= NULL;
+  table->sort.addon_field= NULL;
 }
 
 /** Make a array of string pointers. */
@@ -413,7 +402,7 @@ static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
     if (reinit_io_cache(buffpek_pointers,READ_CACHE,0L,0,0) ||
 	my_b_read(buffpek_pointers, (uchar*) tmp, length))
     {
-      my_free((char*) tmp, MYF(0));
+      my_free(tmp);
       tmp=0;
     }
   }
@@ -522,6 +511,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   volatile THD::killed_state *killed= &thd->killed;
   handler *file;
   MY_BITMAP *save_read_set, *save_write_set;
+  bool skip_record;
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",
                      (select ? select->quick ? "ranges" : "where":
@@ -561,10 +551,19 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   bitmap_clear_all(&sort_form->tmp_set);
   /* Temporary set for register_used_fields and register_field_in_read_map */
   sort_form->read_set= &sort_form->tmp_set;
-  register_used_fields(param);
+  // Include fields used for sorting in the read_set.
+  register_used_fields(param); 
+
+  // Include fields used by conditions in the read_set.
   if (select && select->cond)
     select->cond->walk(&Item::register_field_in_read_map, 1,
                        (uchar*) sort_form);
+
+  // Include fields used by pushed conditions in the read_set.
+  if (select && select->icp_cond)
+    select->icp_cond->walk(&Item::register_field_in_read_map, 1,
+                           (uchar*) sort_form);
+
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
   for (;;)
@@ -585,11 +584,11 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  error= my_errno ? my_errno : -1;		/* Abort */
 	  break;
 	}
-	error=file->rnd_pos(sort_form->record[0],next_pos);
+	error= file->ha_rnd_pos(sort_form->record[0], next_pos);
       }
       else
       {
-	error=file->rnd_next(sort_form->record[0]);
+	error= file->ha_rnd_next(sort_form->record[0]);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
@@ -614,7 +613,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     if (error == 0)
       param->examined_rows++;
-    if (error == 0 && (!select || select->skip_record() == 0))
+    if (!error && (!select ||
+                   (!select->skip_record(thd, &skip_record) && !skip_record)))
     {
       if (idx == param->keys)
       {
@@ -1677,7 +1677,7 @@ void change_double_for_sort(double nr,uchar *to)
   else
   {
 #ifdef WORDS_BIGENDIAN
-    memcpy_fixed(tmp,&nr,sizeof(nr));
+    memcpy(tmp, &nr, sizeof(nr));
 #else
     {
       uchar *ptr= (uchar*) &nr;

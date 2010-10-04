@@ -3,6 +3,6 @@
 
 source include/master-slave.inc;
 source include/have_innodb.inc;
-source include/have_binlog_format_statement.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
 
 source extra/rpl_tests/rpl_innodb.test;

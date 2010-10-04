@@ -59,6 +59,7 @@ table_setup_instruments::m_share=
   &table_setup_instruments::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_setup_instruments),
   &m_table_lock,
@@ -133,6 +134,14 @@ int table_setup_instruments::rnd_next(void)
         return 0;
       }
       break;
+    case pos_setup_instruments::VIEW_TABLE:
+      if (m_pos.m_index_2 == 1)
+      {
+        make_row(&global_table_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+      break;
     }
   }
 
@@ -181,6 +190,13 @@ int table_setup_instruments::rnd_pos(const void *pos)
     if (file_class)
     {
       make_row(file_class);
+      return 0;
+    }
+    break;
+  case pos_setup_instruments::VIEW_TABLE:
+    if (m_pos.m_index_2 == 1)
+    {
+      make_row(&global_table_class);
       return 0;
     }
     break;

@@ -53,7 +53,7 @@ void Blowfish::Process(byte* out, const byte* in, word32 sz)
             out += BLOCK_SIZE;
             in  += BLOCK_SIZE;
         }
-    else if (mode_ == CBC)
+    else if (mode_ == CBC) {
         if (dir_ == ENCRYPTION)
             while (blocks--) {
                 r_[0] ^= *(word32*)in;
@@ -78,6 +78,7 @@ void Blowfish::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
+    }
 }
 
 #endif // DO_BLOWFISH_ASM

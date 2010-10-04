@@ -149,10 +149,9 @@ int main(int argc, char **argv)
     break;
   }
   mysql_close(&mysql);			/* Close & free connection */
-  if (opt_password)
-    my_free(opt_password,MYF(0));
+  my_free(opt_password);
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   my_end(my_end_arg);
   exit(error ? 1 : 0);
@@ -161,10 +160,6 @@ int main(int argc, char **argv)
 
 static struct my_option my_long_options[] =
 {
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"character-sets-dir", 'c', "Directory for character set files.",
    &charsets_dir, &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
@@ -241,14 +236,11 @@ static struct my_option my_long_options[] =
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-  
-#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,SHOW_VERSION,
 	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -271,18 +263,12 @@ are shown.");
   my_print_variables(my_long_options);
 }
 
-#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'v':
     opt_verbose++;
     break;
@@ -292,7 +278,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start=argument;
-      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password=my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -671,8 +657,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   char query[1024],*end;
   MYSQL_RES *result;
   MYSQL_ROW row;
-  ulong rows;
-  LINT_INIT(rows);
+  ulong UNINIT_VAR(rows);
 
   if (mysql_select_db(mysql,db))
   {

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Functions to handle keys and fields in forms */
@@ -143,6 +143,29 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
     }
     to_key+= length;
     key_length-= length;
+  }
+}
+
+
+/**
+  Zero the null components of key tuple
+  SYNOPSIS
+    key_zero_nulls()
+      tuple
+      key_info
+
+  DESCRIPTION
+*/
+
+void key_zero_nulls(uchar *tuple, KEY *key_info)
+{
+  KEY_PART_INFO *key_part= key_info->key_part;
+  KEY_PART_INFO *key_part_end= key_part + key_info->key_parts;
+  for (; key_part != key_part_end; key_part++)
+  {
+    if (key_part->null_bit && *tuple)
+      bzero(tuple+1, key_part->store_length-1);
+    tuple+= key_part->store_length;
   }
 }
 

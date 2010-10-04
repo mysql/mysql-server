@@ -103,6 +103,17 @@ row_mysql_read_blob_ref(
 	ulint		col_len);	/*!< in: BLOB reference length
 					(not BLOB length) */
 /**************************************************************//**
+Pad a column with spaces. */
+UNIV_INTERN
+void
+row_mysql_pad_col(
+/*==============*/
+	ulint	mbminlen,	/*!< in: minimum size of a character,
+				in bytes */
+	byte*	pad,		/*!< out: padded buffer */
+	ulint	len);		/*!< in: number of bytes to pad */
+
+/**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.c.
@@ -565,6 +576,8 @@ struct mysql_row_templ_struct {
 #define ROW_PREBUILT_ALLOCATED	78540783
 #define ROW_PREBUILT_FREED	26423527
 
+typedef uint (*index_cond_func_t)(void *param);
+
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
@@ -622,7 +635,11 @@ struct row_prebuilt_struct {
 					the secondary index, then this is
 					set to TRUE */
 	unsigned	templ_contains_blob:1;/*!< TRUE if the template contains
-					BLOB column(s) */
+					a column with DATA_BLOB ==
+					get_innobase_type_from_mysql_type();
+					not to be confused with InnoDB
+					externally stored columns
+					(VARCHAR can be off-page too) */
 	mysql_row_templ_t* mysql_template;/*!< template used to transform
 					rows fast between MySQL and Innobase
 					formats; memory for this template
@@ -759,6 +776,12 @@ struct row_prebuilt_struct {
 	/*----------------------*/
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
+	index_cond_func_t idx_cond_func;/* Index Condition Pushdown function,
+					or NULL if there is none set */
+	void*		idx_cond_func_arg; /* ICP function  argument */
+	ulint		n_index_fields;	/* Number of fields at the start of
+					mysql_template. Valid only when using
+					ICP. */
 };
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687

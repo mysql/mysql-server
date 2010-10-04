@@ -23,7 +23,7 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/dbug/libdbuglt.la \
 		  $(top_builddir)/strings/libmystringslt.la
 
-noinst_PROGRAMS  = bitmap-t base64-t lf-t my_rdtsc-t my_vsnprintf-t
+noinst_PROGRAMS  = bitmap-t base64-t lf-t my_rdtsc-t my_vsnprintf-t my_malloc-t
 
 if NEED_THREAD
 # my_atomic-t is used to check thread functions, so it is safe to 

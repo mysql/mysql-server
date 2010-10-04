@@ -598,7 +598,7 @@ sub optimize_cases {
     # Check that engine selected by
     # --default-storage-engine=<engine> is supported
     # =======================================================
-    my %builtin_engines = ('myisam' => 1, 'memory' => 1);
+    my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=
@@ -698,6 +698,13 @@ sub process_opts_file {
       if ( $opt eq "--force-restart" )
       {
 	$tinfo->{'force_restart'}= 1;
+	next;
+      }
+
+      $value= mtr_match_prefix($opt, "--testcase-timeout=");
+      if ( defined $value ) {
+	# Overrides test case timeout for this test
+	$tinfo->{'case-timeout'}= $value;
 	next;
       }
 

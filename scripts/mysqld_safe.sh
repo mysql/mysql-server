@@ -413,6 +413,29 @@ else
   DATADIR=@localstatedir@
 fi
 
+#
+# Try to find the plugin directory
+#
+
+# Use user-supplied argument
+if [ -n "${PLUGIN_DIR}" ]; then
+  plugin_dir="${PLUGIN_DIR}"
+else
+  # Try to find plugin dir relative to basedir
+  for dir in lib/mysql/plugin lib/plugin
+  do
+    if [ -d "${MY_BASEDIR_VERSION}/${dir}" ]; then
+      plugin_dir="${MY_BASEDIR_VERSION}/${dir}"
+      break
+    fi
+  done
+  # Give up and use compiled-in default
+  if [ -z "${plugin_dir}" ]; then
+    plugin_dir='@pkgplugindir@'
+  fi
+fi
+plugin_dir="${plugin_dir}${PLUGIN_VARIANT}"
+
 if test -z "$MYSQL_HOME"
 then 
   if test -r "$MY_BASEDIR_VERSION/my.cnf" && test -r "$DATADIR/my.cnf"
@@ -703,8 +726,6 @@ fi
 #fi
 
 cmd="`mysqld_ld_preload_text`$NOHUP_NICENESS"
-
-plugin_dir="${PLUGIN_DIR:-$MY_BASEDIR_VERSION/lib/mysql/plugin}${PLUGIN_VARIANT}"
 
 for i in  "$ledir/$MYSQLD" "$defaults" "--basedir=$MY_BASEDIR_VERSION" \
   "--datadir=$DATADIR" "--plugin-dir=$plugin_dir" "$USER_OPTION"

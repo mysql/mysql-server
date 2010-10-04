@@ -421,7 +421,7 @@ void ha_ibmdb2i::free_foreign_key_create_info(char* info)
 
   if (info)
   {
-    my_free(info, MYF(0));
+    my_free(info);
   }
   DBUG_VOID_RETURN;
 }

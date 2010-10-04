@@ -712,7 +712,7 @@ count(*)
 DROP TABLE t2;
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a));
 INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));

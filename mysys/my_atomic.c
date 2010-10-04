@@ -16,13 +16,6 @@
 #include <my_global.h>
 #include <my_sys.h>
 
-#ifndef HAVE_INLINE
-/* the following will cause all inline functions to be instantiated */
-#define HAVE_INLINE
-#undef STATIC_INLINE
-#define STATIC_INLINE extern
-#endif
-
 #include <my_atomic.h>
 
 /*

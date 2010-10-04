@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB, 2009-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -271,28 +271,28 @@ public:
                       deprecated_version, substitute)
   {
     option.var_type= GET_ENUM;
-    global_var(uint)= def_val;
+    global_var(ulong)= def_val;
     DBUG_ASSERT(def_val < typelib.count);
-    DBUG_ASSERT(size == sizeof(uint));
+    DBUG_ASSERT(size == sizeof(ulong));
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, uint)= var->save_result.ulonglong_value;
+    session_var(thd, ulong)= var->save_result.ulonglong_value;
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(uint)= var->save_result.ulonglong_value;
+    global_var(ulong)= var->save_result.ulonglong_value;
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
-  { var->save_result.ulonglong_value= global_var(uint); }
+  { var->save_result.ulonglong_value= global_var(ulong); }
   void global_save_default(THD *thd, set_var *var)
   { var->save_result.ulonglong_value= option.def_value; }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
-  { return (uchar*)typelib.type_names[session_var(thd, uint)]; }
+  { return (uchar*)typelib.type_names[session_var(thd, ulong)]; }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
-  { return (uchar*)typelib.type_names[global_var(uint)]; }
+  { return (uchar*)typelib.type_names[global_var(ulong)]; }
 };
 
 /**
@@ -385,10 +385,10 @@ public:
     DBUG_ASSERT(scope() == GLOBAL);
     DBUG_ASSERT(size == sizeof(char *));
   }
-  ~Sys_var_charptr()
+  void cleanup()
   {
     if (flags & ALLOCATED)
-      my_free(global_var(char*), MYF(MY_ALLOW_ZERO_PTR));
+      my_free(global_var(char*));
     flags&= ~ALLOCATED;
   }
   bool do_check(THD *thd, set_var *var)
@@ -435,7 +435,7 @@ public:
     else
       new_val= 0;
     if (flags & ALLOCATED)
-      my_free(global_var(char*), MYF(MY_ALLOW_ZERO_PTR));
+      my_free(global_var(char*));
     flags|= ALLOCATED;
     global_var(char*)= new_val;
     return false;
@@ -741,13 +741,13 @@ public:
           uint deprecated_version=0, const char *substitute=0,
           int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
-              getopt.arg_type, SHOW_DOUBLE, def_val, lock, binlog_status_arg,
-              on_check_func, on_update_func, deprecated_version, substitute,
-              parse_flag)
+              getopt.arg_type, SHOW_DOUBLE, (longlong) double2ulonglong(def_val),
+              lock, binlog_status_arg, on_check_func, on_update_func,
+              deprecated_version, substitute, parse_flag)
   {
     option.var_type= GET_DOUBLE;
-    option.min_value= min_val;
-    option.max_value= max_val;
+    option.min_value= (longlong) double2ulonglong(min_val);
+    option.max_value= (longlong) double2ulonglong(max_val);
     global_var(double)= (double)option.def_value;
     DBUG_ASSERT(min_val < max_val);
     DBUG_ASSERT(min_val <= def_val);

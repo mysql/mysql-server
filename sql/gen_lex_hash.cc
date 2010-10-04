@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -45,7 +45,7 @@ for this structure, presented program generate next searching-structure:
        +----------+-+-+-+--+
        |    1 char|a|b|c|d |
        +----------+-+-+-+--+
-       |first_char|b|0|0|0 |
+       |first_char|d|0|0|0 |
        |last_char |n|0|0|-1|
        |link      |+|0|0|+ |
                    |     |
@@ -77,33 +77,12 @@ So, we can read full search-structure as 32-bit word
 */
 
 #define NO_YACC_SYMBOLS
-#include "my_global.h"
-#include "my_sys.h"
-#include "m_string.h"
-#ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__				// Skip warnings in getopt.h
-#endif
-#include <my_getopt.h>
+#include <my_global.h>
 #include "mysql_version.h"
 #include "lex.h"
-
-const char *default_dbug_option="d:t:o,/tmp/gen_lex_hash.trace";
-
-struct my_option my_long_options[] =
-{
-#ifdef DBUG_OFF
-  {"debug", '#', "This is a non-debug version. Catch this and exit",
-   0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#else
-  {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
-   (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-  {"help", '?', "Display help and exit",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'V', "Output version information and exit",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 struct hash_lex_struct
 {
@@ -339,58 +318,6 @@ void print_find_structs()
   print_hash_map("symbols_map");
 }
 
-
-static void usage(int version)
-{
-  printf("%s  Ver 3.6 Distrib %s, for %s (%s)\n",
-	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-  if (version)
-    return;
-  puts("Copyright (C) 2001 MySQL AB, by VVA and Monty");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n");
-  puts("This program generates a perfect hashing function for the sql_lex.cc");
-  printf("Usage: %s [OPTIONS]\n\n", my_progname);
-  my_print_help(my_long_options);
-}
-
-
-extern "C" my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument __attribute__((unused)))
-{
-  switch(optid) {
-  case 'V':
-    usage(1);
-    exit(0);
-  case 'I':
-  case '?':
-    usage(0);
-    exit(0);
-  case '#':
-    DBUG_PUSH(argument ? argument : default_dbug_option);
-    break;
-  }
-  return 0;
-}
-
-
-static int get_options(int argc, char **argv)
-{
-  int ho_error;
-
-  if ((ho_error= handle_options(&argc, &argv, my_long_options, get_one_option)))
-    exit(ho_error);
-
-  if (argc >= 1)
-  {
-    usage(0);
-     exit(1);
-  }
-  return(0);
-}
-
-
 int check_dup_symbols(SYMBOL *s1, SYMBOL *s2)
 {
   if (s1->length!=s2->length || strncmp(s1->name,s2->name,s1->length))
@@ -441,17 +368,13 @@ int check_duplicates()
 
 int main(int argc,char **argv)
 {
-  MY_INIT(argv[0]);
-  DBUG_PROCESS(argv[0]);
 
-  if (get_options(argc,(char **) argv))
-    exit(1);
 
   /* Broken up to indicate that it's not advice to you, gentle reader. */
   printf("/*\n\n  Do " "not " "edit " "this " "file " "directly!\n\n*/\n");
 
   printf("\
-/* Copyright 2001-2008 MySQL AB, 2008 Sun Microsystems, Inc.\n\
+/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.\n\
 \n\
    This program is free software; you can redistribute it and/or modify\n\
    it under the terms of the GNU General Public License as published by\n\
@@ -562,7 +485,6 @@ static SYMBOL *get_hash_symbol(const char *s,\n\
   }\n\
 }\n"
 );
-  my_end(0);
   exit(0);
 }
 

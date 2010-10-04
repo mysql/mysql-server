@@ -37,6 +37,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0file.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "mysql/plugin.h"
+#include "mysql/service_thd_wait.h"
 
 /** The linear read-ahead area size */
 #define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
@@ -135,6 +137,7 @@ buf_read_page_low(
 
 	ut_ad(buf_page_in_file(bpage));
 
+	thd_wait_begin(NULL, THD_WAIT_DISKIO);
 	if (zip_size) {
 		*err = fil_io(OS_FILE_READ | wake_later,
 			      sync, space, zip_size, offset, 0, zip_size,
@@ -146,6 +149,7 @@ buf_read_page_low(
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage);
 	}
+	thd_wait_end(NULL);
 	ut_a(*err == DB_SUCCESS);
 
 	if (sync) {
@@ -322,7 +326,7 @@ buf_read_ahead_linear(
 	fail_count = 0;
 
 	for (i = low; i < high; i++) {
-		bpage = buf_page_hash_get(buf_pool, space, i);
+		bpage = buf_page_hash_get(buf_pool, space, i, NULL);
 
 		if (bpage == NULL || !buf_page_is_accessed(bpage)) {
 			/* Not accessed */
@@ -360,7 +364,7 @@ buf_read_ahead_linear(
 	/* If we got this far, we know that enough pages in the area have
 	been accessed in the right order: linear read-ahead can be sensible */
 
-	bpage = buf_page_hash_get(buf_pool, space, offset);
+	bpage = buf_page_hash_get(buf_pool, space, offset, NULL);
 
 	if (bpage == NULL) {
 		buf_pool_mutex_exit(buf_pool);

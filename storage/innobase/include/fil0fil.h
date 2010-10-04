@@ -26,6 +26,7 @@ Created 10/25/1995 Heikki Tuuri
 #ifndef fil0fil_h
 #define fil0fil_h
 
+#include "univ.i"
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"

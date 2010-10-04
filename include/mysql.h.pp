@@ -1,4 +1,3 @@
-#include <sys/types.h>
 typedef char my_bool;
 typedef int my_socket;
 #include "mysql_version.h"
@@ -298,7 +297,8 @@ struct st_mysql_options {
 };
 enum mysql_status
 {
-  MYSQL_STATUS_READY,MYSQL_STATUS_GET_RESULT,MYSQL_STATUS_USE_RESULT
+  MYSQL_STATUS_READY, MYSQL_STATUS_GET_RESULT, MYSQL_STATUS_USE_RESULT,
+  MYSQL_STATUS_STATEMENT_GET_RESULT
 };
 enum mysql_protocol_type
 {

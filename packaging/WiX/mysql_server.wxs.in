@@ -21,12 +21,17 @@
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
+    
     <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
+      <?if '@PATCH@' != '0'?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
         IncludeMinimum="yes"
         Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@"
-        Property="OLDERVERSIONBEINGUPGRADED" />
+        Property="OLDERVERSIONBEINGUPGRADED"
+        MigrateFeatures="yes"
+        />
+      <?endif?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@"
         OnlyDetect="yes"
@@ -38,6 +43,53 @@
     <InstallExecuteSequence>
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
+
+    <!-- Save/restore install location -->
+    <CustomAction Id="SaveTargetDir" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
+    <InstallExecuteSequence>
+      <Custom Action="SaveTargetDir" After="InstallValidate">
+        NOT
+        Installed
+      </Custom>
+    </InstallExecuteSequence>
+	<InstallUISequence>
+      <!-- App search is what does FindInstallLocation, and it is dependent on FindRelatedProducts -->
+      <AppSearch After="FindRelatedProducts"/>
+	</InstallUISequence>
+ 
+    <!-- Find previous installation -->
+    <Property Id="INSTALLDIR">
+      <RegistrySearch Id="FindInstallLocation"
+          Root="HKLM"
+          Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
+          Name="InstallLocation"
+          Type="raw" />
+    </Property>
+	 <Property Id="OLDERVERSION">
+      <RegistrySearch Id="FindOlderVersion"
+          Root="HKLM"
+          Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
+          Name="DisplayVersion"
+          Type="raw" />
+    </Property>
+	 <Property Id="DATADIR">
+      <RegistrySearch Id="FindDataDir"
+          Root="HKLM"
+          Key="SOFTWARE\MySQL AB\[ProductName]"
+          Name="DataLocation"
+          Type="raw" />
+    </Property>
+	 <Property Id="INSTALLDIR2">
+       <RegistrySearch Id="FindInstallLocation2"
+          Root="HKLM"
+          Key="SOFTWARE\MySQL AB\[ProductName]"
+          Name="Location"
+          Type="raw" />
+    </Property>
+	<CustomAction Id="SetInstallDir2" Property="INSTALLDIR" Value="[INSTALLDIR2]" /> 
+	<InstallUISequence>
+	 <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
+	</InstallUISequence>
 
 
     <!-- UI -->

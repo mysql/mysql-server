@@ -99,6 +99,8 @@ return i;
 end|
 set @error_in_func:= 0|
 insert into t1 values (bug10015_6(5)), (bug10015_6(6))|
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 select @error_in_func|
 @error_in_func
 1
@@ -524,6 +526,8 @@ until done end repeat;
 close c;
 end|
 call bug14210()|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select count(*) from t4|
 count(*)
 256

@@ -52,11 +52,6 @@
 #endif
 #include "rt_index.h"
 
-#ifndef USE_RAID
-#define my_raid_create(K, A, B, C, D, E, F, G) mysql_file_create(K, A, B, C, G)
-#define my_raid_delete(K, A, B, C) mysql_file_delete(K, A, B)
-#endif
-
 	/* Functions defined in this file */
 
 static int check_k_link(MI_CHECK *param, MI_INFO *info,uint nr);
@@ -1369,12 +1364,12 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     printf("Lost space:   %12s    Linkdata:     %10s\n",
 	   llstr(empty,llbuff),llstr(link_used,llbuff2));
   }
-  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record));
   DBUG_RETURN (error);
  err:
   mi_check_print_error(param,"got error: %d when reading datafile at record: %s",my_errno, llstr(records,llbuff));
  err2:
-  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record));
   param->testflag|=T_RETRY_WITHOUT_QUICK;
   DBUG_RETURN(1);
 } /* chk_data_link */
@@ -1577,15 +1572,12 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    if ((new_file= my_raid_create(mi_key_file_datatmp,
-                                  fn_format(param->temp_filename,
-                                            share->data_file_name, "",
-                                            DATA_TMP_EXT, 2+4),
-                                  0, param->tmpfile_createflag,
-                                  share->base.raid_type,
-                                  share->base.raid_chunks,
-                                  share->base.raid_chunksize,
-                                  MYF(0))) < 0)
+    if ((new_file= mysql_file_create(mi_key_file_datatmp,
+                                     fn_format(param->temp_filename,
+                                               share->data_file_name, "",
+                                               DATA_TMP_EXT, 2+4),
+                                     0, param->tmpfile_createflag,
+                                     MYF(0))) < 0)
     {
       mi_check_print_error(param,"Can't create new tempfile: '%s'",
 			   param->temp_filename);
@@ -1751,8 +1743,7 @@ err:
                          (size_t) info->s->mmaped_length);
         info->s->file_map= NULL;
       }
-      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT, share->base.raid_chunks,
+      if (change_to_newfile(share->data_file_name, MI_NAME_DEXT, DATA_TMP_EXT,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
@@ -1767,18 +1758,15 @@ err:
     if (new_file >= 0)
     {
       (void) mysql_file_close(new_file, MYF(0));
-      (void) my_raid_delete(mi_key_file_datatmp,
-                            param->temp_filename, info->s->base.raid_chunks,
-                            MYF(MY_WME));
+      (void) mysql_file_delete(mi_key_file_datatmp,
+                               param->temp_filename, MYF(MY_WME));
       info->rec_cache.file=-1; /* don't flush data to new_file, it's closed */
     }
     mi_mark_crashed_on_repair(info);
   }
-  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff),
-                            MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
-          MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record));
+  my_free(sort_info.buff);
   (void) end_io_cache(&param->read_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   (void) end_io_cache(&info->rec_cache);
@@ -2013,7 +2001,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, char * name)
   (void) mysql_file_close(share->kfile, MYF(MY_WME));
   share->kfile = -1;
   (void) mysql_file_close(new_file, MYF(MY_WME));
-  if (change_to_newfile(share->index_file_name,MI_NAME_IEXT,INDEX_TMP_EXT,0,
+  if (change_to_newfile(share->index_file_name, MI_NAME_IEXT, INDEX_TMP_EXT,
 			MYF(0)) ||
       mi_open_keyfile(share))
     goto err2;
@@ -2143,18 +2131,9 @@ err:
 	*/
 
 int change_to_newfile(const char * filename, const char * old_ext,
-		      const char * new_ext,
-		      uint raid_chunks __attribute__((unused)),
-		      myf MyFlags)
+                      const char * new_ext, myf MyFlags)
 {
   char old_filename[FN_REFLEN],new_filename[FN_REFLEN];
-#ifdef USE_RAID
-  if (raid_chunks)
-    return my_raid_redel(fn_format(old_filename,filename,"",old_ext,2+4),
-			 fn_format(new_filename,filename,"",new_ext,2+4),
-			 raid_chunks,
-			 MYF(MY_WME | MY_LINK_WARNING | MyFlags));
-#endif
   /* Get real path to filename */
   (void) fn_format(old_filename,filename,"",old_ext,2+4+32);
   return my_redel(old_filename,
@@ -2208,11 +2187,11 @@ int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
       mysql_file_write(to, (uchar*) buff, (uint) length, param->myf_rw))
     goto err;
   if (buff != tmp_buff)
-    my_free(buff,MYF(0));
+    my_free(buff);
   DBUG_RETURN(0);
 err:
   if (buff != tmp_buff)
-    my_free(buff,MYF(0));
+    my_free(buff);
   mi_check_print_error(param,"Can't copy %s to tempfile, error %d",
 		       type,my_errno);
   DBUG_RETURN(1);
@@ -2295,15 +2274,12 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    if ((new_file= my_raid_create(mi_key_file_datatmp,
-                                  fn_format(param->temp_filename,
-                                            share->data_file_name, "",
-                                            DATA_TMP_EXT, 2+4),
-                                  0, param->tmpfile_createflag,
-                                  share->base.raid_type,
-                                  share->base.raid_chunks,
-                                  share->base.raid_chunksize,
-                                  MYF(0))) < 0)
+    if ((new_file= mysql_file_create(mi_key_file_datatmp,
+                                     fn_format(param->temp_filename,
+                                               share->data_file_name, "",
+                                               DATA_TMP_EXT, 2+4),
+                                     0, param->tmpfile_createflag,
+                                     MYF(0))) < 0)
     {
       mi_check_print_error(param,"Can't create new tempfile: '%s'",
 			   param->temp_filename);
@@ -2529,7 +2505,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 	skr < share->base.reloc*share->base.min_pack_length)
       skr=share->base.reloc*share->base.min_pack_length;
 #endif
-    if (skr != sort_info.filelength && !info->s->base.raid_type)
+    if (skr != sort_info.filelength)
       if (mysql_file_chsize(info->dfile, skr, 0, MYF(0)))
 	mi_check_print_warning(param,
 			       "Can't change size of datafile,  error: %d",
@@ -2567,8 +2543,7 @@ err:
     {
       mysql_file_close(new_file, MYF(0));
       info->dfile=new_file= -1;
-      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT, share->base.raid_chunks,
+      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT, DATA_TMP_EXT,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
@@ -2582,9 +2557,8 @@ err:
     if (new_file >= 0)
     {
       (void) mysql_file_close(new_file, MYF(0));
-      (void) my_raid_delete(mi_key_file_datatmp,
-                            param->temp_filename, share->base.raid_chunks,
-                            MYF(MY_WME));
+      (void) mysql_file_delete(mi_key_file_datatmp,
+                               param->temp_filename, MYF(MY_WME));
       if (info->dfile == new_file) /* Retry with key cache */
         if (unlikely(mi_open_datafile(info, share, name, -1)))
           param->retry_repair= 0; /* Safety */
@@ -2595,13 +2569,11 @@ err:
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
   share->state.changed|=STATE_NOT_SORTED_PAGES;
 
-  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff),
-                            MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
-          MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record));
+  my_free(sort_info.key_block);
+  my_free(sort_info.ft_buf);
+  my_free(sort_info.buff);
   (void) end_io_cache(&param->read_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   if (!got_error && (param->testflag & T_UNPACK))
@@ -2755,16 +2727,12 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    if ((new_file= my_raid_create(mi_key_file_datatmp,
-                                  fn_format(param->temp_filename,
-                                            share->data_file_name, "",
-                                            DATA_TMP_EXT,
-                                            2+4),
-                                  0, param->tmpfile_createflag,
-                                  share->base.raid_type,
-                                  share->base.raid_chunks,
-                                  share->base.raid_chunksize,
-                                  MYF(0))) < 0)
+    if ((new_file= mysql_file_create(mi_key_file_datatmp,
+                                     fn_format(param->temp_filename,
+                                               share->data_file_name, "",
+                                               DATA_TMP_EXT, 2+4),
+                                     0, param->tmpfile_createflag,
+                                     MYF(0))) < 0)
     {
       mi_check_print_error(param,"Can't create new tempfile: '%s'",
 			   param->temp_filename);
@@ -3059,7 +3027,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 	skr < share->base.reloc*share->base.min_pack_length)
       skr=share->base.reloc*share->base.min_pack_length;
 #endif
-    if (skr != sort_info.filelength && !info->s->base.raid_type)
+    if (skr != sort_info.filelength)
       if (mysql_file_chsize(info->dfile, skr, 0, MYF(0)))
 	mi_check_print_warning(param,
 			       "Can't change size of datafile,  error: %d",
@@ -3109,8 +3077,7 @@ err:
     {
       mysql_file_close(new_file, MYF(0));
       info->dfile=new_file= -1;
-      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT, share->base.raid_chunks,
+      if (change_to_newfile(share->data_file_name, MI_NAME_DEXT, DATA_TMP_EXT,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
@@ -3124,9 +3091,8 @@ err:
     if (new_file >= 0)
     {
       (void) mysql_file_close(new_file, MYF(0));
-      (void) my_raid_delete(mi_key_file_datatmp,
-                            param->temp_filename, share->base.raid_chunks,
-                            MYF(MY_WME));
+      (void) mysql_file_delete(mi_key_file_datatmp,
+                               param->temp_filename, MYF(MY_WME));
       if (info->dfile == new_file) /* Retry with key cache */
         if (unlikely(mi_open_datafile(info, share, name, -1)))
           param->retry_repair= 0; /* Safety */
@@ -3142,10 +3108,10 @@ err:
   mysql_mutex_destroy(&param->print_msg_mutex);
   param->need_print_msg_lock= 0;
 
-  my_free((uchar*) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) sort_param,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_info.ft_buf);
+  my_free(sort_info.key_block);
+  my_free(sort_param);
+  my_free(sort_info.buff);
   (void) end_io_cache(&param->read_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   if (!got_error && (param->testflag & T_UNPACK))
@@ -4551,7 +4517,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     if (my_errno != HA_ERR_END_OF_FILE)
     {
       mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
-      my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
+      my_free(mi_get_rec_buff_ptr(info, record));
       mi_check_print_error(param,"%d when reading last record",my_errno);
       DBUG_VOID_RETURN;
     }
@@ -4566,7 +4532,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       set_if_bigger(info->s->state.auto_increment, param->auto_increment_value);
   }
   mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
-  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record));
   update_state_info(param, info, UPDATE_AUTO_INC);
   DBUG_VOID_RETURN;
 }

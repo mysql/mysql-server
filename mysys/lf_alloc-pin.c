@@ -472,7 +472,7 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
     uchar *tmp= anext_node(node);
     if (allocator->destructor)
       allocator->destructor(node);
-    my_free((void *)node, MYF(0));
+    my_free(node);
     node= tmp;
   }
   lf_pinbox_destroy(&allocator->pinbox);

@@ -21,8 +21,7 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 target = 	libmysqlclient_r.la
-target_defs = 	-DDISABLE_MYSQL_PRLOCK_H -DDONT_USE_RAID \
-		-DMYSQL_CLIENT @LIB_EXTRA_CCFLAGS@
+target_defs =   -DDISABLE_MYSQL_PRLOCK_H -DMYSQL_CLIENT @LIB_EXTRA_CCFLAGS@
 
 LIBS = 		@LIBS@ @ZLIB_LIBS@ @openssl_libs@
 

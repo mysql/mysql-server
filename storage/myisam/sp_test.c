@@ -299,26 +299,6 @@ static int read_with_pos (MI_INFO * file,int silent)
 }
 
 
-#ifdef NOT_USED
-static void bprint_record(uchar * record,
-			  my_off_t offs __attribute__((unused)),
-			  const char * tail)
-{
-  int i;
-  char * pos;
-  i=(unsigned char)record[0];
-  printf("%02X ",i);
-  
-  for( pos=record+1, i=0; i<32; i++,pos++)
-  {
-    int b=(unsigned char)*pos;
-    printf("%02X",b);
-  }
-  printf("%s",tail);
-}
-#endif
-
-
 static void print_record(uchar * record, my_off_t offs,const char * tail)
 {
   uchar *pos;
@@ -330,7 +310,7 @@ static void print_record(uchar * record, my_off_t offs,const char * tail)
   len=sint4korr(pos);
   pos+=4;
   printf(" len=%d ",len);
-  memcpy_fixed(&ptr,pos,sizeof(char*));
+  memcpy(&ptr, pos, sizeof(char*));
   if (ptr)
     rtree_PrintWKB((uchar*) ptr,SPDIMS);
   else
@@ -338,34 +318,6 @@ static void print_record(uchar * record, my_off_t offs,const char * tail)
   printf(" offs=%ld ",(long int)offs);
   printf("%s",tail);
 }
-
-
-#ifdef NOT_USED
-static void create_point(uchar *record,uint rownr)
-{
-   uint tmp;
-   char *ptr;
-   char *pos=record;
-   double x[200];
-   int i;
-   
-   for(i=0;i<SPDIMS;i++)
-     x[i]=rownr;
-   
-   bzero((char*) record,MAX_REC_LENGTH);
-   *pos=0x01; /* DEL marker */
-   pos++;
-   
-   memset(blob_key,0,sizeof(blob_key));
-   tmp=rtree_CreatePointWKB(x,SPDIMS,blob_key);
-   
-   int4store(pos,tmp);
-   pos+=4;
-   
-   ptr=blob_key;
-   memcpy_fixed(pos,&ptr,sizeof(char*));
-}
-#endif
 
 
 static void create_linestring(uchar *record,uint rownr)
@@ -376,23 +328,23 @@ static void create_linestring(uchar *record,uint rownr)
    double x[200];
    int i,j;
    int npoints=2;
-   
+
    for(j=0;j<npoints;j++)
      for(i=0;i<SPDIMS;i++)
        x[i+j*SPDIMS]=rownr*j;
-   
+
    bzero((char*) record,MAX_REC_LENGTH);
    *pos=0x01; /* DEL marker */
    pos++;
-   
+
    memset(blob_key,0,sizeof(blob_key));
    tmp=rtree_CreateLineStringWKB(x,SPDIMS,npoints, (uchar*) blob_key);
-   
+
    int4store(pos,tmp);
    pos+=4;
-   
+
    ptr=blob_key;
-   memcpy_fixed(pos,&ptr,sizeof(char*));
+   memcpy(pos, &ptr, sizeof(char*));
 }
 
 
@@ -401,7 +353,7 @@ static void create_key(uchar *key,uint rownr)
    double c=rownr;
    uchar *pos;
    uint i;
-   
+
    bzero(key,MAX_REC_LENGTH);
    for (pos=key, i=0; i<2*SPDIMS; i++)
    {
@@ -424,27 +376,6 @@ static void print_key(const uchar *key,const char * tail)
   }
   printf("%s",tail);
 }
-
-
-#ifdef NOT_USED
-
-static int rtree_CreatePointWKB(double *ords, uint n_dims, uchar *wkb)
-{
-  uint i;
-
-  *wkb = wkbXDR;
-  ++wkb;
-  int4store(wkb, wkbPoint);
-  wkb += 4;
-
-  for (i=0; i < n_dims; ++i)
-  {
-    float8store(wkb, ords[i]);
-    wkb += 8;
-  }
-  return 5 + n_dims * 8;
-}
-#endif
 
 
 static int rtree_CreateLineStringWKB(double *ords, uint n_dims, uint n_points,

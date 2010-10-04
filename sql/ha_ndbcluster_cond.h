@@ -1,7 +1,7 @@
 #ifndef HA_NDBCLUSTER_COND_INCLUDED
 #define HA_NDBCLUSTER_COND_INCLUDED
 
-/* Copyright (C) 2000-2007 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   This file defines the data structures used by engine condition pushdown in
@@ -473,7 +473,7 @@ public:
   {}
   ~ha_ndbcluster_cond() 
   { if (m_cond_stack) delete m_cond_stack; }
-  const COND *cond_push(const COND *cond, 
+  const Item *cond_push(const Item *cond, 
                         TABLE *table, const NdbDictionary::Table *ndb_table);
   void cond_pop();
   void cond_clear();
@@ -485,7 +485,7 @@ public:
                                     uint key_len,
                                     uchar *buf);
 private:
-  bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
+  bool serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
 		      TABLE *table, const NdbDictionary::Table *ndb_table);
   int build_scan_filter_predicate(Ndb_cond* &cond, 
                                   NdbScanFilter* filter,

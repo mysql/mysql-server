@@ -76,7 +76,7 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   strmake(net->last_error, ei->info, sizeof(net->last_error)-1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
   mysql->server_status= ei->server_status;
-  my_free(data, MYF(0));
+  my_free(data);
 }
 
 static my_bool
@@ -207,7 +207,7 @@ static MYSQL_FIELD *emb_list_fields(MYSQL *mysql)
   res= ((THD*) mysql->thd)->cur_data;
   ((THD*) mysql->thd)->cur_data= 0;
   mysql->field_alloc= res->alloc;
-  my_free(res,MYF(0));
+  my_free(res);
   mysql->status= MYSQL_STATUS_READY;
   return mysql->fields;
 }
@@ -236,7 +236,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     stmt->fields= mysql->fields;
     stmt->mem_root= res->alloc;
     mysql->fields= NULL;
-    my_free(res,MYF(0));
+    my_free(res);
   }
 
   return 0;
@@ -293,7 +293,7 @@ static my_bool emb_read_query_result(MYSQL *mysql)
     thd->cur_data= res;
   }
   else
-    my_free(res, MYF(0));
+    my_free(res);
 
   return 0;
 }
@@ -335,7 +335,7 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
     return 1;
   }
   stmt->result= *data;
-  my_free((char *) data, MYF(0));
+  my_free(data);
   set_stmt_errmsg(stmt, &stmt->mysql->net);
   return 0;
 }
@@ -481,6 +481,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char *fake_argv[] = { (char *)"", 0 };
   const char *fake_groups[] = { "server", "embedded", 0 };
   my_bool acl_error;
+
+  if (my_thread_init())
+    return 1;
+
   if (argc)
   {
     argcp= &argc;
@@ -522,10 +526,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   mysql_data_home= mysql_real_data_home;
   mysql_data_home_len= mysql_real_data_home_len;
-    
+
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#if defined( __WIN__) || defined(OS2)
+#if defined(__WIN__)
   if (!opt_mysql_tmpdir)
     opt_mysql_tmpdir=getenv("TEMP");
   if (!opt_mysql_tmpdir)
@@ -537,6 +541,16 @@ int init_embedded_server(int argc, char **argv, char **groups)
   init_ssl();
   umask(((~my_umask) & 0666));
   if (init_server_components())
+  {
+    mysql_server_end();
+    return 1;
+  }
+
+  /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist.
+   */
+  if (!opt_bootstrap && init_server_auto_options())
   {
     mysql_server_end();
     return 1;
@@ -590,7 +604,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
 void end_embedded_server()
 {
-  my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(copy_arguments_ptr);
   copy_arguments_ptr=0;
   clean_up(0);
 }
@@ -633,7 +647,7 @@ void *create_embedded_thd(int client_flag)
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->variables.option_bits |= OPTION_BIG_SELECTS;
   thd->proc_info=0;				// Remove 'login'
-  thd->command=COM_SLEEP;
+  thd->set_command(COM_SLEEP);
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
@@ -1193,8 +1207,8 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
 int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
                        const char *format, va_list argsi)
 {
-  vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),
-           format, argsi);
+  my_vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),
+               format, argsi);
   mysql_server_last_errno= CR_UNKNOWN_ERROR;
   return 0;
 }

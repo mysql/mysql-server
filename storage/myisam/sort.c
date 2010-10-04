@@ -19,7 +19,7 @@
 */
 
 #include "fulltext.h"
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #include <fcntl.h>
 #else
 #include <stddef.h>
@@ -41,46 +41,46 @@
  Pointers of functions for store and read keys from temp file
 */
 
-extern void print_error _VARARGS((const char *fmt,...));
+extern void print_error(const char *fmt,...);
 
 /* Functions defined in this file */
 
-static ha_rows NEAR_F find_all_keys(MI_SORT_PARAM *info,uint keys,
-                                    uchar **sort_keys,
-                                    DYNAMIC_ARRAY *buffpek,int *maxbuffer,
-                                    IO_CACHE *tempfile,
-                                    IO_CACHE *tempfile_for_exceptions);
-static int NEAR_F write_keys(MI_SORT_PARAM *info,uchar **sort_keys,
-                             uint count, BUFFPEK *buffpek,IO_CACHE *tempfile);
-static int NEAR_F write_key(MI_SORT_PARAM *info, uchar *key,
-			    IO_CACHE *tempfile);
-static int NEAR_F write_index(MI_SORT_PARAM *info,uchar * *sort_keys,
-                              uint count);
-static int NEAR_F merge_many_buff(MI_SORT_PARAM *info,uint keys,
-                                  uchar * *sort_keys,
-                                  BUFFPEK *buffpek,int *maxbuffer,
-                                  IO_CACHE *t_file);
-static uint NEAR_F read_to_buffer(IO_CACHE *fromfile,BUFFPEK *buffpek,
-                                  uint sort_length);
-static int NEAR_F merge_buffers(MI_SORT_PARAM *info,uint keys,
-                                IO_CACHE *from_file, IO_CACHE *to_file,
-                                uchar * *sort_keys, BUFFPEK *lastbuff,
-                                BUFFPEK *Fb, BUFFPEK *Tb);
-static int NEAR_F merge_index(MI_SORT_PARAM *,uint,uchar **,BUFFPEK *, int,
-                              IO_CACHE *);
+static ha_rows find_all_keys(MI_SORT_PARAM *info,uint keys,
+                             uchar **sort_keys,
+                             DYNAMIC_ARRAY *buffpek,int *maxbuffer,
+                             IO_CACHE *tempfile,
+                             IO_CACHE *tempfile_for_exceptions);
+static int write_keys(MI_SORT_PARAM *info,uchar **sort_keys,
+                      uint count, BUFFPEK *buffpek,IO_CACHE *tempfile);
+static int write_key(MI_SORT_PARAM *info, uchar *key,
+                     IO_CACHE *tempfile);
+static int write_index(MI_SORT_PARAM *info,uchar * *sort_keys,
+                       uint count);
+static int merge_many_buff(MI_SORT_PARAM *info,uint keys,
+                           uchar * *sort_keys,
+                           BUFFPEK *buffpek,int *maxbuffer,
+                           IO_CACHE *t_file);
+static uint read_to_buffer(IO_CACHE *fromfile,BUFFPEK *buffpek,
+                           uint sort_length);
+static int merge_buffers(MI_SORT_PARAM *info,uint keys,
+                         IO_CACHE *from_file, IO_CACHE *to_file,
+                         uchar * *sort_keys, BUFFPEK *lastbuff,
+                         BUFFPEK *Fb, BUFFPEK *Tb);
+static int merge_index(MI_SORT_PARAM *,uint,uchar **,BUFFPEK *, int,
+                       IO_CACHE *);
 static int flush_ft_buf(MI_SORT_PARAM *info);
 
-static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info,uchar **sort_keys,
-                                    uint count, BUFFPEK *buffpek,
-                                    IO_CACHE *tempfile);
-static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile,BUFFPEK *buffpek,
-                                         uint sort_length);
-static int NEAR_F write_merge_key(MI_SORT_PARAM *info, IO_CACHE *to_file,
-                                  uchar *key, uint sort_length, uint count);
-static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
-					 IO_CACHE *to_file,
-					 uchar* key, uint sort_length,
-					 uint count);
+static int write_keys_varlen(MI_SORT_PARAM *info,uchar **sort_keys,
+                             uint count, BUFFPEK *buffpek,
+                             IO_CACHE *tempfile);
+static uint read_to_buffer_varlen(IO_CACHE *fromfile,BUFFPEK *buffpek,
+                                  uint sort_length);
+static int write_merge_key(MI_SORT_PARAM *info, IO_CACHE *to_file,
+                           uchar *key, uint sort_length, uint count);
+static int write_merge_key_varlen(MI_SORT_PARAM *info,
+                                  IO_CACHE *to_file,
+                                  uchar* key, uint sort_length,
+                                  uint count);
 static inline int
 my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
 
@@ -162,7 +162,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
       if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer,
 			     maxbuffer/2))
       {
-	my_free((uchar*) sort_keys,MYF(0));
+	my_free(sort_keys);
         sort_keys= 0;
       }
       else
@@ -242,8 +242,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   error =0;
 
 err:
-  if (sort_keys)
-    my_free((uchar*) sort_keys,MYF(0));
+  my_free(sort_keys);
   delete_dynamic(&buffpek);
   close_cached_file(&tempfile);
   close_cached_file(&tempfile_for_exceptions);
@@ -254,10 +253,10 @@ err:
 
 /* Search after all keys and place them in a temp. file */
 
-static ha_rows NEAR_F find_all_keys(MI_SORT_PARAM *info, uint keys,
-				    uchar **sort_keys, DYNAMIC_ARRAY *buffpek,
-				    int *maxbuffer, IO_CACHE *tempfile,
-				    IO_CACHE *tempfile_for_exceptions)
+static ha_rows find_all_keys(MI_SORT_PARAM *info, uint keys,
+                             uchar **sort_keys, DYNAMIC_ARRAY *buffpek,
+                             int *maxbuffer, IO_CACHE *tempfile,
+                             IO_CACHE *tempfile_for_exceptions)
 {
   int error;
   uint idx;
@@ -382,7 +381,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
         if (my_init_dynamic_array(&sort_param->buffpek, sizeof(BUFFPEK),
                                   maxbuffer, maxbuffer/2))
         {
-          my_free((uchar*) sort_keys,MYF(0));
+          my_free(sort_keys);
           sort_keys= (uchar **) NULL; /* for err: label */
         }
         else
@@ -451,8 +450,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
 err:
     DBUG_PRINT("error", ("got some error"));
     sort_param->sort_info->got_error= 1; /* no need to protect with a mutex */
-    if (sort_keys)
-      my_free((uchar*) sort_keys,MYF(0));
+    my_free(sort_keys);
     sort_param->sort_keys= 0;
     delete_dynamic(& sort_param->buffpek);
     close_cached_file(&sort_param->tempfile);
@@ -509,8 +507,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
     if (!sinfo->sort_keys)
     {
       got_error=1;
-      my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff),
-              MYF(MY_ALLOW_ZERO_PTR));
+      my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff));
       continue;
     }
     if (!got_error)
@@ -528,9 +525,8 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
           got_error=1;
       }
     }
-    my_free((uchar*) sinfo->sort_keys,MYF(0));
-    my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff),
-	    MYF(MY_ALLOW_ZERO_PTR));
+    my_free(sinfo->sort_keys);
+    my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff));
     sinfo->sort_keys=0;
   }
 
@@ -638,15 +634,15 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
                        sinfo->notnull : NULL,
                        (ulonglong) info->state->records);
   }
-  my_free((uchar*) mergebuf,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mergebuf);
   DBUG_RETURN(got_error);
 }
 #endif /* THREAD */
 
         /* Write all keys in memory to file for later merge */
 
-static int NEAR_F write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
-                             uint count, BUFFPEK *buffpek, IO_CACHE *tempfile)
+static int write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
+                      uint count, BUFFPEK *buffpek, IO_CACHE *tempfile)
 {
   uchar **end;
   uint sort_length=info->key_length;
@@ -686,10 +682,10 @@ my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs)
 }
 
 
-static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info,
-				    register uchar **sort_keys,
-                                    uint count, BUFFPEK *buffpek,
-				    IO_CACHE *tempfile)
+static int write_keys_varlen(MI_SORT_PARAM *info,
+                             register uchar **sort_keys,
+                             uint count, BUFFPEK *buffpek,
+                             IO_CACHE *tempfile)
 {
   uchar **end;
   int err;
@@ -713,8 +709,7 @@ static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info,
 } /* write_keys_varlen */
 
 
-static int NEAR_F write_key(MI_SORT_PARAM *info, uchar *key,
-			    IO_CACHE *tempfile)
+static int write_key(MI_SORT_PARAM *info, uchar *key, IO_CACHE *tempfile)
 {
   uint key_length=info->real_key_length;
   DBUG_ENTER("write_key");
@@ -733,8 +728,8 @@ static int NEAR_F write_key(MI_SORT_PARAM *info, uchar *key,
 
 /* Write index */
 
-static int NEAR_F write_index(MI_SORT_PARAM *info, register uchar **sort_keys,
-                              register uint count)
+static int write_index(MI_SORT_PARAM *info, register uchar **sort_keys,
+                       register uint count)
 {
   DBUG_ENTER("write_index");
 
@@ -751,9 +746,9 @@ static int NEAR_F write_index(MI_SORT_PARAM *info, register uchar **sort_keys,
 
         /* Merge buffers to make < MERGEBUFF2 buffers */
 
-static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
-                                  uchar **sort_keys, BUFFPEK *buffpek,
-                                  int *maxbuffer, IO_CACHE *t_file)
+static int merge_many_buff(MI_SORT_PARAM *info, uint keys,
+                           uchar **sort_keys, BUFFPEK *buffpek,
+                           int *maxbuffer, IO_CACHE *t_file)
 {
   register int i;
   IO_CACHE t_file2, *from_file, *to_file, *temp;
@@ -814,8 +809,8 @@ cleanup:
     -1	Error
 */
 
-static uint NEAR_F read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
-                                  uint sort_length)
+static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
+                           uint sort_length)
 {
   register uint count;
   uint length;
@@ -834,8 +829,8 @@ static uint NEAR_F read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
   return (count*sort_length);
 } /* read_to_buffer */
 
-static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
-                                         uint sort_length)
+static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
+                                  uint sort_length)
 {
   register uint count;
   uint16 length_of_key = 0;
@@ -866,9 +861,9 @@ static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
 } /* read_to_buffer_varlen */
 
 
-static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
-					 IO_CACHE *to_file, uchar* key,
-                                         uint sort_length, uint count)
+static int write_merge_key_varlen(MI_SORT_PARAM *info,
+                                  IO_CACHE *to_file, uchar* key,
+                                  uint sort_length, uint count)
 {
   uint idx;
   uchar *bufs = key;
@@ -884,9 +879,9 @@ static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
 }
 
 
-static int NEAR_F write_merge_key(MI_SORT_PARAM *info __attribute__((unused)),
-				  IO_CACHE *to_file, uchar *key,
-				  uint sort_length, uint count)
+static int write_merge_key(MI_SORT_PARAM *info __attribute__((unused)),
+                           IO_CACHE *to_file, uchar *key,
+                           uint sort_length, uint count)
 {
   return my_b_write(to_file, key, (size_t) sort_length*count);
 }
@@ -896,7 +891,7 @@ static int NEAR_F write_merge_key(MI_SORT_PARAM *info __attribute__((unused)),
   If to_file == 0 then use info->key_write
 */
 
-static int NEAR_F
+static int
 merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
               IO_CACHE *to_file, uchar **sort_keys, BUFFPEK *lastbuff,
               BUFFPEK *Fb, BUFFPEK *Tb)
@@ -1039,7 +1034,7 @@ err:
 
         /* Do a merge to output-file (save only positions) */
 
-static int NEAR_F
+static int
 merge_index(MI_SORT_PARAM *info, uint keys, uchar **sort_keys,
             BUFFPEK *buffpek, int maxbuffer, IO_CACHE *tempfile)
 {
@@ -1057,7 +1052,7 @@ flush_ft_buf(MI_SORT_PARAM *info)
   if (info->sort_info->ft_buf)
   {
     err=sort_ft_buf_flush(info);
-    my_free((uchar*)info->sort_info->ft_buf, MYF(0));
+    my_free(info->sort_info->ft_buf);
     info->sort_info->ft_buf=0;
   }
   return err;

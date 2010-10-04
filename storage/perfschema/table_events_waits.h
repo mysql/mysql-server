@@ -39,6 +39,8 @@ struct row_events_waits
   ulong m_thread_internal_id;
   /** Column EVENT_ID. */
   ulonglong m_event_id;
+  /** Column NESTING_EVENT_ID. */
+  ulonglong m_nesting_event_id;
   /** Column EVENT_NAME. */
   const char *m_name;
   /** Length in bytes of @c m_name. */
@@ -137,11 +139,11 @@ protected:
   void clear_object_columns();
 
   void make_row(bool thread_own_wait, PFS_thread *pfs_thread,
-                PFS_events_waits *wait);
+                volatile PFS_events_waits *wait);
 
   /** Current row. */
   row_events_waits m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
 };
 

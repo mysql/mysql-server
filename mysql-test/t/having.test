@@ -544,3 +544,48 @@ ORDER BY t1.f2;
 DROP TABLE t1,t2;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug#54416 MAX from JOIN with HAVING returning NULL with 5.1 and Empty set
+--echo #
+
+CREATE TABLE t1 (f1 INT(11), f2 VARCHAR(1), PRIMARY KEY (f1));
+INSERT INTO t1 VALUES (1,'f');
+
+CREATE TABLE t2 (f1 INT(11), f2 VARCHAR(1));
+INSERT INTO t2 VALUES (2,'m');
+INSERT INTO t2 VALUES (3,'m');
+INSERT INTO t2 VALUES (11,NULL);
+INSERT INTO t2 VALUES (12,'k');
+
+SELECT MAX(t1.f1) field1
+FROM t1 JOIN t2 ON t2.f2 LIKE 'x'
+HAVING field1 < 7;
+
+DROP TABLE t1,t2;
+
+--echo End of 5.1 tests
+
+--echo #
+--echo # BUG#46077 "wrong result: HAVING + ORDER BY + MyISAM + ICP
+--echo # returns extra rows"
+--echo #
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_key` int(11) NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`)
+) AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+
+INSERT INTO `t1` VALUES (1,7),(2,9);
+
+SELECT `pk`, `int_key` field1
+FROM t1 WHERE  `pk`  <  3
+HAVING  field1  <  8
+ORDER  BY field1;
+
+drop table `t1`;
+
+--echo End of 5.5 tests
+

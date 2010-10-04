@@ -515,7 +515,7 @@ select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 drop table if exists t1;
 create table t1 (a int) ENGINE=MEMORY;
 --> client 2
@@ -1710,3 +1710,23 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 HANDLER t1 CLOSE;
 # Connection con51355
 # Connection default
+#
+# Bug#54401 assert in Diagnostics_area::set_eof_status , HANDLER
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+SELECT 1 FROM t2 INTO @a;
+RETURN 1;
+END|
+SELECT f1();
+ERROR 42S02: Table 'test.t2' doesn't exist
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST WHERE f1() = 1;
+ERROR 42S02: Table 'test.t2' doesn't exist
+HANDLER t1 CLOSE;
+DROP FUNCTION f1;
+DROP TABLE t1;

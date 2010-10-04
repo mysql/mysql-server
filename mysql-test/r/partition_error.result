@@ -14,7 +14,7 @@ ERROR HY000: Failed to read from the .par file
 # Note that it is currently impossible to drop a partitioned table
 # without the .par file
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 #
 # Bug#49477: Assertion `0' failed in ha_partition.cc:5530
 # with temporary table and partitions
@@ -221,6 +221,19 @@ partition x3 tablespace ts3);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ts1,
 partition x2 tablespace ts2,
 partition x3 tablespace ts3)' at line 8
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by range columns (a,d)
+(partition x1 VALUES LESS THAN (1,1),
+partition x2 VALUES LESS THAN (2,2),
+partition x3 VALUES LESS THAN (3,3));
+ERROR HY000: Field in list of fields for partition function not found in table
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
+NULL
 CREATE TABLE t1 (
 a int not null,
 b int not null,

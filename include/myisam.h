@@ -55,8 +55,6 @@ extern "C" {
 #define MI_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
 #define MI_NAME_IEXT	".MYI"
 #define MI_NAME_DEXT	".MYD"
-/* Max extra space to use when sorting keys */
-#define MI_MAX_TEMP_LENGTH	2*1024L*1024L*1024L
 
 /* Possible values for myisam_block_size (must be power of 2) */
 #define MI_KEY_BLOCK_LENGTH	1024	/* default key block length */
@@ -120,7 +118,7 @@ extern "C" {
                             (_to_)= (mi_get_mask_all_keys_active(_maxkeys_) & \
                                      (_from_))
 
-	/* Param to/from mi_info */
+	/* Param to/from mi_status */
 
 typedef struct st_mi_isaminfo		/* Struct from h_info */
 {
@@ -251,10 +249,10 @@ typedef struct st_columndef		/* column information */
 
 extern char * myisam_log_filename;		/* Name of logfile */
 extern ulong myisam_block_size;
-extern uint myisam_concurrent_insert;
+extern ulong myisam_concurrent_insert;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_off_t myisam_max_temp_length;
-extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
+extern ulong myisam_data_pointer_size;
 
 /* usually used to check if a symlink points into the mysql data home */
 /* which is normally forbidden                                        */
@@ -483,8 +481,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 		      const char * name, int rep_quick);
 int change_to_newfile(const char * filename, const char * old_ext,
-		      const char * new_ext, uint raid_chunks,
-		      myf myflags);
+		      const char * new_ext, myf myflags);
 int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
 	      const char *filetype, const char *filename);
 void lock_memory(MI_CHECK *param);

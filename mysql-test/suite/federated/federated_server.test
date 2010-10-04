@@ -62,7 +62,7 @@ eval create server 'server_two' foreign data wrapper 'mysql' options
   OWNER 'root');
 
 --replace_result $SLAVE_MYPORT SLAVE_PORT
-eval select * from mysql.servers;
+eval select * from mysql.servers order by Server_name;
 
 DROP TABLE IF EXISTS federated.old;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
@@ -147,7 +147,7 @@ drop table federated.t1;
 
 drop server 'server_one';
 drop server 'server_two';
-select * from mysql.servers;
+select * from mysql.servers order by Server_name;
 
 connection slave;
 drop table first_db.t1;
@@ -301,6 +301,8 @@ drop server 's1';
 connect (other,localhost,root,,);
 connection master;
 use test;
+create table t1(a int);
+insert into t1 values (1);
 delimiter //;
 create procedure p1 ()
 begin
@@ -316,6 +318,7 @@ begin
 	DROP SERVER s;
     SET v = v + 1;
   END WHILE;
+  select a into @a from t1; # Just reset warnings
 END//
 delimiter ;//
 connection other;
@@ -326,6 +329,7 @@ call p1();
 connection other;
 reap;
 drop procedure p1;
+drop table t1;
 drop server if exists s;
 
 

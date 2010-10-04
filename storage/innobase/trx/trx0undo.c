@@ -515,7 +515,7 @@ trx_undo_header_create_log(
 {
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_HDR_CREATE, mtr);
 
-	mlog_catenate_dulint_compressed(mtr, trx_id);
+	mlog_catenate_ull_compressed(mtr, trx_id);
 }
 #else /* !UNIV_HOTBACKUP */
 # define trx_undo_header_create_log(undo_page,trx_id,mtr) ((void) 0)
@@ -687,7 +687,7 @@ trx_undo_insert_header_reuse_log(
 {
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_HDR_REUSE, mtr);
 
-	mlog_catenate_dulint_compressed(mtr, trx_id);
+	mlog_catenate_ull_compressed(mtr, trx_id);
 }
 #else /* !UNIV_HOTBACKUP */
 # define trx_undo_insert_header_reuse_log(undo_page,trx_id,mtr) ((void) 0)
@@ -707,8 +707,14 @@ trx_undo_parse_page_header(
 	mtr_t*	mtr)	/*!< in: mtr or NULL */
 {
 	trx_id_t	trx_id;
+	/* Silence a GCC warning about possibly uninitialized variable
+	when mach_ull_parse_compressed() is not inlined. */
+	ut_d(trx_id = 0);
+	/* Declare the variable uninitialized in Valgrind, so that the
+	above initialization will not mask any bugs. */
+	UNIV_MEM_INVALID(&trx_id, sizeof trx_id);
 
-	ptr = mach_dulint_parse_compressed(ptr, end_ptr, &trx_id);
+	ptr = mach_ull_parse_compressed(ptr, end_ptr, &trx_id);
 
 	if (ptr == NULL) {
 
@@ -1098,8 +1104,7 @@ trx_undo_truncate_end(
 				break;
 			}
 
-			if (ut_dulint_cmp(trx_undo_rec_get_undo_no(rec), limit)
-			    >= 0) {
+			if (trx_undo_rec_get_undo_no(rec) >= limit) {
 				/* Truncate at least this record off, maybe
 				more */
 				trunc_here = rec;
@@ -1152,7 +1157,7 @@ trx_undo_truncate_start(
 
 	ut_ad(mutex_own(&(rseg->mutex)));
 
-	if (ut_dulint_is_zero(limit)) {
+	if (!limit) {
 
 		return;
 	}
@@ -1174,7 +1179,7 @@ loop:
 
 	last_rec = trx_undo_page_get_last_rec(undo_page, hdr_page_no,
 					      hdr_offset);
-	if (ut_dulint_cmp(trx_undo_rec_get_undo_no(last_rec), limit) >= 0) {
+	if (trx_undo_rec_get_undo_no(last_rec) >= limit) {
 
 		mtr_commit(&mtr);
 
@@ -1296,7 +1301,7 @@ trx_undo_mem_create_at_db_start(
 
 	undo_header = undo_page + offset;
 
-	trx_id = mtr_read_dulint(undo_header + TRX_UNDO_TRX_ID, mtr);
+	trx_id = mach_read_from_8(undo_header + TRX_UNDO_TRX_ID);
 
 	xid_exists = mtr_read_ulint(undo_header + TRX_UNDO_XID_EXISTS,
 				    MLOG_1BYTE, mtr);
@@ -1320,7 +1325,7 @@ trx_undo_mem_create_at_db_start(
 	undo->dict_operation =	mtr_read_ulint(
 		undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
 
-	undo->table_id = mtr_read_dulint(undo_header + TRX_UNDO_TABLE_ID, mtr);
+	undo->table_id = mach_read_from_8(undo_header + TRX_UNDO_TABLE_ID);
 	undo->state = state;
 	undo->size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST, mtr);
 
@@ -1709,7 +1714,7 @@ trx_undo_mark_as_dict_operation(
 		ut_error;
 	case TRX_DICT_OP_INDEX:
 		/* Do not discard the table on recovery. */
-		undo->table_id = ut_dulint_zero;
+		undo->table_id = 0;
 		break;
 	case TRX_DICT_OP_TABLE:
 		undo->table_id = trx->table_id;
@@ -1720,8 +1725,8 @@ trx_undo_mark_as_dict_operation(
 			 + TRX_UNDO_DICT_TRANS,
 			 TRUE, MLOG_1BYTE, mtr);
 
-	mlog_write_dulint(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,
-			  undo->table_id, mtr);
+	mlog_write_ull(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,
+		       undo->table_id, mtr);
 
 	undo->dict_operation = TRUE;
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2006 MySQL AB
+/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -50,7 +50,7 @@ void Item_geometry_func::fix_length_and_dec()
 {
   collation.set(&my_charset_bin);
   decimals=0;
-  max_length= max_field_size;
+  max_length= (uint32) 4294967295U;
   maybe_null= 1;
 }
 
@@ -881,6 +881,7 @@ mem_error:
   DBUG_RETURN(0);
 }
 
+
 int Item_func_spatial_rel::func_equals()
 {
   Gcalc_heap::Info *pi_s1, *pi_s2;
@@ -908,6 +909,7 @@ int Item_func_spatial_rel::func_equals()
 
   return 1;
 }
+
 
 longlong Item_func_spatial_rel::val_int()
 {
@@ -1018,8 +1020,6 @@ String *Item_func_spatial_operation::val_str(String *str_value)
     goto exit;
 
   
-  GCALC_DBUG_STARTFILE("/home/hf/Gcalc_log");
-
   collector.prepare_operation();
   scan_it.init(&collector);
   if (func.alloc_states())
@@ -1042,7 +1042,6 @@ String *Item_func_spatial_operation::val_str(String *str_value)
     goto exit;
 
 exit:
-  GCALC_DBUG_STOP;
   collector.reset();
   func.reset();
   scan_it.reset();
@@ -1417,11 +1416,9 @@ String *Item_func_buffer::val_str(String *str_value)
   func.add_operation((dist > 0.0) ? Gcalc_function::op_union :
                                     Gcalc_function::op_difference, 0);
 
-  GCALC_DBUG_STARTFILE("/home/hf/linebuffer");
   if (g->store_shapes(&trn))
     goto mem_error;
 
-  GCALC_DBUG_STOP;
   func.add_operands_to_op(union_pos, trn.m_nshapes);
   collector.prepare_operation();
   if (func.alloc_states())

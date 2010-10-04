@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
@@ -27,7 +27,6 @@
 #include "mysqld.h"                             // lc_messages_dir
 #include "sys_vars_shared.h"
 #include "transaction.h"
-#include "sql_base.h"                           // close_thread_tables
 #include "sql_locale.h"                         // my_locale_by_number,
                                                 // my_locale_by_name
 #include "strfunc.h"      // find_set_from_flags, find_set
@@ -109,7 +108,7 @@ void sys_var_end()
   my_hash_free(&system_variable_hash);
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
-    var->~sys_var();
+    var->cleanup();
 
   DBUG_VOID_RETURN;
 }
@@ -154,6 +153,17 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   guard(lock), offset(off), on_check(on_check_func), on_update(on_update_func),
   is_os_charset(FALSE)
 {
+  /*
+    There is a limitation in handle_options() related to short options:
+    - either all short options should be declared when parsing in multiple stages,
+    - or none should be declared.
+    Because a lot of short options are used in the normal parsing phase
+    for mysqld, we enforce here that no short option is present
+    in the first (PARSE_EARLY) stage.
+    See handle_options() for details.
+  */
+  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+
   name.str= name_arg;
   name.length= strlen(name_arg);
   DBUG_ASSERT(name.length <= NAME_CHAR_LEN);

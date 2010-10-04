@@ -6,6 +6,6 @@ path=`dirname $0`
 extra_flags="$pentium_cflags $debug_cflags"
 extra_configs="$pentium_configs $debug_configs"
 
-extra_configs="$extra_configs  --with-debug=full --with-ssl"
+extra_configs="$extra_configs  --with-debug --with-ssl"
 
 . "$path/FINISH.sh"

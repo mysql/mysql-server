@@ -45,4 +45,7 @@ typedef struct tab_node_struct		tab_node_t;
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */
 #define	DICT_HDR_PAGE_NO	FSP_DICT_HDR_PAGE_NO
 
+typedef ib_id_t		table_id_t;
+typedef ib_id_t		index_id_t;
+
 #endif

@@ -82,7 +82,7 @@ void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
   if ( *h )
     close((*h)->socket);
 
-  my_free((char*)* h,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(* h);
   * h = 0;
 }
 

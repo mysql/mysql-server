@@ -30,7 +30,7 @@ nodist_EXTRA_libdbug_la_SOURCES = dummy.cxx
 noinst_HEADERS =        dbug_long.h
 
 noinst_LTLIBRARIES =	libdbuglt.la
-libdbuglt_la_SOURCES =	dbug.c sanity.c
+libdbuglt_la_SOURCES =	dbug.c
 EXTRA_DIST =            CMakeLists.txt example1.c example2.c example3.c \
                         user.r monty.doc dbug_add_tags.pl \
                         my_main.c main.c factorial.c dbug_analyze.c \

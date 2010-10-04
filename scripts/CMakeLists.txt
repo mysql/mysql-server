@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # Build comp_sql - used for embedding SQL in C or C++ programs
 IF(NOT CMAKE_CROSSCOMPILING)
@@ -24,6 +23,7 @@ ENDIF()
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
 IF(NOT WIN32 OR CMAKE_CROSSCOMPILING)
   FIND_PROGRAM(CAT_EXECUTABLE cat DOC "path to the executable")
+  MARK_AS_ADVANCED(CAT_EXECUTABLE)
 ENDIF()
 
 IF(CAT_EXECUTABLE)
@@ -90,17 +90,17 @@ IF(MALLOC_LIB)
 ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  # No multiconfig build - use CMAKE_C_FLAGS
-  SET(CFLAGS "@CMAKE_C_FLAGS@")
-  SET(CXXFLAGS "@CMAKE_CXX_FLAGS@")
+  # Strip maintainer mode options if necessary
+  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
     SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
     SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
   ENDFOREACH()
 ELSE()
-  # Multiconfig build - use CMAKE_C_FLAGS_RELWITHDEBINFO
-  SET(CFLAGS "@CMAKE_C_FLAGS_RELWITHDEBINFO@")
-  SET(CXXFLAGS "@CMAKE_CXX_FLAGS_RELWITHDEBINFO@")
+  # Strip maintainer mode options if necessary
+  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
 
 IF(UNIX)
@@ -139,6 +139,44 @@ ELSE()
 ENDIF()
 
 SET(HOSTNAME "hostname")
+SET(MYSQLD_USER "mysql")
+
+# Required for mysqlbug until autotools are deprecated, once done remove these
+# and expand default cmake variables
+SET(CC ${CMAKE_C_COMPILER})
+SET(CXX ${CMAKE_CXX_COMPILER})
+SET(SAVE_CC ${CMAKE_C_COMPILER})
+SET(SAVE_CXX ${CMAKE_CXX_COMPILER})
+SET(SAVE_CFLAGS ${CFLAGS})
+SET(SAVE_CXXFLAGS ${CXXFLAGS})
+# XXX no cmake equivalent for this, just make one up
+SET(CONFIGURE_LINE "Built using CMake")
+
+# Also required for mysqlbug, autoconf only supports --version so for now we
+# just explicitly require GNU
+IF(CMAKE_COMPILER_IS_GNUCC)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1} --version
+    COMMAND sed 1q
+    OUTPUT_VARIABLE CC_VERSION)
+ELSE()
+  SET(CC_VERSION "")
+ENDIF()
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} --version
+    COMMAND sed 1q
+    OUTPUT_VARIABLE CXX_VERSION)
+ELSE()
+  SET(CXX_VERSION "")
+ENDIF()
+
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
+  ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug ESCAPE_QUOTES @ONLY)
+INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/mysqlbug
+  DESTINATION ${INSTALL_BINDIR}
+  COMPONENT Server
+  )
 
 ENDIF(UNIX)
 
@@ -196,9 +234,9 @@ SET(localstatedir ${MYSQL_DATADIR})
 
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  SET(TARGET_LINUX 1)
+  SET(TARGET_LINUX "true")
 ELSE()
-  SET(TARGET_LINUX 0)
+  SET(TARGET_LINUX "false")
 ENDIF()
 
 # Use cmake variables to inspect dependencies for 
@@ -214,43 +252,40 @@ IF(POLICY CMP0007)
   CMAKE_POLICY(SET CMP0007 OLD)
 ENDIF()
 
-LIST(REMOVE_ITEM mysqlclient_LIB_DEPENDS "")
-LIST(REMOVE_DUPLICATES mysqlclient_LIB_DEPENDS)
-FOREACH(lib ${mysqlclient_LIB_DEPENDS})
-  # Filter out "general", it is not a library, just CMake hint
-  IF(NOT lib STREQUAL "general" AND NOT CLIENT_LIBS MATCHES "-l${lib} ")
-     IF (lib MATCHES "^\\-l")
-       SET(CLIENT_LIBS "${CLIENT_LIBS} ${lib} ") 
-     ELSEIF(lib MATCHES "^/")
-       # Full path, convert to just filename, strip "lib" prefix and extension
-       GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
-       STRING(REGEX REPLACE "^lib" "" lib "${lib}")
-       SET(CLIENT_LIBS "${CLIENT_LIBS}-l${lib} " ) 
-     ELSE()
-       SET(CLIENT_LIBS "${CLIENT_LIBS}-l${lib} " ) 
-     ENDIF()
+# Extract dependencies using CMake's internal ${target}_LIB_DEPENDS variable
+# returned string in ${var} is can be passed to linker's command line
+MACRO(EXTRACT_LINK_LIBRARIES target var)
+  IF(${target}_LIB_DEPENDS)
+    LIST(REMOVE_ITEM ${target}_LIB_DEPENDS "")
+    LIST(REMOVE_DUPLICATES ${target}_LIB_DEPENDS)
+    FOREACH(lib ${${target}_LIB_DEPENDS})
+      # Filter out "general", it is not a library, just CMake hint
+      # Also, remove duplicates
+      IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
+        IF (lib MATCHES "^\\-l")
+          SET(${var} "${${var}} ${lib} ") 
+        ELSEIF(lib MATCHES "^/")
+          # Full path, convert to just filename, strip "lib" prefix and extension
+          GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
+          STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+          SET(${var} "${${var}}-l${lib} " ) 
+        ELSE()
+          SET(${var} "${${var}}-l${lib} " ) 
+        ENDIF()
+      ENDIF()
+    ENDFOREACH()
   ENDIF()
-ENDFOREACH()
+  IF(MSVC)
+    STRING(REPLACE "-l" "" ${var} "${${var}}")
+  ENDIF()
+ENDMACRO()
 
+EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
+EXTRACT_LINK_LIBRARIES(mysqlserver LIBS)
 
-IF(LIBDL AND NOT LIBDL MATCHES "-l")
-  SET(LIBDL "-l${LIBDL}")
-ENDIF()
-
-IF(LIBWRAP)
-  SET(WRAPLIBS "-lwrap")
-ENDIF()
-
-SET(LIBS "${CLIENT_LIBS}")
-
-IF(LIBCRYPT)
-  SET(LIBS "${LIBS} -l${LIBCRYPT}")
-ENDIF()
-
-IF(MSVC)
-  STRING(REPLACE "-l" "" CLIENT_LIBS "${CLIENT_LIBS}")
-  STRING(REPLACE "-l" "" LIBS "${LIBS}" )
-ENDIF()
+# mysql_config evaluates ${LIBDL}, we want to avoid it
+# as our CLIENT_LIBS and LIBS are already correct
+SET(LIBDL)
 
 SET(NON_THREADED_LIBS ${CLIENT_LIBS})
 SET(mysql_config_COMPONENT COMPONENT Development)
@@ -292,7 +327,6 @@ ELSE()
     mysql_zap
     mysqlaccess
     mysqlaccess.conf
-    mysqlbug
     mysql_convert_table_format
     mysql_find_rows
     mysqlhotcopy
@@ -311,6 +345,7 @@ ELSE()
       MESSAGE(FATAL_ERROR "Can not find ${file}.sh or ${file} in "
         "${CMAKE_CURRENT_SOURCE_DIR}" )
     ENDIF()
+    EXECUTE_PROCESS(COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/${file})
     IF(NOT ${file}_COMPONENT)
       SET(${file}_COMPONENT Server)
     ENDIF()

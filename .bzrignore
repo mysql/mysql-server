@@ -1,4 +1,5 @@
 *-t
+*_test
 *.Plo
 *.Po
 *.a
@@ -997,6 +998,7 @@ libmysqld/.deps/sql_cursor.Po
 libmysqld/.deps/sql_db.Po
 libmysqld/.deps/sql_delete.Po
 libmysqld/.deps/sql_truncate.Po
+libmysqld/.deps/sql_reload.Po
 libmysqld/.deps/datadict.Po
 libmysqld/.deps/sql_derived.Po
 libmysqld/.deps/sql_do.Po
@@ -1162,6 +1164,7 @@ libmysqld/sp_pcontext.cc
 libmysqld/sp_rcontext.cc
 libmysqld/spatial.cc
 libmysqld/sql_acl.cc
+libmysqld/sql_alloc_error_handler.cc
 libmysqld/sql_analyse.cc
 libmysqld/sql_base.cc
 libmysqld/sql_builtin.cc
@@ -1175,6 +1178,7 @@ libmysqld/sql_cursor.h
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
 libmysqld/sql_truncate.cc
+libmysqld/sql_reload.cc
 libmysqld/datadict.cc
 libmysqld/sql_derived.cc
 libmysqld/sql_do.cc
@@ -2067,6 +2071,7 @@ sql/.deps/sql_cursor.Po
 sql/.deps/sql_db.Po
 sql/.deps/sql_delete.Po
 sql/.deps/sql_truncate.Po
+sql/.deps/sql_reload.Po
 sql/.deps/datadict.Po
 sql/.deps/sql_derived.Po
 sql/.deps/sql_do.Po
@@ -2114,6 +2119,7 @@ sql/.libs/udf_example.so.0
 sql/.libs/udf_example.so.0.0.0
 sql/client.c
 sql/Doxyfile
+sql/cscope.out
 sql/f.c
 sql/gen_lex_hash
 sql/gmon.out
@@ -3089,6 +3095,13 @@ libmysqld/sys_vars.cc
 libmysqld/keycaches.cc
 client/dtoa.c
 libmysqld/sql_audit.cc
+storage/archive/archive_performance
+storage/archive/concurrency_test
+libmysql_r/client_settings.h
+libmysqld/scheduler.cc
+libmysqld/sql_connect.cc
+libmysqld/sql_tablespace.cc
+mysql-test/dump.txt
 configure.am
 run_collection*.cmake
 configure.am
@@ -3112,3 +3125,8 @@ libmysqld/merge_archives_mysqlserver.cmake
 libmysqld/mysqlserver_depends.c
 libmysqld/examples/mysql_embedded
 sql/.empty
+libmysqld/sql_bootstrap.cc
+mysys/thr_lock
+libmysqld/binlog.cc
+libmysqld/sql_alter.cc
+libmysqld/sql_partition_admin.cc

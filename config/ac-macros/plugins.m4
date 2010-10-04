@@ -782,7 +782,7 @@ dnl   Emits shell script for checking configure arguments
 dnl   Arguments to this macro is default value for selected plugins
 
 AC_DEFUN([_MYSQL_CHECK_PLUGIN_ARGS],[
- __MYSQL_CHECK_PLUGIN_ARGS(m4_default([$1], [none]))
+ __MYSQL_CHECK_PLUGIN_ARGS(m4_default([$1], [default]))
 ])
 
 AC_DEFUN([__MYSQL_CHECK_PLUGIN_ARGS],[

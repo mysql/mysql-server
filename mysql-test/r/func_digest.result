@@ -1405,3 +1405,24 @@ LENGTH(SHA2( 'size', 384 )) / 2 * 8       = 384
 SELECT LENGTH(SHA2( 'computed', 512 )) / 2 * 8   = 512;
 LENGTH(SHA2( 'computed', 512 )) / 2 * 8   = 512
 1
+#
+# Bug#54661 sha2() returns BINARY result
+#
+SET NAMES binary;
+SELECT sha2('1',224);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					sha2('1',224)	253	56	56	Y	128	31	63
+sha2('1',224)
+e25388fde8290dc286a6164fa2d97e551b53498dcbf7bc378eb1f178
+SET NAMES utf8;
+SELECT sha2('1',224);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					sha2('1',224)	253	168	56	Y	0	31	33
+sha2('1',224)
+e25388fde8290dc286a6164fa2d97e551b53498dcbf7bc378eb1f178
+SET NAMES latin1;
+SELECT sha2('1',224);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					sha2('1',224)	253	56	56	Y	0	31	8
+sha2('1',224)
+e25388fde8290dc286a6164fa2d97e551b53498dcbf7bc378eb1f178

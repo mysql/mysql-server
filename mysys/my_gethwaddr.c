@@ -47,7 +47,7 @@ my_bool my_gethwaddr(uchar *to)
   uchar  *buf, *next, *end, *addr;
   struct if_msghdr *ifm;
   struct sockaddr_dl *sdl;
-  int i, res=1, mib[6]={CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
+  int res=1, mib[6]={CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
 
   if (sysctl(mib, 6, NULL, &len, NULL, 0) == -1)
     goto err;
@@ -64,7 +64,7 @@ my_bool my_gethwaddr(uchar *to)
     if (ifm->ifm_type == RTM_IFINFO)
     {
       sdl = (struct sockaddr_dl *)(ifm + 1);
-      addr=LLADDR(sdl);
+      addr=(uchar *)LLADDR(sdl);
       res=memcpy_and_test(to, addr, ETHER_ADDR_LEN);
     }
   }
@@ -196,7 +196,7 @@ my_bool my_gethwaddr(uchar *to)
 
   /* Clean up memory allocation. */
   if (pAdapterAddresses != &adapterAddresses)
-    my_free(pAdapterAddresses, 0);
+    my_free(pAdapterAddresses);
 
   return return_val;
 }

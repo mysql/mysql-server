@@ -2270,7 +2270,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 100; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -2309,7 +2309,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (o_tiny_data= 0; o_tiny_data < 100; o_tiny_data++)
   {
-    len= my_sprintf(data, (data, "MySQL%d", o_int_data));
+    len= sprintf(data, "MySQL%d", o_int_data);
 
     rc= mysql_stmt_fetch(stmt);
     check_execute(stmt, rc);
@@ -3675,7 +3675,7 @@ static void test_simple_update()
   my_bind[0].buffer= szData;                /* string data */
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "updated-data"));
+  length[0]= sprintf(szData, "updated-data");
 
   my_bind[1].buffer= (void *) &nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -3871,7 +3871,7 @@ static void test_long_data_str()
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
-  my_sprintf(data, (data, "%d", i*5));
+  sprintf(data, "%d", i*5);
   verify_col_data("test_long_data_str", "LENGTH(longstr)", data);
   data[0]= '\0';
   while (i--)
@@ -3929,7 +3929,7 @@ static void test_long_data_str1()
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
-  length= my_sprintf(data, (data, "MySQL AB"));
+  length= sprintf(data, "MySQL AB");
 
   /* supply data in pieces */
   for (i= 0; i < 3; i++)
@@ -3969,10 +3969,10 @@ static void test_long_data_str1()
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
-  my_sprintf(data, (data, "%ld", (long)i*length));
+  sprintf(data, "%ld", (long)i*length);
   verify_col_data("test_long_data_str", "length(longstr)", data);
 
-  my_sprintf(data, (data, "%d", i*2));
+  sprintf(data, "%d", i*2);
   verify_col_data("test_long_data_str", "length(blb)", data);
 
   /* Test length of field->max_length */
@@ -4244,7 +4244,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "inserted-data"));
+  length[0]= sprintf(szData, "inserted-data");
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4273,7 +4273,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "updated-data"));
+  length[0]= sprintf(szData, "updated-data");
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4842,7 +4842,7 @@ static void bind_fetch(int row_count)
     /* CHAR */
     {
       char buff[20];
-      long len= my_sprintf(buff, (buff, "%d", rc));
+      long len= sprintf(buff, "%d", rc);
       DIE_UNLESS(strcmp(s_data, buff) == 0);
       DIE_UNLESS(length[6] == (ulong) len);
     }
@@ -5435,7 +5435,7 @@ static void test_insert()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 3; tiny_data++)
   {
-    length= my_sprintf(str_data, (str_data, "MySQL%d", tiny_data));
+    length= sprintf(str_data, "MySQL%d", tiny_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
   }
@@ -5774,215 +5774,6 @@ static void test_set_variable()
   mysql_stmt_close(stmt);
   mysql_stmt_close(stmt1);
 }
-
-#if NOT_USED
-
-/* Insert meta info .. */
-
-static void test_insert_meta()
-{
-  MYSQL_STMT *stmt;
-  int        rc;
-  MYSQL_RES  *result;
-  MYSQL_FIELD *field;
-
-  myheader("test_insert_meta");
-
-  rc= mysql_autocommit(mysql, TRUE);
-  myquery(rc);
-
-  rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prep_insert");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "CREATE TABLE test_prep_insert(col1 tinyint, \
-                                col2 varchar(50), col3 varchar(30))");
-  myquery(rc);
-
-  strmov(query, "INSERT INTO test_prep_insert VALUES(10, 'venu1', 'test')");
-  stmt= mysql_simple_prepare(mysql, query);
-  check_stmt(stmt);
-
-  verify_param_count(stmt, 0);
-
-  result= mysql_param_result(stmt);
-  mytest_r(result);
-
-  mysql_stmt_close(stmt);
-
-  strmov(query, "INSERT INTO test_prep_insert VALUES(?, 'venu', ?)");
-  stmt= mysql_simple_prepare(mysql, query);
-  check_stmt(stmt);
-
-  verify_param_count(stmt, 2);
-
-  result= mysql_param_result(stmt);
-  mytest(result);
-
-  my_print_result_metadata(result);
-
-  mysql_field_seek(result, 0);
-  field= mysql_fetch_field(result);
-  mytest(field);
-  if (!opt_silent)
-    fprintf(stdout, "\n obtained: `%s` (expected: `%s`)", field->name, "col1");
-  DIE_UNLESS(strcmp(field->name, "col1") == 0);
-
-  field= mysql_fetch_field(result);
-  mytest(field);
-  if (!opt_silent)
-    fprintf(stdout, "\n obtained: `%s` (expected: `%s`)", field->name, "col3");
-  DIE_UNLESS(strcmp(field->name, "col3") == 0);
-
-  field= mysql_fetch_field(result);
-  mytest_r(field);
-
-  mysql_free_result(result);
-  mysql_stmt_close(stmt);
-}
-
-
-/* Update meta info .. */
-
-static void test_update_meta()
-{
-  MYSQL_STMT *stmt;
-  int        rc;
-  MYSQL_RES  *result;
-  MYSQL_FIELD *field;
-
-  myheader("test_update_meta");
-
-  rc= mysql_autocommit(mysql, TRUE);
-  myquery(rc);
-
-  rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prep_update");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "CREATE TABLE test_prep_update(col1 tinyint, \
-                                col2 varchar(50), col3 varchar(30))");
-  myquery(rc);
-
-  strmov(query, "UPDATE test_prep_update SET col1=10, col2='venu1' WHERE col3='test'");
-  stmt= mysql_simple_prepare(mysql, query);
-  check_stmt(stmt);
-
-  verify_param_count(stmt, 0);
-
-  result= mysql_param_result(stmt);
-  mytest_r(result);
-
-  mysql_stmt_close(stmt);
-
-  strmov(query, "UPDATE test_prep_update SET col1=?, col2='venu' WHERE col3=?");
-  stmt= mysql_simple_prepare(mysql, query);
-  check_stmt(stmt);
-
-  verify_param_count(stmt, 2);
-
-  result= mysql_param_result(stmt);
-  mytest(result);
-
-  my_print_result_metadata(result);
-
-  mysql_field_seek(result, 0);
-  field= mysql_fetch_field(result);
-  mytest(field);
-  if (!opt_silent)
-  {
-    fprintf(stdout, "\n col obtained: `%s` (expected: `%s`)", field->name, "col1");
-    fprintf(stdout, "\n tab obtained: `%s` (expected: `%s`)", field->table, "test_prep_update");
-  }
-  DIE_UNLESS(strcmp(field->name, "col1") == 0);
-  DIE_UNLESS(strcmp(field->table, "test_prep_update") == 0);
-
-  field= mysql_fetch_field(result);
-  mytest(field);
-  if (!opt_silent)
-  {
-    fprintf(stdout, "\n col obtained: `%s` (expected: `%s`)", field->name, "col3");
-    fprintf(stdout, "\n tab obtained: `%s` (expected: `%s`)", field->table, "test_prep_update");
-  }
-  DIE_UNLESS(strcmp(field->name, "col3") == 0);
-  DIE_UNLESS(strcmp(field->table, "test_prep_update") == 0);
-
-  field= mysql_fetch_field(result);
-  mytest_r(field);
-
-  mysql_free_result(result);
-  mysql_stmt_close(stmt);
-}
-
-
-/* Select meta info .. */
-
-static void test_select_meta()
-{
-  MYSQL_STMT *stmt;
-  int        rc;
-  MYSQL_RES  *result;
-  MYSQL_FIELD *field;
-
-  myheader("test_select_meta");
-
-  rc= mysql_autocommit(mysql, TRUE);
-  myquery(rc);
-
-  rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prep_select");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "CREATE TABLE test_prep_select(col1 tinyint, \
-                                col2 varchar(50), col3 varchar(30))");
-  myquery(rc);
-
-  strmov(query, "SELECT * FROM test_prep_select WHERE col1=10");
-  stmt= mysql_simple_prepare(mysql, query);
-  check_stmt(stmt);
-
-  verify_param_count(stmt, 0);
-
-  result= mysql_param_result(stmt);
-  mytest_r(result);
-
-  strmov(query, "SELECT col1, col3 from test_prep_select WHERE col1=? AND col3='test' AND col2= ?");
-  stmt= mysql_simple_prepare(mysql, query);
-  check_stmt(stmt);
-
-  verify_param_count(stmt, 2);
-
-  result= mysql_param_result(stmt);
-  mytest(result);
-
-  my_print_result_metadata(result);
-
-  mysql_field_seek(result, 0);
-  field= mysql_fetch_field(result);
-  mytest(field);
-  if (!opt_silent)
-  {
-    fprintf(stdout, "\n col obtained: `%s` (expected: `%s`)", field->name, "col1");
-    fprintf(stdout, "\n tab obtained: `%s` (expected: `%s`)", field->table, "test_prep_select");
-  }
-  DIE_UNLESS(strcmp(field->name, "col1") == 0);
-  DIE_UNLESS(strcmp(field->table, "test_prep_select") == 0);
-
-  field= mysql_fetch_field(result);
-  mytest(field);
-  if (!opt_silent)
-  {
-    fprintf(stdout, "\n col obtained: `%s` (expected: `%s`)", field->name, "col2");
-    fprintf(stdout, "\n tab obtained: `%s` (expected: `%s`)", field->table, "test_prep_select");
-  }
-  DIE_UNLESS(strcmp(field->name, "col2") == 0);
-  DIE_UNLESS(strcmp(field->table, "test_prep_select") == 0);
-
-  field= mysql_fetch_field(result);
-  mytest_r(field);
-
-  mysql_free_result(result);
-  mysql_stmt_close(stmt);
-}
-#endif
-
 
 /* Test FUNCTION field info / DATE_FORMAT() table_name . */
 
@@ -13831,36 +13622,51 @@ static void test_bug15518()
 }
 
 
-static void disable_general_log()
+static void disable_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=off");
   myquery(rc);
+  rc= mysql_query(mysql, "set @@global.slow_query_log=off");
+  myquery(rc);
 }
 
 
-static void enable_general_log(int truncate)
+static void enable_query_logs(int truncate)
 {
   int rc;
 
   rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
   myquery(rc);
 
+  rc= mysql_query(mysql, "set @save_global_slow_query_log=@@global.slow_query_log");
+  myquery(rc);
+
   rc= mysql_query(mysql, "set @@global.general_log=on");
   myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=on");
+  myquery(rc);
+
 
   if (truncate)
   {
     rc= mysql_query(mysql, "truncate mysql.general_log");
     myquery(rc);
+
+    rc= mysql_query(mysql, "truncate mysql.slow_log");
+    myquery(rc);
   }
 }
 
 
-static void restore_general_log()
+static void restore_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=@save_global_slow_query_log");
   myquery(rc);
 }
 
@@ -15211,12 +15017,12 @@ static void test_bug11909()
 
 static void test_bug11901()
 {
-  MYSQL_STMT *stmt;
-  MYSQL_BIND my_bind[2];
+/*  MYSQL_STMT *stmt;
+  MYSQL_BIND my_bind[2]; */
   int rc;
-  char workdept[20];
-  ulong workdept_len;
-  uint32 empno;
+/*  char workdept[20];
+  ulong workdept_len; 
+  uint32 empno; */
   const char *stmt_text;
 
   myheader("test_bug11901");
@@ -15295,8 +15101,9 @@ static void test_bug11901()
   myquery(rc);
 
   /* ****** Begin of trace ****** */
-
-  stmt= open_cursor("select t1.empno, t1.workdept "
+/* WL#1110 - disabled test case failure - crash. */
+/*
+  stmt= open_cursor("select t1.emp, t1.workdept "
                     "from (t1 left join t2 on t2.deptno = t1.workdept) "
                     "where t2.deptno in "
                     "   (select t2.deptno "
@@ -15319,7 +15126,9 @@ static void test_bug11901()
   check_execute(stmt, rc);
 
   empno= 10;
+*/
   /* ERROR: next statement causes a server crash */
+/*
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -15327,6 +15136,7 @@ static void test_bug11901()
 
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
+*/
 }
 
 /* Bug#11904: mysql_stmt_attr_set CURSOR_TYPE_READ_ONLY grouping wrong result */
@@ -16031,7 +15841,7 @@ static void test_bug17667()
     return;
   }
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
        statement_cursor++)
@@ -16111,7 +15921,7 @@ static void test_bug17667()
              statement_cursor->buffer);
   }
 
-  restore_general_log();
+  restore_query_logs();
 
   if (!opt_silent)
     printf("success.  All queries found intact in the log.\n");
@@ -17974,7 +17784,7 @@ static void test_bug28386()
   }
   mysql_free_result(result);
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   stmt= mysql_simple_prepare(mysql, "SELECT ?");
   check_stmt(stmt);
@@ -18013,7 +17823,7 @@ static void test_bug28386()
 
   mysql_free_result(result);
 
-  restore_general_log();
+  restore_query_logs();
 
   DBUG_VOID_RETURN;
 }
@@ -18097,7 +17907,7 @@ static void test_wl4166_1()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 10; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -18120,7 +17930,7 @@ static void test_wl4166_1()
 
   for (tiny_data= 50; tiny_data < 60; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -19060,6 +18870,178 @@ static void test_bug42373()
 }
 
 
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041_impl()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind;
+
+  DBUG_ENTER("test_bug54041");
+  myheader("test_bug54041");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "SELECT a FROM t1 WHERE a > ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  memset(&bind, 0, sizeof(bind));
+
+  /* Any type that does not support long data handling. */
+  bind.buffer_type= MYSQL_TYPE_LONG;
+
+  rc= mysql_stmt_bind_param(stmt, &bind);
+  check_execute(stmt, rc);
+
+  /*
+    Trick the client API into sending a long data packet for
+    the parameter. Long data is only supported for string and
+    binary types.
+  */
+  stmt->params[0].buffer_type= MYSQL_TYPE_STRING;
+
+  rc= mysql_stmt_send_long_data(stmt, 0, "data", 5);
+  check_execute(stmt, rc);
+
+  /* Undo API violation. */
+  stmt->params[0].buffer_type= MYSQL_TYPE_LONG;
+
+  rc= mysql_stmt_execute(stmt);
+  /* Incorrect arguments. */
+  check_execute_r(stmt, rc);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041()
+{
+  enable_query_logs(0);
+  test_bug54041_impl();
+  disable_query_logs();
+  test_bug54041_impl();
+  restore_query_logs();
+}
+
+
+/**
+  Bug#47485: mysql_store_result returns a result set for a prepared statement
+*/
+static void test_bug47485()
+{
+  MYSQL_STMT   *stmt;
+  MYSQL_RES    *res;
+  MYSQL_BIND    bind[2];
+  int           rc;
+  const char*   sql_select = "SELECT 1, 'a'";
+  int           int_data;
+  char          str_data[16];
+  my_bool       is_null[2];
+  my_bool       error[2];
+  unsigned long length[2];
+
+  DBUG_ENTER("test_bug47485");
+  myheader("test_bug47485");
+
+  stmt= mysql_stmt_init(mysql);
+  check_stmt(stmt);
+  rc= mysql_stmt_prepare(stmt, sql_select, strlen(sql_select));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  res = mysql_store_result(mysql);
+  DIE_UNLESS(res == NULL);
+
+  mysql_stmt_reset(stmt);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  res = mysql_use_result(mysql);
+  DIE_UNLESS(res == NULL);
+
+  mysql_stmt_reset(stmt);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  bind[0].error= &error[0];
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+  bind[1].is_null= &is_null[1];
+  bind[1].length= &length[1];
+  bind[1].error= &error[1];
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    ;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_reset(stmt);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  bind[0].error= &error[0];
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+  bind[1].is_null= &is_null[1];
+  bind[1].length= &length[1];
+  bind[1].error= &error[1];
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    ;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Bug#49972: Crash in prepared statements.
 
@@ -19249,7 +19231,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 
 static struct my_tests_st my_tests[]= {
-  { "disable_general_log", disable_general_log },
+  { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},
@@ -19500,6 +19482,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug44495", test_bug44495 },
   { "test_bug49972", test_bug49972 },
   { "test_bug42373", test_bug42373 },
+  { "test_bug54041", test_bug54041 },
+  { "test_bug47485", test_bug47485 },
   { 0, 0 }
 };
 
@@ -19519,7 +19503,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start=argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';               /* Destroy argument */
       if (*start)
@@ -19676,7 +19660,7 @@ int main(int argc, char **argv)
   print_test_output();
 
   while (embedded_server_arg_count > 1)
-    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
+    my_free(embedded_server_args[--embedded_server_arg_count]);
 
   mysql_server_end();
 

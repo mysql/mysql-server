@@ -32,7 +32,7 @@
 #ifdef HAVE_CHARSET_ujis
 
 
-static uchar NEAR ctype_ujis[257] =
+static uchar ctype_ujis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -69,7 +69,7 @@ static uchar NEAR ctype_ujis[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-static uchar NEAR to_lower_ujis[]=
+static uchar to_lower_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -105,7 +105,7 @@ static uchar NEAR to_lower_ujis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR to_upper_ujis[]=
+static uchar to_upper_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -141,7 +141,7 @@ static uchar NEAR to_upper_ujis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR sort_order_ujis[]=
+static uchar sort_order_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -65987,7 +65987,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *cs __attribute__((unused)),
 
 
 /* Case info pages for JIS-X-0208 range */
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66108,7 +66108,7 @@ static MY_UNICASE_INFO cA2[256]=
 };
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66229,7 +66229,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA6[256]=
+static MY_UNICASE_CHARACTER cA6[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66350,7 +66350,7 @@ static MY_UNICASE_INFO cA6[256]=
 };
 
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66472,7 +66472,7 @@ static MY_UNICASE_INFO cA7[256]=
 
 
 /* Case info pages for JIS-X-0212 range */
-static MY_UNICASE_INFO c8FA6[]=
+static MY_UNICASE_CHARACTER c8FA6[]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66593,7 +66593,7 @@ static MY_UNICASE_INFO c8FA6[]=
 };
 
 
-static MY_UNICASE_INFO c8FA7[]=
+static MY_UNICASE_CHARACTER c8FA7[]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66714,7 +66714,7 @@ static MY_UNICASE_INFO c8FA7[]=
 };
 
 
-static MY_UNICASE_INFO c8FA9[]=
+static MY_UNICASE_CHARACTER c8FA9[]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66835,7 +66835,7 @@ static MY_UNICASE_INFO c8FA9[]=
 };
 
 
-static MY_UNICASE_INFO c8FAA[]=
+static MY_UNICASE_CHARACTER c8FAA[]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66956,7 +66956,7 @@ static MY_UNICASE_INFO c8FAA[]=
 };
 
 
-static MY_UNICASE_INFO c8FAB[]=
+static MY_UNICASE_CHARACTER c8FAB[]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -67077,7 +67077,7 @@ static MY_UNICASE_INFO c8FAB[]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_ujis[512]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_ujis[512]=
 {
   /* JIS-X-0208 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
@@ -67147,6 +67147,15 @@ static MY_UNICASE_INFO *my_caseinfo_ujis[512]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
+
+static MY_UNICASE_INFO my_caseinfo_ujis=
+{
+  0x0FFFF,
+  my_caseinfo_pages_ujis
+};
+
+
+
 #endif /* HAVE_CHARSET_ujis */
 
 
@@ -67157,11 +67166,11 @@ static MY_UNICASE_INFO *my_caseinfo_ujis[512]=
   UJIS and EUCJPMS share the same UPPER/LOWER functions.
 */
 
-static MY_UNICASE_INFO*
+static MY_UNICASE_CHARACTER*
 get_case_info_for_ch(CHARSET_INFO *cs, uint plane, uint page, uint offs)
 {
-  MY_UNICASE_INFO *p;
-  return (p= cs->caseinfo[page + plane * 256]) ? &p[offs & 0xFF] : NULL;
+  MY_UNICASE_CHARACTER *p;
+  return (p= cs->caseinfo->page[page + plane * 256]) ? &p[offs & 0xFF] : NULL;
 }
 
 
@@ -67182,7 +67191,7 @@ my_casefold_ujis(CHARSET_INFO *cs,
     size_t mblen= my_ismbchar(cs, src, srcend);
     if (mblen)
     {
-      MY_UNICASE_INFO *ch;
+      MY_UNICASE_CHARACTER *ch;
       ch= (mblen == 2) ?
         get_case_info_for_ch(cs, 0, (uchar) src[0], (uchar) src[1]) :
         get_case_info_for_ch(cs, 1, (uchar) src[1], (uchar) src[2]);
@@ -67303,11 +67312,10 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     to_lower_ujis,
     to_upper_ujis,
     sort_order_ujis,
-    NULL,		/* sort_order_big*/
-    NULL,		/* contractions */
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_ujis,   /* caseinfo     */
+    &my_caseinfo_ujis,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -67316,7 +67324,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
@@ -67338,11 +67346,10 @@ CHARSET_INFO my_charset_ujis_bin=
     to_lower_ujis,
     to_upper_ujis,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_ujis,   /* caseinfo     */
+    &my_caseinfo_ujis,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -67351,7 +67358,7 @@ CHARSET_INFO my_charset_ujis_bin=
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */

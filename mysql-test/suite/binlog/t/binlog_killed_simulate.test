@@ -1,5 +1,5 @@
 -- source include/have_debug.inc
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_binlog_format_statement.inc
 #
 # bug#27571 asynchronous setting mysql_$query()'s local error and 
 #           Query_log_event::error_code
@@ -24,7 +24,8 @@ update t1 set a=2 /* will be "killed" after work has been done */;
 #      for some constants like the offset of the first real event
 #      that is different between severs versions.
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --start-position=107 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--let $binlog_start_point= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_start_point $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
@@ -49,10 +50,13 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "kil
 
 
 # a proof the query is binlogged with an error
-
+--let $binlog_load_data= query_get_value(SHOW BINLOG EVENTS, Pos, 3)
+--let $binlog_end=       query_get_value(SHOW BINLOG EVENTS, Pos, 4)
 source include/show_binlog_events.inc;
 
---exec $MYSQL_BINLOG --force-if-open --start-position=210 --stop-position=387 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_load_data --stop-position=$binlog_end $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+
+
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))

@@ -156,7 +156,7 @@ row_build_index_entry(
 		}
 
 		len = dtype_get_at_most_n_mbchars(
-			col->prtype, col->mbminlen, col->mbmaxlen,
+			col->prtype, col->mbminmaxlen,
 			ind_field->prefix_len, len, dfield_get_data(dfield));
 		dfield_set_len(dfield, len);
 	}
@@ -294,7 +294,13 @@ row_build(
 
 	ut_ad(dtuple_check_typed(row));
 
-	if (j) {
+	if (!ext) {
+		/* REDUNDANT and COMPACT formats store a local
+		768-byte prefix of each externally stored
+		column. No cache is needed. */
+		ut_ad(dict_table_get_format(index->table)
+		      < DICT_TF_FORMAT_ZIP);
+	} else if (j) {
 		*ext = row_ext_create(j, ext_cols, row,
 				      dict_table_zip_size(index->table),
 				      heap);
@@ -514,8 +520,7 @@ row_build_row_ref(
 				dfield_set_len(dfield,
 					       dtype_get_at_most_n_mbchars(
 						       dtype->prtype,
-						       dtype->mbminlen,
-						       dtype->mbmaxlen,
+						       dtype->mbminmaxlen,
 						       clust_col_prefix_len,
 						       len, (char*) field));
 			}
@@ -629,8 +634,7 @@ notfound:
 				dfield_set_len(dfield,
 					       dtype_get_at_most_n_mbchars(
 						       dtype->prtype,
-						       dtype->mbminlen,
-						       dtype->mbmaxlen,
+						       dtype->mbminmaxlen,
 						       clust_col_prefix_len,
 						       len, (char*) field));
 			}

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -5419,8 +5419,6 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  CHARSET_INFO *cs)
 {
   Item *UNINIT_VAR(res);
-  ulong len;
-  uint dec;
 
   switch (cast_type) {
   case ITEM_CAST_BINARY:
@@ -5443,11 +5441,10 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     break;
   case ITEM_CAST_DECIMAL:
   {
-    if (c_len == NULL)
-    {
-      len= 0;
-    }
-    else
+    ulong len= 0;
+    uint dec= 0;
+
+    if (c_len)
     {
       ulong decoded_size;
       errno= 0;
@@ -5461,11 +5458,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       len= decoded_size;
     }
 
-    if (c_dec == NULL)
-    {
-      dec= 0;
-    }
-    else
+    if (c_dec)
     {
       ulong decoded_size;
       errno= 0;
@@ -5501,12 +5494,9 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   }
   case ITEM_CAST_CHAR:
   {
+    int len= -1;
     CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
-    if (c_len == NULL)
-    {
-      len= LL(-1);
-    }
-    else
+    if (c_len)
     {
       ulong decoded_size;
       errno= 0;
@@ -5516,7 +5506,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
         return NULL;
       }
-      len= decoded_size;
+      len= (int) decoded_size;
     }
     res= new (thd->mem_root) Item_char_typecast(a, len, real_cs);
     break;

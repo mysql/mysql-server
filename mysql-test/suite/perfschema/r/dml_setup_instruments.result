@@ -13,7 +13,7 @@ wait/synch/mutex/sql/LOCK_active_mi	YES	YES
 wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 wait/synch/mutex/sql/LOCK_connection_count	YES	YES
 wait/synch/mutex/sql/LOCK_crypt	YES	YES
-wait/synch/mutex/sql/LOCK_delayed_create	YES	YES
+wait/synch/mutex/sql/LOCK_dd_owns_lock_open	YES	YES
 select * from performance_schema.SETUP_INSTRUMENTS
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
@@ -40,12 +40,12 @@ wait/synch/cond/sql/COND_flush_thread_cache	YES	YES
 wait/synch/cond/sql/COND_global_read_lock	YES	YES
 wait/synch/cond/sql/COND_manager	YES	YES
 wait/synch/cond/sql/COND_queue_state	YES	YES
-wait/synch/cond/sql/COND_refresh	YES	YES
-wait/synch/cond/sql/COND_rpl_status	YES	YES
 wait/synch/cond/sql/COND_server_started	YES	YES
 wait/synch/cond/sql/COND_thread_cache	YES	YES
 wait/synch/cond/sql/COND_thread_count	YES	YES
 wait/synch/cond/sql/Delayed_insert::cond	YES	YES
+wait/synch/cond/sql/Delayed_insert::cond_client	YES	YES
+wait/synch/cond/sql/Event_scheduler::COND_state	YES	YES
 select * from performance_schema.SETUP_INSTRUMENTS
 where name='Wait';
 select * from performance_schema.SETUP_INSTRUMENTS

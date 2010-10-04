@@ -74,7 +74,7 @@ uchar *my_malloc_lock(uint size,myf MyFlags)
 }
 
 
-void my_free_lock(uchar *ptr,myf Myflags __attribute__((unused)))
+void my_free_lock(uchar *ptr)
 {
   LIST *list;
   struct st_mem_list *element=0;
@@ -91,8 +91,7 @@ void my_free_lock(uchar *ptr,myf Myflags __attribute__((unused)))
     }
   }
   mysql_mutex_unlock(&THR_LOCK_malloc);
-  if (element)
-    my_free((uchar*) element,MYF(0));
+  my_free(element);
   free(ptr);					/* Free even if not locked */
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @addtogroup Replication
@@ -256,6 +256,7 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
+#define IGNORABLE_HEADER_LEN   0
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -270,7 +271,8 @@ struct sql_ex_info
                                    1 + 2          /* type, lc_time_names_number */ + \
                                    1 + 2          /* type, charset_database_number */ + \
                                    1 + 8          /* type, table_map_for_update */ + \
-                                   1 + 4          /* type, master_data_written */)
+                                   1 + 4          /* type, master_data_written */ + \
+                                   1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
   QUERY_HEADER_LEN     + /* write_data */   \
@@ -338,6 +340,8 @@ struct sql_ex_info
 #define Q_TABLE_MAP_FOR_UPDATE_CODE 9
 
 #define Q_MASTER_DATA_WRITTEN_CODE 10
+
+#define Q_INVOKER 11
 
 /* Intvar event post-header */
 
@@ -494,6 +498,17 @@ struct sql_ex_info
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
 /**
+   @def LOG_EVENT_IGNORABLE_F
+
+   For an event, 'e', carrying a type code, that a slave,
+   's', does not recognize, 's' will check 'e' for
+   LOG_EVENT_IGNORABLE_F, and if the flag is set, then 'e'
+   is ignored. Otherwise, 's' acknowledges that it has
+   found an unknown event in the relay log.
+*/
+#define LOG_EVENT_IGNORABLE_F 0x80
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -590,7 +605,16 @@ enum Log_event_type
     to ensure master's online status to slave 
   */
   HEARTBEAT_LOG_EVENT= 27,
-  
+
+  /*
+    In some situations, it is necessary to send over ignorable
+    data to the slave: data that a slave can handle in case there
+    is code for handling it, but which can be ignored if it is not
+    recognized.
+  */
+  IGNORABLE_LOG_EVENT= 28,
+  ROWS_QUERY_LOG_EVENT= 29,
+
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -1031,7 +1055,7 @@ public:
 
   static void operator delete(void *ptr, size_t size)
   {
-    my_free((uchar*) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+    my_free(ptr);
   }
 
   /* Placement version of the above operators */
@@ -1068,6 +1092,7 @@ public:
   void set_relay_log_event() { flags |= LOG_EVENT_RELAY_LOG_F; }
   bool is_artificial_event() const { return flags & LOG_EVENT_ARTIFICIAL_F; }
   bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
+  bool is_ignorable_event() const { return flags & LOG_EVENT_IGNORABLE_F; }
   inline bool use_trans_cache() const
   { 
     return (cache_type == Log_event::EVENT_TRANSACTIONAL_CACHE);
@@ -1088,7 +1113,7 @@ public:
   {
     if (temp_buf)
     {
-      my_free(temp_buf, MYF(0));
+      my_free(temp_buf);
       temp_buf = 0;
     }
   }
@@ -1610,6 +1635,8 @@ protected:
 */
 class Query_log_event: public Log_event
 {
+  LEX_STRING user;
+  LEX_STRING host;
 protected:
   Log_event::Byte* data_buf;
 public:
@@ -1720,7 +1747,7 @@ public:
   ~Query_log_event()
   {
     if (data_buf)
-      my_free((uchar*) data_buf, MYF(0));
+      my_free(data_buf);
   }
   Log_event_type get_type_code() { return QUERY_EVENT; }
 #ifdef MYSQL_SERVER
@@ -2298,7 +2325,7 @@ public:
                                *description_event);
   ~Format_description_log_event()
   {
-    my_free((uchar*)post_header_len, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(post_header_len);
   }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifdef MYSQL_SERVER
@@ -2697,7 +2724,7 @@ public:
   ~Rotate_log_event()
   {
     if (flags & DUP_NAME)
-      my_free((uchar*) new_log_ident, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((void*) new_log_ident);
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
@@ -2759,7 +2786,7 @@ public:
                         const Format_description_log_event* description_event);
   ~Create_file_log_event()
   {
-    my_free((char*) event_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((void*) event_buf);
   }
 
   Log_event_type get_type_code()
@@ -4032,6 +4059,96 @@ private:
   LEX_STRING m_message;
 };
 
+
+/**
+  @class Ignorable_log_event
+
+  Base class for ignorable log events. Events deriving from
+  this class can be safely ignored by slaves that cannot
+  recognize them. Newer slaves, will be able to read and
+  handle them. This has been designed to be an open-ended
+  architecture, so adding new derived events shall not harm
+  the old slaves that support ignorable log event mechanism
+  (they will just ignore unrecognized ignorable events).
+**/
+class Ignorable_log_event : public Log_event {
+public:
+#ifndef MYSQL_CLIENT
+  Ignorable_log_event(THD *thd_arg)
+      : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, FALSE)
+  {
+    DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
+    DBUG_VOID_RETURN;
+  }
+#endif
+
+  Ignorable_log_event(const char *buf,
+                      const Format_description_log_event *descr_event);
+
+  virtual ~Ignorable_log_event();
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+  virtual Log_event_type get_type_code() { return IGNORABLE_LOG_EVENT; }
+
+  virtual bool is_valid() const { return 1; }
+
+  virtual int get_data_size() { return IGNORABLE_HEADER_LEN; }
+};
+
+
+class Rows_query_log_event : public Ignorable_log_event {
+public:
+#ifndef MYSQL_CLIENT
+  Rows_query_log_event(THD *thd_arg, const char * query, ulong query_len)
+    : Ignorable_log_event(thd_arg)
+  {
+    DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
+    if (!(m_rows_query= (char*) my_malloc(query_len + 1, MYF(MY_WME))))
+      return;
+    my_snprintf(m_rows_query, query_len + 1, "%s", query);
+    DBUG_PRINT("enter", ("%s", m_rows_query));
+    DBUG_VOID_RETURN;
+  }
+#endif
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+  Rows_query_log_event(const char *buf, uint event_len,
+                     const Format_description_log_event *descr_event);
+
+  virtual ~Rows_query_log_event();
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+  virtual bool write_data_body(IO_CACHE *file);
+
+  virtual Log_event_type get_type_code() { return ROWS_QUERY_LOG_EVENT; }
+
+  virtual int get_data_size()
+  {
+    return IGNORABLE_HEADER_LEN + 1 + (uint) strlen(m_rows_query);
+  }
+
+private:
+#if !defined(MYSQL_CLIENT)
+  virtual int do_apply_event(Relay_log_info const* rli);
+#endif
+
+  char * m_rows_query;
+};
+
+
+
 static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
                                                        FILE *file)
 {
@@ -4079,6 +4196,7 @@ private:
 int append_query_string(CHARSET_INFO *csinfo,
                         String const *from, String *to);
 bool sqlcom_can_generate_row_events(const THD *thd);
+void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli);
 
 /**
   @} (end of group Replication)

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -73,7 +73,7 @@ bool check_reserved_words(LEX_STRING *name)
 */
 
 bool
-eval_const_cond(COND *cond)
+eval_const_cond(Item *cond)
 {
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }
@@ -173,8 +173,9 @@ Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
-
+  thd->thd_marker.emb_on_expr_nest= NULL;
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
@@ -220,7 +221,30 @@ Item_func::fix_fields(THD *thd, Item **ref)
   if (thd->is_error()) // An error inside fix_length_and_dec occured
     return TRUE;
   fixed= 1;
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   return FALSE;
+}
+
+
+void Item_func::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  Item **arg,**arg_end;
+
+  used_tables_cache= not_null_tables_cache= 0;
+  const_item_cache=1;
+
+  if (arg_count)
+  {
+    for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
+    {
+      (*arg)->fix_after_pullout(new_parent, arg);
+      Item *item= *arg;
+
+      used_tables_cache|=     item->used_tables();
+      not_null_tables_cache|= item->not_null_tables();
+      const_item_cache&=      item->const_item();
+    }
+  }
 }
 
 
@@ -489,12 +513,6 @@ Field *Item_func::tmp_table_field(TABLE *table)
 }
 
 
-bool Item_func::is_expensive_processor(uchar *arg)
-{
-  return is_expensive();
-}
-
-
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
@@ -564,8 +582,9 @@ void Item_func::count_decimal_length()
     set_if_smaller(unsigned_flag, args[i]->unsigned_flag);
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
-  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
-                                                           unsigned_flag);
+  fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
+                                                               decimals,
+                                                               unsigned_flag));
 }
 
 
@@ -575,13 +594,14 @@ void Item_func::count_decimal_length()
 
 void Item_func::count_only_length()
 {
-  max_length= 0;
+  uint32 char_length= 0;
   unsigned_flag= 0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    set_if_bigger(max_length, args[i]->max_length);
+    set_if_bigger(char_length, args[i]->max_char_length());
     set_if_bigger(unsigned_flag, args[i]->unsigned_flag);
   }
+  fix_char_length(char_length);
 }
 
 
@@ -2531,6 +2551,8 @@ void Item_func_min_max::fix_length_and_dec()
                                                                  decimals,
                                                                  unsigned_flag));
   }
+  else if (cmp_type == REAL_RESULT)
+    fix_char_length(float_length(decimals));
   cached_field_type= agg_field_type(args, arg_count);
 }
 
@@ -3560,7 +3582,7 @@ public:
     {
       if (my_hash_insert(&hash_user_locks,(uchar*) this))
       {
-	my_free(key,MYF(0));
+	my_free(key);
 	key=0;
       }
     }
@@ -3570,7 +3592,7 @@ public:
     if (key)
     {
       my_hash_delete(&hash_user_locks,(uchar*) this);
-      my_free(key, MYF(0));
+      my_free(key);
     }
     mysql_cond_destroy(&cond);
   }
@@ -4079,7 +4101,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     memcpy(entry->name.str, name.str, name.length+1);
     if (my_hash_insert(hash,(uchar*) entry))
     {
-      my_free((char*) entry,MYF(0));
+      my_free(entry);
       return 0;
     }
   }
@@ -4217,7 +4239,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
   {
     char *pos= (char*) entry+ ALIGN_SIZE(sizeof(user_var_entry));
     if (entry->value && entry->value != pos)
-      my_free(entry->value,MYF(0));
+      my_free(entry->value);
     entry->value= 0;
     entry->length= 0;
   }
@@ -4232,7 +4254,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       if (entry->value != pos)
       {
 	if (entry->value)
-	  my_free(entry->value,MYF(0));
+	  my_free(entry->value);
 	entry->value=pos;
       }
     }
@@ -5069,6 +5091,7 @@ bool Item_func_get_user_var::set_value(THD *thd,
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(thd->lex->exchange);
   if (Item::fix_fields(thd, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return TRUE;
@@ -5078,7 +5101,9 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
     of fields in LOAD DATA INFILE.
     (Since Item_user_var_as_out_param is used only there).
   */
-  entry->collation.set(thd->variables.collation_database);
+  entry->collation.set(thd->lex->exchange->cs ? 
+                       thd->lex->exchange->cs :
+                       thd->variables.collation_database);
   entry->update_query_id= thd->query_id;
   return FALSE;
 }

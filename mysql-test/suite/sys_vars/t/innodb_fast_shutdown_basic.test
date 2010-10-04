@@ -77,7 +77,6 @@ SELECT @@global.innodb_fast_shutdown;
 SET @@global.innodb_fast_shutdown = 1;
 SELECT @@global.innodb_fast_shutdown;
 ## A value of 2 is used to just flush logs and then shutdown cold.
-## Not supported on Netware
 
 SET @@global.innodb_fast_shutdown = 2;
 SELECT @@global.innodb_fast_shutdown;

@@ -1,11 +1,13 @@
 ########################################################################################
-#    This test verifies if the binlog is not corrupted when the cache buffer is not
-#    big enough to accommodate the changes and is divided in five steps:
+#    This test does two things. First it verifies if the binlog is not corrupted when
+#    the cache buffer is not big enough to accommodate the changes and is divided in
+#    five steps:
 #
 #    1 - Single Statements:
-#    1.1 - Single statement on transactional table.
-#    1.2 - Single statement on non-transactional table. 
-#    1.3 - Single statement on both transactional and non-transactional tables.
+#      1.1 - Single statement on transactional table.
+#      1.2 - Single statement on non-transactional table. 
+#      1.3 - Single statement on both transactional and non-transactional tables.
+#
 #    In both 1.2 and 1.3, an incident event is logged to notify the user that the
 #    master and slave are diverging.
 #
@@ -19,10 +21,14 @@
 #    table. In this case, a failure means that the statement does not get into
 #    the cache and an incident event is logged to notify the user that the master
 #    and slave are diverging.
-#    
+#
+#    Then it checks what happens when we try to set BINLOG_CACHE_SIZE to a value that
+#    is greater than MAX_BINLOG_CACHE_SIZE and vice-versa. In both cases, We expect
+#    that BINLOG_CACHE_SIZE will be set to MAX_BINLOG_CACHE_SIZE. (BUG#55377)
 ########################################################################################
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Option binlog_cache_size ");
 
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
@@ -77,11 +83,11 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 
-if (`SELECT @@binlog_format = 'STATEMENT'`)
+if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
   SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 }
-if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
+if (`SELECT @@binlog_format = 'ROW'`)
 {
   SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 2;
 }
@@ -374,10 +380,29 @@ let $diff_statement= SELECT * FROM t1;
 --source include/diff_master_slave.inc
 
 --echo ########################################################################################
+--echo #                       CHECK MAX_BINLOG_CACHE_SIZE and BINLOG_CACHE_SIZE
+--echo ########################################################################################
+#
+# Checking what happens when we try to set BINLOG_CACHE_SIZE to a value that is
+# greater than MAX_BINLOG_CACHE_SIZE and vice-versa. In both cases, We expect
+# that BINLOG_CACHE_SIZE will be set to MAX_BINLOG_CACHE_SIZE. (BUG#55377)
+# 
+connection master;
+
+SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 8192;
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+SET @@GLOBAL.BINLOG_CACHE_SIZE= 16384;
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 4096;
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+
+--echo ########################################################################################
 --echo #                                        CLEAN
 --echo ########################################################################################
 
-connection master;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;

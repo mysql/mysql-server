@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -35,6 +35,8 @@ static void init_myfunc_errs(void);
 C_MODE_START
 static const char **get_server_errmsgs()
 {
+  if (!current_thd)
+    return DEFAULT_ERRMSGS;
   return CURRENT_THD_ERRMSGS;
 }
 C_MODE_END
@@ -79,7 +81,7 @@ bool init_errmessage(void)
   /* Register messages for use with my_error(). */
   if (my_error_register(get_server_errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
   {
-    x_free((uchar*) errmsgs);
+    my_free(errmsgs);
     DBUG_RETURN(TRUE);
   }
 
@@ -155,7 +157,8 @@ Check that the above file is the right version for this program!",
     DBUG_RETURN(1);
   }
 
-  x_free((uchar*) *point);		/* Free old language */
+  /* Free old language */
+  my_free(*point);
   if (!(*point= (const char**)
 	my_malloc((size_t) (length+count*sizeof(char*)),MYF(0))))
   {

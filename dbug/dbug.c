@@ -95,7 +95,7 @@
 #define fnmatch(A,B,C) strcmp(A,B)
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #include <process.h>
 #endif
 
@@ -128,9 +128,8 @@
 #define PROFILE_ON      (1 <<  7)  /* Print out profiling code */
 #define PID_ON          (1 <<  8)  /* Identify each line with process id */
 #define TIMESTAMP_ON    (1 <<  9)  /* timestamp every line of output */
-#define SANITY_CHECK_ON (1 << 10)  /* Check safemalloc on DBUG_ENTER */
-#define FLUSH_ON_WRITE  (1 << 11)  /* Flush on every write */
-#define OPEN_APPEND     (1 << 12)  /* Open for append      */
+#define FLUSH_ON_WRITE  (1 << 10)  /* Flush on every write */
+#define OPEN_APPEND     (1 << 11)  /* Open for append      */
 #define TRACE_ON        ((uint)1 << 31)  /* Trace enabled. MUST be the highest bit!*/
 
 #define TRACING (cs->stack->flags & TRACE_ON)
@@ -182,12 +181,6 @@
 
 #ifndef HAVE_PERROR
 static void perror();          /* Fake system/library error print routine */
-#endif
-
-#ifdef SAFEMALLOC
-IMPORT int _sanity(const char *file,uint line); /* safemalloc sanity checker */
-#else
-#define _sanity(X,Y) (1)
 #endif
 
 /*
@@ -309,7 +302,7 @@ static int DoTrace(CODE_STATE *cs);
 #define DISABLE_TRACE   4
 
         /* Test to see if file is writable */
-#if defined(HAVE_ACCESS) && !defined(MSDOS)
+#if defined(HAVE_ACCESS)
 static BOOLEAN Writable(const char *pathname);
         /* Change file owner and group */
 static void ChangeOwner(CODE_STATE *cs, char *pathname);
@@ -343,22 +336,18 @@ static unsigned long Clock(void);
 #define ERR_OPEN "%s: can't open debug output stream \"%s\": "
 #define ERR_CLOSE "%s: can't close debug file: "
 #define ERR_ABORT "%s: debugger aborting because %s\n"
-#define ERR_CHOWN "%s: can't change owner/group of \"%s\": "
 
 /*
  *      Macros and defines for testing file accessibility under UNIX and MSDOS.
  */
 
 #undef EXISTS
-#if !defined(HAVE_ACCESS) || defined(MSDOS)
+#if !defined(HAVE_ACCESS)
 #define EXISTS(pathname) (FALSE)        /* Assume no existance */
 #define Writable(name) (TRUE)
 #else
 #define EXISTS(pathname)         (access(pathname, F_OK) == 0)
 #define WRITABLE(pathname)       (access(pathname, W_OK) == 0)
-#endif
-#ifndef MSDOS
-#define ChangeOwner(cs,name)
 #endif
 
 
@@ -704,12 +693,6 @@ int DbugParse(CODE_STATE *cs, const char *control)
         stack->flags &= ~TIMESTAMP_ON;
       else
         stack->flags |= TIMESTAMP_ON;
-      break;
-    case 'S':
-      if (sign < 0)
-        stack->flags &= ~SANITY_CHECK_ON;
-      else
-        stack->flags |= SANITY_CHECK_ON;
       break;
     }
     if (!*end)
@@ -1069,7 +1052,6 @@ int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
   op_bool_to_buf('r', cs->stack->sub_level != 0);
   op_intf_to_buf('t', cs->stack->maxdepth, MAXDEPTH, TRACING);
   op_bool_to_buf('T', cs->stack->flags & TIMESTAMP_ON);
-  op_bool_to_buf('S', cs->stack->flags & SANITY_CHECK_ON);
 
   *buf= '\0';
   return 0;
@@ -1187,8 +1169,6 @@ void _db_enter_(const char *_func_, const char *_file_,
     if (!TRACING) break;
     /* fall through */
   case DO_TRACE:
-    if ((cs->stack->flags & SANITY_CHECK_ON) && _sanity(_file_,_line_))
-      cs->stack->flags &= ~SANITY_CHECK_ON;
     if (TRACING)
     {
       if (!cs->locked)
@@ -1247,9 +1227,6 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
 #endif
   if (DoTrace(cs) & DO_TRACE)
   {
-    if ((cs->stack->flags & SANITY_CHECK_ON) &&
-        _sanity(_stack_frame_->file,_line_))
-      cs->stack->flags &= ~SANITY_CHECK_ON;
     if (TRACING)
     {
       if (!cs->locked)
@@ -1358,15 +1335,11 @@ void _db_doprnt_(const char *format,...)
  * This function is intended as a
  * vfprintf clone with consistent, platform independent output for 
  * problematic formats like %p, %zd and %lld.
- * However: full functionality for my_vsnprintf has not been backported yet,
- * so code using "%g" or "%f" will have undefined behaviour.
  */
 static void DbugVfprintf(FILE *stream, const char* format, va_list args)
 {
   char cvtbuf[1024];
-  size_t len;
-  /* Do not use my_vsnprintf, it does not support "%g". */
-  len = vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
+  (void) my_vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
   (void) fprintf(stream, "%s\n", cvtbuf);
 }
 
@@ -2027,10 +2000,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
         else
         {
           cs->stack->out_file= fp;
-          if (newfile)
-          {
-            ChangeOwner(cs, name);
-          }
         }
       }
     }
@@ -2088,10 +2057,6 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
     else
     {
       cs->stack->prof_file= fp;
-      if (newfile)
-      {
-        ChangeOwner(cs, name);
-      }
     }
   }
   return fp;
@@ -2285,42 +2250,6 @@ static BOOLEAN Writable(const char *pathname)
 /*
  *  FUNCTION
  *
- *      ChangeOwner    change owner to real user for suid programs
- *
- *  SYNOPSIS
- *
- *      static VOID ChangeOwner(pathname)
- *
- *  DESCRIPTION
- *
- *      For unix systems, change the owner of the newly created debug
- *      file to the real owner.  This is strictly for the benefit of
- *      programs that are running with the set-user-id bit set.
- *
- *      Note that at this point, the fact that pathname represents
- *      a newly created file has already been established.  If the
- *      program that the debugger is linked to is not running with
- *      the suid bit set, then this operation is redundant (but
- *      harmless).
- *
- */
-
-#ifndef ChangeOwner
-static void ChangeOwner(CODE_STATE *cs, char *pathname)
-{
-  if (chown(pathname, getuid(), getgid()) == -1)
-  {
-    (void) fprintf(stderr, ERR_CHOWN, cs->process, pathname);
-    perror("");
-    (void) fflush(stderr);
-  }
-}
-#endif
-
-
-/*
- *  FUNCTION
- *
  *      _db_setjmp_    save debugger environment
  *
  *  SYNOPSIS
@@ -2489,7 +2418,7 @@ static unsigned long Clock()
     return ru.ru_utime.tv_sec*1000 + ru.ru_utime.tv_usec/1000;
 }
 
-#elif defined(MSDOS) || defined(__WIN__)
+#elif defined(__WIN__)
 
 static ulong Clock()
 {
@@ -2537,37 +2466,6 @@ static unsigned long Clock()
 }
 #endif /* RUSAGE */
 #endif /* THREADS */
-
-#ifdef NO_VARARGS
-
-/*
- *      Fake vfprintf for systems that don't support it.  If this
- *      doesn't work, you are probably SOL...
- */
-
-static int vfprintf(stream, format, ap)
-FILE *stream;
-char *format;
-va_list ap;
-{
-    int rtnval;
-    ARGS_DCL;
-
-    ARG0=  va_arg(ap, ARGS_TYPE);
-    ARG1=  va_arg(ap, ARGS_TYPE);
-    ARG2=  va_arg(ap, ARGS_TYPE);
-    ARG3=  va_arg(ap, ARGS_TYPE);
-    ARG4=  va_arg(ap, ARGS_TYPE);
-    ARG5=  va_arg(ap, ARGS_TYPE);
-    ARG6=  va_arg(ap, ARGS_TYPE);
-    ARG7=  va_arg(ap, ARGS_TYPE);
-    ARG8=  va_arg(ap, ARGS_TYPE);
-    ARG9=  va_arg(ap, ARGS_TYPE);
-    rtnval= fprintf(stream, format, ARGS_LIST);
-    return rtnval;
-}
-
-#endif  /* NO_VARARGS */
 
 #else
 

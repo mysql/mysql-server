@@ -1,4 +1,3 @@
---source include/have_thread_concurrency.inc
 #
 # only global
 #

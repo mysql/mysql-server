@@ -298,9 +298,9 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 err3:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err2:
-  my_free((uchar*) share->decode_tables,MYF(0));
+  my_free(share->decode_tables);
 err1:
-  my_free((uchar*) share->decode_trees,MYF(0));
+  my_free(share->decode_trees);
 err0:
   DBUG_RETURN(1);
 }
@@ -1050,9 +1050,8 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
       return;
     }
     decode_bytes(rec,bit_buff,bit_buff->blob_pos,bit_buff->blob_pos+length);
-    _my_store_blob_length((uchar*) to,pack_length,length);
-    memcpy_fixed((char*) to+pack_length,(char*) &bit_buff->blob_pos,
-		 sizeof(char*));
+    _mi_store_blob_length((uchar*) to,pack_length,length);
+    memcpy((char*) to+pack_length, &bit_buff->blob_pos, sizeof(char*));
     bit_buff->blob_pos+=length;
   }
 }

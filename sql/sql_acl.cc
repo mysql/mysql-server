@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -27,7 +27,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "sql_acl.h"         // MYSQL_DB_FIELD_COUNT, ACL_ACCESS
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "key.h"             // key_copy, key_cmp_if_same, key_restore
 #include "sql_show.h"        // append_identifier
 #include "sql_table.h"                         // build_table_filename
@@ -210,6 +210,7 @@ static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
+static inline void get_grantor(THD *thd, char* grantor);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -677,16 +678,15 @@ my_bool acl_reload(THD *thd)
     To avoid deadlocks we should obtain table locks before
     obtaining acl_cache->lock mutex.
   */
-  bzero((char*) tables, sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "host";
-  tables[1].alias= tables[1].table_name= (char*) "user";
-  tables[2].alias= tables[2].table_name= (char*) "db";
-  tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("host"), "host", TL_READ);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_READ);
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("db"), "db", TL_READ);
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
-  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
-  init_mdl_requests(tables);
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -730,9 +730,7 @@ my_bool acl_reload(THD *thd)
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
 end:
-  trans_commit_implicit(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
+  close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -1585,6 +1583,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   /* Buffer should be extended when password length is extended. */
   char buff[512];
   ulong query_length;
+  bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
   DBUG_ENTER("change_password");
@@ -1614,9 +1613,16 @@ bool change_password(THD *thd, const char *host, const char *user,
       DBUG_RETURN(0);
   }
 #endif
-
   if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(1);
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&acl_cache->lock);
   ACL_USER *acl_user;
@@ -1643,18 +1649,22 @@ bool change_password(THD *thd, const char *host, const char *user,
   result= 0;
   if (mysql_bin_log.is_open())
   {
-    query_length=
-      my_sprintf(buff,
-                 (buff,"SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
-                  acl_user->user ? acl_user->user : "",
-                  acl_user->host.hostname ? acl_user->host.hostname : "",
-                  new_password));
+    query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
+                          acl_user->user ? acl_user->user : "",
+                          acl_user->host.hostname ? acl_user->host.hostname : "",
+                          new_password);
     thd->clear_error();
     result= thd->binlog_query(THD::STMT_QUERY_TYPE, buff, query_length,
                               FALSE, FALSE, FALSE, 0);
   }
 end:
-  close_thread_tables(thd);
+  close_mysql_tables(thd);
+
+  /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+
   DBUG_RETURN(result);
 }
 
@@ -1888,9 +1898,9 @@ static bool update_user_table(THD *thd, TABLE *table,
   key_copy((uchar *) user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0,
-                                      (uchar *) user_key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0,
+                                         (uchar *) user_key, HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
                MYF(0));	/* purecov: deadcode */
@@ -1925,9 +1935,8 @@ static bool test_if_create_new_users(THD *thd)
   {
     TABLE_LIST tl;
     ulong db_access;
-    bzero((char*) &tl,sizeof(tl));
-    tl.db=	   (char*) "mysql";
-    tl.table_name=  (char*) "user";
+    tl.init_one_table(C_STRING_WITH_LEN("mysql"),
+                      C_STRING_WITH_LEN("user"), "user", TL_WRITE);
     create_new_users= 1;
 
     db_access=acl_get(sctx->host, sctx->ip,
@@ -1981,9 +1990,9 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /* what == 'N' means revoke */
     if (what == 'N')
@@ -2205,9 +2214,9 @@ static int replace_db_table(TABLE *table, const char *db,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0],0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0],0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     if (what == 'N')
     { // no row, no revoke
@@ -2439,8 +2448,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
     col_privs->file->ha_index_init(0, 1);
-    if (col_privs->file->index_read_map(col_privs->record[0], (uchar*) key,
-                                        (key_part_map)15, HA_READ_KEY_EXACT))
+    if (col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
+                                           (key_part_map)15, HA_READ_KEY_EXACT))
     {
       cols = 0; /* purecov: deadcode */
       col_privs->file->ha_index_end();
@@ -2466,7 +2475,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
         privs= cols= 0;
         return;
       }
-    } while (!col_privs->file->index_next(col_privs->record[0]) &&
+    } while (!col_privs->file->ha_index_next(col_privs->record[0]) &&
              !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
   }
@@ -2611,8 +2620,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              table->key_info->key_length);
 
-    if (table->file->index_read_map(table->record[0], user_key, HA_WHOLE_KEY,
-                                    HA_READ_KEY_EXACT))
+    if (table->file->ha_index_read_map(table->record[0], user_key, HA_WHOLE_KEY,
+                                       HA_READ_KEY_EXACT))
     {
       if (revoke_grant)
       {
@@ -2693,9 +2702,9 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              key_prefix_length);
 
-    if (table->file->index_read_map(table->record[0], user_key,
-                                    (key_part_map)15,
-                                    HA_READ_KEY_EXACT))
+    if (table->file->ha_index_read_map(table->record[0], user_key,
+                                       (key_part_map)15,
+                                       HA_READ_KEY_EXACT))
       goto end;
 
     /* Scan through all rows with the same host,db,user and table */
@@ -2746,7 +2755,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	    my_hash_delete(&g_t->hash_columns,(uchar*) grant_column);
 	}
       }
-    } while (!table->file->index_next(table->record[0]) &&
+    } while (!table->file->ha_index_next(table->record[0]) &&
 	     !key_cmp_if_same(table, key, 0, key_prefix_length));
   }
 
@@ -2755,6 +2764,20 @@ end:
   DBUG_RETURN(result);
 }
 
+static inline void get_grantor(THD *thd, char *grantor)
+{
+  const char *user= thd->security_ctx->user;
+  const char *host= thd->security_ctx->host_or_ip;
+
+#if defined(HAVE_REPLICATION)
+  if (thd->slave_thread && thd->has_invoker())
+  {
+    user= thd->get_invoker_user().str;
+    host= thd->get_invoker_host().str;
+  }
+#endif
+  strxmov(grantor, user, "@", host, NullS);
+}
 
 static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       TABLE *table, const LEX_USER &combo,
@@ -2769,9 +2792,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   uchar user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_table_table");
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     The following should always succeed as new users are created before
     this function is called!
@@ -2796,9 +2817,9 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /*
       The following should never happen as we first check the in memory
@@ -2901,9 +2922,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     DBUG_RETURN(-1);
   }
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     New users are created before this function is called.
 
@@ -2923,10 +2942,10 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                          TRUE);
   store_record(table,record[1]);			// store at pos 1
 
-  if (table->file->index_read_idx_map(table->record[0], 0,
-                                      (uchar*) table->field[0]->ptr,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0,
+                                         (uchar*) table->field[0]->ptr,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /*
       The following should never happen as we first check the in memory
@@ -3031,6 +3050,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool create_new_users=0;
   char *db_name, *table_name;
   bool save_binlog_row_based;
+  bool should_write_to_binlog= FALSE;
   DBUG_ENTER("mysql_table_grant");
 
   if (!initialized)
@@ -3053,7 +3073,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       class LEX_COLUMN *column;
       List_iterator <LEX_COLUMN> column_iter(columns);
 
-      if (open_and_lock_tables(thd, table_list, TRUE, 0))
+      if (open_normal_and_derived_tables(thd, table_list, 0))
         DBUG_RETURN(TRUE);
 
       while ((column = column_iter++))
@@ -3075,7 +3095,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           DBUG_RETURN(TRUE);
         column_priv|= column->rights;
       }
-      close_thread_tables(thd);
+      close_mysql_tables(thd);
     }
     else
     {
@@ -3107,20 +3127,18 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   /* open the mysql.tables_priv and mysql.columns_priv tables */
 
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name= (char*) "user";
-  tables[1].alias=tables[1].table_name= (char*) "tables_priv";
-  tables[2].alias=tables[2].table_name= (char*) "columns_priv";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("tables_priv"),
+                           "tables_priv", TL_WRITE);
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("columns_priv"),
+                           "columns_priv", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
   /* Don't open column table if we don't need it ! */
-  tables[1].next_local=
-    tables[1].next_global= ((column_priv ||
-			     (revoke_grant &&
-			      ((rights & COL_ACLS) || columns.elements)))
-			    ? tables+2 : 0);
-  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
-  init_mdl_requests(tables);
+  if (column_priv || (revoke_grant && ((rights & COL_ACLS) || columns.elements)))
+    tables[1].next_local= tables[1].next_global= tables+2;
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3167,7 +3185,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->lex->sql_command= backup.sql_command;
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
-    close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3203,6 +3220,15 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       result= TRUE;				// Remember error
       continue;					// Add next user
     }
+
+    /*
+      Some operations below can fail and are not undone.
+      As such, we play it safe and log the statement with
+      an error to give a chance to the slave to replay this
+      statement and fail as well, hoping that it will also
+      get the same side effects.
+     */
+    should_write_to_binlog= TRUE;
 
     db_name= table_list->get_db_name();
     table_name= table_list->get_table_name();
@@ -3286,11 +3312,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (!result) /* success */
-  {
-    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-  }
-
+  if (should_write_to_binlog)
+    result= result |
+            write_bin_log(thd, FALSE, thd->query(), thd->query_length());
   mysql_rwlock_unlock(&LOCK_grant);
 
   if (!result) /* success */
@@ -3330,7 +3354,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   TABLE_LIST tables[2];
   bool create_new_users=0, result=0;
   char *db_name, *table_name;
-  bool save_binlog_row_based;
+  bool save_binlog_row_based, should_write_to_binlog= FALSE;
   DBUG_ENTER("mysql_routine_grant");
 
   if (!initialized)
@@ -3354,13 +3378,11 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   /* open the mysql.user and mysql.procs_priv tables */
 
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name= (char*) "user";
-  tables[1].alias=tables[1].table_name= (char*) "procs_priv";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("procs_priv"), "procs_priv", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type=tables[1].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=(char*) "mysql";
-  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3395,7 +3417,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
-    close_thread_tables(thd);
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3465,11 +3486,17 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       result= TRUE;
       continue;
     }
+
+    /*
+      Even if there is an error, we should write to binary log.
+     */
+    should_write_to_binlog= TRUE;
+
   }
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (write_to_binlog)
+  if (write_to_binlog && should_write_to_binlog)
   {
     if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
       result= TRUE;
@@ -3495,6 +3522,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool create_new_users=0;
   TABLE_LIST tables[2];
   bool save_binlog_row_based;
+  bool should_write_to_binlog= FALSE;
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
@@ -3511,13 +3539,11 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   /* open the mysql.user and mysql.db tables */
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name=(char*) "user";
-  tables[1].alias=tables[1].table_name=(char*) "db";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("db"), "db", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type=tables[1].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=(char*) "mysql";
-  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3552,7 +3578,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// This should never happen
-    close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3603,16 +3628,19 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 	result= -1;
       }
     }
+
+    /*
+      Even if there is an error, we should write to binary log.
+     */
+    should_write_to_binlog= TRUE;
   }
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (!result)
-  {
-    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-  }
+  if (should_write_to_binlog)
+    result= result |
+            write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
 
   if (!result)
     my_ok(thd);
@@ -3697,7 +3725,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   p_table->file->ha_index_init(0, 1);
   p_table->use_all_columns();
 
-  if (!p_table->file->index_first(p_table->record[0]))
+  if (!p_table->file->ha_index_first(p_table->record[0]))
   {
     memex_ptr= &memex;
     my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
@@ -3749,7 +3777,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
         goto end_unlock;
       }
     }
-    while (!p_table->file->index_next(p_table->record[0]));
+    while (!p_table->file->ha_index_next(p_table->record[0]));
   }
   /* Return ok */
   return_val= 0;
@@ -3799,7 +3827,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   t_table->use_all_columns();
   c_table->use_all_columns();
 
-  if (!t_table->file->index_first(t_table->record[0]))
+  if (!t_table->file->ha_index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
     my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
@@ -3834,7 +3862,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 	goto end_unlock;
       }
     }
-    while (!t_table->file->index_next(t_table->record[0]));
+    while (!t_table->file->ha_index_next(t_table->record[0]));
   }
 
   return_val=0;					// Return ok
@@ -3873,10 +3901,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   table.open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, &table, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {
-    close_thread_tables(thd);
     DBUG_RETURN(TRUE);
-  }
 
   mysql_rwlock_wrlock(&LOCK_grant);
   /* Save a copy of the current hash if we need to undo the grant load */
@@ -3898,7 +3923,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   }
   mysql_rwlock_unlock(&LOCK_grant);
 
-  close_thread_tables(thd);
+  close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -3930,14 +3955,14 @@ my_bool grant_reload(THD *thd)
   if (!initialized)
     DBUG_RETURN(0);
 
-  bzero((char*) tables, sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "tables_priv";
-  tables[1].alias= tables[1].table_name= (char*) "columns_priv";
-  tables[0].db= tables[1].db= (char *) "mysql";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("tables_priv"),
+                           "tables_priv", TL_READ);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("columns_priv"),
+                           "columns_priv", TL_READ);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type= tables[1].lock_type= TL_READ;
   tables[0].open_type= tables[1].open_type= OT_BASE_ONLY;
-  init_mdl_requests(tables);
 
   /*
     To avoid deadlocks we should obtain table locks before
@@ -3969,9 +3994,7 @@ my_bool grant_reload(THD *thd)
     free_root(&old_mem,MYF(0));
   }
   mysql_rwlock_unlock(&LOCK_grant);
-  trans_commit_implicit(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
+  close_mysql_tables(thd);
 
   /*
     It is OK failing to load procs_priv table because we may be
@@ -5211,22 +5234,23 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     DBUG_RETURN(-1);
   }
 
-  bzero((char*) tables, GRANT_TABLES*sizeof(*tables));
-  tables->alias= tables->table_name= (char*) "user";
-  (tables+1)->alias= (tables+1)->table_name= (char*) "db";
-  (tables+2)->alias= (tables+2)->table_name= (char*) "tables_priv";
-  (tables+3)->alias= (tables+3)->table_name= (char*) "columns_priv";
-  (tables+4)->alias= (tables+4)->table_name= (char*) "procs_priv";
+  tables->init_one_table(C_STRING_WITH_LEN("mysql"),
+                         C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  (tables+1)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("db"), "db", TL_WRITE);
+  (tables+2)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("tables_priv"),
+                             "tables_priv", TL_WRITE);
+  (tables+3)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("columns_priv"),
+                             "columns_priv", TL_WRITE);
+  (tables+4)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("procs_priv"),
+                             "procs_priv", TL_WRITE);
   tables->next_local= tables->next_global= tables+1;
   (tables+1)->next_local= (tables+1)->next_global= tables+2;
   (tables+2)->next_local= (tables+2)->next_global= tables+3;
   (tables+3)->next_local= (tables+3)->next_global= tables+4;
-  tables->lock_type= (tables+1)->lock_type=
-    (tables+2)->lock_type= (tables+3)->lock_type= 
-    (tables+4)->lock_type= TL_WRITE;
-  tables->db= (tables+1)->db= (tables+2)->db= 
-    (tables+3)->db= (tables+4)->db= (char*) "mysql";
-  init_mdl_requests(tables);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -5250,7 +5274,6 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// This should never happen
-    close_thread_tables(thd);
     DBUG_RETURN(-1);
   }
 
@@ -5405,9 +5428,9 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
 
-    if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                                user_key, (key_part_map)3,
-                                                HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                   user_key, (key_part_map)3,
+                                                   HA_READ_KEY_EXACT)))
     {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
@@ -5442,7 +5465,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
       DBUG_PRINT("info",("scan table: '%s'  search: '%s'@'%s'",
                          table->s->table_name.str, user_str, host_str));
 #endif
-      while ((error= table->file->rnd_next(table->record[0])) != 
+      while ((error= table->file->ha_rnd_next(table->record[0])) != 
              HA_ERR_END_OF_FILE)
       {
         if (error)
@@ -5840,7 +5863,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   int result;
   String wrong_users;
   String log_query;
-  ulong sql_mode;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
@@ -5894,7 +5916,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     }
 
     some_users_created= TRUE;
-    sql_mode= thd->variables.sql_mode;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
       append_user(&wrong_users, user_name, wrong_users.length() > 0);
@@ -5915,7 +5936,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6000,7 +6020,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -6097,7 +6116,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6126,7 +6144,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   int result;
   ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
-  bool save_binlog_row_based;
+  bool save_binlog_row_based, should_write_to_binlog= FALSE;
   DBUG_ENTER("mysql_revoke_all");
 
   /*
@@ -6170,6 +6188,11 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       result= -1;
       continue;
     }
+
+    /*
+      Even if there is an error, we should write to binary log.
+     */
+    should_write_to_binlog= TRUE;
 
     /* Remove db access privileges */
     /*
@@ -6291,12 +6314,13 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   if (result)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
 
-  result= result |
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  if (should_write_to_binlog)
+  {
+    result= result |
+      write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  }
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
-
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6443,7 +6467,6 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   mysql_mutex_unlock(&acl_cache->lock);
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
 
   thd->pop_internal_handler();
   /* Restore the state of binlog format */
@@ -6645,7 +6668,7 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
 #endif
 
 
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -6720,7 +6743,7 @@ err:
 }
 
 
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -6798,7 +6821,7 @@ err:
 }
 
 
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -6882,7 +6905,7 @@ err:
 }
 
 
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;

@@ -1,5 +1,4 @@
-/* Copyright (C) 1995-2002 MySQL AB,
-   Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**********************************************************************
 This file contains the implementation of error and warnings related
@@ -155,7 +154,7 @@ This file contains the implementation of error and warnings related
   This is implemented by using 'String MYSQL_ERROR::m_message_text'.
 
   The UTF8 -> error_message_charset_info conversion is implemented in
-  Signal_common::eval_signal_informations() (for path #B and #C).
+  Sql_cmd_common_signal::eval_signal_informations() (for path #B and #C).
 
   Future work
   -----------
@@ -494,14 +493,6 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
   m_current_row_for_warning= 1; /* Start counting from the first row */
 }
 
-void Warning_info::reserve_space(THD *thd, uint count)
-{
-  /* Make room for count conditions */
-  while ((m_warn_list.elements > 0) &&
-        ((m_warn_list.elements + count) > thd->variables.max_error_count))
-    m_warn_list.pop();
-}
-
 /**
   Append warnings only if the original contents of the routine
   warning info was replaced.
@@ -588,16 +579,11 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   DBUG_PRINT("enter", ("code: %d, msg: %s", code, msg));
 
   /*
-    Calling push_warning/push_warning_printf with a
-    level of WARN_LEVEL_ERROR *is* a bug.
-    Either use my_error(), or WARN_LEVEL_WARN.
-    Please fix the calling code, and do *NOT*
-    add more work around code in the assert below.
+    Calling push_warning/push_warning_printf with a level of
+    WARN_LEVEL_ERROR *is* a bug.  Either use my_printf_error(),
+    my_error(), or WARN_LEVEL_WARN.
   */
-  DBUG_ASSERT(   (level != MYSQL_ERROR::WARN_LEVEL_ERROR)
-              || (code == ER_CANT_CREATE_TABLE) /* See Bug#47233 */
-              || (code == ER_ILLEGAL_HA_CREATE_OPTION) /* See Bug#47233 */
-             );
+  DBUG_ASSERT(level != MYSQL_ERROR::WARN_LEVEL_ERROR);
 
   if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
     level= MYSQL_ERROR::WARN_LEVEL_WARN;

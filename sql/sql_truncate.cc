@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_truncate.h"
 #include "sql_priv.h"
 #include "transaction.h"
 #include "debug_sync.h"
@@ -25,6 +24,9 @@
 #include "sql_handler.h" // mysql_ha_rm_tables
 #include "datadict.h"    // dd_recreate_table()
 #include "lock.h"        // MYSQL_OPEN_TEMPORARY_ONLY
+#include "sql_acl.h"     // DROP_ACL
+#include "sql_parse.h"   // check_one_table_access()
+#include "sql_truncate.h"
 
 
 /*
@@ -216,7 +218,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     rm_temporary_table(table_type, share->path.str);
 
   free_table_share(share);
-  my_free(table, MYF(0));
+  my_free(table);
 
   DBUG_RETURN(error);
 }
@@ -242,9 +244,11 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
                                              MDL_ticket **ticket_downgrade)
 {
   TABLE *table= NULL;
-  MDL_ticket *mdl_ticket= NULL;
+  handlerton *table_type;
   DBUG_ENTER("open_and_lock_table_for_truncate");
 
+  DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
+  DBUG_ASSERT(table_ref->mdl_request.type == MDL_SHARED_NO_READ_WRITE);
   /*
     Before doing anything else, acquire a metadata lock on the table,
     or ensure we have one.  We don't use open_and_lock_tables()
@@ -264,8 +268,10 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
                                             table_ref->table_name, FALSE)))
       DBUG_RETURN(TRUE);
 
-    *hton_can_recreate= ha_check_storage_engine_flag(table->s->db_type(),
+    table_type= table->s->db_type();
+    *hton_can_recreate= ha_check_storage_engine_flag(table_type,
                                                      HTON_CAN_RECREATE);
+    table_ref->mdl_request.ticket= table->mdl_ticket;
   }
   else
   {
@@ -273,26 +279,31 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
       Even though we could use the previous execution branch here just as
       well, we must not try to open the table:
     */
-    MDL_request mdl_global_request, mdl_request;
-    MDL_request_list mdl_requests;
-
-    mdl_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
-    mdl_request.init(MDL_key::TABLE, table_ref->db, table_ref->table_name,
-                     MDL_SHARED_NO_READ_WRITE);
-    mdl_requests.push_front(&mdl_request);
-    mdl_requests.push_front(&mdl_global_request);
-
-    if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                        thd->variables.lock_wait_timeout))
+    DBUG_ASSERT(table_ref->next_global == NULL);
+    if (lock_table_names(thd, table_ref, NULL,
+                         thd->variables.lock_wait_timeout,
+                         MYSQL_OPEN_SKIP_TEMPORARY))
       DBUG_RETURN(TRUE);
 
-    mdl_ticket= mdl_request.ticket;
-
-    if (dd_check_storage_engine_flag(thd, table_ref->db, table_ref->table_name,
-                                     HTON_CAN_RECREATE, hton_can_recreate))
+    if (dd_frm_storage_engine(thd, table_ref->db, table_ref->table_name,
+                              &table_type))
       DBUG_RETURN(TRUE);
+    *hton_can_recreate= ha_check_storage_engine_flag(table_type,
+                                                     HTON_CAN_RECREATE);
   }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /*
+    TODO: Add support for TRUNCATE PARTITION for NDB and other engines
+    supporting native partitioning.
+  */
+  if (thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION &&
+      table_type != partition_hton)
+  {
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+#endif
   DEBUG_SYNC(thd, "lock_table_for_truncate");
 
   if (*hton_can_recreate)
@@ -313,12 +324,12 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
     else
     {
       ulong timeout= thd->variables.lock_wait_timeout;
-      if (thd->mdl_context.upgrade_shared_lock_to_exclusive(mdl_ticket, timeout))
+      if (thd->mdl_context.
+          upgrade_shared_lock_to_exclusive(table_ref->mdl_request.ticket,
+                                           timeout))
         DBUG_RETURN(TRUE);
-      mysql_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db,
-                       table_ref->table_name);
-      mysql_mutex_unlock(&LOCK_open);
+                       table_ref->table_name, FALSE);
     }
   }
   else
@@ -335,15 +346,14 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
     table_ref->required_type= FRMTYPE_TABLE;
     /* We don't need to load triggers. */
     DBUG_ASSERT(table_ref->trg_event_map == 0);
-    /* Work around partition parser rules using alter table's. */
-    if (thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
-    {
-      table_ref->lock_type= TL_WRITE;
-      table_ref->mdl_request.set_type(MDL_SHARED_WRITE);
-    }
-    /* Ensure proper lock types (e.g. from the parser). */
-    DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
-    DBUG_ASSERT(table_ref->mdl_request.type == MDL_SHARED_WRITE);
+    /*
+      Even though we have an MDL lock on the table here, we don't
+      pass MYSQL_OPEN_HAS_MDL_LOCK to open_and_lock_tables
+      since to truncate a MERGE table, we must open and lock
+      merge children, and on those we don't have an MDL lock.
+      Thus clear the ticket to satisfy MDL asserts.
+    */
+    table_ref->mdl_request.ticket= NULL;
 
     /*
       Open the table as it will handle some required preparations.
@@ -483,3 +493,27 @@ bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
   DBUG_RETURN(test(error));
 }
 
+
+bool Sql_cmd_truncate_table::execute(THD *thd)
+{
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  bool res= TRUE;
+  DBUG_ENTER("Sql_cmd_truncate_table::execute");
+
+  if (check_one_table_access(thd, DROP_ACL, first_table))
+    goto error;
+  /*
+    Don't allow this within a transaction because we want to use
+    re-generate table
+  */
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    goto error;
+  }
+  if (! (res= mysql_truncate_table(thd, first_table)))
+    my_ok(thd);
+error:
+  DBUG_RETURN(res);
+}

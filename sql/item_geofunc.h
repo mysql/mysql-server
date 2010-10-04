@@ -1,4 +1,7 @@
-/* Copyright (C) 2000-2003 MySQL AB
+#ifndef ITEM_GEOFUNC_INCLUDED
+#define ITEM_GEOFUNC_INCLUDED
+
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* This file defines all spatial functions */
@@ -194,14 +197,7 @@ public:
   longlong val_int();
   enum Functype functype() const 
   { 
-    switch (spatial_rel) {
-    case SP_CONTAINS_FUNC:
-      return SP_WITHIN_FUNC;
-    case SP_WITHIN_FUNC:
-      return SP_CONTAINS_FUNC;
-    default:
-      return spatial_rel;
-    }
+    return spatial_rel;
   }
   enum Functype rev_functype() const { return spatial_rel; }
   const char *func_name() const;
@@ -227,14 +223,7 @@ public:
   longlong val_int();
   enum Functype functype() const 
   { 
-    switch (spatial_rel) {
-    case SP_CONTAINS_FUNC:
-      return SP_WITHIN_FUNC;
-    case SP_WITHIN_FUNC:
-      return SP_CONTAINS_FUNC;
-    default:
-      return spatial_rel;
-    }
+    return spatial_rel;
   }
   enum Functype rev_functype() const { return spatial_rel; }
   const char *func_name() const;
@@ -485,5 +474,6 @@ public:
 
 #define GEOM_NEW(thd, obj_constructor) NULL
 
-#endif
+#endif /*HAVE_SPATIAL*/
+#endif /*ITEM_GEOFUNC_INCLUDED*/
 

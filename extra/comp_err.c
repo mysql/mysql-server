@@ -387,15 +387,15 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
   struct errors *tmp_error, *next_error;
   uint count, i;
 
-  my_free((uchar*) default_language, MYF(0));
+  my_free((void*) default_language);
 
   for (tmp_lang= lang_head; tmp_lang; tmp_lang= next_language)
   {
     next_language= tmp_lang->next_lang;
-    my_free(tmp_lang->lang_short_name, MYF(0));
-    my_free(tmp_lang->lang_long_name, MYF(0));
-    my_free(tmp_lang->charset, MYF(0));
-    my_free((uchar*) tmp_lang, MYF(0));
+    my_free(tmp_lang->lang_short_name);
+    my_free(tmp_lang->lang_long_name);
+    my_free(tmp_lang->charset);
+    my_free(tmp_lang);
   }
 
   for (tmp_error= error_head; tmp_error; tmp_error= next_error)
@@ -406,17 +406,17 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
     {
       struct message *tmp;
       tmp= dynamic_element(&tmp_error->msg, i, struct message*);
-      my_free((uchar*) tmp->lang_short_name, MYF(0));
-      my_free((uchar*) tmp->text, MYF(0));
+      my_free(tmp->lang_short_name);
+      my_free(tmp->text);
     }
 
     delete_dynamic(&tmp_error->msg);
     if (tmp_error->sql_code1[0])
-      my_free((uchar*) tmp_error->sql_code1, MYF(0));
+      my_free((void*) tmp_error->sql_code1);
     if (tmp_error->sql_code2[0])
-      my_free((uchar*) tmp_error->sql_code2, MYF(0));
-    my_free((uchar*) tmp_error->er_name, MYF(0));
-    my_free((uchar*) tmp_error, MYF(0));
+      my_free((void*) tmp_error->sql_code2);
+    my_free((void*) tmp_error->er_name);
+    my_free(tmp_error);
   }
 }
 
@@ -559,7 +559,7 @@ static uint parse_error_offset(char *str)
 
   end= 0;
   ioffset= (uint) my_strtoll10(soffset, &end, &error);
-  my_free((uchar*) soffset, MYF(0));
+  my_free(soffset);
   DBUG_RETURN(ioffset);
 }
 
@@ -665,9 +665,9 @@ static struct message *find_message(struct errors *err, const char *lang,
 static ha_checksum checksum_format_specifier(const char* msg)
 {
   ha_checksum chksum= 0;
-  const char* p= msg;
-  const char* start= 0;
-  int num_format_specifiers= 0;
+  const uchar* p= (const uchar*) msg;
+  const uchar* start= NULL;
+  uint32 num_format_specifiers= 0;
   while (*p)
   {
 
@@ -857,7 +857,6 @@ static struct message *parse_message_string(struct message *new_message,
 static struct errors *parse_error_string(char *str, int er_count)
 {
   struct errors *new_error;
-  char *start;
   DBUG_ENTER("parse_error_string");
   DBUG_PRINT("enter", ("str: %s", str));
 
@@ -868,7 +867,6 @@ static struct errors *parse_error_string(char *str, int er_count)
     DBUG_RETURN(0);				/* OOM: Fatal error */
 
   /* getting the error name */
-  start= str;
   str= skip_delimiters(str);
 
   if (!(new_error->er_name= get_word(&str)))

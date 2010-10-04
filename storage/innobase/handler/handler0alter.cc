@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,7 @@ extern "C" {
 #include "trx0roll.h"
 #include "ha_prototypes.h"
 #include "handler0alter.h"
+#include "srv0mon.h"
 }
 
 #include "ha_innodb.h"
@@ -99,8 +100,10 @@ innobase_col_to_mysql(
 #ifdef UNIV_DEBUG
 	case DATA_MYSQL:
 		ut_ad(flen >= len);
-		ut_ad(col->mbmaxlen >= col->mbminlen);
-		ut_ad(col->mbmaxlen > col->mbminlen || flen == len);
+		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
+		      >= DATA_MBMINLEN(col->mbminmaxlen));
+		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
+		      > DATA_MBMINLEN(col->mbminmaxlen) || flen == len);
 		memcpy(dest, data, len);
 		break;
 
@@ -880,6 +883,8 @@ error_handling:
 		prebuilt = row_create_prebuilt(indexed_table);
 
 		indexed_table->n_mysql_handles_opened++;
+
+		MONITOR_INC(MONITOR_TABLE_OPEN);
 
 		error = row_merge_drop_table(trx, innodb_table);
 		innodb_table = indexed_table;

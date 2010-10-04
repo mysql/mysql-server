@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
@@ -29,8 +29,6 @@
 
 #include "m_string.h"                       /* LEX_STRING */
 #include "my_alloc.h"                       /* MEM_ROOT */
-
-#include "my_sys.h"                         /* CALLER_INFO_PROTO */
 
 class sys_var;
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
@@ -134,13 +132,13 @@ extern int plugin_init(int *argc, char **argv, int init_flags);
 extern void plugin_shutdown(void);
 void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root);
 extern bool plugin_is_ready(const LEX_STRING *name, int type);
-#define my_plugin_lock_by_name(A,B,C) plugin_lock_by_name(A,B,C CALLER_INFO)
-#define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C ORIG_CALLER_INFO)
-#define my_plugin_lock(A,B) plugin_lock(A,B CALLER_INFO)
-#define my_plugin_lock_ci(A,B) plugin_lock(A,B ORIG_CALLER_INFO)
-extern plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO);
+#define my_plugin_lock_by_name(A,B,C) plugin_lock_by_name(A,B,C)
+#define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C)
+#define my_plugin_lock(A,B) plugin_lock(A,B)
+#define my_plugin_lock_ci(A,B) plugin_lock(A,B)
+extern plugin_ref plugin_lock(THD *thd, plugin_ref *ptr);
 extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name,
-                                      int type CALLER_INFO_PROTO);
+                                      int type);
 extern void plugin_unlock(THD *thd, plugin_ref plugin);
 extern void plugin_unlock_list(THD *thd, plugin_ref *list, uint count);
 extern bool mysql_install_plugin(THD *thd, const LEX_STRING *name,

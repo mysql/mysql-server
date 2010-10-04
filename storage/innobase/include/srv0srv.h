@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -112,6 +112,9 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
+#ifdef __WIN__
+extern ibool	srv_use_native_conditions;
+#endif
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
@@ -143,6 +146,8 @@ extern ibool	srv_use_sys_malloc;
 #endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint    srv_buf_pool_instances; /*!< requested number of buffer pool instances */
+extern ulong	srv_n_page_hash_mutexes; /*!< number of mutexes to
+					 protect buf_pool->page_hash */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
@@ -161,9 +166,9 @@ is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
 
 #ifdef UNIV_LOG_ARCHIVE
-extern ibool	srv_log_archive_on;
-extern ibool	srv_archive_recovery;
-extern dulint	srv_archive_recovery_limit_lsn;
+extern ibool		srv_log_archive_on;
+extern ibool		srv_archive_recovery;
+extern ib_uint64_t	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
 extern char*	srv_file_flush_method_str;
@@ -221,6 +226,8 @@ extern ulong	srv_n_free_tickets_to_enter;
 extern ulong	srv_thread_sleep_delay;
 extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
+
+extern ulint	srv_n_lock_wait_count;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;

@@ -35,7 +35,10 @@ reset master|
 --error ER_DUP_ENTRY
 insert into t2 values (bug23333(),1)| 
 # the following must show there are events after the query
---source include/show_binlog_events.inc
+# the binlog_limit is used to hide the differences between the mixed
+# and row logging formats after BUG#53259
+let $binlog_limit= 0, 4|
+source include/show_binlog_events.inc|
 select count(*),@a from t1 /* must be 1,1 */|
 
 delimiter ;|

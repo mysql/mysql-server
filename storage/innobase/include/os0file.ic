@@ -55,9 +55,10 @@ pfs_os_file_create_simple_func(
 {
 	os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
+	PSI_file_locker_state	state;
 
 	/* register a file open or creation depending on "create_mode" */
-	register_pfs_file_open_begin(locker, key,
+	register_pfs_file_open_begin(&state, locker, key,
 				     ((create_mode == OS_FILE_CREATE)
 					? PSI_FILE_CREATE
 					: PSI_FILE_OPEN),
@@ -101,9 +102,10 @@ pfs_os_file_create_simple_no_error_handling_func(
 {
 	os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
+	PSI_file_locker_state	state;
 
 	/* register a file open or creation depending on "create_mode" */
-	register_pfs_file_open_begin(locker, key,
+	register_pfs_file_open_begin(&state, locker, key,
 				     ((create_mode == OS_FILE_CREATE)
 					? PSI_FILE_CREATE
 					: PSI_FILE_OPEN),
@@ -153,9 +155,10 @@ pfs_os_file_create_func(
 {
 	os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
+	PSI_file_locker_state	state;
 
 	/* register a file open or creation depending on "create_mode" */
-	register_pfs_file_open_begin(locker, key,
+	register_pfs_file_open_begin(&state, locker, key,
 				     ((create_mode == OS_FILE_CREATE)
 					? PSI_FILE_CREATE
 					: PSI_FILE_OPEN),
@@ -183,9 +186,10 @@ pfs_os_file_close_func(
 {
 	ibool	result;
 	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 
 	/* register the file close */
-	register_pfs_file_io_begin(locker, file, 0, PSI_FILE_CLOSE,
+	register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_CLOSE,
 				   src_file, src_line);
 
 	result = os_file_close_func(file);
@@ -230,9 +234,10 @@ pfs_os_aio_func(
 {
 	ibool	result;
 	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 
 	/* Register the read or write I/O depending on "type" */
-	register_pfs_file_io_begin(locker, file, n,
+	register_pfs_file_io_begin(&state, locker, file, n,
 				   (type == OS_FILE_WRITE)
 					? PSI_FILE_WRITE
 					: PSI_FILE_READ,
@@ -268,8 +273,9 @@ pfs_os_file_read_func(
 {
 	ibool	result;
 	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 
-	register_pfs_file_io_begin(locker, file, n, PSI_FILE_READ,
+	register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ,
 				   src_file, src_line);
 
 	result = os_file_read_func(file, buf, offset, offset_high, n);
@@ -303,8 +309,9 @@ pfs_os_file_read_no_error_handling_func(
 {
 	ibool	result;
 	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 
-	register_pfs_file_io_begin(locker, file, n, PSI_FILE_READ,
+	register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ,
 				   src_file, src_line);
 
 	result = os_file_read_no_error_handling_func(file, buf, offset,
@@ -339,8 +346,9 @@ pfs_os_file_write_func(
 {
 	ibool	result;
 	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 
-	register_pfs_file_io_begin(locker, file, n, PSI_FILE_WRITE,
+	register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_WRITE,
 				   src_file, src_line);
 
 	result = os_file_write_func(name, file, buf, offset, offset_high, n);
@@ -366,8 +374,9 @@ pfs_os_file_flush_func(
 {
 	ibool	result;
 	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 
-	register_pfs_file_io_begin(locker, file, 0, PSI_FILE_SYNC,
+	register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_SYNC,
 				   src_file, src_line);
 	result = os_file_flush_func(file);
 
@@ -395,8 +404,9 @@ pfs_os_file_rename_func(
 {
 	ibool	result;
 	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 
-	register_pfs_file_open_begin(locker, key, PSI_FILE_RENAME, newpath,
+	register_pfs_file_open_begin(&state, locker, key, PSI_FILE_RENAME, newpath,
 				     src_file, src_line);
 
 	result = os_file_rename_func(oldpath, newpath);

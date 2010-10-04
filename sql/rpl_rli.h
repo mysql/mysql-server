@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
@@ -357,6 +357,8 @@ public:
   RPL_TABLE_LIST *tables_to_lock;           /* RBR: Tables to lock  */
   uint tables_to_lock_count;        /* RBR: Count of tables to lock */
   table_mapping m_table_map;      /* RBR: Mapping table-id to table */
+  /* RBR: Record Rows_query log event */
+  Rows_query_log_event* rows_query_ev;
 
   bool get_table_data(TABLE *table_arg, table_def **tabledef_var, TABLE **conv_table_var) const
   {

@@ -266,6 +266,49 @@ row_mysql_read_blob_ref(
 }
 
 /**************************************************************//**
+Pad a column with spaces. */
+UNIV_INTERN
+void
+row_mysql_pad_col(
+/*==============*/
+	ulint	mbminlen,	/*!< in: minimum size of a character,
+				in bytes */
+	byte*	pad,		/*!< out: padded buffer */
+	ulint	len)		/*!< in: number of bytes to pad */
+{
+	const byte*	pad_end;
+
+	switch (UNIV_EXPECT(mbminlen, 1)) {
+	default:
+		ut_error;
+	case 1:
+		/* space=0x20 */
+		memset(pad, 0x20, len);
+		break;
+	case 2:
+		/* space=0x0020 */
+		pad_end = pad + len;
+		ut_a(!(len % 2));
+		do {
+			*pad++ = 0x00;
+			*pad++ = 0x20;
+		} while (pad < pad_end);
+		break;
+	case 4:
+		/* space=0x00000020 */
+		pad_end = pad + len;
+		ut_a(!(len % 4));
+		do {
+			*pad++ = 0x00;
+			*pad++ = 0x00;
+			*pad++ = 0x00;
+			*pad++ = 0x20;
+		} while (pad < pad_end);
+		break;
+	}
+}
+
+/**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.c.
@@ -357,12 +400,28 @@ row_mysql_store_col_in_innobase_format(
 			/* Remove trailing spaces from old style VARCHAR
 			columns. */
 
-			/* Handle UCS2 strings differently. */
+			/* Handle Unicode strings differently. */
 			ulint	mbminlen	= dtype_get_mbminlen(dtype);
 
 			ptr = mysql_data;
 
-			if (mbminlen == 2) {
+			switch (mbminlen) {
+			default:
+				ut_error;
+			case 4:
+				/* space=0x00000020 */
+				/* Trim "half-chars", just in case. */
+				col_len &= ~3;
+
+				while (col_len >= 4
+				       && ptr[col_len - 4] == 0x00
+				       && ptr[col_len - 3] == 0x00
+				       && ptr[col_len - 2] == 0x00
+				       && ptr[col_len - 1] == 0x20) {
+					col_len -= 4;
+				}
+				break;
+			case 2:
 				/* space=0x0020 */
 				/* Trim "half-chars", just in case. */
 				col_len &= ~1;
@@ -371,8 +430,8 @@ row_mysql_store_col_in_innobase_format(
 				       && ptr[col_len - 1] == 0x20) {
 					col_len -= 2;
 				}
-			} else {
-				ut_a(mbminlen == 1);
+				break;
+			case 1:
 				/* space=0x20 */
 				while (col_len > 0
 				       && ptr[col_len - 1] == 0x20) {
@@ -1532,7 +1591,7 @@ row_unlock_for_mysql(
 			}
 		}
 
-		if (ut_dulint_cmp(rec_trx_id, trx->id) != 0) {
+		if (rec_trx_id != trx->id) {
 			/* We did not update the record: unlock it */
 
 			rec = btr_pcur_get_rec(pcur);
@@ -2283,7 +2342,7 @@ row_discard_tablespace_for_mysql(
 	trx_t*		trx)	/*!< in: transaction handle */
 {
 	dict_foreign_t*	foreign;
-	dulint		new_id;
+	table_id_t	new_id;
 	dict_table_t*	table;
 	ibool		success;
 	ulint		err;
@@ -2405,7 +2464,7 @@ row_discard_tablespace_for_mysql(
 	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "table_name", name);
-	pars_info_add_dulint_literal(info, "new_id", new_id);
+	pars_info_add_ull_literal(info, "new_id", new_id);
 
 	err = que_eval_sql(info,
 			   "PROCEDURE DISCARD_TABLESPACE_PROC () IS\n"
@@ -2619,7 +2678,7 @@ row_truncate_table_for_mysql(
 	dict_index_t*	sys_index;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
-	dulint		new_id;
+	table_id_t	new_id;
 	ulint		recreate_space = 0;
 	pars_info_t*	info = NULL;
 
@@ -2873,8 +2932,8 @@ next_rec:
 	info = pars_info_create();
 
 	pars_info_add_int4_literal(info, "space", (lint) table->space);
-	pars_info_add_dulint_literal(info, "old_id", table->id);
-	pars_info_add_dulint_literal(info, "new_id", new_id);
+	pars_info_add_ull_literal(info, "old_id", table->id);
+	pars_info_add_ull_literal(info, "new_id", new_id);
 
 	err = que_eval_sql(info,
 			   "PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"

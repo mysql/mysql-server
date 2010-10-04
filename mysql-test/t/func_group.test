@@ -1082,9 +1082,24 @@ select a.f1 as a, b.f4 as b, a.f1 > b.f4 as gt,
 from t1 a, t1 b;
 select *, f1 = f2 from t1;
 drop table t1;
+
+--echo #
+--echo # Bug #54465: assert: field_types == 0 || field_types[field_pos] ==
+--echo #             MYSQL_TYPE_LONGLONG
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+SELECT MAX((SELECT 1 FROM t1 ORDER BY @var LIMIT 1)) m FROM t1 t2, t1 
+       ORDER BY t1.a;
+
+DROP TABLE t1;
+
 --echo #
 --echo End of 5.1 tests
 
+###
 --echo #
 --echo # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
 --echo #           file .\item_sum.cc, line 587
@@ -1094,4 +1109,23 @@ CREATE TABLE t1(a int, KEY(a));
 INSERT INTO t1 VALUES (1), (2);
 SELECT 1 FROM t1 ORDER BY AVG(DISTINCT a);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#55648: Server crash on MIN/MAX on maximum time value
+--echo #
+CREATE TABLE t1(c1 TIME NOT NULL);
+INSERT INTO t1 VALUES('837:59:59');
+INSERT INTO t1 VALUES('838:59:59');
+SELECT MAX(c1) FROM t1;
+DROP TABLE t1;
+--echo # End of the bug#55648
+
+--echo #
+--echo # Bug#56120: Failed assertion on MIN/MAX on negative time value
+--echo #
+CREATE TABLE t1(c1 TIME NOT NULL);
+INSERT INTO t1 VALUES('-00:00:01');
+SELECT MAX(c1),MIN(c1) FROM t1;
+DROP TABLE t1;
+--echo # End of the bug#56120
 

@@ -518,7 +518,7 @@ dtuple_fold(
 	ulint		n_fields,/*!< in: number of complete fields to fold */
 	ulint		n_bytes,/*!< in: number of bytes to fold in an
 				incomplete last field */
-	dulint		tree_id)/*!< in: index tree id */
+	index_id_t	tree_id)/*!< in: index tree id */
 {
 	const dfield_t*	field;
 	ulint		i;
@@ -530,7 +530,7 @@ dtuple_fold(
 	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(dtuple_check_typed(tuple));
 
-	fold = ut_fold_dulint(tree_id);
+	fold = ut_fold_ull(tree_id);
 
 	for (i = 0; i < n_fields; i++) {
 		field = dtuple_get_nth_field(tuple, i);

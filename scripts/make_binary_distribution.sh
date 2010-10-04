@@ -162,10 +162,6 @@ fi
 # Print the platform name for build logs
 echo "PLATFORM NAME: $PLATFORM"
 
-case $PLATFORM in
-  *netware*) BASE_SYSTEM="netware" ;;
-esac
-
 # Change the distribution to a long descriptive name
 # For the cluster product, concentrate on the second part
 VERSION_NAME=@VERSION@
@@ -226,318 +222,121 @@ fi
 #
 ##############################################################################
 
-if [ x"$BASE_SYSTEM" != x"netware" ] ; then
+# ----------------------------------------------------------------------
+# Terminate on any base level error
+# ----------------------------------------------------------------------
+set -e
 
-  # ----------------------------------------------------------------------
-  # Terminate on any base level error
-  # ----------------------------------------------------------------------
-  set -e
+# ----------------------------------------------------------------------
+# Really ugly, one script, "mysql_install_db", needs prefix set to ".",
+# i.e. makes access relative the current directory. This matches
+# the documentation, so better not change this. And for another script,
+# "mysql.server", we make some relative, others not.
+# ----------------------------------------------------------------------
 
-  # ----------------------------------------------------------------------
-  # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
-  # i.e. makes access relative the current directory. This matches
-  # the documentation, so better not change this. And for another script,
-  # "mysql.server", we make some relative, others not.
-  # ----------------------------------------------------------------------
+cd scripts
+rm -f mysql_install_db
+@MAKE@ mysql_install_db \
+  prefix=. \
+  bindir=./bin \
+  sbindir=./bin \
+  scriptdir=./bin \
+  libexecdir=./bin \
+  pkgdatadir=./share \
+  localstatedir=./data
+cd ..
 
-  cd scripts
-  rm -f mysql_install_db
-  @MAKE@ mysql_install_db \
-    prefix=. \
-    bindir=./bin \
-    sbindir=./bin \
-    scriptdir=./bin \
-    libexecdir=./bin \
-    pkgdatadir=./share \
-    localstatedir=./data
-  cd ..
+cd support-files
+rm -f mysql.server
+@MAKE@ mysql.server \
+  bindir=./bin \
+  sbindir=./bin \
+  scriptdir=./bin \
+  libexecdir=./bin \
+  pkgdatadir=@pkgdatadir@
+cd ..
 
-  cd support-files
-  rm -f mysql.server
-  @MAKE@ mysql.server \
-    bindir=./bin \
-    sbindir=./bin \
-    scriptdir=./bin \
-    libexecdir=./bin \
-    pkgdatadir=@pkgdatadir@
-  cd ..
+# ----------------------------------------------------------------------
+# Do a install that we later are to pack. Use the same paths as in
+# the build for the relevant directories.
+# ----------------------------------------------------------------------
+@MAKE@ DESTDIR=$BASE install \
+  pkglibdir=@pkglibdir@ \
+  pkgincludedir=@pkgincludedir@ \
+  pkgdatadir=@pkgdatadir@ \
+  pkgplugindir=@pkgplugindir@ \
+  pkgsuppdir=@pkgsuppdir@ \
+  mandir=@mandir@ \
+  infodir=@infodir@
 
-  # ----------------------------------------------------------------------
-  # Do a install that we later are to pack. Use the same paths as in
-  # the build for the relevant directories.
-  # ----------------------------------------------------------------------
-  @MAKE@ DESTDIR=$BASE install \
-    pkglibdir=@pkglibdir@ \
-    pkgincludedir=@pkgincludedir@ \
-    pkgdatadir=@pkgdatadir@ \
-    pkgplugindir=@pkgplugindir@ \
-    pkgsuppdir=@pkgsuppdir@ \
-    mandir=@mandir@ \
-    infodir=@infodir@
+# ----------------------------------------------------------------------
+# Rename top directory, and set DEST to the new directory
+# ----------------------------------------------------------------------
+mv $BASE@prefix@ $BASE/$NEW_NAME
+DEST=$BASE/$NEW_NAME
 
-  # ----------------------------------------------------------------------
-  # Rename top directory, and set DEST to the new directory
-  # ----------------------------------------------------------------------
-  mv $BASE@prefix@ $BASE/$NEW_NAME
-  DEST=$BASE/$NEW_NAME
-
-  # ----------------------------------------------------------------------
-  # If we compiled with gcc, copy libgcc.a to the dist as libmygcc.a
-  # ----------------------------------------------------------------------
-  if [ x"@GXX@" = x"yes" ] ; then
-    gcclib=`@CC@ @CFLAGS@ --print-libgcc-file 2>/dev/null` || true
-    if [ -z "$gcclib" ] ; then
-      echo "Warning: Compiler doesn't tell libgcc.a!"
-    elif [ -f "$gcclib" ] ; then
-      $CP $gcclib $DEST/lib/libmygcc.a
-    else
-      echo "Warning: Compiler result '$gcclib' not found / no file!"
-    fi
-  fi
-
-  # If requested, add a malloc library .so into pkglibdir for use
-  # by mysqld_safe
-  if [ -n "$MALLOC_LIB" ]; then
-    cp "$MALLOC_LIB" "$DEST/lib/"
-  fi
-
-  # FIXME let this script be in "bin/", where it is in the RPMs?
-  # http://dev.mysql.com/doc/refman/5.1/en/mysql-install-db-problems.html
-  mkdir $DEST/scripts
-  mv $DEST/bin/mysql_install_db $DEST/scripts/
-
-  # Note, no legacy "safe_mysqld" link to "mysqld_safe" in 5.1
-
-  # Copy readme and license files
-  cp README Docs/INSTALL-BINARY  $DEST/
-  if [ -f COPYING -a -f EXCEPTIONS-CLIENT ] ; then
-    cp COPYING EXCEPTIONS-CLIENT $DEST/
-  elif [ -f LICENSE.mysql ] ; then
-    cp LICENSE.mysql $DEST/
+# ----------------------------------------------------------------------
+# If we compiled with gcc, copy libgcc.a to the dist as libmygcc.a
+# ----------------------------------------------------------------------
+if [ x"@GXX@" = x"yes" ] ; then
+  gcclib=`@CC@ @CFLAGS@ --print-libgcc-file 2>/dev/null` || true
+  if [ -z "$gcclib" ] ; then
+    echo "Warning: Compiler doesn't tell libgcc.a!"
+  elif [ -f "$gcclib" ] ; then
+    $CP $gcclib $DEST/lib/libmygcc.a
   else
-    echo "ERROR: no license files found"
-    exit 1
+    echo "Warning: Compiler result '$gcclib' not found / no file!"
   fi
-
-  # FIXME should be handled by make file, and to other dir
-  mkdir -p $DEST/bin $DEST/support-files
-  cp scripts/mysqlaccess.conf $DEST/bin/
-  cp support-files/magic      $DEST/support-files/
-
-  # Create empty data directories, set permission (FIXME why?)
-  mkdir       $DEST/data $DEST/data/mysql $DEST/data/test
-  chmod o-rwx $DEST/data $DEST/data/mysql $DEST/data/test
-
-  # ----------------------------------------------------------------------
-  # Create the result tar file
-  # ----------------------------------------------------------------------
-
-  echo "Using $tar to create archive"
-  OPT=cvf
-  if [ x$SILENT = x1 ] ; then
-    OPT=cf
-  fi
-
-  echo "Creating and compressing archive"
-  rm -f $NEW_NAME.tar.gz
-  (cd $BASE ; $tar $OPT -  $NEW_NAME) | gzip -9 > $NEW_NAME.tar.gz
-  echo "$NEW_NAME.tar.gz created"
-
-  echo "Removing temporary directory"
-  rm -rf $BASE
-  exit 0
 fi
 
-
-##############################################################################
-#
-#  Handle the Netware case, until integrated above
-#
-##############################################################################
-
-BS=".nlm"
-MYSQL_SHARE=$BASE/share
-
-mkdir $BASE $BASE/bin $BASE/docs \
- $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
- $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
- $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/mysql-test/lib \
- $BASE/mysql-test/suite
-
-# Copy files if they exists, warn for those that don't.
-# Note that when listing files to copy, we might list the file name
-# twice, once in the directory location where it is built, and a
-# second time in the ".libs" location. In the case the first one
-# is a wrapper script, the second one will overwrite it with the
-# binary file.
-copyfileto()
-{
-  destdir=$1
-  shift
-  for i
-  do
-    if [ -f $i ] ; then
-      $CP $i $destdir
-    elif [ -d $i ] ; then
-      echo "Warning: Will not copy directory \"$i\""
-    else
-      echo "Warning: Listed file not found   \"$i\""
-    fi
-  done
-}
-
-copyfileto $BASE/docs ChangeLog Docs/mysql.info
-
-copyfileto $BASE COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         EXCEPTIONS-CLIENT LICENSE.mysql
-
-# Non platform-specific bin dir files:
-BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
-  extra/resolveip$BS extra/my_print_defaults$BS \
-  extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
-  storage/myisam/myisamchk$BS storage/myisam/myisampack$BS \
-  storage/myisam/myisamlog$BS storage/myisam/myisam_ftdump$BS \
-  sql/mysqld$BS sql/mysqld-debug$BS \
-  sql/mysql_tzinfo_to_sql$BS \
-  client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
-  client/mysqlslap$BS \
-  client/mysqldump$BS client/mysqlimport$BS \
-  client/mysqltest$BS client/mysqlcheck$BS \
-  client/mysqlbinlog$BS client/mysql_upgrade$BS \
-  tests/mysql_client_test$BS \
-  libmysqld/examples/mysql_client_test_embedded$BS \
-  libmysqld/examples/mysqltest_embedded$BS \
-  ";
-
-# Platform-specific bin dir files:
-BIN_FILES="$BIN_FILES \
-    netware/mysqld_safe$BS netware/mysql_install_db$BS \
-    netware/init_db.sql netware/test_db.sql \
-    netware/mysqlhotcopy$BS netware/libmysql$BS netware/init_secure_db.sql \
-    ";
-
-copyfileto $BASE/bin $BIN_FILES
-
-$CP netware/*.pl $BASE/scripts
-$CP scripts/mysqlhotcopy $BASE/scripts/mysqlhotcopy.pl
-
-copyfileto $BASE/lib \
-  libmysql/.libs/libmysqlclient.a \
-  libmysql/.libs/libmysqlclient.so* \
-  libmysql/.libs/libmysqlclient.sl* \
-  libmysql/.libs/libmysqlclient*.dylib \
-  libmysql/libmysqlclient.* \
-  libmysql_r/.libs/libmysqlclient_r.a \
-  libmysql_r/.libs/libmysqlclient_r.so* \
-  libmysql_r/.libs/libmysqlclient_r.sl* \
-  libmysql_r/.libs/libmysqlclient_r*.dylib \
-  libmysql_r/libmysqlclient_r.* \
-  libmysqld/.libs/libmysqld.a \
-  libmysqld/.libs/libmysqld.so* \
-  libmysqld/.libs/libmysqld.sl* \
-  libmysqld/.libs/libmysqld*.dylib \
-  mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a \
-  libmysqld/libmysqld.a netware/libmysql.imp \
-  zlib/.libs/libz.a
-
-# convert the .a to .lib for NetWare
-for i in $BASE/lib/*.a
-do
-  libname=`basename $i .a`
-  $MV $i $BASE/lib/$libname.lib
-done
-rm -f $BASE/lib/*.la
-
-
-copyfileto $BASE/include config.h include/*
-
-rm -f $BASE/include/Makefile* $BASE/include/*.in $BASE/include/config-win.h
-
-# In a NetWare binary package, these tools and their manuals are not useful
-rm -f $BASE/man/man1/make_win_*
-
-copyfileto $BASE/support-files support-files/*
-
-copyfileto $BASE/share scripts/*.sql
-
-$CP -r sql/share/* $MYSQL_SHARE
-rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
-
-copyfileto $BASE/mysql-test \
-         mysql-test/mysql-test-run mysql-test/install_test_db \
-         mysql-test/mysql-test-run.pl mysql-test/README \
-         mysql-test/mysql-stress-test.pl \
-         mysql-test/valgrind.supp \
-         netware/mysql_test_run.nlm netware/install_test_db.ncf
-
-$CP mysql-test/lib/*.pl  $BASE/mysql-test/lib
-$CP mysql-test/t/*.def $BASE/mysql-test/t
-$CP mysql-test/include/*.inc $BASE/mysql-test/include
-$CP mysql-test/include/*.sql $BASE/mysql-test/include
-$CP mysql-test/include/*.test $BASE/mysql-test/include
-$CP mysql-test/t/*.def $BASE/mysql-test/t
-$CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
-    mysql-test/std_data/*.MYD mysql-test/std_data/*.MYI \
-    mysql-test/std_data/*.pem mysql-test/std_data/Moscow_leap \
-    mysql-test/std_data/Index.xml \
-    mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
-    mysql-test/std_data/*.cnf mysql-test/std_data/*.MY* \
-    $BASE/mysql-test/std_data
-# Attention: when the wildcards expand to a line that is very long,
-# it may exceed the command line length limit on some platform(s). Bug#54590
-$CP mysql-test/t/*.test mysql-test/t/*.imtest $BASE/mysql-test/t
-$CP mysql-test/t/*.disabled mysql-test/t/*.opt $BASE/mysql-test/t
-$CP mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
-$CP mysql-test/r/*.result mysql-test/r/*.require \
-    $BASE/mysql-test/r
-
-# Copy the additional suites "as is", they are in flux
-$tar cf - mysql-test/suite | ( cd $BASE ; $tar xf - )
-# Clean up if we did this from a bk tree
-if [ -d mysql-test/SCCS ] ; then
-  find $BASE/mysql-test -name SCCS -print | xargs rm -rf
+# If requested, add a malloc library .so into pkglibdir for use
+# by mysqld_safe
+if [ -n "$MALLOC_LIB" ]; then
+  cp "$MALLOC_LIB" "$DEST/lib/"
 fi
 
-rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh \
-    $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution \
-    $BASE/bin/make_win_* \
-    $BASE/bin/setsomevars $BASE/support-files/Makefile* \
-    $BASE/support-files/*.sh
+# FIXME let this script be in "bin/", where it is in the RPMs?
+# http://dev.mysql.com/doc/refman/5.1/en/mysql-install-db-problems.html
+mkdir $DEST/scripts
+mv $DEST/bin/mysql_install_db $DEST/scripts/
 
-#
-# Copy system dependent files
-#
-./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
+# Note, no legacy "safe_mysqld" link to "mysqld_safe" in 5.1
 
-#
-# Remove system dependent files
-#
-rm -f   $BASE/support-files/magic \
-        $BASE/support-files/mysql.server \
-        $BASE/support-files/mysql*.spec \
-        $BASE/support-files/mysql-log-rotate \
-        $BASE/support-files/binary-configure \
-        $BASE/support-files/build-tags \
-        $BASE/support-files/MySQL-shared-compat.spec \
-        $BASE/INSTALL-BINARY
-
-# Clean up if we did this from a bk tree
-if [ -d $BASE/sql-bench/SCCS ] ; then
-  find $BASE/share -name SCCS -print | xargs rm -rf
-  find $BASE/sql-bench -name SCCS -print | xargs rm -rf
+# Copy readme and license files
+cp README Docs/INSTALL-BINARY  $DEST/
+if [ -f COPYING -a -f EXCEPTIONS-CLIENT ] ; then
+  cp COPYING EXCEPTIONS-CLIENT $DEST/
+elif [ -f LICENSE.mysql ] ; then
+  cp LICENSE.mysql $DEST/
+else
+  echo "ERROR: no license files found"
+  exit 1
 fi
 
-BASE2=$TMP/$NEW_NAME
-rm -rf $BASE2
-mv $BASE $BASE2
-BASE=$BASE2
+# FIXME should be handled by make file, and to other dir
+mkdir -p $DEST/bin $DEST/support-files
+cp scripts/mysqlaccess.conf $DEST/bin/
+cp support-files/magic      $DEST/support-files/
 
-#
-# Create a zip file for NetWare users
-#
-rm -f $NEW_NAME.zip
-(cd $TMP; zip -r "$SOURCE/$NEW_NAME.zip" $NEW_NAME)
-echo "$NEW_NAME.zip created"
+# Create empty data directories, set permission (FIXME why?)
+mkdir       $DEST/data $DEST/data/mysql $DEST/data/test
+chmod o-rwx $DEST/data $DEST/data/mysql $DEST/data/test
+
+# ----------------------------------------------------------------------
+# Create the result tar file
+# ----------------------------------------------------------------------
+
+echo "Using $tar to create archive"
+OPT=cvf
+if [ x$SILENT = x1 ] ; then
+  OPT=cf
+fi
+
+echo "Creating and compressing archive"
+rm -f $NEW_NAME.tar.gz
+(cd $BASE ; $tar $OPT -  $NEW_NAME) | gzip -9 > $NEW_NAME.tar.gz
+echo "$NEW_NAME.tar.gz created"
 
 echo "Removing temporary directory"
 rm -rf $BASE
+exit 0

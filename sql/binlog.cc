@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #include "my_global.h"
@@ -29,10 +29,6 @@
 handlerton *binlog_hton;
 
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
-
-static bool purge_error_message(THD* thd, int res);
-static void adjust_linfo_offsets(my_off_t purge_offset);
-static bool log_in_use(const char* log_name);
 
 static int binlog_init(void *p);
 static int binlog_close_connection(handlerton *hton, THD *thd);
@@ -85,7 +81,7 @@ class binlog_cache_data
 {
 public:
   binlog_cache_data(): m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF),
-  incident(FALSE)
+  incident(FALSE), changes_to_non_trans_temp_table_flag(FALSE)
   {
     cache_log.end_of_file= max_binlog_cache_size;
   }
@@ -121,9 +117,20 @@ public:
     return(incident);
   }
 
+  void set_changes_to_non_trans_temp_table()
+  {
+    changes_to_non_trans_temp_table_flag= TRUE;    
+  }
+
+  bool changes_to_non_trans_temp_table()
+  {
+    return (changes_to_non_trans_temp_table_flag);    
+  }
+
   void reset()
   {
     truncate(0);
+    changes_to_non_trans_temp_table_flag= FALSE;
     incident= FALSE;
     before_stmt_pos= MY_OFF_T_UNDEF;
     cache_log.end_of_file= max_binlog_cache_size;
@@ -181,6 +188,12 @@ private:
   bool incident;
 
   /*
+    This flag indicates if the cache has changes to temporary tables.
+    @TODO This a temporary fix and should be removed after BUG#54562.
+  */
+  bool changes_to_non_trans_temp_table_flag;
+
+  /*
     It truncates the cache to a certain position. This includes deleting the
     pending event.
    */
@@ -228,6 +241,32 @@ private:
   binlog_cache_mngr& operator=(const binlog_cache_mngr& info);
   binlog_cache_mngr(const binlog_cache_mngr& info);
 };
+
+/**
+  Checks if the BINLOG_CACHE_SIZE's value is greater than MAX_BINLOG_CACHE_SIZE.
+  If this happens, the BINLOG_CACHE_SIZE is set to MAX_BINLOG_CACHE_SIZE.
+*/
+void check_binlog_cache_size(THD *thd)
+{
+  if (binlog_cache_size > max_binlog_cache_size)
+  {
+    if (thd)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
+                          ER(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
+                          (ulong) binlog_cache_size,
+                          (ulong) max_binlog_cache_size);
+    }
+    else
+    {
+      sql_print_warning(ER_DEFAULT(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
+                        (ulong) binlog_cache_size,
+                        (ulong) max_binlog_cache_size);
+    }
+    binlog_cache_size= max_binlog_cache_size;
+  }
+}
 
  /*
   Save position of binary log transaction cache.
@@ -321,7 +360,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   DBUG_ASSERT(cache_mngr->trx_cache.empty() && cache_mngr->stmt_cache.empty());
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
-  my_free((uchar*)cache_mngr, MYF(0));
+  my_free(cache_mngr);
   return 0;
 }
 
@@ -611,11 +650,22 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
         . aborting a single or multi-statement transaction and;
         . the format is STMT and non-trans engines were updated or;
         . the OPTION_KEEP_LOG is activate.
-    */
-    if (ending_trans(thd, all) &&
-        ((thd->variables.option_bits & OPTION_KEEP_LOG) ||
+        . the OPTION_KEEP_LOG is active or;
+        . the format is STMT and a non-trans table was updated or;
+        . the format is MIXED and a temporary non-trans table was
+          updated or;
+        . the format is MIXED, non-trans table was updated and
+          aborting a single statement transaction;
+     */
+     if (ending_trans(thd, all) &&
+         ((thd->variables.option_bits & OPTION_KEEP_LOG) ||
+          (trans_has_updated_non_trans_table(thd) &&
+          thd->variables.binlog_format == BINLOG_FORMAT_STMT) ||
+         (cache_mngr->trx_cache.changes_to_non_trans_temp_table() &&
+          thd->variables.binlog_format == BINLOG_FORMAT_MIXED) ||
          (trans_has_updated_non_trans_table(thd) &&
-          thd->variables.binlog_format == BINLOG_FORMAT_STMT)))
+          ending_single_stmt_trans(thd,all) &&
+          thd->variables.binlog_format == BINLOG_FORMAT_MIXED)))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE, TRUE, 0);
       error= binlog_flush_trx_cache(thd, cache_mngr, &qev);
@@ -625,14 +675,19 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
         . aborting a single or multi-statement transaction or;
         . the OPTION_KEEP_LOG is not activate and;
         . the format is not STMT or no non-trans were updated.
-    */
-    else if (ending_trans(thd, all) ||
-             (!(thd->variables.option_bits & OPTION_KEEP_LOG) &&
-              ((!stmt_has_updated_non_trans_table(thd) ||
-               thd->variables.binlog_format != BINLOG_FORMAT_STMT))))
+        . the OPTION_KEEP_LOG is not active and;
+        . the format is not STMT or no non-trans was updated and;
+        . the format is not MIXED or no temporary non-trans was
+          updated.
+     */
+     else if (ending_trans(thd, all) ||
+              (!(thd->variables.option_bits & OPTION_KEEP_LOG) &&
+              (!stmt_has_updated_non_trans_table(thd) ||
+               thd->variables.binlog_format != BINLOG_FORMAT_STMT) &&
+              (!cache_mngr->trx_cache.changes_to_non_trans_temp_table() ||
+               thd->variables.binlog_format != BINLOG_FORMAT_MIXED)))
       error= binlog_truncate_trx_cache(thd, cache_mngr, all);
   }
-
   /* 
     This is part of the stmt rollback.
   */
@@ -674,7 +729,9 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 
   String log_query;
   if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
-      log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+      log_query.append("`") ||
+      log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+      log_query.append("`"))
     DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -696,7 +753,9 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   {
     String log_query;
     if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+        log_query.append("`") ||
+        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+        log_query.append("`"))
       DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -707,6 +766,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   DBUG_RETURN(0);
 }
 
+#ifdef HAVE_REPLICATION
 
 /*
   Adjust the position pointer in the binary log file for all running slaves
@@ -773,8 +833,7 @@ static bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      result = !bcmp((uchar*) log_name, (uchar*) linfo->log_file_name,
-                     log_name_len);
+      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
       mysql_mutex_unlock(&linfo->lock);
       if (result)
 	break;
@@ -798,6 +857,7 @@ static bool purge_error_message(THD* thd, int res)
   return FALSE;
 }
 
+#endif /* HAVE_REPLICATION */
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 {
@@ -916,7 +976,7 @@ bool use_trans_cache(const THD* thd, bool is_transactional)
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
   return
-    ((thd->variables.binlog_format != BINLOG_FORMAT_STMT ||
+    ((thd->is_current_stmt_binlog_format_row() ||
      thd->variables.binlog_direct_non_trans_update) ? is_transactional :
      (is_transactional || !cache_mngr->trx_cache.empty()));
 }
@@ -933,7 +993,23 @@ bool use_trans_cache(const THD* thd, bool is_transactional)
 */
 bool ending_trans(THD* thd, const bool all)
 {
-  return (all || (!all && !thd->in_multi_stmt_transaction_mode()));
+  return (all || ending_single_stmt_trans(thd, all));
+}
+
+/**
+  This function checks if a single statement transaction is about
+  to commit or not.
+
+  @param thd The client thread that executed the current statement.
+  @param all Committing a transaction (i.e. TRUE) or a statement
+             (i.e. FALSE).
+  @return
+    @c true if committing a single statement transaction, otherwise
+    @c false.
+*/
+bool ending_single_stmt_trans(THD* thd, const bool all)
+{
+  return (!all && !thd->in_multi_stmt_transaction_mode());
 }
 
 /**
@@ -1159,6 +1235,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
   bool ret = TRUE;
   IO_CACHE log;
   File file = -1;
+  int old_max_allowed_packet= thd->variables.max_allowed_packet;
   DBUG_ENTER("show_binlog_events");
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS ||
@@ -1288,6 +1365,7 @@ err:
   mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   mysql_mutex_unlock(&LOCK_thread_count);
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_RETURN(ret);
 }
 
@@ -1549,6 +1627,9 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       if (!s.is_valid())
         goto err;
       s.dont_set_created= null_created_arg;
+      /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
+      if (is_relay_log)
+        s.set_relay_log_event();
       if (s.write(&log_file))
         goto err;
       bytes_written+= s.data_written;
@@ -1636,7 +1717,8 @@ shutdown the MySQL server and restart it.", name, errno);
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
   end_io_cache(&index_file);
-  safeFree(name);
+  my_free(name);
+  name= NULL;
   log_state= LOG_CLOSED;
   DBUG_RETURN(1);
 }
@@ -1952,7 +2034,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     need_start_event=1;
   if (!open_index_file(index_file_name, 0, FALSE))
     open(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE);
-  my_free((uchar*) save_name, MYF(0));
+  my_free((void *) save_name);
 
 err:
   if (error == 1)
@@ -2096,7 +2178,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   DBUG_ASSERT(!included || rli->linfo.index_file_start_offset == 0);
 
 err:
-  my_free(to_purge_if_included, MYF(0));
+  my_free(to_purge_if_included);
   mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
@@ -2736,7 +2818,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   if (!open_index_file(index_file_name, 0, FALSE))
     open(old_name, log_type, new_name_ptr,
          io_cache_type, no_auto_events, max_size, 1, FALSE);
-  my_free(old_name,MYF(0));
+  my_free(old_name);
 
 end:
   if (need_lock)
@@ -3007,6 +3089,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       bool is_trans_cache= use_trans_cache(thd, event_info->use_trans_cache());
       file= cache_mngr->get_binlog_cache_log(is_trans_cache);
       cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
+
+      if (thd->lex->stmt_accessed_non_trans_temp_table())
+        cache_data->set_changes_to_non_trans_temp_table();
 
       thd->binlog_start_trans_and_stmt();
     }
@@ -3487,11 +3572,8 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
                                            const struct timespec *timeout)
 {
   int ret= 0;
-  const char* old_msg = thd->proc_info;
   DBUG_ENTER("wait_for_update_bin_log");
-  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           "Master has sent all binlog to slave; "
-                           "waiting for binlog to be updated");
+
   if (!timeout)
     mysql_cond_wait(&update_cond, &LOCK_log);
   else
@@ -3567,7 +3649,8 @@ void MYSQL_BIN_LOG::close(uint exiting)
     }
   }
   log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
-  safeFree(name);
+  my_free(name);
+  name= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -3805,7 +3888,7 @@ int THD::binlog_setup_trx_data()
       open_cached_file(&cache_mngr->trx_cache.cache_log, mysql_tmpdir,
                        LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
   {
-    my_free((uchar*)cache_mngr, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(cache_mngr);
     DBUG_RETURN(1);                      // Didn't manage to set it up
   }
   thd_set_ha_data(this, binlog_hton, cache_mngr);
@@ -3895,14 +3978,22 @@ void THD::binlog_set_stmt_begin() {
   Note that in order to keep the signature uniform with related methods,
   we use a redundant parameter to indicate whether a transactional table
   was changed or not.
+  Sometimes it will write a Rows_query_log_event into binary log before
+  the table map too.
  
   @param table             a pointer to the table.
   @param is_transactional  @c true indicates a transactional table,
                            otherwise @c false a non-transactional.
+  @param binlog_rows_query @c true indicates a Rows_query log event
+                           will be binlogged before table map,
+                           otherwise @c false indicates it will not
+                           be binlogged.
   @return
-    nonzero if an error pops up when writing the table map event.
+    nonzero if an error pops up when writing the table map event
+    or the Rows_query log event.
 */
-int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
+int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
+                                bool binlog_rows_query)
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
@@ -3925,6 +4016,16 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
 
   IO_CACHE *file=
     cache_mngr->get_binlog_cache_log(use_trans_cache(this, is_transactional));
+
+  if (binlog_rows_query && this->query())
+  {
+    /* Write the Rows_query_log_event into binlog before the table map */
+    Rows_query_log_event
+      rows_query_ev(this, this->query(), this->query_length());
+    if ((error= rows_query_ev.write(file)))
+      DBUG_RETURN(error);
+  }
+
   if ((error= the_event.write(file)))
     DBUG_RETURN(error);
 
@@ -4094,7 +4195,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 {
   DBUG_ENTER("THD::decide_logging_format");
   DBUG_PRINT("info", ("query: %s", query()));
-  DBUG_PRINT("info", ("variables.binlog_format: %u",
+  DBUG_PRINT("info", ("variables.binlog_format: %lu",
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                       lex->get_stmt_unsafe_flags()));
@@ -4114,7 +4215,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       capabilities.
     */
     handler::Table_flags flags_write_some_set= 0;
-    handler::Table_flags flags_some_set= 0;
+    handler::Table_flags flags_access_some_set= 0;
     handler::Table_flags flags_write_all_set=
       HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 
@@ -4130,17 +4231,16 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     my_bool multi_access_engine= FALSE;
     /*
-       If non-transactional and transactional engines are about
-       to be accessed and any of them is about to be updated.
-       For example: Innodb and MyIsam.
+       Identifies if a table is changed.
     */
-    my_bool trans_non_trans_access_engines= FALSE;
+    my_bool is_write= FALSE;
     /*
-       If all engines that are about to be updated are
-       transactional.
+       A pointer to a previous table that was changed.
     */
-    my_bool all_trans_write_engines= TRUE;
     TABLE* prev_write_table= NULL;
+    /*
+       A pointer to a previous table that was accessed.
+    */
     TABLE* prev_access_table= NULL;
 
 #ifndef DBUG_OFF
@@ -4163,9 +4263,13 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     {
       if (table->placeholder())
         continue;
-      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
+
+      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE ||
+          table->table->s->table_category == TABLE_CATEGORY_LOG)
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
+
       handler::Table_flags const flags= table->table->file->ha_table_flags();
+
       DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
                           table->table_name, flags));
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
@@ -4173,176 +4277,63 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         if (prev_write_table && prev_write_table->file->ht !=
             table->table->file->ht)
           multi_write_engine= TRUE;
-        /*
-          Every temporary table must be always written to the binary
-          log in transaction boundaries and as such we artificially
-          classify them as transactional.
 
-          Indirectly, this avoids classifying a temporary table created
-          on a non-transactional engine as unsafe when it is modified
-          after any transactional table:
+        my_bool trans= table->table->file->has_transactions();
 
-          BEGIN;
-            INSERT INTO innodb_t VALUES (1);
-            INSERT INTO myisam_t_temp VALUES (1);
-          COMMIT;
+        if (table->table->s->tmp_table)
+          lex->set_stmt_accessed_table(trans ? LEX::STMT_WRITES_TEMP_TRANS_TABLE :
+                                               LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE);
+        else
+          lex->set_stmt_accessed_table(trans ? LEX::STMT_WRITES_TRANS_TABLE :
+                                               LEX::STMT_WRITES_NON_TRANS_TABLE);
 
-          BINARY LOG:
-
-          BEGIN;
-            INSERT INTO innodb_t VALUES (1);
-            INSERT INTO myisam_t_temp VALUES (1);
-          COMMIT;
-        */
-        all_trans_write_engines= all_trans_write_engines &&
-                                 (table->table->file->has_transactions() ||
-                                  table->table->s->tmp_table);
-        prev_write_table= table->table;
         flags_write_all_set &= flags;
         flags_write_some_set |= flags;
+        is_write= TRUE;
+
+        prev_write_table= table->table;
       }
-      flags_some_set |= flags;
-      /*
-        The mixture of non-transactional and transactional tables must
-        identified and classified as unsafe. However, a temporary table
-        must be always handled as a transactional table. Based on that,
-        we have the following statements classified as mixed and by
-        consequence as unsafe:
+      flags_access_some_set |= flags;
 
-        1: INSERT INTO myisam_t SELECT * FROM innodb_t;
-
-        2: INSERT INTO innodb_t SELECT * FROM myisam_t;
-
-        3: INSERT INTO myisam_t SELECT * FROM myisam_t_temp;
-
-        4: INSERT INTO myisam_t_temp SELECT * FROM myisam_t;
-
-        5: CREATE TEMPORARY TABLE myisam_t_temp SELECT * FROM mysiam_t;
-
-        The following statements are not considered mixed and as such
-        are safe:
-
-        1: INSERT INTO innodb_t SELECT * FROM myisam_t_temp;
-
-        2: INSERT INTO myisam_t_temp SELECT * FROM innodb_t_temp;
-      */
-      if (!trans_non_trans_access_engines && prev_access_table &&
-          (lex->sql_command != SQLCOM_CREATE_TABLE ||
+      if (lex->sql_command != SQLCOM_CREATE_TABLE ||
           (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))))
+          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)))
       {
-        my_bool prev_trans;
-        my_bool act_trans;
-        if (prev_access_table->s->tmp_table || table->table->s->tmp_table)
-        {
-          prev_trans= prev_access_table->s->tmp_table ? TRUE :
-                     prev_access_table->file->has_transactions();
-          act_trans= table->table->s->tmp_table ? TRUE :
-                    table->table->file->has_transactions();
-        }
+        my_bool trans= table->table->file->has_transactions();
+
+        if (table->table->s->tmp_table)
+          lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
+                                               LEX::STMT_READS_TEMP_NON_TRANS_TABLE);
         else
-        {
-          prev_trans= prev_access_table->file->has_transactions();
-          act_trans= table->table->file->has_transactions();
-        }
-        trans_non_trans_access_engines= (prev_trans != act_trans);
-        multi_access_engine= TRUE;
+          lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TRANS_TABLE :
+                                               LEX::STMT_READS_NON_TRANS_TABLE);
       }
-      thread_temporary_used |= table->table->s->tmp_table;
+
+      if (prev_access_table && prev_access_table->file->ht !=
+          table->table->file->ht)
+         multi_access_engine= TRUE;
+
       prev_access_table= table->table;
     }
 
     DBUG_PRINT("info", ("flags_write_all_set: 0x%llx", flags_write_all_set));
     DBUG_PRINT("info", ("flags_write_some_set: 0x%llx", flags_write_some_set));
-    DBUG_PRINT("info", ("flags_some_set: 0x%llx", flags_some_set));
+    DBUG_PRINT("info", ("flags_access_some_set: 0x%llx", flags_access_some_set));
     DBUG_PRINT("info", ("multi_write_engine: %d", multi_write_engine));
     DBUG_PRINT("info", ("multi_access_engine: %d", multi_access_engine));
-    DBUG_PRINT("info", ("trans_non_trans_access_engines: %d",
-                        trans_non_trans_access_engines));
 
     int error= 0;
     int unsafe_flags;
 
-    /*
-      Set the statement as unsafe if:
+    bool multi_stmt_trans= in_multi_stmt_transaction_mode();
+    bool trans_table= trans_has_updated_trans_table(this);
+    bool binlog_direct= variables.binlog_direct_non_trans_update;
 
-      . it is a mixed statement, i.e. access transactional and non-transactional
-      tables, and update any of them;
-
-      or:
-
-      . an early statement updated a transactional table;
-      . and, the current statement updates a non-transactional table.
-
-      Any mixed statement is classified as unsafe to ensure that mixed mode is
-      completely safe. Consider the following example to understand why we
-      decided to do this:
-
-      Note that mixed statements such as
-
-      1: INSERT INTO myisam_t SELECT * FROM innodb_t;
-
-      2: INSERT INTO innodb_t SELECT * FROM myisam_t;
-
-      3: INSERT INTO myisam_t SELECT * FROM myisam_t_temp;
-
-      4: INSERT INTO myisam_t_temp SELECT * FROM myisam_t;
-
-      5: CREATE TEMPORARY TABLE myisam_t_temp SELECT * FROM mysiam_t;
-
-      are classified as unsafe to ensure that in mixed mode the execution is
-      completely safe and equivalent to the row mode. Consider the following
-      statements and sessions (connections) to understand the reason:
-
-      con1: INSERT INTO innodb_t VALUES (1);
-      con1: INSERT INTO innodb_t VALUES (100);
-
-      con1: BEGIN
-      con2: INSERT INTO myisam_t SELECT * FROM innodb_t;
-      con1: INSERT INTO innodb_t VALUES (200);
-      con1: COMMIT;
-
-      The point is that the concurrent statements may be written into the binary log
-      in a way different from the execution. For example,
-
-      BINARY LOG:
-
-      con2: BEGIN;
-      con2: INSERT INTO myisam_t SELECT * FROM innodb_t;
-      con2: COMMIT;
-      con1: BEGIN
-      con1: INSERT INTO innodb_t VALUES (200);
-      con1: COMMIT;
-
-      ....
-
-      or
-
-      BINARY LOG:
-
-      con1: BEGIN
-      con1: INSERT INTO innodb_t VALUES (200);
-      con1: COMMIT;
-      con2: BEGIN;
-      con2: INSERT INTO myisam_t SELECT * FROM innodb_t;
-      con2: COMMIT;
-
-      Clearly, this may become a problem in STMT mode and setting the statement
-      as unsafe will make rows to be written into the binary log in MIXED mode
-      and as such the problem will not stand.
-
-      In STMT mode, although such statement is classified as unsafe, i.e.
-
-      INSERT INTO myisam_t SELECT * FROM innodb_t;
-
-      there is no enough information to avoid writing it outside the boundaries
-      of a transaction. This is not a problem if we are considering snapshot
-      isolation level but if we have pure repeatable read or serializable the
-      lock history on the slave will be different from the master.
-    */
-    if (trans_non_trans_access_engines)
+    if (lex->is_mixed_stmt_unsafe(multi_stmt_trans, binlog_direct,
+                                  trans_table, tx_isolation))
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MIXED_STATEMENT);
-    else if (trans_has_updated_trans_table(this) && !all_trans_write_engines)
+    else if (multi_stmt_trans && trans_table && !binlog_direct &&
+             lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE))
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
 
     /*
@@ -4355,7 +4346,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         (flags_write_some_set & HA_HAS_OWN_BINLOGGING))
       my_error((error= ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE),
                MYF(0));
-    else if (multi_access_engine && flags_some_set & HA_HAS_OWN_BINLOGGING)
+    else if (multi_access_engine && flags_access_some_set & HA_HAS_OWN_BINLOGGING)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE);
 
     /* both statement-only and row-only engines involved */
@@ -4426,7 +4417,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           */
           my_error((error= ER_BINLOG_STMT_MODE_AND_ROW_ENGINE), MYF(0), "");
         }
-        else if ((unsafe_flags= lex->get_stmt_unsafe_flags()) != 0)
+        else if (is_write && (unsafe_flags= lex->get_stmt_unsafe_flags()) != 0)
         {
           /*
             7. Warning: Unsafe statement logged as statement due to
@@ -4467,7 +4458,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     DBUG_PRINT("info", ("decision: no logging since "
                         "mysql_bin_log.is_open() = %d "
                         "and (options & OPTION_BIN_LOG) = 0x%llx "
-                        "and binlog_format = %u "
+                        "and binlog_format = %lu "
                         "and binlog_filter->db_ok(db) = %d",
                         mysql_bin_log.is_open(),
                         (variables.option_bits & OPTION_BIN_LOG),
@@ -4653,7 +4644,7 @@ CPP_UNNAMED_NS_START
     ~Row_data_memory()
     {
       if (m_memory != 0 && m_release_memory_on_destruction)
-        my_free((uchar*) m_memory, MYF(MY_WME));
+        my_free(m_memory);
     }
 
     /**
@@ -4908,22 +4899,10 @@ void THD::issue_unsafe_warnings()
     Ensure that binlog_unsafe_warning_flags is big enough to hold all
     bits.  This is actually a constant expression.
   */
-  DBUG_ASSERT(2 * LEX::BINLOG_STMT_UNSAFE_COUNT <=
+  DBUG_ASSERT(LEX::BINLOG_STMT_UNSAFE_COUNT <=
               sizeof(binlog_unsafe_warning_flags) * CHAR_BIT);
 
   uint32 unsafe_type_flags= binlog_unsafe_warning_flags;
-
-  /*
-    Clear: (1) bits above BINLOG_STMT_UNSAFE_COUNT; (2) bits for
-    warnings that have been printed already.
-  */
-  unsafe_type_flags &= (LEX::BINLOG_STMT_UNSAFE_ALL_FLAGS ^
-                        (unsafe_type_flags >> LEX::BINLOG_STMT_UNSAFE_COUNT));
-  /* If all warnings have been printed already, return. */
-  if (unsafe_type_flags == 0)
-    DBUG_VOID_RETURN;
-
-  DBUG_PRINT("info", ("unsafe_type_flags: 0x%x", unsafe_type_flags));
 
   /*
     For each unsafe_type, check if the statement is unsafe in this way
@@ -4948,12 +4927,6 @@ void THD::issue_unsafe_warnings()
       }
     }
   }
-  /*
-    Mark these unsafe types as already printed, to avoid printing
-    warnings for them again.
-  */
-  binlog_unsafe_warning_flags|=
-    unsafe_type_flags << LEX::BINLOG_STMT_UNSAFE_COUNT;
   DBUG_VOID_RETURN;
 }
 
@@ -5007,17 +4980,28 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
   /*
     Warnings for unsafe statements logged in statement format are
-    printed here instead of in decide_logging_format().  This is
-    because the warnings should be printed only if the statement is
-    actually logged. When executing decide_logging_format(), we cannot
-    know for sure if the statement will be logged.
+    printed in three places instead of in decide_logging_format().
+    This is because the warnings should be printed only if the statement
+    is actually logged. When executing decide_logging_format(), we cannot
+    know for sure if the statement will be logged:
 
+    1 - sp_head::execute_procedure which prints out warnings for calls to
+    stored procedures.
+
+    2 - sp_head::execute_function which prints out warnings for calls
+    involving functions.
+
+    3 - THD::binlog_query (here) which prints warning for top level
+    statements not covered by the two cases above: i.e., if not insided a
+    procedure and a function.
+ 
     Besides, we should not try to print these warnings if it is not
     possible to write statements to the binary log as it happens when
     the execution is inside a function, or generaly speaking, when
     the variables.option_bits & OPTION_BIN_LOG is false.
   */
-  if (variables.option_bits & OPTION_BIN_LOG)
+  if ((variables.option_bits & OPTION_BIN_LOG) &&
+      spcont == NULL && !binlog_evt_union.do_union)
     issue_unsafe_warnings();
 
   switch (qtype) {

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifndef SQL_CLASS_INCLUDED
@@ -38,7 +38,7 @@
 #include "protocol.h"             /* Protocol_text, Protocol_binary */
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
-                                     THR_LOCK_INFO, THR_LOCK_OWNER */
+                                     THR_LOCK_INFO */
 
 
 class Reprepare_observer;
@@ -114,7 +114,7 @@ extern bool volatile shutdown_in_progress;
 
 #define TC_HEURISTIC_RECOVER_COMMIT   1
 #define TC_HEURISTIC_RECOVER_ROLLBACK 2
-extern uint tc_heuristic_recover;
+extern ulong tc_heuristic_recover;
 
 typedef struct st_user_var_events
 {
@@ -384,6 +384,7 @@ typedef struct system_variables
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
   ulonglong long_query_time;
+  /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
   ulonglong sql_mode; ///< which non-standard SQL behaviour should be enabled
   ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
@@ -392,6 +393,7 @@ typedef struct system_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
+  ulong optimizer_join_cache_level;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
   ulong max_error_count;
@@ -401,6 +403,9 @@ typedef struct system_variables
   ulong max_insert_delayed_threads;
   ulong min_examined_row_limit;
   ulong multi_range_count;
+  ulong myisam_repair_threads;
+  ulong myisam_sort_buff_size;
+  ulong myisam_stats_method;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
@@ -426,13 +431,13 @@ typedef struct system_variables
   ulong log_warnings;
   ulong group_concat_max_len;
 
-  uint binlog_format; ///< binlog format for this thd (see enum_binlog_format)
+  ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   my_bool binlog_direct_non_trans_update;
   my_bool sql_log_bin;
-  uint completion_type;
-  uint query_cache_type;
-  uint tx_isolation;
-  uint updatable_views_with_limit;
+  ulong completion_type;
+  ulong query_cache_type;
+  ulong tx_isolation;
+  ulong updatable_views_with_limit;
   uint max_user_connections;
   /**
     In slave thread we need to know in behalf of which
@@ -470,17 +475,21 @@ typedef struct system_variables
   Time_zone *time_zone;
 
   my_bool sysdate_is_now;
+  my_bool binlog_rows_query_log_events;
 
   double long_query_time_double;
+
 } SV;
 
 
-/* per thread status variables */
+/**
+  Per thread status variables.
+  Must be long/ulong up to last_system_status_var so that
+  add_to_status/add_diff_to_status can work.
+*/
 
 typedef struct system_status_var
 {
-  ulonglong bytes_received;
-  ulonglong bytes_sent;
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
   ulong created_tmp_disk_tables;
@@ -494,6 +503,12 @@ typedef struct system_status_var
   ulong ha_read_prev_count;
   ulong ha_read_rnd_count;
   ulong ha_read_rnd_next_count;
+  /*
+    This number doesn't include calls to the default implementation and
+    calls made by range access. The intent is to count only calls made by
+    BatchedKeyAccess.
+  */
+  ulong ha_multi_range_read_init_count;
   ulong ha_rollback_count;
   ulong ha_update_count;
   ulong ha_write_count;
@@ -536,13 +551,14 @@ typedef struct system_status_var
     Number of statements sent from the client
   */
   ulong questions;
+
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
-    Below 'last_system_status_var' are all variables which doesn't make any
-    sense to add to the /global/ status variable counter.
-    Status variables which it does not make sense to add to
-    global status variable counter
+    Below 'last_system_status_var' are all variables that cannot be handled
+    automatically by add_to_status()/add_diff_to_status().
   */
   double last_query_cost;
 } STATUS_VAR;
@@ -719,7 +735,6 @@ public:
     ENGINE INNODB STATUS.
   */
   LEX_STRING query_string;
-  Server_side_cursor *cursor;
 
   inline char *query() { return query_string.str; }
   inline uint32 query_length() { return query_string.length; }
@@ -1412,9 +1427,6 @@ public:
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
-  THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
-  THR_LOCK_OWNER *lock_id;              // If not main_lock_id, points to
-                                        // the lock_id of a cursor.
   /**
     Protects THD data accessed from other threads:
     - thd->query and thd->query_length (used by SHOW ENGINE
@@ -1488,11 +1500,15 @@ public:
   uint dbug_sentry; // watch out for memory corruption
 #endif
   struct st_my_thread_var *mysys_var;
-  /*
-    Type of current query: COM_STMT_PREPARE, COM_QUERY, etc. Set from
-    first byte of the packet in do_command()
+
+private:
+  /**
+    Type of current query: COM_STMT_PREPARE, COM_QUERY, etc.
+    Set from first byte of the packet in do_command()
   */
-  enum enum_server_command command;
+  enum enum_server_command m_command;
+
+public:
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
@@ -1501,7 +1517,7 @@ public:
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
-  
+
   thr_lock_type update_lock_default;
   Delayed_insert *di;
 
@@ -1511,6 +1527,15 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+  /* Place to store various things */
+  union 
+  { 
+    /*
+      Used by subquery optimizations, see
+      Item_exists_subselect::embedding_join_nest.
+    */
+    TABLE_LIST *emb_on_expr_nest;
+  } thd_marker;
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -1519,7 +1544,8 @@ public:
   */
   void binlog_start_trans_and_stmt();
   void binlog_set_stmt_begin();
-  int binlog_write_table_map(TABLE *table, bool is_transactional);
+  int binlog_write_table_map(TABLE *table, bool is_transactional,
+                             bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
                        MY_BITMAP const* cols, size_t colcnt,
                        const uchar *buf);
@@ -1565,6 +1591,11 @@ public:
                 current_stmt_binlog_format == BINLOG_FORMAT_ROW);
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
+  /** Tells whether the given optimizer_switch flag is on */
+  inline bool optimizer_switch_flag(ulonglong flag)
+  {
+    return (variables.optimizer_switch & flag);
+  }
 
 private:
   /**
@@ -1576,24 +1607,8 @@ private:
   /**
     Bit field for the state of binlog warnings.
 
-    There are two groups of bits:
-
-    - The first Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types of
-      unsafeness that the current statement has.
-
-    - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
-      of unsafeness that the current statement has issued warnings
-      for.
-
-    Hence, this variable must be big enough to hold
-    2*Lex::BINLOG_STMT_UNSAFE_COUNT bits.  This is asserted in @c
-    issue_unsafe_warnings().
-
-    The first and second groups of bits are set by @c
-    decide_logging_format() when it detects that a warning should be
-    issued.  The third group of bits is set from @c binlog_query()
-    when a warning is issued.  All bits are cleared at the end of the
-    top-level statement.
+    The first Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types of
+    unsafeness that the current statement has.
 
     This must be a member of THD and not of LEX, because warnings are
     detected and issued in different places (@c
@@ -1603,14 +1618,14 @@ private:
   */
   uint32 binlog_unsafe_warning_flags;
 
-  void issue_unsafe_warnings();
-
   /*
     Number of outstanding table maps, i.e., table maps in the
     transaction cache.
   */
   uint binlog_table_maps;
 public:
+  void issue_unsafe_warnings();
+
   uint get_binlog_table_maps() const {
     return binlog_table_maps;
   }
@@ -1649,6 +1664,10 @@ public:
       if (!xid_state.rm_error)
         xid_state.xid.null();
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+    }
+    my_bool is_active()
+    {
+      return (all.ha_list != NULL);
     }
     st_transactions()
     {
@@ -2021,7 +2040,6 @@ public:
     is set if a statement accesses a temporary table created through
     CREATE TEMPORARY TABLE. 
   */
-  bool       thread_temporary_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
@@ -2205,12 +2223,28 @@ public:
     }
     else
       start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
+
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+      PSI_server->set_thread_start_time(start_time);
+#endif
   }
-  inline void	set_current_time()    { start_time= my_time(MY_WME); }
-  inline void	set_time(time_t t)
+  inline void set_current_time()
+  {
+    start_time= my_time(MY_WME);
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+      PSI_server->set_thread_start_time(start_time);
+#endif
+  }
+  inline void set_time(time_t t)
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+      PSI_server->set_thread_start_time(start_time);
+#endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
@@ -2336,13 +2370,11 @@ public:
   bool is_connected()
   {
     /*
-      The slave SQL thread and the event worker thread are connected
-      but not using vio. So this function always returns true for
-      them.
+      All system threads (e.g., the slave IO thread) are connected but
+      not using vio. So this function always returns true for all
+      system threads.
     */
-    return system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-      system_thread == SYSTEM_THREAD_EVENT_WORKER ||
-      (vio_ok() ? vio_is_connected(net.vio) : FALSE);
+    return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
@@ -2535,19 +2567,25 @@ public:
   */
   bool set_db(const char *new_db, size_t new_db_len)
   {
+    bool result;
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
       memcpy(db, new_db, new_db_len+1);
     else
     {
-      x_free(db);
+      my_free(db);
       if (new_db)
         db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
       else
         db= NULL;
     }
     db_length= db ? new_db_len : 0;
-    return new_db && !db;
+    result= new_db && !db;
+#ifdef HAVE_PSI_INTERFACE
+    if (result && PSI_server)
+      PSI_server->set_thread_db(new_db, new_db_len);
+#endif
+    return result;
   }
 
   /**
@@ -2565,6 +2603,10 @@ public:
   {
     db= new_db;
     db_length= new_db_len;
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+      PSI_server->set_thread_db(new_db, new_db_len);
+#endif
   }
   /*
     Copy the current database to the argument. Use the current arena to
@@ -2658,9 +2700,9 @@ private:
     To raise a SQL condition, the code should use the public
     raise_error() or raise_warning() methods provided by class THD.
   */
-  friend class Signal_common;
-  friend class Signal_statement;
-  friend class Resignal_statement;
+  friend class Sql_cmd_common_signal;
+  friend class Sql_cmd_signal;
+  friend class Sql_cmd_resignal;
   friend void push_warning(THD*, MYSQL_ERROR::enum_warning_level, uint, const char*);
   friend void my_message_sql(uint, const char *, myf);
 
@@ -2678,29 +2720,17 @@ private:
                   MYSQL_ERROR::enum_warning_level level,
                   const char* msg);
 
-  /**
-    Raise a generic SQL condition, without activation any SQL condition
-    handlers.
-    This method is necessary to support the RESIGNAL statement,
-    which is allowed to bypass SQL exception handlers.
-    @param sql_errno the condition error number
-    @param sqlstate the condition SQLSTATE
-    @param level the condition level
-    @param msg the condition message text
-    @return The condition raised, or NULL
-  */
-  MYSQL_ERROR*
-  raise_condition_no_handler(uint sql_errno,
-                             const char* sqlstate,
-                             MYSQL_ERROR::enum_warning_level level,
-                             const char* msg);
-
 public:
   /** Overloaded to guard query/query_length fields */
   virtual void set_statement(Statement *stmt);
 
+  void set_command(enum enum_server_command command);
+
+  inline enum enum_server_command get_command() const
+  { return m_command; }
+
   /**
-    Assign a new value to thd->query and thd->query_id.
+    Assign a new value to thd->query and thd->query_id and mysys_var.
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
@@ -2713,6 +2743,7 @@ public:
     open_tables= open_tables_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+  void set_mysys_var(struct st_my_thread_var *new_mysys_var);
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
@@ -2722,6 +2753,18 @@ public:
   }
   void leave_locked_tables_mode();
   int decide_logging_format(TABLE_LIST *tables);
+  void set_current_user_used() { current_user_used= TRUE; }
+  bool is_current_user_used() { return current_user_used; }
+  void clean_current_user_used() { current_user_used= FALSE; }
+  void get_definer(LEX_USER *definer);
+  void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
+  {
+    invoker_user= *user;
+    invoker_host= *host;
+  }
+  LEX_STRING get_invoker_user() { return invoker_user; }
+  LEX_STRING get_invoker_host() { return invoker_host; }
+  bool has_invoker() { return invoker_user.length > 0; }
 private:
 
   /** The current internal error handler for this thread, or NULL. */
@@ -2744,6 +2787,25 @@ private:
   MEM_ROOT main_mem_root;
   Warning_info main_warning_info;
   Diagnostics_area main_da;
+
+  /**
+    It will be set TURE if CURRENT_USER() is called in account management
+    statements or default definer is set in CREATE/ALTER SP, SF, Event,
+    TRIGGER or VIEW statements.
+
+    Current user will be binlogged into Query_log_event if current_user_used
+    is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
+   */
+  bool current_user_used;
+
+  /**
+    It points to the invoker in the Query_log_event.
+    SQL thread use it as the default definer in CREATE/ALTER SP, SF, Event,
+    TRIGGER or VIEW statements or current user in account management
+    statements if it is not NULL.
+   */
+  LEX_STRING invoker_user;
+  LEX_STRING invoker_host;
 };
 
 
@@ -2834,7 +2896,7 @@ public:
     @retval TRUE      error, an error message is set
   */
   virtual bool check_simple_select() const;
-  virtual void abort() {}
+  virtual void abort_result_set() {}
   /*
     Cleanup instance of this class for next execution of a prepared
     statement/stored procedure.
@@ -2877,7 +2939,7 @@ public:
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
-  void abort();
+  void abort_result_set();
   virtual void cleanup();
 };
 
@@ -2969,7 +3031,7 @@ class select_insert :public select_result_interceptor {
   virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
-  void abort();
+  virtual void abort_result_set();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
 };
@@ -3005,7 +3067,7 @@ public:
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
-  void abort();
+  virtual void abort_result_set();
   virtual bool can_rollback_data() { return 1; }
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
@@ -3081,11 +3143,18 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
+  /*
+    If TRUE, create_tmp_field called from create_tmp_table will convert
+    all BIT fields to 64-bit longs. This is a workaround the limitation
+    that MEMORY tables cannot index BIT columns.
+  */
+  bool bit_fields_as_long;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0)
+     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
+     bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3113,10 +3182,10 @@ public:
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
-
+  void cleanup();
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
-                           const char *alias);
+                           const char *alias, bool bit_fields_as_long);
 };
 
 /* Base subselect interface class */
@@ -3166,6 +3235,38 @@ public:
     :select_subselect(item_arg){}
   bool send_data(List<Item> &items);
 };
+
+struct st_table_ref;
+
+
+/**
+  Executor structure for the materialized semi-join info, which contains
+   - The sj-materialization temporary table
+   - Members needed to make index lookup or a full scan of the temptable.
+*/
+class Semijoin_mat_exec : public Sql_alloc
+{
+public:
+  Semijoin_mat_exec(uint table_count, bool is_scan)
+    :table_count(table_count), is_scan(is_scan),
+    materialized(FALSE), table_param(), table_cols(),
+    table(NULL), tab_ref(NULL), in_equality(NULL),
+    join_cond(NULL), copy_field(NULL)
+  {}
+  ~Semijoin_mat_exec() {}
+
+  const uint table_count;       // Number of tables in the sj-nest
+  const bool is_scan;           // TRUE if executing as a scan, FALSE if lookup
+  bool materialized;            // TRUE <=> materialization has been performed
+  TMP_TABLE_PARAM table_param;  // The temptable and its related info
+  List<Item> table_cols;        // List of columns describing temp. table
+  TABLE *table;                 // Reference to temporary table
+  struct st_table_ref *tab_ref; // Structure used to make index lookups
+  Item *in_equality;            // See create_subquery_equalities()
+  Item *join_cond;              // See comments in make_join_select()
+  Copy_field *copy_field;       // Needed for materialization scan
+};
+
 
 /* Structs used when sorting */
 
@@ -3298,6 +3399,9 @@ public:
   void reset();
   bool walk(tree_walk_action action, void *walk_action_arg);
 
+  uint get_size() const { return size; }
+  ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
+
   friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
 };
@@ -3336,7 +3440,7 @@ public:
   {
     return deleted;
   }
-  virtual void abort();
+  virtual void abort_result_set();
 };
 
 
@@ -3387,7 +3491,7 @@ public:
   {
     return updated;
   }
-  virtual void abort();
+  virtual void abort_result_set();
 };
 
 class my_var : public Sql_alloc  {

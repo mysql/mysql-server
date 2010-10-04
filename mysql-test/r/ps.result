@@ -50,7 +50,7 @@ execute stmt4;
 prepare stmt4 from 'drop table t2';
 execute stmt4;
 execute stmt4;
-ERROR 42S02: Unknown table 't2'
+ERROR 42S02: Unknown table 'test.t2'
 prepare stmt5 from 'select ? + a from t1';
 set @a=1;
 execute stmt5 using @a;
@@ -519,7 +519,7 @@ FOUND_ROWS()
 deallocate prepare stmt;
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 create table t1 (c1 int(11) not null, c2 int(11) not null,
 primary key  (c1,c2), key c2 (c2), key c1 (c1));
 insert into t1 values (200887, 860);
@@ -2792,48 +2792,48 @@ drop table if exists t2;
 create procedure proc_1() show warnings;
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 call proc_1();
 Level	Code	Message
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 call proc_1();
 Level	Code	Message
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 drop table if exists t1, t2;
 Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 call proc_1();
 Level	Code	Message
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 drop procedure proc_1;
 create function func_1() returns int begin show warnings; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
 prepare abc from "show warnings";
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 execute abc;
 Level	Code	Message
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 execute abc;
 Level	Code	Message
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 drop table if exists t1, t2;
 Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 execute abc;
 Level	Code	Message
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 deallocate prepare abc;
 set @my_password="password";
 set @my_data="clear text to encode";
@@ -2919,7 +2919,7 @@ i	j
 DROP TABLE t1, t2;
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 prepare stmt
 from "create table t1 (c char(100) character set utf8, key (c(10)))";
 execute stmt;

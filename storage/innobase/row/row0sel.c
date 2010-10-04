@@ -88,10 +88,8 @@ row_sel_sec_rec_is_for_blob(
 /*========================*/
 	ulint		mtype,		/*!< in: main type */
 	ulint		prtype,		/*!< in: precise type */
-	ulint		mbminlen,	/*!< in: minimum length of a
-					multi-byte character */
-	ulint		mbmaxlen,	/*!< in: maximum length of a
-					multi-byte character */
+	ulint		mbminmaxlen,	/*!< in: minimum and maximum length of
+					a multi-byte character */
 	const byte*	clust_field,	/*!< in: the locally stored part of
 					the clustered index column, including
 					the BLOB pointer; the clustered
@@ -119,7 +117,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = dtype_get_at_most_n_mbchars(prtype, mbminlen, mbmaxlen,
+	len = dtype_get_at_most_n_mbchars(prtype, mbminmaxlen,
 					  sec_len, len, (const char*) buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
@@ -202,14 +200,14 @@ row_sel_sec_rec_is_for_clust_rec(
 			}
 
 			len = dtype_get_at_most_n_mbchars(
-				col->prtype, col->mbminlen, col->mbmaxlen,
+				col->prtype, col->mbminmaxlen,
 				ifield->prefix_len, len, (char*) clust_field);
 
 			if (rec_offs_nth_extern(clust_offs, clust_pos)
 			    && len < sec_len) {
 				if (!row_sel_sec_rec_is_for_blob(
 					    col->mtype, col->prtype,
-					    col->mbminlen, col->mbmaxlen,
+					    col->mbminmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
 					    dict_table_zip_size(
@@ -416,7 +414,7 @@ row_sel_fetch_columns(
 							      field_no))) {
 
 				/* Copy an externally stored field to the
-				temporary heap */
+				temporary heap, if possible. */
 
 				heap = mem_heap_create(1);
 
@@ -425,6 +423,17 @@ row_sel_fetch_columns(
 					dict_table_zip_size(index->table),
 					field_no, &len, heap);
 
+				/* data == NULL means that the
+				externally stored field was not
+				written yet. This record
+				should only be seen by
+				recv_recovery_rollback_active() or any
+				TRX_ISO_READ_UNCOMMITTED
+				transactions. The InnoDB SQL parser
+				(the sole caller of this function)
+				does not implement READ UNCOMMITTED,
+				and it is not involved during rollback. */
+				ut_a(data);
 				ut_a(len != UNIV_SQL_NULL);
 
 				needs_copy = TRUE;
@@ -926,6 +935,7 @@ row_sel_get_clust_rec(
 	when plan->clust_pcur was positioned.  The latch will not be
 	released until mtr_commit(mtr). */
 
+	ut_ad(!rec_get_deleted_flag(clust_rec, rec_offs_comp(offsets)));
 	row_sel_fetch_columns(index, clust_rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
 	*out_rec = clust_rec;
@@ -1628,6 +1638,13 @@ skip_lock:
 				}
 
 				if (old_vers == NULL) {
+					/* The record does not exist
+					in our read view. Skip it, but
+					first attempt to determine
+					whether the index segment we
+					are searching through has been
+					exhausted. */
+
 					offsets = rec_get_offsets(
 						rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
@@ -2508,13 +2525,13 @@ row_sel_field_store_in_mysql_format(
 	ulint		len)	/*!< in: length of the data */
 {
 	byte*	ptr;
-	byte*	field_end;
-	byte*	pad_ptr;
 
 	ut_ad(len != UNIV_SQL_NULL);
 	UNIV_MEM_ASSERT_RW(data, len);
 
 	switch (templ->type) {
+		const byte*	field_end;
+		byte*		pad;
 	case DATA_INT:
 		/* Convert integer data from Innobase to a little-endian
 		format, sign bit restored to normal */
@@ -2558,38 +2575,32 @@ row_sel_field_store_in_mysql_format(
 		unused end of a >= 5.0.3 true VARCHAR column, just in case
 		MySQL expects its contents to be deterministic. */
 
-		pad_ptr = dest + len;
+		pad = dest + len;
 
 		ut_ad(templ->mbminlen <= templ->mbmaxlen);
 
-		/* We handle UCS2 charset strings differently. */
-		if (templ->mbminlen == 2) {
-			/* A space char is two bytes, 0x0020 in UCS2 */
+		/* We treat some Unicode charset strings specially. */
+		switch (templ->mbminlen) {
+		case 4:
+			/* InnoDB should never have stripped partial
+			UTF-32 characters. */
+			ut_a(!(len & 3));
+			break;
+		case 2:
+			/* A space char is two bytes,
+			0x0020 in UCS2 and UTF-16 */
 
-			if (len & 1) {
+			if (UNIV_UNLIKELY(len & 1)) {
 				/* A 0x20 has been stripped from the column.
 				Pad it back. */
 
-				if (pad_ptr < field_end) {
-					*pad_ptr = 0x20;
-					pad_ptr++;
+				if (pad < field_end) {
+					*pad++ = 0x20;
 				}
 			}
-
-			/* Pad the rest of the string with 0x0020 */
-
-			while (pad_ptr < field_end) {
-				*pad_ptr = 0x00;
-				pad_ptr++;
-				*pad_ptr = 0x20;
-				pad_ptr++;
-			}
-		} else {
-			ut_ad(templ->mbminlen == 1);
-			/* space=0x20 */
-
-			memset(pad_ptr, 0x20, field_end - pad_ptr);
 		}
+
+		row_mysql_pad_col(templ->mbminlen, pad, field_end - pad);
 		break;
 
 	case DATA_BLOB:
@@ -2614,9 +2625,9 @@ row_sel_field_store_in_mysql_format(
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
 		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len);
 
-		if (templ->mbminlen != templ->mbmaxlen) {
+		if (templ->mbminlen == 1 && templ->mbmaxlen != 1) {
 			/* Pad with spaces. This undoes the stripping
-			done in row0mysql.ic, function
+			done in row0mysql.c, function
 			row_mysql_store_col_in_innobase_format(). */
 
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
@@ -2647,9 +2658,8 @@ Convert a row in the Innobase format to a row in the MySQL format.
 Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query.
-@return TRUE if success, FALSE if could not allocate memory for a BLOB
-(though we may also assert in that case) */
-static
+@return TRUE on success, FALSE if not all columns could be retrieved */
+static __attribute__((warn_unused_result))
 ibool
 row_sel_store_mysql_rec(
 /*====================*/
@@ -2659,8 +2669,10 @@ row_sel_store_mysql_rec(
 					which was described in prebuilt's
 					template; must be protected by
 					a page latch */
-	const ulint*	offsets)	/*!< in: array returned by
+	const ulint*	offsets,	/*!< in: array returned by
 					rec_get_offsets() */
+	const ulint	start_field_no,	/*!< in: start from this field */
+	const ulint	end_field_no)	/*!< in: end at this field */
 {
 	mysql_row_templ_t*	templ;
 	mem_heap_t*		extern_field_heap	= NULL;
@@ -2672,21 +2684,28 @@ row_sel_store_mysql_rec(
 	ut_ad(prebuilt->mysql_template);
 	ut_ad(prebuilt->default_rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
 		mem_heap_free(prebuilt->blob_heap);
 		prebuilt->blob_heap = NULL;
 	}
 
-	/* init null bytes with default values as they might be
-	left uninitialized in some cases and these uninited bytes
-	might be copied into mysql record buffer that leads to
-	valgrind warnings */
-	memcpy(mysql_rec, prebuilt->default_rec, prebuilt->null_bitmap_len);
-
-	for (i = 0; i < prebuilt->n_template; i++) {
+	for (i = start_field_no; i < end_field_no ; i++) {
 
 		templ = prebuilt->mysql_template + i;
+
+		if (templ->mysql_null_bit_mask) {
+
+			/* init null bytes with default values as they might be
+			left uninitialized in some cases and these uninited
+			bytes might be copied into mysql record buffer that
+			leads to valgrind warnings */
+			ulint offs = templ->mysql_null_byte_offset;
+			mysql_rec[offs] &= ~(byte) templ->mysql_null_bit_mask;
+			mysql_rec[offs] |= (byte) prebuilt->default_rec[offs]
+					   & templ->mysql_null_bit_mask;
+		}
 
 		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
 						      templ->rec_field_no))) {
@@ -2718,6 +2737,21 @@ row_sel_store_mysql_rec(
 				rec, offsets,
 				dict_table_zip_size(prebuilt->table),
 				templ->rec_field_no, &len, heap);
+
+			if (UNIV_UNLIKELY(!data)) {
+				/* The externally stored field
+				was not written yet. This
+				record should only be seen by
+				recv_recovery_rollback_active()
+				or any TRX_ISO_READ_UNCOMMITTED
+				transactions. */
+
+				if (extern_field_heap) {
+					mem_heap_free(extern_field_heap);
+				}
+
+				return(FALSE);
+			}
 
 			ut_a(len != UNIV_SQL_NULL);
 		} else {
@@ -3136,15 +3170,19 @@ row_sel_pop_cached_row_for_mysql(
 }
 
 /********************************************************************//**
-Pushes a row for MySQL to the fetch cache. */
-UNIV_INLINE
-void
+Pushes a row for MySQL to the fetch cache.
+@return TRUE on success, FALSE if the record contains incomplete BLOBs */
+UNIV_INLINE __attribute__((warn_unused_result))
+ibool
 row_sel_push_cache_row_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
 	const rec_t*	rec,		/*!< in: record to push; must
 					be protected by a page latch */
-	const ulint*	offsets)	/*!< in: rec_get_offsets() */
+	const ulint*	offsets,	/*!< in: rec_get_offsets() */
+	const ulint	start_field_no,	/*!< in: start from this field */
+	const byte*	remainder_buf)	/*!< in: if above !=0 -> where
+					to take prev fields */
 {
 	byte*	buf;
 	ulint	i;
@@ -3179,11 +3217,53 @@ row_sel_push_cache_row_for_mysql(
 	if (UNIV_UNLIKELY(!row_sel_store_mysql_rec(
 				  prebuilt->fetch_cache[
 					  prebuilt->n_fetch_cached],
-				  prebuilt, rec, offsets))) {
-		ut_error;
+				  prebuilt, rec, offsets, start_field_no,
+				  prebuilt->n_template))) {
+		return(FALSE);
 	}
 
+	if (start_field_no) {
+		/* If index condition pushdown is used, the table
+		columns start at start_field_no. Columns from 0 to
+		start_field_no are index columns. Table columns
+		were copied above; now copy the index columns. */
+		for (i = 0; i < start_field_no; i++) {
+			register ulint		offs;
+			mysql_row_templ_t*	templ =
+						prebuilt->mysql_template + i;
+
+			if (templ->mysql_null_bit_mask) {
+
+				/* Store a pointer to the null byte in
+				the record in the fetch cache
+				(the mysql record). Update this null
+				byte as follows:
+				1. Clear the null bit for this index entry.
+				2. Set the correct value for the
+				   null bit based on the null bit
+				   in the internal record representation
+				   found in remainder_buf. */
+				register byte*	null_byte;
+
+				offs = templ->mysql_null_byte_offset;
+				null_byte = prebuilt->fetch_cache[
+					    prebuilt->n_fetch_cached] + offs;
+
+				(*null_byte) &= ~templ->mysql_null_bit_mask;
+				(*null_byte) |= (*(remainder_buf + offs)
+						 & templ->mysql_null_bit_mask);
+			}
+
+			offs = templ->mysql_col_offset;
+			memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached] + offs,
+			       remainder_buf + offs,
+			       templ->mysql_col_len);
+		}
+	}
+
+
 	prebuilt->n_fetch_cached++;
+	return(TRUE);
 }
 
 /*********************************************************************//**
@@ -3321,6 +3401,8 @@ row_search_for_mysql(
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+	ibool		some_fields_in_buffer;
+	ibool		get_clust_rec = 0;
 
 	rec_offs_init(offsets_);
 
@@ -3577,12 +3659,23 @@ row_search_for_mysql(
 				mtr_commit(&mtr). */
 
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
-							     rec, offsets)) {
-					err = DB_TOO_BIG_RECORD;
+							     rec, offsets, 0,
+							     prebuilt->n_template)) {
+					/* Only fresh inserts may contain
+					incomplete externally stored
+					columns. Pretend that such
+					records do not exist. Such
+					records may only be accessed
+					at the READ UNCOMMITTED
+					isolation level or when
+					rolling back a recovered
+					transaction. Rollback happens
+					at a lower level, not here. */
+					ut_a(trx->isolation_level
+					     == TRX_ISO_READ_UNCOMMITTED);
 
-					/* We let the main loop to do the
-					error handling */
-					goto shortcut_fails_too_big_rec;
+					/* Proceed as in case SEL_RETRY. */
+					break;
 				}
 
 				mtr_commit(&mtr);
@@ -3622,7 +3715,7 @@ release_search_latch_if_needed:
 			default:
 				ut_ad(0);
 			}
-shortcut_fails_too_big_rec:
+
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
 		}
@@ -4201,7 +4294,8 @@ no_gap_lock:
 
 			ut_ad(index != clust_index);
 
-			goto requires_clust_rec;
+			get_clust_rec = TRUE;
+			goto idx_cond_check;
 		}
 	}
 
@@ -4245,12 +4339,38 @@ no_gap_lock:
 		goto next_rec;
 	}
 
+idx_cond_check:
+	if (prebuilt->idx_cond_func) {
+		int	res;
+
+		/* The current ICP code does not support the case where InnoDB
+		has decided to change from just reading the index entry
+		to reading the entire record. In this situation the
+		mysql_template array is set up to compare fields from
+		record not just the index entry's fields. ICP should not
+		be in use in this case but to detect if this anyway
+		happens the following assert is added. */
+		ut_ad(prebuilt->template_type == ROW_MYSQL_REC_FIELDS);
+
+		offsets = rec_get_offsets(rec, index, offsets,
+					  ULINT_UNDEFINED, &heap);
+		row_sel_store_mysql_rec(buf, prebuilt, rec, offsets,
+					0, prebuilt->n_index_fields);
+		res = prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
+		if (res == 0) {
+			goto next_rec;
+		} if (res == 2) {
+			err = DB_RECORD_NOT_FOUND;
+			goto idx_cond_failed;
+		}
+	}
+
 	/* Get the clustered index record if needed, if we did not do the
 	search using the clustered index. */
 
-	if (index != clust_index && prebuilt->need_to_access_clustered) {
+	if (get_clust_rec
+	    || (index != clust_index && prebuilt->need_to_access_clustered)) {
 
-requires_clust_rec:
 		/* We use a 'goto' to the preceding label if a consistent
 		read of a secondary index record requires us to look up old
 		versions of the associated clustered index record. */
@@ -4356,10 +4476,25 @@ requires_clust_rec:
 		are BLOBs in the fields to be fetched. In HANDLER we do
 		not cache rows because there the cursor is a scrollable
 		cursor. */
+		some_fields_in_buffer = (index != clust_index
+					 && prebuilt->idx_cond_func);
 
-		row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
-						 offsets);
-		if (prebuilt->n_fetch_cached == MYSQL_FETCH_CACHE_SIZE) {
+		if (!row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
+						      offsets,
+						      some_fields_in_buffer ?
+						      prebuilt->n_index_fields : 0,
+						      buf)) {
+
+			/* Only fresh inserts may contain incomplete
+			externally stored columns. Pretend that such
+			records do not exist. Such records may only be
+			accessed at the READ UNCOMMITTED isolation
+			level or when rolling back a recovered
+			transaction. Rollback happens at a lower
+			level, not here. */
+			ut_a(trx->isolation_level == TRX_ISO_READ_UNCOMMITTED);
+		} else if (prebuilt->n_fetch_cached
+			   == MYSQL_FETCH_CACHE_SIZE) {
 
 			goto got_row;
 		}
@@ -4374,10 +4509,21 @@ requires_clust_rec:
 					rec_offs_extra_size(offsets) + 4);
 		} else {
 			if (!row_sel_store_mysql_rec(buf, prebuilt,
-						     result_rec, offsets)) {
-				err = DB_TOO_BIG_RECORD;
-
-				goto lock_wait_or_error;
+						     result_rec, offsets,
+						     prebuilt->idx_cond_func ?
+						     prebuilt->n_index_fields : 0,
+						     prebuilt->n_template)) {
+				/* Only fresh inserts may contain
+				incomplete externally stored
+				columns. Pretend that such records do
+				not exist. Such records may only be
+				accessed at the READ UNCOMMITTED
+				isolation level or when rolling back a
+				recovered transaction. Rollback
+				happens at a lower level, not here. */
+				ut_a(trx->isolation_level
+				     == TRX_ISO_READ_UNCOMMITTED);
+				goto next_rec;
 			}
 		}
 
@@ -4402,6 +4548,9 @@ got_row:
 	HANDLER command where the user can move the cursor with PREV or NEXT
 	even after a unique search. */
 
+	err = DB_SUCCESS;
+
+idx_cond_failed:
 	if (!unique_search_from_clust_index
 	    || prebuilt->select_lock_type != LOCK_NONE
 	    || prebuilt->used_in_HANDLER) {
@@ -4411,12 +4560,12 @@ got_row:
 		btr_pcur_store_position(pcur, &mtr);
 	}
 
-	err = DB_SUCCESS;
-
 	goto normal_return;
 
 next_rec:
 	/* Reset the old and new "did semi-consistent read" flags. */
+	get_clust_rec = FALSE;
+
 	if (UNIV_UNLIKELY(prebuilt->row_read_type
 			  == ROW_READ_DID_SEMI_CONSISTENT)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
@@ -4622,8 +4771,7 @@ row_search_check_if_query_cache_permitted(
 	IX type locks actually would require ret = FALSE. */
 
 	if (UT_LIST_GET_LEN(table->locks) == 0
-	    && ut_dulint_cmp(trx->id,
-			     table->query_cache_inv_trx_id) >= 0) {
+	    && trx->id >= table->query_cache_inv_trx_id) {
 
 		ret = TRUE;
 

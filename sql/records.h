@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface                      /* gcc class implementation */
@@ -40,6 +40,7 @@ class SQL_SELECT;
   end_read_record();
 */
 
+class Copy_field;
 struct READ_RECORD
 {
   typedef int (*Read_func)(READ_RECORD*);
@@ -63,6 +64,12 @@ struct READ_RECORD
   struct st_io_cache *io_cache;
   bool print_error, ignore_not_found_rows;
 
+  /* 
+    SJ-Materialization runtime may need to read fields from the materialized
+    table and unpack them into original table fields:
+  */
+  Copy_field *copy_field;
+  Copy_field *copy_field_end;
 public:
   READ_RECORD() {}
 };

@@ -695,3 +695,5 @@ let $coll= utf8_unicode_ci;
 
 }
 
+DROP database test;
+CREATE database test;

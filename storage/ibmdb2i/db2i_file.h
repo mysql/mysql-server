@@ -353,7 +353,7 @@ public:
       db2i_ileBridge::getBridgeForThread()->deallocateFile(masterDefn);
     
     if (db2FileName != (char*)db2Table->getDB2TableName(db2i_table::EBCDIC_NATIVE))
-      my_free(db2FileName, MYF(0));    
+      my_free(db2FileName);
   }
 
   // This is roughly equivalent to an "open". It tells ILE to allocate a descriptor

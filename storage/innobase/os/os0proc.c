@@ -145,7 +145,7 @@ skip:
 		os_fast_mutex_unlock(&ut_list_mutex);
 		UNIV_MEM_ALLOC(ptr, size);
 	}
-#elif defined __NETWARE__ || !defined OS_MAP_ANON
+#elif !defined OS_MAP_ANON
 	size = *n;
 	ptr = ut_malloc_low(size, TRUE, FALSE);
 #else
@@ -213,7 +213,7 @@ os_mem_free_large(
 		os_fast_mutex_unlock(&ut_list_mutex);
 		UNIV_MEM_FREE(ptr, size);
 	}
-#elif defined __NETWARE__ || !defined OS_MAP_ANON
+#elif !defined OS_MAP_ANON
 	ut_free(ptr);
 #else
 	if (munmap(ptr, size)) {

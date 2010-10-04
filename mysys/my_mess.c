@@ -22,11 +22,7 @@ void my_message_stderr(uint error __attribute__((unused)),
   DBUG_PRINT("enter",("message: %s",str));
   (void) fflush(stdout);
   if (MyFlags & ME_BELL)
-#ifdef __NETWARE__
-    ringbell();                   				/* Bell */
-#else
-    (void) fputc('\007',stderr);				/* Bell */
-#endif /* __NETWARE__ */
+    (void) fputc('\007', stderr);
   if (my_progname)
   {
     (void)fputs(my_progname,stderr); (void)fputs(": ",stderr);
