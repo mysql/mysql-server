@@ -19,17 +19,7 @@
 
 #include <ndb_global.h>
 
-#include "NdbApiSignal.hpp"
-#include "NdbImpl.hpp"
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbIndexOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include <NdbRecAttr.hpp>
-#include <NdbReceiver.hpp>
-#include <NdbQueryOperationImpl.hpp>
 #include "API.hpp"
-#include "NdbEventOperationImpl.hpp"
 
 #include <signaldata/TcCommit.hpp>
 #include <signaldata/TcKeyFailConf.hpp>
@@ -83,9 +73,8 @@ Ndb::init(int aMaxNoOfTransactions)
   TransporterFacade * theFacade =  theImpl->m_transporter_facade;
   theFacade->lock_mutex();
   
-  const int tBlockNo = theFacade->open(this,
-                                       executeMessage, 
-                                       statusMessage);  
+  const int tBlockNo = theFacade->open(theImpl);
+
   if ( tBlockNo == -1 ) {
     theError.code = 4105;
     theFacade->unlock_mutex();
@@ -151,7 +140,7 @@ error_handler:
   ndbout << "error_handler" << endl;
   releaseTransactionArrays();
   delete theDictionary;
-  theImpl->m_transporter_facade->close(theNdbBlockNumber, 0);
+  theImpl->m_transporter_facade->close(theNdbBlockNumber);
   DBUG_RETURN(-1);
 }
 
@@ -172,12 +161,10 @@ Ndb::releaseTransactionArrays()
 }//Ndb::releaseTransactionArrays()
 
 void
-Ndb::executeMessage(void* NdbObject,
-                    const NdbApiSignal * aSignal,
-                    const LinearSectionPtr ptr[3])
+NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
+                            const LinearSectionPtr ptr[3])
 {
-  Ndb* tNdb = (Ndb*)NdbObject;
-  tNdb->handleReceivedSignal(aSignal, ptr);
+  m_ndb.handleReceivedSignal(aSignal, ptr);
 }
 
 void Ndb::connected(Uint32 ref)
@@ -200,9 +187,8 @@ void Ndb::connected(Uint32 ref)
   }
   theImpl->theNoOfDBnodes = n;
   
-  theFirstTransId = ((Uint64)tBlockNo << 52)+
+  theFirstTransId += ((Uint64)tBlockNo << 52)+
     ((Uint64)tmpTheNode << 40);
-  theFirstTransId += theFacade->m_max_trans_id;
   //      assert(0);
   DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id: 0x%lx",
 		     theMyRef,
@@ -226,28 +212,30 @@ void Ndb::report_node_connected(Uint32 nodeId)
 }
 
 void
-Ndb::statusMessage(void* NdbObject, Uint32 a_node, bool alive, bool nfComplete)
+NdbImpl::trp_node_status(Uint32 a_node, Uint32 _event)
 {
   DBUG_ENTER("Ndb::statusMessage");
-  DBUG_PRINT("info", ("a_node: %u  alive: %u  nfComplete: %u",
-                      a_node, alive, nfComplete));
-  Ndb* tNdb = (Ndb*)NdbObject;
-  if (alive) {
-    if (nfComplete) {
-      // cluster connect, a_node == own reference
-      tNdb->connected(a_node);
-      DBUG_VOID_RETURN;
-    }//if
+  NS_Event event = (NS_Event)_event;
+  DBUG_PRINT("info", ("a_node: %u  event: %u",
+                      a_node, _event));
+  Ndb* tNdb = (Ndb*)&m_ndb;
+  switch(event){
+  case NS_CONNECTED:
+    // cluster connect, a_node == own reference
+    tNdb->connected(a_node);
+    break;
+  case NS_NODE_ALIVE:
     tNdb->report_node_connected(a_node);
-  } else {
-    if (nfComplete) {
-      tNdb->report_node_failure_completed(a_node);
-    } else {
-      tNdb->report_node_failure(a_node);
-    }//if
+    break;
+  case NS_NODE_FAILED:
+    tNdb->report_node_failure(a_node);
+    break;
+  case NS_NODE_NF_COMPLETE:
+    tNdb->report_node_failure_completed(a_node);
+    break;
   }//if
   NdbDictInterface::execNodeStatus(&tNdb->theDictionary->m_receiver,
-				   a_node, alive, nfComplete);
+				   a_node, event);
   DBUG_VOID_RETURN;
 }
 
@@ -828,21 +816,6 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
     theEventBuffer->insertDataL(op, sdata, tLen, copy);
     return;
   }
-  case GSN_DIHNDBTAMPER:
-    {
-      tFirstDataPtr = int2void(tFirstData);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-      
-      if (tWaitState != WAIT_NDB_TAMPER)
-	return;
-      tCon = void2con(tFirstDataPtr);
-      if (tCon->checkMagicNumber() != 0)
-	return;
-      tReturnCode = tCon->receiveDIHNDBTAMPER(aSignal);
-      if (tReturnCode != -1)
-	theImpl->theWaiter.m_state = NO_WAIT;
-      break;
-    }
   case GSN_SCAN_TABCONF:
     {
       tFirstDataPtr = int2void(tFirstData);
@@ -1139,7 +1112,7 @@ Ndb::pollCompleted(NdbTransaction** aCopyArray)
 void
 Ndb::check_send_timeout()
 {
-  Uint32 timeout = theImpl->m_transporter_facade->m_waitfor_timeout;
+  Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
   NDB_TICKS current_time = NdbTick_CurrentMillisecond();
   assert(current_time >= the_last_check_time);
   if (current_time - the_last_check_time > 1000) {

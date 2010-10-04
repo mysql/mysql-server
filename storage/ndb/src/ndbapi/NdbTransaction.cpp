@@ -18,19 +18,7 @@
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include <NdbIndexScanOperation.hpp>
-#include <NdbIndexOperation.hpp>
-#include <NdbDictionaryImpl.hpp>
-#include <NdbQueryOperationImpl.hpp>
-#include <NdbQueryBuilder.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
 #include "API.hpp"
-#include "NdbBlob.hpp"
-#include "NdbUtil.hpp"
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyConf.hpp>
@@ -551,7 +539,7 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
 //------------------------------------------------------------------------
   Ndb* tNdb = theNdb;
 
-  Uint32 timeout = theNdb->theImpl->m_transporter_facade->m_waitfor_timeout;
+  Uint32 timeout = theNdb->theImpl->get_waitfor_timeout();
   m_waitForReply = false;
   executeAsynchPrepare(aTypeOfExec, NULL, NULL, abortOption);
   if (m_waitForReply){
@@ -1820,26 +1808,6 @@ NdbTransaction::getNdbIndexOperation(const NdbDictionary::Index * index,
   return NULL;
 }//NdbTransaction::getNdbIndexOperation()
 
-
-/*******************************************************************************
-int  receiveDIHNDBTAMPER(NdbApiSignal* aSignal)
-
-Return Value:  Return 0 : receiveDIHNDBTAMPER was successful.
-               Return -1: In all other case.
-Parameters:    aSignal: The signal object pointer.
-Remark:        Sets theRestartGCI in the NDB object. 
-*******************************************************************************/
-int			
-NdbTransaction::receiveDIHNDBTAMPER(const NdbApiSignal* aSignal)
-{
-  if (theStatus != Connecting) {
-    return -1;
-  } else {
-    theNdb->RestartGCI((Uint32)aSignal->readData(2));
-    theStatus = Connected;
-  }//if
-  return 0;  
-}//NdbTransaction::receiveDIHNDBTAMPER()
 
 /*******************************************************************************
 int  receiveTCSEIZECONF(NdbApiSignal* aSignal);

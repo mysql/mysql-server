@@ -25,6 +25,7 @@
 
 
 class Ndb;
+class NdbImpl;
 class NdbTransaction;
 class NdbRecord;
 class TransporterFacade;
@@ -101,7 +102,7 @@ private:
   void prepareSend();
 
   static
-  void calculate_batch_size(const TransporterFacade *tp,
+  void calculate_batch_size(const NdbImpl&,
                             const NdbRecord *,
                             const NdbRecAttr *first_rec_attr,
                             Uint32, Uint32, Uint32&, Uint32&, Uint32&);

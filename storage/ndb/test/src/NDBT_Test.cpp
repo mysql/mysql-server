@@ -275,7 +275,7 @@ NDBT_Step::NDBT_Step(NDBT_TestCase* ptest, const char* pname,
 {
 }
 
-#include <../../src/ndbapi/NdbImpl.hpp>
+#include "../../src/ndbapi/ndb_internal.hpp"
 
 int
 NDBT_Step::setUp(Ndb_cluster_connection& con){
@@ -290,8 +290,8 @@ NDBT_Step::setUp(Ndb_cluster_connection& con){
     m_ndb = new Ndb(&con, "TEST_DB" );
     m_ndb->init(1024);
 
-    NdbImpl::setForceShortRequests(m_ndb, 
-                                   m_ctx->suite->getForceShort());
+    Ndb_internal::setForceShortRequests(m_ndb, 
+                                        m_ctx->suite->getForceShort());
 
     int result = m_ndb->waitUntilReady(300); // 5 minutes
     if (result != 0){
@@ -946,7 +946,7 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
     Ndb ndb(&con, "TEST_DB");
     ndb.init(1024);
 
-    NdbImpl::setForceShortRequests(&ndb, m_forceShort);
+    Ndb_internal::setForceShortRequests(&ndb, m_forceShort);
 
     int result = ndb.waitUntilReady(300); // 5 minutes
     if (result != 0){

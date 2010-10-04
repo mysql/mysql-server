@@ -33,27 +33,10 @@
 #define NdbApiSignal_H
 
 #include <kernel_types.h>
-#include "TransporterFacade.hpp"
+#include <RefConvert.hpp>
 #include <TransporterDefinitions.hpp>
-#include "Ndb.hpp"
 
-#include <signaldata/GetTabInfo.hpp>
-#include <signaldata/DictTabInfo.hpp>
-#include <signaldata/CreateTable.hpp>
-#include <signaldata/CreateIndx.hpp>
-#include <signaldata/CreateEvnt.hpp>
-#include <signaldata/SumaImpl.hpp>
-#include <signaldata/DropTable.hpp>
-#include <signaldata/AlterTable.hpp>
-#include <signaldata/DropIndx.hpp>
-#include <signaldata/ListTables.hpp>
-#include <signaldata/DropFilegroup.hpp>
-#include <signaldata/CreateFilegroup.hpp>
-#include <signaldata/WaitGCP.hpp>
-#include <signaldata/SchemaTrans.hpp>
-#include <signaldata/CreateHashMap.hpp>
-#include <signaldata/ApiRegSignalData.hpp>
-#include <signaldata/ArbitSignalData.hpp>
+class Ndb;
 
 /**
  * A NdbApiSignal : public SignalHeader

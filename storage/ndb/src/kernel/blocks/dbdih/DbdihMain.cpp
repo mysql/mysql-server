@@ -17994,6 +17994,18 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     return;
   }//if
 
+  if(requestType == WaitGCPReq::RestartGCI)
+  {
+    jam();
+    conf->senderData = senderData;
+    conf->gci_hi = Uint32(crestartGci);
+    conf->gci_lo = 0;
+    conf->blockStatus = cgcpOrderBlocked;
+    sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal,
+	       WaitGCPConf::SignalLength, JBB);
+    return;
+  }//if
+
   if (requestType == WaitGCPReq::BlockStartGcp)
   {
     jam();

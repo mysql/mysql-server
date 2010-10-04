@@ -34,6 +34,10 @@
 #include <NdbAutoPtr.hpp>
 #include <ndb_mgmclient.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
+
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
 // copied from mysql.cc to get readline

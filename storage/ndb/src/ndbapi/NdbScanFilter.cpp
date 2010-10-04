@@ -16,18 +16,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "API.hpp"
 #include <NdbScanFilter.hpp>
-#include <Ndb.hpp>
-#include <NdbOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include "NdbDictionaryImpl.hpp"
 #include <Vector.hpp>
 #include <NdbOut.hpp>
 #include <Interpreter.hpp>
 #include <signaldata/AttrInfo.hpp>
-#include "NdbApiSignal.hpp"
-#include "NdbUtil.hpp"
-#include <NdbInterpretedCode.hpp>
 
 #ifdef VM_TRACE
 #include <NdbEnv.h>

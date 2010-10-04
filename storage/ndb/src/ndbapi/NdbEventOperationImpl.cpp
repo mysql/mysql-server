@@ -20,11 +20,9 @@
 #include <ndb_global.h>
 #include <kernel_types.h>
 
-#include "NdbDictionaryImpl.hpp"
 #include "API.hpp"
 #include <NdbOut.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
+
 #include <signaldata/CreateEvnt.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <SimpleProperties.hpp>
@@ -34,21 +32,14 @@
 #include <NdbError.hpp>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
-#include <NdbDictionary.hpp>
-#include <Ndb.hpp>
-#include "NdbImpl.hpp"
-#include "DictCache.hpp"
 #include <portlib/NdbMem.h>
-#include <NdbRecAttr.hpp>
-#include <NdbBlob.hpp>
-#include <NdbEventOperation.hpp>
-#include "NdbEventOperationImpl.hpp"
 #include <signaldata/AlterTable.hpp>
 #include "ndb_internal.hpp"
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+#define TOTAL_BUCKETS_INIT (1 << 15)
 static Gci_container_pod g_empty_gci_container;
 
 #if defined(VM_TRACE) && defined(NOT_USED)
@@ -598,6 +589,18 @@ NdbEventOperationImpl::execute_nolock()
     DBUG_RETURN(-1);
   }
 
+  bool schemaTrans = false;
+  if (m_ndb->theEventBuffer->m_total_buckets == TOTAL_BUCKETS_INIT)
+  {
+    int res = myDict->beginSchemaTrans();
+    if (res != 0)
+    {
+      m_error.code= myDict->getNdbError().code;
+      DBUG_RETURN(-1);
+    }
+    schemaTrans = true;
+  }
+
   if (theFirstPkAttrs[0] == NULL && 
       theFirstDataAttrs[0] == NULL) { // defaults to get all
   }
@@ -623,6 +626,11 @@ NdbEventOperationImpl::execute_nolock()
       buckets = m_ndb->theImpl->theNoOfDBnodes;
 
     m_ndb->theEventBuffer->set_total_buckets(buckets);
+    if (schemaTrans)
+    {
+      schemaTrans = false;
+      myDict->endSchemaTrans(1);
+    }
 
     if (theMainOp == NULL) {
       DBUG_PRINT("info", ("execute blob ops"));
@@ -656,6 +664,13 @@ NdbEventOperationImpl::execute_nolock()
   m_magic_number= 0;
   m_error.code= myDict->getNdbError().code;
   m_ndb->theEventBuffer->remove_op();
+
+  if (schemaTrans)
+  {
+    schemaTrans = false;
+    myDict->endSchemaTrans(1);
+  }
+
   DBUG_RETURN(r);
 }
 
@@ -1066,8 +1081,6 @@ NdbEventOperationImpl::printAll()
  * Class NdbEventBuffer
  * Each Ndb object has a Object.
  */
-#define TOTAL_BUCKETS_INIT (1 << 15)
-
 NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_total_buckets(TOTAL_BUCKETS_INIT), 
   m_min_gci_index(0),
@@ -2235,8 +2248,10 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
       Gci_container* tmp = find_bucket(array[pos]);
       assert((tmp->m_state & Gci_container::GC_CHANGE_CNT) == 0);
       tmp->m_gcp_complete_rep_count -= cnt;
-      ndbout_c(" - decreasing cnt on %u/%u by %u",
-               Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), cnt);
+      ndbout_c(" - decreasing cnt on %u/%u by %u to: %u",
+               Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), 
+               cnt,
+               tmp->m_gcp_complete_rep_count);
     }
   }
 }

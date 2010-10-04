@@ -16,20 +16,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef NDB_INTERNAL_HPP
-#define NDB_INTERNAL_HPP
+#include "API.hpp"
+#include "ndb_internal.hpp"
 
-/**
- * This class exposes non-public funcionality to various test/utility programs
- */
-class Ndb_internal
+int
+Ndb_internal::send_event_report(bool has_lock, 
+                                Ndb *ndb, Uint32 *data, Uint32 length)
 {
-public:
-  Ndb_internal() {}
-  virtual ~Ndb_internal() {}
+  return ndb->theImpl->send_event_report(has_lock, data, length);
+}
 
-  static int send_event_report(bool has_lock, Ndb *ndb, Uint32*data,Uint32 len);
-  static void setForceShortRequests(Ndb*, bool val);
-};
-
-#endif
+void
+Ndb_internal::setForceShortRequests(Ndb* ndb, bool val)
+{
+  ndb->theImpl->forceShortRequests = val;
+}
+                                    

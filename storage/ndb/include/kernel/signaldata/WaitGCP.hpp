@@ -51,7 +51,8 @@ public:
     CurrentGCI        = 8,  ///< Immediately return current GCI
     BlockStartGcp     = 9,
     UnblockStartGcp   = 10,
-    WaitEpoch         = 11  // If GCP is blocked, wait for epoch to not start
+    WaitEpoch         = 11, // If GCP is blocked, wait for epoch to not start
+    RestartGCI        = 12  // Return restart GCI
   };
 
   Uint32 senderRef;
@@ -98,6 +99,7 @@ class WaitGCPRef {
   friend class Dbdict;
   friend class Backup;
   friend class Trix;
+  friend class NdbDictInterface;
 
 public:
   STATIC_CONST( SignalLength = 2 );

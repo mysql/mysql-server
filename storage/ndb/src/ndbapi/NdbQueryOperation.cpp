@@ -18,9 +18,9 @@
 
 
 #include <ndb_global.h>
+#include "API.hpp"
 #include <NdbQueryBuilder.hpp>
 #include "NdbQueryBuilderImpl.hpp"
-
 #include "NdbQueryOperationImpl.hpp"
 
 #include <signaldata/TcKeyReq.hpp>
@@ -30,13 +30,6 @@
 #include <signaldata/DbspjErr.hpp>
 
 #include "AttributeHeader.hpp"
-#include "NdbRecord.hpp"
-#include "NdbRecAttr.hpp"
-#include "TransporterFacade.hpp"
-#include "NdbApiSignal.hpp"
-#include "NdbTransaction.hpp"
-#include "NdbInterpretedCode.hpp"
-#include "NdbScanFilter.hpp"
 
 #include <Bitmask.hpp>
 
@@ -1385,6 +1378,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
     assert (m_scanTransaction);
 
     Ndb* const ndb = m_transaction.getNdb();
+    Uint32 timeout = ndb->theImpl->get_waitfor_timeout();
     TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
 
     /* This part needs to be done under mutex due to synchronization with 
@@ -1413,7 +1407,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
 
         /* More results are on the way, so we wait for them.*/
         const FetchResult waitResult = static_cast<FetchResult>
-          (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+          (poll_guard.wait_scan(3*timeout, 
                                 m_transaction.getConnectedNodeId(), 
                                 forceSend));
         if(waitResult != FetchResult_ok){
@@ -1678,7 +1672,7 @@ NdbQueryImpl::prepareSend()
     // when building signal after max-batchRows has been determined.
     for (Uint32 i = 0; i < m_countOperations; i++) {
       Uint32 batchByteSize, firstBatchRows;
-      NdbReceiver::calculate_batch_size(tp,
+      NdbReceiver::calculate_batch_size(* ndb->theImpl,
                                     m_operations[i].m_ndbRecord,
                                     m_operations[i].m_firstRecAttr,
                                     0, // Key size.
@@ -1938,7 +1932,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
     Uint32 batchRows = m_maxBatchRows;
     Uint32 batchByteSize, firstBatchRows;
-    NdbReceiver::calculate_batch_size(tp,
+    NdbReceiver::calculate_batch_size(* ndb.theImpl,
                                       root.m_ndbRecord,
                                       root.m_firstRecAttr,
                                       0, // Key size.
@@ -2303,6 +2297,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
   assert (m_queryDef.isScanQuery());
 
   Ndb* const ndb = m_transaction.getNdb();
+  Uint32 timeout = ndb->theImpl->get_waitfor_timeout();
   TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
 
   /* This part needs to be done under mutex due to synchronization with 
@@ -2316,7 +2311,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
   while (m_error.code==0 && !isBatchComplete())
   {
     const FetchResult waitResult = static_cast<FetchResult>
-          (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+          (poll_guard.wait_scan(3*timeout, 
                                 m_transaction.getConnectedNodeId(), 
                                 forceSend));
     switch (waitResult) {
@@ -2350,7 +2345,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
     while (m_pendingFrags > 0)
     {
       const FetchResult waitResult = static_cast<FetchResult>
-            (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+            (poll_guard.wait_scan(3*timeout, 
                                   m_transaction.getConnectedNodeId(), 
                                   forceSend));
       switch (waitResult) {

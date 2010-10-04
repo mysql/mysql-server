@@ -21,6 +21,7 @@
 
 #include <ndb_global.h>
 #include "TransporterFacade.hpp"
+#include "trp_client.hpp"
 #include <Vector.hpp>
 
 #include <signaldata/TestOrd.hpp>
@@ -84,7 +85,7 @@ private:
   bool deallocSections;
 };
 
-class SignalSender {
+class SignalSender  : public trp_client {
 public:
   SignalSender(TransporterFacade *facade, int blockNo = -1);
   SignalSender(Ndb_cluster_connection* connection);
@@ -119,13 +120,15 @@ private:
   int m_blockNo;
   TransporterFacade * theFacade;
   
-  static void execSignal(void* signalSender, 
-			 const NdbApiSignal* signal,
-			 const struct LinearSectionPtr ptr[3]);
+public:
+  /**
+   * trp_client interface
+   */
+  virtual void trp_deliver_signal(const NdbApiSignal* signal,
+                                  const struct LinearSectionPtr ptr[3]);
   
-  static void execNodeStatus(void* signalSender, Uint32 nodeId, 
-			     bool alive, bool nfCompleted);
-  
+  virtual void trp_node_status(Uint32 nodeId, Uint32 _event);
+
   int m_lock;
   struct NdbCondition * m_cond;
   Vector<SimpleSignal *> m_jobBuffer;
