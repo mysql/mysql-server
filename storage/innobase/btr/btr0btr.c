@@ -603,7 +603,6 @@ btr_page_get_father_node_ptr_func(
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	page_t*		page;
 	dtuple_t*	tuple;
 	rec_t*		user_rec;
 	rec_t*		node_ptr;
@@ -621,7 +620,6 @@ btr_page_get_father_node_ptr_func(
 
 	level = btr_page_get_level(btr_cur_get_page(cursor), mtr);
 
-	page = btr_cur_get_page(cursor);
 	user_rec = btr_cur_get_rec(cursor);
 	ut_a(page_rec_is_user_rec(user_rec));
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap, level);
@@ -1899,7 +1897,6 @@ btr_page_split_and_insert(
 	buf_block_t*	left_block;
 	buf_block_t*	right_block;
 	buf_block_t*	insert_block;
-	page_t*		insert_page;
 	page_cur_t*	page_cursor;
 	rec_t*		first_rec;
 	byte*		buf = 0; /* remove warning */
@@ -2157,8 +2154,6 @@ insert_empty:
 		insert_block = right_block;
 	}
 
-	insert_page = buf_block_get_frame(insert_block);
-
 	/* 7. Reposition the cursor for insert and try insertion */
 	page_cursor = btr_cur_get_page_cur(cursor);
 
@@ -2170,8 +2165,12 @@ insert_empty:
 
 #ifdef UNIV_ZIP_DEBUG
 	{
+		page_t*		insert_page
+			= buf_block_get_frame(insert_block);
+
 		page_zip_des_t*	insert_page_zip
 			= buf_block_get_page_zip(insert_block);
+
 		ut_a(!insert_page_zip
 		     || page_zip_validate(insert_page_zip, insert_page));
 	}
@@ -2564,7 +2563,6 @@ btr_compress(
 	ulint		n_recs;
 	ulint		max_ins_size;
 	ulint		max_ins_size_reorg;
-	ulint		level;
 
 	block = btr_cur_get_block(cursor);
 	page = btr_cur_get_page(cursor);
@@ -2574,7 +2572,6 @@ btr_compress(
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	level = btr_page_get_level(page, mtr);
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
 

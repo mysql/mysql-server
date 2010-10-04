@@ -806,8 +806,6 @@ rec_print(
 	dict_index_t*	index);	/*!< in: record descriptor */
 #endif /* UNIV_HOTBACKUP */
 
-#define REC_INFO_BITS		6	/* This is single byte bit-field */
-
 /* Maximum lengths for the data in a physical record if the offsets
 are given in one byte (resp. two byte) format. */
 #define REC_1BYTE_OFFS_LIMIT	0x7FUL
