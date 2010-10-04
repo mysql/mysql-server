@@ -25,7 +25,6 @@
 #include <NdbApi.hpp>
 #include <NdbSleep.h>
 #include <HugoOperations.hpp>
-#include <../../src/ndbapi/API.hpp>
 #include <../../src/ndbapi/NdbApiSignal.hpp>
 #include <kernel/signaldata/ScanTab.hpp>
 #include <kernel/signaldata/QueryTree.hpp>
