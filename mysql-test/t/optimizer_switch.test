@@ -148,3 +148,64 @@ drop procedure p1;
 set SESSION optimizer_switch='default';
 
 --echo # End of bug#46744
+
+--echo #
+--echo # Bug#50489: another segfault in fix_semijoin_strategies... 
+--echo #
+
+CREATE TABLE it (
+  id INT NOT NULL,
+  expr_key INT NOT NULL,
+  expr_nokey INT NOT NULL,
+  expr_padder INT DEFAULT NULL,
+  KEY expr_key(expr_key)
+);
+INSERT INTO it VALUES (135,218264606,218264606,100);
+INSERT INTO it VALUES (201,810783319,810783319,200);
+CREATE TABLE ot (
+  id INT NOT NULL,
+  expr_key INT NOT NULL,
+  expr_nokey INT NOT NULL,
+  KEY expr_key(expr_key)
+);
+delimiter |;
+let proc_text=
+CREATE PROCEDURE run_n_times(x int)
+BEGIN
+DECLARE c int;
+WHILE x DO
+  SET x = x-1;
+  SELECT COUNT(expr_key) INTO c FROM ot
+  WHERE expr_key IN (SELECT expr_nokey FROM it)
+    AND ot.expr_key<100000000;
+END WHILE;
+END|
+delimiter ;|
+eval $proc_text;
+SET optimizer_switch="default";
+call run_n_times(1);
+SET optimizer_switch="firstmatch=off,materialization=off";
+call run_n_times(1);
+SET optimizer_switch="default";
+call run_n_times(1);
+DROP PROCEDURE run_n_times;
+
+# Re-create procedure to avoid caching effects
+eval $proc_text;
+SET optimizer_switch="firstmatch=off,materialization=off";
+call run_n_times(1);
+SET optimizer_switch="default";
+call run_n_times(1);
+DROP PROCEDURE run_n_times;
+
+# Re-create procedure to avoid caching effects
+eval $proc_text;
+SET optimizer_switch="semijoin=off,materialization=off";
+call run_n_times(1);
+SET optimizer_switch="default";
+call run_n_times(1);
+DROP PROCEDURE run_n_times;
+
+DROP TABLE it, ot;
+
+# End of Bug#50489

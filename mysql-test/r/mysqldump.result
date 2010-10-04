@@ -2613,13 +2613,13 @@ DROP TABLE t1, t2;
 #
 DROP TABLE IF EXISTS `test1`;
 Warnings:
-Note	1051	Unknown table 'test1'
+Note	1051	Unknown table 'test.test1'
 CREATE TABLE `test1` (
 `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 DROP TABLE IF EXISTS `test2`;
 Warnings:
-Note	1051	Unknown table 'test2'
+Note	1051	Unknown table 'test.test2'
 CREATE TABLE `test2` (
 `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;

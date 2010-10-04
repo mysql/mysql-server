@@ -1081,6 +1081,16 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
 }
 
 
+bool Item::is_blob_field() const
+{
+  DBUG_ASSERT(fixed);
+
+  enum_field_types type= field_type();
+  return (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_GEOMETRY ||
+          max_length > CONVERT_IF_BIGGER_TO_BLOB);
+}
+
+
 /*****************************************************************************
   Item_sp_variable methods
 *****************************************************************************/

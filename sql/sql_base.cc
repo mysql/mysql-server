@@ -8173,7 +8173,17 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   if (!table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
+  {
+    String tbl_name;
+    if (db_name)
+    {
+      tbl_name.append(String(db_name,system_charset_info));
+      tbl_name.append('.');
+    }
+    tbl_name.append(String(table_name,system_charset_info));
+
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
+  }
 
   DBUG_RETURN(TRUE);
 }
