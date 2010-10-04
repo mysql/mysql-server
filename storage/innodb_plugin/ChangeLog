@@ -1,3 +1,8 @@
+2010-09-27	The InnoDB Team
+
+	* row/row0sel.c, innodb_bug56716.result, innodb_bug56716.test:
+	Fix Bug #56716 InnoDB locks a record gap without locking the table
+
 2010-09-06	The InnoDB Team
 	* dict/dict0load.c, innodb_bug53756.test innodb_bug53756.result
 	Fix Bug #53756 	ALTER TABLE ADD PRIMARY KEY affects crash recovery
