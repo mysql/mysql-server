@@ -319,7 +319,10 @@ mysql_declare_client_plugin(AUTHENTICATION)
   "Sergei Golubchik",
   "Dialog Client Authentication Plugin",
   {0,1,0},
+  "GPL",
+  NULL,
   init_dialog,
+  NULL,
   NULL,
   perform_dialog
 mysql_end_client_plugin;

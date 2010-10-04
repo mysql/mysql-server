@@ -196,6 +196,9 @@ mysql_declare_client_plugin(AUTHENTICATION)
   "Georgi Kodinov",
   "Dialog Client Authentication Plugin",
   {0,1,0},
+  "GPL",
+  NULL,
+  NULL,
   NULL,
   NULL,
   test_plugin_client
