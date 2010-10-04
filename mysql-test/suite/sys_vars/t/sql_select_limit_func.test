@@ -86,6 +86,14 @@ SELECT * FROM t1;
 SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
 --echo Expecting affected rows: 2
 
+SET SESSION sql_select_limit = 0;
+
+SELECT * FROM t1;
+--echo Expecting affected rows: 0
+
+SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
+--echo Expecting affected rows: 0
+
 --echo '#-----------------------------FN_DYNVARS_165_03---------------#'
 #
 # Small value with LIMIT Clause

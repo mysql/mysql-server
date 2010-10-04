@@ -750,7 +750,7 @@ test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	latin1	lat
 USE test_rpl;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e2	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -883,8 +883,8 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
-master-bin.000001	#	Execute_load_query	#	#	use `test_rpl`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/rpl_mixed.dat' INTO TABLE `t1` FIELDS TERMINATED BY '|' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, `b`) ;file_id=#
+master-bin.000001	#	Table_map	#	#	table_id: # (test_rpl.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_rpl`; DELETE FROM t1
@@ -995,7 +995,7 @@ master-bin.000001	#	Query	#	#	use `test_rpl`; INSERT INTO t1 VALUES (3, 'before 
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_rpl`; INSERT INTO t1 VALUES (5, 'before savepoint s2')
-master-bin.000001	#	Query	#	#	SAVEPOINT s2
+master-bin.000001	#	Query	#	#	SAVEPOINT `s2`
 master-bin.000001	#	Query	#	#	use `test_rpl`; INSERT INTO t1 VALUES (6, 'after savepoint s2')
 master-bin.000001	#	Table_map	#	#	table_id: # (test_rpl.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F

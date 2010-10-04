@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   Delete of records tables.
@@ -46,7 +46,7 @@
   end of dispatch_command().
 */
 
-bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
+bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
                   SQL_I_List<ORDER> *order_list, ha_rows limit, ulonglong options)
 {
   bool          will_batch;
@@ -59,6 +59,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool          const_cond_result;
   ha_rows	deleted= 0;
   bool          reverse= FALSE;
+  bool          skip_record;
   ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
                            order_list->first : NULL);
   uint usable_index= MAX_KEY;
@@ -298,7 +299,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   {
     thd->examined_row_count++;
     // thd->is_error() is tested to disallow delete row on error
-    if (!(select && select->skip_record())&& ! thd->is_error() )
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
 
       if (table->triggers &&
@@ -769,9 +770,9 @@ void multi_delete::send_error(uint errcode,const char *err)
 }
 
 
-void multi_delete::abort()
+void multi_delete::abort_result_set()
 {
-  DBUG_ENTER("multi_delete::abort");
+  DBUG_ENTER("multi_delete::abort_result_set");
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||

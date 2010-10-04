@@ -344,7 +344,7 @@ void lf_hash_destroy(LF_HASH *hash)
     if (el->hashnr & 1)
       lf_alloc_direct_free(&hash->alloc, el); /* normal node */
     else
-      my_free((void *)el, MYF(0)); /* dummy node */
+      my_free(el); /* dummy node */
     el= (LF_SLIST *)next;
   }
   lf_alloc_destroy(&hash->alloc);
@@ -489,7 +489,7 @@ static int initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
   dummy->keylen= 0;
   if ((cur= linsert(el, hash->charset, dummy, pins, LF_HASH_UNIQUE)))
   {
-    my_free((void *)dummy, MYF(0));
+    my_free(dummy);
     dummy= cur;
   }
   my_atomic_casptr((void **)node, (void **)&tmp, dummy);

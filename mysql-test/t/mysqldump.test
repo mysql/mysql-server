@@ -2173,5 +2173,17 @@ DROP TABLE t1, t2;
 --echo # End of 5.1 tests
 --echo #
 
+--echo #
+--echo # Test for --add-drop-trigger
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+CREATE TRIGGER tt1_t1 BEFORE INSERT ON t1 FOR EACH ROW 
+  SET NEW.b=NEW.a + 10;
+
+INSERT INTO t1 (a) VALUES (1),(2),(3);
+--exec $MYSQL_DUMP --triggers --no-data --no-create-info --add-drop-trigger --skip-comments --databases test
+DROP TABLE t1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL
                     ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include)
@@ -26,6 +26,11 @@ SET(TAOCRYPT_SOURCES		src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp
 				include/error.hpp include/file.hpp include/hash.hpp include/hmac.hpp include/integer.hpp 
 				include/md2.hpp include/md5.hpp include/misc.hpp include/modarith.hpp include/modes.hpp
 				include/random.hpp include/ripemd.hpp include/rsa.hpp include/sha.hpp)
+
+IF(HAVE_EXPLICIT_TEMPLATE_INSTANTIATION)
+  SET(TAOCRYPT_SOURCES ${TAOCRYPT_SOURCES} src/template_instnt.cpp)
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(taocrypt ${TAOCRYPT_SOURCES})
 RESTRICT_SYMBOL_EXPORTS(taocrypt)
 

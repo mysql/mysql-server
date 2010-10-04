@@ -29,7 +29,7 @@ Transparent_file::Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
 
 Transparent_file::~Transparent_file()
 { 
-  my_free((uchar*)buff, MYF(MY_ALLOW_ZERO_PTR)); 
+  my_free(buff);
 }
 
 void Transparent_file::init_buff(File filedes_arg)

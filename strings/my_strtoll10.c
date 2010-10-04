@@ -17,17 +17,6 @@
 #include <my_sys.h>            /* Needed for MY_ERRNO_ERANGE */
 #include <m_string.h>
 
-#undef  ULONGLONG_MAX
-/*
-  Needed under MetroWerks Compiler, since MetroWerks compiler does not
-  properly handle a constant expression containing a mod operator
-*/
-#if defined(__NETWARE__) && defined(__MWERKS__) 
-static ulonglong ulonglong_max= ~(ulonglong) 0;
-#define ULONGLONG_MAX ulonglong_max
-#else
-#define ULONGLONG_MAX		(~(ulonglong) 0)
-#endif /* __NETWARE__ && __MWERKS__ */
 #define MAX_NEGATIVE_NUMBER	((ulonglong) LL(0x8000000000000000))
 #define INIT_CNT  9
 #define LFACTOR   ULL(1000000000)

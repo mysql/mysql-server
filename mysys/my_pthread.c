@@ -45,34 +45,6 @@ void *my_pthread_getspecific_imp(pthread_key_t key)
 }
 #endif
 
-#ifdef __NETWARE__
-/*
-  Don't kill the LibC Reaper thread or the main thread
-*/
-#include <nks/thread.h>
-#undef pthread_exit
-void my_pthread_exit(void *status)
-{
-  NXThreadId_t tid;
-  NXContext_t ctx;
-  char name[NX_MAX_OBJECT_NAME_LEN+1] = "";
-
-  tid= NXThreadGetId();
-  if (tid == NX_INVALID_THREAD_ID || !tid)
-    return;
-  if (NXThreadGetContext(tid, &ctx) ||
-      NXContextGetName(ctx, name, sizeof(name)-1))
-    return;
-
-  /*
-    "MYSQLD.NLM's LibC Reaper" or "MYSQLD.NLM's main thread"
-    with a debug build of LibC the reaper can have different names
-  */
-  if (!strindex(name, "\'s"))
-    pthread_exit(status);
-}
-#endif
-
 /*
   Some functions for RTS threads, AIX, Siemens Unix and UnixWare 7
   (and DEC OSF/1 3.2 too)
@@ -166,7 +138,7 @@ void sigwait_setup(sigset_t *set)
 
   sact.sa_flags = 0;
   sact.sa_handler = px_handle_sig;
-  memcpy_fixed(&sact.sa_mask,set,sizeof(*set));	/* handler isn't thread_safe */
+  memcpy(&sact.sa_mask, set, sizeof(*set));    /* handler isn't thread_safe */
   sigemptyset(&unblock_mask);
   pthread_sigmask(SIG_UNBLOCK,(sigset_t*) 0,&rev_sigwait_set);
 
@@ -192,7 +164,7 @@ void sigwait_setup(sigset_t *set)
       }
     }
   }
-  memcpy_fixed(&sigwait_set,set,sizeof(*set));
+  memcpy(&sigwait_set, set, sizeof(*set));
   pthread_sigmask(SIG_BLOCK,(sigset_t*) set,(sigset_t*) 0);
   pthread_sigmask(SIG_UNBLOCK,&unblock_mask,(sigset_t*) 0);
 }
@@ -280,7 +252,7 @@ void *sigwait_thread(void *set_arg)
   struct sigaction sact;
   sact.sa_flags = 0;
   sact.sa_handler = sigwait_handle_sig;
-  memcpy_fixed(&sact.sa_mask,set,sizeof(*set));	/* handler isn't thread_safe */
+  memcpy(&sact.sa_mask, set, sizeof(*set));    /* handler isn't thread_safe */
   sigemptyset(&pending_set);
 
   for (i = 1; i <= sizeof(pending_set)*8; i++)

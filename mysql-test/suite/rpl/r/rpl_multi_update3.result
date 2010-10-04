@@ -124,10 +124,10 @@ i	j	x	y	z
 DROP TABLE t1, t2, t3;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t1 (
 idp int(11) NOT NULL default '0',
 idpro int(11) default NULL,

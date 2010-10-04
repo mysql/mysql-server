@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -27,6 +27,12 @@ static bool trans_check(THD *thd)
 {
   enum xa_states xa_state= thd->transaction.xid_state.xa_state;
   DBUG_ENTER("trans_check");
+
+  /*
+    Always commit statement transaction before manipulating with
+    the normal one.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty());
 
   if (unlikely(thd->in_sub_stmt))
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
@@ -252,6 +258,14 @@ bool trans_commit_stmt(THD *thd)
 {
   DBUG_ENTER("trans_commit_stmt");
   int res= FALSE;
+  /*
+    We currently don't invoke commit/rollback at end of
+    a sub-statement.  In future, we perhaps should take
+    a savepoint for each nested statement, and release the
+    savepoint when statement has succeeded.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+
   if (thd->transaction.stmt.ha_list)
   {
     res= ha_commit_trans(thd, FALSE);
@@ -267,6 +281,9 @@ bool trans_commit_stmt(THD *thd)
     RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
+
+  thd->transaction.stmt.reset();
+
   DBUG_RETURN(test(res));
 }
 
@@ -283,6 +300,14 @@ bool trans_rollback_stmt(THD *thd)
 {
   DBUG_ENTER("trans_rollback_stmt");
 
+  /*
+    We currently don't invoke commit/rollback at end of
+    a sub-statement.  In future, we perhaps should take
+    a savepoint for each nested statement, and release the
+    savepoint when statement has succeeded.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+
   if (thd->transaction.stmt.ha_list)
   {
     ha_rollback_trans(thd, FALSE);
@@ -293,6 +318,8 @@ bool trans_rollback_stmt(THD *thd)
   }
 
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+
+  thd->transaction.stmt.reset();
 
   DBUG_RETURN(FALSE);
 }

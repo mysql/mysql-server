@@ -1,0 +1,206 @@
+
+BUG#37120 optimizer_switch allowable values not according to specification
+
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+set optimizer_switch='materialization=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=off,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+set optimizer_switch='loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=off,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,materialization=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+set optimizer_switch='materialization=off,semijoin=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,materialization=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=off,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=off,loosescan=off,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+set optimizer_switch='materialization=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=off,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+set optimizer_switch='default';
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8), b2 char(8));
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t1 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 03', '2 - 03');
+set @@optimizer_switch="semijoin=off";
+prepare st1 from
+"select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
+set @@optimizer_switch="semijoin=on,materialization=off";
+execute st1;
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+set @@optimizer_switch="semijoin=off,materialization=on";
+execute st1;
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+set optimizer_switch='default';
+set @@optimizer_switch="materialization=off";
+prepare st1 from
+"select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
+set @@optimizer_switch="semijoin=off,materialization=on";
+execute st1;
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+set @@optimizer_switch="semijoin=on,materialization=off";
+execute st1;
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+set optimizer_switch='default';
+drop table t1, t2;
+#
+# BUG#47367 Crash in Name_resolution_context::process_error
+#
+SET SESSION optimizer_switch = 'default,semijoin=off';
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TABLE t2 LIKE t1;
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
+CALL p1;
+f1
+ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
+CALL p1;
+f1
+DROP PROCEDURE p1;
+# Restore the original column list of table t2:
+ALTER TABLE t2 CHANGE COLUMN my_column f1 INT;
+SET SESSION optimizer_switch = 'semijoin=on';
+# Recreate procedure so that we eliminate any caching effects
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
+CALL p1;
+f1
+ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
+CALL p1;
+ERROR 42S22: Unknown column 'f1' in 'where clause'
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+SET SESSION optimizer_switch = 'default';
+#
+# Bug #46744 Crash in optimize_semijoin_nests on empty view
+# with limit and procedure.
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1 ( f1 int );
+CREATE TABLE t2 ( f1 int );
+insert into t2 values (5), (7);
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1 LIMIT 2;
+create procedure p1() 
+select COUNT(*) 
+FROM v1 WHERE f1 IN 
+(SELECT f1 FROM t2 WHERE f1 = ANY (SELECT f1 FROM v1));
+SET SESSION optimizer_switch = 'semijoin=on';
+CALL p1();
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'semijoin=off';
+CALL p1();
+COUNT(*)
+0
+drop table t1, t2;
+drop view v1;
+drop procedure p1;
+set SESSION optimizer_switch='default';
+# End of bug#46744
+#
+# Bug#50489: another segfault in fix_semijoin_strategies... 
+#
+CREATE TABLE it (
+id INT NOT NULL,
+expr_key INT NOT NULL,
+expr_nokey INT NOT NULL,
+expr_padder INT DEFAULT NULL,
+KEY expr_key(expr_key)
+);
+INSERT INTO it VALUES (135,218264606,218264606,100);
+INSERT INTO it VALUES (201,810783319,810783319,200);
+CREATE TABLE ot (
+id INT NOT NULL,
+expr_key INT NOT NULL,
+expr_nokey INT NOT NULL,
+KEY expr_key(expr_key)
+);
+CREATE PROCEDURE run_n_times(x int)
+BEGIN
+DECLARE c int;
+WHILE x DO
+SET x = x-1;
+SELECT COUNT(expr_key) INTO c FROM ot
+WHERE expr_key IN (SELECT expr_nokey FROM it)
+AND ot.expr_key<100000000;
+END WHILE;
+END;
+SET optimizer_switch="default";
+call run_n_times(1);
+SET optimizer_switch="firstmatch=off,materialization=off";
+call run_n_times(1);
+SET optimizer_switch="default";
+call run_n_times(1);
+DROP PROCEDURE run_n_times;
+CREATE PROCEDURE run_n_times(x int)
+BEGIN
+DECLARE c int;
+WHILE x DO
+SET x = x-1;
+SELECT COUNT(expr_key) INTO c FROM ot
+WHERE expr_key IN (SELECT expr_nokey FROM it)
+AND ot.expr_key<100000000;
+END WHILE;
+END;
+SET optimizer_switch="firstmatch=off,materialization=off";
+call run_n_times(1);
+SET optimizer_switch="default";
+call run_n_times(1);
+DROP PROCEDURE run_n_times;
+CREATE PROCEDURE run_n_times(x int)
+BEGIN
+DECLARE c int;
+WHILE x DO
+SET x = x-1;
+SELECT COUNT(expr_key) INTO c FROM ot
+WHERE expr_key IN (SELECT expr_nokey FROM it)
+AND ot.expr_key<100000000;
+END WHILE;
+END;
+SET optimizer_switch="semijoin=off,materialization=off";
+call run_n_times(1);
+SET optimizer_switch="default";
+call run_n_times(1);
+DROP PROCEDURE run_n_times;
+DROP TABLE it, ot;

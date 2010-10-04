@@ -304,7 +304,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	
-1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer
+1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer (BNL, regular buffers)
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) AND a.ROUTINE_SCHEMA='test' order by 1;
 ROUTINE_NAME	name
@@ -770,9 +770,9 @@ count(*)
 68
 drop view a2, a1;
 drop table t_crashme;
-select table_schema,table_name, column_name from
-information_schema.columns
-where data_type = 'longtext';
+select table_schema, table_name, column_name from information_schema.columns
+where table_schema not like 'performance_schema'
+  and data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
@@ -790,7 +790,9 @@ information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
-where data_type = 'datetime' and table_name not like 'innodb_%';
+where table_schema not like 'performance_schema'
+  and data_type = 'datetime'
+  and table_name not like 'innodb_%';
 table_name	column_name	data_type
 EVENTS	EXECUTE_AT	datetime
 EVENTS	STARTS	datetime
@@ -1427,7 +1429,7 @@ USE test;
 End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
-MyISAM	DEFAULT	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
+MyISAM	DEFAULT	MyISAM storage engine	NO	NO	NO
 grant select on *.* to user3148@localhost;
 select user,db from information_schema.processlist;
 user	db
@@ -1476,7 +1478,7 @@ from information_schema.tables a, information_schema.columns b
 where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	a	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Skip_open_table; Scanned 0 databases
-1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer
+1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer (BNL, regular buffers)
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'mysqltest';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
@@ -1681,6 +1683,33 @@ COUNT(*)
 DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
+
+Bug#54422 query with = 'variables'
+
+CREATE TABLE variables(f1 INT);
+SELECT COLUMN_DEFAULT, TABLE_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE INFORMATION_SCHEMA.COLUMNS.TABLE_NAME = 'variables';
+COLUMN_DEFAULT	TABLE_NAME
+NULL	variables
+DROP TABLE variables;
+#
+# Bug #53814: NUMERIC_PRECISION for unsigned bigint field is 19, 
+# should be 20
+#
+CREATE TABLE ubig (a BIGINT, b BIGINT UNSIGNED);
+SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION 
+FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
+TABLE_NAME	COLUMN_NAME	NUMERIC_PRECISION
+ubig	a	19
+ubig	b	20
+INSERT INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+SELECT length(CAST(b AS CHAR)) FROM ubig;
+length(CAST(b AS CHAR))
+20
+DROP TABLE ubig;
 End of 5.1 tests.
 create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
 returns char(10) return null;

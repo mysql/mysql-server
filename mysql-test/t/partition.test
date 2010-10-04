@@ -14,6 +14,34 @@
 drop table if exists t1, t2;
 --enable_warnings
 
+--echo #
+--echo # Bug#55458: Partitioned MyISAM table gets crashed by multi-table update 
+--echo #
+CREATE TABLE t1 (
+  `id` int NOT NULL,
+  `user_num` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1,8601);
+INSERT INTO t1 VALUES (2,8601);
+INSERT INTO t1 VALUES (3,8601);
+INSERT INTO t1 VALUES (4,8601);
+CREATE TABLE t2 (
+  `id` int(11) NOT NULL,
+  `user_num` int DEFAULT NULL,
+  `name` varchar(64) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM CHARSET=latin1
+PARTITION BY HASH (id)
+PARTITIONS 2;
+INSERT INTO t2 VALUES (1,8601,'John');
+INSERT INTO t2 VALUES (2,8601,'JS');
+INSERT INTO t2 VALUES (3,8601,'John S');
+
+UPDATE t1, t2 SET t2.name = 'John Smith' WHERE t1.user_num = t2.user_num;
+
+DROP TABLE t1, t2;
+
 --echo # Bug#39338: Fieldnames in
 --echo #   INFORMATIONSCHEMA.PARTITIONS.PARTITION_EXPRESSION become unescaped
 --echo # NOTE: the partition expression is saved as a string, so changing from
@@ -1692,8 +1720,7 @@ WHERE t1.id IN (
     SELECT distinct id
     FROM t4
     WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-ORDER BY t1.id
-;
+ORDER BY t1.id;
 
 drop table t1, t2, t4;
 

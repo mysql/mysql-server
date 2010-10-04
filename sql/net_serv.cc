@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -44,9 +44,6 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
-#ifdef __NETWARE__
-#include <sys/select.h>
-#endif
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -152,7 +149,7 @@ my_bool my_net_init(NET *net, Vio* vio)
 void net_end(NET *net)
 {
   DBUG_ENTER("net_end");
-  my_free(net->buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(net->buff);
   net->buff=0;
   DBUG_VOID_RETURN;
 }
@@ -167,7 +164,17 @@ my_bool net_realloc(NET *net, size_t length)
   DBUG_ENTER("net_realloc");
   DBUG_PRINT("enter",("length: %lu", (ulong) length));
 
-  if (length >= net->max_packet_size)
+  /*
+    When compression is off, net->where_b is always 0.
+    With compression turned on, net->where_b may indicate
+    that we still have a piece of the previous logical
+    packet in the buffer, unprocessed. Take it into account
+    when checking that max_allowed_packet is not exceeded.
+    This ensures that the client treats max_allowed_packet
+    limit identically, regardless of compression being on
+    or off.
+  */
+  if (length >= (net->max_packet_size + net->where_b))
   {
     DBUG_PRINT("error", ("Packet too large. Max size: %lu",
                          net->max_packet_size));
@@ -696,7 +703,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
 #endif
 #ifdef HAVE_COMPRESS
   if (net->compress)
-    my_free((char*) packet,MYF(0));
+    my_free((void*) packet);
 #endif
   if (thr_alarm_in_use(&alarmed))
   {

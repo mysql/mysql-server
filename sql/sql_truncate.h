@@ -20,4 +20,28 @@ struct TABLE_LIST;
 
 bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref);
 
+/**
+  Sql_cmd_truncate_table represents the TRUNCATE statement.
+*/
+class Sql_cmd_truncate_table : public Sql_cmd
+{
+public:
+  /**
+    Constructor, used to represent a TRUNCATE statement.
+  */
+  Sql_cmd_truncate_table()
+  {}
+
+  ~Sql_cmd_truncate_table()
+  {}
+
+  bool execute(THD *thd);
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_TRUNCATE;
+  }
+};
+
+
 #endif

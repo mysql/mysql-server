@@ -13,7 +13,7 @@ perl;
   @skipvars=qw/basedir open-files-limit general-log-file log plugin-dir
                log-slow-queries pid-file slow-query-log-file
 			   datadir slave-load-tmpdir tmpdir/;
-  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster safemalloc debug temp-pool ssl des-key-file
+  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit/;
   @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR /;
   $re1=join('|', @skipvars, @plugins);

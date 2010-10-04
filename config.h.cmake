@@ -22,11 +22,14 @@
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_AIO_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
+#cmakedefine HAVE_ASM_MSR_H 1
+#cmakedefine HAVE_ASM_TERMBITS_H 1
 #cmakedefine HAVE_BSEARCH 1
 #cmakedefine HAVE_CRYPT_H 1
 #cmakedefine HAVE_CURSES_H 1
 #cmakedefine HAVE_CXXABI_H 1
 #cmakedefine HAVE_NCURSES_H 1
+#cmakedefine HAVE_NDIR_H 1
 #cmakedefine HAVE_DIRENT_H 1
 #cmakedefine HAVE_DLFCN_H 1
 #cmakedefine HAVE_EXECINFO_H 1
@@ -70,6 +73,7 @@
 #cmakedefine HAVE_SYS_IPC_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
+#cmakedefine HAVE_SYS_NDIR_H 1
 #cmakedefine HAVE_SYS_PTE_H 1
 #cmakedefine HAVE_SYS_PTEM_H 1
 #cmakedefine HAVE_SYS_PRCTL_H 1
@@ -87,6 +91,7 @@
 #cmakedefine HAVE_SYS_UN_H 1
 #cmakedefine HAVE_SYS_VADVISE_H 1
 #cmakedefine HAVE_TERM_H 1
+#cmakedefine HAVE_TERMBITS_H 1
 #cmakedefine HAVE_TERMIOS_H 1
 #cmakedefine HAVE_TERMIO_H 1
 #cmakedefine HAVE_TERMCAP_H 1
@@ -125,14 +130,15 @@
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
-#cmakedefine HAVE_BCMP 1
 #cmakedefine HAVE_BFILL 1
 #cmakedefine HAVE_BMOVE 1
 #cmakedefine HAVE_BZERO 1
 #cmakedefine HAVE_INDEX 1
+#cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1
 #cmakedefine HAVE_CUSERID 1
+#cmakedefine HAVE_CXX_NEW 1
 #cmakedefine HAVE_DIRECTIO 1
 #cmakedefine HAVE_DLERROR 1
 #cmakedefine HAVE_DLOPEN 1
@@ -147,6 +153,7 @@
 #cmakedefine HAVE_FPSETMASK 1
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
+#cmakedefine HAVE_FTIME 1
 #cmakedefine HAVE_GETADDRINFO 1
 #cmakedefine HAVE_GETCWD 1
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
@@ -176,6 +183,8 @@
 #cmakedefine HAVE_LOG2 1
 #cmakedefine HAVE_LONGJMP 1
 #cmakedefine HAVE_LSTAT 1
+#cmakedefine HAVE_MEMALIGN 1
+/* #cmakedefine HAVE_MLOCK 1 see Bug#54662 */
 #cmakedefine HAVE_NPTL 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_MADVISE 1
@@ -196,6 +205,8 @@
 #cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
+#cmakedefine HAVE_RDTSCLL 1
+#cmakedefine HAVE_READ_REAL_TIME 1
 #cmakedefine HAVE_PTHREAD_ATTR_CREATE 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETPRIO 1
@@ -297,7 +308,7 @@
 #define USE_MB 1
 #define USE_MB_IDENT 1
 
-
+#cmakedefine HAVE_VALGRIND
 
 /* Types we may use */
 #ifdef __APPLE__
@@ -322,13 +333,13 @@
 #endif
 
 #cmakedefine SIZEOF_CHAR @SIZEOF_CHAR@
-#cmakedefine HAVE_CHAR 1
-#cmakedefine HAVE_LONG 1
-#cmakedefine HAVE_CHARP 1
+#define HAVE_CHAR 1
+#define HAVE_LONG 1
+#define HAVE_CHARP 1
 #cmakedefine SIZEOF_SHORT @SIZEOF_SHORT@
-#cmakedefine HAVE_SHORT 1
+#define HAVE_SHORT 1
 #cmakedefine SIZEOF_INT @SIZEOF_INT@
-#cmakedefine HAVE_INT 1
+#define HAVE_INT 1
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
 #cmakedefine HAVE_LONG_LONG 1
 #cmakedefine SIZEOF_OFF_T @SIZEOF_OFF_T@

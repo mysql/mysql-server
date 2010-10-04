@@ -194,11 +194,8 @@ int resize_queue(QUEUE *queue, uint max_elements)
 void delete_queue(QUEUE *queue)
 {
   DBUG_ENTER("delete_queue");
-  if (queue->root)
-  {
-    my_free((uchar*) queue->root,MYF(0));
-    queue->root=0;
-  }
+  my_free(queue->root);
+  queue->root= NULL;
   DBUG_VOID_RETURN;
 }
 

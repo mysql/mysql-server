@@ -32,7 +32,6 @@
 #include "sql_error.h"                          /* MYSQL_ERROR */
 
 #define DATETIME_DEC                     6
-const uint32 max_field_size= (uint32) 4294967295U;
 
 class Send_field;
 class Protocol;
@@ -510,6 +509,24 @@ public:
     DBUG_ASSERT(0);
     return GEOM_GEOMETRY;
   }
+#ifndef DBUG_OFF
+  /* Print field value into debug trace, in NULL-aware way. */
+  void dbug_print()
+  {
+    if (is_real_null())
+      fprintf(DBUG_FILE, "NULL");
+    else
+    {
+      char buf[256];
+      String str(buf, sizeof(buf), &my_charset_bin);
+      str.length(0);
+      String *pstr;
+      pstr= val_str(&str);
+      fprintf(DBUG_FILE, "'%s'", pstr->c_ptr_safe());
+    }
+  }
+#endif
+
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
   friend int cre_myisam(char * name, register TABLE *form, uint options,
@@ -1763,22 +1780,22 @@ public:
   void put_length(uchar *pos, uint32 length);
   inline void get_ptr(uchar **str)
     {
-      memcpy_fixed((uchar*) str,ptr+packlength,sizeof(uchar*));
+      memcpy(str, ptr+packlength, sizeof(uchar*));
     }
   inline void get_ptr(uchar **str, uint row_offset)
     {
-      memcpy_fixed((uchar*) str,ptr+packlength+row_offset,sizeof(char*));
+      memcpy(str, ptr+packlength+row_offset, sizeof(char*));
     }
   inline void set_ptr(uchar *length, uchar *data)
     {
       memcpy(ptr,length,packlength);
-      memcpy_fixed(ptr+packlength,&data,sizeof(char*));
+      memcpy(ptr+packlength, &data,sizeof(char*));
     }
   void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data)
     {
       uchar *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,uchar*);
       store_length(ptr_ofs, packlength, length);
-      memcpy_fixed(ptr_ofs+packlength,&data,sizeof(char*));
+      memcpy(ptr_ofs+packlength, &data, sizeof(char*));
     }
   inline void set_ptr(uint32 length, uchar *data)
     {
@@ -1797,7 +1814,7 @@ public:
       return 1;
     }
     tmp=(uchar*) value.ptr();
-    memcpy_fixed(ptr+packlength,&tmp,sizeof(char*));
+    memcpy(ptr+packlength, &tmp, sizeof(char*));
     return 0;
   }
   virtual uchar *pack(uchar *to, const uchar *from,

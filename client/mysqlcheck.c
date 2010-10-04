@@ -62,10 +62,6 @@ static struct my_option my_long_options[] =
    "Instead of issuing one query for each table, use one query per database, naming all tables in the database in a comma-separated list.",
    &opt_all_in_1, &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"auto-repair", OPT_AUTO_REPAIR,
    "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
    &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
@@ -208,13 +204,11 @@ static uint fixed_name_length(const char *name);
 static char *fix_table_name(char *dest, char *src);
 int what_to_do = 0;
 
-#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, CHECK_VERSION,
    MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -245,18 +239,12 @@ static void usage(void)
   my_print_variables(my_long_options);
 } /* usage */
 
-#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'a':
     what_to_do = DO_ANALYZE;
     break;
@@ -291,7 +279,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start = argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password = my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -470,7 +458,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     }
     *--end = 0;
     handle_request_for_tables(table_names_comma_sep + 1, (uint) (tot_length - 1));
-    my_free(table_names_comma_sep, MYF(0));
+    my_free(table_names_comma_sep);
   }
   else
     for (; tables > 0; tables--, table_names++)
@@ -569,7 +557,7 @@ static int process_all_tables_in_db(char *database)
     *--end = 0;
     if (tot_length)
       handle_request_for_tables(tables + 1, tot_length - 1);
-    my_free(tables, MYF(0));
+    my_free(tables);
   }
   else
   {
@@ -708,8 +696,7 @@ static int handle_request_for_tables(char *tables, uint length)
   if (opt_all_in_1)
   {
     /* No backticks here as we added them before */
-    query_length= my_sprintf(query,
-			     (query, "%s TABLE %s %s", op, tables, options));
+    query_length= sprintf(query, "%s TABLE %s %s", op, tables, options);
   }
   else
   {
@@ -727,7 +714,7 @@ static int handle_request_for_tables(char *tables, uint length)
     return 1;
   }
   print_result();
-  my_free(query, MYF(0));
+  my_free(query);
   return 0;
 }
 
@@ -899,9 +886,9 @@ int main(int argc, char **argv)
   dbDisconnect(current_host);
   if (opt_auto_repair)
     delete_dynamic(&tables4repair);
-  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password);
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   my_end(my_end_arg);
   return(first_error!=0);

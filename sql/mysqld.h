@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ class THD;
 struct handlerton;
 class Time_zone;
 
-class scheduler_functions;
+struct scheduler_functions;
 
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
@@ -78,9 +78,6 @@ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
 
-extern TYPELIB log_output_typelib;
-extern const char *log_output_names[];
-
 /**
   Character set of the buildin error messages loaded from errmsg.sys.
 */
@@ -105,10 +102,10 @@ extern bool volatile abort_loop;
 extern bool in_bootstrap;
 extern uint volatile thread_count, global_read_lock;
 extern uint connection_count;
-extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
+extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
-extern uint slave_exec_mode_options;
+extern ulong slave_exec_mode_options;
 extern ulonglong slave_type_conversions_options;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
@@ -139,7 +136,7 @@ extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern my_bool relay_log_recovery;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
-extern uint delay_key_write_options;
+extern ulong delay_key_write_options;
 extern char *opt_logname, *opt_slow_logname;
 extern char *opt_backup_history_logname, *opt_backup_progress_logname,
             *opt_backup_settings_name;
@@ -177,13 +174,12 @@ extern ulong slave_trans_retries;
 extern uint  slave_net_timeout;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
-extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
-extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
+extern ulong thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
 extern ulong server_id, concurrency;
@@ -214,10 +210,8 @@ extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
-extern FILE *stderror_file;
 extern I_List<THD> threads;
 extern char err_shared_dir[];
-extern scheduler_functions thread_scheduler;
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
 
@@ -238,9 +232,9 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
-  key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager, key_LOCK_mapped_file,
-  key_LOCK_mysql_create_db, key_LOCK_open, key_LOCK_prepared_stmt_count,
-  key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
+  key_LOCK_prepared_stmt_count,
+  key_LOCK_server_started, key_LOCK_status,
   key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
@@ -259,7 +253,7 @@ extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 
 extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_global_read_lock, key_COND_manager,
-  key_COND_refresh, key_COND_rpl_status, key_COND_server_started,
+  key_COND_server_started,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
@@ -310,14 +304,13 @@ extern ulong specialflag;
 extern uint mysql_data_home_len;
 extern uint mysql_real_data_home_len;
 extern const char *mysql_real_data_home_ptr;
-extern uint thread_handling;
+extern ulong thread_handling;
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern char server_version[SERVER_VERSION_LENGTH];
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct system_variables global_system_variables;
 extern char default_logfile_name[FN_REFLEN];
-extern char err_shared_dir[];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 
@@ -327,8 +320,8 @@ extern MYSQL_PLUGIN_IMPORT key_map key_map_full;          /* Should be threaded 
 /*
   Server mutex locks and condition variables.
  */
-extern mysql_mutex_t LOCK_mysql_create_db, LOCK_open, LOCK_lock_db,
-       LOCK_mapped_file, LOCK_user_locks, LOCK_status,
+extern mysql_mutex_t
+       LOCK_user_locks, LOCK_status,
        LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
@@ -343,7 +336,7 @@ extern mysql_cond_t COND_server_started;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_thread_count;
-extern mysql_cond_t COND_refresh, COND_manager;
+extern mysql_cond_t COND_manager;
 extern mysql_cond_t COND_global_read_lock;
 extern int32 thread_running;
 extern my_atomic_rwlock_t thread_running_lock;

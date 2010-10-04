@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
@@ -42,8 +41,7 @@ SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc sha2.cc
-               ha_partition.cc
-               handler.cc hash_filo.cc hash_filo.h sql_plugin_services.h
+               handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
@@ -52,15 +50,15 @@ SET (SQL_SOURCE
                mysqld.cc net_serv.cc  keycaches.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
-               protocol.cc records.cc repl_failsafe.cc set_var.cc 
+               protocol.cc records.cc set_var.cc 
                sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
                sp_rcontext.cc spatial.cc sql_acl.cc sql_analyse.cc sql_base.cc 
                sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
-               sql_list.cc sql_load.cc sql_manager.cc sql_map.cc sql_parse.cc 
+               sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
-               debug_sync.cc debug_sync.h
+               sql_join_cache.cc debug_sync.cc debug_sync.h
                sql_select.cc sql_show.cc sql_state.c sql_string.cc 
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
@@ -72,9 +70,14 @@ SET (SQL_SOURCE
                sql_servers.cc sql_audit.cc
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
+               sql_bootstrap.cc
                sql_signal.cc mdl.cc
-               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc datadict.cc
                gcalc_slicescan.cc gcalc_tools.cc
+               sql_alloc_error_handler.cc
+               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
+               datadict.cc sql_reload.cc
+               sql_partition_admin.cc
+               sql_admin.cc sql_alter.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
@@ -82,6 +85,7 @@ MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
 RECOMPILE_FOR_EMBEDDED)
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
+ADD_DEPENDENCIES(sql GenServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
   mysys dbug strings vio regex   
@@ -102,6 +106,8 @@ ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
+ADD_LIBRARY(sqlgunitlib mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
+ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 
 IF(WIN32)
@@ -169,7 +175,10 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
-INSTALL_DEBUG_TARGET(mysqld DESTINATION ${INSTALL_SBINDIR} RENAME mysqld-debug)
+INSTALL_DEBUG_TARGET(mysqld 
+  DESTINATION ${INSTALL_SBINDIR} 
+  PDB_DESTINATION ${INSTALL_SBINDIR}/debug
+  RENAME mysqld-debug)
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
@@ -195,22 +204,16 @@ RUN_BISON(
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash mysys)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
-  COMMAND gen_lex_hash ARGS > lex_hash.h.tmp &&
-  ${CMAKE_COMMAND} -E copy_if_different lex_hash.h.tmp lex_hash.h
-  COMMAND ${CMAKE_COMMAND} -E remove -f lex_hash.h.tmp
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
+  COMMAND gen_lex_hash > lex_hash.h
+  DEPENDS gen_lex_hash
+)
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
-TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex   
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource
@@ -283,18 +286,19 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
   ENDIF()
   MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
   ADD_CUSTOM_COMMAND(
-     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
+     OUTPUT initdb.dep
      COMMAND ${CMAKE_COMMAND}
      ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
+     COMMAND  ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/initdb.dep
      DEPENDS mysqld
   )
   ADD_CUSTOM_TARGET(initial_database  
     ALL
-    DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
+    DEPENDS  initdb.dep
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . COMPONENT DataFiles
-    PATTERN "bootstrap.sql" EXCLUDE)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
+  COMPONENT DataFiles PATTERN "initdb.dep" EXCLUDE  PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)

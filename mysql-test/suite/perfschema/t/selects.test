@@ -24,6 +24,12 @@
 
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
 
+# Disable ALL table IO, to avoid generating events from the selects
+# To be revised after WL#5342 PERFORMANCE SCHEMA SETUP OBJECTS
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'NO'
+  where NAME='wait/io/table/sql/handler';
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -45,7 +51,7 @@ LIMIT 1;
 --replace_column 1 [EVENT_ID]
 SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
 WHERE THREAD_ID IN
-  (SELECT THREAD_ID FROM performance_schema.PROCESSLIST)
+  (SELECT THREAD_ID FROM performance_schema.THREADS)
 AND EVENT_NAME IN
   (SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
    WHERE NAME LIKE "wait/synch/%")
@@ -85,20 +91,32 @@ LIMIT 5;
 
 # EVENT
 
+# Check that the event_scheduler is really running
+--source include/running_event_scheduler.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t_event;
+DROP EVENT IF EXISTS t_ps_event;
+--enable_warnings
+CREATE TABLE t_event AS
+SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
+WHERE 1 = 2;
 CREATE EVENT t_ps_event
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
-DO SELECT DISTINCT EVENT_ID
+DO INSERT INTO t_event
+   SELECT DISTINCT EVENT_ID
    FROM performance_schema.EVENTS_WAITS_CURRENT
    JOIN performance_schema.EVENTS_WAITS_HISTORY USING (EVENT_ID)
    ORDER BY EVENT_ID
    LIMIT 1;
 
---sleep 2
-
 # TRIGGER
 
 ALTER TABLE t1 ADD COLUMN c INT;
 
+--disable_warnings
+DROP TRIGGER IF EXISTS t_ps_trigger;
+--enable_warnings
 delimiter |;
 
 CREATE TRIGGER t_ps_trigger BEFORE INSERT ON t1
@@ -119,38 +137,56 @@ DROP TRIGGER t_ps_trigger;
 
 # PROCEDURE
 
+--disable_warnings
+DROP PROCEDURE IF EXISTS t_ps_proc;
+--enable_warnings
 delimiter |;
 
-CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
+CREATE PROCEDURE t_ps_proc(IN conid INT, OUT pid INT)
 BEGIN
-   SELECT id FROM performance_schema.PROCESSLIST
-   WHERE THREAD_ID = tid INTO pid;
+   SELECT thread_id FROM performance_schema.THREADS
+   WHERE PROCESSLIST_ID = conid INTO pid;
 END;
 
 |
 
 delimiter ;|
 
-CALL t_ps_proc(0, @p_id);
+CALL t_ps_proc(connection_id(), @p_id);
 
 # FUNCTION
 
+--disable_warnings
+DROP FUNCTION IF EXISTS t_ps_proc;
+--enable_warnings
 delimiter |;
 
-CREATE FUNCTION t_ps_func(tid INT) RETURNS int
+CREATE FUNCTION t_ps_func(conid INT) RETURNS int
 BEGIN
-   return (SELECT id FROM performance_schema.PROCESSLIST
-           WHERE THREAD_ID = tid);
+   return (SELECT thread_id FROM performance_schema.THREADS
+           WHERE PROCESSLIST_ID = conid);
 END;
 
 |
 
 delimiter ;|
 
-SELECT t_ps_func(0) = @p_id;
+SELECT t_ps_func(connection_id()) = @p_id;
 
-DROP PROCEDURE t_ps_proc;
-DROP FUNCTION t_ps_func;
+# We might reach this point too early which means the event scheduler has not
+# execute our "t_ps_event". Therefore we poll till the record was inserted
+# and run our test statement afterwards.
+let $wait_timeout= 20;
+let $wait_condition= SELECT COUNT(*) = 1 FROM t_event;
+--source include/wait_condition.inc
+--replace_column 1 [EVENT_ID]
+SELECT * FROM t_event;
 
 # Clean up
+DROP PROCEDURE t_ps_proc;
+DROP FUNCTION t_ps_func;
 DROP TABLE t1;
+DROP TABLE t_event;
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+

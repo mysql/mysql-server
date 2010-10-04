@@ -42,7 +42,7 @@ let $wait_condition=
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
   WHERE info = "DROP TABLE t1" and 
-  state = "Waiting for table";
+  state = "Waiting for table metadata lock";
 --source include/wait_condition.inc
 --echo # Connection 1 is now holding the lock.
 --echo # Issuing insert from connection 1 while connection 2&3 
@@ -97,7 +97,8 @@ connection default;
 --echo # connection holds SW metadata lock on table to be altered.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column c4 int";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column c4 int";
 --source include/wait_condition.inc
 
 --echo # The below statement should succeed. It should not
@@ -196,7 +197,7 @@ connection default;
 --echo # Connection con1
 connection con1;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for table' AND info='OPTIMIZE TABLE t1';
+  WHERE state='Waiting for table metadata lock' AND info='OPTIMIZE TABLE t1';
 --source include/wait_condition.inc
 SELECT * FROM t1;
 COMMIT;
@@ -207,6 +208,75 @@ connection default;
 --reap
 disconnect con1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#49891 View DDL breaks REPEATABLE READ
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v2;
+--enable_warnings
+
+CREATE TABLE t1 ( f1 INTEGER ) ENGINE = innodb;
+CREATE TABLE t2 ( f1 INTEGER );
+CREATE VIEW v1 AS SELECT 1 FROM t1;
+
+connect (con2, localhost, root);
+connect (con3, localhost, root);
+
+--echo # Connection con3
+connection con3;
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+# This should block due to t1 being locked.
+--echo # Sending:
+--send SELECT * FROM v1
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for 'SELECT * FROM v1' to sync in.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND info = "SELECT * FROM v1";
+--source include/wait_condition.inc
+# This should block due to v1 being locked.
+--echo # Sending:
+--send ALTER VIEW v1 AS SELECT 2 FROM t2
+
+--echo # Connection con3
+connection con3;
+--echo # Waiting for 'ALTER VIEW v1 AS SELECT 2 FROM t2' to sync in.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info = "ALTER VIEW v1 AS SELECT 2 FROM t2";
+--source include/wait_condition.inc
+# Unlock t1 allowing SELECT * FROM v1 to proceed.
+UNLOCK TABLES;
+
+--echo # Connection default;
+connection default;
+--echo # Reaping: SELECT * FROM v1
+--reap
+SELECT * FROM v1;
+COMMIT;
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER VIEW v1 AS SELECT 2 FROM t2
+--reap
+
+--echo # Connection default
+connection default;
+DROP TABLE t1, t2;
+DROP VIEW v1;
+disconnect con2;
+disconnect con3;
 
 
 # Check that all connections opened by test cases in this file are really

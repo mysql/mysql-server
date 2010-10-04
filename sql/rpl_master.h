@@ -11,8 +11,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #define RPL_MASTER_H_INCLUDED
@@ -31,6 +31,12 @@ typedef struct st_slave_info
   uint16 port;
   THD* thd;
 } SLAVE_INFO;
+
+void init_slave_list();
+void end_slave_list();
+int register_slave(THD* thd, uchar* packet, uint packet_length);
+void unregister_slave(THD* thd, bool only_mine, bool need_mutex);
+bool show_slave_hosts(THD* thd);
 
 String *get_slave_uuid(THD *thd, String *value);
 bool mysql_show_binlog_events(THD* thd);

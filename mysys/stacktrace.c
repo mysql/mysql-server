@@ -83,7 +83,9 @@ void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
 
 #if BACKTRACE_DEMANGLE
 
-char __attribute__ ((weak)) *my_demangle(const char *mangled_name, int *status)
+char __attribute__ ((weak)) *
+my_demangle(const char *mangled_name __attribute__((unused)),
+            int *status __attribute__((unused)))
 {
   return NULL;
 }
@@ -334,44 +336,9 @@ void my_write_core(int sig)
 
 #include <dbghelp.h>
 #include <tlhelp32.h>
-
-/*
-  Stack tracing on Windows is implemented using Debug Helper library(dbghelp.dll)
-  We do not redistribute dbghelp and the one comes with older OS (up to Windows 2000)
-  is missing some important functions like functions StackWalk64 or MinidumpWriteDump.
-  Hence, we have to load functions at runtime using LoadLibrary/GetProcAddress.
-*/
-
-typedef DWORD (WINAPI *SymSetOptions_FctType)(DWORD dwOptions);
-typedef BOOL  (WINAPI *SymGetModuleInfo64_FctType)
-  (HANDLE,DWORD64,PIMAGEHLP_MODULE64) ;
-typedef BOOL  (WINAPI *SymGetSymFromAddr64_FctType)
-  (HANDLE,DWORD64,PDWORD64,PIMAGEHLP_SYMBOL64) ;
-typedef BOOL  (WINAPI *SymGetLineFromAddr64_FctType)
-  (HANDLE,DWORD64,PDWORD,PIMAGEHLP_LINE64);
-typedef BOOL  (WINAPI *SymInitialize_FctType)
-  (HANDLE,PSTR,BOOL);
-typedef BOOL  (WINAPI *StackWalk64_FctType)
-  (DWORD,HANDLE,HANDLE,LPSTACKFRAME64,PVOID,PREAD_PROCESS_MEMORY_ROUTINE64,
-  PFUNCTION_TABLE_ACCESS_ROUTINE64,PGET_MODULE_BASE_ROUTINE64 ,
-  PTRANSLATE_ADDRESS_ROUTINE64);
-typedef BOOL (WINAPI *MiniDumpWriteDump_FctType)(
-    IN HANDLE hProcess,
-    IN DWORD ProcessId,
-    IN HANDLE hFile,
-    IN MINIDUMP_TYPE DumpType,
-    IN CONST PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam, OPTIONAL
-    IN CONST PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam, OPTIONAL
-    IN CONST PMINIDUMP_CALLBACK_INFORMATION CallbackParam OPTIONAL
-    );
-
-static SymSetOptions_FctType           pSymSetOptions;
-static SymGetModuleInfo64_FctType      pSymGetModuleInfo64;
-static SymGetSymFromAddr64_FctType     pSymGetSymFromAddr64;
-static SymInitialize_FctType           pSymInitialize;
-static StackWalk64_FctType             pStackWalk64;
-static SymGetLineFromAddr64_FctType    pSymGetLineFromAddr64;
-static MiniDumpWriteDump_FctType       pMiniDumpWriteDump;
+#if _MSC_VER
+#pragma comment(lib, "dbghelp")
+#endif
 
 static EXCEPTION_POINTERS *exception_ptrs;
 
@@ -382,50 +349,24 @@ void my_init_stacktrace()
 {
 }
 
-/*
-  Dynamically load dbghelp functions
-*/
-BOOL init_dbghelp_functions()
-{
-  static BOOL first_time= TRUE;
-  static BOOL rc;
-  HMODULE hDbghlp;
-
-  if(first_time)
-  {
-    first_time= FALSE;
-    hDbghlp= LoadLibrary("dbghelp");
-    if(!hDbghlp)
-    {
-      rc= FALSE;
-      return rc;
-    }
-    pSymSetOptions= (SymSetOptions_FctType)
-      GetProcAddress(hDbghlp,"SymSetOptions");
-    pSymInitialize= (SymInitialize_FctType)
-      GetProcAddress(hDbghlp,"SymInitialize");
-    pSymGetModuleInfo64= (SymGetModuleInfo64_FctType)
-      GetProcAddress(hDbghlp,"SymGetModuleInfo64");
-    pSymGetLineFromAddr64= (SymGetLineFromAddr64_FctType)
-      GetProcAddress(hDbghlp,"SymGetLineFromAddr64");
-    pSymGetSymFromAddr64=(SymGetSymFromAddr64_FctType)
-      GetProcAddress(hDbghlp,"SymGetSymFromAddr64");
-    pStackWalk64= (StackWalk64_FctType)
-      GetProcAddress(hDbghlp,"StackWalk64");
-    pMiniDumpWriteDump = (MiniDumpWriteDump_FctType)
-      GetProcAddress(hDbghlp,"MiniDumpWriteDump");
-
-    rc = (BOOL)(pSymSetOptions && pSymInitialize && pSymGetModuleInfo64
-    && pSymGetLineFromAddr64 && pSymGetSymFromAddr64 && pStackWalk64);
-  }
-  return rc;
-}
 
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep)
 {
   exception_ptrs = ep;
 }
 
+/*
+  Appends directory to symbol path.
+*/
+static void add_to_symbol_path(char *path, size_t path_buffer_size, 
+  char *dir, size_t dir_buffer_size)
+{
+  strcat_s(dir, dir_buffer_size, ";");
+  if (!strstr(path, dir))
+  {
+    strcat_s(path, path_buffer_size, dir);
+  }
+}
 
 /*
   Get symbol path - semicolon-separated list of directories to search for debug
@@ -437,8 +378,28 @@ static void get_symbol_path(char *path, size_t size)
 { 
   HANDLE hSnap; 
   char *envvar;
+  char *p;
+#ifndef DBUG_OFF
+  static char pdb_debug_dir[MAX_PATH + 7];
+#endif
 
   path[0]= '\0';
+
+#ifndef DBUG_OFF
+  /* 
+    Add "debug" subdirectory of the application directory, sometimes PDB will 
+    placed here by installation.
+  */
+  GetModuleFileName(NULL, pdb_debug_dir, MAX_PATH);
+  p= strrchr(pdb_debug_dir, '\\');
+  if(p)
+  { 
+    *p= 0;
+    strcat_s(pdb_debug_dir, sizeof(pdb_debug_dir), "\\debug;");
+    add_to_symbol_path(path, size, pdb_debug_dir, sizeof(pdb_debug_dir));
+  }
+#endif
+
   /*
     Enumerate all modules, and add their directories to the path.
     Avoid duplicate entries.
@@ -452,7 +413,7 @@ static void get_symbol_path(char *path, size_t size)
     for (ret= Module32First(hSnap, &mod); ret; ret= Module32Next(hSnap, &mod))
     {
       char *module_dir= mod.szExePath;
-      char *p= strrchr(module_dir,'\\');
+      p= strrchr(module_dir,'\\');
       if (!p)
       {
         /*
@@ -460,29 +421,23 @@ static void get_symbol_path(char *path, size_t size)
           will indicate current directory.
         */
         module_dir[0]= '.';
-        p= module_dir + 1;
+        module_dir[1]= '\0';
       }
-      *p++= ';';
-      *p= '\0';
-
-      if (!strstr(path, module_dir))
+      else
       {
-        size_t dir_len = strlen(module_dir);
-        if (size > dir_len)
-        {
-          strncat(path, module_dir, size-1);
-          size -= dir_len;
-        }
+        *p= '\0';
       }
+      add_to_symbol_path(path, size, module_dir,sizeof(mod.szExePath));
     }
     CloseHandle(hSnap);
   }
 
+  
   /* Add _NT_SYMBOL_PATH, if present. */
   envvar= getenv("_NT_SYMBOL_PATH");
-  if(envvar && size)
+  if(envvar)
   {
-    strncat(path, envvar, size-1);
+    strcat_s(path, size, envvar);
   }
 }
 
@@ -506,15 +461,15 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
   STACKFRAME64 frame={0};
   static char symbol_path[MAX_SYMBOL_PATH];
 
-  if(!exception_ptrs || !init_dbghelp_functions())
+  if(!exception_ptrs)
     return;
 
   /* Copy context, as stackwalking on original will unwind the stack */
   context = *(exception_ptrs->ContextRecord);
   /*Initialize symbols.*/
-  pSymSetOptions(SYMOPT_LOAD_LINES|SYMOPT_NO_PROMPTS|SYMOPT_DEFERRED_LOADS|SYMOPT_DEBUG);
+  SymSetOptions(SYMOPT_LOAD_LINES|SYMOPT_NO_PROMPTS|SYMOPT_DEFERRED_LOADS|SYMOPT_DEBUG);
   get_symbol_path(symbol_path, sizeof(symbol_path));
-  pSymInitialize(hProcess, symbol_path, TRUE);
+  SymInitialize(hProcess, symbol_path, TRUE);
 
   /*Prepare stackframe for the first StackWalk64 call*/
   frame.AddrFrame.Mode= frame.AddrPC.Mode= frame.AddrStack.Mode= AddrModeFlat;
@@ -546,11 +501,11 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
     BOOL have_symbol= FALSE;
     BOOL have_source= FALSE;
 
-    if(!pStackWalk64(machine, hProcess, hThread, &frame, &context, 0, 0, 0 ,0))
+    if(!StackWalk64(machine, hProcess, hThread, &frame, &context, 0, 0, 0 ,0))
       break;
     addr= frame.AddrPC.Offset;
 
-    have_module= pSymGetModuleInfo64(hProcess,addr,&module);
+    have_module= SymGetModuleInfo64(hProcess,addr,&module);
 #ifdef _M_IX86
     if(!have_module)
     {
@@ -560,13 +515,13 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
         happy, pretend passing the old structure.
       */
       module.SizeOfStruct= MODULE64_SIZE_WINXP;
-      have_module= pSymGetModuleInfo64(hProcess, addr, &module);
+      have_module= SymGetModuleInfo64(hProcess, addr, &module);
     }
 #endif
 
-    have_symbol= pSymGetSymFromAddr64(hProcess, addr, &function_offset,
+    have_symbol= SymGetSymFromAddr64(hProcess, addr, &function_offset,
       &(package.sym));
-    have_source= pSymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
+    have_source= SymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
 
     fprintf(stderr, "%p    ", addr);
     if(have_module)
@@ -610,7 +565,7 @@ void my_write_core(int unused)
   MINIDUMP_EXCEPTION_INFORMATION info;
   HANDLE hFile;
 
-  if(!exception_ptrs || !init_dbghelp_functions() || !pMiniDumpWriteDump)
+  if(!exception_ptrs)
     return;
 
   info.ExceptionPointers= exception_ptrs;
@@ -628,7 +583,7 @@ void my_write_core(int unused)
   if(hFile)
   {
     /* Create minidump */
-    if(pMiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(),
+    if(MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(),
       hFile, MiniDumpNormal, &info, 0, 0))
     {
       fprintf(stderr, "Minidump written to %s\n",

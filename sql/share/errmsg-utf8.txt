@@ -6365,3 +6365,30 @@ ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
   eng "The requested value %u for the master delay exceeds the maximum %u"
 ER_ONLY_FD_AND_RBR_EVENTS_ALLOWED_IN_BINLOG_STATEMENT
   eng "Only Format_description_log_event and row events are allowed in BINLOG statements (but %s was provided)"
+
+ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
+  eng "Non matching attribute '%-.64s' between partition and table"
+  swe "Attributet '%-.64s' är olika mellan partition och tabell"
+ER_PARTITION_EXCHANGE_PART_TABLE
+  eng "Table to exchange with partition is partitioned: '%-.64s'"
+  swe "Tabellen att byta ut mot partition är partitionerad: '%-.64s'"
+ER_PARTITION_EXCHANGE_TEMP_TABLE
+  eng "Table to exchange with partition is temporary: '%-.64s'"
+  swe "Tabellen att byta ut mot partition är temporär: '%-.64s'"
+ER_PARTITION_INSTEAD_OF_SUBPARTITION
+  eng "Subpartitioned table, use subpartition instead of partition"
+  swe "Subpartitionerad tabell, använd subpartition istället för partition"
+ER_UNKNOWN_PARTITION
+  eng "Unknown partition '%-.64s' in table '%-.64s'"
+  swe "Okänd partition '%-.64s' i tabell '%-.64s'"
+ER_TABLES_DIFFERENT_METADATA
+  eng "Tables have different definitions"
+  swe "Tabellerna har olika definitioner"
+ER_ROW_DOES_NOT_MATCH_PARTITION
+  eng "Found row that does not match the partition"
+  swe "Hittade rad som inte passar i partitionen"
+ER_WARN_INDEX_NOT_APPLICABLE
+  eng "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'"
+
+ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
+  eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."

@@ -211,7 +211,7 @@ int my_error_register(const char** (*get_errmsgs) (), int first, int last)
   /* Error numbers must be unique. No overlapping is allowed. */
   if (*search_meh_pp && ((*search_meh_pp)->meh_first <= last))
   {
-    my_free((uchar*)meh_p, MYF(0));
+    my_free(meh_p);
     return 1;
   }
 
@@ -267,7 +267,7 @@ const char **my_error_unregister(int first, int last)
 
   /* Save the return value and free the header. */
   errmsgs= meh_p->get_errmsgs();
-  my_free((uchar*) meh_p, MYF(0));
+  my_free(meh_p);
   
   return errmsgs;
 }
@@ -282,7 +282,7 @@ void my_error_unregister_all(void)
     /* We need this ptr, but we're about to free its container, so save it. */
     saved_next= cursor->meh_next;
 
-    my_free((uchar*) cursor, MYF(0));
+    my_free(cursor);
   }
   my_errmsgs_globerrs.meh_next= NULL;  /* Freed in first iteration above. */
 

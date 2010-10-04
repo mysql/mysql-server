@@ -50,7 +50,6 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "../sql/ha_ndbcluster_tables.h"
 
 /* Exit codes */
 
@@ -101,7 +100,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_slave_apply= 0, 
                 opt_include_master_host_port= 0,
                 opt_events= 0,
-                opt_alltspcs=0, opt_notspcs= 0;
+                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -202,6 +201,9 @@ static struct my_option my_long_options[] =
   {"add-drop-table", OPT_DROP, "Add a DROP TABLE before each create.",
    &opt_drop, &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
+  {"add-drop-trigger", 0, "Add a DROP TRIGGER before each create.",
+   &opt_drop_trigger, &opt_drop_trigger, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
   {"add-locks", OPT_LOCKS, "Add locks around INSERT statements.",
    &opt_lock, &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
@@ -212,10 +214,6 @@ static struct my_option my_long_options[] =
    "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom of dump.",
    &opt_slave_apply, &opt_slave_apply, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -433,10 +431,10 @@ static struct my_option my_long_options[] =
    &opt_replace_into, &opt_replace_into, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r',
-   "Direct output to a given file. This option should be used in MSDOS, "
-   "because it prevents new line '\\n' from being converted to '\\r\\n' "
-   "(carriage return + line feed).",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Direct output to a given file. This option should be used in systems "
+   "(e.g., DOS, Windows) that use carriage-return linefeed pairs (\\r\\n) "
+   "to separate text lines. This option ensures that only a single newline "
+   "is used.", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"routines", 'R', "Dump stored routines (functions and procedures).",
    &opt_routines, &opt_routines, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -531,7 +529,6 @@ static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
 static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
 
-#include <help_start.h>
 
 /*
   Print the supplied message if in verbose mode
@@ -575,7 +572,6 @@ static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
          MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -585,7 +581,6 @@ static void short_usage_sub(void)
   printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
          my_progname);
   printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -607,8 +602,6 @@ static void short_usage(void)
   short_usage_sub();
   printf("For more options, use %s --help\n", my_progname);
 }
-
-#include <help_end.h>
 
 
 static void write_header(FILE *sql_file, char *db_name)
@@ -715,12 +708,6 @@ static void write_footer(FILE *sql_file)
 } /* write_footer */
 
 
-static void free_table_ent(char *key)
-{
-  my_free(key, MYF(0));
-}
-
-
 uchar* get_table_key(const char *entry, size_t *length,
                      my_bool not_used __attribute__((unused)))
 {
@@ -734,18 +721,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                char *argument)
 {
   switch (optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'p':
     if (argument == disabled_my_option)
       argument= (char*) "";                     /* Don't require password */
     if (argument)
     {
       char *start=argument;
-      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password=my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';               /* Destroy argument */
       if (*start)
@@ -905,8 +887,7 @@ static int get_options(int *argc, char ***argv)
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
-                   (my_hash_get_key) get_table_key,
-                   (my_hash_free_key) free_table_ent, 0))
+                   (my_hash_get_key) get_table_key, my_free, 0))
     return(EX_EOM);
   /* Don't copy internal log tables */
   if (my_hash_insert(&ignore_table,
@@ -1420,7 +1401,7 @@ static void free_resources()
 {
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
-  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password);
   if (my_hash_inited(&ignore_table))
     my_hash_free(&ignore_table);
   if (extended_insert)
@@ -1534,7 +1515,7 @@ static void unescape(FILE *file,char *pos,uint length)
   fputs(tmp, file);
   fputc('\'', file);
   check_io(file);
-  my_free(tmp, MYF(MY_WME));
+  my_free(tmp);
   DBUG_VOID_RETURN;
 } /* unescape */
 
@@ -2201,7 +2182,7 @@ static uint dump_routines_for_db(char *db)
               }
             }
 
-            my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
+            my_free(query_str);
           }
         } /* end of routine printing */
         mysql_free_result(routine_res);
@@ -2374,12 +2355,12 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           if (mysql_errno(mysql) == ER_VIEW_INVALID)
             fprintf(sql_file, "\n-- failed on view %s: %s\n\n", result_table, scv_buff ? scv_buff : "");
 
-          my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
+          my_free(scv_buff);
 
           DBUG_RETURN(0);
         }
         else
-          my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
+          my_free(scv_buff);
 
         if (mysql_num_rows(result))
         {
@@ -2764,6 +2745,9 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
   if (opt_compact)
     fprintf(sql_file, "/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
 
+  if (opt_drop_trigger)
+    fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", (*show_trigger_row)[0]);
+
   fprintf(sql_file,
           "DELIMITER ;;\n"
           "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n"
@@ -2840,6 +2824,9 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
 
     switch_sql_mode(sql_file, ";", row[1]);
 
+    if (opt_drop_trigger)
+      fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", row[0]);
+
     fprintf(sql_file,
             "DELIMITER ;;\n"
             "/*!50003 %s */;;\n"
@@ -2855,7 +2842,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
         DBUG_RETURN(TRUE);
     }
 
-    my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(query_str);
   }
 
   DBUG_RETURN(FALSE);
@@ -4073,7 +4060,7 @@ static int dump_all_tables_in_db(char *database)
     if (include_table((uchar*) hash_key, end - hash_key))
     {
       dump_table(table,database);
-      my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(order_by);
       order_by= 0;
       if (opt_dump_triggers && ! opt_xml &&
           mysql_get_server_version(mysql) >= 50009)
@@ -4345,7 +4332,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     dump_routines_for_db(db);
   }
   free_root(&root, MYF(0));
-  my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(order_by);
   order_by= 0;
   if (opt_xml)
   {
@@ -5258,7 +5245,7 @@ int main(int argc, char **argv)
     goto err;
 
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   /*
     No reason to explicitely COMMIT the transaction, neither to explicitely

@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Function items used by mysql */
@@ -1039,6 +1039,7 @@ class Item_func_str_to_date :public Item_str_func
   date_time_format_types cached_format_type;
   timestamp_type cached_timestamp_type;
   bool const_item;
+  ulonglong sql_mode;
 public:
   Item_func_str_to_date(Item *a, Item *b)
     :Item_str_func(a, b), const_item(false)
@@ -1052,6 +1053,8 @@ public:
   {
     return tmp_table_field_from_field_type(table, 1);
   }
+  longlong val_int();
+  bool result_as_longlong() { return TRUE; }
 };
 
 

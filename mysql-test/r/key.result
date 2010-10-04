@@ -273,7 +273,7 @@ t
 drop table t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (
 c1 int,
 c2 varbinary(240),
@@ -522,13 +522,6 @@ INSERT INTO t2 VALUES
 INSERT INTO t1 (b, c, d) VALUES
 (3388000, -553000, NULL),
 (3388000, -553000, NULL);
-SELECT *
-FROM t2 c JOIN t1 pa ON c.b = pa.a 
-WHERE c.c = 1
-ORDER BY c.b, c.d
-;
-a	b	c	d	e	f	g	h	i	j	a	b	c	d
-2	2	1	2004-11-30 12:00:00	1	0	0	0	0	0	2	3388000	-553000	NULL
 DROP TABLE t1, t2;
 create table t1(a int not null, key aa(a), 
 b char(10) not null, unique key bb(b(1)), 

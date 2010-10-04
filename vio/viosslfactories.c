@@ -143,36 +143,6 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
 }
 
 
-#ifdef __NETWARE__
-
-/* NetWare SSL cleanup */
-void netware_ssl_cleanup()
-{
-  /* free memory from SSL_library_init() */
-  EVP_cleanup();
-
-/* OpenSSL NetWare port specific functions */
-#ifndef HAVE_YASSL
-
-  /* free global X509 method */
-  X509_STORE_method_cleanup();
-
-  /* free the thread_hash error table */
-  ERR_free_state_table();
-#endif
-}
-
-
-/* NetWare SSL initialization */
-static void netware_ssl_init()
-{
-  /* cleanup OpenSSL library */
-  NXVmRegisterExitHandler(netware_ssl_cleanup, NULL);
-}
-
-#endif /* __NETWARE__ */
-
-
 static void check_ssl_init()
 {
   if (!ssl_algorithms_added)
@@ -182,10 +152,6 @@ static void check_ssl_init()
     OpenSSL_add_all_algorithms();
 
   }
-
-#ifdef __NETWARE__
-  netware_ssl_init();
-#endif
 
   if (!ssl_error_strings_loaded)
   {
@@ -224,7 +190,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     *error= SSL_INITERR_MEMFAIL;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     report_errors();
-    my_free((void*)ssl_fd,MYF(0));
+    my_free(ssl_fd);
     DBUG_RETURN(0);
   }
 
@@ -240,7 +206,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     report_errors();
     SSL_CTX_free(ssl_fd->ssl_context);
-    my_free((void*)ssl_fd,MYF(0));
+    my_free(ssl_fd);
     DBUG_RETURN(0);
   }
 
@@ -254,7 +220,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
       DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
       report_errors();
       SSL_CTX_free(ssl_fd->ssl_context);
-      my_free((void*)ssl_fd,MYF(0));
+      my_free(ssl_fd);
       DBUG_RETURN(0);
     }
   }
@@ -264,7 +230,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
     report_errors();
     SSL_CTX_free(ssl_fd->ssl_context);
-    my_free((void*)ssl_fd,MYF(0));
+    my_free(ssl_fd);
     DBUG_RETURN(0);
   }
 
@@ -344,6 +310,6 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd)
 {
   SSL_CTX_free(fd->ssl_context);
-  my_free((uchar*) fd, MYF(0));
+  my_free(fd);
 }
 #endif /* HAVE_OPENSSL */

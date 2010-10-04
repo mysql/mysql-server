@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -160,7 +160,7 @@ static void prepare_record_for_error_message(int error, TABLE *table)
   /* Tell the engine about the new set. */
   table->file->column_bitmaps_signal();
   /* Read record that is identified by table->file->ref. */
-  (void) table->file->rnd_pos(table->record[1], table->file->ref);
+  (void) table->file->ha_rnd_pos(table->record[1], table->file->ref);
   /* Copy the newly read columns into the new record. */
   for (field_p= table->field; (field= *field_p); field_p++)
     if (bitmap_is_set(&unique_map, field->field_index))
@@ -195,7 +195,7 @@ int mysql_update(THD *thd,
                  TABLE_LIST *table_list,
                  List<Item> &fields,
 		 List<Item> &values,
-                 COND *conds,
+                 Item *conds,
                  uint order_num, ORDER *order,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates, bool ignore,
@@ -477,7 +477,14 @@ int mysql_update(THD *thd,
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
         thd->examined_row_count++;
-	if (!(select && select->skip_record()))
+        bool skip_record= FALSE;
+        if (select && select->skip_record(thd, &skip_record))
+        {
+          error= 1;
+          table->file->unlock_row();
+          break;
+        }
+        if (!skip_record)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -584,7 +591,8 @@ int mysql_update(THD *thd,
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     thd->examined_row_count++;
-    if (!(select && select->skip_record()))
+    bool skip_record;
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */
@@ -1137,57 +1145,6 @@ int mysql_multi_update_prepare(THD *thd)
 }
 
 
-/**
-   Implementation of the safe update options during UPDATE IGNORE. This syntax
-   causes an UPDATE statement to ignore all errors. In safe update mode,
-   however, we must never ignore the ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE. There
-   is a special hook in my_message_sql that will otherwise delete all errors
-   when the IGNORE option is specified. 
-
-   In the future, all IGNORE handling should be used with this class and all
-   traces of the hack outlined below should be removed.
-
-   - The parser detects IGNORE option and sets thd->lex->ignore= 1
-   
-   - In JOIN::optimize, if this is set, then 
-     thd->lex->current_select->no_error gets set.
-
-   - In my_message_sql(), if the flag above is set then any error is
-     unconditionally converted to a warning.
-
-   We are moving in the direction of using Internal_error_handler subclasses
-   to do all such error tweaking, please continue this effort if new bugs
-   appear.
- */
-class Safe_dml_handler : public Internal_error_handler {
-
-private:
-  bool m_handled_error;
-
-public:
-  explicit Safe_dml_handler() : m_handled_error(FALSE) {}
-
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
-                        const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
-  {
-    if (level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
-        sql_errno == ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE)
-    {
-      thd->stmt_da->set_error_status(thd, sql_errno, msg, sqlstate);
-      m_handled_error= TRUE;
-      return TRUE;
-    }
-    return FALSE;
-  }
-
-  bool handled_error() { return m_handled_error; }
-
-};
-
 /*
   Setup multi-update handling and call SELECT to do the join
 */
@@ -1196,7 +1153,7 @@ bool mysql_multi_update(THD *thd,
                         TABLE_LIST *table_list,
                         List<Item> *fields,
                         List<Item> *values,
-                        COND *conds,
+                        Item *conds,
                         ulonglong options,
                         enum enum_duplicates handle_duplicates,
                         bool ignore,
@@ -1221,11 +1178,6 @@ bool mysql_multi_update(THD *thd,
 
   List<Item> total_list;
 
-  Safe_dml_handler handler;
-  bool using_handler= thd->variables.option_bits & OPTION_SAFE_UPDATES;
-  if (using_handler)
-    thd->push_internal_handler(&handler);
-
   res= mysql_select(thd, &select_lex->ref_pointer_array,
                     table_list, select_lex->with_wild,
                     total_list,
@@ -1235,25 +1187,13 @@ bool mysql_multi_update(THD *thd,
                     OPTION_SETUP_TABLES_DONE,
                     *result, unit, select_lex);
 
-  if (using_handler)
-  {
-    Internal_error_handler *top_handler;
-    top_handler= thd->pop_internal_handler();
-    DBUG_ASSERT(&handler == top_handler);
-  }
-
   DBUG_PRINT("info",("res: %d  report_error: %d", res, (int) thd->is_error()));
   res|= thd->is_error();
-  /*
-    Todo: remove below code and make Safe_dml_handler do error processing
-    instead. That way we can return the actual error instead of
-    ER_UNKNOWN_ERROR.
-  */
-  if (unlikely(res) && (!using_handler || !handler.handled_error()))
+  if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */
     (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
-    (*result)->abort();
+    (*result)->abort_result_set();
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(res);
@@ -1833,11 +1773,13 @@ bool multi_update::send_data(List<Item> &not_used_values)
       {
         if (error &&
             create_myisam_from_heap(thd, tmp_table,
-                                    tmp_table_param + offset, error, 1))
+                                         tmp_table_param[offset].start_recinfo,
+                                         &tmp_table_param[offset].recinfo,
+                                         error, TRUE, NULL))
         {
           do_update= 0;
-          DBUG_RETURN(1);			// Not a table_is_full error
-        }
+	  DBUG_RETURN(1);			// Not a table_is_full error
+	}
         found++;
       }
     }
@@ -1853,7 +1795,7 @@ void multi_update::send_error(uint errcode,const char *err)
 }
 
 
-void multi_update::abort()
+void multi_update::abort_result_set()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
@@ -1966,7 +1908,7 @@ int multi_update::do_updates()
     {
       if (thd->killed && trans_safe)
 	goto err;
-      if ((local_error=tmp_table->file->rnd_next(tmp_table->record[0])))
+      if ((local_error=tmp_table->file->ha_rnd_next(tmp_table->record[0])))
       {
 	if (local_error == HA_ERR_END_OF_FILE)
 	  break;
@@ -1975,15 +1917,15 @@ int multi_update::do_updates()
 	goto err;
       }
 
-      /* call rnd_pos() using rowids from temporary table */
+      /* call ha_rnd_pos() using rowids from temporary table */
       check_opt_it.rewind();
       TABLE *tbl= table;
       uint field_num= 0;
       do
       {
         if((local_error=
-              tbl->file->rnd_pos(tbl->record[0],
-                                (uchar *) tmp_table->field[field_num]->ptr)))
+              tbl->file->ha_rnd_pos(tbl->record[0],
+                                    (uchar *) tmp_table->field[field_num]->ptr)))
           goto err;
         field_num++;
       } while((tbl= check_opt_it++));

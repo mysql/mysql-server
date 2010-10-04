@@ -30,7 +30,7 @@ extern "C" {
 #include <malloc.h>
 #endif
 
-#undef my_read			/* Can be predefined in raid.h */
+#undef my_read
 #undef my_write
 #undef my_seek
 #define my_read(a,b,c,d) my_quick_read(a,b,c,d)
@@ -39,7 +39,7 @@ extern size_t my_quick_read(File Filedes,uchar *Buffer,size_t Count,
                             myf myFlags);
 extern size_t my_quick_write(File Filedes,const uchar *Buffer,size_t Count);
 
-#if !defined(SAFEMALLOC) && defined(USE_HALLOC)
+#if defined(USE_HALLOC)
 #define my_malloc(a,b) halloc(a,1)
 #define my_no_flags_free(a) hfree(a)
 #endif

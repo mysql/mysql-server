@@ -16,7 +16,7 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
 #define DELIM ';'
 #else
 #define DELIM ':'
@@ -36,7 +36,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   {
     /* Get default temporary directory */
     pathlist=getenv("TMPDIR");	/* Use this if possible */
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
     if (!pathlist)
       pathlist=getenv("TEMP");
     if (!pathlist)
@@ -88,7 +88,7 @@ void free_tmpdir(MY_TMPDIR *tmpdir)
   if (!tmpdir->full_list.elements)
     return;
   for (i=0; i<=tmpdir->max; i++)
-    my_free(tmpdir->list[i], MYF(0));
+    my_free(tmpdir->list[i]);
   delete_dynamic(&tmpdir->full_list);
   mysql_mutex_destroy(&tmpdir->mutex);
 }

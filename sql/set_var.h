@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -91,11 +91,13 @@ public:
           longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
           uint deprecated_version, const char *substitute, int parse_flag);
-  /**
-    The instance should only be destroyed on shutdown, as it doesn't unlink
-    itself from the chain.
-  */
+
   virtual ~sys_var() {}
+
+  /**
+    All the cleanup procedures should be performed here
+  */
+  virtual void cleanup() {}
   /**
     downcast for sys_var_pluginvar. Returns this if it's an instance
     of sys_var_pluginvar, and 0 otherwise.

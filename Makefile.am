@@ -25,21 +25,24 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
 			@pstack_dir@ libservices \
-			@sql_union_dirs@ unittest \
-			@sql_server@ @man_dirs@ tests \
-			netware @libmysqld_dirs@ \
+			@sql_union_dirs@ \
+			unittest/mytap \
+			@sql_server@ unittest @man_dirs@ tests \
+			@libmysqld_dirs@ \
 			mysql-test support-files sql-bench \
 			win \
+			packaging \
 			cmake
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
 			pstack libservices \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
-			netware libmysqld \
+			libmysqld \
 			mysql-test support-files sql-bench \
 			win \
 			cmake \
+			packaging \
 			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 
@@ -63,7 +66,7 @@ dist-hook:
 	test ! -f $(top_srcdir)/configure.am  || \
 	$(INSTALL_DATA)  $(top_srcdir)/configure.am $(distdir)
 
-all-local:		@ABI_CHECK@	
+all-local:		@ABI_CHECK@
 
 tags:
 	support-files/build-tags
@@ -262,7 +265,8 @@ test-full-qa:
 # Headers which need to be checked for abi/api compatibility.
 #
 
-API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
+API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin_audit.h \
+			$(top_srcdir)/include/mysql/plugin_ftparser.h \
 			$(top_srcdir)/include/mysql.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h
@@ -312,7 +316,7 @@ abi_check_all:	abi_check
 do_abi_check:
 	set -ex; \
 	for file in $(abi_headers); do \
-	         @CC@ -E -nostdinc -dI \
+	         @CC@ -E -nostdinc -dI -DMYSQL_ABI_CHECK \
 	                  -I$(top_srcdir)/include \
 	                  -I$(top_srcdir)/include/mysql \
 	                  -I$(top_srcdir)/sql \

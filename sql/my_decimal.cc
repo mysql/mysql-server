@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 #include <time.h>
@@ -305,12 +305,12 @@ print_decimal(const my_decimal *dec)
   int i, end;
   char buff[512], *pos;
   pos= buff;
-  pos+= my_sprintf(buff, (buff, "Decimal: sign: %d  intg: %d  frac: %d  { ",
-                          dec->sign(), dec->intg, dec->frac));
+  pos+= sprintf(buff, "Decimal: sign: %d  intg: %d  frac: %d  { ",
+                dec->sign(), dec->intg, dec->frac);
   end= ROUND_UP(dec->frac)+ROUND_UP(dec->intg)-1;
   for (i=0; i < end; i++)
-    pos+= my_sprintf(pos, (pos, "%09d, ", dec->buf[i]));
-  pos+= my_sprintf(pos, (pos, "%09d }\n", dec->buf[i]));
+    pos+= sprintf(pos, "%09d, ", dec->buf[i]);
+  pos+= sprintf(pos, "%09d }\n", dec->buf[i]);
   fputs(buff, DBUG_FILE);
 }
 

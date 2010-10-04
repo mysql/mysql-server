@@ -195,11 +195,6 @@ int pthread_cancel(pthread_t thread);
 #include <synch.h>
 #endif
 
-#ifdef __NETWARE__
-void my_pthread_exit(void *status);
-#define pthread_exit(A) my_pthread_exit(A)
-#endif
-
 #define pthread_key(T,V) pthread_key_t V
 #define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,(V))
 #define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,(void*) (V))
@@ -260,14 +255,13 @@ int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
   we want to make sure that no such flags are set.
 */
 #if defined(HAVE_SIGACTION) && !defined(my_sigset)
-#define my_sigset(A,B) do { struct sigaction l_s; sigset_t l_set; int l_rc; \
+#define my_sigset(A,B) do { struct sigaction l_s; sigset_t l_set;           \
                             DBUG_ASSERT((A) != 0);                          \
                             sigemptyset(&l_set);                            \
                             l_s.sa_handler = (B);                           \
                             l_s.sa_mask   = l_set;                          \
                             l_s.sa_flags   = 0;                             \
-                            l_rc= sigaction((A), &l_s, (struct sigaction *) NULL);\
-                            DBUG_ASSERT(l_rc == 0);                         \
+                            sigaction((A), &l_s, NULL);                     \
                           } while (0)
 #elif defined(HAVE_SIGSET) && !defined(my_sigset)
 #define my_sigset(A,B) sigset((A),(B))
@@ -356,7 +350,7 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
-#elif !defined(__NETWARE__) /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */
+#else /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */
 #define HAVE_PTHREAD_KILL
 #endif
 
@@ -449,10 +443,6 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */
-
-#if defined(__NETWARE__) && !defined(SAFE_MUTEX_DETECT_DESTROY)
-#define SAFE_MUTEX_DETECT_DESTROY
-#endif
 
 typedef struct st_safe_mutex_t
 {
@@ -600,6 +590,8 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #define rw_trywrlock(A) my_rw_trywrlock((A))
 #define rw_unlock(A) my_rw_unlock((A))
 #define rwlock_destroy(A) my_rw_destroy((A))
+#define rw_lock_assert_write_owner(A) my_rw_lock_assert_write_owner((A))
+#define rw_lock_assert_not_write_owner(A) my_rw_lock_assert_not_write_owner((A))
 #endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
 
 
@@ -623,6 +615,8 @@ extern int rw_pr_init(rw_pr_lock_t *);
 #define rw_pr_trywrlock(A) pthread_rwlock_trywrlock(A)
 #define rw_pr_unlock(A) pthread_rwlock_unlock(A)
 #define rw_pr_destroy(A) pthread_rwlock_destroy(A)
+#define rw_pr_lock_assert_write_owner(A)
+#define rw_pr_lock_assert_not_write_owner(A)
 #else
 /* Otherwise we have to use our own implementation of read/write locks. */
 #define NEED_MY_RW_LOCK 1
@@ -635,6 +629,8 @@ extern int rw_pr_init(struct st_my_rw_lock_t *);
 #define rw_pr_trywrlock(A) my_rw_trywrlock((A))
 #define rw_pr_unlock(A) my_rw_unlock((A))
 #define rw_pr_destroy(A) my_rw_destroy((A))
+#define rw_pr_lock_assert_write_owner(A) my_rw_lock_assert_write_owner((A))
+#define rw_pr_lock_assert_not_write_owner(A) my_rw_lock_assert_not_write_owner((A))
 #endif /* defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && defined(HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP) */
 
 
@@ -650,6 +646,9 @@ typedef struct st_my_rw_lock_t {
 	int		state;		/* -1:writer,0:free,>0:readers	*/
 	int             waiters;        /* number of waiting writers	*/
 	my_bool         prefer_readers;
+#ifdef SAFE_MUTEX
+        pthread_t       write_thread;
+#endif
 } my_rw_lock_t;
 
 extern int my_rw_init(my_rw_lock_t *, my_bool *);
@@ -659,6 +658,17 @@ extern int my_rw_wrlock(my_rw_lock_t *);
 extern int my_rw_unlock(my_rw_lock_t *);
 extern int my_rw_tryrdlock(my_rw_lock_t *);
 extern int my_rw_trywrlock(my_rw_lock_t *);
+#ifdef SAFE_MUTEX
+#define my_rw_lock_assert_write_owner(A) \
+  DBUG_ASSERT((A)->state == -1 && pthread_equal(pthread_self(), \
+                                                (A)->write_thread))
+#define my_rw_lock_assert_not_write_owner(A) \
+  DBUG_ASSERT((A)->state >= 0 || ! pthread_equal(pthread_self(), \
+                                                 (A)->write_thread))
+#else
+#define my_rw_lock_assert_write_owner(A)
+#define my_rw_lock_assert_not_write_owner(A)
+#endif
 #endif /* NEED_MY_RW_LOCK */
 
 

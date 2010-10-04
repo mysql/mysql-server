@@ -1,4 +1,29 @@
 drop table if exists t1, t2;
+#
+# Bug#55458: Partitioned MyISAM table gets crashed by multi-table update 
+#
+CREATE TABLE t1 (
+`id` int NOT NULL,
+`user_num` int DEFAULT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1,8601);
+INSERT INTO t1 VALUES (2,8601);
+INSERT INTO t1 VALUES (3,8601);
+INSERT INTO t1 VALUES (4,8601);
+CREATE TABLE t2 (
+`id` int(11) NOT NULL,
+`user_num` int DEFAULT NULL,
+`name` varchar(64) NOT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=MyISAM CHARSET=latin1
+PARTITION BY HASH (id)
+PARTITIONS 2;
+INSERT INTO t2 VALUES (1,8601,'John');
+INSERT INTO t2 VALUES (2,8601,'JS');
+INSERT INTO t2 VALUES (3,8601,'John S');
+UPDATE t1, t2 SET t2.name = 'John Smith' WHERE t1.user_num = t2.user_num;
+DROP TABLE t1, t2;
 # Bug#39338: Fieldnames in
 #   INFORMATIONSCHEMA.PARTITIONS.PARTITION_EXPRESSION become unescaped
 # NOTE: the partition expression is saved as a string, so changing from
@@ -359,6 +384,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	2
+Handler_read_last	0
 Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -377,6 +403,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	2
+Handler_read_last	0
 Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -407,6 +434,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -423,6 +451,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -439,6 +468,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -455,6 +485,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1466,7 +1497,7 @@ NULL
 2
 explain partitions select * from t1 where a is null or a < 0 or a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pn,p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	pn,p2	ALL	NULL	NULL	NULL	NULL	2	Using where
 drop table t1;
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) 
 ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -1715,8 +1746,7 @@ WHERE t1.id IN (
 SELECT distinct id
 FROM t4
 WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-ORDER BY t1.id
-;
+ORDER BY t1.id;
 MyISAM_part
 16421
 19092
@@ -1737,7 +1767,7 @@ INSERT INTO t1 VALUES
 ('2006-09-29 21:50:01',22589,'Verified');
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (
 id int(8) NOT NULL,
 severity tinyint(4) NOT NULL DEFAULT '0',

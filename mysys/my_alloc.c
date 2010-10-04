@@ -120,7 +120,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
         {
           /* remove block from the list and free it */
           *prev= mem->next;
-          my_free(mem, MYF(0));
+          my_free(mem);
         }
         else
           prev= &mem->next;
@@ -362,13 +362,13 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   {
     old=next; next= next->next ;
     if (old != root->pre_alloc)
-      my_free(old,MYF(0));
+      my_free(old);
   }
   for (next=root->free ; next ;)
   {
     old=next; next= next->next;
     if (old != root->pre_alloc)
-      my_free(old,MYF(0));
+      my_free(old);
   }
   root->used=root->free=0;
   if (root->pre_alloc)

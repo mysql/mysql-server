@@ -81,7 +81,7 @@ DROP FUNCTION f_slow_current_time;
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
 DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1()

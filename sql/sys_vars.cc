@@ -145,7 +145,7 @@ static Sys_var_ulong Sys_pfs_max_mutex_instances(
        "performance_schema_max_mutex_instances",
        "Maximum number of instrumented MUTEX objects.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100*1024*1024),
        DEFAULT(PFS_MAX_MUTEX),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -161,7 +161,7 @@ static Sys_var_ulong Sys_pfs_max_rwlock_instances(
        "performance_schema_max_rwlock_instances",
        "Maximum number of instrumented RWLOCK objects.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100*1024*1024),
        DEFAULT(PFS_MAX_RWLOCK),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -195,6 +195,14 @@ static Sys_var_ulong Sys_pfs_max_thread_instances(
        READ_ONLY GLOBAL_VAR(pfs_param.m_thread_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
        DEFAULT(PFS_MAX_THREAD),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_setup_actors_size(
+       "performance_schema_setup_actors_size",
+       "Maximum number of rows in SETUP_ACTORS.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_setup_actor_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
+       DEFAULT(PFS_MAX_SETUP_ACTOR),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -235,6 +243,12 @@ static Sys_var_charptr Sys_basedir(
        READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
        IN_FS_CHARSET, DEFAULT(0));
 
+static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
+{
+  check_binlog_cache_size(thd);
+  return false;
+}
+
 static Sys_var_ulong Sys_binlog_cache_size(
        "binlog_cache_size", "The size of the cache to "
        "hold the SQL statements for the binary log during a "
@@ -242,7 +256,9 @@ static Sys_var_ulong Sys_binlog_cache_size(
        "transactions you can increase this to get more performance",
        GLOBAL_VAR(binlog_cache_size),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
+       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_cache_size));
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
@@ -367,6 +383,12 @@ static Sys_var_mybool Sys_binlog_direct(
        SESSION_VAR(binlog_direct_non_trans_update),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
+
+static Sys_var_mybool Sys_binlog_rows_query(
+       "binlog_rows_query_log_events",
+       "Allow writing of Rows_query_log events into binary log.",
+       SESSION_VAR(binlog_rows_query_log_events),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
@@ -585,9 +607,6 @@ static Sys_var_dbug Sys_dbug(
        ON_CHECK(check_has_super));
 #endif
 
-static Sys_var_charptr Sys_server_uuid("server_uuid", "UUID of the server",
-       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
-       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 /**
   @todo
     When updating myisam_delay_key_write, we should do a 'flush tables'
@@ -799,7 +818,11 @@ static Sys_var_lexstring Sys_init_connect(
 static Sys_var_charptr Sys_init_file(
        "init_file", "Read SQL commands from this file at startup",
        READ_ONLY GLOBAL_VAR(opt_init_file),
-       IF_DISABLE_GRANT_OPTIONS(NO_CMD_LINE, CMD_LINE(REQUIRED_ARG)),
+#ifdef DISABLE_GRANT_OPTIONS
+       NO_CMD_LINE,
+#else
+       CMD_LINE(REQUIRED_ARG),
+#endif
        IN_FS_CHARSET, DEFAULT(0));
 
 static PolyLock_rwlock PLock_sys_init_slave(&LOCK_sys_init_slave);
@@ -823,6 +846,19 @@ static Sys_var_ulong Sys_join_buffer_size(
        "The size of the buffer that is used for full joins",
        SESSION_VAR(join_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(128, ULONG_MAX), DEFAULT(128*1024), BLOCK_SIZE(128));
+
+static Sys_var_ulong Sys_optimizer_join_cache_level(
+       "optimizer_join_cache_level",
+       "Controls what join operations can be executed with join buffers. "
+       "Odd numbers are used for plain join buffers while even numbers "
+       "are used for linked buffers",
+       SESSION_VAR(optimizer_join_cache_level), CMD_LINE(REQUIRED_ARG),
+#ifdef OPTIMIZER_SWITCH_ALL
+       VALID_RANGE(0, 8),
+#else
+       VALID_RANGE(0, 1),
+#endif
+       DEFAULT(1), BLOCK_SIZE(1));
 
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
@@ -945,10 +981,10 @@ static bool update_cached_long_query_time(sys_var *self, THD *thd,
 {
   if (type == OPT_SESSION)
     thd->variables.long_query_time=
-      thd->variables.long_query_time_double * 1e6;
+      double2ulonglong(thd->variables.long_query_time_double * 1e6);
   else
     global_system_variables.long_query_time=
-      global_system_variables.long_query_time_double * 1e6;
+      double2ulonglong(global_system_variables.long_query_time_double * 1e6);
   return false;
 }
 
@@ -1035,7 +1071,9 @@ static Sys_var_ulonglong Sys_max_binlog_cache_size(
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
        DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
-       BLOCK_SIZE(IO_SIZE));
+       BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_cache_size));
 
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -1348,6 +1386,10 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
+#ifdef OPTIMIZER_SWITCH_ALL
+  "materialization", "semijoin", "loosescan", "firstmatch",
+  "mrr", "mrr_cost_based", "index_condition_pushdown",
+#endif
   "default", NullS
 };
 /** propagates changes to @@engine_condition_pushdown */
@@ -1363,8 +1405,13 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
-       "index_merge_intersection, engine_condition_pushdown}"
-       " and val is one of {on, off, default}",
+       "index_merge_intersection, engine_condition_pushdown"
+#ifdef OPTIMIZER_SWITCH_ALL
+       ", materialization, "
+       "semijoin, loosescan, firstmatch, mrr, mrr_cost_based, "
+       "index_condition_pushdown"
+#endif
+       "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
@@ -1476,7 +1523,8 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE)))
+  if ((result= close_cached_tables(thd, NULL, TRUE,
+                                   thd->variables.lock_wait_timeout)))
     goto end_with_read_lock;
 
   if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))
@@ -1516,13 +1564,6 @@ static Sys_var_ulong Sys_div_precincrement(
        "operator will be increased on that value",
        SESSION_VAR(div_precincrement), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, DECIMAL_MAX_SCALE), DEFAULT(4), BLOCK_SIZE(1));
-
-static Sys_var_ulong Sys_rpl_recovery_rank(
-       "rpl_recovery_rank", "Unused, will be removed",
-       GLOBAL_VAR(rpl_recovery_rank), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(70000, 0));
 
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
@@ -1600,14 +1641,17 @@ static Sys_var_charptr Sys_socket(
        READ_ONLY GLOBAL_VAR(mysqld_unix_port), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
-#ifdef HAVE_THR_SETCONCURRENCY
+/* 
+  thread_concurrency is a no-op on all platforms since
+  MySQL 5.1.  It will be removed in the context of
+  WL#5265
+*/
 static Sys_var_ulong Sys_thread_concurrency(
        "thread_concurrency",
        "Permits the application to give the threads system a hint for "
        "the desired number of threads that should be run at the same time",
        READ_ONLY GLOBAL_VAR(concurrency), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1));
-#endif
 
 static Sys_var_ulong Sys_thread_stack(
        "thread_stack", "The stack size for each thread",
@@ -1618,7 +1662,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
        "semicolon (;)"
 #else
        "colon (:)"
@@ -1653,19 +1697,13 @@ static Sys_var_ulong Sys_trans_prealloc_size(
 
 static const char *thread_handling_names[]=
 {
-  "one-thread-per-connection", "no-threads",
-#if HAVE_POOL_OF_THREADS == 1
-  "pool-of-threads",
-#endif
+  "one-thread-per-connection", "no-threads", "loaded-dynamically",
   0
 };
 static Sys_var_enum Sys_thread_handling(
        "thread_handling",
        "Define threads usage for handling queries, one of "
-       "one-thread-per-connection, no-threads"
-#if HAVE_POOL_OF_THREADS == 1
-       ", pool-of-threads"
-#endif
+       "one-thread-per-connection, no-threads, loaded-dynamically"
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
        thread_handling_names, DEFAULT(0));
 
@@ -1766,6 +1804,12 @@ static Sys_var_ulong Sys_server_id(
        GLOBAL_VAR(server_id), CMD_LINE(REQUIRED_ARG, OPT_SERVER_ID),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_server_id));
+
+static Sys_var_charptr Sys_server_uuid(
+       "server_uuid",
+       "Uniquely identifies the server instance in the universe",
+       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
+       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
@@ -2191,14 +2235,21 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT)
   { // activating autocommit
 
-    if (trans_commit(thd))
+    if (trans_commit_stmt(thd) || trans_commit(thd))
     {
       thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
       return true;
     }
-    close_thread_tables(thd);
-    thd->mdl_context.release_transactional_locks();
-
+    /*
+      Don't close thread tables or release metadata locks: if we do so, we
+      risk releasing locks/closing tables of expressions used to assign
+      other variables, as in:
+      set @var=my_stored_function1(), @@autocommit=1, @var2=(select max(a)
+      from my_table), ...
+      The locks will be released at statement end anyway, as SET
+      statement that assigns autocommit is marked to commit
+      transaction implicitly at the end (@sa stmt_causes_implicitcommit()).
+    */
     thd->variables.option_bits&=
                  ~(OPTION_BEGIN | OPTION_KEEP_LOG | OPTION_NOT_AUTOCOMMIT);
     thd->transaction.all.modified_non_trans_table= false;
@@ -2367,7 +2418,7 @@ static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",
        SESSION_VAR(select_limit), NO_CMD_LINE,
-       VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
+       VALID_RANGE(0, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
 
 static bool update_timestamp(THD *thd, set_var *var)
 {
@@ -2853,6 +2904,8 @@ static bool fix_log_output(sys_var *self, THD *thd, enum_var_type type)
   logger.unlock();
   return false;
 }
+
+static const char *log_output_names[] = { "NONE", "FILE", "TABLE", NULL};
 
 static Sys_var_set Sys_log_output(
        "log_output", "Syntax: log-output=value[,value...], "

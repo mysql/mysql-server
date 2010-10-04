@@ -335,7 +335,7 @@ static st_blackhole_share *get_share(const char *table_name)
     
     if (my_hash_insert(&blackhole_open_tables, (uchar*) share))
     {
-      my_free((uchar*) share, MYF(0));
+      my_free(share);
       share= NULL;
       goto error;
     }
@@ -360,7 +360,7 @@ static void free_share(st_blackhole_share *share)
 static void blackhole_free_key(st_blackhole_share *share)
 {
   thr_lock_delete(&share->lock);
-  my_free((uchar*) share, MYF(0));
+  my_free(share);
 }
 
 static uchar* blackhole_get_key(st_blackhole_share *share, size_t *length,

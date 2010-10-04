@@ -76,7 +76,6 @@ $| = 1; # Automatically flush STDOUT
 our $glob_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
 our $glob_cygwin_perl= ($^O eq "cygwin");  # Cygwin Perl
 our $glob_win32=       ($glob_win32_perl or $glob_cygwin_perl);
-our $glob_netware=     ($^O eq "NetWare"); # NetWare
 
 require "lib/v1/mtr_cases.pl";
 require "lib/v1/mtr_im.pl";
@@ -3114,7 +3113,6 @@ sub install_db ($$) {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
-  mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
@@ -3125,10 +3123,16 @@ sub install_db ($$) {
 		$path_vardir_trace, $type);
   }
 
-  if ( ! $glob_netware )
-  {
-    mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
-    mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
+  mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
+  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
+
+  # InnoDB arguments that affect file location and sizes may
+  # need to be given to the bootstrap process as well as the
+  # server process.
+  foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
+    if ($extra_opt =~ /--innodb/) {
+      mtr_add_arg($args, $extra_opt);
+    }
   }
 
   # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
@@ -3149,7 +3153,7 @@ sub install_db ($$) {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   # Use the mysql database for system tables
-  mtr_tofile($bootstrap_sql_file, "use mysql");
+  mtr_tofile($bootstrap_sql_file, "use mysql;\n");
 
   # Add the offical mysql system tables
   # for a production system
@@ -3882,8 +3886,6 @@ sub mysqld_arguments ($$$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "%s--loose-skip-safemalloc", $prefix);
-
     if ( $mysql_version_id < 50100 )
     {
       mtr_add_arg($args, "%s--skip-bdb", $prefix);
@@ -3932,11 +3934,6 @@ sub mysqld_arguments ($$$$) {
 
     mtr_add_arg($args, "%s--local-infile", $prefix);
 
-    if ( $idx > 0 or !$use_innodb)
-    {
-      mtr_add_arg($args, "%s--loose-skip-innodb", $prefix);
-    }
-
     my $cluster= $clusters->[$mysqld->{'cluster'}];
     if ( $cluster->{'pid'} ||           # Cluster is started
 	 $cluster->{'use_running'} )    # Using running cluster
@@ -3959,7 +3956,6 @@ sub mysqld_arguments ($$$$) {
     mtr_error("unknown mysqld type")
       unless $mysqld->{'type'} eq 'slave';
 
-    mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
     if (! ( $opt_skip_slave_binlog || $skip_binlog ))
     {
       mtr_add_arg($args, "%s--log-bin=%s/log/slave%s-bin", $prefix,
@@ -4016,9 +4012,7 @@ sub mysqld_arguments ($$$$) {
 #    	            $master->[0]->{'port'}); # First master
 #      }
       my $slave_server_id=  2 + $idx;
-      my $slave_rpl_rank= $slave_server_id;
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);
-      mtr_add_arg($args, "%s--rpl-recovery-rank=%d", $prefix, $slave_rpl_rank);
     }
 
     my $cluster= $clusters->[$mysqld->{'cluster'}];
@@ -4094,12 +4088,7 @@ sub mysqld_arguments ($$$$) {
     mtr_add_arg($args, "%s%s", $prefix, "--core-file");
   }
 
-  if ( $opt_bench )
-  {
-    mtr_add_arg($args, "%s--rpl-recovery-rank=1", $prefix);
-    mtr_add_arg($args, "%s--init-rpl-role=master", $prefix);
-  }
-  elsif ( $mysqld->{'type'} eq 'master' )
+  if ( !$opt_bench and $mysqld->{'type'} eq 'master' )
   {
     mtr_add_arg($args, "%s--open-files-limit=1024", $prefix);
   }
@@ -4722,7 +4711,6 @@ sub run_check_testcase ($$) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
@@ -4805,7 +4793,6 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);

@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Function items used by mysql */
@@ -120,6 +120,7 @@ public:
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   table_map used_tables() const;
   table_map not_null_tables() const;
   void update_used_tables();
@@ -185,8 +186,13 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  bool is_expensive_processor(uchar *arg);
-  virtual bool is_expensive() { return 0; }
+  inline double fix_result(double value)
+  {
+    if (isfinite(value))
+      return value;
+    null_value=1;
+    return 0.0;
+  }
   inline void raise_numeric_overflow(const char *type_name)
   {
     char buf[256];
@@ -1107,6 +1113,7 @@ class Item_udf_func :public Item_func
 {
 protected:
   udf_handler udf;
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
 
 public:
   Item_udf_func(udf_func *udf_arg)
@@ -1570,7 +1577,8 @@ public:
   Item_func_inet_aton(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "inet_aton"; }
-  void fix_length_and_dec() { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
+  void fix_length_and_dec()
+    { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
 };
 
 
@@ -1694,6 +1702,9 @@ private:
   bool execute_impl(THD *thd);
   bool init_result_field(THD *thd);
   
+protected:
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
+
 public:
 
   Item_func_sp(Name_resolution_context *context_arg, sp_name *name);
@@ -1804,7 +1815,7 @@ extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
-bool eval_const_cond(COND *cond);
+bool eval_const_cond(Item *cond);
 
 extern bool volatile  mqh_used;
 

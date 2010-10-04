@@ -449,13 +449,13 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
   }
   if (map_in_frm(new_data, (const char*)data, data_len, &new_data_len))
   {
-    my_free(new_data, MYF(0));
+    my_free(new_data);
     DBUG_RETURN(TRUE);
   }
   if (packfrm((uchar*) new_data, new_data_len,
               &new_pack_data, &new_pack_len))
   {
-    my_free(new_data, MYF(0));
+    my_free(new_data);
     DBUG_RETURN(TRUE);
   }
   table->setFrm(new_pack_data, new_pack_len);

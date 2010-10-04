@@ -53,7 +53,7 @@
   <length modifier> can be 'l', 'll', or 'z'.
 
   Supported formats are 's' (null pointer is accepted, printed as
-  "(null)"), 'b' (extension, see below), 'c', 'd', 'u', 'x', 'o',
+  "(null)"), 'b' (extension, see below), 'c', 'd', 'i', 'u', 'x', 'o',
   'X', 'p' (works as 0x%x).
 
   Standard syntax for positional arguments $n is supported.
@@ -70,8 +70,11 @@
 extern "C" {
 #endif
 
+#ifndef MYSQL_ABI_CHECK
 #include <stdarg.h>
 #include <stdlib.h>
+#endif
+
 extern struct my_snprintf_service_st {
   size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
   size_t (*my_vsnprintf_type)(char *, size_t, const char*, va_list);

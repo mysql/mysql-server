@@ -54,7 +54,6 @@ ulong opt_binlog_rows_event_max_size;
 uint test_flags = 0; 
 static uint opt_protocol= 0;
 static FILE *result_file;
-static char **defaults_argv;
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
@@ -72,23 +71,23 @@ TYPELIB base64_output_mode_typelib=
   { array_elements(base64_output_mode_names) - 1, "",
     base64_output_mode_names, NULL };
 static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
-static const char *opt_base64_output_mode_str= NullS;
-static const char* database= 0;
-static const char* output_file= 0;
+static char *opt_base64_output_mode_str= 0;
+static char *database= 0;
+static char *output_file= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1, raw_mode= 0;
 static my_bool to_last_remote_log= 0, stop_never= 0;
 static ulonglong offset = 0;
 static uint stop_never_server_id= 1;
-static const char* host = 0;
+static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
 #endif
-static const char* user = 0;
+static char* user = 0;
 static char* pass = 0;
 static char *charset= 0;
 
@@ -103,7 +102,7 @@ static my_time_t start_datetime= 0, stop_datetime= MY_TIME_T_MAX;
 static ulonglong rec_count= 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
-static const char* dirname_for_local_load= 0;
+static char* dirname_for_local_load= 0;
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -131,10 +130,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname);
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
-
-static void force_quit(int param);
-static void quit(Exit_status retval);
-static void init_signals(void);
 
 class Load_log_processor
 {
@@ -201,7 +196,7 @@ public:
   int init()
   {
     return init_dynamic_array(&file_names, sizeof(File_name_record),
-			      100,100 CALLER_INFO);
+			      100, 100);
   }
 
   void init_by_dir_name(const char *dir)
@@ -223,7 +218,7 @@ public:
     {
       if (ptr->fname)
       {
-        my_free(ptr->fname, MYF(MY_WME));
+        my_free(ptr->fname);
         delete ptr->event;
         bzero((char *)ptr, sizeof(File_name_record));
       }
@@ -446,13 +441,13 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   ptr= fname + target_dir_name_len;
   memcpy(ptr,bname,blen);
   ptr+= blen;
-  ptr+= my_sprintf(ptr, (ptr, "-%x", file_id));
+  ptr+= sprintf(ptr, "-%x", file_id);
 
   if ((file= create_unique_file(fname,ptr)) < 0)
   {
     error("Could not construct local filename %s%s.",
           target_dir_name,bname);
-    my_free(fname, MYF(0));
+    my_free(fname);
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -468,7 +463,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   if (set_dynamic(&file_names, (uchar*)&rec, file_id))
   {
     error("Out of memory.");
-    my_free(fname, MYF(0));
+    my_free(fname);
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -832,7 +827,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         */
         convert_path_to_forward_slashes((char*) ce->fname);
 	ce->print(result_file, print_event_info, TRUE);
-	my_free((char*)ce->fname,MYF(MY_WME));
+	my_free((void*)ce->fname);
 	delete ce;
       }
       else
@@ -897,9 +892,13 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
 
       if (fname)
-	my_free(fname, MYF(MY_WME));
+	my_free(fname);
       break;
     }
+    case ROWS_QUERY_LOG_EVENT:
+      if (verbose >= 2)
+        ev->print(result_file, print_event_info);
+      break;
     case TABLE_MAP_EVENT:
     {
       Table_map_log_event *map= ((Table_map_log_event *)ev);
@@ -1012,10 +1011,6 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"base64-output", OPT_BASE64_OUTPUT_MODE,
     /* 'unspec' is not mentioned because it is just a placeholder. */
    "Determine when the output statements should be base64-encoded BINLOG "
@@ -1092,11 +1087,11 @@ static struct my_option my_long_options[] =
    0, 0},
   {"raw", OPT_RAW_OUTPUT, "Requires -R. Output raw binlog data instead of SQL "
    "statements, output is to log files.",
-   (uchar**) &raw_mode, (uchar**) &raw_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   &raw_mode, &raw_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r', "Direct output to a given file. With --raw this is a "
    "prefix for the file names.",
-   (uchar**) &output_file, (uchar**) &output_file, 0, GET_STR, REQUIRED_ARG,
+   &output_file, &output_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
@@ -1147,11 +1142,11 @@ static struct my_option my_long_options[] =
    "instead of stopping at the end of the last log. Implicitly sets "
    "--to-last-log but instead of stopping at the end of the last log "
    "it continues to wait till the server disconnects.",
-   (uchar**) &stop_never, (uchar**) &stop_never, 0,
+   &stop_never, &stop_never, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
    "The slave server ID used for stop-never",
-   (uchar**) &stop_never_server_id, (uchar**) &stop_never_server_id, 0,
+   &stop_never_server_id, &stop_never_server_id, 0,
    GET_UINT, REQUIRED_ARG, 65535, 1, 65535, 0, 0, 0},
   {"stop-position", OPT_STOP_POSITION,
    "Stop reading the binlog at position N. Applies to the last binlog "
@@ -1181,10 +1176,10 @@ static struct my_option my_long_options[] =
    "The maximum size of a row-based binary log event in bytes. Rows will be "
    "grouped into events smaller than this size if possible. "
    "This value must be a multiple of 256.",
-   (uchar**) &opt_binlog_rows_event_max_size,
-   (uchar**) &opt_binlog_rows_event_max_size, 0,
+   &opt_binlog_rows_event_max_size,
+   &opt_binlog_rows_event_max_size, 0,
    GET_ULONG, REQUIRED_ARG,
-   /* def_value 4GB */ 4*1024L*1024L*1024L - 1, /* min_value */ 256,
+   /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
    /* block_size */ 256, /* app_type */ 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -1258,23 +1253,21 @@ static void warning(const char *format,...)
 */
 static void cleanup()
 {
-  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) database, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) host, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) user, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) dirname_for_local_load, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(pass);
+  my_free(database);
+  my_free(host);
+  my_free(user);
+  my_free(dirname_for_local_load);
 
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
 }
 
-#include <help_start.h>
 
 static void print_version()
 {
   printf("%s Ver 3.3 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -1316,7 +1309,6 @@ static my_time_t convert_str_to_timestamp(const char* str)
     my_system_gmt_sec(&l_time, &dummy_my_timezone, &dummy_in_dst_time_gap);
 }
 
-#include <help_end.h>
 
 extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -1324,11 +1316,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   bool tty_password=0;
   switch (optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
 #ifndef DBUG_OFF
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
@@ -1342,7 +1329,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       argument= (char*) "";                     // Don't require password
     if (argument)
     {
-      my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(pass);
       char *start=argument;
       pass= my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
@@ -2158,12 +2145,12 @@ static int args_post_process(void)
 
 int main(int argc, char** argv)
 {
-  Exit_status retval= OK_STOP;
+  char **defaults_argv;
+  Exit_status retval= OK_CONTINUE;
   ulonglong save_stop_position;
-
   MY_INIT(argv[0]);
-
-  init_signals();
+  DBUG_ENTER("main");
+  DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
 
@@ -2176,12 +2163,14 @@ int main(int argc, char** argv)
   if (!argc)
   {
     usage();
-    quit(ERROR_STOP);
+    free_defaults(defaults_argv);
+    my_end(my_end_arg);
+    exit(1);
   }
 
   /* Check for argument conflicts and do any post-processing */
   if (args_post_process() == ERROR_STOP)
-    quit(ERROR_STOP);
+    exit(1);
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
@@ -2262,25 +2251,6 @@ int main(int argc, char** argv)
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
-  quit(retval);
-}
-
-/* Catch all these signals so that we can close files safely when exiting */
-static void init_signals(void)
-{
-  int signals[] = {SIGINT,SIGTERM};
-
-  for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
-    signal(signals[i], force_quit);
-}
-
-static void force_quit(int param)
-{
-  quit(OK_STOP);
-}
-
-static void quit(Exit_status retval)
-{
   if (result_file && (result_file != stdout))
     my_fclose(result_file, MYF(0));
   cleanup();
@@ -2292,6 +2262,8 @@ static void quit(Exit_status retval)
   my_end(my_end_arg | MY_DONT_FREE_DBUG);
 
   exit(retval == ERROR_STOP ? 1 : 0);
+  /* Keep compilers happy. */
+  DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
 }
 
 /*

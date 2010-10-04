@@ -37,12 +37,7 @@ UNIV_INTERN ulint	ut_dbg_zero	= 0;
 will stop at the next ut_a() or ut_ad(). */
 UNIV_INTERN ibool	ut_dbg_stop_threads	= FALSE;
 #endif
-#ifdef __NETWARE__
-/** Flag for ignoring further assertion failures.  This is set to TRUE
-when on NetWare there happens an InnoDB assertion failure or other
-fatal error condition that requires an immediate shutdown. */
-UNIV_INTERN ibool panic_shutdown = FALSE;
-#elif !defined(UT_DBG_USE_ABORT)
+#ifndef UT_DBG_USE_ABORT
 /** A null pointer that will be dereferenced to trigger a memory trap */
 UNIV_INTERN ulint*	ut_dbg_null_ptr		= NULL;
 #endif
@@ -86,22 +81,7 @@ ut_dbg_assertion_failed(
 #endif
 }
 
-#ifdef __NETWARE__
-/*************************************************************//**
-Shut down MySQL/InnoDB after assertion failure. */
-UNIV_INTERN
-void
-ut_dbg_panic(void)
-/*==============*/
-{
-	if (!panic_shutdown) {
-		panic_shutdown = TRUE;
-		innobase_shutdown_for_mysql();
-	}
-	exit(1);
-}
-#else /* __NETWARE__ */
-# if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
+#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 /*************************************************************//**
 Stop a thread after assertion failure. */
 UNIV_INTERN
@@ -117,8 +97,7 @@ ut_dbg_stop_thread(
 	os_thread_sleep(1000000000);
 #endif /* !UNIV_HOTBACKUP */
 }
-# endif
-#endif /* __NETWARE__ */
+#endif
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 

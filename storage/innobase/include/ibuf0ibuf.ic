@@ -46,11 +46,12 @@ struct ibuf_struct{
 	ulint		seg_size;	/*!< allocated pages of the file
 					segment containing ibuf header and
 					tree */
-	ibool		empty;		/*!< after an insert to the ibuf tree
-					is performed, this is set to FALSE,
-					and if a contract operation finds
-					the tree empty, this is set to
-					TRUE */
+	ibool		empty;		/*!< Protected by the page
+					latch of the root page of the
+					insert buffer tree
+					(FSP_IBUF_TREE_ROOT_PAGE_NO). TRUE
+					if and only if the insert
+					buffer tree is empty. */
 	ulint		free_list_len;	/*!< length of the free list */
 	ulint		height;		/*!< tree height */
 	dict_index_t*	index;		/*!< insert buffer index */

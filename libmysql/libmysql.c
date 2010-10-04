@@ -34,7 +34,7 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(MSDOS) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -45,7 +45,7 @@
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /* !defined(MSDOS) && !defined(__WIN__) */
+#endif /* !defined(__WIN__) */
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
@@ -74,7 +74,7 @@ ulong		max_allowed_packet= 1024L*1024L*1024L;
 my_bool	net_flush(NET *net);
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 /* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
 #else
@@ -128,31 +128,29 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     init_client_errs();
     if (!mysql_port)
     {
-      mysql_port = MYSQL_PORT;
-#ifndef MSDOS
-      {
-	struct servent *serv_ptr __attribute__((unused));
-	char	*env;
+      char *env;
+      struct servent *serv_ptr __attribute__((unused));
 
-        /*
-          if builder specifically requested a default port, use that
-          (even if it coincides with our factory default).
-          only if they didn't do we check /etc/services (and, failing
-          on that, fall back to the factory default of 3306).
-          either default can be overridden by the environment variable
-          MYSQL_TCP_PORT, which in turn can be overridden with command
-          line options.
-        */
+      mysql_port = MYSQL_PORT;
+
+      /*
+        if builder specifically requested a default port, use that
+        (even if it coincides with our factory default).
+        only if they didn't do we check /etc/services (and, failing
+        on that, fall back to the factory default of 3306).
+        either default can be overridden by the environment variable
+        MYSQL_TCP_PORT, which in turn can be overridden with command
+        line options.
+      */
 
 #if MYSQL_PORT_DEFAULT == 0
-        if ((serv_ptr = getservbyname("mysql", "tcp")))
-          mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+      if ((serv_ptr= getservbyname("mysql", "tcp")))
+        mysql_port= (uint) ntohs((ushort) serv_ptr->s_port);
 #endif
-        if ((env = getenv("MYSQL_TCP_PORT")))
-          mysql_port =(uint) atoi(env);
-      }
-#endif
+      if ((env= getenv("MYSQL_TCP_PORT")))
+        mysql_port=(uint) atoi(env);
     }
+
     if (!mysql_unix_port)
     {
       char *env;
@@ -165,7 +163,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(__WIN__) && !defined(__NETWARE__)
+#if defined(SIGPIPE) && !defined(__WIN__)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
@@ -216,13 +214,6 @@ void STDCALL mysql_server_end()
   }
 
   mysql_client_init= org_my_init_done= 0;
-#ifdef EMBEDDED_SERVER
-  if (stderror_file)
-  {
-    fclose(stderror_file);
-    stderror_file= 0;
-  }
-#endif
 }
 
 static MYSQL_PARAMETERS mysql_internal_parameters=
@@ -318,7 +309,7 @@ sig_handler
 my_pipe_sig_handler(int sig __attribute__((unused)))
 {
   DBUG_PRINT("info",("Hit by signal %d",sig));
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   (void) signal(SIGPIPE, my_pipe_sig_handler);
 #endif
 }
@@ -341,7 +332,7 @@ mysql_connect(MYSQL *mysql,const char *host,
     if (!(res=mysql_real_connect(mysql,host,user,passwd,NullS,0,NullS,0)))
     {
       if (mysql->free_me)
-	my_free((uchar*) mysql,MYF(0));
+	my_free(mysql);
     }
     mysql->reconnect= 1;
     DBUG_RETURN(res);
@@ -457,9 +448,9 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (rc == 0)
   {
     /* Free old connect information */
-    my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->user);
+    my_free(mysql->passwd);
+    my_free(mysql->db);
 
     /* alloc new connect information */
     mysql->user=  my_strdup(user,MYF(MY_WME));
@@ -479,15 +470,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if defined(__NETWARE__)
-/* Default to value of USER on NetWare, if unset use "UNKNOWN_USER" */
-void read_user_name(char *name)
-{
-  char *str=getenv("USER");
-  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
-}
-
-#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__)
+#if !defined(__WIN__)
 
 void read_user_name(char *name)
 {
@@ -517,7 +500,7 @@ void read_user_name(char *name)
   DBUG_VOID_RETURN;
 }
 
-#else /* If MSDOS || VMS */
+#else /* If Windows */
 
 void read_user_name(char *name)
 {
@@ -604,7 +587,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 err:
   /* free up memory allocated with _init, usually */
   (*options->local_infile_end)(li_ptr);
-  my_free(buf, MYF(0));
+  my_free(buf);
   DBUG_RETURN(result);
 }
 
@@ -715,7 +698,7 @@ static void default_local_infile_end(void *ptr)
   {
     if (data->fd >= 0)
       my_close(data->fd, MYF(MY_WME));
-    my_free(ptr, MYF(MY_WME));
+    my_free(ptr);
   }
 }
 
@@ -2127,9 +2110,16 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   stmt->insert_id= mysql->insert_id;
   if (res)
   {
-    set_stmt_errmsg(stmt, net);
+    /* 
+      Don't set stmt error if stmt->mysql is NULL, as the error in this case 
+      has already been set by mysql_prune_stmt_list(). 
+    */
+    if (stmt->mysql)
+      set_stmt_errmsg(stmt, net);
     DBUG_RETURN(1);
   }
+  else if (mysql->status == MYSQL_STATUS_GET_RESULT)
+    stmt->mysql->status= MYSQL_STATUS_STATEMENT_GET_RESULT;
   DBUG_RETURN(0);
 }
 
@@ -2206,7 +2196,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     }
     result= execute(stmt, param_data, length);
     stmt->send_types_to_server=0;
-    my_free(param_data, MYF(MY_WME));
+    my_free(param_data);
     DBUG_RETURN(result);
   }
   DBUG_RETURN((int) execute(stmt,0,0));
@@ -2268,7 +2258,7 @@ static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row)
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate, NULL);
     return 1;
   }
-  if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  if (mysql->status != MYSQL_STATUS_STATEMENT_GET_RESULT)
   {
     set_stmt_error(stmt, stmt->unbuffered_fetch_cancelled ?
                    CR_FETCH_CANCELED : CR_COMMANDS_OUT_OF_SYNC,
@@ -2338,7 +2328,12 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
                                             buff, sizeof(buff), (uchar*) 0, 0,
                                             1, stmt))
     {
-      set_stmt_errmsg(stmt, net);
+      /* 
+        Don't set stmt error if stmt->mysql is NULL, as the error in this case 
+        has already been set by mysql_prune_stmt_list(). 
+      */
+      if (stmt->mysql)
+        set_stmt_errmsg(stmt, net);
       return 1;
     }
     if ((*mysql->methods->read_rows_from_cursor)(stmt))
@@ -3025,7 +3020,12 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
                                             buff, sizeof(buff), (uchar*) data,
                                             length, 1, stmt))
     {
-      set_stmt_errmsg(stmt, &mysql->net);
+      /* 
+        Don't set stmt error if stmt->mysql is NULL, as the error in this case 
+        has already been set by mysql_prune_stmt_list(). 
+      */
+      if (stmt->mysql)
+        set_stmt_errmsg(stmt, &mysql->net);
       DBUG_RETURN(1);
     }
   }
@@ -4027,6 +4027,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_TIME:
     field->max_length= 15;                    /* 19:23:48.123456 */
     param->skip_result= skip_result_with_length;
+    break;
   case MYSQL_TYPE_DATE:
     field->max_length= 10;                    /* 2003-11-11 */
     param->skip_result= skip_result_with_length;
@@ -4440,11 +4441,16 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     if (cli_advanced_command(mysql, COM_STMT_FETCH, buff, sizeof(buff),
                              (uchar*) 0, 0, 1, stmt))
     {
-      set_stmt_errmsg(stmt, net);
+      /* 
+        Don't set stmt error if stmt->mysql is NULL, as the error in this case 
+        has already been set by mysql_prune_stmt_list(). 
+      */
+      if (stmt->mysql)
+        set_stmt_errmsg(stmt, net);
       DBUG_RETURN(1);
     }
   }
-  else if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  else if (mysql->status != MYSQL_STATUS_STATEMENT_GET_RESULT)
   {
     set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate, NULL);
     DBUG_RETURN(1);
@@ -4707,7 +4713,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
     }
   }
 
-  my_free((uchar*) stmt, MYF(MY_WME));
+  my_free(stmt);
 
   DBUG_RETURN(test(rc));
 }
@@ -4867,6 +4873,9 @@ int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt)
     set_stmt_errmsg(stmt, &mysql->net);
     DBUG_RETURN(rc);
   }
+
+  if (mysql->status == MYSQL_STATUS_GET_RESULT)
+    mysql->status= MYSQL_STATUS_STATEMENT_GET_RESULT;
 
   stmt->state= MYSQL_STMT_EXECUTE_DONE;
   stmt->bind_result_done= FALSE;

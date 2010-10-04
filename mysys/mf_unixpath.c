@@ -16,10 +16,15 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
-	/* convert filename to unix style filename */
-	/* If MSDOS converts '\' to '/' */
+/**
+  Convert filename to unix style filename.
 
-void to_unix_path(char * to __attribute__((unused)))
+  @remark On Windows, converts '\' to '/'.
+
+  @param to   A pathname.
+*/
+
+void to_unix_path(char *to __attribute__((unused)))
 {
 #if FN_LIBCHAR != '/'
   {

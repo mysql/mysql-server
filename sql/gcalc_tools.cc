@@ -26,6 +26,11 @@
 #define float_to_coord(d) ((double) d)
 
 
+/*
+  Adds new shape to the relation.
+  After that it can be used as an argument of an operation.
+*/
+
 gcalc_shape_info Gcalc_function::add_new_shape(uint32 shape_id,
                                                shape_type shape_kind)
 {
@@ -34,6 +39,12 @@ gcalc_shape_info Gcalc_function::add_new_shape(uint32 shape_id,
 }
 
 
+/*
+  Adds new operation to the constructed relation.
+  To construct the complex relation one has to specify operations
+  in prefix style.
+*/
+
 void Gcalc_function::add_operation(op_type operation, uint32 n_operands)
 {
   uint32 op_code= (uint32 ) operation + n_operands;
@@ -41,12 +52,22 @@ void Gcalc_function::add_operation(op_type operation, uint32 n_operands)
 }
 
 
+/*
+  Sometimes the number of arguments is unknown at the moment the operation
+  is added. That allows to specify it later.
+*/
+
 void Gcalc_function::add_operands_to_op(uint32 operation_pos, uint32 n_operands)
 {
   uint32 op_code= uint4korr(function_buffer.ptr() + operation_pos) + n_operands;
   function_buffer.write_at_position(operation_pos, op_code);
 }
 
+
+/*
+  Just like the add_operation() but the result will be the inverted
+  value of an operation.
+*/
 
 void Gcalc_function::add_not_operation(op_type operation, uint32 n_operands)
 {
@@ -65,11 +86,19 @@ int Gcalc_function::single_shape_op(shape_type shape_kind, gcalc_shape_info *si)
 }
 
 
+/*
+  Specify how many arguments we're going to have.
+*/
+
 int Gcalc_function::reserve_shape_buffer(uint n_shapes)
 {
   return shapes_buffer.reserve(n_shapes * 4, 512);
 }
 
+
+/*
+  Specify how many operations we're going to have.
+*/
 
 int Gcalc_function::reserve_op_buffer(uint n_ops)
 {
@@ -128,6 +157,10 @@ int Gcalc_function::count_internal()
   return result ^ mask;
 }
 
+
+/*
+  Clear the state of the object.
+*/
 
 void Gcalc_function::reset()
 {
@@ -255,12 +288,8 @@ int Gcalc_result_receiver::start_shape(Gcalc_function::shape_type shape)
 int Gcalc_result_receiver::add_point(double x, double y)
 {
   if (n_points && x == prev_x && y == prev_y)
-  {
-    GCALC_DBUG_PRINT(("Skip same point %.15g\t%.15g\n", x, y));
     return 0;
-  }
 
-  GCALC_DBUG_PRINT(("Add result point %.15g\t%.15g\n", x, y));
   if (!n_points++)
   {
     prev_x= first_x= x;
@@ -313,8 +342,6 @@ int Gcalc_result_receiver::complete_shape()
   buffer.q_append(prev_y);
   
 do_complete:
-  GCALC_DBUG_PRINT(("Complete shape %d\n", n_points));
-
   buffer.write_at_position(shape_pos, (uint32) cur_shape);
 
   if (!n_shapes++)
@@ -441,8 +468,6 @@ inline int Gcalc_operation_reducer::continue_range(active_thread *t,
   rp->intersection_point= false;
   rp->pi= p;
   t->rp= rp;
-  GCALC_DBUG_PRINT(("Cont_range %d\t%d\t%.15g\t%.15g\n", (int) t,
-                    (int) p->shape, p->x, p->y));
   return 0;
 }
 
@@ -463,8 +488,6 @@ inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
   rp->pi= p;
   rp->y= y;
   t->rp= rp;
-  GCALC_DBUG_PRINT(("Cont_i_range %d\t%d\t%.15g\t%.15g\n", (int) t,
-                    (int) p->shape, p->x, p->y));
   return 0;
 }
 
@@ -479,8 +502,6 @@ inline int Gcalc_operation_reducer::start_range(active_thread *t,
   rp->pi= p;
   t->result_range= 1;
   t->rp= rp;
-  GCALC_DBUG_PRINT(("Start_range %d\t%d\t%.15g\t%.15g\n", (int) t,
-                    (int) p->shape, p->x, p->y));
   return 0;
 }
 
@@ -498,8 +519,6 @@ inline int Gcalc_operation_reducer::start_i_range(active_thread *t,
   rp->pi= p;
   t->result_range= 1;
   t->rp= rp;
-  GCALC_DBUG_PRINT(("Start_i_range %d\t%d\t%.15g\t%.15g\n", (int) t,
-                    (int) p->shape, p->x, p->y));
   return 0;
 }
 
@@ -515,8 +534,6 @@ inline int Gcalc_operation_reducer::end_range(active_thread *t,
   rp->pi= p;
   t->rp->up= rp;
   t->result_range= 0;
-  GCALC_DBUG_PRINT(("End_range %d\t%d\t%.15g\t%.15g\n", (int) t,
-                    (int) p->shape, p->x, p->y));
   return 0;
 }
 
@@ -535,8 +552,6 @@ inline int Gcalc_operation_reducer::end_i_range(active_thread *t,
   rp->y= y;
   t->rp->up= rp;
   t->result_range= 0;
-  GCALC_DBUG_PRINT(("End_i_range %d\t%d\t%.15g\t%.15g\n", (int) t,
-                    (int) p->shape, p->x, p->y));
   return 0;
 }
 
@@ -564,9 +579,6 @@ int Gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
     rp0->outer_poly= 0;
     t0->thread_start= rp0;
   }
-  GCALC_DBUG_PRINT(("Start_couple t0 %d\tt1 %d\tshape %d\t%.15g\t%.15g\t%d\n",
-                    (int) t0, (int) t1, (int) p->shape, p->x, p->y,
-                    (int) prev_range));
   return 0;
 }
 
@@ -600,9 +612,6 @@ int Gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1
     rp0->outer_poly= 0;
     t0->thread_start= rp0;
   }
-  GCALC_DBUG_PRINT(("Start_i_couple t0 %d\tt1 %d\tshape0 %d\tshape1 %d\t%.15g\t%.15g\t%d\n",
-                    (int) t0, (int) t1, (int) p0->shape, (int) p1->shape, x, y,
-                    (int) prev_range));
   return 0;
 }
 
@@ -623,8 +632,6 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
   rp0->intersection_point= rp1->intersection_point= false;
   rp0->pi= rp1->pi= p;
   t0->result_range= t1->result_range= 0;
-  GCALC_DBUG_PRINT(("End_couple t0 %d\tt1 %d\tshape %d\t%.15g\t%.15g\n",
-                    (int) t0, (int) t1, (int) p->shape, p->x, p->y));
   return 0;
 }
 
@@ -649,8 +656,6 @@ int Gcalc_operation_reducer::end_i_couple(active_thread *t0, active_thread *t1,
   t0->result_range= t1->result_range= 0;
   t0->rp->up= rp0;
   t1->rp->up= rp1;
-  GCALC_DBUG_PRINT(("End_i_couple t0 %d\tt1 %d\tshape0 %d\tshape1 %d\t%.15g\t%.15g\n",
-                    (int) t0, (int) t1, (int) p0->shape, (int) p1->shape, x, y));
   return 0;
 }
 
@@ -664,8 +669,6 @@ int Gcalc_operation_reducer::add_single_point(const Gcalc_heap::Info *p)
   rp->pi= p;
   rp->x= p->x;
   rp->y= p->y;
-  GCALC_DBUG_PRINT(("Single point shape %d\t%.15g\t%.15g\n",
-                    (int) p->shape, p->x, p->y));
   return 0;
 }
 
@@ -680,8 +683,6 @@ int Gcalc_operation_reducer::add_i_single_point(const Gcalc_heap::Info *p,
   rp->x= x;
   rp->pi= p;
   rp->y= y;
-  GCALC_DBUG_PRINT(("i_Single point shape %d\t%.15g\t%.15g\n",
-                    (int) p->shape, x, y));
   return 0;
 }
 
@@ -1008,7 +1009,6 @@ int Gcalc_operation_reducer::get_result_thread(res_point *cur,
   bool glue_step= false;
   res_point *first_poly_node= cur;
   double x, y;
-  GCALC_DBUG_PRINT(("Result thread \n"));
   while (cur)
   {
     if (!glue_step)
@@ -1087,13 +1087,11 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
 
 int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
 {
-  GCALC_DBUG_PRINT(("get_result\n"));
   *m_res_hook= NULL;
   while (m_result)
   {
     if (!m_result->up)
     {
-      GCALC_DBUG_PRINT(("singlet\n"));
       if (get_single_result(m_result, storage))
 	return 1;
       continue;
@@ -1101,11 +1099,9 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     Gcalc_function::shape_type shape= m_fn->get_shape_kind(m_result->pi->shape);
     if (shape == Gcalc_function::shape_polygon)
     {
-      GCALC_DBUG_PRINT(("Polygon result \n"));
       if (m_result->outer_poly)
       {
         uint32 *insert_position, hole_position;
-        GCALC_DBUG_PRINT(("\tOuter poly \n"));
         insert_position= &m_result->outer_poly->first_poly_node->poly_position;
         DBUG_ASSERT(*insert_position);
         hole_position= storage->position();
@@ -1118,7 +1114,6 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
       else
       {
         uint32 *poly_position= &m_result->poly_position;
-        GCALC_DBUG_PRINT(("\tNo outer poly \n"));
         storage->start_shape(Gcalc_function::shape_polygon);
         if (get_polygon_result(m_result, storage))
           return 1;
@@ -1127,7 +1122,6 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     }
     else
     {
-      GCALC_DBUG_PRINT(("Line result \n"));
       storage->start_shape(shape);
       if (get_line_result(m_result, storage))
 	return 1;

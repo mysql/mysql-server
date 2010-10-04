@@ -179,13 +179,13 @@ while (`SELECT $unsafe_type < 9`) {
   }
 
   if (`SELECT $unsafe_type = 3`) {
-    --echo ==== Testing INSERT DELAYED unsafeness ====
+    --echo ==== Testing INSERT DELAYED safeness after BUG#54579 is fixed ====
     --let $desc_0= unsafe INSERT DELAYED statement
     --let $stmt_sidef_0= INSERT DELAYED INTO t0 VALUES (1), (2)
     --let $value_0=
     --let $sel_sidef_0=
     --let $sel_retval_0=
-    --let $CRC_ARG_expected_number_of_warnings= 1
+    --let $CRC_ARG_expected_number_of_warnings= 0
   }
 
   if (`SELECT $unsafe_type = 4`) {
@@ -227,7 +227,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $value_0=
     --let $sel_sidef_0=
     --let $sel_retval_0=
-    --let $CRC_ARG_expected_number_of_warnings= 7
+    --let $CRC_ARG_expected_number_of_warnings= 6
   }
 
   if (`SELECT $unsafe_type = 8`) {
@@ -468,6 +468,7 @@ BEGIN
 END|
 DELIMITER ;|
 --echo "One unsafe warning should be issued in the following statement"
+--error ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
 SELECT fun_check_log_bin();
 --echo "SQL_LOG_BIN should be ON still"
 SHOW VARIABLES LIKE "SQL_LOG_BIN";

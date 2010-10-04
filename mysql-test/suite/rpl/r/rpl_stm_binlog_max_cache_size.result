@@ -5,6 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Option binlog_cache_size ");
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
 CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
@@ -32,18 +33,12 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 source include/diff_master_slave.inc;
 ########################################################################################
 #                                     3 - BEGIN - COMMIT
@@ -55,8 +50,6 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 source include/diff_master_slave.inc;
 ########################################################################################
@@ -69,8 +62,6 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -109,8 +100,6 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 ROLLBACK TO sv;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -123,22 +112,42 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
 BEGIN;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 BEGIN;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Got one of the listed errors
 COMMIT;
 source include/diff_master_slave.inc;
+########################################################################################
+#                       CHECK MAX_BINLOG_CACHE_SIZE and BINLOG_CACHE_SIZE
+########################################################################################
+SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 8192;
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+Variable_name	Value
+max_binlog_cache_size	8192
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+Variable_name	Value
+binlog_cache_size	4096
+SET @@GLOBAL.BINLOG_CACHE_SIZE= 16384;
+Warnings:
+Warning	1709	Option binlog_cache_size (16384) is greater than max_binlog_cache_size (8192); setting binlog_cache_size equal to max_binlog_cache_size.
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+Variable_name	Value
+max_binlog_cache_size	8192
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+Variable_name	Value
+binlog_cache_size	8192
+SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 4096;
+Warnings:
+Warning	1709	Option binlog_cache_size (8192) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+Variable_name	Value
+max_binlog_cache_size	4096
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+Variable_name	Value
+binlog_cache_size	4096
 ########################################################################################
 #                                        CLEAN
 ########################################################################################
@@ -149,5 +158,5 @@ DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
 Warnings:
-Note	1051	Unknown table 't6'
+Note	1051	Unknown table 'test.t6'
 DROP PROCEDURE p1;

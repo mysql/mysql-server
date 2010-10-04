@@ -840,13 +840,13 @@ Dbtux::TreeEnt::cmp(const TreeEnt ent) const
    */
   const unsigned version_wrap_limit = (1 << (ZTUP_VERSION_BITS - 1));
   if (m_tupVersion < ent.m_tupVersion) {
-    if (ent.m_tupVersion - m_tupVersion < version_wrap_limit)
+    if (unsigned(ent.m_tupVersion - m_tupVersion) < version_wrap_limit)
       return -1;
     else
       return +1;
   }
   if (m_tupVersion > ent.m_tupVersion) {
-    if (m_tupVersion - ent.m_tupVersion < version_wrap_limit)
+    if (unsigned(m_tupVersion - ent.m_tupVersion) < version_wrap_limit)
       return +1;
     else
       return -1;

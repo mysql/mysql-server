@@ -66,6 +66,9 @@ Created 11/5/1995 Heikki Tuuri
 #define MAX_BUFFER_POOLS 64		/*!< The maximum number of buffer
 					pools that can be defined */
 
+#define MAX_PAGE_HASH_MUTEXES	1024	/*!< The maximum number of
+					page_hash mutexes */
+
 #define BUF_POOL_WATCH_SIZE 1		/*!< Maximum number of concurrent
 					buffer pool watches */
 
@@ -869,7 +872,8 @@ buf_page_set_accessed(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed
-page frame exists, or NULL.
+page frame exists, or NULL. Note: even though bpage is not declared a
+const we don't update its value. It is safe to make this pure.
 @return	control block, or NULL */
 UNIV_INLINE
 buf_block_t*
@@ -1073,35 +1077,55 @@ UNIV_INLINE
 buf_page_t*
 buf_page_hash_get_low(
 /*==================*/
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	ulint		space,		/*!< in: space id */
-	ulint		offset,		/*!< in: offset of the page
-					within space */
-	ulint		fold);		/*!< in: buf_page_address_fold(
-					space, offset) */
+	buf_pool_t*	buf_pool,/*!< buffer pool instance */
+	ulint		space,	/*!< in: space id */
+	ulint		offset,	/*!< in: offset of the page within space */
+	ulint		fold);	/*!< in: buf_page_address_fold(space, offset) */
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
-@return	block, NULL if not found or not a real control block */
+If the block is found and mutex is not NULL then the appropriate
+page_hash mutex is acquired. It is up to the caller to release the
+mutex. If the block is found and the mutex is NULL then the page_hash
+mutex is released by this function.
+@return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
 buf_page_hash_get(
 /*==============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+					/*!< out: pointer to the bpage,
+					or NULL; if NULL, hash_mutex
+					is also NULL. */
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
-	ulint		offset);	/*!< in: offset of the page
-					within space */
+	ulint		offset,		/*!< in: page number */
+	mutex_t**	mutex);		/*!< in/out: mutex of the page
+					hash acquired if bpage is
+					found. NULL otherwise. If NULL
+					is passed then the hash_mutex
+					is released by this function */
 /******************************************************************//**
-Returns the control block of a file page, NULL if not found
-or an uncompressed page frame does not exist.
+Returns the control block of a file page, NULL if not found or an
+uncompressed page frame does not exist.
+If the block is found and mutex is not NULL then the appropriate
+page_hash mutex is acquired. It is upto the caller to release the
+mutex. If the block is found and the mutex is NULL then the page_hash
+mutex is released by this function.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_block_t*
 buf_block_hash_get(
 /*===============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+					/*!< out: pointer to the bpage,
+					or NULL; if NULL, hash_mutex
+					is also NULL. */
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
-	ulint		offset);	/*!< in: offset of the page
-					within space */
+	ulint		offset,		/*!< in: page number */
+	mutex_t**	mutex);		/*!< in/out: mutex of the page
+					hash acquired if bpage is
+					found. NULL otherwise. If NULL
+					is passed then the hash_mutex
+					is released by this function */
 /*********************************************************************//**
 Gets the current length of the free list of buffer blocks.
 @return	length of the free list */
@@ -1194,7 +1218,16 @@ struct buf_page_struct{
 					BUF_BLOCK_READY_FOR_USE to
 					BUF_BLOCK_MEMORY need not be
 					protected by buf_page_get_mutex().
-					@see enum buf_page_state */
+					@see enum buf_page_state.
+					State changes that are relevant
+					to page_hash are additionally
+					protected by the appropriate
+					page_hash mutex i.e.: if a page
+					is in page_hash or is being
+					added to/removed from page_hash
+					then the corresponding changes
+					must also be protected by
+					page_hash mutex. */
 #ifndef UNIV_HOTBACKUP
 	unsigned	flush_type:2;	/*!< if this block is currently being
 					flushed to disk, this tells the
@@ -1535,7 +1568,14 @@ struct buf_pool_struct{
 	hash_table_t*	page_hash;	/*!< hash table of buf_page_t or
 					buf_block_t file pages,
 					buf_page_in_file() == TRUE,
-					indexed by (space_id, offset) */
+					indexed by (space_id, offset).
+					page_hash is protected by an
+					array of mutexes.
+					Changes in page_hash are protected
+					by buf_pool_mutex and the relevant
+					page_hash mutex. Lookups can happen
+					while holding the buf_pool_mutex or
+					the relevant page_hash mutex. */
 	hash_table_t*	zip_hash;	/*!< hash table of buf_block_t blocks
 					whose frames are allocated to the
 					zip buddy system,
@@ -1692,6 +1732,20 @@ Use these instead of accessing buf_pool_mutex directly. */
 } while (0)
 
 
+
+/** Get appropriate page_hash_mutex. */
+#define buf_page_hash_mutex_get(b, f)		\
+	hash_get_mutex(b->page_hash, f)
+
+/** Test if page_hash mutex is owned. */
+#define buf_page_hash_mutex_own(b, p)			\
+	mutex_own(buf_page_hash_mutex_get(b,		\
+		  buf_page_address_fold(p->space,	\
+					p->offset)))
+#define buf_block_hash_mutex_own(b, p)			\
+	mutex_own(buf_page_hash_mutex_get(b,		\
+		  buf_page_address_fold(p->page.space,	\
+					p->page.offset)))
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Forbid the release of the buffer pool mutex. */

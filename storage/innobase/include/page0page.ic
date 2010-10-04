@@ -94,11 +94,10 @@ page_update_max_trx_id(
 	TRUE for the dummy indexes constructed during redo log
 	application).  In that case, PAGE_MAX_TRX_ID is unused,
 	and trx_id is usually zero. */
-	ut_ad(!ut_dulint_is_zero(trx_id) || recv_recovery_is_on());
+	ut_ad(trx_id || recv_recovery_is_on());
 	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 
-	if (ut_dulint_cmp(page_get_max_trx_id(buf_block_get_frame(block)),
-			  trx_id) < 0) {
+	if (page_get_max_trx_id(buf_block_get_frame(block)) < trx_id) {
 
 		page_set_max_trx_id(block, page_zip, trx_id, mtr);
 	}

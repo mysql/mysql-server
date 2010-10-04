@@ -17,7 +17,6 @@
   More functions to be used with IO_CACHE files
 */
 
-#define MAP_TO_USE_RAID
 #include "mysys_priv.h"
 #include <m_string.h>
 #include <stdarg.h>
@@ -70,6 +69,16 @@ my_b_copy_to_file(IO_CACHE *cache, FILE *file)
 
 my_off_t my_b_append_tell(IO_CACHE* info)
 {
+  /*
+    Sometimes we want to make sure that the variable is not put into
+    a register in debugging mode so we can see its value in the core
+  */
+#ifndef DBUG_OFF
+# define dbug_volatile volatile
+#else
+# define dbug_volatile
+#endif
+
   /*
     Prevent optimizer from putting res in a register when debugging
     we need this to be able to see the value of res when the assert fails

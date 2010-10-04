@@ -1,5 +1,6 @@
 #include "mysql/psi/psi.h"
 C_MODE_START
+struct TABLE_SHARE;
 struct PSI_mutex;
 struct PSI_rwlock;
 struct PSI_cond;
@@ -7,6 +8,7 @@ struct PSI_table_share;
 struct PSI_table;
 struct PSI_thread;
 struct PSI_file;
+struct PSI_table_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
@@ -52,7 +54,15 @@ enum PSI_file_operation
   PSI_FILE_RENAME= 15,
   PSI_FILE_SYNC= 16
 };
-struct PSI_table_locker;
+enum PSI_table_operation
+{
+  PSI_TABLE_LOCK= 0,
+  PSI_TABLE_EXTERNAL_LOCK= 1,
+  PSI_TABLE_FETCH_ROW= 2,
+  PSI_TABLE_WRITE_ROW= 3,
+  PSI_TABLE_UPDATE_ROW= 4,
+  PSI_TABLE_DELETE_ROW= 5
+};
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;
 typedef unsigned int PSI_cond_key;
@@ -88,6 +98,72 @@ struct PSI_file_info_v1
   const char *m_name;
   int m_flags;
 };
+struct PSI_mutex_locker_state_v1
+{
+  uint m_flags;
+  struct PSI_mutex *m_mutex;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  enum PSI_mutex_operation m_operation;
+  const char* m_src_file;
+  int m_src_line;
+  void *m_wait;
+};
+struct PSI_rwlock_locker_state_v1
+{
+  uint m_flags;
+  struct PSI_rwlock *m_rwlock;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  enum PSI_rwlock_operation m_operation;
+  const char* m_src_file;
+  int m_src_line;
+  void *m_wait;
+};
+struct PSI_cond_locker_state_v1
+{
+  uint m_flags;
+  struct PSI_cond *m_cond;
+  struct PSI_mutex *m_mutex;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  enum PSI_cond_operation m_operation;
+  const char* m_src_file;
+  int m_src_line;
+  void *m_wait;
+};
+struct PSI_file_locker_state_v1
+{
+  uint m_flags;
+  struct PSI_file *m_file;
+  struct PSI_thread *m_thread;
+  size_t m_number_of_bytes;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  enum PSI_file_operation m_operation;
+  const char* m_src_file;
+  int m_src_line;
+  void *m_wait;
+};
+struct PSI_table_locker_state_v1
+{
+  uint m_flags;
+  struct PSI_table *m_table;
+  struct PSI_table_share *m_table_share;
+  void *m_class;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  enum PSI_table_operation m_operation;
+  uint m_index;
+  uint m_lock_index;
+  const char* m_src_file;
+  int m_src_line;
+  void *m_wait;
+};
 typedef void (*register_mutex_v1_t)
   (const char *category, struct PSI_mutex_info_v1 *info, int count);
 typedef void (*register_rwlock_v1_t)
@@ -108,9 +184,11 @@ typedef struct PSI_cond* (*init_cond_v1_t)
   (PSI_cond_key key, const void *identity);
 typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
 typedef struct PSI_table_share* (*get_table_share_v1_t)
-  (const char *schema_name, int schema_name_length, const char *table_name,
-   int table_name_length, const void *identity);
+  (my_bool temporary, struct TABLE_SHARE *share);
 typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
+typedef void (*drop_table_share_v1_t)
+  (const char *schema_name, int schema_name_length,
+   const char *table_name, int table_name_length);
 typedef struct PSI_table* (*open_table_v1_t)
   (struct PSI_table_share *share, const void *identity);
 typedef void (*close_table_v1_t)(struct PSI_table *table);
@@ -125,33 +203,50 @@ typedef struct PSI_thread* (*new_thread_v1_t)
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    unsigned long id);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
+typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
+typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,
+                                          const char *host, int host_len);
+typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
+typedef void (*set_thread_command_v1_t)(int command);
+typedef void (*set_thread_start_time_v1_t)(time_t start_time);
+typedef void (*set_thread_state_v1_t)(const char* state);
+typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
 typedef void (*delete_current_thread_v1_t)(void);
 typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
 typedef struct PSI_mutex_locker* (*get_thread_mutex_locker_v1_t)
-  (struct PSI_mutex *mutex, enum PSI_mutex_operation op);
+  (struct PSI_mutex_locker_state_v1 *state,
+   struct PSI_mutex *mutex,
+   enum PSI_mutex_operation op);
 typedef struct PSI_rwlock_locker* (*get_thread_rwlock_locker_v1_t)
-  (struct PSI_rwlock *rwlock, enum PSI_rwlock_operation op);
+  (struct PSI_rwlock_locker_state_v1 *state,
+   struct PSI_rwlock *rwlock,
+   enum PSI_rwlock_operation op);
 typedef struct PSI_cond_locker* (*get_thread_cond_locker_v1_t)
-  (struct PSI_cond *cond, struct PSI_mutex *mutex,
+  (struct PSI_cond_locker_state_v1 *state,
+   struct PSI_cond *cond, struct PSI_mutex *mutex,
    enum PSI_cond_operation op);
 typedef struct PSI_table_locker* (*get_thread_table_locker_v1_t)
-  (struct PSI_table *table);
+  (struct PSI_table_locker_state_v1 *state,
+   struct PSI_table *table, enum PSI_table_operation op, ulong flags);
 typedef struct PSI_file_locker* (*get_thread_file_name_locker_v1_t)
-  (PSI_file_key key, enum PSI_file_operation op, const char *name,
+  (struct PSI_file_locker_state_v1 *state,
+   PSI_file_key key, enum PSI_file_operation op, const char *name,
    const void *identity);
 typedef struct PSI_file_locker* (*get_thread_file_stream_locker_v1_t)
-  (struct PSI_file *file, enum PSI_file_operation op);
+  (struct PSI_file_locker_state_v1 *state,
+   struct PSI_file *file, enum PSI_file_operation op);
 typedef struct PSI_file_locker* (*get_thread_file_descriptor_locker_v1_t)
-  (File file, enum PSI_file_operation op);
+  (struct PSI_file_locker_state_v1 *state,
+   File file, enum PSI_file_operation op);
 typedef void (*unlock_mutex_v1_t)
-  (struct PSI_thread *thread, struct PSI_mutex *mutex);
+  (struct PSI_mutex *mutex);
 typedef void (*unlock_rwlock_v1_t)
-  (struct PSI_thread *thread, struct PSI_rwlock *rwlock);
+  (struct PSI_rwlock *rwlock);
 typedef void (*signal_cond_v1_t)
-  (struct PSI_thread *thread, struct PSI_cond *cond);
+  (struct PSI_cond *cond);
 typedef void (*broadcast_cond_v1_t)
-  (struct PSI_thread *thread, struct PSI_cond *cond);
+  (struct PSI_cond *cond);
 typedef void (*start_mutex_wait_v1_t)
   (struct PSI_mutex_locker *locker, const char *src_file, uint src_line);
 typedef void (*end_mutex_wait_v1_t)
@@ -169,7 +264,7 @@ typedef void (*start_cond_wait_v1_t)
 typedef void (*end_cond_wait_v1_t)
   (struct PSI_cond_locker *locker, int rc);
 typedef void (*start_table_wait_v1_t)
-  (struct PSI_table_locker *locker, const char *src_file, uint src_line);
+  (struct PSI_table_locker *locker, uint index, const char *src_file, uint src_line);
 typedef void (*end_table_wait_v1_t)(struct PSI_table_locker *locker);
 typedef struct PSI_file* (*start_file_open_wait_v1_t)
   (struct PSI_file_locker *locker, const char *src_file, uint src_line);
@@ -196,6 +291,7 @@ struct PSI_v1
   destroy_cond_v1_t destroy_cond;
   get_table_share_v1_t get_table_share;
   release_table_share_v1_t release_table_share;
+  drop_table_share_v1_t drop_table_share;
   open_table_v1_t open_table;
   close_table_v1_t close_table;
   create_file_v1_t create_file;
@@ -203,6 +299,13 @@ struct PSI_v1
   new_thread_v1_t new_thread;
   set_thread_id_v1_t set_thread_id;
   get_thread_v1_t get_thread;
+  set_thread_user_v1_t set_thread_user;
+  set_thread_user_host_v1_t set_thread_user_host;
+  set_thread_db_v1_t set_thread_db;
+  set_thread_command_v1_t set_thread_command;
+  set_thread_start_time_v1_t set_thread_start_time;
+  set_thread_state_v1_t set_thread_state;
+  set_thread_info_v1_t set_thread_info;
   set_thread_v1_t set_thread;
   delete_current_thread_v1_t delete_current_thread;
   delete_thread_v1_t delete_thread;
@@ -240,5 +343,10 @@ typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
+typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
+typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
+typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
+typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
+typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END

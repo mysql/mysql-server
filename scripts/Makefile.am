@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ## Process this file with automake to create Makefile.in
 
@@ -111,14 +111,15 @@ mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
 	@echo "Building $@";
 	@cat mysql_system_tables.sql mysql_system_tables_fix.sql > $@
 
+comp_sql_SOURCES= comp_sql.c
+
 #
 # Build mysql_fix_privilege_tables_sql.c from
 # mysql_fix_privileges_tables.sql using comp_sql
 # The "sleep" ensures the generated file has a younger timestamp than its source
 # (which may have been generated in this very same "make" run).
 #
-mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
-	$(MAKE) $(AM_MAKEFLAGS) comp_sql$(EXEEXT)
+mysql_fix_privilege_tables_sql.c: comp_sql$(EXEEXT) mysql_fix_privilege_tables.sql
 	sleep 2
 	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
 	  mysql_fix_privilege_tables \

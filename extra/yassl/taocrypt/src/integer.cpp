@@ -283,21 +283,23 @@ DWord() {}
     word GetHighHalfAsBorrow() const {return 0-halfs_.high;}
 
 private:
+    struct dword_struct
+    {
+    #ifdef LITTLE_ENDIAN_ORDER
+        word low;
+        word high;
+    #else
+        word high;
+        word low;
+    #endif
+    };
+
     union
     {
     #ifdef TAOCRYPT_NATIVE_DWORD_AVAILABLE
         dword whole_;
     #endif
-        struct
-        {
-        #ifdef LITTLE_ENDIAN_ORDER
-            word low;
-            word high;
-        #else
-            word high;
-            word low;
-        #endif
-        } halfs_;
+        struct dword_struct halfs_;
     };
 };
 
@@ -1214,20 +1216,24 @@ public:
     #define AS1(x) #x ";"
     #define AS2(x, y) #x ", " #y ";"
     #define AddPrologue \
+        word res; \
         __asm__ __volatile__ \
         ( \
             "push %%ebx;"	/* save this manually, in case of -fPIC */ \
-            "mov %2, %%ebx;" \
+            "mov %3, %%ebx;" \
             ".intel_syntax noprefix;" \
             "push ebp;"
     #define AddEpilogue \
             "pop ebp;" \
             ".att_syntax prefix;" \
             "pop %%ebx;" \
-                    : \
+            "mov %%eax, %0;" \
+                    : "=g" (res) \
                     : "c" (C), "d" (A), "m" (B), "S" (N) \
                     : "%edi", "memory", "cc" \
-        );
+        ); \
+        return res;
+
     #define MulPrologue \
         __asm__ __volatile__ \
         ( \

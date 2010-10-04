@@ -1,7 +1,8 @@
 #ifndef AUTHORS_INCLUDED
 #define AUTHORS_INCLUDED
 
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,6 +94,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Arjen Lentz", "Brisbane, Australia",
     "Documentation (2001-2004), Dutch error messages, LOG2()" },
   { "Marc Liyanage", "", "Created Mac OS X packages" },
+  { "Kelly Long", "Denver, CO, USA", "Pool Of Threads" },
   { "Zarko Mocnik", "", "Sorting for Slovenian language" },
   { "Per-Erik Martin", "Uppsala, Sweden", "Stored Procedures (5.0)" },
   { "Alexis Mikhailov", "", "User-defined functions" },
@@ -118,6 +120,8 @@ struct show_table_authors_st show_table_authors[]= {
   { "Jan Pazdziora", "", "Czech sorting order" },
   { "Benjamin Pflugmann", "",
     "Extended MERGE storage engine to handle INSERT" },
+  { "Evgeny Potemkin", "Russia",
+    "Filesort and derived tables optimizations, bugfixes" },
   { "Igor Romanenko", "",
     "mysqldump" },
   { "Mikael Ronström", "Stockholm, Sweden",

@@ -28,10 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ut0byte.h"
 
-/** prepare trx_t::id for being printed via printf(3) */
-#define TRX_ID_PREP_PRINTF(id)	(ullint) ut_conv_dulint_to_longlong(id)
-
-/** printf(3) format used for printing TRX_ID_PRINTF_PREP() */
+/** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT		"%llX"
 
 /** maximum length that a formatted trx_t::id could take, not including
@@ -81,12 +78,14 @@ enum trx_rb_ctx {
 			in crash recovery */
 };
 
+/** Row identifier (DB_ROW_ID, DATA_ROW_ID) */
+typedef ib_id_t	row_id_t;
 /** Transaction identifier (DB_TRX_ID, DATA_TRX_ID) */
-typedef dulint	trx_id_t;
+typedef ib_id_t	trx_id_t;
 /** Rollback pointer (DB_ROLL_PTR, DATA_ROLL_PTR) */
-typedef dulint	roll_ptr_t;
+typedef ib_id_t	roll_ptr_t;
 /** Undo number */
-typedef dulint	undo_no_t;
+typedef ib_id_t	undo_no_t;
 
 /** Transaction savepoint */
 typedef struct trx_savept_struct trx_savept_t;

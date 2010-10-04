@@ -75,6 +75,7 @@ class ha_archive: public handler
 
   archive_record_buffer *create_record_buffer(unsigned int length);
   void destroy_record_buffer(archive_record_buffer *r);
+  int frm_copy(azio_stream *src, azio_stream *dst);
 
 public:
   ha_archive(handlerton *hton, TABLE_SHARE *table_arg);
@@ -148,5 +149,6 @@ public:
   bool fix_rec_buff(unsigned int length);
   int unpack_row(azio_stream *file_to_read, uchar *record);
   unsigned int pack_row(uchar *record);
+  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 };
 

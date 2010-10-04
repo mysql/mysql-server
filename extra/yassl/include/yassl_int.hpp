@@ -34,9 +34,8 @@
 #include "openssl/ssl.h"  // ASN1_STRING and DH
 
 // Check if _POSIX_THREADS should be forced
-#if !defined(_POSIX_THREADS) && (defined(__NETWARE__) || defined(__hpux))
+#if !defined(_POSIX_THREADS) && defined(__hpux)
 // HPUX does not define _POSIX_THREADS as it's not _fully_ implemented
-// Netware supports pthreads but does not announce it
 #define _POSIX_THREADS
 #endif
 

@@ -1,5 +1,4 @@
 drop table if exists t1,t2;
-set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
 set @my_delayed_queue_size        =@@global.delayed_queue_size;
@@ -7,6 +6,7 @@ set @my_flush                     =@@global.flush;
 set @my_flush_time                =@@global.flush_time;
 set @my_key_buffer_size           =@@global.key_buffer_size;
 set @my_max_binlog_cache_size     =@@global.max_binlog_cache_size;
+set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_max_binlog_size           =@@global.max_binlog_size;
 set @my_max_connect_errors        =@@global.max_connect_errors;
 set @my_max_connections           =@@global.max_connections;
@@ -21,7 +21,6 @@ set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
 set @my_query_cache_limit         =@@global.query_cache_limit;
 set @my_query_cache_type          =@@global.query_cache_type;
-set @my_rpl_recovery_rank         =@@global.rpl_recovery_rank;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -542,9 +541,6 @@ set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
 set read_rnd_buffer_size=100;
-set global rpl_recovery_rank=100;
-Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
@@ -1039,7 +1035,6 @@ Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '1'
 set @save_join_buffer_size=@@join_buffer_size;
 set join_buffer_size=@save_join_buffer_size;
-set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
 set global delayed_queue_size        =@my_delayed_queue_size;
@@ -1047,6 +1042,7 @@ set global flush                     =@my_flush;
 set global flush_time                =@my_flush_time;
 set global key_buffer_size           =@my_key_buffer_size;
 set global max_binlog_cache_size     =@my_max_binlog_cache_size;
+set global binlog_cache_size         =@my_binlog_cache_size;
 set global max_binlog_size           =@my_max_binlog_size;
 set global max_connect_errors        =@my_max_connect_errors;
 set global max_connections           =@my_max_connections;
@@ -1063,9 +1059,6 @@ set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
 set global query_cache_limit         =@my_query_cache_limit;
 set global query_cache_type          =@my_query_cache_type;
-set global rpl_recovery_rank         =@my_rpl_recovery_rank;
-Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
@@ -1677,3 +1670,25 @@ SET @@sql_quote_show_create = @sql_quote_show_create_saved;
 
 # End of Bug#34828.
 
+# Make sure we can manipulate with autocommit in the
+# along with other variables.
+drop table if exists t1;
+drop function if exists t1_max;
+drop function if exists t1_min;
+create table t1 (a int) engine=innodb;
+insert into t1(a) values (0), (1);
+create function t1_max() returns int return (select max(a) from t1);
+create function t1_min() returns int return (select min(a) from t1);
+select t1_min();
+t1_min()
+0
+select t1_max();
+t1_max()
+1
+set @@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
+@@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
+@@session.autocommit=t1_min(), @@session.autocommit=t1_max();
+# Cleanup.
+drop table t1;
+drop function t1_min;
+drop function t1_max;

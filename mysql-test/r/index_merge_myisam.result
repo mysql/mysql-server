@@ -271,7 +271,7 @@ explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ref	i1	i1	4	const	1	
-1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where; Using join buffer
+1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where; Using join buffer (BNL, regular buffers)
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -348,7 +348,7 @@ where (A.key1 < 500000 or A.key2 < 3)
 and   (B.key1 < 500000 or B.key2 < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where; Using join buffer (BNL, regular buffers)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 < 500000 or A.key2 < 3)
@@ -362,7 +362,7 @@ where (A.key1 = 1 or A.key2 = 1)
 and   (B.key1 = 1 or B.key2 = 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where; Using join buffer (BNL, regular buffers)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 = 1 or A.key2 = 1)
@@ -377,7 +377,7 @@ where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.
 and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
-1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer (BNL, regular buffers)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A, t0 as B
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
@@ -1413,6 +1413,24 @@ WHERE
 `RUNID`= '' AND `SUBMITNR`= '' AND `ORDERNR`='' AND `PROGRAMM`='' AND
 `TESTID`='' AND `UCCHECK`='';
 drop table t1;
+#
+# Bug#50402 Optimizer producing wrong results when using Index Merge on InnoDB
+#
+CREATE TABLE t1 (f1 INT, PRIMARY KEY (f1));
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (f1 INT, f2 INT, f3 char(1),
+PRIMARY KEY (f1), KEY (f2), KEY (f3) );
+INSERT INTO t2 VALUES (1, 1, 'h'), (2, 3, 'h'), (3, 2, ''), (4, 2, '');
+SELECT t1.f1 FROM t1
+WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
+f1
+2
+EXPLAIN SELECT t1.f1 FROM t1
+WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ref	f2,f3	f2	5	const	1	Using where
+DROP TABLE t1,t2;
 #
 # Generic @@optimizer_switch tests (move those into a separate file if
 #  we get another @@optimizer_switch user)

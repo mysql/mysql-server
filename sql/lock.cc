@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -262,7 +262,7 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock)
 static void reset_lock_data_and_free(MYSQL_LOCK **mysql_lock)
 {
   reset_lock_data(*mysql_lock);
-  my_free(*mysql_lock, MYF(0));
+  my_free(*mysql_lock);
   *mysql_lock= 0;
 }
 
@@ -313,7 +313,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
   rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
                                                    sql_lock->lock_count,
                                                    sql_lock->lock_count,
-                                                   thd->lock_id, timeout)];
+                                                   &thd->lock_info, timeout)];
   if (rc)
   {
     if (sql_lock->table_count)
@@ -384,7 +384,7 @@ void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
     thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
   if (sql_lock->table_count)
     (void) unlock_external(thd,sql_lock->table,sql_lock->table_count);
-  my_free((uchar*) sql_lock,MYF(0));
+  my_free(sql_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -545,7 +545,7 @@ void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
   {
     for (uint i=0; i < locked->lock_count; i++)
       thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
-    my_free((uchar*) locked,MYF(0));
+    my_free(locked);
   }
   DBUG_VOID_RETURN;
 }
@@ -577,7 +577,7 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
                                      table->in_use->thread_id))
         result= TRUE;
     }
-    my_free((uchar*) locked,MYF(0));
+    my_free(locked);
   }
   DBUG_RETURN(result);
 }
@@ -619,115 +619,11 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
   }
 
   /* Delete old, not needed locks */
-  my_free((uchar*) a,MYF(0));
-  my_free((uchar*) b,MYF(0));
+  my_free(a);
+  my_free(b);
 
   thr_lock_merge_status(sql_lock->locks, sql_lock->lock_count);
   DBUG_RETURN(sql_lock);
-}
-
-
-/**
-  Find duplicate lock in tables.
-
-  Temporary tables are ignored here like they are ignored in
-  get_lock_data(). If we allow two opens on temporary tables later,
-  both functions should be checked.
-
-  @param thd                 The current thread.
-  @param needle              The table to check for duplicate lock.
-  @param haystack            The list of tables to search for the dup lock.
-
-  @note
-    This is mainly meant for MERGE tables in INSERT ... SELECT
-    situations. The 'real', underlying tables can be found only after
-    the MERGE tables are opened. This function assumes that the tables are
-    already locked.
-
-  @retval
-    NULL    No duplicate lock found.
-  @retval
-    !NULL   First table from 'haystack' that matches a lock on 'needle'.
-*/
-
-TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
-                                      TABLE_LIST *haystack)
-{
-  MYSQL_LOCK            *mylock;
-  TABLE                 **lock_tables;
-  TABLE                 *table;
-  TABLE                 *table2;
-  THR_LOCK_DATA         **lock_locks;
-  THR_LOCK_DATA         **table_lock_data;
-  THR_LOCK_DATA         **end_data;
-  THR_LOCK_DATA         **lock_data2;
-  THR_LOCK_DATA         **end_data2;
-  DBUG_ENTER("mysql_lock_have_duplicate");
-
-  /*
-    Table may not be defined for derived or view tables.
-    Table may not be part of a lock for delayed operations.
-  */
-  if (! (table= needle->table) || ! table->lock_count)
-    goto end;
-
-  /* A temporary table does not have locks. */
-  if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-    goto end;
-
-  /* Get command lock or LOCK TABLES lock. Maybe empty for INSERT DELAYED. */
-  if (! (mylock= thd->lock))
-    goto end;
-
-  /* If we have less than two tables, we cannot have duplicates. */
-  if (mylock->table_count < 2)
-    goto end;
-
-  lock_locks=  mylock->locks;
-  lock_tables= mylock->table;
-
-  /* Prepare table related variables that don't change in loop. */
-  DBUG_ASSERT((table->lock_position < mylock->table_count) &&
-              (table == lock_tables[table->lock_position]));
-  table_lock_data= lock_locks + table->lock_data_start;
-  end_data= table_lock_data + table->lock_count;
-
-  for (; haystack; haystack= haystack->next_global)
-  {
-    if (haystack->placeholder())
-      continue;
-    table2= haystack->table;
-    if (table2->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-      continue;
-
-    /* All tables in list must be in lock. */
-    DBUG_ASSERT((table2->lock_position < mylock->table_count) &&
-                (table2 == lock_tables[table2->lock_position]));
-
-    for (lock_data2=  lock_locks + table2->lock_data_start,
-           end_data2= lock_data2 + table2->lock_count;
-         lock_data2 < end_data2;
-         lock_data2++)
-    {
-      THR_LOCK_DATA **lock_data;
-      THR_LOCK *lock2= (*lock_data2)->lock;
-
-      for (lock_data= table_lock_data;
-           lock_data < end_data;
-           lock_data++)
-      {
-        if ((*lock_data)->lock == lock2)
-        {
-          DBUG_PRINT("info", ("haystack match: '%s'", haystack->table_name));
-          DBUG_RETURN(haystack);
-        }
-      }
-    }
-  }
-
- end:
-  DBUG_PRINT("info", ("no duplicate found"));
-  DBUG_RETURN(NULL);
 }
 
 
@@ -827,8 +723,13 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     }
     *to++= table;
     if (locks)
+    {
       for ( ; org_locks != locks ; org_locks++)
+      {
 	(*org_locks)->debug_print_param= (void *) table;
+        (*org_locks)->m_psi= table->file->m_psi;
+      }
+    }
   }
   /*
     We do not use 'tables', because there are cases where store_lock()
@@ -851,62 +752,48 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 }
 
 
-/*****************************************************************************
-  Lock table based on the name.
-  This is used when we need total access to a closed, not open table
-*****************************************************************************/
-
 /**
-   Obtain exclusive metadata locks on the list of tables.
+  Obtain an exclusive metadata lock on a schema name.
 
-   @param thd         Thread handle
-   @param table_list  List of tables to lock
+  @param thd         Thread handle.
+  @param db          The database name.
 
-   @note This function assumes that no metadata locks were acquired
-         before calling it. Also it cannot be called while holding
-         LOCK_open mutex. Both these invariants are enforced by asserts
-         in MDL_context::acquire_locks().
-   @note Initialization of MDL_request members of TABLE_LIST elements
-         is a responsibility of the caller.
+  This function cannot be called while holding LOCK_open mutex.
+  To avoid deadlocks, we do not try to obtain exclusive metadata
+  locks in LOCK TABLES mode, since in this mode there may be
+  other metadata locks already taken by the current connection,
+  and we must not wait for MDL locks while holding locks.
 
-   @retval FALSE  Success.
-   @retval TRUE   Failure (OOM or thread was killed).
+  @retval FALSE  Success.
+  @retval TRUE   Failure: we're in LOCK TABLES mode, or out of memory,
+                 or this connection was killed.
 */
 
-bool lock_table_names(THD *thd, TABLE_LIST *table_list)
+bool lock_schema_name(THD *thd, const char *db)
 {
   MDL_request_list mdl_requests;
   MDL_request global_request;
-  TABLE_LIST *lock_table;
+  MDL_request mdl_request;
+
+  if (thd->locked_tables_mode)
+  {
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    return TRUE;
+  }
 
   global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+  mdl_request.init(MDL_key::SCHEMA, db, "", MDL_EXCLUSIVE);
 
-  for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
-    mdl_requests.push_front(&lock_table->mdl_request);
-
+  mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&global_request);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
-    return 1;
+    return TRUE;
 
-  return 0;
-}
-
-
-/**
-   Release all metadata locks previously obtained by lock_table_names().
-
-   @param thd  Thread handle.
-
-   @note Cannot be called while holding LOCK_open mutex.
-*/
-
-void unlock_table_names(THD *thd)
-{
-  DBUG_ENTER("unlock_table_names");
-  thd->mdl_context.release_transactional_locks();
-  DBUG_VOID_RETURN;
+  DEBUG_SYNC(thd, "after_wait_locked_schema_name");
+  return FALSE;
 }
 
 
@@ -941,6 +828,7 @@ bool lock_routine_name(THD *thd, bool is_function,
                                          MDL_key::PROCEDURE);
   MDL_request_list mdl_requests;
   MDL_request global_request;
+  MDL_request schema_request;
   MDL_request mdl_request;
 
   if (thd->locked_tables_mode)
@@ -954,9 +842,11 @@ bool lock_routine_name(THD *thd, bool is_function,
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
   global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+  schema_request.init(MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE);
   mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE);
 
   mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&global_request);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
@@ -1413,27 +1303,19 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
 
 
 /**
-  Broadcast COND_refresh and COND_global_read_lock.
+  Broadcast COND_global_read_lock.
 
-    Due to a bug in a threading library it could happen that a signal
-    did not reach its target. A condition for this was that the same
-    condition variable was used with different mutexes in
-    mysql_cond_wait(). Some time ago we changed LOCK_open to
-    LOCK_global_read_lock in global read lock handling. So COND_refresh
-    was used with LOCK_open and LOCK_global_read_lock.
-
-    We did now also change from COND_refresh to COND_global_read_lock
-    in global read lock handling. But now it is necessary to signal
-    both conditions at the same time.
-
-  @note
-    When signalling COND_global_read_lock within the global read lock
-    handling, it is not necessary to also signal COND_refresh.
+  TODO/FIXME: Dmitry thinks that we broadcast on COND_global_read_lock
+              when old instance of table is closed to avoid races
+              between incrementing refresh_version and
+              wait_if_global_read_lock(thd, TRUE, FALSE) call.
+              Once global read lock implementation starts using MDL
+              infrastructure this will became unnecessary and should
+              be removed.
 */
 
 void broadcast_refresh(void)
 {
-  mysql_cond_broadcast(&COND_refresh);
   mysql_cond_broadcast(&COND_global_read_lock);
 }
 

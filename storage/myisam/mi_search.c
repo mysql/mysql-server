@@ -84,7 +84,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
                                test(!(nextflag & SEARCH_SAVE_BUFF)))))
     goto err;
-  DBUG_DUMP("page",(uchar*) buff,mi_getint(buff));
+  DBUG_DUMP("page", buff, mi_getint(buff));
 
   flag=(*keyinfo->bin_search)(info,keyinfo,buff,key,key_len,nextflag,
                               &keypos,lastkey, &last_key);
@@ -296,9 +296,9 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
     flag is the value returned by ha_key_cmp and as treated as final
   */
   int flag=0, my_flag=-1;
-  uint nod_flag, length, len, matched, cmplen, kseg_len;
-  uint prefix_len,suffix_len;
-  int key_len_skip, seg_len_pack, key_len_left;
+  uint nod_flag, UNINIT_VAR(length), len, matched, cmplen, kseg_len;
+  uint UNINIT_VAR(prefix_len), suffix_len;
+  int key_len_skip, UNINIT_VAR(seg_len_pack), key_len_left;
   uchar *end, *kseg, *vseg;
   uchar *sort_order=keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
@@ -307,10 +307,6 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
   DBUG_ENTER("_mi_prefix_search");
-
-  LINT_INIT(length);
-  LINT_INIT(prefix_len);
-  LINT_INIT(seg_len_pack);
 
   t_buff[0]=0;                                  /* Avoid bugs */
   end= page+mi_getint(page);
@@ -819,7 +815,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 	    DBUG_PRINT("error",
                        ("Found too long null packed key: %u of %u at 0x%lx",
                         length, keyseg->length, (long) *page_pos));
-	    DBUG_DUMP("key",(uchar*) *page_pos,16);
+	    DBUG_DUMP("key", *page_pos, 16);
             mi_print_error(keyinfo->share, HA_ERR_CRASHED);
 	    my_errno=HA_ERR_CRASHED;
 	    return 0;
@@ -876,7 +872,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       {
         DBUG_PRINT("error",("Found too long packed key: %u of %u at 0x%lx",
                             length, keyseg->length, (long) *page_pos));
-        DBUG_DUMP("key",(uchar*) *page_pos,16);
+        DBUG_DUMP("key", *page_pos, 16);
         mi_print_error(keyinfo->share, HA_ERR_CRASHED);
         my_errno=HA_ERR_CRASHED;
         return 0;                               /* Error */
@@ -948,7 +944,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       DBUG_PRINT("error",
                  ("Found too long binary packed key: %u of %u at 0x%lx",
                   length, keyinfo->maxlength, (long) *page_pos));
-      DBUG_DUMP("key",(uchar*) *page_pos,16);
+      DBUG_DUMP("key", *page_pos, 16);
       mi_print_error(keyinfo->share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);                                 /* Wrong key */

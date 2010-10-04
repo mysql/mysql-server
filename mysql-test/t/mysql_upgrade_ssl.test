@@ -1,0 +1,10 @@
+# mysql_upgrade tests requiring SSL support
+
+-- source include/have_ssl_communication.inc
+-- source include/mysql_upgrade_preparation.inc
+
+--echo #
+--echo # Bug#55672 mysql_upgrade dies with internal error 
+--echo #
+--exec $MYSQL_UPGRADE --skip-verbose --ssl --force 2>&1
+--exit

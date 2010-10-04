@@ -97,7 +97,7 @@ struct PFS_events_waits
     - TRUNCATE EVENTS_WAITS_HISTORY
     - TRUNCATE EVENTS_WAITS_HISTORY_LONG
   */
-  volatile events_waits_class m_wait_class;
+  events_waits_class m_wait_class;
   /** Executing thread. */
   PFS_thread *m_thread;
   /** Instrument metadata. */
@@ -106,6 +106,8 @@ struct PFS_events_waits
   enum timer_state m_timer_state;
   /** Event id. */
   ulonglong m_event_id;
+  /** Nesting event id. */
+  ulonglong m_nesting_event_id;
   /**
     Timer start.
     This member is populated only if m_timed is true.
@@ -120,6 +122,8 @@ struct PFS_events_waits
   const char *m_schema_name;
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
+  /** Object type */
+  enum_object_type m_object_type;
   /** Object name. */
   const char *m_object_name;
   /** Length in bytes of @c m_object_name. */
@@ -137,6 +141,13 @@ struct PFS_events_waits
     This member is populated for file READ/WRITE operations only.
   */
   size_t m_number_of_bytes;
+  /**
+    Index used.
+    This member is populated for TABLE IO operations only.
+  */
+  uint m_index;
+  /** Flags */
+  ulong m_flags;
 };
 
 /**

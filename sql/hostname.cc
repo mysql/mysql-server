@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -126,7 +126,7 @@ static void prepare_hostname_cache_key(const char *ip_string,
   DBUG_ASSERT(ip_string_length < HOST_ENTRY_KEY_SIZE);
 
   memset(ip_key, 0, HOST_ENTRY_KEY_SIZE);
-  memcpy_fixed(ip_key, ip_string, ip_string_length);
+  memcpy(ip_key, ip_string, ip_string_length);
 }
 
 static inline Host_entry *hostname_cache_search(const char *ip_key)
@@ -148,7 +148,7 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname)
 
   char *hostname_copy;
 
-  memcpy_fixed(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
+  memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
 
   if (hostname_size)
   {

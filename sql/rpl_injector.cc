@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ injector::transaction::~transaction()
   */
   *the_memory= '\0';
 
-  my_free(the_memory, MYF(0));
+  my_free(the_memory);
 }
 
 /**
@@ -111,7 +111,7 @@ int injector::transaction::use_table(server_id_type sid, table tbl)
   server_id_type save_id= m_thd->server_id;
   m_thd->set_server_id(sid);
   error= m_thd->binlog_write_table_map(tbl.get_table(),
-                                       tbl.is_transactional());
+                                       tbl.is_transactional(), FALSE);
   m_thd->set_server_id(save_id);
   DBUG_RETURN(error);
 }

@@ -13,15 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SUBDIRS      = mytap . mysys examples
+SUBDIRS      = mytap . mysys examples gunit strings
 
 EXTRA_DIST = unit.pl
 CLEANFILES = unit
 
-unittests = mytap mysys @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@
-
 test:
-	perl unit.pl run $(unittests)
+	perl unit.pl run .
 
 test-verbose:
-	HARNESS_VERBOSE=1 perl unit.pl run $(unittests)
+	HARNESS_VERBOSE=1 perl unit.pl run .

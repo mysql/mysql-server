@@ -444,7 +444,7 @@ fill_trx_row(
 
 	ut_ad(mutex_own(&kernel_mutex));
 
-	row->trx_id = trx_get_id(trx);
+	row->trx_id = trx->id;
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
 
@@ -462,7 +462,7 @@ fill_trx_row(
 		row->trx_wait_started = 0;
 	}
 
-	row->trx_weight = (ullint) ut_conv_dulint_to_longlong(TRX_WEIGHT(trx));
+	row->trx_weight = (ullint) TRX_WEIGHT(trx);
 
 	if (trx->mysql_thd == NULL) {
 		/* For internal transactions e.g., purge and transactions
@@ -527,7 +527,7 @@ thd_done:
 
 	row->trx_rows_locked = lock_number_of_rows_locked(trx);
 
-	row->trx_rows_modified = ut_conv_dulint_to_longlong(trx->undo_no);
+	row->trx_rows_modified = trx->undo_no;
 
 	row->trx_concurrency_tickets = trx->n_tickets_to_enter_innodb;
 

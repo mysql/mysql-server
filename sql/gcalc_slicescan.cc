@@ -20,111 +20,6 @@
 
 #include "gcalc_slicescan.h"
 
-#ifdef GCALC_DBUG
-void Gcalc_dbug_env_struct::start_line()
-{
-  if (recfile)
-  {
-    fprintf(recfile, "LINESTRING(");
-    first_point= 1;
-  }
-}
-
-
-void Gcalc_dbug_env_struct::start_ring()
-{
-  if (recfile)
-  {
-    fprintf(recfile, "RING(");
-    first_point= 1;
-  }
-}
-
-
-void Gcalc_dbug_env_struct::complete()
-{
-  if (recfile)
-  {
-    fprintf(recfile, ")\n");
-    fflush(recfile);
-  }
-}
-
-
-void Gcalc_dbug_env_struct::add_point(double x, double y)
-{
-  if (recfile)
-  {
-    if (!first_point)
-      fprintf(recfile, ", ");
-    else
-      first_point=0;
-    fprintf(recfile, "%.15g %.15g", x, y);
-  }
-}
-
-
-void Gcalc_dbug_env_struct::start_newfile(const char *filename)
-{
-  recfile= fopen(filename, "w");
-}
-
-
-void Gcalc_dbug_env_struct::start_append(const char *filename)
-{
-  recfile= fopen(filename, "a");
-}
-
-
-void Gcalc_dbug_env_struct::stop_recording()
-{
-  fclose(recfile);
-  recfile= NULL;
-}
-
-
-void Gcalc_dbug_env_struct::print(const char *ln)
-{
-  if (recfile)
-    fprintf(recfile, "%s", ln);
-}
-
-
-Gcalc_dbug_env_struct::~Gcalc_dbug_env_struct()
-{
-  if (recfile)
-    fclose(recfile);
-}
-
-
-void Gcalc_dbug_do_print(const char* fmt, ...)
-{
-  va_list args;
-  char buff[1000];
-  va_start(args, fmt);
-  vsnprintf(buff, sizeof(buff), fmt, args);
-  va_end(args);
-  Gcalc_dbug_cur_env->print(buff);
-}
-
-
-void Gcalc_scan_iterator::point::dbug_print()
-{
-  const Gcalc_scan_iterator::point *slice= this;
-  for (; slice; slice= slice->get_next())
-  {
-    gcalc_dbug_do_print("(%d %.15g ", slice->thread, slice->x);
-    gcalc_dbug_do_print(slice->horiz_dir ? "-" : "/");
-    gcalc_dbug_do_print(" %.15g) ", slice->dx_dy);
-  }
-  gcalc_dbug_do_print("\n");
-}
-
-
-static Gcalc_dbug_env_struct gcalc_dbug_usual_env;
-Gcalc_dbug_env_struct *gcalc_dbug_cur_env= &gcalc_dbug_usual_env;
-
-#endif /*GCLAC_DBUG*/
 
 #define PH_DATA_OFFSET 8
 #define coord_to_float(d) ((double) d)
@@ -179,7 +74,7 @@ static void free_blk_list(void *list)
   while (list)
   {
     next_blk= *((void **)list);
-    my_free(list, MYF(0));
+    my_free(list);
     list= next_blk;
   }
 }
@@ -268,18 +163,6 @@ void Gcalc_heap::prepare_operation()
     trim_node(cur->left, cur);
     trim_node(cur->right, cur);
   }
-#ifdef GCALC_DBUG
-  {
-    Info *cur= get_first();
-    GCALC_DBUG_PRINT(("shape\t  x\t  y\tleft\tright\tthis\n"));
-    for (; cur; cur= cur->get_next())
-    {
-      GCALC_DBUG_PRINT(("%d\t%.15g\t%.15g\t %d\t %d\t %d\n", cur->shape,
-                        cur->x, cur->y,(int)cur->left, (int)cur->right, (int) cur));
-    }
-    GCALC_DBUG_PRINT(("------------------\n"));
-  }
-#endif /*GCALC_DBUG*/
 }
 
 
@@ -312,7 +195,6 @@ int Gcalc_shape_transporter::int_add_point(gcalc_shape_info Info,
                                            double x, double y)
 {
   Gcalc_heap::Info *point;
-  GCALC_DBUG_ADD_POINT(x, y);
   if (!(point= m_heap->new_point_info(x, y, Info)))
     return 1;
   if (m_first)
@@ -330,7 +212,6 @@ int Gcalc_shape_transporter::int_add_point(gcalc_shape_info Info,
 void Gcalc_shape_transporter::int_complete()
 {
   DBUG_ASSERT(m_shape_started == 1 || m_shape_started == 3);
-  GCALC_DBUG_COMPLETE;
 
   if (!m_first)
     return;
@@ -615,12 +496,6 @@ int Gcalc_scan_iterator::normal_scan()
     free_list(sp1);
   }
 
-  GCALC_DBUG_PRINT(("Y%.15g", m_y0));
-  GCALC_DBUG_SLICE(m_slice0);
-  GCALC_DBUG_PRINT(("Y%.15g", m_y1));
-  GCALC_DBUG_SLICE(m_slice1);
-  GCALC_DBUG_PRINT(("\n"));
-
   if (intersections_found)
     return handle_intersections();
 
@@ -716,7 +591,6 @@ int Gcalc_scan_iterator::find_intersections()
   } while (intersections_found);
 
   *hook= NULL;
-  GCALC_DBUG_PRINT(("intersections found:%d\n", m_n_intersections));
   return 0;
 }
 
@@ -812,11 +686,6 @@ int Gcalc_scan_iterator::intersection_scan()
       free_list(m_slice1);
       m_slice1= m_sav_slice;
       free_list(m_intersections);
-      GCALC_DBUG_PRINT(("  is Y%.15g", m_y0));
-      GCALC_DBUG_SLICE(m_slice0);
-      GCALC_DBUG_PRINT(("  is Y%.15g", m_y1));
-      GCALC_DBUG_SLICE(m_slice1);
-      GCALC_DBUG_PRINT(("\n"));
       return 0;
     }
   }
@@ -848,7 +717,6 @@ redo_loop:
 	   there's two intersections with the same Y
 	   Move suitable one to the beginning of the list
 	*/
-        GCALC_DBUG_PRINT(("redo_loop needed\n"));
 	pop_suitable_intersection();
 	goto redo_loop;
       }
@@ -881,11 +749,6 @@ redo_loop:
     *psp1= NULL;
   }
 
-  GCALC_DBUG_PRINT(("  is Y%.15g", m_y0));
-  GCALC_DBUG_SLICE(m_slice0);
-  GCALC_DBUG_PRINT(("  is Y%.15g", m_y1));
-  GCALC_DBUG_SLICE(m_slice1);
-  GCALC_DBUG_PRINT(("\n"));
   return 0;
 }
 

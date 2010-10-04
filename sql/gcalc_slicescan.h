@@ -17,47 +17,16 @@
 #ifndef GCALC_SLICESCAN_INCLUDED
 #define GCALC_SLICESCAN_INCLUDED
 
-/*#define GCALC_DBUG*/
 
-#ifdef GCALC_DBUG
-class Gcalc_dbug_env_struct
-{
-  FILE *recfile;
-  bool first_point;
-public:
-  Gcalc_dbug_env_struct() : recfile(NULL) {}
-  virtual void start_ring();
-  virtual void start_line();
-  virtual void add_point(double x, double y);
-  virtual void complete();
-  virtual void print(const char *ln);
-  
-  void start_newfile(const char *filename);
-  void start_append(const char *filename);
-  void stop_recording();
-  virtual ~Gcalc_dbug_env_struct();
-};
-
-extern Gcalc_dbug_env_struct *gcalc_dbug_cur_env;
-void gcalc_dbug_do_print(const char* fmt, ...);
-#define GCALC_DBUG_START_RING Gcalc_dbug_cur_env->start_ring()
-#define GCALC_DBUG_START_LINE Gcalc_dbug_cur_env->start_line()
-#define GCALC_DBUG_ADD_POINT(X,Y) Gcalc_dbug_cur_env->add_point(X,Y)
-#define GCALC_DBUG_COMPLETE Gcalc_dbug_cur_env->complete()
-#define GCALC_DBUG_SLICE(SLICE) SLICE->dbug_print()
-#define GCALC_DBUG_STARTFILE(FILENAME) Gcalc_dbug_cur_env->start_newfile(FILENAME)
-#define GCALC_DBUG_STOP Gcalc_dbug_cur_env->stop_recording()
-#define GCALC_DBUG_PRINT(ARGLIST) Gcalc_dbug_do_print ARGLIST
-#else
-#define GCALC_DBUG_START_RING
-#define GCALC_DBUG_START_LINE
-#define GCALC_DBUG_ADD_POINT(X,Y)
-#define GCALC_DBUG_COMPLETE
-#define GCALC_DBUG_SLICE(SLICE)
-#define GCALC_DBUG_STARTFILE(FILENAME)
-#define GCALC_DBUG_STOP
-#define GCALC_DBUG_PRINT(ARGLIST)
-#endif /*GCLAC_DBUG*/
+/*
+  Gcalc_dyn_list class designed to manage long lists of same-size objects
+  with the possible efficiency.
+  It allocates fixed-size blocks of memory (blk_size specified at the time
+  of creation). When new object is added to the list, it occupies part of
+  this block until it's full. Then the new block is allocated.
+  Freed objects are chained to the m_free list, and if it's not empty, the
+  newly added object is taken from this list instead the block.
+*/
 
 class Gcalc_dyn_list
 {
@@ -123,6 +92,17 @@ protected:
 
 typedef uint gcalc_shape_info;
 
+/*
+  Gcalc_heap represents the 'dynamic list' of Info objects, that
+  contain information about vertexes of all the shapes that take
+  part in some spatial calculation. Can become quite long.
+  After filled, the list is usually sorted and then walked through
+  in the slicescan algorithm.
+  The Gcalc_heap and the algorithm can only operate with two
+  kinds of shapes - polygon and polyline. So all the spatial
+  objects should be represented as sets of these two.
+*/
+
 class Gcalc_heap : public Gcalc_dyn_list
 {
 public:
@@ -167,6 +147,21 @@ private:
 };
 
 
+/*
+  the spatial object has to be represented as a set of
+  simple polygones and polylines to be sent to the slicescan.
+
+  Gcalc_shape_transporter class and his descendants are used to
+  simplify storing the information about the shape into necessary structures.
+  This base class only fills the Gcalc_heap with the information about
+  shapes and vertices.
+
+  Normally the Gcalc_shape_transporter family object is sent as a parameter
+  to the 'get_shapes' method of an 'spatial' object so it can pass
+  the spatial information about itself. The virtual methods are
+  treating this data in a way the caller needs.
+*/
+
 class Gcalc_shape_transporter
 {
 private:
@@ -183,7 +178,6 @@ protected:
     DBUG_ASSERT(!m_shape_started);
     m_shape_started= 1;
     m_first= m_prev= NULL;
-    GCALC_DBUG_START_LINE;
   }
   void int_complete_line()
   {
@@ -196,7 +190,6 @@ protected:
     DBUG_ASSERT(m_shape_started== 2);
     m_shape_started= 3;
     m_first= m_prev= NULL;
-    GCALC_DBUG_START_RING;
   }
   void int_complete_ring()
   {
@@ -253,8 +246,15 @@ enum Gcalc_scan_events
 
 typedef int sc_thread_id;
 
-/* int-returning methods return nonzero value if there was an memory
-   allocation error */
+/* 
+   Gcalc_scan_iterator incapsulates the slisescan algorithm.
+   It takes filled Gcalc_heap as an datasource. Then can be
+   iterated trought the vertexes and intersection points with
+   the step() method. After the 'step()' one usually observes
+   the current 'slice' to do the necessary calculations, like
+   looking for intersections, calculating the area, whatever.
+*/
+
 class Gcalc_scan_iterator : public Gcalc_dyn_list
 {
 public:
@@ -285,9 +285,9 @@ public:
       next_pi= from->next_pi;
       thread= from->thread;
     }
-#ifdef GCALC_DBUG
+#ifndef DBUG_OFF
     void dbug_print();
-#endif /*GCALC_DBUG*/
+#endif /*DBUG_OFF*/
   };
 
   class intersection : public Gcalc_dyn_list::Item
@@ -364,6 +364,14 @@ private:
   point *new_slice(point *example);
 };
 
+
+/* 
+   Gcalc_trapezoid_iterator simplifies the calculations on
+   the current slice of the Gcalc_scan_iterator.
+   One can walk through the trapezoids formed between
+   previous and current slices.
+*/
+
 class Gcalc_trapezoid_iterator
 {
 protected:
@@ -394,6 +402,13 @@ public:
     sp1= rt();
   }
 };
+
+
+/* 
+   Gcalc_point_iterator simplifies the calculations on
+   the current slice of the Gcalc_scan_iterator.
+   One can walk through the points on the current slice.
+*/
 
 class Gcalc_point_iterator
 {

@@ -62,6 +62,16 @@ a	b	a	b
 6	val6	6	val6
 affected rows: 2
 Expecting affected rows: 2
+SET SESSION sql_select_limit = 0;
+affected rows: 0
+SELECT * FROM t1;
+a	b
+affected rows: 0
+Expecting affected rows: 0
+SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
+a	b	a	b
+affected rows: 0
+Expecting affected rows: 0
 '#-----------------------------FN_DYNVARS_165_03---------------#'
 SET SESSION sql_select_limit = 2;
 affected rows: 0

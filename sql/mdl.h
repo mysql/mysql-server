@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (C) 2007-2008 MySQL AB
+/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #if defined(__IBMC__) || defined(__IBMCPP__)
 /* Further down, "next_in_lock" and "next_in_context" have the same type,
@@ -34,21 +34,21 @@ class THD;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
-class Deadlock_detection_visitor;
 
 /**
   Type of metadata lock request.
 
   @sa Comments for MDL_object_lock::can_grant_lock() and
-      MDL_global_lock::can_grant_lock() for details.
+      MDL_scoped_lock::can_grant_lock() for details.
 */
 
 enum enum_mdl_type {
   /*
-    An intention exclusive metadata lock. Used only for global locks.
+    An intention exclusive metadata lock. Used only for scoped locks.
     Owner of this type of lock can acquire upgradable exclusive locks on
     individual objects.
-    Compatible with other IX locks, but is incompatible with global S lock.
+    Compatible with other IX locks, but is incompatible with scoped S and
+    X locks.
   */
   MDL_INTENTION_EXCLUSIVE= 0,
   /*
@@ -179,10 +179,13 @@ public:
     MDL_key is also used outside of the MDL subsystem.
   */
   enum enum_mdl_namespace { GLOBAL=0,
+                            SCHEMA,
                             TABLE,
                             FUNCTION,
                             PROCEDURE,
-                            TRIGGER };
+                            TRIGGER,
+                            /* This should be the last ! */
+                            NAMESPACE_END };
 
   const uchar *ptr() const { return (uchar*) m_ptr; }
   uint length() const { return m_length; }
@@ -249,10 +252,20 @@ public:
   }
   MDL_key() {} /* To use when part of MDL_request. */
 
+  /**
+    Get thread state name to be used in case when we have to
+    wait on resource identified by key.
+  */
+  const char * get_wait_state_name() const
+  {
+    return m_namespace_to_wait_state_name[(int)mdl_namespace()];
+  }
+
 private:
   uint16 m_length;
   uint16 m_db_name_length;
   char m_ptr[MAX_MDLKEY_LENGTH];
+  static const char * m_namespace_to_wait_state_name[NAMESPACE_END];
 private:
   MDL_key(const MDL_key &);                     /* not implemented */
   MDL_key &operator=(const MDL_key &);          /* not implemented */
@@ -358,6 +371,73 @@ public:
 
 typedef void (*mdl_cached_object_release_hook)(void *);
 
+
+/**
+  An abstract class for inspection of a connected
+  subgraph of the wait-for graph.
+*/
+
+class MDL_wait_for_graph_visitor
+{
+public:
+  virtual bool enter_node(MDL_context *node) = 0;
+  virtual void leave_node(MDL_context *node) = 0;
+
+  virtual bool inspect_edge(MDL_context *dest) = 0;
+  virtual ~MDL_wait_for_graph_visitor();
+  MDL_wait_for_graph_visitor() :m_lock_open_count(0),
+                                m_current_search_depth(0)
+  { }
+  virtual void abort_traversal(MDL_context *node) = 0;
+public:
+  /**
+   XXX, hack: During deadlock search, we may need to
+   inspect TABLE_SHAREs and acquire LOCK_open. Since
+   LOCK_open is not a recursive mutex, count here how many
+   times we "took" it (but only take and release once).
+   Not using a native recursive mutex or rwlock in 5.5 for
+   LOCK_open since it has significant performance impacts.
+  */
+  uint m_lock_open_count;
+  /**
+    Set to the 0 at start. Increased whenever
+    we descend into another MDL context (aka traverse to the next
+    wait-for graph node). When MAX_SEARCH_DEPTH is reached, we
+    assume that a deadlock is found, even if we have not found a
+    loop.
+
+    XXX: This member belongs to this class only temporarily until
+         bug #56405 is fixed.
+  */
+  uint m_current_search_depth;
+};
+
+/**
+  Abstract class representing an edge in the waiters graph
+  to be traversed by deadlock detection algorithm.
+*/
+
+class MDL_wait_for_subgraph
+{
+public:
+  virtual ~MDL_wait_for_subgraph();
+
+  /**
+    Accept a wait-for graph visitor to inspect the node
+    this edge is leading to.
+  */
+  virtual bool accept_visitor(MDL_wait_for_graph_visitor *gvisitor) = 0;
+
+  enum enum_deadlock_weight
+  {
+    DEADLOCK_WEIGHT_DML= 0,
+    DEADLOCK_WEIGHT_DDL= 100
+  };
+  /* A helper used to determine which lock request should be aborted. */
+  virtual uint get_deadlock_weight() const = 0;
+};
+
+
 /**
   A granted metadata lock.
 
@@ -378,7 +458,7 @@ typedef void (*mdl_cached_object_release_hook)(void *);
           threads/contexts.
 */
 
-class MDL_ticket
+class MDL_ticket : public MDL_wait_for_subgraph
 {
 public:
   /**
@@ -396,9 +476,6 @@ public:
 public:
   bool has_pending_conflicting_lock() const;
 
-  void *get_cached_object();
-  void set_cached_object(void *cached_object,
-                         mdl_cached_object_release_hook release_hook);
   MDL_context *get_ctx() const { return m_ctx; }
   bool is_upgradable_or_exclusive() const
   {
@@ -415,8 +492,9 @@ public:
   bool is_incompatible_when_granted(enum_mdl_type type) const;
   bool is_incompatible_when_waiting(enum_mdl_type type) const;
 
-  /* A helper used to determine which lock request should be aborted. */
-  uint get_deadlock_weight() const;
+  /** Implement MDL_wait_for_subgraph interface. */
+  virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
+  virtual uint get_deadlock_weight() const;
 private:
   friend class MDL_context;
 
@@ -463,7 +541,7 @@ public:
   enum_wait_status get_status();
   void reset_status();
   enum_wait_status timed_wait(THD *thd, struct timespec *abs_timeout,
-                             bool signal_timeout);
+                              bool signal_timeout, const char *wait_state_name);
 private:
   /**
     Condvar which is used for waiting until this context's pending
@@ -583,8 +661,6 @@ public:
   {
     return m_needs_thr_lock_abort;
   }
-
-  bool find_deadlock(Deadlock_detection_visitor *dvisitor);
 public:
   /**
     If our request for a lock is scheduled, or aborted by the deadlock
@@ -646,6 +722,8 @@ private:
       closes all open HANDLERs.
       However, one can open a few HANDLERs after entering the
       read only mode.
+    * LOCK TABLES locks include intention exclusive locks on
+      involved schemas.
   */
   Ticket_list m_tickets;
   /**
@@ -674,12 +752,13 @@ private:
   */
   mysql_prlock_t m_LOCK_waiting_for;
   /**
-    Tell the deadlock detector what lock this session is waiting for.
+    Tell the deadlock detector what metadata lock or table
+    definition cache entry this session is waiting for.
     In principle, this is redundant, as information can be found
     by inspecting waiting queues, but we'd very much like it to be
     readily available to the wait-for graph iterator.
    */
-  MDL_ticket *m_waiting_for;
+  MDL_wait_for_subgraph *m_waiting_for;
 private:
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           bool *is_transactional);
@@ -687,13 +766,16 @@ private:
   bool try_acquire_lock_impl(MDL_request *mdl_request,
                              MDL_ticket **out_ticket);
 
+public:
   void find_deadlock();
 
+  bool visit_subgraph(MDL_wait_for_graph_visitor *dvisitor);
+
   /** Inform the deadlock detector there is an edge in the wait-for graph. */
-  void will_wait_for(MDL_ticket *pending_ticket)
+  void will_wait_for(MDL_wait_for_subgraph *waiting_for_arg)
   {
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
-    m_waiting_for= pending_ticket;
+    m_waiting_for=  waiting_for_arg;
     mysql_prlock_unlock(&m_LOCK_waiting_for);
   }
 
@@ -702,6 +784,14 @@ private:
   {
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
     m_waiting_for= NULL;
+    mysql_prlock_unlock(&m_LOCK_waiting_for);
+  }
+  void lock_deadlock_victim()
+  {
+    mysql_prlock_rdlock(&m_LOCK_waiting_for);
+  }
+  void unlock_deadlock_victim()
+  {
     mysql_prlock_unlock(&m_LOCK_waiting_for);
   }
 private:
@@ -720,10 +810,10 @@ void mdl_destroy();
 
 extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
                                                    bool needs_thr_lock_abort);
-extern "C" const char *set_thd_proc_info(void *thd_arg, const char *info,
-                                         const char *calling_function,
-                                         const char *calling_file,
-                                         const unsigned int calling_line);
+extern "C" const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
+                                      mysql_mutex_t *mutex, const char *msg);
+extern "C" void thd_exit_cond(MYSQL_THD thd, const char *old_msg);
+
 #ifndef DBUG_OFF
 extern mysql_mutex_t LOCK_open;
 #endif

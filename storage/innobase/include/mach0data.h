@@ -166,14 +166,14 @@ UNIV_INLINE
 void
 mach_write_to_6(
 /*============*/
-	byte*	b,	/*!< in: pointer to 6 bytes where to store */
-	dulint	n);	 /*!< in: dulint integer to be stored */
+	byte*		b,	/*!< in: pointer to 6 bytes where to store */
+	ib_uint64_t	id);	/*!< in: 48-bit integer */
 /********************************************************//**
 The following function is used to fetch data from 6 consecutive
 bytes. The most significant byte is at the lowest address.
-@return	dulint integer */
+@return	48-bit integer */
 UNIV_INLINE
-dulint
+ib_uint64_t
 mach_read_from_6(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to 6 bytes */
@@ -185,14 +185,14 @@ UNIV_INLINE
 void
 mach_write_to_7(
 /*============*/
-	byte*	b,	/*!< in: pointer to 7 bytes where to store */
-	dulint	n);	 /*!< in: dulint integer to be stored */
+	byte*		b,	/*!< in: pointer to 7 bytes where to store */
+	ib_uint64_t	n);	/*!< in: 56-bit integer */
 /********************************************************//**
 The following function is used to fetch data from 7 consecutive
 bytes. The most significant byte is at the lowest address.
-@return	dulint integer */
+@return	56-bit integer */
 UNIV_INLINE
-dulint
+ib_uint64_t
 mach_read_from_7(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to 7 bytes */
@@ -204,88 +204,69 @@ UNIV_INLINE
 void
 mach_write_to_8(
 /*============*/
-	byte*	b,	/*!< in: pointer to 8 bytes where to store */
-	dulint	n);	/*!< in: dulint integer to be stored */
-/*******************************************************//**
-The following function is used to store data in 8 consecutive
-bytes. We store the most significant byte to the lowest address. */
-UNIV_INLINE
-void
-mach_write_ull(
-/*===========*/
 	byte*		b,	/*!< in: pointer to 8 bytes where to store */
 	ib_uint64_t	n);	/*!< in: 64-bit integer to be stored */
-/********************************************************//**
-The following function is used to fetch data from 8 consecutive
-bytes. The most significant byte is at the lowest address.
-@return	dulint integer */
-UNIV_INLINE
-dulint
-mach_read_from_8(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to 8 bytes */
-	__attribute__((nonnull, pure));
 /********************************************************//**
 The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address.
 @return	64-bit integer */
 UNIV_INLINE
 ib_uint64_t
-mach_read_ull(
-/*==========*/
+mach_read_from_8(
+/*=============*/
 	const byte*	b)	/*!< in: pointer to 8 bytes */
 	__attribute__((nonnull, pure));
 /*********************************************************//**
-Writes a dulint in a compressed form (5..9 bytes).
+Writes a 64-bit integer in a compressed form (5..9 bytes).
 @return	size in bytes */
 UNIV_INLINE
 ulint
-mach_dulint_write_compressed(
-/*=========================*/
-	byte*	b,	/*!< in: pointer to memory where to store */
-	dulint	n);	/*!< in: dulint integer to be stored */
+mach_ull_write_compressed(
+/*======================*/
+	byte*		b,	/*!< in: pointer to memory where to store */
+	ib_uint64_t	n);	/*!< in: 64-bit integer to be stored */
 /*********************************************************//**
-Returns the size of a dulint when written in the compressed form.
+Returns the size of a 64-bit integer when written in the compressed form.
 @return	compressed size in bytes */
 UNIV_INLINE
 ulint
-mach_dulint_get_compressed_size(
-/*============================*/
-	dulint	 n);	/*!< in: dulint integer to be stored */
+mach_ull_get_compressed_size(
+/*=========================*/
+	ib_uint64_t	n);	/*!< in: 64-bit integer to be stored */
 /*********************************************************//**
-Reads a dulint in a compressed form.
-@return	read dulint */
+Reads a 64-bit integer in a compressed form.
+@return	the value read */
 UNIV_INLINE
-dulint
-mach_dulint_read_compressed(
-/*========================*/
+ib_uint64_t
+mach_ull_read_compressed(
+/*=====================*/
 	const byte*	b)	/*!< in: pointer to memory from where to read */
 	__attribute__((nonnull, pure));
 /*********************************************************//**
-Writes a dulint in a compressed form (1..11 bytes).
+Writes a 64-bit integer in a compressed form (1..11 bytes).
 @return	size in bytes */
 UNIV_INLINE
 ulint
-mach_dulint_write_much_compressed(
-/*==============================*/
-	byte*	b,	/*!< in: pointer to memory where to store */
-	dulint	n);	/*!< in: dulint integer to be stored */
+mach_ull_write_much_compressed(
+/*===========================*/
+	byte*		b,	/*!< in: pointer to memory where to store */
+	ib_uint64_t	n);	/*!< in: 64-bit integer to be stored */
 /*********************************************************//**
-Returns the size of a dulint when written in the compressed form.
+Returns the size of a 64-bit integer when written in the compressed form.
 @return	compressed size in bytes */
 UNIV_INLINE
 ulint
-mach_dulint_get_much_compressed_size(
-/*=================================*/
-	dulint	 n)	 /*!< in: dulint integer to be stored */
+mach_ull_get_much_compressed_size(
+/*==============================*/
+	ib_uint64_t	n)	/*!< in: 64-bit integer to be stored */
 	__attribute__((const));
 /*********************************************************//**
-Reads a dulint in a compressed form.
-@return	read dulint */
+Reads a 64-bit integer in a compressed form.
+@return	the value read */
 UNIV_INLINE
-dulint
-mach_dulint_read_much_compressed(
-/*=============================*/
+ib_uint64_t
+mach_ull_read_much_compressed(
+/*==========================*/
 	const byte*	b)	/*!< in: pointer to memory from where to read */
 	__attribute__((nonnull, pure));
 /*********************************************************//**
@@ -299,15 +280,16 @@ mach_parse_compressed(
 	byte*	end_ptr,/*!< in: pointer to end of the buffer */
 	ulint*	val);	/*!< out: read value */
 /*********************************************************//**
-Reads a dulint in a compressed form if the log record fully contains it.
-@return	pointer to end of the stored field, NULL if not complete */
-UNIV_INTERN
+Reads a 64-bit integer in a compressed form
+if the log record fully contains it.
+@return pointer to end of the stored field, NULL if not complete */
+UNIV_INLINE
 byte*
-mach_dulint_parse_compressed(
-/*=========================*/
-	byte*	ptr,	/*!< in: pointer to buffer from where to read */
-	byte*	end_ptr,/*!< in: pointer to end of the buffer */
-	dulint*	val);	/*!< out: read value */
+mach_ull_parse_compressed(
+/*======================*/
+	byte*		ptr,	/*!< in: pointer to buffer from where to read */
+	byte*		end_ptr,/*!< in: pointer to end of the buffer */
+	ib_uint64_t*	val);	/*!< out: read value */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Reads a double. It is stored in a little-endian format.

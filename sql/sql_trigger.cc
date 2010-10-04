@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #define MYSQL_LEX 1
@@ -394,9 +394,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /*
     We don't want perform our operations while global read lock is held
     so we have to wait until its end and then prevent it from occurring
-    again until we are done, unless we are under lock tables. (Acquiring
-    LOCK_open is not enough because global read lock is held without holding
-    LOCK_open).
+    again until we are done, unless we are under lock tables.
   */
   if (!thd->locked_tables_mode &&
       thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
@@ -516,11 +514,9 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       goto end;
   }
 
-  mysql_mutex_lock(&LOCK_open);
   result= (create ?
            table->triggers->create_trigger(thd, tables, &stmt_query):
            table->triggers->drop_trigger(thd, tables, &stmt_query));
-  mysql_mutex_unlock(&LOCK_open);
 
   if (result)
     goto end;
@@ -540,9 +536,9 @@ end:
   }
 
   /*
-    If we are under LOCK TABLES we should restore original state of meta-data
-    locks. Otherwise call to close_thread_tables() will take care about both
-    TABLE instance created by open_n_lock_single_table() and metadata lock.
+    If we are under LOCK TABLES we should restore original state of
+    meta-data locks. Otherwise all locks will be released along
+    with the implicit commit.
   */
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
     mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
@@ -1321,6 +1317,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       thd->reset_db((char*) db, strlen(db));
       while ((trg_create_str= it++))
       {
+        sp_head *sp;
         trg_sql_mode= itm++;
         LEX_STRING *trg_definer= it_definer++;
 
@@ -1357,13 +1354,14 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         */
         lex.set_trg_event_type_for_tables();
 
-        lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
-
         int event= lex.trg_chistics.event;
         int action_time= lex.trg_chistics.action_time;
 
-        lex.sphead->set_creation_ctx(creation_ctx);
-        triggers->bodies[event][action_time]= lex.sphead;
+        sp= triggers->bodies[event][action_time]= lex.sphead;
+        lex.sphead= NULL; /* Prevent double cleanup. */
+
+        sp->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
+        sp->set_creation_ctx(creation_ctx);
 
         if (!trg_definer->length)
         {
@@ -1376,27 +1374,26 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
                                 (const char*) db,
-                                (const char*) lex.sphead->m_name.str);
+                                (const char*) sp->m_name.str);
           
           /*
             Set definer to the '' to correct displaying in the information
             schema.
           */
 
-          lex.sphead->set_definer((char*) "", 0);
+          sp->set_definer((char*) "", 0);
 
           /*
             Triggers without definer information are executed under the
             authorization of the invoker.
           */
 
-          lex.sphead->m_chistics->suid= SP_IS_NOT_SUID;
+          sp->m_chistics->suid= SP_IS_NOT_SUID;
         }
         else
-          lex.sphead->set_definer(trg_definer->str, trg_definer->length);
+          sp->set_definer(trg_definer->str, trg_definer->length);
 
-        if (triggers->names_list.push_back(&lex.sphead->m_name,
-                                           &table->mem_root))
+        if (triggers->names_list.push_back(&sp->m_name, &table->mem_root))
             goto err_with_lex_cleanup;
 
         if (!(on_table_name= alloc_lex_string(&table->mem_root)))
@@ -1679,9 +1676,6 @@ bool add_table_for_trigger(THD *thd,
   @param db       schema for table
   @param name     name for table
 
-  @note
-    The calling thread should hold the LOCK_open mutex;
-
   @retval
     False   success
   @retval
@@ -1911,14 +1905,10 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
 
   /*
     This method interfaces the mysql server code protected by
-    either LOCK_open mutex or with an exclusive metadata lock.
-    In the future, only an exclusive metadata lock will be enough.
+    an exclusive metadata lock.
   */
-#ifndef DBUG_OFF
-  if (thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, old_table,
-                                     MDL_EXCLUSIVE))
-    mysql_mutex_assert_owner(&LOCK_open);
-#endif
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, old_table,
+                                             MDL_EXCLUSIVE));
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
               my_strcasecmp(table_alias_charset, old_table, new_table));
@@ -2016,6 +2006,7 @@ bool Table_triggers_list::process_triggers(THD *thd,
   bool err_status;
   Sub_statement_state statement_state;
   sp_head *sp_trigger= bodies[event][time_type];
+  SELECT_LEX *save_current_select;
 
   if (sp_trigger == NULL)
     return FALSE;
@@ -2039,11 +2030,19 @@ bool Table_triggers_list::process_triggers(THD *thd,
 
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
 
+  /*
+    Reset current_select before call execute_trigger() and
+    restore it after return from one. This way error is set
+    in case of failure during trigger execution.
+  */
+  save_current_select= thd->lex->current_select;
+  thd->lex->current_select= NULL;
   err_status=
     sp_trigger->execute_trigger(thd,
                                 &trigger_table->s->db,
                                 &trigger_table->s->table_name,
                                 &subject_table_grants[event][time_type]);
+  thd->lex->current_select= save_current_select;
 
   thd->restore_sub_statement_state(&statement_state);
 

@@ -408,29 +408,19 @@ Calculates the "weight" of a transaction. The weight of one transaction
 is estimated as the number of altered rows + the number of locked rows.
 @param t	transaction
 @return		transaction weight */
-#define TRX_WEIGHT(t)	\
-	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->trx_locks))
+#define TRX_WEIGHT(t)	((t)->undo_no + UT_LIST_GET_LEN((t)->trx_locks))
 
 /*******************************************************************//**
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not.
-@return	<0, 0 or >0; similar to strcmp(3) */
+@return	TRUE if weight(a) >= weight(b) */
 UNIV_INTERN
-int
-trx_weight_cmp(
-/*===========*/
+ibool
+trx_weight_ge(
+/*==========*/
 	const trx_t*	a,	/*!< in: the first transaction to be compared */
 	const trx_t*	b);	/*!< in: the second transaction to be compared */
-
-/*******************************************************************//**
-Retrieves transacion's id, represented as unsigned long long.
-@return	transaction's id */
-UNIV_INLINE
-ullint
-trx_get_id(
-/*=======*/
-	const trx_t*	trx);	/*!< in: transaction */
 
 /* Maximum length of a string that can be returned by
 trx_get_que_state_str(). */
@@ -555,8 +545,8 @@ struct trx_struct{
 					max trx id when the transaction is
 					moved to COMMITTED_IN_MEMORY state */
 	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
-	trx_id_t	table_id;	/*!< Table to drop iff dict_operation
-					is TRUE, or ut_dulint_zero. */
+	table_id_t	table_id;	/*!< Table to drop iff dict_operation
+					is TRUE, or 0. */
 	/*------------------------------*/
 	void*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */
