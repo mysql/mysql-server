@@ -523,7 +523,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       /* no op */;
 
     cur= (struct st_mysql_plugin*)
-          my_malloc(i*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
+      my_malloc((i+1)*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
     if (!cur)
     {
       free_plugin_mem(&plugin_dl);

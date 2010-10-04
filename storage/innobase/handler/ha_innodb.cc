@@ -674,6 +674,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rows_read,		  SHOW_LONG},
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
+  {"truncated_status_writes",
+  (char*) &export_vars.innodb_truncated_status_writes,	SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -1271,7 +1273,7 @@ innobase_mysql_tmpfile(void)
 
 #ifdef _WIN32
 		/* Note that on Windows, the integer returned by mysql_tmpfile
-		has no relation to C runtime file descriptor. Here, we need 
+		has no relation to C runtime file descriptor. Here, we need
 		to call my_get_osfhandle to get the HANDLE and then convert it 
 		to C runtime filedescriptor. */
 		{
@@ -2564,7 +2566,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD*	thd)	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 {
@@ -2609,7 +2611,7 @@ static
 int
 innobase_commit(
 /*============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD* 	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	bool	all)	/*!< in:	TRUE - commit transaction
@@ -3542,12 +3544,19 @@ ha_innobase::innobase_initialize_autoinc()
 		err = row_search_max_autoinc(index, col_name, &read_auto_inc);
 
 		switch (err) {
-		case DB_SUCCESS:
-			/* At the this stage we do not know the increment
-			or the offset, so use a default increment of 1. */
-			auto_inc = read_auto_inc + 1;
-			break;
+		case DB_SUCCESS: {
+			ulonglong	col_max_value;
 
+			col_max_value = innobase_get_int_col_max_value(field);
+
+			/* At the this stage we do not know the increment
+			nor the offset, so use a default increment of 1. */
+
+			auto_inc = innobase_next_autoinc(
+				read_auto_inc, 1, 1, col_max_value);
+
+			break;
+		}
 		case DB_RECORD_NOT_FOUND:
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
@@ -3842,8 +3851,6 @@ retry:
 			dict_table_get_format(prebuilt->table));
 	}
 
-	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
-
 	/* Only if the table has an AUTOINC column. */
 	if (prebuilt->table != NULL && table->found_next_number_field != NULL) {
 		dict_table_autoinc_lock(prebuilt->table);
@@ -3859,6 +3866,8 @@ retry:
 
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
+
+	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
 }
@@ -7199,7 +7208,6 @@ innobase_drop_database(
 	ulint	len		= 0;
 	trx_t*	trx;
 	char*	ptr;
-	int	error;
 	char*	namebuf;
 	THD*	thd		= current_thd;
 
@@ -7242,7 +7250,7 @@ innobase_drop_database(
 #else
 	trx = innobase_trx_allocate(thd);
 #endif
-	error = row_drop_database_for_mysql(namebuf, trx);
+	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -7700,27 +7708,14 @@ ha_innobase::info(
 	dict_index_t*	index;
 	ha_rows		rec_per_key;
 	ib_int64_t	n_rows;
-	ulong		j;
-	ulong		i;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
-
 
 	DBUG_ENTER("info");
 
 	/* If we are forcing recovery at a high level, we will suppress
 	statistics calculation on tables, because that may crash the
 	server if an index is badly corrupted. */
-
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
-
-		/* We return success (0) instead of HA_ERR_CRASHED,
-		because we want MySQL to process this query and not
-		stop, like it would do if it received the error code
-		HA_ERR_CRASHED. */
-
-		DBUG_RETURN(0);
-	}
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -7816,12 +7811,18 @@ ha_innobase::info(
 		acquiring latches inside InnoDB, we do not call it if we
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
-		See Bug#38185.
-		We do not update delete_length if no locking is requested
-		so the "old" value can remain. delete_length is initialized
-		to 0 in the ha_statistics' constructor. */
-		if (!(flag & HA_STATUS_NO_LOCK)) {
-
+		See Bug#38185. */
+		if (flag & HA_STATUS_NO_LOCK) {
+			/* We do not update delete_length if no
+			locking is requested so the "old" value can
+			remain. delete_length is initialized to 0 in
+			the ha_statistics' constructor. */
+		} else if (UNIV_UNLIKELY
+			   (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE)) {
+			/* Avoid accessing the tablespace if
+			innodb_crash_recovery is set to a high value. */
+			stats.delete_length = 0;
+		} else {
 			/* lock the data dictionary to avoid races with
 			ibd_file_missing and tablespace_discarded */
 			row_mysql_lock_data_dictionary(prebuilt->trx);
@@ -7866,6 +7867,7 @@ ha_innobase::info(
 	}
 
 	if (flag & HA_STATUS_CONST) {
+		ulong	i;
 		/* Verify the number of index in InnoDB and MySQL
 		matches up. If prebuilt->clust_index_was_generated
 		holds, InnoDB defines GEN_CLUST_INDEX internally */
@@ -7882,6 +7884,7 @@ ha_innobase::info(
 		}
 
 		for (i = 0; i < table->s->keys; i++) {
+			ulong	j;
 			/* We could get index quickly through internal
 			index mapping with the index translation table.
 			The identity of index (match up index name with
@@ -7947,6 +7950,11 @@ ha_innobase::info(
 		}
 	}
 
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+
+		goto func_exit;
+	}
+
 	if (flag & HA_STATUS_ERRKEY) {
 		const dict_index_t*	err_index;
 
@@ -7967,6 +7975,7 @@ ha_innobase::info(
 		stats.auto_increment_value = innobase_peek_autoinc();
 	}
 
+func_exit:
 	prebuilt->trx->op_info = (char*)"";
 
 	DBUG_RETURN(0);
@@ -8969,7 +8978,7 @@ innodb_show_status(
 {
 	trx_t*			trx;
 	static const char	truncated_msg[] = "... truncated...\n";
-	const long		MAX_STATUS_SIZE = 64000;
+	const long		MAX_STATUS_SIZE = 1048576;
 	ulint			trx_list_start = ULINT_UNDEFINED;
 	ulint			trx_list_end = ULINT_UNDEFINED;
 
@@ -8999,6 +9008,7 @@ innodb_show_status(
 
 	if (flen > MAX_STATUS_SIZE) {
 		usable_len = MAX_STATUS_SIZE;
+		srv_truncated_status_writes++;
 	} else {
 		usable_len = flen;
 	}
@@ -9034,12 +9044,9 @@ innodb_show_status(
 
 	mutex_exit(&srv_monitor_file_mutex);
 
-	bool result = FALSE;
+	stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
+		   STRING_WITH_LEN(""), str, flen);
 
-	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
-			STRING_WITH_LEN(""), str, flen)) {
-		result= TRUE;
-	}
 	my_free(str);
 
 	DBUG_RETURN(FALSE);
@@ -9557,7 +9564,7 @@ ha_innobase::innobase_get_autoinc(
 }
 
 /*******************************************************************//**
-This function reads the global auto-inc counter. It doesn't use the 
+This function reads the global auto-inc counter. It doesn't use the
 AUTOINC lock even if the lock mode is set to TRADITIONAL.
 @return	the autoinc value */
 UNIV_INTERN
@@ -11176,15 +11183,7 @@ i_s_innodb_lock_waits,
 i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
-i_s_innodb_cmpmem_reset,
-i_s_innodb_sys_tables,
-i_s_innodb_sys_tablestats,
-i_s_innodb_sys_indexes,
-i_s_innodb_sys_columns,
-i_s_innodb_sys_fields,
-i_s_innodb_sys_foreign,
-i_s_innodb_sys_foreign_cols
-
+i_s_innodb_cmpmem_reset
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.

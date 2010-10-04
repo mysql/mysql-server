@@ -1481,7 +1481,12 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table);
+	/* We update table statistics only if it is a DELETE or UPDATE
+	that changes indexed columns, UPDATEs that change only non-indexed
+	columns would not affect statistics. */
+	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		row_update_statistics_if_needed(prebuilt->table);
+	}
 
 	trx->op_info = "";
 
@@ -2808,6 +2813,15 @@ row_truncate_table_for_mysql(
 
 	trx->table_id = table->id;
 
+	/* Lock all index trees for this table, as we will
+	truncate the table/index and possibly change their metadata.
+	All DML/DDL are blocked by table level lock, with
+	a few exceptions such as queries into information schema
+	about the table, MySQL could try to access index stats
+	for this kind of query, we need to use index locks to
+	sync up */
+	dict_table_x_lock_indexes(table);
+
 	if (table->space && !table->dir_path_of_temp_table) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
@@ -2824,6 +2838,7 @@ row_truncate_table_for_mysql(
 			    || fil_create_new_single_table_tablespace(
 				    space, table->name, FALSE, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+				dict_table_x_unlock_indexes(table);
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: TRUNCATE TABLE %s failed to"
@@ -2926,6 +2941,10 @@ next_rec:
 	mtr_commit(&mtr);
 
 	mem_heap_free(heap);
+
+	/* Done with index truncation, release index tree locks,
+	subsequent work relates to table level metadata change */
+	dict_table_x_unlock_indexes(table);
 
 	dict_hdr_get_new_id(&new_id, NULL, NULL);
 
