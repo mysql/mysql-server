@@ -496,6 +496,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
+    /* Free memory associated with the state before resetting its members */
     FreeState(cs, stack, 0);
     stack->flags= 0;
     stack->delay= 0;
@@ -1608,7 +1609,7 @@ static void PushState(CODE_STATE *cs)
   struct settings *new_malloc;
 
   new_malloc= (struct settings *) DbugMalloc(sizeof(struct settings));
-  bzero(new_malloc, sizeof(*new_malloc));
+  bzero(new_malloc, sizeof(struct settings));
   new_malloc->next= cs->stack;
   cs->stack= new_malloc;
 }
@@ -2088,7 +2089,7 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
 
 static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
 {
-  if (fp && fp != stderr && fp != stdout && fclose(fp) == EOF)
+  if (fp != NULL && fp != stderr && fp != stdout && fclose(fp) == EOF)
   {
     pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);

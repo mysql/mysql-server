@@ -426,6 +426,18 @@ void TABLE_SHARE::destroy()
       info_it->flags= 0;
     }
   }
+  if (ha_data_destroy)
+  {
+    ha_data_destroy(ha_data);
+    ha_data_destroy= NULL;
+  }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (ha_part_data_destroy)
+  {
+    ha_part_data_destroy(ha_part_data);
+    ha_part_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /*
     Make a copy since the share is allocated in its own root,
     and free_root() updates its argument after freeing the memory.
@@ -1704,11 +1716,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete handler_file;
   my_hash_free(&share->name_hash);
   if (share->ha_data_destroy)
+  {
     share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
+  }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->ha_part_data_destroy)
+  {
     share->ha_part_data_destroy(share->ha_part_data);
-#endif
+    share->ha_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
