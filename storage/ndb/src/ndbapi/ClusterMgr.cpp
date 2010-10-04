@@ -451,6 +451,7 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
       Uint32 aNodeId= refToNode(ref);
       tSignal.theReceiversBlockNumber= refToBlock(ref);
       tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
+      tSignal.theSendersBlockRef = API_CLUSTERMGR;
       theFacade.sendSignalUnCond(&tSignal, aNodeId);
     }
     break;
