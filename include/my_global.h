@@ -1365,7 +1365,9 @@ do { doubleget_union _tmp; \
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
+#ifndef HAVE_DLOPEN
 #define HAVE_DLOPEN
+#endif
 #endif
 
 #ifdef HAVE_DLOPEN
@@ -1375,6 +1377,9 @@ do { doubleget_union _tmp; \
 #endif
 
 #ifndef HAVE_DLERROR
+#ifdef _WIN32
+#define dlerror() ""
+#else
 #define dlerror() "No support for dynamic loading (static build?)"
 #endif
 
