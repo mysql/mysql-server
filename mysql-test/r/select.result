@@ -4171,9 +4171,10 @@ str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
 set SQL_MODE=TRADITIONAL;
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-0
+NULL
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
+Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
 0
@@ -4181,17 +4182,16 @@ Warnings:
 Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
-0
+NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34:00'
+Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
 select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01'
                                                 and '2007/10/20';
 str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01'
                                                 and '2007/10/20'
-0
+NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '2007-10-00' for column '2007/09/01' at row 1
-Warning	1292	Incorrect datetime value: '2007-10-00' for column '2007/10/20' at row 1
+Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 set SQL_MODE=DEFAULT;
 select str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20';
 str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20'
@@ -4430,11 +4430,6 @@ SELECT 1 FROM t1 WHERE a <> 1 AND NOT
 ROW(1,a) <=> ROW(1,(SELECT 1 FROM t1))
 INTO @var0;
 ERROR 21000: Subquery returns more than 1 row
-SELECT 1 FROM t1 WHERE a <> 1 AND NOT
-ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1));
-1
-1
-1
 DROP TABLE t1;
 #
 # Bug #48458: simple query tries to allocate enormous amount of

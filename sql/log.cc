@@ -1907,7 +1907,9 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 
   String log_query;
   if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
-      log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+      log_query.append("`") ||
+      log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+      log_query.append("`"))
     DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -1929,7 +1931,9 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   {
     String log_query;
     if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+        log_query.append("`") ||
+        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+        log_query.append("`"))
       DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -5284,11 +5288,8 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
                                            const struct timespec *timeout)
 {
   int ret= 0;
-  const char* old_msg = thd->proc_info;
   DBUG_ENTER("wait_for_update_bin_log");
-  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           "Master has sent all binlog to slave; "
-                           "waiting for binlog to be updated");
+
   if (!timeout)
     mysql_cond_wait(&update_cond, &LOCK_log);
   else
@@ -5452,10 +5453,32 @@ extern "C" my_bool reopen_fstreams(const char *filename,
                                    FILE *outstream, FILE *errstream)
 {
   int handle_fd;
-  int stream_fd;
+  int err_fd, out_fd;
   HANDLE osfh;
 
-  DBUG_ASSERT(filename && (outstream || errstream));
+  DBUG_ASSERT(filename && errstream);
+
+  // Services don't have stdout/stderr on Windows, so _fileno returns -1.
+  err_fd= _fileno(errstream);
+  if (err_fd < 0)
+  {
+    if (!freopen(filename, "a+", errstream))
+      return TRUE;
+
+    setbuf(errstream, NULL);
+    err_fd= _fileno(errstream);
+  }
+
+  if (outstream)
+  {
+    out_fd= _fileno(outstream);
+    if (out_fd < 0)
+    {
+      if (!freopen(filename, "a+", outstream))
+        return TRUE;
+      out_fd= _fileno(outstream);
+    }
+  }
 
   if ((osfh= CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
                         FILE_SHARE_READ | FILE_SHARE_WRITE |
@@ -5471,24 +5494,16 @@ extern "C" my_bool reopen_fstreams(const char *filename,
     return TRUE;
   }
 
-  if (outstream)
+  if (_dup2(handle_fd, err_fd) < 0)
   {
-    stream_fd= _fileno(outstream);
-    if (_dup2(handle_fd, stream_fd) < 0)
-    {
-      CloseHandle(osfh);
-      return TRUE;
-    }
+    CloseHandle(osfh);
+    return TRUE;
   }
 
-  if (errstream)
+  if (outstream && _dup2(handle_fd, out_fd) < 0)
   {
-    stream_fd= _fileno(errstream);
-    if (_dup2(handle_fd, stream_fd) < 0)
-    {
-      CloseHandle(osfh);
-      return TRUE;
-    }
+    CloseHandle(osfh);
+    return TRUE;
   }
 
   _close(handle_fd);

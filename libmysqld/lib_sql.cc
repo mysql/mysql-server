@@ -479,6 +479,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char *fake_argv[] = { (char *)"", 0 };
   const char *fake_groups[] = { "server", "embedded", 0 };
   my_bool acl_error;
+
+  if (my_thread_init())
+    return 1;
+
   if (argc)
   {
     argcp= &argc;

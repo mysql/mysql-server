@@ -4815,7 +4815,7 @@ part_value_expr_item:
 
             if (!lex->safe_to_cache_query)
             {
-              my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+              my_parse_error(ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
               MYSQL_YYABORT;
             }
             if (part_info->add_column_list_value(YYTHD, part_expr))
@@ -10448,8 +10448,11 @@ insert_lock_option:
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
+          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
+                                                    YYTHD->query());
+          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
+                                           YYLIP->yyLength() + 1;
           $$= TL_WRITE_DELAYED;
-          Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
         }
         | HIGH_PRIORITY { $$= TL_WRITE; }
         ;
@@ -10458,8 +10461,11 @@ replace_lock_option:
           opt_low_priority { $$= $1; }
         | DELAYED_SYM
         {
+          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
+                                                    YYTHD->query());
+          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
+                                           YYLIP->yyLength() + 1;
           $$= TL_WRITE_DELAYED;
-          Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
         }
         ;
 
@@ -11279,7 +11285,11 @@ opt_with_read_lock:
             TABLE_LIST *tables= Lex->query_tables;
             Lex->type|= REFRESH_READ_LOCK;
             for (; tables; tables= tables->next_global)
+            {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
+              tables->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+              tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
+            }
           }
         ;
 
@@ -13249,6 +13259,13 @@ handler:
           handler_read_or_scan where_clause opt_limit_clause
           {
             Lex->expr_allows_subselect= TRUE;
+            /* Stored functions are not supported for HANDLER READ. */
+            if (Lex->uses_stored_routines())
+            {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                       "stored functions in HANDLER ... READ");
+              MYSQL_YYABORT;
+            }
           }
         ;
 

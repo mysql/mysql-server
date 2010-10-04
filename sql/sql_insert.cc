@@ -621,6 +621,30 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 
 
 /**
+  Create a new query string for removing DELAYED keyword for
+  multi INSERT DEALAYED statement.
+
+  @param[in] thd                 Thread handler
+  @param[in] buf                 Query string
+
+  @return
+             0           ok
+             1           error
+*/
+static int
+create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
+{
+  /* Make a copy of thd->query() and then remove the "DELAYED" keyword */
+  if (buf->append(thd->query()) ||
+      buf->replace(thd->lex->keyword_delayed_begin_offset,
+                   thd->lex->keyword_delayed_end_offset -
+                   thd->lex->keyword_delayed_begin_offset, 0))
+    return 1;
+  return 0;
+}
+
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -999,13 +1023,28 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	such case the flag is ignored for constructing binlog event.
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			      thd->query(), thd->query_length(),
-			      transactional_table, FALSE, FALSE,
-                              errcode))
+        if (was_insert_delayed && table_list->lock_type ==  TL_WRITE)
         {
+          /* Binlog multi INSERT DELAYED as INSERT without DELAYED. */
+          String log_query;
+          if (create_insert_stmt_from_insert_delayed(thd, &log_query))
+          {
+            sql_print_error("Event Error: An error occurred while creating query string"
+                            "for INSERT DELAYED stmt, before writing it into binary log.");
+
+            error= 1;
+          }
+          else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                                     log_query.c_ptr(), log_query.length(),
+                                     transactional_table, FALSE, FALSE,
+                                     errcode))
+            error= 1;
+        }
+        else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+			           thd->query(), thd->query_length(),
+			           transactional_table, FALSE, FALSE,
+                                   errcode))
 	  error= 1;
-	}
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
@@ -2457,6 +2496,65 @@ void kill_delayed_threads(void)
 
 
 /**
+  A strategy for the prelocking algorithm which prevents the
+  delayed insert thread from opening tables with engines which
+  do not support delayed inserts.
+
+  Particularly it allows to abort open_tables() as soon as we
+  discover that we have opened a MERGE table, without acquiring
+  metadata locks on underlying tables.
+*/
+
+class Delayed_prelocking_strategy : public Prelocking_strategy
+{
+public:
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking);
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking);
+};
+
+
+bool Delayed_prelocking_strategy::
+handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+             TABLE_LIST *table_list, bool *need_prelocking)
+{
+  DBUG_ASSERT(table_list->lock_type == TL_WRITE_DELAYED);
+
+  if (!(table_list->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
+  {
+    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(0), table_list->table_name);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+bool Delayed_prelocking_strategy::
+handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+               Sroutine_hash_entry *rt, sp_head *sp,
+               bool *need_prelocking)
+{
+  /* LEX used by the delayed insert thread has no routines. */
+  DBUG_ASSERT(0);
+  return FALSE;
+}
+
+
+bool Delayed_prelocking_strategy::
+handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+            TABLE_LIST *table_list, bool *need_prelocking)
+{
+  /* We don't open views in the delayed insert thread. */
+  DBUG_ASSERT(0);
+  return FALSE;
+}
+
+
+/**
    Open and lock table for use by delayed thread and check that
    this table is suitable for delayed inserts.
 
@@ -2466,21 +2564,21 @@ void kill_delayed_threads(void)
 
 bool Delayed_insert::open_and_lock_table()
 {
+  Delayed_prelocking_strategy prelocking_strategy;
+
+  /*
+    Use special prelocking strategy to get ER_DELAYED_NOT_SUPPORTED
+    error for tables with engines which don't support delayed inserts.
+  */
   if (!(table= open_n_lock_single_table(&thd, &table_list,
                                         TL_WRITE_DELAYED,
-                                        MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK)))
+                                        MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK,
+                                        &prelocking_strategy)))
   {
     thd.fatal_error();				// Abort waiting inserts
     return TRUE;
   }
-  if (!(table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
-  {
-    /* To rollback InnoDB statement transaction. */
-    trans_rollback_stmt(&thd);
-    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(ME_FATALERROR),
-             table_list.table_name);
-    return TRUE;
-  }
+
   if (table->triggers)
   {
     /*

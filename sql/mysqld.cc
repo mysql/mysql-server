@@ -98,13 +98,6 @@
 
 #define mysqld_charset &my_charset_latin1
 
-/* stack traces are only supported on linux intel */
-#if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
-#define	HAVE_STACK_TRACE_ON_SEGV
-#include "../pstack/pstack.h"
-char pstack_file_name[80];
-#endif /* __linux__ */
-
 /* We have HAVE_purify below as this speeds up the shutdown of MySQL */
 
 #if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ) || defined(HAVE_purify) && defined(__linux__)
@@ -651,9 +644,6 @@ char *opt_logname, *opt_slow_logname;
 /* Static variables */
 
 static bool kill_in_progress, segfaulted;
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-static my_bool opt_do_pstack;
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
@@ -1396,6 +1386,12 @@ static void mysqld_exit(int exit_code)
   mysql_audit_finalize();
   clean_up_mutexes();
   clean_up_error_log_mutex();
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /*
+    Bug#56666 needs to be fixed before calling:
+    shutdown_performance_schema();
+  */
+#endif
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
 }
@@ -1488,6 +1484,7 @@ void clean_up(bool print_message)
   MYSQL_CALLBACK(thread_scheduler, end, ());
   mysql_client_plugin_deinit();
   finish_client_errs();
+  (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
@@ -2681,14 +2678,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   if (!opt_bootstrap)
     create_pid_file();
 
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  if (opt_do_pstack)
-  {
-    sprintf(pstack_file_name,"mysqld-%lu-%%d-%%d.backtrace", (ulong)getpid());
-    pstack_install_segv_action(pstack_file_name);
-  }
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
-
   /*
     signal to start_signal_handler that we are ready
     This works by waiting for start_signal_handler to free mutex,
@@ -2734,6 +2723,11 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       if (!abort_loop)
       {
 	abort_loop=1;				// mark abort for threads
+#ifdef HAVE_PSI_INTERFACE
+        /* Delete the instrumentation for the signal thread */
+        if (likely(PSI_server != NULL))
+          PSI_server->delete_current_thread();
+#endif
 #ifdef USE_ONE_SIGNAL_HAND
 	pthread_t tmp;
         if (mysql_thread_create(0, /* Not instrumented */
@@ -4590,6 +4584,15 @@ int mysqld_main(int argc, char **argv)
 #endif
 #endif /* __WIN__ */
 
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Disable the main thread instrumentation,
+    to avoid recording events during the shutdown.
+  */
+  if (PSI_server)
+    PSI_server->delete_current_thread();
+#endif
+
   /* Wait until cleanup is done */
   mysql_mutex_lock(&LOCK_thread_count);
   while (!ready_to_exit)
@@ -4607,18 +4610,6 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
   clean_up(1);
-#ifdef HAVE_PSI_INTERFACE
-  /*
-    Disable the instrumentation, to avoid recording events
-    during the shutdown.
-  */
-  if (PSI_server)
-  {
-    PSI_server->delete_current_thread();
-    PSI_server= NULL;
-  }
-  shutdown_performance_schema();
-#endif
   mysqld_exit(0);
 }
 
@@ -5734,11 +5725,6 @@ struct my_option my_long_options[]=
    &disconnect_slave_event_count, &disconnect_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_REPLICATION */
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  {"enable-pstack", 0, "Print a symbolic stack trace on failure.",
-   &opt_do_pstack, &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
   {"exit-info", 'T', "Used for debugging. Use at your own risk.", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
 
