@@ -139,6 +139,7 @@ ELSE()
 ENDIF()
 
 SET(HOSTNAME "hostname")
+SET(MYSQLD_USER "mysql")
 
 # Required for mysqlbug until autotools are deprecated, once done remove these
 # and expand default cmake variables
