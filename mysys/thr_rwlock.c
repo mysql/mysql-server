@@ -20,6 +20,119 @@
 #if defined(NEED_MY_RW_LOCK)
 #include <errno.h>
 
+#ifdef _WIN32
+
+static BOOL have_srwlock= FALSE;
+/* Prototypes and function pointers for windows  functions */
+typedef VOID (WINAPI* srw_func) (PSRWLOCK SRWLock);
+typedef BOOL (WINAPI* srw_bool_func) (PSRWLOCK SRWLock);
+
+static srw_func my_InitializeSRWLock;
+static srw_func my_AcquireSRWLockExclusive;
+static srw_func my_ReleaseSRWLockExclusive;
+static srw_func my_AcquireSRWLockShared;
+static srw_func my_ReleaseSRWLockShared;
+
+static srw_bool_func my_TryAcquireSRWLockExclusive;
+static srw_bool_func my_TryAcquireSRWLockShared;
+
+/**
+  Check for presence of Windows slim reader writer lock function.
+  Load function pointers.
+*/
+
+static void check_srwlock_availability(void)
+{
+  HMODULE module= GetModuleHandle("kernel32");
+
+  my_InitializeSRWLock= (srw_func) GetProcAddress(module,
+    "InitializeSRWLock");
+  my_AcquireSRWLockExclusive= (srw_func) GetProcAddress(module,
+    "AcquireSRWLockExclusive");
+  my_AcquireSRWLockShared= (srw_func) GetProcAddress(module,
+    "AcquireSRWLockShared");
+  my_ReleaseSRWLockExclusive= (srw_func) GetProcAddress(module,
+    "ReleaseSRWLockExclusive");
+  my_ReleaseSRWLockShared= (srw_func) GetProcAddress(module,
+    "ReleaseSRWLockShared");
+  my_TryAcquireSRWLockExclusive=  (srw_bool_func) GetProcAddress(module,
+    "TryAcquireSRWLockExclusive");
+  my_TryAcquireSRWLockShared=  (srw_bool_func) GetProcAddress(module,
+    "TryAcquireSRWLockShared");
+
+  /*
+    We currently require TryAcquireSRWLockExclusive. This API is missing on 
+    Vista, this means SRWLock are only used starting with Win7.
+
+    If "trylock" usage for rwlocks is eliminated from server codebase (it is used 
+    in a single place currently, in query cache), then SRWLock can be enabled on 
+    Vista too. In this case  condition below needs to be changed to  e.g check 
+    for my_InitializeSRWLock.
+  */
+
+  if (my_TryAcquireSRWLockExclusive)
+    have_srwlock= TRUE;
+
+}
+
+
+static int srw_init(my_rw_lock_t *rwp)
+{
+  my_InitializeSRWLock(&rwp->srwlock);
+  rwp->have_exclusive_srwlock = FALSE;
+  return 0;
+}
+
+
+static int srw_rdlock(my_rw_lock_t *rwp)
+{
+  my_AcquireSRWLockShared(&rwp->srwlock);
+  return 0;
+}
+
+
+static int srw_tryrdlock(my_rw_lock_t *rwp)
+{
+
+  if (!my_TryAcquireSRWLockShared(&rwp->srwlock))
+    return EBUSY;
+  return 0;
+}
+
+
+static int srw_wrlock(my_rw_lock_t *rwp)
+{
+  my_AcquireSRWLockExclusive(&rwp->srwlock);
+  rwp->have_exclusive_srwlock= TRUE;
+  return 0;
+}
+
+
+static int srw_trywrlock(my_rw_lock_t *rwp)
+{
+  if (!my_TryAcquireSRWLockExclusive(&rwp->srwlock))
+    return EBUSY;
+  rwp->have_exclusive_srwlock= TRUE;
+  return 0;
+}
+
+
+static int srw_unlock(my_rw_lock_t *rwp)
+{
+  if (rwp->have_exclusive_srwlock)
+  {
+    rwp->have_exclusive_srwlock= FALSE;
+    my_ReleaseSRWLockExclusive(&rwp->srwlock);
+  }
+  else
+  {
+    my_ReleaseSRWLockShared(&rwp->srwlock);
+  }
+  return 0;
+}
+
+#endif /*_WIN32 */
+
 /*
   Source base from Sun Microsystems SPILT, simplified for MySQL use
   -- Joshua Chamas
@@ -63,6 +176,22 @@ int my_rw_init(my_rw_lock_t *rwp)
 {
   pthread_condattr_t	cond_attr;
 
+#ifdef _WIN32
+  /*
+    Once initialization is used here rather than in my_init(), in order to
+    - avoid  my_init() pitfalls- (undefined order in which initialization should
+    run)
+    - be potentially useful C++ (static constructors) 
+    - just to simplify  the API. 
+    Also, the overhead is of my_pthread_once is very small.
+  */
+  static my_pthread_once_t once_control= MY_PTHREAD_ONCE_INIT;
+  my_pthread_once(&once_control, check_srwlock_availability);
+
+  if (have_srwlock)
+    return srw_init(rwp);
+#endif
+
   pthread_mutex_init( &rwp->lock, MY_MUTEX_INIT_FAST);
   pthread_condattr_init( &cond_attr );
   pthread_cond_init( &rwp->readers, &cond_attr );
@@ -81,6 +210,10 @@ int my_rw_init(my_rw_lock_t *rwp)
 
 int my_rw_destroy(my_rw_lock_t *rwp)
 {
+#ifdef _WIN32
+  if (have_srwlock)
+    return 0; /* no destroy function */
+#endif
   DBUG_ASSERT(rwp->state == 0);
   pthread_mutex_destroy( &rwp->lock );
   pthread_cond_destroy( &rwp->readers );
@@ -91,6 +224,11 @@ int my_rw_destroy(my_rw_lock_t *rwp)
 
 int my_rw_rdlock(my_rw_lock_t *rwp)
 {
+#ifdef _WIN32
+  if (have_srwlock)
+    return srw_rdlock(rwp);
+#endif
+
   pthread_mutex_lock(&rwp->lock);
 
   /* active or queued writers */
@@ -105,6 +243,12 @@ int my_rw_rdlock(my_rw_lock_t *rwp)
 int my_rw_tryrdlock(my_rw_lock_t *rwp)
 {
   int res;
+
+#ifdef _WIN32
+  if (have_srwlock)
+    return srw_tryrdlock(rwp);
+#endif
+
   pthread_mutex_lock(&rwp->lock);
   if ((rwp->state < 0 ) || rwp->waiters)
     res= EBUSY;					/* Can't get lock */
@@ -120,6 +264,11 @@ int my_rw_tryrdlock(my_rw_lock_t *rwp)
 
 int my_rw_wrlock(my_rw_lock_t *rwp)
 {
+#ifdef _WIN32
+  if (have_srwlock)
+    return srw_wrlock(rwp);
+#endif
+
   pthread_mutex_lock(&rwp->lock);
   rwp->waiters++;				/* another writer queued */
 
@@ -140,6 +289,12 @@ int my_rw_wrlock(my_rw_lock_t *rwp)
 int my_rw_trywrlock(my_rw_lock_t *rwp)
 {
   int res;
+
+#ifdef _WIN32
+  if (have_srwlock)
+    return srw_trywrlock(rwp);
+#endif
+
   pthread_mutex_lock(&rwp->lock);
   if (rwp->state)
     res= EBUSY;					/* Can't get lock */    
@@ -158,6 +313,11 @@ int my_rw_trywrlock(my_rw_lock_t *rwp)
 
 int my_rw_unlock(my_rw_lock_t *rwp)
 {
+#ifdef _WIN32
+  if (have_srwlock)
+    return srw_unlock(rwp);
+#endif
+
   DBUG_PRINT("rw_unlock",
 	     ("state: %d waiters: %d", rwp->state, rwp->waiters));
   pthread_mutex_lock(&rwp->lock);
