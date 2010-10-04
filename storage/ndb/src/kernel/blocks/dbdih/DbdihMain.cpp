@@ -2592,7 +2592,7 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   Uint32 TstartNode = signal->theData[0];
   Uint32 TsendNodeId_or_blockref = signal->theData[1];
 
-  Uint32 blocklist[6];
+  Uint32 blocklist[7];
   blocklist[0] = clocallqhblockref;
   blocklist[1] = clocaltcblockref;
   blocklist[2] = cdictblockref;
@@ -17990,6 +17990,18 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     conf->gci_lo = Uint32(m_micro_gcp.m_current_gci);
     conf->blockStatus = cgcpOrderBlocked;
     sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
+	       WaitGCPConf::SignalLength, JBB);
+    return;
+  }//if
+
+  if(requestType == WaitGCPReq::RestartGCI)
+  {
+    jam();
+    conf->senderData = senderData;
+    conf->gci_hi = Uint32(crestartGci);
+    conf->gci_lo = 0;
+    conf->blockStatus = cgcpOrderBlocked;
+    sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal,
 	       WaitGCPConf::SignalLength, JBB);
     return;
   }//if

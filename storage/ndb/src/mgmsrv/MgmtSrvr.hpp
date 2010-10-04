@@ -73,7 +73,7 @@ public:
   @class MgmtSrvr
   @brief Main class for the management server.
  */
-class MgmtSrvr : private ConfigSubscriber {
+class MgmtSrvr : private ConfigSubscriber, public trp_client {
 
 public:
   // some compilers need all of this
@@ -469,30 +469,12 @@ private:
   NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
 
-  void handleReceivedSignal(const NdbApiSignal* signal);
-  void handleStatus(NodeId nodeId, bool alive, bool nfComplete);
-
   /**
-     Callback function installed into TransporterFacade, will be called
-     once for each new signal received to the MgmtSrvr.
-     @param  mgmtSrvr: The MgmtSrvr object which shall recieve the signal.
-     @param  signal: The received signal.
-     @param  ptr: The long part(s) of the signal
+   * trp_client interface
    */
-  static void signalReceivedNotification(void* mgmtSrvr, 
-					 const NdbApiSignal* signal,
-					 const struct LinearSectionPtr ptr[3]);
-
-  /**
-     Callback function installed into TransporterFacade, will be called
-     when status of a node changes.
-     @param  mgmtSrvr: The MgmtSrvr object which shall receive
-     the notification.
-     @param  processId: Id of the node whose status changed.
-     @param alive: true if the other node is alive
-   */
-  static void nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
-				     bool alive, bool nfCompleted);
+  virtual void trp_deliver_signal(const NdbApiSignal* signal,
+                                  const struct LinearSectionPtr ptr[3]);
+  virtual void trp_node_status(Uint32 nodeId, Uint32 event);
   
   /**
    * An event from <i>nodeId</i> has arrived

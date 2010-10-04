@@ -35,14 +35,19 @@ struct ndb_mgm_configuration;
 class Ndb;
 class NdbApiSignal;
 class NdbWaiter;
+class trp_client;
 
-typedef void (* ExecuteFunction)(void *, const NdbApiSignal *, const LinearSectionPtr ptr[3]);
-typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfComplete);
+enum NS_Event
+{
+  NS_CONNECTED,   // *we* are connected and have nodeId (report as NodeId)
+  NS_NODE_ALIVE,  // *nodeId* is alive (connected and API_REGCONF)
+  NS_NODE_FAILED, // *nodeId* has failed
+  NS_NODE_NF_COMPLETE
+};
 
 extern "C" {
   void* runSendRequest_C(void*);
   void* runReceiveResponse_C(void*);
-  void atexit_stop_instance();
 }
 
 class TransporterFacade : public TransporterCallback
@@ -70,11 +75,10 @@ public:
    * @blockNo block number to use, -1 => any blockNumber
    * @return BlockNumber or -1 for failure
    */
-  int open(void* objRef, ExecuteFunction, NodeStatusFunction,
-           int blockNo = -1);
+  int open(trp_client*, int blockNo = -1);
   
   // Close this block number
-  int close(BlockNumber blockNumber, Uint64 trans_id);
+  int close(BlockNumber blockNumber);
   Uint32 get_active_ndb_objects() const;
 
   // Only sends to nodes which are alive
@@ -112,14 +116,13 @@ public:
   void reportDisconnected(int NodeId);
 
   NodeId get_an_alive_node();
-  void ReportNodeAlive(NodeId nodeId);
-  void ReportNodeDead(NodeId nodeId);
-  void ReportNodeFailureComplete(NodeId nodeId);
+  void trp_node_status(NodeId, Uint32 event);
 
   /**
    * Send signal to each registered object
    */
-  void for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3]);
+  void for_each(trp_client* clnt,
+                const NdbApiSignal* aSignal, const LinearSectionPtr ptr[3]);
   
   void lock_mutex();
   void unlock_mutex();
@@ -130,12 +133,6 @@ public:
 
   // Close this block number
   int close_local(BlockNumber blockNumber);
-
-  // Scan batch configuration parameters
-  Uint32 get_scan_batch_size() const;
-  Uint32 get_batch_byte_size() const;
-  Uint32 get_batch_size() const;
-  Uint32 m_waitfor_timeout; // in milli seconds...
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
@@ -236,18 +233,12 @@ private:
   NodeId theStartNodeId;
 
   ClusterMgr* theClusterMgr;
-  ArbitMgr* theArbitMgr;
   
   // Improving the API response time
   int checkCounter;
   Uint32 currentSendLimit;
   
   void calculateSendLimit();
-
-  // Scan batch configuration parameters
-  Uint32 m_scan_batch_size;
-  Uint32 m_batch_byte_size;
-  Uint32 m_batch_size;
 
   // Declarations for the receive and send thread
   int  theStopReceive;
@@ -259,7 +250,6 @@ private:
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
-  friend void atexit_stop_instance();
 
   bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
 
@@ -275,48 +265,26 @@ private:
     
     ThreadData(Uint32 initialSize = 32);
     
-    /**
-     * Split "object" into 3 list
-     *   This to improve locality
-     *   when iterating over lists
-     */
-    struct Object_Execute {
-      void * m_object;
-      ExecuteFunction m_executeFunction;
-    };
-    struct NodeStatus_NextFree {
-      NodeStatusFunction m_statusFunction;
-    };
-
     Uint32 m_use_cnt;
     Uint32 m_firstFree;
     Vector<Uint32> m_statusNext;
-    Vector<Object_Execute> m_objectExecute;
-    Vector<NodeStatusFunction> m_statusFunction;
+    Vector<trp_client*> m_objectExecute;
     
-    int open(void* objRef, ExecuteFunction, NodeStatusFunction);
+    int open(trp_client*);
     int close(int number);
     void expand(Uint32 size);
 
-    inline Object_Execute get(Uint16 blockNo) const {
+    inline trp_client* get(Uint16 blockNo) const {
       blockNo -= MIN_API_BLOCK_NO;
-      if(likely (blockNo < m_objectExecute.size())){
-	return m_objectExecute[blockNo];
+      if(likely (blockNo < m_objectExecute.size()))
+      {
+        return m_objectExecute.getBase()[blockNo];
       }
-      Object_Execute oe = { 0, 0 };
-      return oe;
-    }
-
-    /**
-     * Is the block number used currently
-     */
-    inline bool getInUse(Uint16 index) const {
-      return (m_statusNext[index] & (1 << 16)) != 0;
+      return 0;
     }
   } m_threads;
 
   Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
-  Uint32 m_max_trans_id;
   Uint32 m_fragmented_signal_id;
 
 public:
@@ -454,24 +422,6 @@ TransporterFacade::getMinDbNodeVersion() const
     return theClusterMgr->minDbVersion;
   else
     return 0;
-}
-
-inline
-Uint32
-TransporterFacade::get_scan_batch_size() const {
-  return m_scan_batch_size;
-}
-
-inline
-Uint32
-TransporterFacade::get_batch_byte_size() const {
-  return m_batch_byte_size;
-}
-
-inline
-Uint32
-TransporterFacade::get_batch_size() const {
-  return m_batch_size;
 }
 
 /** 

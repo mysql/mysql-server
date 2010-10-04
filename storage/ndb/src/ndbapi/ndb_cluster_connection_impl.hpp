@@ -37,6 +37,21 @@ extern "C" {
   void* run_ndb_cluster_connection_connect_thread(void*);
 }
 
+struct NdbApiConfig
+{
+  NdbApiConfig() :
+    m_scan_batch_size(MAX_SCAN_BATCH_SIZE),
+    m_batch_byte_size(SCAN_BATCH_SIZE),
+    m_batch_size(DEF_BATCH_SIZE),
+    m_waitfor_timeout(120000)
+    {}
+
+  Uint32 m_scan_batch_size;
+  Uint32 m_batch_byte_size;
+  Uint32 m_batch_size;
+  Uint32 m_waitfor_timeout; // in milli seconds...
+};
+
 class Ndb_cluster_connection_impl : public Ndb_cluster_connection
 {
   Ndb_cluster_connection_impl(const char *connectstring,
@@ -75,6 +90,7 @@ private:
 
   Vector<Node> m_all_nodes;
   int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
+  int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
 
@@ -101,6 +117,12 @@ private:
 
   BaseString m_latest_error_msg;
   unsigned m_latest_error;
+
+  // Scan batch configuration parameters
+  NdbApiConfig m_config;
+  
+  // keep initial transId's increasing...
+  Uint32 m_max_trans_id;
 };
 
 #endif

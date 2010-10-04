@@ -1906,7 +1906,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   if (unlikely(!m_scan_request_hash.find(requestPtr, key)))
   {
     jam();
-    ndbrequire(req->closeFlag == ZTRUE);
+    ndbrequire(req->requestInfo == ScanFragNextReq::ZCLOSE);
     return;
   }
 
@@ -1937,7 +1937,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     return;
   }
 
-  if (req->closeFlag == ZTRUE)  // Requested close scan
+  if (req->requestInfo == ScanFragNextReq::ZCLOSE)  // Requested close scan
   {
     jam();
     abort(signal, requestPtr, 0);
@@ -4058,7 +4058,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
   ScanFragNextReq* req = 
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
   req->senderData = treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI;
-  req->closeFlag = 0;
+  req->requestInfo = 0;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
   req->batch_size_rows = org->batch_size_rows;
@@ -4122,7 +4122,7 @@ Dbspj::scanFrag_abort(Signal* signal,
     ScanFragNextReq* req = 
       reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
     req->senderData = treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI;
-    req->closeFlag = ZTRUE;
+    req->requestInfo = ScanFragNextReq::ZCLOSE;
     req->transId1 = requestPtr.p->m_transId[0];
     req->transId2 = requestPtr.p->m_transId[1];
     req->batch_size_rows = 0;
@@ -5192,7 +5192,7 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   const Uint32 bs_rows = MAX(1, org->batch_size_rows/cnt);
   ScanFragNextReq* req = 
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
-  req->closeFlag = 0;
+  req->requestInfo = 0;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
   req->batch_size_rows = bs_rows;
@@ -5286,7 +5286,7 @@ Dbspj::scanIndex_abort(Signal* signal,
   }
 
   ScanFragNextReq* req = CAST_PTR(ScanFragNextReq, signal->getDataPtrSend());
-  req->closeFlag = 1;
+  req->requestInfo = ScanFragNextReq::ZCLOSE;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
   req->batch_size_rows = 0;

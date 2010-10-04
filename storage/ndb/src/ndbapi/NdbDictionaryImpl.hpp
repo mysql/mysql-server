@@ -661,6 +661,7 @@ public:
 			  Uint32 noOfSections, bool fullyQualifiedNames);
 
   int forceGCPWait(int type);
+  int getRestartGCI(Uint32 *);
 
   static int parseTableInfo(NdbTableImpl ** dst, 
 			    const Uint32 * data, Uint32 len,
@@ -712,13 +713,13 @@ private:
   class TransporterFacade * m_transporter;
   
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbDictionaryImpl;
   static void execSignal(void* dictImpl, 
 			 const class NdbApiSignal* signal,
 			 const struct LinearSectionPtr ptr[3]);
   
-  static void execNodeStatus(void* dictImpl, Uint32, 
-			     bool alive, bool nfCompleted);  
+  static void execNodeStatus(void* dictImpl, Uint32, Uint32);
   
   void execGET_TABINFO_REF(const NdbApiSignal *, const LinearSectionPtr p[3]);
   void execGET_TABINFO_CONF(const NdbApiSignal *, const LinearSectionPtr p[3]);
@@ -787,9 +788,15 @@ private:
   UtilBuffer m_tableData;
   UtilBuffer m_tableNames;
 
-  struct {
-    Uint32 m_buckets;
-  } m_sub_start_conf;
+  union {
+    struct SubStartConfData {
+      Uint32 m_buckets;
+    } m_sub_start_conf;
+    struct WaitGcpData {
+      Uint32 gci_hi;
+      Uint32 gci_lo;
+    } m_wait_gcp_conf;
+  } m_data;
 };
 
 class NdbDictionaryImpl;
@@ -846,6 +853,7 @@ public:
   int stopSubscribeEvent(NdbEventOperationImpl &);
 
   int forceGCPWait(int type);
+  int getRestartGCI(Uint32*);
 
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);
