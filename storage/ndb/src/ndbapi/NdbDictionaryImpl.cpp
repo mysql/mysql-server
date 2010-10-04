@@ -2221,7 +2221,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       in all places where the object is out of context due to a return,
       break, continue or simply end of statement block
     */
-    PollGuard poll_guard(getTransporter(), &m_impl->theWaiter, refToBlock(m_reference));
+    PollGuard poll_guard(* m_impl);
     Uint32 node;
     switch(node_specification){
     case 0:
@@ -5593,7 +5593,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
       in all places where the object is out of context due to a return,
       break, continue or simply end of statement block
     */
-    PollGuard poll_guard(getTransporter(), &m_impl->theWaiter, refToBlock(m_reference));
+    PollGuard poll_guard(* m_impl);
     Uint16 aNodeId = getTransporter()->get_an_alive_node();
     if (aNodeId == 0) {
       m_error.code= 4009;
