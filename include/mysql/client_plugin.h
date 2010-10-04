@@ -50,8 +50,11 @@
   const char *author;                                   \
   const char *desc;                                     \
   unsigned int version[3];                              \
+  const char *license;                                  \
+  void *mysql_api;                                      \
   int (*init)(char *, size_t, int, va_list);            \
-  int (*deinit)();
+  int (*deinit)();                                      \
+  int (*options)(const char *option, const void *);
 
 struct st_mysql_client_plugin
 {
@@ -142,5 +145,20 @@ struct st_mysql_client_plugin *
 mysql_client_register_plugin(struct st_mysql *mysql,
                              struct st_mysql_client_plugin *plugin);
 
+/**
+  set plugin options
+
+  Can be used to set extra options and affect behavior for a plugin.
+  This function may be called multiple times to set several options
+
+  @param plugin an st_mysql_client_plugin structure
+  @param option a string which specifies the option to set
+  @param value  value for the option.
+
+  @retval 0 on success, 1 in case of failure
+**/
+int STDCALL mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+                                 const char *option,
+                                 const void *value);
 #endif
 
