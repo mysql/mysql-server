@@ -11089,7 +11089,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   }
 
   ScanFragNextReq tmp;
-  tmp.closeFlag = ZFALSE;
+  tmp.requestInfo = 0;
   tmp.transId1 = apiConnectptr.p->transid[0];
   tmp.transId2 = apiConnectptr.p->transid[1];
   tmp.batch_size_rows = scanP->batch_size_rows;
@@ -11175,7 +11175,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
    */
   
   ScanFragNextReq * nextReq = (ScanFragNextReq*)&signal->theData[0];
-  nextReq->closeFlag = ZTRUE;
+  nextReq->requestInfo = ScanFragNextReq::ZCLOSE;
   nextReq->transId1 = apiConnectptr.p->transid[0];
   nextReq->transId2 = apiConnectptr.p->transid[1];
   

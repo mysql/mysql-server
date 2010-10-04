@@ -9261,7 +9261,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     jam();
     DEBUG(senderData << 
 	  " Received SCAN_NEXTREQ in LQH with close flag when closed");
-    ndbrequire(nextReq->closeFlag == ZTRUE);
+    ndbrequire(nextReq->requestInfo == ScanFragNextReq::ZCLOSE);
     return;
   }
 
@@ -9315,7 +9315,8 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
    * continue execution else set flags and wait until the scan 
    * completes itself
    * ------------------------------------------------------------------ */
-  if (nextReq->closeFlag == ZTRUE){
+  if (nextReq->requestInfo == ScanFragNextReq::ZCLOSE)
+  {
     jam();
     if(ERROR_INSERTED(5034)){
       CLEAR_ERROR_INSERT_VALUE;

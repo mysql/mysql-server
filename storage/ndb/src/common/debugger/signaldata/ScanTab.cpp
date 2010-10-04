@@ -125,7 +125,7 @@ printSCANFRAGNEXTREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 r
   fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x)\n",
 	  sig->transId1, sig->transId2);
   
-  fprintf(output, " Close scan: %u\n", sig->closeFlag);
+  fprintf(output, " requestInfo: 0x%.8x\n", sig->requestInfo);
 
   return false;
 }
