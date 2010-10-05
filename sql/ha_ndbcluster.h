@@ -660,10 +660,8 @@ private:
                     bool batched_update);
 
   bool start_bulk_delete();
-  int bulk_delete_row(const uchar *record);
   int end_bulk_delete();
-  int ndb_delete_row(const uchar *record, bool primary_key_update,
-                     bool is_bulk_delete= FALSE);
+  int ndb_delete_row(const uchar *record, bool primary_key_update);
 
   int ndb_optimize_table(THD* thd, uint delay);
 
@@ -729,7 +727,7 @@ private:
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  bool uses_blob_value(const MY_BITMAP *bitmap);
+  bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
   static inline bool isManualBinlogExec(THD *thd);
 
@@ -848,6 +846,7 @@ private:
   bool m_skip_auto_increment;
   bool m_blobs_pending;
   bool m_slow_path;
+  bool m_is_bulk_delete;
 
   /* State for setActiveHook() callback for reading blob data. */
   uint m_blob_counter;
