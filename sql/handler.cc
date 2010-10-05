@@ -3670,6 +3670,34 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   DBUG_RETURN(error != 0);
 }
 
+
+/**
+  Try to find a table in a storage engine. 
+
+  @param db   Normalized table schema name
+  @param name Normalized table name.
+  @param[out] exists Only valid if the function succeeded.
+
+  @retval TRUE   An error is found
+  @retval FALSE  Success, check *exists
+*/
+
+bool
+ha_check_if_table_exists(THD* thd, const char *db, const char *name,
+                         bool *exists)
+{
+  uchar *frmblob= NULL;
+  size_t frmlen;
+  DBUG_ENTER("ha_check_if_table_exists");
+
+  *exists= ! ha_discover(thd, db, name, &frmblob, &frmlen);
+  if (*exists)
+    my_free(frmblob);
+
+  DBUG_RETURN(FALSE);
+}
+
+
 void st_ha_check_opt::init()
 {
   flags= sql_flags= 0;

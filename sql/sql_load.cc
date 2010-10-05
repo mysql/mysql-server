@@ -189,6 +189,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_concurrent;
   DBUG_ENTER("mysql_load");
 
+  /*
+    Bug #34283
+    mysqlbinlog leaves tmpfile after termination if binlog contains
+    load data infile, so in mixed mode we go to row-based for
+    avoiding the problem.
+  */
+  thd->set_current_stmt_binlog_format_row_if_mixed();
+
 #ifdef EMBEDDED_LIBRARY
   read_file_from_client  = 0; //server is always in the same process 
 #endif
@@ -1337,6 +1345,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      MYF(MY_WME)))
     {
       my_free(buffer); /* purecov: inspected */
+      buffer= NULL;
       error=1;
     }
     else
@@ -1363,13 +1372,11 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error)
-  {
-    if (need_end_io_cache)
-      ::end_io_cache(&cache);
+  if (!error && need_end_io_cache)
+    ::end_io_cache(&cache);
+
+  if (buffer != NULL)
     my_free(buffer);
-    error=1;
-  }
   List_iterator<XML_TAG> xmlit(taglist);
   XML_TAG *t;
   while ((t= xmlit++))

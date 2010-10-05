@@ -360,7 +360,6 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
   int error;
   DBUG_ENTER("ndbcluster_binlog_open_table");
   
-  mysql_mutex_assert_owner(&LOCK_open);
   init_tmp_table_share(thd, table_share, share->db, 0, share->table_name, 
                        share->key);
   if ((error= open_table_def(thd, table_share, 0)))
@@ -376,7 +375,9 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     free_table_share(table_share);
     DBUG_RETURN(error);
   }
+  mysql_mutex_lock(&LOCK_open);
   assign_new_table_id(table_share);
+  mysql_mutex_unlock(&LOCK_open);
 
   if (!reopen)
   {
@@ -625,7 +626,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
   {
     ndbcluster_log_schema_op(thd, 0, query, query_length,
                              db, table_name, 0, 0, type,
-                             0, 0, 0);
+                             0, 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -908,9 +909,7 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
   if (!ndb_schema_share &&
       ndbcluster_check_ndb_schema_share() == 0)
   {
-    mysql_mutex_lock(&LOCK_open);
     ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE);
-    mysql_mutex_unlock(&LOCK_open);
     if (!ndb_schema_share)
     {
       ndbcluster_create_schema_table(thd);
@@ -922,9 +921,7 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
   if (!ndb_apply_status_share &&
       ndbcluster_check_ndb_apply_status_share() == 0)
   {
-    mysql_mutex_lock(&LOCK_open);
     ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_APPLY_TABLE);
-    mysql_mutex_unlock(&LOCK_open);
     if (!ndb_apply_status_share)
     {
       ndbcluster_create_ndb_apply_status_table(thd);
@@ -934,12 +931,10 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
   }
   if (!ndbcluster_find_all_files(thd))
   {
-    mysql_mutex_lock(&LOCK_open);
     ndb_binlog_tables_inited= TRUE;
     if (opt_ndb_extra_logging)
       sql_print_information("NDB Binlog: ndb tables writable");
-    close_cached_tables(NULL, NULL, TRUE, FALSE);
-    mysql_mutex_unlock(&LOCK_open);
+    close_cached_tables(NULL, NULL, FALSE, LONG_TIMEOUT);
     /* Signal injector thread that all is setup */
     mysql_cond_signal(&injector_cond);
   }
@@ -1276,8 +1271,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              uint32 ndb_table_id,
                              uint32 ndb_table_version,
                              enum SCHEMA_OP_TYPE type,
-                             const char *new_db, const char *new_table_name,
-                             int have_lock_open)
+                             const char *new_db, const char *new_table_name)
 {
   DBUG_ENTER("ndbcluster_log_schema_op");
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -1580,11 +1574,6 @@ end:
 
     int max_timeout= DEFAULT_SYNC_TIMEOUT;
     mysql_mutex_lock(&ndb_schema_object->mutex);
-    if (have_lock_open)
-    {
-      mysql_mutex_assert_owner(&LOCK_open);
-      mysql_mutex_unlock(&LOCK_open);
-    }
     while (1)
     {
       struct timespec abstime;
@@ -1639,10 +1628,6 @@ end:
           ndb_report_waiting(type_str, max_timeout,
                              "distributing", ndb_schema_object->key);
       }
-    }
-    if (have_lock_open)
-    {
-      mysql_mutex_lock(&LOCK_open);
     }
     mysql_mutex_unlock(&ndb_schema_object->mutex);
   }
@@ -1726,7 +1711,6 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     {
       DBUG_DUMP("frm", (uchar*) altered_table->getFrmData(), 
                 altered_table->getFrmLength());
-      mysql_mutex_lock(&LOCK_open);
       Ndb_table_guard ndbtab_g(dict, tabname);
       const NDBTAB *old= ndbtab_g.get_table();
       if (!old &&
@@ -1752,7 +1736,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       bzero((char*) &table_list,sizeof(table_list));
       table_list.db= (char *)dbname;
       table_list.alias= table_list.table_name= (char *)tabname;
-      close_cached_tables(thd, &table_list, TRUE, FALSE);
+      close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
 
       if ((error= ndbcluster_binlog_open_table(thd, share,
                                                table_share, table, 1)))
@@ -1763,8 +1747,6 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       table_share= share->table_share;
       dbname= table_share->db.str;
       tabname= table_share->table_name.str;
-
-      mysql_mutex_unlock(&LOCK_open);
     }
     my_free(data);
     my_free(pack_data);
@@ -1858,7 +1840,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= (char *)dbname;
     table_list.alias= table_list.table_name= (char *)tabname;
-    close_cached_tables(thd, &table_list, FALSE, FALSE);
+    close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
     /* ndb_share reference create free */
     DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                              share->key, share->use_count));
@@ -1979,7 +1961,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
             bzero((char*) &table_list,sizeof(table_list));
             table_list.db= schema->db;
             table_list.alias= table_list.table_name= schema->name;
-            close_cached_tables(thd, &table_list, FALSE, FALSE);
+            close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
           }
           /* ndb_share reference temporary free */
           if (share)
@@ -1991,7 +1973,6 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         }
         // fall through
         case SOT_CREATE_TABLE:
-          mysql_mutex_lock(&LOCK_open);
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
@@ -2005,7 +1986,6 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           {
             print_could_not_discover_error(thd, schema);
           }
-          mysql_mutex_unlock(&LOCK_open);
           log_query= 1;
           break;
         case SOT_DROP_DB:
@@ -2096,7 +2076,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       mysql_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
-      close_cached_tables(NULL, NULL, FALSE, FALSE);
+      close_cached_tables(NULL, NULL, FALSE, LONG_TIMEOUT);
       // fall through
     case NDBEVENT::TE_ALTER:
       ndb_handle_schema_change(thd, ndb, pOp, tmp_share);
@@ -2253,7 +2233,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           bzero((char*) &table_list,sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
-          close_cached_tables(thd, &table_list, FALSE, FALSE);
+          close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
         }
         if (schema_type != SOT_ALTER_TABLE)
           break;
@@ -2274,7 +2254,6 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             free_share(&share);
             share= 0;
           }
-          mysql_mutex_lock(&LOCK_open);
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
@@ -2288,7 +2267,6 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           {
             print_could_not_discover_error(thd, schema);
           }
-          mysql_mutex_unlock(&LOCK_open);
         }
         break;
       default:
@@ -3154,8 +3132,6 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
 #ifdef SYNC_DROP_
   thd->proc_info= "Syncing ndb table schema operation and binlog";
   mysql_mutex_lock(&share->mutex);
-  mysql_mutex_assert_owner(&LOCK_open);
-  mysql_mutex_unlock(&LOCK_open);
   int max_timeout= DEFAULT_SYNC_TIMEOUT;
   while (share->op)
   {
@@ -3181,7 +3157,6 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                            type_str, share->key);
     }
   }
-  mysql_mutex_lock(&LOCK_open);
   mysql_mutex_unlock(&share->mutex);
 #else
   mysql_mutex_lock(&share->mutex);
@@ -3963,9 +3938,9 @@ restart:
          !ndb_binlog_running))
       break; /* Shutting down server */
 
-    if (ndb_binlog_index && ndb_binlog_index->s->needs_reopen())
+    if (ndb_binlog_index && ndb_binlog_index->s->has_old_version())
     {
-      if (ndb_binlog_index->s->needs_reopen())
+      if (ndb_binlog_index->s->has_old_version())
       {
         trans_commit_stmt(thd);
         close_thread_tables(thd);

@@ -147,13 +147,15 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
                        MYSQL_OPEN_SKIP_TEMPORARY))
     goto err;
 
-  mysql_mutex_lock(&LOCK_open);
-
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
-                     ren_table->table_name);
+                     ren_table->table_name, FALSE);
 
   error=0;
+  /*
+    An exclusive lock on table names is satisfactory to ensure
+    no other thread accesses this table.
+  */
   if ((ren_table=rename_tables(thd,table_list,0)))
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
@@ -175,17 +177,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
     error= 1;
   }
-  /*
-    An exclusive lock on table names is satisfactory to ensure
-    no other thread accesses this table.
-    However, NDB assumes that handler::rename_tables is called under
-    LOCK_open. And it indeed is, from ALTER TABLE.
-    TODO: remove this limitation.
-    We still should unlock LOCK_open as early as possible, to provide
-    higher concurrency - query_cache_invalidate can take minutes to
-    complete.
-  */
-  mysql_mutex_unlock(&LOCK_open);
 
   if (!silent && !error)
   {
@@ -196,8 +187,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   if (!error)
     query_cache_invalidate3(thd, table_list, 0);
-
-  thd->mdl_context.release_transactional_locks();
 
 err:
   thd->global_read_lock.start_waiting_global_read_lock(thd);
@@ -296,6 +285,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
         {
           if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
                                                           old_alias,
+                                                          ren_table->table_name,
                                                           new_db,
                                                           new_alias)))
           {

@@ -10,8 +10,6 @@
 #
 ##############################################################################
 
-rpl_ndb_stm_innodb  : Bug#54850 2010-07-02 alik rpl_ndb.rpl_ndb_stm_innodb and rpl_ndb.rpl_ndb_2other fails
-rpl_ndb_2other      : Bug#54850 2010-07-02 alik rpl_ndb.rpl_ndb_stm_innodb and rpl_ndb.rpl_ndb_2other fails
 rpl_ndb_row_implicit_commit_binlog : Bug#55849 2010-08-09 alik rpl_ndb.rpl_ndb_row_implicit_commit_binlog fails
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open

@@ -112,7 +112,8 @@ OPTION(MYSQL_MAINTAINER_MODE "MySQL maintainer-specific development environment"
 # Whether the maintainer mode should be enabled.
 IF(MYSQL_MAINTAINER_MODE)
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(MY_MAINTAINER_C_WARNINGS "-Wall -Wextra -Wunused -Wwrite-strings -Werror"
+    SET(MY_MAINTAINER_C_WARNINGS
+        "-Wall -Wextra -Wunused -Wwrite-strings -Wno-strict-aliasing -Werror"
         CACHE STRING "C warning options used in maintainer builds.")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)

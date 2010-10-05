@@ -720,7 +720,8 @@ CREATE TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Warnings:
+Note	1050	Table 't2' already exists
 SELECT * from t2;
 a	b
 100	100
@@ -738,7 +739,8 @@ CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Warnings:
+Note	1050	Table 't2' already exists
 SELECT * from t2;
 a	b
 100	100
@@ -746,7 +748,8 @@ COMMIT;
 BEGIN;
 INSERT INTO t2 values(101,101);
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Warnings:
+Note	1050	Table 't2' already exists
 SELECT * from t2;
 a	b
 100	100
@@ -2546,6 +2549,76 @@ LOCK TABLES t1 READ;
 ALTER TABLE t1 COMMENT 'test';
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# Bug#55656: mysqldump can be slower after bug #39653 fix
+#
+CREATE TABLE t1 (a INT , b INT, c INT, d INT,
+KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	b
+key_len	4
+ref	NULL
+rows	3
+Extra	Using index
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	b
+key_len	8
+ref	NULL
+rows	3
+Extra	Using index
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	b
+key_len	13
+ref	NULL
+rows	3
+Extra	Using index
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c,d);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	PRIMARY
+key_len	8
+ref	NULL
+rows	3
+Extra	Using index
+DROP TABLE t1;
+#
+#
+# Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+#  is returned
+#
+CREATE TABLE t1(a INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+SET SQL_MODE='STRICT_ALL_TABLES';
+CREATE TABLE t2 
+SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
+ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 2
+DROP TABLE t1;
+SET SQL_MODE=DEFAULT;
 End of 5.1 tests
 #
 # Test for bug #39932 "create table fails if column for FK is in different
@@ -2592,3 +2665,13 @@ COMMIT;
 COMMIT;
 DROP TABLE t1;
 DROP FUNCTION f1;
+#
+# Bug#54606 innodb fast alter table + pack_keys=0 
+#           prevents adding new indexes
+#
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
+ENGINE=InnoDB 
+PACK_KEYS=0;
+CREATE INDEX a ON t1 (a);
+CREATE INDEX c on t1 (c);
+DROP TABLE t1;

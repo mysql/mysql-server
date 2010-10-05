@@ -42,7 +42,7 @@ let $wait_condition=
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
   WHERE info = "DROP TABLE t1" and 
-  state = "Waiting for table";
+  state = "Waiting for table metadata lock";
 --source include/wait_condition.inc
 --echo # Connection 1 is now holding the lock.
 --echo # Issuing insert from connection 1 while connection 2&3 
@@ -97,7 +97,8 @@ connection default;
 --echo # connection holds SW metadata lock on table to be altered.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column c4 int";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column c4 int";
 --source include/wait_condition.inc
 
 --echo # The below statement should succeed. It should not
@@ -196,7 +197,7 @@ connection default;
 --echo # Connection con1
 connection con1;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for table' AND info='OPTIMIZE TABLE t1';
+  WHERE state='Waiting for table metadata lock' AND info='OPTIMIZE TABLE t1';
 --source include/wait_condition.inc
 SELECT * FROM t1;
 COMMIT;
@@ -241,7 +242,7 @@ connection con2;
 --echo # Waiting for 'SELECT * FROM v1' to sync in.
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Waiting for table" AND info = "SELECT * FROM v1";
+  WHERE state = "Waiting for table metadata lock" AND info = "SELECT * FROM v1";
 --source include/wait_condition.inc
 # This should block due to v1 being locked.
 --echo # Sending:
@@ -252,7 +253,8 @@ connection con3;
 --echo # Waiting for 'ALTER VIEW v1 AS SELECT 2 FROM t2' to sync in.
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Waiting for table" AND info = "ALTER VIEW v1 AS SELECT 2 FROM t2";
+  WHERE state = "Waiting for table metadata lock" AND
+        info = "ALTER VIEW v1 AS SELECT 2 FROM t2";
 --source include/wait_condition.inc
 # Unlock t1 allowing SELECT * FROM v1 to proceed.
 UNLOCK TABLES;

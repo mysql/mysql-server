@@ -121,3 +121,28 @@ let $wait_condition=
 
 drop database events_test;
 
+
+--echo #
+--echo # Bug#54105 assert in MDL_context::release_locks_stored_before
+--echo #
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP EVENT IF EXISTS e1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT);
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+SAVEPOINT A;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+SHOW CREATE EVENT e1;
+SELECT * FROM t2;
+ROLLBACK WORK TO SAVEPOINT A;
+
+DROP TABLE t1, t2;

@@ -34,7 +34,6 @@ class THD;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
-class Deadlock_detection_visitor;
 
 /**
   Type of metadata lock request.
@@ -184,7 +183,9 @@ public:
                             TABLE,
                             FUNCTION,
                             PROCEDURE,
-                            TRIGGER };
+                            TRIGGER,
+                            /* This should be the last ! */
+                            NAMESPACE_END };
 
   const uchar *ptr() const { return (uchar*) m_ptr; }
   uint length() const { return m_length; }
@@ -251,10 +252,20 @@ public:
   }
   MDL_key() {} /* To use when part of MDL_request. */
 
+  /**
+    Get thread state name to be used in case when we have to
+    wait on resource identified by key.
+  */
+  const char * get_wait_state_name() const
+  {
+    return m_namespace_to_wait_state_name[(int)mdl_namespace()];
+  }
+
 private:
   uint16 m_length;
   uint16 m_db_name_length;
   char m_ptr[MAX_MDLKEY_LENGTH];
+  static const char * m_namespace_to_wait_state_name[NAMESPACE_END];
 private:
   MDL_key(const MDL_key &);                     /* not implemented */
   MDL_key &operator=(const MDL_key &);          /* not implemented */
@@ -360,6 +371,59 @@ public:
 
 typedef void (*mdl_cached_object_release_hook)(void *);
 
+
+/**
+  An abstract class for inspection of a connected
+  subgraph of the wait-for graph.
+*/
+
+class MDL_wait_for_graph_visitor
+{
+public:
+  virtual bool enter_node(MDL_context *node) = 0;
+  virtual void leave_node(MDL_context *node) = 0;
+
+  virtual bool inspect_edge(MDL_context *dest) = 0;
+  virtual ~MDL_wait_for_graph_visitor();
+  MDL_wait_for_graph_visitor() :m_lock_open_count(0) {}
+public:
+  /**
+   XXX, hack: During deadlock search, we may need to
+   inspect TABLE_SHAREs and acquire LOCK_open. Since
+   LOCK_open is not a recursive mutex, count here how many
+   times we "took" it (but only take and release once).
+   Not using a native recursive mutex or rwlock in 5.5 for
+   LOCK_open since it has significant performance impacts.
+  */
+  uint m_lock_open_count;
+};
+
+/**
+  Abstract class representing an edge in the waiters graph
+  to be traversed by deadlock detection algorithm.
+*/
+
+class MDL_wait_for_subgraph
+{
+public:
+  virtual ~MDL_wait_for_subgraph();
+
+  /**
+    Accept a wait-for graph visitor to inspect the node
+    this edge is leading to.
+  */
+  virtual bool accept_visitor(MDL_wait_for_graph_visitor *gvisitor) = 0;
+
+  enum enum_deadlock_weight
+  {
+    DEADLOCK_WEIGHT_DML= 0,
+    DEADLOCK_WEIGHT_DDL= 100
+  };
+  /* A helper used to determine which lock request should be aborted. */
+  virtual uint get_deadlock_weight() const = 0;
+};
+
+
 /**
   A granted metadata lock.
 
@@ -380,7 +444,7 @@ typedef void (*mdl_cached_object_release_hook)(void *);
           threads/contexts.
 */
 
-class MDL_ticket
+class MDL_ticket : public MDL_wait_for_subgraph
 {
 public:
   /**
@@ -414,8 +478,9 @@ public:
   bool is_incompatible_when_granted(enum_mdl_type type) const;
   bool is_incompatible_when_waiting(enum_mdl_type type) const;
 
-  /* A helper used to determine which lock request should be aborted. */
-  uint get_deadlock_weight() const;
+  /** Implement MDL_wait_for_subgraph interface. */
+  virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
+  virtual uint get_deadlock_weight() const;
 private:
   friend class MDL_context;
 
@@ -462,7 +527,7 @@ public:
   enum_wait_status get_status();
   void reset_status();
   enum_wait_status timed_wait(THD *thd, struct timespec *abs_timeout,
-                             bool signal_timeout);
+                              bool signal_timeout, const char *wait_state_name);
 private:
   /**
     Condvar which is used for waiting until this context's pending
@@ -582,8 +647,6 @@ public:
   {
     return m_needs_thr_lock_abort;
   }
-
-  bool find_deadlock(Deadlock_detection_visitor *dvisitor);
 public:
   /**
     If our request for a lock is scheduled, or aborted by the deadlock
@@ -675,12 +738,13 @@ private:
   */
   mysql_prlock_t m_LOCK_waiting_for;
   /**
-    Tell the deadlock detector what lock this session is waiting for.
+    Tell the deadlock detector what metadata lock or table
+    definition cache entry this session is waiting for.
     In principle, this is redundant, as information can be found
     by inspecting waiting queues, but we'd very much like it to be
     readily available to the wait-for graph iterator.
    */
-  MDL_ticket *m_waiting_for;
+  MDL_wait_for_subgraph *m_waiting_for;
 private:
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           bool *is_transactional);
@@ -688,13 +752,16 @@ private:
   bool try_acquire_lock_impl(MDL_request *mdl_request,
                              MDL_ticket **out_ticket);
 
+public:
   void find_deadlock();
 
+  bool visit_subgraph(MDL_wait_for_graph_visitor *dvisitor);
+
   /** Inform the deadlock detector there is an edge in the wait-for graph. */
-  void will_wait_for(MDL_ticket *pending_ticket)
+  void will_wait_for(MDL_wait_for_subgraph *waiting_for_arg)
   {
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
-    m_waiting_for= pending_ticket;
+    m_waiting_for=  waiting_for_arg;
     mysql_prlock_unlock(&m_LOCK_waiting_for);
   }
 
@@ -703,6 +770,14 @@ private:
   {
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
     m_waiting_for= NULL;
+    mysql_prlock_unlock(&m_LOCK_waiting_for);
+  }
+  void lock_deadlock_victim()
+  {
+    mysql_prlock_rdlock(&m_LOCK_waiting_for);
+  }
+  void unlock_deadlock_victim()
+  {
     mysql_prlock_unlock(&m_LOCK_waiting_for);
   }
 private:

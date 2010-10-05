@@ -223,6 +223,8 @@ int PFS_engine_table::read_row(TABLE *table,
                                Field **fields)
 {
   my_bitmap_map *org_bitmap;
+  Field *f;
+  Field **fields_reset;
 
   /*
     Make sure the table structure is as expected before mapping
@@ -240,6 +242,16 @@ int PFS_engine_table::read_row(TABLE *table,
 
   /* We internally write to Fields to support the read interface */
   org_bitmap= dbug_tmp_use_all_columns(table, table->write_set);
+
+  /*
+    Some callers of the storage engine interface do not honor the
+    f->is_null() flag, and will attempt to read the data itself.
+    A known offender is mysql_checksum_table().
+    For robustness, reset every field.
+  */
+  for (fields_reset= fields; (f= *fields_reset) ; fields_reset++)
+    f->reset();
+
   int result= read_row_values(table, buf, fields, read_all);
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
 

@@ -15,7 +15,8 @@
  
 #
 # Headers which need to be checked for abi/api compatibility are in
-# API_PREPROCESSOR_HEADER.
+# API_PREPROCESSOR_HEADER. plugin.h is tested implicitly via
+# plugin_audit.h and plugin_ftparser.h.
 #
 # We use gcc specific preprocessing command and sed/diff, so it will 
 # only be run  on Unix and only if gcc is used.
@@ -27,7 +28,8 @@ IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     SET(COMPILER ${CMAKE_C_COMPILER})
   ENDIF()
   SET(API_PREPROCESSOR_HEADER 
-    ${CMAKE_SOURCE_DIR}/include/mysql/plugin.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/plugin_audit.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/plugin_ftparser.h
     ${CMAKE_SOURCE_DIR}/include/mysql.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v1.h 
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v2.h
@@ -38,18 +40,18 @@ IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     -DCOMPILER=${COMPILER}
     -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
     -DBINARY_DIR=${CMAKE_BINARY_DIR}
-    "-DDMYSQL_ABI_CHECK -DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
+    "-DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
     -P ${CMAKE_SOURCE_DIR}/cmake/do_abi_check.cmake
     VERBATIM
   )
 
   ADD_CUSTOM_TARGET(abi_check_all
   COMMAND ${CMAKE_COMMAND} 
-    -DCMAKE_C_COMPILER=${COMPILER} 
-    -DCMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
-    -DCMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}
-    "-DMYSQL_ABI_CHECK -DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
-    -P ${CMAKE_SOURCE_DIR}/cmake/scripts/do_abi_check.cmake
+    -DCOMPILER=${COMPILER} 
+    -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+    -DBINARY_DIR=${CMAKE_BINARY_DIR}
+    "-DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
+    -P ${CMAKE_SOURCE_DIR}/cmake/do_abi_check.cmake
     VERBATIM
   )
 ENDIF()

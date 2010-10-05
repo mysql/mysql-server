@@ -26,12 +26,15 @@ HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h mysql/services.h \
 			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \
+			mysql/service_thread_scheduler.h \
+			mysql/service_thd_wait.h \
 		  	my_pthread.h my_no_pthread.h \
 			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE) \
-			$(HEADERS_GEN_MAKE) probes_mysql.h probes_mysql_nodtrace.h
+			m_ctype.h my_attribute.h my_compiler.h \
+			$(HEADERS_GEN_CONFIGURE) $(HEADERS_GEN_MAKE) \
+			probes_mysql.h probes_mysql_nodtrace.h
 
 noinst_HEADERS =	lf.h my_bit.h \
 			heap.h my_bitmap.h my_uctype.h password.h \
@@ -45,7 +48,7 @@ noinst_HEADERS =	lf.h my_bit.h \
 			my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
-			atomic/solaris.h mysql/innodb_priv.h my_compiler.h
+			atomic/solaris.h mysql/innodb_priv.h
 
 pkgpsiinclude_HEADERS = mysql/psi/psi.h mysql/psi/mysql_thread.h \
 			mysql/psi/mysql_file.h

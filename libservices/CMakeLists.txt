@@ -15,7 +15,11 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 
-SET(MYSQLSERVICES_SOURCES my_snprintf_service.c thd_alloc_service.c)
+SET(MYSQLSERVICES_SOURCES
+  my_snprintf_service.c
+  thd_alloc_service.c
+  thd_wait_service.c
+  my_thread_scheduler_service.c)
 
 ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
 INSTALL(TARGETS mysqlservices DESTINATION ${INSTALL_LIBDIR})

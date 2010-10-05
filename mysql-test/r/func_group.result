@@ -1713,9 +1713,20 @@ f1	f2	f3	f4	f1 = f2
 NULL	NULL	NULL	NULL	NULL
 drop table t1;
 #
+# Bug #54465: assert: field_types == 0 || field_types[field_pos] ==
+#             MYSQL_TYPE_LONGLONG
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT MAX((SELECT 1 FROM t1 ORDER BY @var LIMIT 1)) m FROM t1 t2, t1 
+ORDER BY t1.a;
+m
+1
+DROP TABLE t1;
+#
 End of 5.1 tests
 #
-# Bug#55648: Server crash on MIX/MAX on maximum time value
+# Bug#55648: Server crash on MIN/MAX on maximum time value
 #
 CREATE TABLE t1(c1 TIME NOT NULL);
 INSERT INTO t1 VALUES('837:59:59');
@@ -1725,3 +1736,13 @@ MAX(c1)
 838:59:59
 DROP TABLE t1;
 # End of the bug#55648
+#
+# Bug#56120: Failed assertion on MIN/MAX on negative time value
+#
+CREATE TABLE t1(c1 TIME NOT NULL);
+INSERT INTO t1 VALUES('-00:00:01');
+SELECT MAX(c1),MIN(c1) FROM t1;
+MAX(c1)	MIN(c1)
+-00:00:01	-00:00:01
+DROP TABLE t1;
+# End of the bug#56120

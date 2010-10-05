@@ -40,4 +40,8 @@ int check_user(THD *thd, enum enum_server_command command,
 	       const char *passwd, uint passwd_len, const char *db,
 	       bool check_count);
 
+bool login_connection(THD *thd);
+void prepare_new_connection_state(THD* thd);
+void end_connection(THD *thd);
+
 #endif /* SQL_CONNECT_INCLUDED */

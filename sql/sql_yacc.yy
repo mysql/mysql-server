@@ -1425,6 +1425,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <table>
         table_ident table_ident_nodb references xid
+        table_ident_opt_wild
 
 %type <simple_string>
         remember_name remember_end opt_db text_or_password
@@ -2031,6 +2032,12 @@ create:
                                                    TL_OPTION_UPDATING,
                                                    TL_WRITE, MDL_EXCLUSIVE))
               MYSQL_YYABORT;
+            /*
+              For CREATE TABLE, an non-existing table is not an error.
+              Instruct open_tables() to just take an MDL lock if the
+              table does not exist.
+            */
+            lex->query_tables->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
@@ -4807,7 +4814,7 @@ part_value_expr_item:
 
             if (!lex->safe_to_cache_query)
             {
-              my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+              my_parse_error(ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
               MYSQL_YYABORT;
             }
             if (part_info->add_column_list_value(YYTHD, part_expr))
@@ -10365,7 +10372,7 @@ table_alias_ref_list:
         ;
 
 table_alias_ref:
-          table_ident
+          table_ident_opt_wild
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
@@ -10440,8 +10447,11 @@ insert_lock_option:
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
+          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
+                                                    YYTHD->query());
+          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
+                                           YYLIP->yyLength() + 1;
           $$= TL_WRITE_DELAYED;
-          Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
         }
         | HIGH_PRIORITY { $$= TL_WRITE; }
         ;
@@ -10450,8 +10460,11 @@ replace_lock_option:
           opt_low_priority { $$= $1; }
         | DELAYED_SYM
         {
+          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
+                                                    YYTHD->query());
+          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
+                                           YYLIP->yyLength() + 1;
           $$= TL_WRITE_DELAYED;
-          Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
         }
         ;
 
@@ -11270,9 +11283,12 @@ opt_with_read_lock:
           {
             TABLE_LIST *tables= Lex->query_tables;
             Lex->type|= REFRESH_READ_LOCK;
-            /* We acquire an X lock currently and then downgrade. */
             for (; tables; tables= tables->next_global)
-              tables->mdl_request.set_type(MDL_EXCLUSIVE);
+            {
+              tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
+              tables->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+              tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
+            }
           }
         ;
 
@@ -12151,6 +12167,21 @@ table_ident:
           {
             /* For Delphi */
             $$= new Table_ident($2);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        ;
+
+table_ident_opt_wild:
+          ident opt_wild
+          {
+            $$= new Table_ident($1);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | ident '.' ident opt_wild
+          {
+            $$= new Table_ident(YYTHD, $1,$3,0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -13220,6 +13251,13 @@ handler:
           handler_read_or_scan where_clause opt_limit_clause
           {
             Lex->expr_allows_subselect= TRUE;
+            /* Stored functions are not supported for HANDLER READ. */
+            if (Lex->uses_stored_routines())
+            {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                       "stored functions in HANDLER ... READ");
+              MYSQL_YYABORT;
+            }
           }
         ;
 
@@ -14035,6 +14073,7 @@ view_tail:
                                                    TL_IGNORE,
                                                    MDL_EXCLUSIVE))
               MYSQL_YYABORT;
+            lex->query_tables->open_strategy= TABLE_LIST::OPEN_STUB;
           }
           view_list_opt AS view_select
         ;

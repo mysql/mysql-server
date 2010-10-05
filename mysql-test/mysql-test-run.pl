@@ -126,12 +126,24 @@ my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
 my $opt_tmpdir_pid;
 
+my $opt_start;
+my $opt_start_dirty;
+my $opt_start_exit;
+my $start_only;
+
 END {
   if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
   {
-    # Remove the tempdir this process has created
-    mtr_verbose("Removing tmpdir '$opt_tmpdir");
-    rmtree($opt_tmpdir);
+    if (!$opt_start_exit)
+    {
+      # Remove the tempdir this process has created
+      mtr_verbose("Removing tmpdir $opt_tmpdir");
+      rmtree($opt_tmpdir);
+    }
+    else
+    {
+      mtr_warning("tmpdir $opt_tmpdir should be removed after the server has finished");
+    }
   }
 }
 
@@ -231,20 +243,16 @@ my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 300; # minutes
 my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
 my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
-sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
 sub check_timeout { return $opt_testcase_timeout * 6; };
 
-my $opt_start;
-my $opt_start_dirty;
-my $opt_start_exit;
-my $start_only;
 my $opt_wait_all;
 my $opt_user_args;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
 my $opt_reorder= 1;
+my $opt_force_restart= 0;
 
 my $opt_strace_client;
 
@@ -259,6 +267,17 @@ my $opt_valgrind_path;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
+
+sub testcase_timeout ($) {
+  my ($tinfo)= @_;
+  if (exists $tinfo->{'case-timeout'}) {
+    # Return test specific timeout if *longer* that the general timeout
+    my $test_to= $tinfo->{'case-timeout'};
+    $test_to*= 10 if $opt_valgrind;
+    return $test_to * 60 if $test_to > $opt_testcase_timeout;
+  }
+  return $opt_testcase_timeout * 60;
+}
 
 our $opt_warnings= 1;
 
@@ -934,6 +953,7 @@ sub command_line_setup {
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
+	     'force-restart'            => \$opt_force_restart,
              'reorder!'                 => \$opt_reorder,
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
@@ -2155,10 +2175,12 @@ sub environment_setup {
   # mysqlhotcopy
   # ----------------------------------------------------
   my $mysqlhotcopy=
-    mtr_pl_maybe_exists("$bindir/scripts/mysqlhotcopy");
-  # Since mysqltest interprets the real path as "false" in an if,
-  # use 1 ("true") to indicate "not exists" so it can be tested for
-  $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
+    mtr_pl_maybe_exists("$bindir/scripts/mysqlhotcopy") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqlhotcopy");
+  if ($mysqlhotcopy)
+  {
+    $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy;
+  }
 
   # ----------------------------------------------------
   # perror
@@ -2172,6 +2194,11 @@ sub environment_setup {
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
+  # Add dir of this perl to aid mysqltest in finding perl
+  my $perldir= dirname($^X);
+  my $pathsep= ":";
+  $pathsep= ";" if IS_WINDOWS && ! IS_CYGWIN;
+  $ENV{'PATH'}= "$ENV{'PATH'}".$pathsep.$perldir;
 }
 
 
@@ -3550,7 +3577,7 @@ sub run_testcase ($) {
     }
   }
 
-  my $test_timeout= start_timer(testcase_timeout());
+  my $test_timeout= start_timer(testcase_timeout($tinfo));
 
   do_before_run_mysqltest($tinfo);
 
@@ -3644,6 +3671,9 @@ sub run_testcase ($) {
 	# Try to get reason from test log file
 	find_testcase_skipped_reason($tinfo);
 	mtr_report_test_skipped($tinfo);
+	# Restart if skipped due to missing perl, it may have had side effects
+	stop_all_servers($opt_shutdown_timeout)
+	  if ($tinfo->{'comment'} =~ /^perl not found/);
       }
       elsif ( $res == 65 )
       {
@@ -3750,7 +3780,7 @@ sub run_testcase ($) {
     {
       my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
       $tinfo->{comment}=
-        "Test case timeout after ".testcase_timeout().
+        "Test case timeout after ".testcase_timeout($tinfo).
 	  " seconds\n\n";
       # Add 20 last executed commands from test case log file
       if  (-e $log_file_name)
@@ -3759,7 +3789,7 @@ sub run_testcase ($) {
 	   "== $log_file_name == \n".
 	     mtr_lastlinesfromfile($log_file_name, 20)."\n";
       }
-      $tinfo->{'timeout'}= testcase_timeout(); # Mark as timeout
+      $tinfo->{'timeout'}= testcase_timeout($tinfo); # Mark as timeout
       run_on_all($tinfo, 'analyze-timeout');
 
       report_failure_and_restart($tinfo);
@@ -4562,6 +4592,11 @@ sub server_need_restart {
 
   if ( $tinfo->{'force_restart'} ) {
     mtr_verbose_restart($server, "forced in .opt file");
+    return 1;
+  }
+
+  if ( $opt_force_restart ) {
+    mtr_verbose_restart($server, "forced restart turned on");
     return 1;
   }
 
@@ -5593,6 +5628,7 @@ Misc options
                         servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
+  force-restart         Always restart servers between tests
   parallel=N            Run tests in N parallel threads (default=1)
                         Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times

@@ -44,19 +44,6 @@ class THD;
 typedef class Item COND;
 typedef struct charset_info_st CHARSET_INFO;
 
-/* Return codes */
-enum enum_events_error_code
-{
-  OP_OK= 0,
-  OP_NOT_RUNNING,
-  OP_CANT_KILL,
-  OP_CANT_INIT,
-  OP_DISABLED_EVENT,
-  OP_LOAD_ERROR,
-  OP_ALREADY_EXISTS
-};
-
-
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 
@@ -91,7 +78,7 @@ public:
   */
   enum enum_opt_event_scheduler { EVENTS_OFF, EVENTS_ON, EVENTS_DISABLED };
   /* Protected using LOCK_global_system_variables only. */
-  static uint opt_event_scheduler;
+  static ulong opt_event_scheduler;
   static mysql_mutex_t LOCK_event_metadata;
   static bool check_if_system_tables_error();
   static bool start();

@@ -1470,7 +1470,8 @@ connection con3726_2;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info like "rename table t2 to t3";
+  where state = "Waiting for table metadata lock" and
+        info like "rename table t2 to t3";
 --source include/wait_condition.inc
 --echo # These statements should not be blocked by pending lock requests
 select table_name, column_name, data_type from information_schema.columns

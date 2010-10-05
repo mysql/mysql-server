@@ -17,7 +17,6 @@
 #define SQL_BASE_INCLUDED
 
 #include "unireg.h"                    // REQUIRED: for other includes
-#include "table.h"                              /* open_table_mode */
 #include "sql_trigger.h"                        /* trg_event_type */
 #include "sql_class.h"                          /* enum_mark_columns */
 #include "mysqld.h"                             /* key_map */
@@ -70,6 +69,7 @@ enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
 #define RTFC_CHECK_KILLED_FLAG      0x0004
 
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
+extern mysql_mutex_t LOCK_open;
 bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
@@ -78,7 +78,8 @@ void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
 uint cached_table_definitions(void);
-uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
+uint create_table_def_key(THD *thd, char *key,
+                          const TABLE_LIST *table_list,
                           bool tmp_table);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
                              uint key_length, uint db_flags, int *error,
@@ -88,21 +89,56 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
+
+/* mysql_lock_tables() and open_table() flags bits */
+#define MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK      0x0001
+#define MYSQL_OPEN_IGNORE_FLUSH                 0x0002
+#define MYSQL_OPEN_TEMPORARY_ONLY               0x0004
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0008
+#define MYSQL_LOCK_LOG_TABLE                    0x0010
+/**
+  Do not try to acquire a metadata lock on the table: we
+  already have one.
+*/
+#define MYSQL_OPEN_HAS_MDL_LOCK                 0x0020
+/**
+  If in locked tables mode, ignore the locked tables and get
+  a new instance of the table.
+*/
+#define MYSQL_OPEN_GET_NEW_TABLE                0x0040
+/** Don't look up the table in the list of temporary tables. */
+#define MYSQL_OPEN_SKIP_TEMPORARY               0x0080
+/** Fail instead of waiting when conficting metadata lock is discovered. */
+#define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0100
+/** Open tables using MDL_SHARED lock instead of one specified in parser. */
+#define MYSQL_OPEN_FORCE_SHARED_MDL             0x0200
+/**
+  Open tables using MDL_SHARED_HIGH_PRIO lock instead of one specified
+  in parser.
+*/
+#define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0400
+/**
+  When opening or locking the table, use the maximum timeout
+  (LONG_TIMEOUT = 1 year) rather than the user-supplied timeout value.
+*/
+#define MYSQL_LOCK_IGNORE_TIMEOUT               0x0800
+/**
+  When acquiring "strong" (SNW, SNRW, X) metadata locks on tables to
+  be open do not acquire global and schema-scope IX locks.
+*/
+#define MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK         0x1000
+
+/** Please refer to the internals manual. */
+#define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
+                            MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |\
+                            MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
+                            MYSQL_LOCK_IGNORE_TIMEOUT |\
+                            MYSQL_OPEN_GET_NEW_TABLE |\
+                            MYSQL_OPEN_SKIP_TEMPORARY |\
+                            MYSQL_OPEN_HAS_MDL_LOCK)
+
 bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                 Open_table_context *ot_ctx);
-bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
-bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
-TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
-                                      uint key_length);
-bool lock_table_name_if_not_cached(THD *thd, const char *db,
-                                   const char *table_name, TABLE **table);
-void detach_merge_children(TABLE *table, bool clear_refs);
-bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
-                          TABLE_LIST *new_child_list, TABLE_LIST **new_last);
-bool reopen_table(TABLE *table);
-bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-void close_data_files_and_morph_locks(THD *thd, const char *db,
-                                      const char *table_name);
 bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                   uint db_stat, uint prgflag,
                   uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
@@ -110,8 +146,9 @@ bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
-TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list);
+TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
+			   const char *table_name,
+                           bool add_to_temporary_tables_list);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 TABLE *find_write_locked_table(TABLE *list, const char *db,
                                const char *table_name);
@@ -128,7 +165,9 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                const char *db_name,
                                const char *table_name);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
-TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
+TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
+TABLE *find_temporary_table(THD *thd, const char *table_key,
+                            uint table_key_length);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
@@ -185,12 +224,9 @@ bool setup_tables_and_check_access(THD *thd,
                                    ulong want_access);
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
-void unlink_open_table(THD *thd, TABLE *find, bool unlock);
 
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
                      const char *table_name);
-void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                               bool remove_from_locked_tables);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
@@ -210,7 +246,8 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
 int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type, uint flags);
+                                thr_lock_type lock_type, uint flags,
+                                Prelocking_strategy *prelocking_strategy);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
@@ -220,14 +257,12 @@ bool close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
 TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
                          bool check_alias);
-int drop_temporary_table(THD *thd, TABLE_LIST *table_list);
+int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
 void close_temporary(TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
-void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
-void remove_db_from_cache(const char *db);
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
@@ -243,16 +278,15 @@ TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
                                      Open_tables_state *backup);
 void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
-bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh);
-bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
-                                    LEX_STRING *connect_string,
-                                    bool have_lock = FALSE);
+bool close_cached_tables(THD *thd, TABLE_LIST *tables,
+                         bool wait_for_refresh, ulong timeout);
+bool close_cached_connection_tables(THD *thd, LEX_STRING *connect_string);
+void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
+                               bool remove_from_locked_tables);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
-bool remove_table_from_cache(THD *thd, const char *db, const char *table,
-                             uint flags);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
-                      const char *db, const char *table_name);
+                      const char *db, const char *table_name,
+                      bool has_lock);
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                    char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);
@@ -263,12 +297,10 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
 void mark_tmp_table_for_reuse(TABLE *table);
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
 
-extern uint  table_cache_count;
 extern TABLE *unused_tables;
 extern Item **not_found_item;
 extern Field *not_found_field;
 extern Field *view_ref_found;
-extern HASH open_cache;
 extern HASH table_def_cache;
 
 /**
@@ -424,6 +456,16 @@ open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
 }
 
 
+inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+                                       thr_lock_type lock_type, uint flags)
+{
+  DML_prelocking_strategy prelocking_strategy;
+
+  return open_n_lock_single_table(thd, table_l, lock_type, flags,
+                                  &prelocking_strategy);
+}
+
+
 /* open_and_lock_tables with derived handling */
 inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                                  bool derived, uint flags)
@@ -446,8 +488,8 @@ public:
   enum enum_open_table_action
   {
     OT_NO_ACTION= 0,
-    OT_MDL_CONFLICT,
-    OT_WAIT_TDC,
+    OT_BACKOFF_AND_RETRY,
+    OT_REOPEN_TABLES,
     OT_DISCOVER,
     OT_REPAIR
   };
@@ -456,9 +498,6 @@ public:
   bool recover_from_failed_open(THD *thd);
   bool request_backoff_action(enum_open_table_action action_arg,
                               TABLE_LIST *table);
-
-  void add_request(MDL_request *request)
-  { m_mdl_requests.push_front(request); }
 
   bool can_recover_from_failed_open() const
   { return m_action != OT_NO_ACTION; }
@@ -481,8 +520,6 @@ public:
 
   uint get_flags() const { return m_flags; }
 private:
-  /** List of requests for all locks taken so far. Used for waiting on locks. */
-  MDL_request_list m_mdl_requests;
   /**
     For OT_DISCOVER and OT_REPAIR actions, the table list element for
     the table which definition should be re-discovered or which
@@ -505,6 +542,36 @@ private:
     and we can't safely do back-off (and release them).
   */
   bool m_has_locks;
+};
+
+
+/**
+  This internal handler is used to trap ER_NO_SUCH_TABLE.
+*/
+
+class No_such_table_error_handler : public Internal_error_handler
+{
+public:
+  No_such_table_error_handler()
+    : m_handled_errors(0), m_unhandled_errors(0)
+  {}
+
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl);
+
+  /**
+    Returns TRUE if one or more ER_NO_SUCH_TABLE errors have been
+    trapped and no other errors have been seen. FALSE otherwise.
+  */
+  bool safely_trapped_errors();
+
+private:
+  int m_handled_errors;
+  int m_unhandled_errors;
 };
 
 

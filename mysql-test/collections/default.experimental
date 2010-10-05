@@ -19,20 +19,16 @@ main.mysqlbinlog_row @solaris            # Bug#52202 2010-03-22 alik mysqlbinlog
 main.mysqlbinlog_row_innodb @solaris     # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
 main.mysqlbinlog_row_myisam @solaris     # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
-main.plugin* @solaris                    # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.wait_timeout @solaris               # Bug#51244 2010-04-26 alik wait_timeout fails on OpenSolaris
-
-parts.partition_alter4_innodb            # Bug#45299 2010-06-28 alik Test "partition_alter4_innodb" is taking too long, timeout
 
 rpl.rpl_heartbeat_basic                  # BUG#54820 2010-06-26 alik rpl.rpl_heartbeat_basic fails sporadically again
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_innodb_bug28430*                 # Bug#46029
 rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_innodb_bug30888 fails sporadically on Solaris
 rpl.rpl_killed_ddl @windows              # Bug#47638 2010-01-20 alik The rpl_killed_ddl test fails on Windows
-rpl.rpl_plugin_load*  @solaris           # Bug#47146
 rpl.rpl_row_sp011* @solaris              # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
@@ -94,5 +90,6 @@ parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experiment
 parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
-main.mysqlhotcopy_myisam                 # horst: due to bug#54129
-main.mysqlhotcopy_archive                # horst: due to bug#54129
+main.gis-rtree                           # svoj: due to BUG#38965
+main.type_float                          # svoj: due to BUG#38965
+main.type_newdecimal                     # svoj: due to BUG#38965

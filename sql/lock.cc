@@ -1298,27 +1298,19 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
 
 
 /**
-  Broadcast COND_refresh and COND_global_read_lock.
+  Broadcast COND_global_read_lock.
 
-    Due to a bug in a threading library it could happen that a signal
-    did not reach its target. A condition for this was that the same
-    condition variable was used with different mutexes in
-    mysql_cond_wait(). Some time ago we changed LOCK_open to
-    LOCK_global_read_lock in global read lock handling. So COND_refresh
-    was used with LOCK_open and LOCK_global_read_lock.
-
-    We did now also change from COND_refresh to COND_global_read_lock
-    in global read lock handling. But now it is necessary to signal
-    both conditions at the same time.
-
-  @note
-    When signalling COND_global_read_lock within the global read lock
-    handling, it is not necessary to also signal COND_refresh.
+  TODO/FIXME: Dmitry thinks that we broadcast on COND_global_read_lock
+              when old instance of table is closed to avoid races
+              between incrementing refresh_version and
+              wait_if_global_read_lock(thd, TRUE, FALSE) call.
+              Once global read lock implementation starts using MDL
+              infrastructure this will became unnecessary and should
+              be removed.
 */
 
 void broadcast_refresh(void)
 {
-  mysql_cond_broadcast(&COND_refresh);
   mysql_cond_broadcast(&COND_global_read_lock);
 }
 
