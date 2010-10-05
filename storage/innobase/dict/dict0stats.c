@@ -52,19 +52,20 @@ Created Jan 06, 2010 Vasil Dimov
 
 /* Sampling algorithm description @{
 
-The algorithm is controlled by one number - A, which is the number of leaf
-pages to analyze for a given index for each n-prefix (if the index is on 3
-columns, then 3*A pages will be analyzed).
+The algorithm is controlled by one number - srv_stats_persistent_sample_pages,
+let it be A, which is the number of leaf pages to analyze for a given index
+for each n-prefix (if the index is on 3 columns, then 3*A pages will be
+analyzed).
 
 Let the total number of leaf pages in the table be T.
 Level 0 - leaf pages, level H - root.
 
-Definition: Boring record is a record on a non-leaf page that equals the
-next (to the right, cross page boundaries, skipping the supremum and infimum)
-record on the same level. The last (user) record on a level is not boring (it
-does not match the non-existent user record to the right). We call the
-records boring because all the records on the page below a boring record
-are equal to that boring record.
+Definition: N-prefix-boring record is a record on a non-leaf page that equals
+the next (to the right, cross page boundaries, skipping the supremum and
+infimum) record on the same level when looking at the fist n-prefix columns.
+The last (user) record on a level is not boring (it does not match the
+non-existent user record to the right). We call the records boring because all
+the records on the page below a boring record are equal to that boring record.
 
 We avoid diving below boring records when searching for a leaf page to
 estimate the number of distinct records because we know that such a leaf
@@ -106,8 +107,6 @@ V * (P1 + P2 + ... PA) / A.
 The above describes how to calculate the cardinality of an index.
 This algorithm is executed for each n-prefix of a multi-column index
 where n=1..n_uniq.
-
-In the implementation below A is srv_stats_persistent_sample_pages.
 @} */
 
 /* names of the tables from the persistent statistics storage */
