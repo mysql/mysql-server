@@ -1183,7 +1183,7 @@ dict_ind_init(void);
 
 /* This struct is used to specify the name and type that a column must
 have when checking a table's schema. */
-typedef struct dict_col_meta_struct {
+struct dict_col_meta_struct {
 	const char*	name;		/* column name */
 	ulint		mtype;		/* required column main type */
 	ulint		prtype_mask;	/* required column precise type mask;
@@ -1191,12 +1191,13 @@ typedef struct dict_col_meta_struct {
 					bits it has set must also be set
 					in the column's prtype */
 	ulint		len;		/* required column length */
-} dict_col_meta_t;
+};
+typedef struct dict_col_meta_struct dict_col_meta_t;
 
 /* This struct is used for checking whether a given table exists and
 whether it has a predefined schema (number of columns and columns names
 and types) */
-typedef struct dict_table_schema_struct {
+struct dict_table_schema_struct {
 	const char*		table_name;	/* the name of the table whose
 						structure we are checking */
 	ulint			n_cols;		/* the number of columns the
@@ -1204,7 +1205,8 @@ typedef struct dict_table_schema_struct {
 	dict_col_meta_t*	columns;	/* metadata for the columns;
 						this array has n_cols
 						elements */
-} dict_table_schema_t;
+};
+typedef struct dict_table_schema_struct dict_table_schema_t;
 /* @} */
 
 /*********************************************************************//**
