@@ -33,4 +33,22 @@ public:
   virtual void trp_node_status(Uint32, Uint32 event) = 0;
 };
 
+class PollGuard
+{
+public:
+  PollGuard(class NdbImpl&);
+  ~PollGuard() { unlock_and_signal(); }
+  int wait_n_unlock(int wait_time, Uint32 nodeId, Uint32 state,
+                    bool forceSend= false);
+  int wait_for_input_in_loop(int wait_time, bool forceSend);
+  void wait_for_input(int wait_time);
+  int wait_scan(int wait_time, Uint32 nodeId, bool forceSend);
+  void unlock_and_signal();
+private:
+  class TransporterFacade *m_tp;
+  class NdbWaiter *m_waiter;
+  Uint32 m_block_no;
+  bool m_locked;
+};
+
 #endif

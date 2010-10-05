@@ -340,12 +340,13 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   NdbTransaction* tCon;
   int tReturnCode = -1;
   const Uint32* tDataPtr = aSignal->getDataPtr();
-  const Uint32 tWaitState = theImpl->theWaiter.m_state;
+  const Uint32 tWaitState = theImpl->theWaiter.get_state();
   const Uint32 tSignalNumber = aSignal->readSignalNumber();
   const Uint32 tFirstData = *tDataPtr;
   const Uint32 tLen = aSignal->getLength();
+  Uint32 tNewState = tWaitState;
   void * tFirstDataPtr;
-  NdbWaiter *t_waiter;
+  NdbWaiter *t_waiter = &theImpl->theWaiter;
 
   /* Update cached Min Db node version */
   theCachedMinDbNodeVersion = theImpl->m_transporter_facade->getMinDbNodeVersion();
@@ -417,8 +418,8 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 	return;
       case NdbReceiver::NDB_SCANRECEIVER:
 	tCon->theScanningOp->receiver_delivered(tRec);
-	theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
-				      (Uint32) NO_WAIT : tWaitState);
+        tNewState = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+                     (Uint32) NO_WAIT : tWaitState);
 	break;
       default:
 	goto InvalidSignal;
@@ -615,7 +616,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       }//if
       tReturnCode = tCon->receiveTCSEIZECONF(aSignal);
       if (tReturnCode != -1) {
-	theImpl->theWaiter.m_state = NO_WAIT;
+        tNewState = NO_WAIT;
       } else {
 	goto InvalidSignal;
       }//if
@@ -635,7 +636,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       }//if
       tReturnCode = tCon->receiveTCSEIZEREF(aSignal);
       if (tReturnCode != -1) {
-	theImpl->theWaiter.m_state = NO_WAIT;
+        tNewState = NO_WAIT;
       } else {
         return;
       }//if
@@ -655,7 +656,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       }//if
       tReturnCode = tCon->receiveTCRELEASECONF(aSignal);
       if (tReturnCode != -1) {
-	theImpl->theWaiter.m_state = NO_WAIT;
+        tNewState = NO_WAIT;
       }//if
       break;
     } 
@@ -673,7 +674,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       }//if
       tReturnCode = tCon->receiveTCRELEASEREF(aSignal);
       if (tReturnCode != -1) {
-	theImpl->theWaiter.m_state = NO_WAIT;
+        tNewState = NO_WAIT;
       }//if
       break;
     }
@@ -791,7 +792,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 				      tLen - ScanTabConf::SignalLength);
 	}
 	if (tReturnCode != -1 && tWaitState == WAIT_SCAN)
-	  theImpl->theWaiter.m_state = NO_WAIT;
+          tNewState = NO_WAIT;
 	break;
       } else {
 	goto InvalidSignal;
@@ -810,7 +811,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       if (tCon->checkMagicNumber() == 0){
 	tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
 	if (tReturnCode != -1 && tWaitState == WAIT_SCAN){
-	  theImpl->theWaiter.m_state = NO_WAIT;
+          tNewState = NO_WAIT;
 	}
 	break;
       }
@@ -835,8 +836,8 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       switch(com){
       case 1:
 	tCon->theScanningOp->receiver_delivered(tRec);
-	theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
-			      (Uint32) NO_WAIT : tWaitState);
+        tNewState = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+                     (Uint32) NO_WAIT : tWaitState);
 	break;
       case 0:
 	break;
@@ -907,8 +908,8 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
     goto InvalidSignal;
   }//swich
 
-  t_waiter= &theImpl->theWaiter;
-  if (t_waiter->get_state() == NO_WAIT && tWaitState != NO_WAIT)
+  t_waiter->set_state(tNewState);
+  if (tNewState == NO_WAIT && tWaitState != NO_WAIT)
   {
     /*
       If our waiter object is the owner of the "poll rights", then we
@@ -931,10 +932,12 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       tp->remove_from_cond_wait_queue(t_waiter);
       t_waiter->cond_signal();
     }
-  }//if
+  }
+
   return;
 
- InvalidSignal:
+
+InvalidSignal:
 #ifdef VM_TRACE
   ndbout_c("Ndbif: Error Ndb::handleReceivedSignal "
 	   "(tFirstDataPtr=%p, GSN=%d, theImpl->theWaiter.m_state=%d)"
