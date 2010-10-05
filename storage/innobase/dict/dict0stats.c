@@ -743,7 +743,7 @@ dict_stats_scan_page(
 /*********************************************************************//**
 Dive below the current position of a cursor and calculate the number of
 distinct records on the leaf page, when looking at the fist n_prefix
-columns. The result is returned in n_diff.
+columns.
 dict_stats_analyze_index_below_pcur() @{
 @return number of distinct records on the leaf page */
 static
