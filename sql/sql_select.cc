@@ -19264,8 +19264,18 @@ bool JOIN::change_result(select_result *res)
 
 
 /**
-  Save the original query execution plan so that the caller can revert to it
-  if needed.
+  Save a query execution plan so that the caller can revert to it if needed,
+  and reset the current query plan so that it can be reoptimized.
+
+  @param save_keyuse[out]  a KEYUSE array to save JOIN::keyuse
+  @param save_best_positions[out]  array to save JOIN::best_positions
+  @param save_join_tab_keyuse[out] array of KEYUSE pointers to save each
+                                   JOIN_TAB::keyuse pointer
+  @param save_join_tab_checked_keys[out] an array of bitmaps to save
+                                         each JOIN_TAB::checked_keys
+
+  @retval 0  OK
+  @retval 1  memory allocation error
 */
 int JOIN::save_query_plan(DYNAMIC_ARRAY *save_keyuse,
                           POSITION *save_best_positions,
@@ -19298,8 +19308,14 @@ int JOIN::save_query_plan(DYNAMIC_ARRAY *save_keyuse,
 
 
 /**
-  Restore the query plan saved before reoptimization with additional
-  conditions.
+  Restore a query plan previously saved by the caller.
+
+  @param save_keyuse  a KEYUSE array to restore into JOIN::keyuse
+  @param save_best_positions  array to restore into JOIN::best_positions
+  @param save_join_tab_keyuse array of KEYUSE pointers to restore each
+                                   JOIN_TAB::keyuse pointer
+  @param save_join_tab_checked_keys an array of bitmaps to restore
+                                         each JOIN_TAB::checked_keys
 */
 
 void JOIN::restore_query_plan(DYNAMIC_ARRAY *save_keyuse,
@@ -19328,8 +19344,29 @@ void JOIN::restore_query_plan(DYNAMIC_ARRAY *save_keyuse,
 
 
 /**
-   Reoptimize a query plan taking into account an additional conjunct to the
-   WHERE clause.
+  Reoptimize a query plan taking into account an additional conjunct to the
+  WHERE clause.
+
+  @param added_where  An extra conjunct to the WHERE clause to reoptimize with
+  @param join_tables  The set of tables to reoptimize
+  @param save_best_positions  The join order of the original plan to restore to
+                              if needed.
+
+  @notes
+  Given a query plan that already optimized taking into account some WHERE clause
+  'C', reoptimize this plan with a new WHERE clause 'C AND added_where'. The
+  reoptimization works as follows:
+
+  1. Call update_ref_and_keys *only* for the new conditions 'added_where'
+     that are about to be injected into the query.
+  2. Expand if necessary the original KEYUSE array JOIN::keyuse to
+     accommodate the new REF accesses computed for the 'added_where' condition.
+  3. Add the new KEYUSEs into JOIN::keyuse.
+  4. Re-sort and re-filter the JOIN::keyuse array with the newly added
+     KEYUSE elements. 
+ 
+  @retval 0  OK
+  @retval 1  memory allocation error
 */
 
 int JOIN::reoptimize(Item *added_where, table_map join_tables,

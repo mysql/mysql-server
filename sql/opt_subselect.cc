@@ -185,6 +185,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
     else
     {
       DBUG_PRINT("info", ("Subquery can't be converted to semi-join"));
+      /* Test if the user has set a legal combination of optimizer switches. */
       if (!optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS) &&
           !optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION))
         my_error(ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES, MYF(0));
@@ -3543,16 +3544,10 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 
 
 /**
-  Setup for execution all subqueries of a query, for which the optimizer
-  chose hash semi-join.
+  Optimize all subqueries of a query that have were flattened into a semijoin.
 
-  @details Iterate over all immediate child subqueries of the query, and if
-  they are under an IN predicate, and the optimizer chose to compute it via
-  materialization:
-  - optimize each subquery,
-  - choose an optimial execution strategy for the IN predicate - either
-    materialization, or an IN=>EXISTS transformation with an approriate
-    engine.
+  @details
+  Optimize all immediate children subqueries of a query.
 
   This phase must be called after substitute_for_best_equal_field() because
   that function may replace items with other items from a multiple equality,
@@ -3569,6 +3564,42 @@ bool JOIN::optimize_unflattened_subqueries()
   return select_lex->optimize_unflattened_subqueries();
 }
 
+
+/**
+  Choose an optimal strategy to execute an IN/ALL/ANY subquery predicate
+  based on cost.
+
+  @param join_tables  the set of tables joined in the subquery
+
+  @notes
+  The method chooses between the materialization and IN=>EXISTS rewrite
+  strategies for the execution of a non-flattened subquery IN predicate.
+  The cost-based decision is made as follows:
+
+  1. compute materialize_strategy_cost based on the unmodified subquery
+  2. reoptimize the subquery taking into account the IN-EXISTS predicates
+  3. compute in_exists_strategy_cost based on the reoptimized plan
+  4. compare and set the cheaper strategy
+     if (materialize_strategy_cost >= in_exists_strategy_cost)
+       in_strategy = MATERIALIZATION
+     else
+       in_strategy = IN_TO_EXISTS
+  5. if in_strategy = MATERIALIZATION and it is not possible to initialize it
+       revert to IN_TO_EXISTS
+  6. if (in_strategy == MATERIALIZATION)
+       revert the subquery plan to the original one before reoptimizing
+     else
+       inject the IN=>EXISTS predicates into the new EXISTS subquery plan
+
+  The implementation itself is a bit more complicated because it takes into
+  account two more factors:
+  - whether the user allowed both strategies through an optimizer_switch, and
+  - if materialization was the cheaper strategy, whether it can be executed
+    or not.
+
+  @retval FALSE     success.
+  @retval TRUE      error occurred.
+*/
 
 bool JOIN::choose_subquery_plan(table_map join_tables)
 {
@@ -3627,7 +3658,10 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
                             &outer_read_time, &outer_record_count);
     else
     {
-      /* TODO: outer_join can be NULL for DELETE statements. */
+      /*
+        TODO: outer_join can be NULL for DELETE statements.
+        How to compute its cost?
+      */
       outer_read_time= 1; /* TODO */
       outer_record_count= 1;  /* TODO */
     }
@@ -3694,13 +3728,14 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   }
 
   /*
-    If (1) materialization is a possible strategy based on static analysis
+    If (1) materialization is a possible strategy based on semantic analysis
     during the prepare phase, then if
       (2) it is more expensive than the IN->EXISTS transformation, and
       (3) it is not possible to create usable indexes for the materialization
           strategy,
       fall back to IN->EXISTS.
-    otherwise use materialization.
+    otherwise
+      use materialization.
   */
   if (in_subs->in_strategy & SUBS_MATERIALIZATION &&
       in_subs->setup_mat_engine())
@@ -3752,6 +3787,11 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
 
     if (!in_exists_reoptimized && in_to_exists_where && const_tables != tables)
     {
+      /*
+        The subquery was not reoptimized either because the user allowed only the
+        IN-EXISTS strategy, or because materialization was not possible based on
+        semantic analysis. Clenup the original plan and reoptimize.
+      */
       for (uint i= 0; i < tables; i++)
       {
         join_tab[i].keyuse= NULL;

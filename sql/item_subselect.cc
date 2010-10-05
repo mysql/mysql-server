@@ -187,7 +187,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   bool res;
 
   DBUG_ASSERT(fixed == 0);
-  DBUG_ASSERT(thd == thd_param);
+  DBUG_ASSERT(thd == thd_param); /* thd can't change during execution. */
   engine->set_thd(thd);
   if (!done_first_fix_fields)
   {
@@ -288,6 +288,16 @@ bool Item_subselect::mark_as_eliminated_processor(uchar *arg)
 }
 
 
+/**
+  Remove a subselect item from its unit so that the unit no longer
+  represents a subquery.
+
+  @param arg  unused parameter
+
+  @return
+    FALSE to force the evaluation of the processor for the subsequent items.
+*/
+
 bool Item_subselect::eliminate_subselect_processor(uchar *arg)
 {
   unit->item= NULL;
@@ -297,34 +307,37 @@ bool Item_subselect::eliminate_subselect_processor(uchar *arg)
 }
 
 
-/*
+/**
   Adjust the master select of the subquery to be the fake_select which
   represents the whole UNION right above the subquery, instead of the
   last query of the UNION.
+
+  @param arg  pointer to the fake select
+
+  @return
+    FALSE to force the evaluation of the processor for the subsequent items.
 */
 
 bool Item_subselect::set_fake_select_as_master_processor(uchar *arg)
 {
   SELECT_LEX *fake_select= (SELECT_LEX*) arg;
   /*
-    Apply the substitution only for immediate child subqueries of a
+    Move the st_select_lex_unit of a subquery from a global ORDER BY clause to
+    become a direct child of the fake_select of a UNION. In this way the
+    ORDER BY is applied to the temporary table that contains the result of the
+    whole UNION, and all columns in the subquery are resolved against this table.
+
+    Apply the transformation only for immediate child subqueries of a
     UNION query.
   */
   if (unit->outer_select()->master_unit()->fake_select_lex == fake_select)
   {
     /*
-      Include the st_select_lex_unit of a subquery from a global ORDER BY
-      clause as a direct child of the fake_select of a UNION. In this way
-      the ORDER BY is applied to the temporary table that contains the
-      result of the whole UNION, and all columns in the subquery are
-      resolved against this table.
-    */
-    /*
-      Set the master of the subquery to be the fake select (i.e. the whole
-      UNION, instead of the last query in the UNION.
-      TODO: this is a hack, instead we should call:
-      unit->include_down(fake_select);
-      however, this call results in an infinite loop where
+      Set the master of the subquery to be the fake select (i.e. the whole UNION),
+      instead of the last query in the UNION.
+      TODO:
+      This is a hack, instead we should call: unit->include_down(fake_select);
+      However, this call results in an infinite loop where
       some_select_lex->master == some_select_lex.
     */
     unit->set_master(fake_select);
@@ -332,14 +345,13 @@ bool Item_subselect::set_fake_select_as_master_processor(uchar *arg)
     for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
       sl->context.outer_context= &(fake_select->context);
     /*
-      Undo Item_subselect::eliminate_subselect_processor because at that
-      phase we don't know yet (or don't know how to figure it out) that
-      the ORDER clause will be moved to the fake select.
+      Undo Item_subselect::eliminate_subselect_processor because at that phase
+      we don't know yet that the ORDER clause will be moved to the fake select.
     */
     unit->item= this;
     eliminated= FALSE;
   }
-  return FALSE; // return TRUE ? because we need to stop processing down
+  return FALSE;
 }
 
 
@@ -1341,54 +1353,33 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
 }
 
 
-/* 
-  Rewrite a single-column IN/ALL/ANY subselect
+/**
+  Rewrite a single-column IN/ALL/ANY subselect.
 
-  SYNOPSIS
-    Item_in_subselect::single_value_transformer()
-      join  Join object of the subquery (i.e. 'child' join).
-      func  Subquery comparison creator
+  @param join  Join object of the subquery (i.e. 'child' join).
 
-  DESCRIPTION
-    Rewrite a single-column subquery using rule-based approach. The subquery
+  @details
+  Rewrite a single-column subquery using rule-based approach. The subquery
+
+     oe $cmp$ (SELECT ie FROM ... WHERE subq_where ... HAVING subq_having)
+
+  First, try to convert the subquery to scalar-result subquery in one of
+  the forms:
     
-       oe $cmp$ (SELECT ie FROM ... WHERE subq_where ... HAVING subq_having)
-    
-    First, try to convert the subquery to scalar-result subquery in one of
-    the forms:
-    
-       - oe $cmp$ (SELECT MAX(...) )  // handled by Item_singlerow_subselect
-       - oe $cmp$ <max>(SELECT ...)   // handled by Item_maxmin_subselect
+     - oe $cmp$ (SELECT MAX(...) )  // handled by Item_singlerow_subselect
+     - oe $cmp$ <max>(SELECT ...)   // handled by Item_maxmin_subselect
+
+  If that fails, check if the subquery is a single select without tables,
+  and substitute the subquery predicate with "oe $cmp$ ie".
    
-    If that fails, the subquery will be handled with class Item_in_optimizer, 
-    Inject the predicates into subquery, i.e. convert it to:
+  If that fails, the subquery predicate is wrapped into an Item_in_optimizer.
+  Later the query optimization phase chooses whether the subquery under the
+  Item_in_optimizer will be further transformed into an equivalent correlated
+  EXISTS by injecting additional predicates, or will be executed via subquery
+  materialization in its unmodified form.
 
-    - If the subquery has aggregates, GROUP BY, or HAVING, convert to
-
-       SELECT ie FROM ...  HAVING subq_having AND 
-                                   trigcond(oe $cmp$ ref_or_null_helper<ie>)
-                                   
-      the addition is wrapped into trigger only when we want to distinguish
-      between NULL and FALSE results.
-
-    - Otherwise (no aggregates/GROUP BY/HAVING) convert it to one of the
-      following:
-
-      = If we don't need to distinguish between NULL and FALSE subquery:
-        
-        SELECT 1 FROM ... WHERE (oe $cmp$ ie) AND subq_where
-
-      = If we need to distinguish between those:
-
-        SELECT 1 FROM ...
-          WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
-          HAVING trigcond(<is_not_null_test>(ie))
-
-  RETURN
-    RES_OK     Either subquery was transformed, or appopriate
-                       predicates where injected into it.
-    RES_REDUCE The subquery was reduced to non-subquery
-    RES_ERROR  Error
+  @retval RES_OK     The subquery was transformed
+  @retval RES_ERROR  Error
 */
 
 Item_subselect::trans_res
@@ -1424,7 +1415,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
   {
     if (substitution)
     {
-      // It is second (third, ...) SELECT of UNION => All is done
+      /* It is second (third, ...) SELECT of UNION => All is done */
       DBUG_RETURN(RES_OK);
     }
 
@@ -1516,6 +1507,10 @@ Item_in_subselect::single_value_transformer(JOIN *join)
     DBUG_RETURN(RES_OK);
   }
 
+  /*
+    Wrap the current IN predicate in an Item_in_optimizer. The actual
+    substitution in the Item tree takes place in Item_subselect::fix_fields.
+  */
   if (!substitution)
   {
     /* We're invoked for the 1st (or the only) SELECT in the subquery UNION */
@@ -1546,7 +1541,8 @@ Item_in_subselect::single_value_transformer(JOIN *join)
 			      (char *)in_left_expr_name);
 
     master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
-    //select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
+    // TODO: do we need to set both?
+    // select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
   DBUG_RETURN(RES_OK);
@@ -1567,10 +1563,15 @@ bool Item_in_subselect::fix_having(Item *having, SELECT_LEX *select_lex)
 
 
 /**
-  Transform an IN predicate into EXISTS via predicate injection.
+  Create the predicates needed to transform a single-column IN/ALL/ANY
+  subselect into a correlated EXISTS via predicate injection.
 
-  @details The transformation injects additional predicates into the subquery
-  (and makes the subquery correlated) as follows.
+  @param join[in]  Join object of the subquery (i.e. 'child' join).
+  @param where_item[out]   the in-to-exists addition to the where clause
+  @param having_item[out]  the in-to-exists addition to the having clause
+
+  @details
+  The correlated predicates are created as follows:
 
   - If the subquery has aggregates, GROUP BY, or HAVING, convert to
 
@@ -1585,21 +1586,16 @@ bool Item_in_subselect::fix_having(Item *having, SELECT_LEX *select_lex)
 
     = If we don't need to distinguish between NULL and FALSE subquery:
         
-      SELECT 1 FROM ... WHERE (oe $cmp$ ie) AND subq_where
+      SELECT ie FROM ... WHERE subq_where AND (oe $cmp$ ie)
 
     = If we need to distinguish between those:
 
-      SELECT 1 FROM ...
+      SELECT ie FROM ...
         WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
         HAVING trigcond(<is_not_null_test>(ie))
 
-    @param join  Join object of the subquery (i.e. 'child' join).
-    @param func  Subquery comparison creator
-
-    @retval RES_OK     Either subquery was transformed, or appopriate
-                       predicates where injected into it.
-    @retval RES_REDUCE The subquery was reduced to non-subquery
-    @retval RES_ERROR  Error
+  @retval RES_OK     If the new conditions were created successfully
+  @retval RES_ERROR  Error
 */
 
 Item_subselect::trans_res
@@ -1609,10 +1605,8 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
 {
   SELECT_LEX *select_lex= join->select_lex;
   /*
-    The non-transformed HAVING clause of 'join' may be stored differently in
-    JOIN::optimize:
-    this->tmp_having= this->having
-    this->having= 0;
+    The non-transformed HAVING clause of 'join' may be stored in two ways
+    during JOIN::optimize: this->tmp_having= this->having; this->having= 0;
   */
   Item* join_having= join->having ? join->having : join->tmp_having;
 
@@ -1724,6 +1718,22 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
 }
 
 
+/**
+  Wrap a multi-column IN/ALL/ANY subselect into an Item_in_optimizer.
+
+  @param join  Join object of the subquery (i.e. 'child' join).
+
+  @details
+  The subquery predicate is wrapped into an Item_in_optimizer. Later the query
+  optimization phase chooses whether the subquery under the Item_in_optimizer
+  will be further transformed into an equivalent correlated EXISTS by injecting
+  additional predicates, or will be executed via subquery materialization in its
+  unmodified form.
+
+  @retval RES_OK     The subquery was transformed
+  @retval RES_ERROR  Error
+*/
+
 Item_subselect::trans_res
 Item_in_subselect::row_value_transformer(JOIN *join)
 {
@@ -1763,6 +1773,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 
     thd->lex->current_select= current;
     master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
+    // TODO: do we need to set both?
     //select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
@@ -1771,21 +1782,19 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 
 
 /**
-  Tranform a (possibly non-correlated) IN subquery into a correlated EXISTS.
+  Create the predicates needed to transform a multi-column IN/ALL/ANY
+  subselect into a correlated EXISTS via predicate injection.
 
-  @todo
-  The IF-ELSE below can be refactored so that there is no duplication of the
-  statements that create the new conditions. For this we have to invert the IF
-  and the FOR statements as this:
-  for (each left operand)
-    create the equi-join condition
-    if (is_having_used || !abort_on_null)
-      create the "is null" and is_not_null_test items
-    if (is_having_used)
-      add the equi-join and the null tests to HAVING
-    else
-      add the equi-join and the "is null" to WHERE
-      add the is_not_null_test to HAVING
+  @details
+  There are two cases - either the subquery has aggregates, GROUP BY,
+  or HAVING, or not. Both cases are described inline in the code.
+
+  @param join[in]  Join object of the subquery (i.e. 'child' join).
+  @param where_item[out]   the in-to-exists addition to the where clause
+  @param having_item[out]  the in-to-exists addition to the having clause
+
+  @retval RES_OK     If the new conditions were created successfully
+  @retval RES_ERROR  Error
 */
 
 Item_subselect::trans_res
@@ -1796,10 +1805,8 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
   SELECT_LEX *select_lex= join->select_lex;
   uint cols_num= left_expr->cols();
   /*
-    The non-transformed HAVING clause of 'join' may be stored differently in
-    JOIN::optimize:
-    this->tmp_having= this->having
-    this->having= 0;
+    The non-transformed HAVING clause of 'join' may be stored in two ways
+    during JOIN::optimize: this->tmp_having= this->having; this->having= 0;
   */
   Item* join_having= join->having ? join->having : join->tmp_having;
   bool is_having_used= (join_having || select_lex->with_sum_func ||
@@ -1993,6 +2000,16 @@ Item_in_subselect::select_transformer(JOIN *join)
 }
 
 
+/**
+  Create the predicates needed to transform an IN/ALL/ANY subselect into a
+  correlated EXISTS via predicate injection.
+
+  @param join_arg  Join object of the subquery.
+
+  @retval FALSE  ok
+  @retval TRUE   error
+*/
+
 bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
 {
   Item_subselect::trans_res res;
@@ -2000,12 +2017,11 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
   DBUG_ASSERT(engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE ||
               engine->engine_type() == subselect_engine::UNION_ENGINE);
   /*
-    TIMOUR TODO: the call to init_cond_guards allocates and initializes an
+    TODO: the call to init_cond_guards allocates and initializes an
     array of booleans that may not be used later because we may choose
     materialization.
     The two calls below to create_XYZ_cond depend on this boolean array.
-    This dependency can be easily removed, and the call moved to a later
-    phase.
+    If the dependency is removed, the call can be moved to a later phase.
   */
   init_cond_guards();
   join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
@@ -2021,6 +2037,16 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
 }
 
 
+/**
+  Transform an IN/ALL/ANY subselect into a correlated EXISTS via injecting
+  correlated in-to-exists predicates.
+
+  @param join_arg  Join object of the subquery.
+
+  @retval FALSE  ok
+  @retval TRUE   error
+*/
+
 bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
 {
   SELECT_LEX *select_lex= join_arg->select_lex;
@@ -2034,6 +2060,7 @@ bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
     where_item= and_items(join_arg->conds, where_item);
     if (!where_item->fixed && where_item->fix_fields(thd, 0))
       DBUG_RETURN(true);
+    // TIMOUR TODO: call optimize_cond() for the new where clause
     thd->change_item_tree(&select_lex->where, where_item);
     select_lex->where->top_level_item();
     join_arg->conds= select_lex->where;
@@ -2045,6 +2072,7 @@ bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
     having_item= and_items(join_having, having_item);
     if (fix_having(having_item, select_lex))
       DBUG_RETURN(true);
+    // TIMOUR TODO: call optimize_cond() for the new having clause
     thd->change_item_tree(&select_lex->having, having_item);
     select_lex->having->top_level_item();
     join_arg->having= select_lex->having;
@@ -2058,21 +2086,16 @@ bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
   Prepare IN/ALL/ANY/SOME subquery transformation and call appropriate
   transformation function.
 
-    To decide which transformation procedure (scalar or row) applicable here
-    we have to call fix_fields() for left expression to be able to call
-    cols() method on it. Also this method make arena management for
-    underlying transformation methods.
-
   @param join    JOIN object of transforming subquery
-  @param func    creator of condition function of subquery
 
-  @retval
-    RES_OK      OK
-  @retval
-    RES_REDUCE  OK, and current subquery was reduced during
-    transformation
-  @retval
-    RES_ERROR   Error
+  @notes
+  To decide which transformation procedure (scalar or row) applicable here
+  we have to call fix_fields() for left expression to be able to call
+  cols() method on it. Also this method make arena management for
+  underlying transformation methods.
+
+  @retval  RES_OK      OK
+  @retval  RES_ERROR   Error
 */
 
 Item_subselect::trans_res
@@ -2252,24 +2275,17 @@ void Item_in_subselect::update_used_tables()
   used_tables_cache |= left_expr->used_tables();
 }
 
+
 /**
-  Try to create an engine to compute the subselect via materialization,
-  and if this fails, revert to execution via the IN=>EXISTS transformation.
+  Try to create and initialize an engine to compute a subselect via
+  materialization.
 
   @details
-    The purpose of this method is to hide the implementation details
-    of this Item's execution. The method creates a new engine for
-    materialized execution, and initializes the engine.
-
-    If this initialization fails
-    - either because it wasn't possible to create the needed temporary table
-      and its index,
-    - or because of a memory allocation error,
-    then we revert back to execution via the IN=>EXISTS tranformation.
-
-    The initialization of the new engine is divided in two parts - a permanent
-    one that lives across prepared statements, and one that is repeated for each
-    execution.
+  The method creates a new engine for materialized execution, and initializes
+  the engine. The initialization may fail
+  - either because it wasn't possible to create the needed temporary table
+    and its index,
+  - or because of a memory allocation error,
 
   @returns
     @retval TRUE  memory allocation error occurred

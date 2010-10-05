@@ -1139,7 +1139,7 @@ insert into t1 values (5);
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
 set @@optimizer_switch='default,materialization=off';
@@ -1153,7 +1153,7 @@ set @@optimizer_switch='default,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 set @@optimizer_switch='default,materialization=off';

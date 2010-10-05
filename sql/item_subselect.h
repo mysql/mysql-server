@@ -319,7 +319,7 @@ public:
 
 /*
   Possible methods to execute an IN predicate. These are set by the optimizer
-  based on user-set optimizer switches, syntactic analysis and cost comparison.
+  based on user-set optimizer switches, semantic analysis and cost comparison.
 */
 #define SUBS_NOT_TRANSFORMED 0 /* No execution method was chosen for this IN. */
 #define SUBS_SEMI_JOIN 1       /* IN was converted to semi-join. */
