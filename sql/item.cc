@@ -7287,14 +7287,16 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
     enum_field_types field_type= field->type();
 
-    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME)
+    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME ||
+        field_type == MYSQL_TYPE_TIMESTAMP)
     {
       enum_mysql_timestamp_type type= MYSQL_TIMESTAMP_ERROR;
 
       if (field_type == MYSQL_TYPE_DATE)
         type= MYSQL_TIMESTAMP_DATE;
 
-      if (field_type == MYSQL_TYPE_DATETIME)
+      if (field_type == MYSQL_TYPE_DATETIME ||
+          field_type == MYSQL_TYPE_TIMESTAMP)
         type= MYSQL_TIMESTAMP_DATETIME;
         
       const char *field_name= field->field_name;
@@ -7510,9 +7512,14 @@ String *Item_cache_datetime::val_str(String *str)
         return NULL;
       if (cached_field_type == MYSQL_TYPE_TIME)
       {
-        ulonglong time= int_value;
-        DBUG_ASSERT(time <= TIME_MAX_VALUE);
+        longlong time= int_value;
         set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
+        if (time < 0)
+        {
+          time= -time;
+          ltime.neg= TRUE;
+        }
+        DBUG_ASSERT(time <= TIME_MAX_VALUE);
         ltime.second= time % 100;
         time/= 100;
         ltime.minute= time % 100;
@@ -7845,9 +7852,12 @@ bool Item_cache_row::null_inside()
 
 void Item_cache_row::bring_value()
 {
+  if (!example)
+    return;
+  example->bring_value();
+  null_value= example->null_value;
   for (uint i= 0; i < item_count; i++)
     values[i]->bring_value();
-  return;
 }
 
 

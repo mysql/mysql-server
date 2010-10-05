@@ -13622,36 +13622,51 @@ static void test_bug15518()
 }
 
 
-static void disable_general_log()
+static void disable_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=off");
   myquery(rc);
+  rc= mysql_query(mysql, "set @@global.slow_query_log=off");
+  myquery(rc);
 }
 
 
-static void enable_general_log(int truncate)
+static void enable_query_logs(int truncate)
 {
   int rc;
 
   rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
   myquery(rc);
 
+  rc= mysql_query(mysql, "set @save_global_slow_query_log=@@global.slow_query_log");
+  myquery(rc);
+
   rc= mysql_query(mysql, "set @@global.general_log=on");
   myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=on");
+  myquery(rc);
+
 
   if (truncate)
   {
     rc= mysql_query(mysql, "truncate mysql.general_log");
     myquery(rc);
+
+    rc= mysql_query(mysql, "truncate mysql.slow_log");
+    myquery(rc);
   }
 }
 
 
-static void restore_general_log()
+static void restore_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=@save_global_slow_query_log");
   myquery(rc);
 }
 
@@ -15822,7 +15837,7 @@ static void test_bug17667()
     return;
   }
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
        statement_cursor++)
@@ -15902,7 +15917,7 @@ static void test_bug17667()
              statement_cursor->buffer);
   }
 
-  restore_general_log();
+  restore_query_logs();
 
   if (!opt_silent)
     printf("success.  All queries found intact in the log.\n");
@@ -17765,7 +17780,7 @@ static void test_bug28386()
   }
   mysql_free_result(result);
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   stmt= mysql_simple_prepare(mysql, "SELECT ?");
   check_stmt(stmt);
@@ -17804,7 +17819,7 @@ static void test_bug28386()
 
   mysql_free_result(result);
 
-  restore_general_log();
+  restore_query_logs();
 
   DBUG_VOID_RETURN;
 }
@@ -18855,7 +18870,7 @@ static void test_bug42373()
   Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
 */
 
-static void test_bug54041()
+static void test_bug54041_impl()
 {
   int rc;
   MYSQL_STMT *stmt;
@@ -18870,7 +18885,7 @@ static void test_bug54041()
   rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
   myquery(rc);
 
-  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 (a) VALUES (?)");
+  stmt= mysql_simple_prepare(mysql, "SELECT a FROM t1 WHERE a > ?");
   check_stmt(stmt);
   verify_param_count(stmt, 1);
 
@@ -18903,6 +18918,121 @@ static void test_bug54041()
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
   myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041()
+{
+  enable_query_logs(0);
+  test_bug54041_impl();
+  disable_query_logs();
+  test_bug54041_impl();
+  restore_query_logs();
+}
+
+
+/**
+  Bug#47485: mysql_store_result returns a result set for a prepared statement
+*/
+static void test_bug47485()
+{
+  MYSQL_STMT   *stmt;
+  MYSQL_RES    *res;
+  MYSQL_BIND    bind[2];
+  int           rc;
+  const char*   sql_select = "SELECT 1, 'a'";
+  int           int_data;
+  char          str_data[16];
+  my_bool       is_null[2];
+  my_bool       error[2];
+  unsigned long length[2];
+
+  DBUG_ENTER("test_bug47485");
+  myheader("test_bug47485");
+
+  stmt= mysql_stmt_init(mysql);
+  check_stmt(stmt);
+  rc= mysql_stmt_prepare(stmt, sql_select, strlen(sql_select));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  res = mysql_store_result(mysql);
+  DIE_UNLESS(res == NULL);
+
+  mysql_stmt_reset(stmt);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  res = mysql_use_result(mysql);
+  DIE_UNLESS(res == NULL);
+
+  mysql_stmt_reset(stmt);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  bind[0].error= &error[0];
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+  bind[1].is_null= &is_null[1];
+  bind[1].length= &length[1];
+  bind[1].error= &error[1];
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    ;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_reset(stmt);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  bind[0].error= &error[0];
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+  bind[1].is_null= &is_null[1];
+  bind[1].length= &length[1];
+  bind[1].error= &error[1];
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    ;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
 
   DBUG_VOID_RETURN;
 }
@@ -19097,7 +19227,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 
 static struct my_tests_st my_tests[]= {
-  { "disable_general_log", disable_general_log },
+  { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},
@@ -19349,6 +19479,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug49972", test_bug49972 },
   { "test_bug42373", test_bug42373 },
   { "test_bug54041", test_bug54041 },
+  { "test_bug47485", test_bug47485 },
   { 0, 0 }
 };
 

@@ -208,8 +208,8 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   ha_create_table(thd, share->normalized_path.str, share->db.str,
                   share->table_name.str, &create_info, 1);
 
-  if (open_temporary_table(thd, share->path.str, share->db.str,
-                           share->table_name.str, 1))
+  if (open_table_uncached(thd, share->path.str, share->db.str,
+                          share->table_name.str, TRUE))
   {
     error= FALSE;
     thd->thread_specific_used= TRUE;
@@ -328,10 +328,8 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
           upgrade_shared_lock_to_exclusive(table_ref->mdl_request.ticket,
                                            timeout))
         DBUG_RETURN(TRUE);
-      mysql_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db,
-                       table_ref->table_name);
-      mysql_mutex_unlock(&LOCK_open);
+                       table_ref->table_name, FALSE);
     }
   }
   else

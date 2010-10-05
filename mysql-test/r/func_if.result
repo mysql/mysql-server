@@ -186,3 +186,13 @@ MAX(IFNULL(CAST(c AS UNSIGNED), 0))
 12345678901234567890
 DROP TABLE t1;
 End of 5.0 tests
+#
+# Bug#55077: Assertion failed: width > 0 && to != ((void *)0), file .\dtoa.c
+# 
+CREATE TABLE t1 (a LONGBLOB, b DOUBLE);
+INSERT INTO t1 VALUES (NULL, 0), (NULL, 1);
+SELECT IF(b, (SELECT a FROM t1 LIMIT 1), b) c FROM t1 GROUP BY c;
+c
+NULL
+0
+DROP TABLE t1;

@@ -1439,8 +1439,6 @@ int lex_one_token(void *arg, void *yythd)
           }
           else
           {
-            const char* version_mark= lip->get_ptr() - 1;
-            DBUG_ASSERT(*version_mark == '!');
             /*
               Patch and skip the conditional comment to avoid it
               being propagated infinitely (eg. to a slave).
@@ -1449,7 +1447,6 @@ int lex_one_token(void *arg, void *yythd)
             comment_closed= ! consume_comment(lip, 1);
             if (! comment_closed)
             {
-              DBUG_ASSERT(pcom == version_mark);
               *pcom= '!';
             }
             /* version allowed to have one level of comment inside. */
@@ -2301,7 +2298,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list_own_last= sroutines_list.next;
   sroutines_list_own_elements= 0;
   binlog_stmt_flags= 0;
-  stmt_accessed_table_flag= 0; 
+  stmt_accessed_table_flag= 0;
 }
 
 
@@ -3146,3 +3143,150 @@ bool LEX::is_partition_management() const
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
 
+
+#ifdef MYSQL_SERVER
+uint binlog_unsafe_map[256];
+
+#define UNSAFE(a, b, c) \
+  { \
+  DBUG_PRINT("unsafe_mixed_statement", ("SETTING BASE VALUES: %s, %s, %02X\n", \
+    LEX::stmt_accessed_table_string(a), \
+    LEX::stmt_accessed_table_string(b), \
+    c)); \
+  unsafe_mixed_statement(a, b, c); \
+  }
+
+/*
+  Sets the combination given by "a" and "b" and automatically combinations
+  given by other types of access, i.e. 2^(8 - 2), as unsafe.
+
+  It may happen a colision when automatically defining a combination as unsafe.
+  For that reason, a combination has its unsafe condition redefined only when
+  the new_condition is greater then the old. For instance,
+  
+     . (BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY) is never overwritten by 
+     . (BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF).
+*/
+void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
+                            LEX::enum_stmt_accessed_table b, uint condition)
+{
+  int type= 0;
+  int index= (1U << a) | (1U << b);
+  
+  
+  for (type= 0; type < 256; type++)
+  {
+    if ((type & index) == index)
+    {
+      binlog_unsafe_map[type] |= condition;
+    }
+  }
+}
+/*
+  The BINLOG_* AND TRX_CACHE_* values can be combined by using '&' or '|',
+  which means that both conditions need to be satisfied or any of them is
+  enough. For example, 
+    
+    . BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY means that the statment is
+    unsafe when the option is on and trx-cache is not empty;
+
+    . BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF means the statement is unsafe
+    in all cases.
+
+    . TRX_CACHE_EMPTY | TRX_CACHE_NOT_EMPTY means the statement is unsafe
+    in all cases. Similar as above.
+*/
+void binlog_unsafe_map_init()
+{
+  memset((void*) binlog_unsafe_map, 0, sizeof(uint) * 256);
+
+  /*
+    Classify a statement as unsafe when there is a mixed statement and an
+    on-going transaction at any point of the execution if:
+
+      1. The mixed statement is about to update a transactional table and
+      a non-transactional table.
+
+      2. The mixed statement is about to update a transactional table and
+      read from a non-transactional table.
+
+      3. The mixed statement is about to update a non-transactional table
+      and temporary transactional table.
+
+      4. The mixed statement is about to update a temporary transactional
+      table and read from a non-transactional table.
+
+      5. The mixed statement is about to update a transactional table and
+      a temporary non-transactional table.
+     
+      6. The mixed statement is about to update a transactional table and
+      read from a temporary non-transactional table.
+
+      7. The mixed statement is about to update a temporary transactional
+      table and temporary non-transactional table.
+
+      8. The mixed statement is about to update a temporary transactional
+      table and read from a temporary non-transactional table.
+
+    After updating a transactional table if:
+
+      9. The mixed statement is about to update a non-transactional table
+      and read from a transactional table.
+
+      10. The mixed statement is about to update a non-transactional table
+      and read from a temporary transactional table.
+
+      11. The mixed statement is about to update a temporary non-transactional
+      table and read from a transactional table.
+      
+      12. The mixed statement is about to update a temporary non-transactional
+      table and read from a temporary transactional table.
+
+      13. The mixed statement is about to update a temporary non-transactional
+      table and read from a non-transactional table.
+
+    The reason for this is that locks acquired may not protected a concurrent
+    transaction of interfering in the current execution and by consequence in
+    the result.
+  */
+  /* Case 1. */
+  UNSAFE(LEX::STMT_WRITES_TRANS_TABLE, LEX::STMT_WRITES_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF);
+  /* Case 2. */
+  UNSAFE(LEX::STMT_WRITES_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF);
+  /* Case 3. */
+  UNSAFE(LEX::STMT_WRITES_NON_TRANS_TABLE, LEX::STMT_WRITES_TEMP_TRANS_TABLE,
+    BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF);
+  /* Case 4. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF);
+  /* Case 5. */
+  UNSAFE(LEX::STMT_WRITES_TRANS_TABLE, LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON);
+  /* Case 6. */
+  UNSAFE(LEX::STMT_WRITES_TRANS_TABLE, LEX::STMT_READS_TEMP_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON);
+  /* Case 7. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_TRANS_TABLE, LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON);
+  /* Case 8. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_TRANS_TABLE, LEX::STMT_READS_TEMP_NON_TRANS_TABLE,
+    BINLOG_DIRECT_ON);
+  /* Case 9. */
+  UNSAFE(LEX::STMT_WRITES_NON_TRANS_TABLE, LEX::STMT_READS_TRANS_TABLE,
+    (BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF) & TRX_CACHE_NOT_EMPTY);
+  /* Case 10 */
+  UNSAFE(LEX::STMT_WRITES_NON_TRANS_TABLE, LEX::STMT_READS_TEMP_TRANS_TABLE,
+    (BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF) & TRX_CACHE_NOT_EMPTY);
+  /* Case 11. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_TRANS_TABLE,
+    BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY);
+  /* Case 12. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_TEMP_TRANS_TABLE,
+    BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY);
+  /* Case 13. */
+  UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
+     BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
+}
+#endif

@@ -29,7 +29,7 @@
 #include "records.h"          // init_read_record, end_read_record
 #include <my_pthread.h>
 #include <my_getopt.h>
-#include <mysql/plugin_audit.h>
+#include "sql_audit.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
@@ -519,7 +519,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       /* no op */;
 
     cur= (struct st_mysql_plugin*)
-          my_malloc(i*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
+      my_malloc((i+1)*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
     if (!cur)
     {
       free_plugin_mem(&plugin_dl);
@@ -1393,8 +1393,9 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   READ_RECORD read_record_info;
   int error;
   THD *new_thd= &thd;
+  bool result;
 #ifdef EMBEDDED_LIBRARY
-  bool table_exists;
+  No_such_table_error_handler error_handler;
 #endif /* EMBEDDED_LIBRARY */
   DBUG_ENTER("plugin_load");
 
@@ -1410,13 +1411,18 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     When building an embedded library, if the mysql.plugin table
     does not exist, we silently ignore the missing table
   */
-  if (check_if_table_exists(new_thd, &tables, &table_exists))
-    table_exists= FALSE;
-  if (!table_exists)
+  new_thd->push_internal_handler(&error_handler);
+#endif /* EMBEDDED_LIBRARY */
+
+  result= open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT);
+
+#ifdef EMBEDDED_LIBRARY
+  new_thd->pop_internal_handler();
+  if (error_handler.safely_trapped_errors())
     goto end;
 #endif /* EMBEDDED_LIBRARY */
 
-  if (open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (result)
   {
     DBUG_PRINT("error",("Can't open plugin table"));
     sql_print_error("Can't open the mysql.plugin table. Please "
@@ -1703,6 +1709,27 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
                              MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(TRUE);
 
+  /*
+    Pre-acquire audit plugins for events that may potentially occur
+    during [UN]INSTALL PLUGIN.
+
+    When audit event is triggered, audit subsystem acquires interested
+    plugins by walking through plugin list. Evidently plugin list
+    iterator protects plugin list by acquiring LOCK_plugin, see
+    plugin_foreach_with_mask().
+
+    On the other hand [UN]INSTALL PLUGIN is acquiring LOCK_plugin
+    rather for a long time.
+
+    When audit event is triggered during [UN]INSTALL PLUGIN, plugin
+    list iterator acquires the same lock (within the same thread)
+    second time.
+
+    This hack should be removed when LOCK_plugin is fixed so it
+    protects only what it supposed to protect.
+  */
+  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+
   mysql_mutex_lock(&LOCK_plugin);
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
@@ -1782,6 +1809,27 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(TRUE);
+
+  /*
+    Pre-acquire audit plugins for events that may potentially occur
+    during [UN]INSTALL PLUGIN.
+
+    When audit event is triggered, audit subsystem acquires interested
+    plugins by walking through plugin list. Evidently plugin list
+    iterator protects plugin list by acquiring LOCK_plugin, see
+    plugin_foreach_with_mask().
+
+    On the other hand [UN]INSTALL PLUGIN is acquiring LOCK_plugin
+    rather for a long time.
+
+    When audit event is triggered during [UN]INSTALL PLUGIN, plugin
+    list iterator acquires the same lock (within the same thread)
+    second time.
+
+    This hack should be removed when LOCK_plugin is fixed so it
+    protects only what it supposed to protect.
+  */
+  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
 
   mysql_mutex_lock(&LOCK_plugin);
   if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
@@ -3025,11 +3073,11 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       Allocate temporary space for the value of the tristate.
       This option will have a limited lifetime and is not used beyond
       server initialization.
-      GET_ENUM value is an unsigned integer.
+      GET_ENUM value is an unsigned long integer.
     */
     options[0].value= options[1].value=
-                      (uchar **)alloc_root(mem_root, sizeof(uint));
-    *((uint*) options[0].value)= (uint) options[0].def_value;
+                      (uchar **)alloc_root(mem_root, sizeof(ulong));
+    *((ulong*) options[0].value)= (ulong) options[0].def_value;
 
     options+= 2;
   }
@@ -3328,7 +3376,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
      list is always the <plugin name> option value.
     */
     if (!tmp->is_mandatory)
-      plugin_load_policy= (enum_plugin_load_policy)*(uint*)opts[0].value;
+      plugin_load_policy= (enum_plugin_load_policy)*(ulong*)opts[0].value;
   }
 
   disable_plugin= (plugin_load_policy == PLUGIN_OFF);

@@ -47,6 +47,53 @@ class Key;
 class File_parser;
 class Key_part_spec;
 
+#ifdef MYSQL_SERVER
+/*
+  There are 8 different type of table access so there is no more than
+  combinations 2^8 = 256:
+
+  . STMT_READS_TRANS_TABLE
+
+  . STMT_READS_NON_TRANS_TABLE
+
+  . STMT_READS_TEMP_TRANS_TABLE
+
+  . STMT_READS_TEMP_NON_TRANS_TABLE
+
+  . STMT_WRITES_TRANS_TABLE
+
+  . STMT_WRITES_NON_TRANS_TABLE
+
+  . STMT_WRITES_TEMP_TRANS_TABLE
+
+  . STMT_WRITES_TEMP_NON_TRANS_TABLE
+
+  The unsafe conditions for each combination is represented within a byte
+  and stores the status of the option --binlog-direct-non-trans-updates,
+  whether the trx-cache is empty or not, and whether the isolation level
+  is lower than ISO_REPEATABLE_READ:
+
+  . option (OFF/ON)
+  . trx-cache (empty/not empty)
+  . isolation (>= ISO_REPEATABLE_READ / < ISO_REPEATABLE_READ)
+
+  bits 0 : . OFF, . empty, . >= ISO_REPEATABLE_READ
+  bits 1 : . OFF, . empty, . < ISO_REPEATABLE_READ
+  bits 2 : . OFF, . not empty, . >= ISO_REPEATABLE_READ
+  bits 3 : . OFF, . not empty, . < ISO_REPEATABLE_READ
+  bits 4 : . ON, . empty, . >= ISO_REPEATABLE_READ
+  bits 5 : . ON, . empty, . < ISO_REPEATABLE_READ
+  bits 6 : . ON, . not empty, . >= ISO_REPEATABLE_READ
+  bits 7 : . ON, . not empty, . < ISO_REPEATABLE_READ
+*/
+extern uint binlog_unsafe_map[256];
+/*
+  Initializes the array with unsafe combinations and its respective
+  conditions.
+*/
+void binlog_unsafe_map_init();
+#endif
+
 /**
   used by the parser to store internal variable name
 */
@@ -1302,32 +1349,32 @@ public:
     */
     STMT_READS_TRANS_TABLE= 0,
     /*
-       If a transactional table is about to be updated.
-    */
-    STMT_WRITES_TRANS_TABLE,
-    /*
        If a non-transactional table is about to be read. Note that
        a write implies a read.
     */
     STMT_READS_NON_TRANS_TABLE,
-    /*
-       If a non-transactional table is about to be updated.
-    */
-    STMT_WRITES_NON_TRANS_TABLE,
     /*
        If a temporary transactional table is about to be read. Note
        that a write implies a read.
     */
     STMT_READS_TEMP_TRANS_TABLE,
     /*
-       If a temporary transactional table is about to be updated.
-    */
-    STMT_WRITES_TEMP_TRANS_TABLE,
-    /*
        If a temporary non-transactional table is about to be read. Note
       that a write implies a read.
     */
     STMT_READS_TEMP_NON_TRANS_TABLE,
+    /*
+       If a transactional table is about to be updated.
+    */
+    STMT_WRITES_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be updated.
+    */
+    STMT_WRITES_NON_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_TRANS_TABLE,
     /*
        If a temporary non-transactional table is about to be updated.
     */
@@ -1338,7 +1385,58 @@ public:
     */
     STMT_ACCESS_TABLE_COUNT
   };
+
+  static inline const char *stmt_accessed_table_string(enum_stmt_accessed_table accessed_table)
+  {
+    switch (accessed_table)
+    {
+      case STMT_READS_TRANS_TABLE:
+         return "STMT_READS_TRANS_TABLE";
+      break;
+      case STMT_READS_NON_TRANS_TABLE:
+        return "STMT_READS_NON_TRANS_TABLE";
+      break;
+      case STMT_READS_TEMP_TRANS_TABLE:
+        return "STMT_READS_TEMP_TRANS_TABLE";
+      break;
+      case STMT_READS_TEMP_NON_TRANS_TABLE:
+        return "STMT_READS_TEMP_NON_TRANS_TABLE";
+      break;  
+      case STMT_WRITES_TRANS_TABLE:
+        return "STMT_WRITES_TRANS_TABLE";
+      break;
+      case STMT_WRITES_NON_TRANS_TABLE:
+        return "STMT_WRITES_NON_TRANS_TABLE";
+      break;
+      case STMT_WRITES_TEMP_TRANS_TABLE:
+        return "STMT_WRITES_TEMP_TRANS_TABLE";
+      break;
+      case STMT_WRITES_TEMP_NON_TRANS_TABLE:
+        return "STMT_WRITES_TEMP_NON_TRANS_TABLE";
+      break;
+      case STMT_ACCESS_TABLE_COUNT:
+      default:
+        DBUG_ASSERT(0);
+      break;
+    }
+  }
                
+  #define BINLOG_DIRECT_ON 0xF0    /* unsafe when
+                                      --binlog-direct-non-trans-updates
+                                      is ON */
+
+  #define BINLOG_DIRECT_OFF 0xF    /* unsafe when
+                                      --binlog-direct-non-trans-updates
+                                      is OFF */
+
+  #define TRX_CACHE_EMPTY 0x33     /* unsafe when trx-cache is empty */
+
+  #define TRX_CACHE_NOT_EMPTY 0xCC /* unsafe when trx-cache is not empty */
+
+  #define IL_LT_REPEATABLE 0xAA    /* unsafe when < ISO_REPEATABLE_READ */
+
+  #define IL_GTE_REPEATABLE 0x55   /* unsafe when >= ISO_REPEATABLE_READ */
+  
   /**
     Sets the type of table that is about to be accessed while executing a
     statement.
@@ -1348,7 +1446,7 @@ public:
   */
   inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table)
   {
-    DBUG_ENTER("THD::set_stmt_accessed_table");
+    DBUG_ENTER("LEX::set_stmt_accessed_table");
 
     DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
     stmt_accessed_table_flag |= (1U << accessed_table);
@@ -1361,7 +1459,7 @@ public:
     statement.
 
     @param accessed_table Enumeration type that defines the type of table,
-                           e.g. temporary, transactional, non-transactional.
+           e.g. temporary, transactional, non-transactional.
 
     @return
       @retval TRUE  if the type of the table is about to be accessed
@@ -1369,30 +1467,11 @@ public:
   */
   inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
   {
-    DBUG_ENTER("THD::stmt_accessed_table");
+    DBUG_ENTER("LEX::stmt_accessed_table");
 
     DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
 
     DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
-  }
-
-  /**
-    Checks if a temporary table is about to be accessed while executing a
-    statement.
-
-    @return
-      @retval TRUE  if a temporary table is about to be accessed
-      @retval FALSE otherwise
-  */
-  inline bool stmt_accessed_temp_table()
-  {
-    DBUG_ENTER("THD::stmt_accessed_temp_table");
-
-    DBUG_RETURN((stmt_accessed_table_flag &
-                ((1U << STMT_READS_TEMP_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_TRANS_TABLE) |
-                 (1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
   }
 
   /**
@@ -1411,6 +1490,64 @@ public:
     DBUG_RETURN((stmt_accessed_table_flag &
                 ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
                  (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
+  /*
+    Checks if a mixed statement is unsafe.
+
+    
+    @param in_multi_stmt_transaction_mode defines if there is an on-going
+           multi-transactional statement.
+    @param binlog_direct defines if --binlog-direct-non-trans-updates is
+           active.
+    @param trx_cache_is_not_empty defines if the trx-cache is empty or not.
+    @param trx_isolation defines the isolation level.
+ 
+    @return
+      @retval TRUE if the mixed statement is unsafe
+      @retval FALSE otherwise
+  */
+  inline bool is_mixed_stmt_unsafe(bool in_multi_stmt_transaction_mode,
+                                   bool binlog_direct,
+                                   bool trx_cache_is_not_empty,
+                                   uint tx_isolation)
+  {
+    bool unsafe= FALSE;
+
+    if (in_multi_stmt_transaction_mode)
+    {
+       uint condition=
+         (binlog_direct ? BINLOG_DIRECT_ON : BINLOG_DIRECT_OFF) &
+         (trx_cache_is_not_empty ? TRX_CACHE_NOT_EMPTY : TRX_CACHE_EMPTY) &
+         (tx_isolation >= ISO_REPEATABLE_READ ? IL_GTE_REPEATABLE : IL_LT_REPEATABLE);
+
+      unsafe= (binlog_unsafe_map[stmt_accessed_table_flag] & condition);
+
+#if !defined(DBUG_OFF)
+      DBUG_PRINT("LEX::is_mixed_stmt_unsafe", ("RESULT %02X %02X %02X\n", condition,
+              binlog_unsafe_map[stmt_accessed_table_flag],
+              (binlog_unsafe_map[stmt_accessed_table_flag] & condition)));
+ 
+      int type_in= 0;
+      for (; type_in < STMT_ACCESS_TABLE_COUNT; type_in++)
+      {
+        if (stmt_accessed_table((enum_stmt_accessed_table) type_in))
+          DBUG_PRINT("LEX::is_mixed_stmt_unsafe", ("ACCESSED %s ",
+                  stmt_accessed_table_string((enum_stmt_accessed_table) type_in)));
+      }
+#endif
+    }
+
+    if (stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE) &&
+      stmt_accessed_table(STMT_READS_TRANS_TABLE) &&
+      tx_isolation < ISO_REPEATABLE_READ)
+      unsafe= TRUE;
+    else if (stmt_accessed_table(STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
+      stmt_accessed_table(STMT_READS_TRANS_TABLE) &&
+      tx_isolation < ISO_REPEATABLE_READ)
+      unsafe= TRUE;
+
+    return(unsafe);
   }
 
   /**
@@ -2217,10 +2354,20 @@ struct LEX: public Query_tables_list
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
-  */
-  const char *stmt_definition_begin;
 
-  const char *stmt_definition_end;
+    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
+    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
+    offset to the character right after the DELAYED keyword.
+  */
+  union {
+    const char *stmt_definition_begin;
+    uint keyword_delayed_begin_offset;
+  };
+
+  union {
+    const char *stmt_definition_end;
+    uint keyword_delayed_end_offset;
+  };
 
   /**
     During name resolution search only in the table list given by 

@@ -43,6 +43,8 @@ Created 11/11/1995 Heikki Tuuri
 #include "log0log.h"
 #include "os0file.h"
 #include "trx0sys.h"
+#include "mysql/plugin.h"
+#include "mysql/service_thd_wait.h"
 
 /**********************************************************************
 These statistics are generated for heuristics used in estimating the
@@ -131,12 +133,18 @@ buf_flush_delete_from_flush_rbt(
 /*============================*/
 	buf_page_t*	bpage)	/*!< in: bpage to be removed. */
 {
+#ifdef UNIV_DEBUG
 	ibool		ret = FALSE;
+#endif /* UNIV_DEBUG */
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
-	ret = rbt_delete(buf_pool->flush_rbt, &bpage);
+#ifdef UNIV_DEBUG
+	ret =
+#endif /* UNIV_DEBUG */
+	rbt_delete(buf_pool->flush_rbt, &bpage);
+
 	ut_ad(ret);
 }
 
@@ -1744,10 +1752,14 @@ buf_flush_wait_batch_end(
 
 			buf_pool = buf_pool_from_array(i);
 
+			thd_wait_begin(NULL, THD_WAIT_DISKIO);
 			os_event_wait(buf_pool->no_flush[type]);
+			thd_wait_end(NULL);
 		}
 	} else {
+		thd_wait_begin(NULL, THD_WAIT_DISKIO);
 		os_event_wait(buf_pool->no_flush[type]);
+		thd_wait_end(NULL);
 	}
 }
 

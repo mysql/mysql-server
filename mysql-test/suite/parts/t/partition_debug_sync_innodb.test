@@ -28,7 +28,8 @@ ALTER TABLE t1 TRUNCATE PARTITION pMax;
 --echo # con default
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE STATE = "Waiting for table" AND INFO = "ALTER TABLE t1 TRUNCATE PARTITION pMax";
+    WHERE STATE = "Waiting for table metadata lock" AND
+          INFO = "ALTER TABLE t1 TRUNCATE PARTITION pMax";
 --source include/wait_condition.inc
 --sorted_result
 SELECT * FROM t1;
@@ -55,6 +56,7 @@ partition by range (a)
 insert into t1 values (1), (11), (21), (33);
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQLD_DATADIR/test
 
 SET DEBUG_SYNC='before_open_in_get_all_tables SIGNAL parked WAIT_FOR open';
@@ -77,6 +79,7 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
 disconnect con1;
 connection default;
 --reap
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQLD_DATADIR/test
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;

@@ -91,11 +91,13 @@ public:
           longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
           uint deprecated_version, const char *substitute, int parse_flag);
-  /**
-    The instance should only be destroyed on shutdown, as it doesn't unlink
-    itself from the chain.
-  */
+
   virtual ~sys_var() {}
+
+  /**
+    All the cleanup procedures should be performed here
+  */
+  virtual void cleanup() {}
   /**
     downcast for sys_var_pluginvar. Returns this if it's an instance
     of sys_var_pluginvar, and 0 otherwise.

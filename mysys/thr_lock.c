@@ -91,6 +91,16 @@ enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 LIST *thr_lock_thread_list;			/* List of threads in use */
 ulong max_write_lock_count= ~(ulong) 0L;
 
+static void (*before_lock_wait)(void)= 0;
+static void (*after_lock_wait)(void)= 0;
+
+void thr_set_lock_wait_callback(void (*before_wait)(void),
+                                void (*after_wait)(void))
+{
+  before_lock_wait= before_wait;
+  after_lock_wait= after_wait;
+}
+
 static inline mysql_cond_t *get_cond(void)
 {
   return &my_thread_var->suspend;
@@ -428,8 +438,21 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_cond=  cond;
   data->cond= cond;
 
-  old_proc_info= proc_info_hook(NULL, "Table lock",
+  old_proc_info= proc_info_hook(NULL, "Waiting for table level lock",
                                 __func__, __FILE__, __LINE__);
+
+  /*
+    Since before_lock_wait potentially can create more threads to
+    scheduler work for, we don't want to call the before_lock_wait
+    callback unless it will really start to wait.
+
+    For similar reasons, we do not want to call before_lock_wait and
+    after_lock_wait for each lap around the loop, so we restrict
+    ourselves to call it before_lock_wait once before starting to wait
+    and once after the thread has exited the wait loop.
+   */
+  if ((!thread_var->abort || in_wait_list) && before_lock_wait)
+    (*before_lock_wait)();
 
   set_timespec(wait_timeout, lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
@@ -462,6 +485,14 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
       /* purecov: end */
     }
   }
+
+  /*
+    We call the after_lock_wait callback once the wait loop has
+    finished.
+   */
+  if (after_lock_wait)
+    (*after_lock_wait)();
+
   DBUG_PRINT("thr_lock", ("aborted: %d  in_wait_list: %d",
                           thread_var->abort, in_wait_list));
 

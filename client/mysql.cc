@@ -93,6 +93,7 @@ extern "C" {
 #else
 #include <readline/readline.h>
 #define HAVE_READLINE
+#define USE_POPEN
 #endif
   //int vidattr(long unsigned int attrs);	// Was missing in sun curses
 }
@@ -106,10 +107,6 @@ extern "C" {
 #define cmp_database(cs,A,B) my_strcasecmp((cs), (A), (B))
 #else
 #define cmp_database(cs,A,B) strcmp((A),(B))
-#endif
-
-#if !defined(__WIN__) && !defined(THREAD)
-#define USE_POPEN
 #endif
 
 #include "completion_hash.h"

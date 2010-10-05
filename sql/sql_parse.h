@@ -93,8 +93,6 @@ void mysql_init_multi_delete(LEX *lex);
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 pthread_handler_t handle_bootstrap(void *arg);
-bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
-                          bool *write_to_binlog);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 void do_handle_bootstrap(THD *thd);
@@ -155,7 +153,6 @@ bool check_single_table_access(THD *thd, ulong privilege,
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
-bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                   GRANT_INTERNAL_INFO *grant_internal_info,
@@ -178,8 +175,6 @@ inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   table->grant.privilege= want_access;
   return false;
 }
-inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
-{ return false; }
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }

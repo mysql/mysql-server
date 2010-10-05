@@ -1,1 +1,1 @@
---innodb --loose-ndbcluster=OFF --log-slave-updates=0
+--innodb --loose-ndbcluster=OFF --log-slave-updates=0 --default-storage-engine=MyISAM

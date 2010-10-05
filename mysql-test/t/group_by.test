@@ -1222,6 +1222,20 @@ DROP TABLE t1, t2;
 
 
 --echo #
+--echo # Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
+--echo #
+
+CREATE TABLE t1 (a text, b varchar(10));
+INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
+
+query_vertical EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+query_vertical EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+DROP TABLE t1;
+
 
 --echo # End of 5.1 tests
 
