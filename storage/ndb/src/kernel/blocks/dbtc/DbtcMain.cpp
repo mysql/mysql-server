@@ -11449,7 +11449,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
     /* Short SCANFRAGREQ with separate KeyInfo and AttrInfo trains 
      * Sent to older NDBD nodes during upgrade
      */
-    ScanFragReq::setAttrLen(requestInfo, reqAttrLen);
+    ScanFragReq::setAttrLen(req->requestInfo, reqAttrLen);
     sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
                ScanFragReq::SignalLength, JBB);
     if(scanP->scanKeyLen > 0)
