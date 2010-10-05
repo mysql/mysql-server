@@ -449,7 +449,8 @@ dtype_new_read_for_order_and_null_size(
 	const byte*	buf);	/*!< in: buffer for stored type order info */
 
 /*********************************************************************//**
-Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len */
+Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len
+@return the SQL type name */
 UNIV_INTERN
 char*
 dtype_sql_name(
