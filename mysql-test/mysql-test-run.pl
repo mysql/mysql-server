@@ -276,8 +276,9 @@ our $opt_stress_test_file=     "";
 
 our $opt_warnings;
 
-our $opt_skip_ndbcluster= 0;
-our $opt_skip_ndbcluster_slave= 0;
+our $opt_skip_ndbcluster= 1;
+our $opt_skip_ndbcluster_slave= 1;
+our $opt_include_ndbcluster= 0;
 our $opt_with_ndbcluster= 0;
 our $opt_with_ndbcluster_only= 0;
 our $glob_ndbcluster_supported= 0;
@@ -537,6 +538,7 @@ sub command_line_setup () {
              'force'                    => \$opt_force,
              'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
+             'include-ndbcluster'       => \$opt_include_ndbcluster,
              'skip-ndbcluster-slave|skip-ndb-slave'
                                         => \$opt_skip_ndbcluster_slave,
              'ndb-extra-test'           => \$opt_ndb_extra_test,
@@ -2530,6 +2532,11 @@ sub vs_config_dirs ($$) {
 
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
+
+  if ($opt_include_ndbcluster)
+  {
+    $opt_skip_ndbcluster= 0;
+  }
 
   if ($opt_skip_ndbcluster || $opt_extern)
   {
@@ -5189,8 +5196,9 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster
+  skip-ndb[cluster]     Skip all tests that need cluster. Default.
   skip-ndb[cluster]-slave Skip all tests that need a slave cluster
+  include-ndb[cluster]  Enable all tests that need cluster
   ndb-extra             Run extra tests from ndb directory
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
