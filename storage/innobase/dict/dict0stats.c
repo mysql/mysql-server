@@ -2640,6 +2640,8 @@ test_dict_table_schema_check()
 	};
 	char	errstr[512];
 
+	ut_snprintf(errstr, sizeof(errstr), "Table not found");
+
 	/* prevent any data dictionary modifications while we are checking
 	the tables' structure */
 
