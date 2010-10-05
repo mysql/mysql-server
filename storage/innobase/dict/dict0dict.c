@@ -4819,7 +4819,8 @@ dict_table_schema_check(
 	dict_table_schema_t*	req_schema,	/*!< in/out: required table
 						schema */
 	char*			errstr,		/*!< out: human readable error
-						message if != DB_SUCCESS is
+						message if != DB_SUCCESS and
+						!= DB_TABLE_NOT_FOUND is
 						returned */
 	size_t			errstr_sz)	/*!< in: errstr size */
 {
@@ -4832,10 +4833,6 @@ dict_table_schema_check(
 
 	if (table == NULL || table->ibd_file_missing) {
 		/* no such table or missing tablespace */
-
-		ut_snprintf(errstr, errstr_sz,
-			    "%s does not exist or its tablespace is missing.",
-			    req_schema->table_name);
 
 		return(DB_TABLE_NOT_FOUND);
 	}
