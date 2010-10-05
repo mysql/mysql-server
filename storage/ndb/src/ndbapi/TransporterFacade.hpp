@@ -294,25 +294,6 @@ public:
   GlobalDictCache *m_globalDictCache;
 };
 
-class PollGuard
-{
-  public:
-  PollGuard(NdbImpl&);
-  ~PollGuard() { unlock_and_signal(); }
-  int wait_n_unlock(int wait_time, NodeId nodeId, Uint32 state,
-                    bool forceSend= false);
-  int wait_for_input_in_loop(int wait_time, bool forceSend);
-  void wait_for_input(int wait_time);
-  int wait_scan(int wait_time, NodeId nodeId, bool forceSend);
-  void unlock_and_signal();
-  private:
-  TransporterFacade *m_tp;
-  NdbWaiter *m_waiter;
-  Uint32 m_block_no;
-  bool m_locked;
-};
-
-
 inline
 void 
 TransporterFacade::lock_mutex()
