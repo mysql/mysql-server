@@ -1221,7 +1221,8 @@ dict_table_schema_check(
 	dict_table_schema_t*	req_schema,	/*!< in/out: required table
 						schema */
 	char*			errstr,		/*!< out: human readable error
-						text if FALSE is returned */
+						message if != DB_SUCCESS is
+						returned */
 	size_t			errstr_sz);	/*!< in: errstr size */
 /* @} */
 
