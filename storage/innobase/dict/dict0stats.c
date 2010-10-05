@@ -2014,6 +2014,9 @@ dict_stats_fetch_from_ps(
 	mutex_exit(&kernel_mutex);
 
 	trx->op_info = "";
+	/* Use 'read-uncommitted' so that the SELECTs we execute
+	do not get blocked in case some user has locked the rows we
+	are SELECTing */
 	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
 	trx_start(trx, ULINT_UNDEFINED);
 
