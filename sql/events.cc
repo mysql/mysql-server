@@ -76,7 +76,7 @@
 Event_queue *Events::event_queue;
 Event_scheduler *Events::scheduler;
 Event_db_repository *Events::db_repository;
-uint Events::opt_event_scheduler= Events::EVENTS_OFF;
+ulong Events::opt_event_scheduler= Events::EVENTS_OFF;
 mysql_mutex_t Events::LOCK_event_metadata;
 bool Events::check_system_tables_error= FALSE;
 
@@ -485,10 +485,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       ret= TRUE;                                // OOM
     else if ((ret= db_repository->load_named_event(thd, dbname, name,
                                                    new_element)))
-    {
-      DBUG_ASSERT(ret == OP_LOAD_ERROR);
       delete new_element;
-    }
     else
     {
       /*
@@ -699,7 +696,6 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
 bool
 Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 {
-  Open_tables_backup open_tables_backup;
   Event_timed et;
   bool ret;
 
@@ -722,9 +718,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     deadlock can occur please refer to the description of 'system table'
     flag.
   */
-  thd->reset_n_backup_open_tables_state(&open_tables_backup);
   ret= db_repository->load_named_event(thd, dbname, name, &et);
-  thd->restore_backup_open_tables_state(&open_tables_backup);
 
   if (!ret)
     ret= send_show_create_event(thd, &et, thd->protocol);

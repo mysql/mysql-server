@@ -33,9 +33,9 @@ uint	myisam_quick_table_bits=9;
 ulong	myisam_block_size= MI_KEY_BLOCK_LENGTH;		/* Best by test */
 my_bool myisam_flush=0, myisam_delay_key_write=0, myisam_single_user=0;
 #if defined(THREAD) && !defined(DONT_USE_RW_LOCKS)
-uint myisam_concurrent_insert= 2;
+ulong myisam_concurrent_insert= 2;
 #else
-uint myisam_concurrent_insert= 0;
+ulong myisam_concurrent_insert= 0;
 #endif
 ulonglong myisam_max_temp_length= MAX_FILE_SIZE;
 ulong    myisam_data_pointer_size=4;

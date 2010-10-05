@@ -116,15 +116,7 @@ where name like "wait/synch/mutex/sql/LOCK_rpl_status";
 count(name)
 1
 select count(name) from MUTEX_INSTANCES
-where name like "wait/synch/mutex/sql/LOG_INFO::lock";
-count(name)
-1
-select count(name) from MUTEX_INSTANCES
 where name like "wait/synch/mutex/sql/Query_cache::structure_guard_mutex";
-count(name)
-1
-select count(name) from MUTEX_INSTANCES
-where name like "wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state";
 count(name)
 1
 select count(name) from MUTEX_INSTANCES
@@ -144,15 +136,15 @@ where name like "wait/synch/mutex/sql/Cversion_lock";
 count(name)
 1
 select count(name) from MUTEX_INSTANCES
+where name like "wait/synch/mutex/sql/LOCK_audit_mask";
+count(name)
+1
+select count(name) from MUTEX_INSTANCES
 where name like "wait/synch/mutex/sql/LOCK_xid_cache";
 count(name)
 1
 select count(name) from MUTEX_INSTANCES
 where name like "wait/synch/mutex/sql/LOCK_plugin";
-count(name)
-1
-select count(name) from MUTEX_INSTANCES
-where name like "wait/synch/mutex/sql/LOCK_gdl";
 count(name)
 1
 select count(name) from MUTEX_INSTANCES
@@ -182,7 +174,7 @@ count(name)
 select count(name) from COND_INSTANCES
 where name like "wait/synch/cond/sql/COND_refresh";
 count(name)
-1
+0
 select count(name) from COND_INSTANCES
 where name like "wait/synch/cond/sql/COND_thread_count";
 count(name)
@@ -209,10 +201,6 @@ count(name)
 1
 select count(name) from COND_INSTANCES
 where name like "wait/synch/cond/sql/Query_cache::COND_cache_status_changed";
-count(name)
-1
-select count(name) from COND_INSTANCES
-where name like "wait/synch/cond/sql/Event_scheduler::COND_state";
 count(name)
 1
 select count(name) from COND_INSTANCES

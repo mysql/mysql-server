@@ -799,8 +799,9 @@ connection default;
 --echo # table as it acquires LOCK_S locks on rows of old version, which
 --echo # are compatible with locks acquired by connection 'con1'.
 let $wait_condition=
-  select count(*) = 1 from information_schema.processlist where state =
-    "Waiting for table" and info = "alter table t1 add column j int";
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column j int";
 --source include/wait_condition.inc
 
 --echo # The below statement will deadlock because it will try to acquire
@@ -844,7 +845,8 @@ connection default;
 --echo # Wait until ALTER is blocked because of active SR lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 rebuild partition p0";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 rebuild partition p0";
 --source include/wait_condition.inc
 
 --echo # The below statement should succeed as transaction

@@ -1,6 +1,4 @@
-# Disabled by hhunger (2008-03-03) due to WL4204
-innodb_charset : Bug#20447 Problem with prefix keys with contractions and expansions
-myisam_charset : Bug#20447 Problem with prefix keys with contractions and expansions
-memory_charset : Bug#20447 Problem with prefix keys with contractions and expansions
+# Should maybe be enabled, but ndb is not part of the ordinary build. 
+# Bernt M. Johnsen 2010-05-10
 ndb_charset    : Bug#20447 Problem with prefix keys with contractions and expansions
 

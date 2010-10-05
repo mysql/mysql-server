@@ -1628,16 +1628,23 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
   if (rc == 0)
   {
     /* Thread safe: we are protected by the instrumented mutex */
-    PFS_single_stat_chain *stat;
     PFS_mutex *mutex= pfs_locker->m_target.m_mutex;
+    PFS_single_stat_chain *stat= find_per_thread_mutex_class_wait_stat(wait->m_thread, mutex->m_class);
     mutex->m_owner= wait->m_thread;
     mutex->m_last_locked= wait->m_timer_end;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&mutex->m_wait_stat, wait_time);
-    stat= find_per_thread_mutex_class_wait_stat(wait->m_thread,
-                                                mutex->m_class);
-   aggregate_single_stat_chain(stat, wait_time);
+    /* If timed then aggregate stats, else increment the value counts only */
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&mutex->m_wait_stat, wait_time);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
+    else
+    {
+      increment_single_stat_chain(&mutex->m_wait_stat);
+      increment_single_stat_chain(stat);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1683,18 +1690,26 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
       The statistics generated are not safe, which is why they are
       just statistics, not facts.
     */
-    PFS_single_stat_chain *stat;
     PFS_rwlock *rwlock= pfs_locker->m_target.m_rwlock;
+    PFS_single_stat_chain *stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread, rwlock->m_class);
+
     if (rwlock->m_readers == 0)
       rwlock->m_last_read= wait->m_timer_end;
     rwlock->m_writer= NULL;
     rwlock->m_readers++;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
-    stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread,
-                                                   rwlock->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    /* If timed then aggregate stats, else increment the value counts only */
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
+    else
+    {
+      increment_single_stat_chain(&rwlock->m_wait_stat);
+      increment_single_stat_chain(stat);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1734,19 +1749,26 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
   if (rc == 0)
   {
     /* Thread safe : we are protected by the instrumented rwlock */
-    PFS_single_stat_chain *stat;
     PFS_rwlock *rwlock= pfs_locker->m_target.m_rwlock;
+    PFS_single_stat_chain *stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread, rwlock->m_class);
     rwlock->m_writer= wait->m_thread;
     rwlock->m_last_written= wait->m_timer_end;
     /* Reset the readers stats, they could be off */
     rwlock->m_readers= 0;
     rwlock->m_last_read= 0;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
-    stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread,
-                                                 rwlock->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    /* If timed then aggregate stats, else increment the value counts only */
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
+    else
+    {
+      increment_single_stat_chain(&rwlock->m_wait_stat);
+      increment_single_stat_chain(stat);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1800,14 +1822,21 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
       in condition B.
       This is accepted, the data will be slightly inaccurate.
     */
-    PFS_single_stat_chain *stat;
     PFS_cond *cond= pfs_locker->m_target.m_cond;
+    PFS_single_stat_chain *stat= find_per_thread_cond_class_wait_stat(wait->m_thread, cond->m_class);
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&cond->m_wait_stat, wait_time);
-    stat= find_per_thread_cond_class_wait_stat(wait->m_thread,
-                                               cond->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    /* If timed then aggregate stats, else increment the value counts only */
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&cond->m_wait_stat, wait_time);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
+    else
+    {
+      increment_single_stat_chain(&cond->m_wait_stat);
+      increment_single_stat_chain(stat);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1851,8 +1880,17 @@ static void end_table_wait_v1(PSI_table_locker* locker)
     insert_events_waits_history_long(wait);
 
   PFS_table *table= pfs_locker->m_target.m_table;
-  ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-  aggregate_single_stat_chain(&table->m_wait_stat, wait_time);
+
+  /* If timed then aggregate stats, else increment the value counts only */
+  if (wait->m_timer_state == TIMER_STATE_TIMED)
+  {
+    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+    aggregate_single_stat_chain(&table->m_wait_stat, wait_time);
+  }
+  else
+  {
+    increment_single_stat_chain(&table->m_wait_stat);
+  }
 
   /*
     There is currently no per table and per thread aggregation.
@@ -1954,14 +1992,21 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   if (flag_events_waits_history_long)
     insert_events_waits_history_long(wait);
 
-  PFS_single_stat_chain *stat;
   PFS_file *file= pfs_locker->m_target.m_file;
+  PFS_single_stat_chain *stat= find_per_thread_file_class_wait_stat(wait->m_thread, file->m_class);
 
-  ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-  aggregate_single_stat_chain(&file->m_wait_stat, wait_time);
-  stat= find_per_thread_file_class_wait_stat(wait->m_thread,
-                                             file->m_class);
-  aggregate_single_stat_chain(stat, wait_time);
+  /* If timed then aggregate stats, else increment the value counts only */
+  if (wait->m_timer_state == TIMER_STATE_TIMED)
+  {
+    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+    aggregate_single_stat_chain(&file->m_wait_stat, wait_time);
+    aggregate_single_stat_chain(stat, wait_time);
+  }
+  else
+  {
+    increment_single_stat_chain(&file->m_wait_stat);
+    increment_single_stat_chain(stat);
+  }
 
   PFS_file_class *klass= file->m_class;
 

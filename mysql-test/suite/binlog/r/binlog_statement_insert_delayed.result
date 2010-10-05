@@ -20,12 +20,21 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert delayed into t1 values (300)
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
-insert delayed into t1 values (null),(null),(null),(null);
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses INSERT DELAYED. This is unsafe because the times when rows are inserted cannot be predicted.
-insert delayed into t1 values (null),(null),(400),(null);
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses INSERT DELAYED. This is unsafe because the times when rows are inserted cannot be predicted.
+RESET MASTER;
+insert /* before delayed */ delayed /* after delayed */ into t1 values (null),(null),(null),(null);
+insert  /*! delayed */ into t1 values (null),(null),(400),(null);
+FLUSH TABLES;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=301
+master-bin.000001	#	Query	#	#	use `test`; insert /* before delayed */  /* after delayed */ into t1 values (null),(null),(null),(null)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=305
+master-bin.000001	#	Query	#	#	use `test`; insert  /*!  */ into t1 values (null),(null),(400),(null)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
 select * from t1;
 a
 207

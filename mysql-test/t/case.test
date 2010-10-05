@@ -111,6 +111,9 @@ explain extended SELECT
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+--error 1267
+CREATE TABLE t1 SELECT IFNULL('a' COLLATE latin1_swedish_ci, 'b' COLLATE latin1_bin);
+
 # Test for BUG#10151
 SELECT 'case+union+test'
 UNION 

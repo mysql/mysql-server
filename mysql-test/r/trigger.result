@@ -1420,9 +1420,7 @@ create trigger t1_ai after insert on t1 for each row set @a := 7;
 create table t2 (j int);
 insert into t2 values (1), (2);
 set @a:="";
-create table if not exists t1 select * from t2;
-Warnings:
-Note	1050	Table 't1' already exists
+insert into t1 select * from t2;
 select * from t1;
 i
 7
@@ -1434,9 +1432,7 @@ drop trigger t1_bi;
 drop trigger t1_ai;
 create table t3 (isave int);
 create trigger t1_bi before insert on t1 for each row insert into t3 values (new.i);
-create table if not exists t1 select * from t2;
-Warnings:
-Note	1050	Table 't1' already exists
+insert into t1 select * from t2;
 select * from t1;
 i
 7
@@ -1622,10 +1618,8 @@ After DELETE, old=REPLACE, inserting a new key
 After INSERT, new=REPLACE, deleting the duplicate
 truncate t1;
 truncate t1_op_log;
-create table if not exists t1
+insert into t1
 select NULL, "CREATE TABLE ... SELECT, inserting a new key";
-Warnings:
-Note	1050	Table 't1' already exists
 set @id=last_insert_id();
 select * from t1;
 id	operation
@@ -1635,10 +1629,8 @@ operation
 Before INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 After INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 truncate t1_op_log;
-create table if not exists t1 replace
+replace into t1
 select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
-Warnings:
-Note	1050	Table 't1' already exists
 select * from t1;
 id	operation
 1	CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
@@ -1817,10 +1809,8 @@ After DELETE, old=REPLACE, inserting a new key
 After INSERT, new=REPLACE, deleting the duplicate
 truncate t1;
 truncate t1_op_log;
-create table if not exists v1
+insert into v1
 select NULL, "CREATE TABLE ... SELECT, inserting a new key";
-Warnings:
-Note	1050	Table 'v1' already exists
 set @id=last_insert_id();
 select * from t1;
 id	operation
@@ -1830,10 +1820,8 @@ operation
 Before INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 After INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 truncate t1_op_log;
-create table if not exists v1 replace
+replace into v1
 select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
-Warnings:
-Note	1050	Table 'v1' already exists
 select * from t1;
 id	operation
 1	CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
@@ -2083,7 +2071,8 @@ BEGIN
 UPDATE a_nonextisting_table SET a = 1;
 END//
 CREATE TABLE IF NOT EXISTS t2 ( a INT, b INT ) SELECT a, b FROM t1;
-ERROR 42S02: Table 'test.a_nonextisting_table' doesn't exist
+Warnings:
+Note	1050	Table 't2' already exists
 SELECT * FROM t2;
 a	b
 DROP TABLE t1, t2;

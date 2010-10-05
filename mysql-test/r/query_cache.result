@@ -701,6 +701,7 @@ drop table t1,t2,t3,t4;
 set query_cache_wlock_invalidate=1;
 create table t1 (a int not null);
 create table t2 (a int not null);
+create view v1 as select * from t1;
 select * from t1;
 a
 select * from t2;
@@ -713,6 +714,17 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
 unlock table;
+select * from t1;
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+lock table v1 write;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+unlock table;
+drop view v1;
 drop table t1,t2;
 set query_cache_wlock_invalidate=default;
 CREATE TABLE t1 (id INT PRIMARY KEY);
@@ -853,7 +865,7 @@ Variable_name	Value
 Qcache_queries_in_cache	0
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	18
+Qcache_inserts	19
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	6
@@ -866,7 +878,7 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	19
+Qcache_inserts	20
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	7

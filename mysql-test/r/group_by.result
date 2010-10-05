@@ -1811,6 +1811,41 @@ MAX(t2.a)
 2
 DROP TABLE t1, t2;
 #
+# Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
+#
+CREATE TABLE t1 (a text, b varchar(10));
+INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
+EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+id	1
+select_type	SIMPLE
+table	t1
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	2
+Extra	Using filesort
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+SUBSTRING(a,1,10)	LENGTH(a)	GROUP_CONCAT(b)
+1111111111	1300	one,two
+EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+id	1
+select_type	SIMPLE
+table	t1
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	2
+Extra	Using temporary; Using filesort
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+SUBSTRING(a,1,10)	LENGTH(a)
+1111111111	1300
+DROP TABLE t1;
 # End of 5.1 tests
 #
 # Bug#49771: Incorrect MIN (date) when minimum value is 0000-00-00

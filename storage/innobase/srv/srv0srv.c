@@ -84,6 +84,8 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "mysql/plugin.h"
+#include "mysql/service_thd_wait.h"
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -422,6 +424,7 @@ UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
 UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
 UNIV_INTERN ulint		srv_n_lock_max_wait_time	= 0;
 
+UNIV_INTERN ulint		srv_truncated_status_writes	= 0;
 
 /*
   Set the following to 0 if you want InnoDB to write messages on
@@ -1232,7 +1235,9 @@ retry:
 
 	trx->op_info = "waiting in InnoDB queue";
 
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
 	os_event_wait(slot->event);
+	thd_wait_end(trx->mysql_thd);
 
 	trx->op_info = "";
 
@@ -1609,7 +1614,9 @@ srv_suspend_mysql_thread(
 
 	/* Suspend this thread and wait for the event. */
 
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
 	os_event_wait(event);
+	thd_wait_end(trx->mysql_thd);
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
@@ -2026,6 +2033,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -2631,7 +2639,9 @@ loop:
 	when there is database activity */
 
 	srv_last_log_flush_time = time(NULL);
-	next_itr_time = ut_time_ms();
+
+	/* Sleep for 1 second on entrying the for loop below the first time. */
+	next_itr_time = ut_time_ms() + 1000;
 
 	for (i = 0; i < 10; i++) {
 		ulint	cur_time = ut_time_ms();

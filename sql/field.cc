@@ -1329,7 +1329,7 @@ void Field::hash(ulong *nr, ulong *nr2)
   else
   {
     uint len= pack_length();
-    CHARSET_INFO *cs= charset();
+    CHARSET_INFO *cs= sort_charset();
     cs->coll->hash_sort(cs, ptr, len, nr, nr2);
   }
 }
@@ -1564,7 +1564,7 @@ void Field::make_field(Send_field *field)
   }
   else
     field->org_table_name= field->db_name= "";
-  if (orig_table)
+  if (orig_table && orig_table->alias)
   {
     field->table_name= orig_table->alias;
     field->org_col_name= field_name;
@@ -4189,6 +4189,7 @@ String *Field_float::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  DBUG_ASSERT(field_length <= MAX_FIELD_CHARLENGTH);
   float nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4199,8 +4200,13 @@ String *Field_float::val_str(String *val_buffer,
 #endif
     memcpy(&nr, ptr, sizeof(nr));
 
-  uint to_length=max(field_length,70);
-  val_buffer->alloc(to_length);
+  uint to_length= 70;
+  if (val_buffer->alloc(to_length))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    return val_buffer;
+  }
+
   char *to=(char*) val_buffer->ptr();
   size_t len;
 
@@ -4209,7 +4215,7 @@ String *Field_float::val_str(String *val_buffer,
   else
   {
     /*
-      We are safe here because the buffer length is >= 70, and
+      We are safe here because the buffer length is 70, and
       fabs(float) < 10^39, dec < NOT_FIXED_DEC. So the resulting string
       will be not longer than 69 chars + terminating '\0'.
     */
@@ -4506,6 +4512,7 @@ String *Field_double::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  DBUG_ASSERT(field_length <= MAX_FIELD_CHARLENGTH);
   double nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4515,9 +4522,13 @@ String *Field_double::val_str(String *val_buffer,
   else
 #endif
     doubleget(nr,ptr);
+  uint to_length= DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE;
+  if (val_buffer->alloc(to_length))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    return val_buffer;
+  }
 
-  uint to_length=max(field_length, DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE);
-  val_buffer->alloc(to_length);
   char *to=(char*) val_buffer->ptr();
   size_t len;
 
@@ -9104,7 +9115,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
-    pack_flag= FIELDFLAG_DECIMAL | FIELDFLAG_NUMBER |
+    pack_flag= FIELDFLAG_NUMBER |
       (decimals_arg & FIELDFLAG_MAX_DEC) << FIELDFLAG_DEC_SHIFT;
     break;
 
@@ -9153,12 +9164,13 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     (maybe_null ? FIELDFLAG_MAYBE_NULL : 0) |
     (is_unsigned ? 0 : FIELDFLAG_DECIMAL);
 
-  DBUG_PRINT("debug", ("pack_flag: %s%s%s%s%s, pack_type: %d",
+  DBUG_PRINT("debug", ("pack_flag: %s%s%s%s%s%s, pack_type: %d",
                        FLAGSTR(pack_flag, FIELDFLAG_BINARY),
                        FLAGSTR(pack_flag, FIELDFLAG_NUMBER),
                        FLAGSTR(pack_flag, FIELDFLAG_INTERVAL),
                        FLAGSTR(pack_flag, FIELDFLAG_GEOM),
                        FLAGSTR(pack_flag, FIELDFLAG_BLOB),
+                       FLAGSTR(pack_flag, FIELDFLAG_DECIMAL),
                        f_packtype(pack_flag)));
   DBUG_VOID_RETURN;
 }

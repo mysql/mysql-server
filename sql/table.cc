@@ -34,6 +34,7 @@
 #include <m_ctype.h>
 #include "my_md5.h"
 #include "sql_select.h"
+#include "mdl.h"                 // MDL_wait_for_graph_visitor
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -325,6 +326,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 
     share->used_tables.empty();
     share->free_tables.empty();
+    share->m_flush_tickets.empty();
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
     mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
@@ -389,10 +391,60 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 
   share->used_tables.empty();
   share->free_tables.empty();
+  share->m_flush_tickets.empty();
 
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Release resources (plugins) used by the share and free its memory.
+  TABLE_SHARE is self-contained -- it's stored in its own MEM_ROOT.
+  Free this MEM_ROOT.
+*/
+
+void TABLE_SHARE::destroy()
+{
+  uint idx;
+  KEY *info_it;
+
+  /* The mutex is initialized only for shares that are part of the TDC */
+  if (tmp_table == NO_TMP_TABLE)
+    mysql_mutex_destroy(&LOCK_ha_data);
+  my_hash_free(&name_hash);
+
+  plugin_unlock(NULL, db_plugin);
+  db_plugin= NULL;
+
+  /* Release fulltext parsers */
+  info_it= key_info;
+  for (idx= keys; idx; idx--, info_it++)
+  {
+    if (info_it->flags & HA_USES_PARSER)
+    {
+      plugin_unlock(NULL, info_it->parser);
+      info_it->flags= 0;
+    }
+  }
+  if (ha_data_destroy)
+  {
+    ha_data_destroy(ha_data);
+    ha_data_destroy= NULL;
+  }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (ha_part_data_destroy)
+  {
+    ha_part_data_destroy(ha_part_data);
+    ha_part_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+  /*
+    Make a copy since the share is allocated in its own root,
+    and free_root() updates its argument after freeing the memory.
+  */
+  MEM_ROOT own_root= mem_root;
+  free_root(&own_root, MYF(0));
+}
 
 /*
   Free table share and memory used by it
@@ -400,41 +452,43 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   SYNOPSIS
     free_table_share()
     share		Table share
-
-  NOTES
-    share->mutex must be locked when we come here if it's not a temp table
 */
 
 void free_table_share(TABLE_SHARE *share)
 {
-  MEM_ROOT mem_root;
-  uint idx;
-  KEY *key_info;
   DBUG_ENTER("free_table_share");
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
   DBUG_ASSERT(share->ref_count == 0);
 
-  /* The mutex is initialized only for shares that are part of the TDC */
-  if (share->tmp_table == NO_TMP_TABLE)
-    mysql_mutex_destroy(&share->LOCK_ha_data);
-  my_hash_free(&share->name_hash);
-
-  plugin_unlock(NULL, share->db_plugin);
-  share->db_plugin= NULL;
-
-  /* Release fulltext parsers */
-  key_info= share->key_info;
-  for (idx= share->keys; idx; idx--, key_info++)
+  if (share->m_flush_tickets.is_empty())
   {
-    if (key_info->flags & HA_USES_PARSER)
-    {
-      plugin_unlock(NULL, key_info->parser);
-      key_info->flags= 0;
-    }
+    /*
+      No threads are waiting for this share to be flushed (the
+      share is not old, is for a temporary table, or just nobody
+      happens to be waiting for it). Destroy it.
+    */
+    share->destroy();
   }
-  /* We must copy mem_root from share because share is allocated through it */
-  memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
-  free_root(&mem_root, MYF(0));                 // Free's share
+  else
+  {
+    Wait_for_flush_list::Iterator it(share->m_flush_tickets);
+    Wait_for_flush *ticket;
+    /*
+      We're about to iterate over a list that is used
+      concurrently. Make sure this never happens without a lock.
+    */
+    mysql_mutex_assert_owner(&LOCK_open);
+
+    while ((ticket= it++))
+      (void) ticket->get_ctx()->m_wait.set_status(MDL_wait::GRANTED);
+    /*
+      If there are threads waiting for this share to be flushed,
+      the last one to receive the notification will destroy the
+      share. At this point the share is removed from the table
+      definition cache, so is OK to proceed here without waiting
+      for this thread to do the work.
+    */
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -1662,11 +1716,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete handler_file;
   my_hash_free(&share->name_hash);
   if (share->ha_data_destroy)
+  {
     share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
+  }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->ha_part_data_destroy)
+  {
     share->ha_part_data_destroy(share->ha_part_data);
-#endif
+    share->ha_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -2992,6 +3052,251 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     table->s->table_field_def_cache= table_def;
 
   DBUG_RETURN(error);
+}
+
+
+/**
+  Traverse portion of wait-for graph which is reachable through edge
+  represented by this flush ticket in search for deadlocks.
+
+  @retval TRUE  A deadlock is found. A victim is remembered
+                by the visitor.
+  @retval FALSE Success, no deadlocks.
+*/
+
+bool Wait_for_flush::accept_visitor(MDL_wait_for_graph_visitor *gvisitor)
+{
+  return m_share->visit_subgraph(this, gvisitor);
+}
+
+
+uint Wait_for_flush::get_deadlock_weight() const
+{
+  return m_deadlock_weight;
+}
+
+
+/**
+  Traverse portion of wait-for graph which is reachable through this
+  table share in search for deadlocks.
+
+  @param waiting_ticket  Ticket representing wait for this share.
+  @param dvisitor        Deadlock detection visitor.
+
+  @retval TRUE  A deadlock is found. A victim is remembered
+                by the visitor.
+  @retval FALSE No deadlocks, it's OK to begin wait.
+*/
+
+bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
+                                 MDL_wait_for_graph_visitor *gvisitor)
+{
+  TABLE *table;
+  MDL_context *src_ctx= wait_for_flush->get_ctx();
+  bool result= TRUE;
+
+  /*
+    To protect used_tables list from being concurrently modified
+    while we are iterating through it we acquire LOCK_open.
+    This does not introduce deadlocks in the deadlock detector
+    because we won't try to acquire LOCK_open while
+    holding a write-lock on MDL_lock::m_rwlock.
+  */
+  if (gvisitor->m_lock_open_count++ == 0)
+    mysql_mutex_lock(&LOCK_open);
+
+  I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
+
+  /*
+    In case of multiple searches running in parallel, avoid going
+    over the same loop twice and shortcut the search.
+    Do it after taking the lock to weed out unnecessary races.
+  */
+  if (src_ctx->m_wait.get_status() != MDL_wait::EMPTY)
+  {
+    result= FALSE;
+    goto end;
+  }
+
+  if (gvisitor->enter_node(src_ctx))
+    goto end;
+
+  while ((table= tables_it++))
+  {
+    if (gvisitor->inspect_edge(&table->in_use->mdl_context))
+    {
+      goto end_leave_node;
+    }
+  }
+
+  tables_it.rewind();
+  while ((table= tables_it++))
+  {
+    if (table->in_use->mdl_context.visit_subgraph(gvisitor))
+    {
+      goto end_leave_node;
+    }
+  }
+
+  result= FALSE;
+
+end_leave_node:
+  gvisitor->leave_node(src_ctx);
+
+end:
+  if (gvisitor->m_lock_open_count-- == 1)
+    mysql_mutex_unlock(&LOCK_open);
+
+  return result;
+}
+
+
+/**
+  Wait until the subject share is removed from the table
+  definition cache and make sure it's destroyed.
+
+  @param mdl_context     MDL context for thread which is going to wait.
+  @param abstime         Timeout for waiting as absolute time value.
+  @param deadlock_weight Weight of this wait for deadlock detector.
+
+  @pre LOCK_open is write locked, the share is used (has
+       non-zero reference count), is marked for flush and
+       this connection does not reference the share.
+       LOCK_open will be unlocked temporarily during execution.
+
+  @retval FALSE - Success.
+  @retval TRUE  - Error (OOM, deadlock, timeout, etc...).
+*/
+
+bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
+                                       uint deadlock_weight)
+{
+  MDL_context *mdl_context= &thd->mdl_context;
+  Wait_for_flush ticket(mdl_context, this, deadlock_weight);
+  MDL_wait::enum_wait_status wait_status;
+
+  mysql_mutex_assert_owner(&LOCK_open);
+  /*
+    We should enter this method only when share's version is not
+    up to date and the share is referenced. Otherwise our
+    thread will never be woken up from wait.
+  */
+  DBUG_ASSERT(version != refresh_version && ref_count != 0);
+
+  m_flush_tickets.push_front(&ticket);
+
+  mdl_context->m_wait.reset_status();
+
+  mysql_mutex_unlock(&LOCK_open);
+
+  mdl_context->will_wait_for(&ticket);
+
+  mdl_context->find_deadlock();
+
+  wait_status= mdl_context->m_wait.timed_wait(thd, abstime, TRUE,
+                                              "Waiting for table flush");
+
+  mdl_context->done_waiting_for();
+
+  mysql_mutex_lock(&LOCK_open);
+
+  m_flush_tickets.remove(&ticket);
+
+  if (m_flush_tickets.is_empty() && ref_count == 0)
+  {
+    /*
+      If our thread was the last one using the share,
+      we must destroy it here.
+    */
+    destroy();
+  }
+
+  /*
+    In cases when our wait was aborted by KILL statement,
+    a deadlock or a timeout, the share might still be referenced,
+    so we don't delete it. Note, that we can't determine this
+    condition by checking wait_status alone, since, for example,
+    a timeout can happen after all references to the table share
+    were released, but before the share is removed from the
+    cache and we receive the notification. This is why
+    we first destroy the share, and then look at
+    wait_status.
+  */
+  switch (wait_status)
+  {
+  case MDL_wait::GRANTED:
+    return FALSE;
+  case MDL_wait::VICTIM:
+    my_error(ER_LOCK_DEADLOCK, MYF(0));
+    return TRUE;
+  case MDL_wait::TIMEOUT:
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    return TRUE;
+  case MDL_wait::KILLED:
+    return TRUE;
+  default:
+    DBUG_ASSERT(0);
+    return TRUE;
+  }
+}
+
+
+/**
+  Initialize TABLE instance (newly created, or coming either from table
+  cache or THD::temporary_tables list) and prepare it for further use
+  during statement execution. Set the 'alias' attribute from the specified
+  TABLE_LIST element. Remember the TABLE_LIST element in the
+  TABLE::pos_in_table_list member.
+
+  @param thd  Thread context.
+  @param tl   TABLE_LIST element.
+*/
+
+void TABLE::init(THD *thd, TABLE_LIST *tl)
+{
+  DBUG_ASSERT(s->ref_count > 0 || s->tmp_table != NO_TMP_TABLE);
+
+  if (thd->lex->need_correct_ident())
+    alias_name_used= my_strcasecmp(table_alias_charset,
+                                   s->table_name.str,
+                                   tl->alias);
+  /* Fix alias if table name changes. */
+  if (strcmp(alias, tl->alias))
+  {
+    uint length= (uint) strlen(tl->alias)+1;
+    alias= (char*) my_realloc((char*) alias, length, MYF(MY_WME));
+    memcpy((char*) alias, tl->alias, length);
+  }
+
+  tablenr= thd->current_tablenr++;
+  used_fields= 0;
+  const_table= 0;
+  null_row= 0;
+  maybe_null= 0;
+  force_index= 0;
+  force_index_order= 0;
+  force_index_group= 0;
+  status= STATUS_NO_RECORD;
+  insert_values= 0;
+  fulltext_searched= 0;
+  file->ft_handler= 0;
+  reginfo.impossible_range= 0;
+
+  /* Catch wrong handling of the auto_increment_field_not_null. */
+  DBUG_ASSERT(!auto_increment_field_not_null);
+  auto_increment_field_not_null= FALSE;
+
+  if (timestamp_field)
+    timestamp_field_type= timestamp_field->get_auto_set_type();
+
+  pos_in_table_list= tl;
+
+  clear_column_bitmaps();
+
+  DBUG_ASSERT(key_read == 0);
+
+  /* Tables may be reused in a sub statement. */
+  DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 }
 
 

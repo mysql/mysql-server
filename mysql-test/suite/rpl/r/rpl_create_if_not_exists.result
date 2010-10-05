@@ -26,7 +26,6 @@ SHOW TABLES in mysqltest;
 Tables_in_mysqltest
 t
 t1
-t2
 SHOW EVENTS in mysqltest;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 mysqltest	e	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -65,3 +64,65 @@ c1
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+# WL#5370
+# The behavior of statement 'CREATE TABLE SELECT IF NOT EXISTS' is changed.
+# After the worklog, it will insert nothing and the statement will not be
+# binlogged if the table already exists.
+# After the worklog, some bugs will disappear automotically.
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+
+# Case 1: BUG#47132
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int);
+INSERT INTO t1 VALUES (1), (1);
+INSERT INTO t2 VALUES (2), (2);
+CREATE VIEW v1 AS SELECT id FROM t2;
+CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
+Warnings:
+Note	1050	Table 'v1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+SHOW CREATE TABLE v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	latin1	latin1_swedish_ci
+SELECT * FROM t2;
+id
+2
+2
+SELECT * FROM v1;
+id
+2
+2
+DROP VIEW v1;
+CREATE TEMPORARY TABLE tt1 AS SELECT id FROM t2;
+CREATE TEMPORARY TABLE IF NOT EXISTS tt1(a int, b int) SELECT id, id FROM t1;
+Warnings:
+Note	1050	Table 'tt1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+SELECT * FROM t2;
+id
+2
+2
+SELECT * FROM tt1;
+id
+2
+2
+DROP TEMPORARY TABLE tt1;
+
+# Case 1: BUG#47132
+# RBR breaks on CREATE TABLE IF EXISTS <existing VIEW> AS SELECT
+CREATE VIEW v1 AS SELECT 1 as a;
+CREATE TABLE IF NOT EXISTS v1 SELECT 2 as a;
+Warnings:
+Note	1050	Table 'v1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+DROP VIEW v1;
+DROP TABLE t1, t2;
