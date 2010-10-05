@@ -5935,6 +5935,12 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (lpt->thd->locked_tables)
   {
     /*
+      Close the table if open, to remove/destroy the already altered
+      table->part_info object, so that it is not reused.
+    */
+    if (lpt->table->db_stat)
+      abort_and_upgrade_lock_and_close_table(lpt);
+    /*
       When we have the table locked, it is necessary to reopen the table
       since all table objects were closed and removed as part of the
       ALTER TABLE of partitioning structure.
@@ -6436,7 +6442,20 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                  table, table_list, FALSE, NULL,
                                  written_bin_log));
 err:
-  close_thread_tables(thd);
+  if (thd->locked_tables)
+  {
+    /*
+      table->part_info was altered in prep_alter_part_table and must be
+      destroyed and recreated, since otherwise it will be reused, since
+      we are under LOCK TABLE.
+    */
+    alter_partition_lock_handling(lpt);
+  }
+  else
+  {
+    /* Force the table to be closed to avoid reuse of the table->part_info */
+    close_thread_tables(thd);
+  }
   DBUG_RETURN(TRUE);
 }
 #endif
