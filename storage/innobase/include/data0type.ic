@@ -424,7 +424,7 @@ dtype_sql_name(
 /*===========*/
 	unsigned	mtype,	/*!< in: mtype */
 	unsigned	prtype,	/*!< in: prtype */
-	unsigned	len, 	/*!< in: len */
+	unsigned	len,	/*!< in: len */
 	char*		name,	/*!< out: SQL name */
 	unsigned	name_sz)/*!< in: size of the name buffer */
 {
