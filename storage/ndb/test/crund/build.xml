@@ -288,13 +288,13 @@
        # Driver
        ################################################################# -->
 
-  <!-- compiles the benchmark driver -->
+  <!-- compiles the benchmark drivers -->
   <target name="compile.driver" depends="set.compile,init">
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
-	   includes="com/mysql/cluster/crund/Driver.java"/>
+	   includes="com/mysql/cluster/crund/*Driver.java"/>
   </target>
 
-  <!-- compiles the benchmark driver with optimizations -->
+  <!-- compiles the benchmark drivers with optimizations -->
   <target name="compile.driver.opt" depends="set.compile.opt,compile.driver"/>
 
   <!-- #################################################################
@@ -881,7 +881,7 @@
     <taskdef name="openjpac"
     classname="org.apache.openjpa.ant.PCEnhancerTask"/>
 
-    <- invoke enhancer on all .jdo files below the current directory ->
+    <- invoke enhancer on all .java files below the current directory ->
     <openjpac>
       <fileset dir=".">
         <include name="**/model/*.java" />

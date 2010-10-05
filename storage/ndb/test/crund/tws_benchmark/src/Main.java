@@ -72,22 +72,25 @@ public class Main
     static protected final PrintWriter out = new PrintWriter(System.out, true);
     static protected final PrintWriter err = new PrintWriter(System.err, true);
 
+    // command-line arguments
+    static protected String propsFileName;
+    static protected String logFileName;
+
     // benchmark settings
-    static protected final String propsFileName  = "run.properties";
-    static protected final Properties props = new Properties();
-    static protected boolean doJdbc;
-    static protected boolean doClusterj;
-    static protected boolean doNdbjtie;
-    static protected boolean doInsert;
-    static protected boolean doLookup;
-    static protected boolean doUpdate;
-    static protected boolean doDelete;
-    static protected boolean doSingle;
-    static protected boolean doBulk;
-    static protected boolean doBatch;
-    static protected LockMode lockMode;
-    static protected int nRows;
-    static protected int nRuns;
+    protected final Properties props = new Properties();
+    protected boolean doJdbc;
+    protected boolean doClusterj;
+    protected boolean doNdbjtie;
+    protected boolean doInsert;
+    protected boolean doLookup;
+    protected boolean doUpdate;
+    protected boolean doDelete;
+    protected boolean doSingle;
+    protected boolean doBulk;
+    protected boolean doBatch;
+    protected LockMode lockMode;
+    protected int nRows;
+    protected int nRuns;
 
     // JDBC resources
     protected Connection connection;
@@ -178,18 +181,88 @@ public class Main
     }
 
     static public void main(String[] args) throws SQLException, IOException {
-        parseProperties();
-
+        parseArguments(args);
         Main main = new Main();
-        main.init();
         main.run();
-        main.close();
+    }
+
+    static private void exitUsage() {
+        out.println("usage: [options]");
+        out.println("    [-p <file name>]...    a properties file name");
+        out.println("    [-l <file name>]       log file name for data output");
+        out.println("    [-h|--help]            print usage message and exit");
+        out.println();
+        System.exit(1); // return an error code
+    }
+
+    static public void parseArguments(String[] args) {
+        for (int i = 0; i < args.length; i++) {
+            final String arg = args[i];
+            if (arg.equals("-p")) {
+                if (i >= args.length) {
+                    exitUsage();
+                }
+                propFileNames.add(args[++i]);
+            } else if (arg.equals("-l")) {
+                if (i >= args.length) {
+                    exitUsage();
+                }
+                logFileName = args[++i];
+            } else if (arg.equals("-h") || arg.equals("--help")) {
+                exitUsage();
+            } else {
+                out.println("unknown option: " + arg);
+                exitUsage();
+            }
+        }
+    }
+    
+    public void run() throws IOException, SQLException {
+        init();
+        runTests();
+        close();
     }
 
     // ----------------------------------------------------------------------
 
-    static public void parseProperties() throws IOException {
-        out.println("reading properties file " + propsFileName + " ...");
+    protected void init() throws IOException, SQLException {
+        loadProperties();
+        // XXX openLogFile();
+
+        // XXX init log buffers
+        //logHeader = true;
+        //header = new StringBuilder();
+        //rtimes = new StringBuilder();
+        //musage = new StringBuilder();
+
+        if (doJdbc)
+            initJdbcConnection();
+        if (doClusterj)
+            initClusterjConnection();
+        if (doNdbjtie)
+            initNdbjtieConnection();
+    }
+
+    protected void close() throws IOException, SQLException {
+        if (doJdbc)
+            closeJdbcConnection();
+        if (doClusterj)
+            closeClusterjConnection();
+        if (doNdbjtie)
+            closeNdbjtieConnection();
+
+        // XXX close log buffers
+        //header = null;
+        //rtimes = null;
+        //musage = null;
+
+        // XXX closeLogFile();
+    }
+
+    // ----------------------------------------------------------------------
+
+    protected void loadProperties() throws IOException {
+        out.println("reading properties file:        " + propsFileName);
         InputStream is = null;
         try {
             is = new FileInputStream(propsFileName);
@@ -198,6 +271,11 @@ public class Main
             if (is != null)
                 is.close();
         }
+        //props.list(out);
+
+        out.print("initializing properties ...");
+        final StringBuilder msg = new StringBuilder();        
+        final String eol = System.getProperty("line.separator");
 
         doJdbc = parseBoolean("doJdbc", false);
         doClusterj = parseBoolean("doClusterj", false);
@@ -213,27 +291,36 @@ public class Main
         nRows = parseInt("nRows", 50000);
         nRuns = parseInt("nRuns", 5);
 
-        out.println("doJdbc     : " + doJdbc);
-        out.println("doClusterj : " + doClusterj);
-        out.println("doNdbjtie  : " + doNdbjtie);
-        out.println("doInsert   : " + doInsert);
-        out.println("doLookup   : " + doLookup);
-        out.println("doUpdate   : " + doUpdate);
-        out.println("doDelete   : " + doDelete);
-        out.println("doSingle   : " + doSingle);
-        out.println("doBulk     : " + doBulk);
-        out.println("doBatch    : " + doBatch);
-        out.println("lockMode   : " + lockMode);
-        out.println("nRows      : " + nRows);
-        out.println("nRuns      : " + nRuns);
+        if (msg.length() == 0) {
+            out.println("     [ok]");
+        } else {
+            out.println();
+            out.print(msg.toString());
+        }
+
+        out.println();
+        out.println("main settings ...");
+        out.println("doJdbc:                         " + doJdbc);
+        out.println("doClusterj:                     " + doClusterj);
+        out.println("doNdbjtie:                      " + doNdbjtie);
+        out.println("doInsert:                       " + doInsert);
+        out.println("doLookup:                       " + doLookup);
+        out.println("doUpdate:                       " + doUpdate);
+        out.println("doDelete:                       " + doDelete);
+        out.println("doSingle:                       " + doSingle);
+        out.println("doBulk:                         " + doBulk);
+        out.println("doBatch:                        " + doBatch);
+        out.println("lockMode:                       " + lockMode);
+        out.println("nRows:                          " + nRows);
+        out.println("nRuns:                          " + nRuns);
     }
 
-    static protected boolean parseBoolean(String k, boolean vdefault) {
+    protected boolean parseBoolean(String k, boolean vdefault) {
         final String v = props.getProperty(k);
         return (v == null ? vdefault : Boolean.parseBoolean(v));
     }
 
-    static protected int parseInt(String k, int vdefault) {
+    protected int parseInt(String k, int vdefault) {
         final String v = props.getProperty(k);
         try {
             return (v == null ? vdefault : Integer.parseInt(v));
@@ -246,7 +333,7 @@ public class Main
         }
     }
 
-    static protected LockMode parseLockMode(String k, LockMode vdefault) {
+    protected LockMode parseLockMode(String k, LockMode vdefault) {
         final String v = props.getProperty(k);
         try {
             return (v == null ? vdefault : LockMode.valueOf(v));
@@ -257,26 +344,6 @@ public class Main
             iae.initCause(e);
             throw iae;
         }
-    }
-
-    // ----------------------------------------------------------------------
-
-    public void init() throws SQLException {
-        if (doJdbc)
-            initJdbcConnection();
-        if (doClusterj)
-            initClusterjConnection();
-        if (doNdbjtie)
-            initNdbjtieConnection();
-    }
-
-    public void close() throws SQLException {
-        if (doJdbc)
-            closeJdbcConnection();
-        if (doClusterj)
-            closeClusterjConnection();
-        if (doNdbjtie)
-            closeNdbjtieConnection();
     }
 
     // ----------------------------------------------------------------------
@@ -301,7 +368,7 @@ public class Main
                         + System.getProperty("java.class.path") + "'");
             throw new RuntimeException(e);
         }
-        out.println("          [ok: " + cls.getName() + "]");
+        out.println("         [ok: " + cls.getName() + "]");
 
         // create a connection to the database
         out.print("starting jdbc connection ...");
@@ -319,14 +386,14 @@ public class Main
             out.println("Cannot connect to database '" + url + "'");
             throw new RuntimeException(e);
         }
-        out.println("     [ok: " + url + "]");
+        out.println("    [ok: " + url + "]");
 
         out.print("setting isolation level ...");
         out.flush();
         // ndb storage engine only supports READ_COMMITTED
         final int il = Connection.TRANSACTION_READ_COMMITTED;
         connection.setTransactionIsolation(il);
-        out.print("      [ok: ");
+        out.print("     [ok: ");
         switch (connection.getTransactionIsolation()) {
         case Connection.TRANSACTION_READ_UNCOMMITTED:
             out.print("READ_UNCOMMITTED");
@@ -360,7 +427,7 @@ public class Main
         out.flush();
         connection.close();
         connection = null;
-        out.println("      [ok]");
+        out.println("     [ok]");
     }
 
     protected void initJdbcPreparedStatements() throws SQLException {
@@ -370,7 +437,8 @@ public class Main
         assert (upd0 == null);
         assert (del0 == null);
 
-        out.print("using lock mode for reads ...    [ok: ");
+        out.print("using lock mode for reads ...");
+        out.flush;
         final String lm;
         switch (lockMode) {
         case READ_COMMITTED:
@@ -386,7 +454,7 @@ public class Main
             lm = "";
             assert false;
         }
-        out.println("SELECT" + lm + ";]");
+        out.println("   [ok: " + "SELECT" + lm + ";]");
 
         out.print("compiling jdbc statements ...");
         out.flush();
@@ -403,7 +471,7 @@ public class Main
         final String sqlDel0 = "DELETE FROM mytable WHERE c0=?";
         del0 = connection.prepareStatement(sqlDel0);
 
-        out.println("    [ok]");
+        out.println("   [ok]");
     }
 
     protected void closeJdbcPreparedStatements() throws SQLException {
@@ -427,7 +495,7 @@ public class Main
         del0.close();
         del0 = null;
 
-        out.println("      [ok]");
+        out.println("     [ok]");
     }
 
     // ----------------------------------------------------------------------
@@ -443,11 +511,11 @@ public class Main
         out.flush();
         sessionFactory = ClusterJHelper.getSessionFactory(props);
         session = sessionFactory.getSession();
-        out.println("    [ok]");
+        out.println("   [ok]");
 
         out.print("setting session lock mode ...");
         session.setLockMode(lockMode);
-        out.println("    [ok: " + lockMode + "]");
+        out.println("   [ok: " + lockMode + "]");
     }
 
     protected void closeClusterjConnection() {
@@ -463,7 +531,7 @@ public class Main
         session = null;
         sessionFactory.close();
         sessionFactory = null;
-        out.println("     [ok]");
+        out.println("    [ok]");
     }
 
     // ----------------------------------------------------------------------
@@ -496,7 +564,7 @@ public class Main
         out.flush();
         mgmd = Ndb_cluster_connection.create(mgmdConnect);
         assert mgmd != null;
-        out.println("  [ok]");
+        out.println(" [ok]");
 
         // connect to cluster management node (ndb_mgmd)
         out.print("connecting to cluster ...");
@@ -512,7 +580,7 @@ public class Main
             out.println(msg);
             throw new RuntimeException("!!! " + msg);
         }
-        out.println("        [ok: " + mgmdConnect + "]");
+        out.println("       [ok: " + mgmdConnect + "]");
 
         // connect to data nodes (ndbds)
         out.print("waiting for data nodes ...");
@@ -526,7 +594,7 @@ public class Main
             out.println(msg);
             throw new RuntimeException(msg);
         }
-        out.println("       [ok]");
+        out.println("      [ok]");
 
         // connect to database
         out.print("connecting to database ...");
@@ -537,31 +605,34 @@ public class Main
             String msg = "Error caught: " + ndb.getNdbError().message();
             throw new RuntimeException(msg);
         }
-        out.println("       [ok: " + catalog + "." + schema + "]");
+        out.println("      [ok: " + catalog + "." + schema + "]");
 
         initNdbjtieMeta();
 
         initNdbjtieBuffers();
 
-        out.print("using lock mode for reads ...    [ok: ");
+        out.print("using lock mode for reads ...");
+        out.flush;
+        final String lm;
         switch (lockMode) {
         case READ_COMMITTED:
             ndbOpLockMode = NdbOperation.LockMode.LM_CommittedRead;
-            out.print("LM_CommittedRead");
+            lm = "LM_CommittedRead";
             break;
         case SHARED:
             ndbOpLockMode = NdbOperation.LockMode.LM_Read;
-            out.print("LM_Read");
+            lm = "LM_Read";
             break;
         case EXCLUSIVE:
             ndbOpLockMode = NdbOperation.LockMode.LM_Exclusive;
-            out.print("LM_Exclusive");
+            lm = "LM_Exclusive";
             break;
         default:
             ndbOpLockMode = NdbOperation.LockMode.LM_CommittedRead;
+            lm = "LM_CommittedRead";
             assert false;
         }
-        out.println("]");
+        out.println("   [ok: " + lm + "]");
     }
 
     protected void closeNdbjtieConnection() {
@@ -579,14 +650,14 @@ public class Main
         out.flush();
         Ndb.delete(ndb);
         ndb = null;
-        out.println("  [ok]");
+        out.println(" [ok]");
 
         out.print("closing cluster connection ...");
         out.flush();
         if (mgmd != null)
             Ndb_cluster_connection.delete(mgmd);
         mgmd = null;
-        out.println("   [ok]");
+        out.println("  [ok]");
     }
 
     protected void initNdbjtieMeta() {
@@ -665,7 +736,7 @@ public class Main
         width_c13 = ndbjtieColumnWidth(column_c13);
         width_c14 = ndbjtieColumnWidth(column_c14);
 
-        out.println("             [ok]");
+        out.println("            [ok]");
     }
 
     protected void closeNdbjtieMeta() {
@@ -710,7 +781,7 @@ public class Main
 
         table_t0 = null;
 
-        out.println("       [ok]");
+        out.println("      [ok]");
     }
 
     protected void initNdbjtieBuffers() {
@@ -743,7 +814,7 @@ public class Main
         // initial order of a byte buffer is always BIG_ENDIAN
         bb_r.order(bo);
 
-        out.println("            [ok]");
+        out.println("           [ok]");
     }
 
     protected void closeNdbjtieBuffers() {
@@ -755,7 +826,7 @@ public class Main
 
         bb_r = null;
 
-        out.println("             [ok]");
+        out.println("            [ok]");
     }
 
     static protected void loadSystemLibrary(String name) {
@@ -778,7 +849,7 @@ public class Main
                         + name + "'; caught exception: " + e);
             throw e;
         }
-        out.println("        [ok: " + name + "]");
+        out.println("       [ok: " + name + "]");
     }
 
     static protected String toStr(NdbErrorConst e) {
@@ -796,82 +867,104 @@ public class Main
 
     enum XMode { SINGLE, BULK, BATCH }
 
-    public void run() throws SQLException {
+    protected void runTests() throws SQLException {
         for (int i = 0; i < nRuns; i++) {
-            if (doJdbc) {
-                out.println();
-                out.println("handle " + nRows + " rows by JDBC ...");
-                if (doSingle) {
-                    out.println();
-                    if (doInsert) runJdbcInsert(XMode.SINGLE);
-                    if (doLookup) runJdbcLookup(XMode.SINGLE);
-                    if (doUpdate) runJdbcUpdate(XMode.SINGLE);
-                    if (doDelete) runJdbcDelete(XMode.SINGLE);
-                }
-                if (doBulk) {
-                    out.println();
-                    if (doInsert) runJdbcInsert(XMode.BULK);
-                    if (doLookup) runJdbcLookup(XMode.BULK);
-                    if (doUpdate) runJdbcUpdate(XMode.BULK);
-                    if (doDelete) runJdbcDelete(XMode.BULK);
-                }
-                if (doBatch) {
-                    out.println();
-                    if (doInsert) runJdbcInsert(XMode.BATCH);
-                    if (doLookup) runJdbcLookup(XMode.BATCH);
-                    if (doUpdate) runJdbcUpdate(XMode.BATCH);
-                    if (doDelete) runJdbcDelete(XMode.BATCH);
-                }
-            }
-            if (doClusterj) {
-                out.println();
-                out.println("handle " + nRows + " rows by ClusterJ ...");
-                if (doSingle) {
-                    out.println();
-                    if (doInsert) runClusterjInsert(XMode.SINGLE);
-                    if (doLookup) runClusterjLookup(XMode.SINGLE);
-                    if (doUpdate) runClusterjUpdate(XMode.SINGLE);
-                    if (doDelete) runClusterjDelete(XMode.SINGLE);
-                }
-                if (doBulk) {
-                    out.println();
-                    if (doInsert) runClusterjInsert(XMode.BULK);
-                    if (doLookup) runClusterjLookup(XMode.BULK);
-                    if (doUpdate) runClusterjUpdate(XMode.BULK);
-                    if (doDelete) runClusterjDelete(XMode.BULK);
-                }
-            }
-            if (doNdbjtie) {
-                out.println();
-                out.println("handle " + nRows + " rows by NDB JTie ...");
-                if (doSingle) {
-                    out.println();
-                    if (doInsert) runNdbjtieInsert(XMode.SINGLE);
-                    if (doLookup) runNdbjtieLookup(XMode.SINGLE);
-                    if (doUpdate) runNdbjtieUpdate(XMode.SINGLE);
-                    if (doDelete) runNdbjtieDelete(XMode.SINGLE);
-                }
-                if (doBulk) {
-                    out.println();
-                    if (doInsert) runNdbjtieInsert(XMode.BULK);
-                    if (doLookup) runNdbjtieLookup(XMode.BULK);
-                    if (doUpdate) runNdbjtieUpdate(XMode.BULK);
-                    if (doDelete) runNdbjtieDelete(XMode.BULK);
-                }
-                if (doBatch) {
-                    out.println();
-                    if (doInsert) runNdbjtieInsert(XMode.BATCH);
-                    if (doLookup) runNdbjtieLookup(XMode.BATCH);
-                    if (doUpdate) runNdbjtieUpdate(XMode.BATCH);
-                    if (doDelete) runNdbjtieDelete(XMode.BATCH);
-                }
-            }
+            out.println();
+            out.println("------------------------------------------------------------");
+
+            // XXX log buffers
+
+            if (doJdbc) runJdbcOperations();
+            if (doClusterj) runClusterjOperations();
+            if (doNdbjtie) runNdbjtieOperations();
+
+            // XXX log buffers
+        }
+
+        out.println();
+        out.println("------------------------------------------------------------");
+    }
+
+    protected void runJdbcOperations() throws SQLException {
+        out.println();
+        out.println("running JDBC operations ..."
+                    + "     [nRows=" + nRows + "]");
+
+        if (doSingle) {
+            out.println();
+            if (doInsert) runJdbcInsert(XMode.SINGLE);
+            if (doLookup) runJdbcLookup(XMode.SINGLE);
+            if (doUpdate) runJdbcUpdate(XMode.SINGLE);
+            if (doDelete) runJdbcDelete(XMode.SINGLE);
+        }
+        if (doBulk) {
+            out.println();
+            if (doInsert) runJdbcInsert(XMode.BULK);
+            if (doLookup) runJdbcLookup(XMode.BULK);
+            if (doUpdate) runJdbcUpdate(XMode.BULK);
+            if (doDelete) runJdbcDelete(XMode.BULK);
+        }
+        if (doBatch) {
+            out.println();
+            if (doInsert) runJdbcInsert(XMode.BATCH);
+            if (doLookup) runJdbcLookup(XMode.BATCH);
+            if (doUpdate) runJdbcUpdate(XMode.BATCH);
+            if (doDelete) runJdbcDelete(XMode.BATCH);
+        }
+    }
+
+    protected void runClusterjOperations() {
+        out.println();
+        out.println("running ClusterJ operations ..."
+                    + " [nRows=" + nRows + "]");
+
+        if (doSingle) {
+            out.println();
+            if (doInsert) runClusterjInsert(XMode.SINGLE);
+            if (doLookup) runClusterjLookup(XMode.SINGLE);
+            if (doUpdate) runClusterjUpdate(XMode.SINGLE);
+            if (doDelete) runClusterjDelete(XMode.SINGLE);
+        }
+        if (doBulk) {
+            out.println();
+            if (doInsert) runClusterjInsert(XMode.BULK);
+            if (doLookup) runClusterjLookup(XMode.BULK);
+            if (doUpdate) runClusterjUpdate(XMode.BULK);
+            if (doDelete) runClusterjDelete(XMode.BULK);
+        }
+    }
+
+    protected void runNdbjtieOperations() {
+        out.println();
+        out.println("running NDB JTie operations ..."
+                    + " [nRows=" + nRows + "]");
+
+        if (doSingle) {
+            out.println();
+            if (doInsert) runNdbjtieInsert(XMode.SINGLE);
+            if (doLookup) runNdbjtieLookup(XMode.SINGLE);
+            if (doUpdate) runNdbjtieUpdate(XMode.SINGLE);
+            if (doDelete) runNdbjtieDelete(XMode.SINGLE);
+        }
+        if (doBulk) {
+            out.println();
+            if (doInsert) runNdbjtieInsert(XMode.BULK);
+            if (doLookup) runNdbjtieLookup(XMode.BULK);
+            if (doUpdate) runNdbjtieUpdate(XMode.BULK);
+            if (doDelete) runNdbjtieDelete(XMode.BULK);
+        }
+        if (doBatch) {
+            out.println();
+            if (doInsert) runNdbjtieInsert(XMode.BATCH);
+            if (doLookup) runNdbjtieLookup(XMode.BATCH);
+            if (doUpdate) runNdbjtieUpdate(XMode.BATCH);
+            if (doDelete) runNdbjtieDelete(XMode.BATCH);
         }
     }
 
     // ----------------------------------------------------------------------
 
-    public void runJdbcInsert(XMode mode) throws SQLException {
+    protected void runJdbcInsert(XMode mode) throws SQLException {
         final String m = mode.toString().toLowerCase();
         //out.println("insert " + nRows + " rows by JDBC " + m + " tx ...");
 
@@ -886,10 +979,10 @@ public class Main
             connection.commit();
         time += System.currentTimeMillis();
 
-        out.println("jdbc_insert_" + m + "    \t: " + time + " ms");
+        out.println("jdbc_insert_" + m + "    \t: " + time + "\tms");
     }
 
-    public void runClusterjInsert(XMode mode) {
+    protected void runClusterjInsert(XMode mode) {
         final String m = mode.toString().toLowerCase();
         //out.println("insert " + nRows + " rows by ClusterJ " + m + " tx ...");
 
@@ -903,10 +996,10 @@ public class Main
             session.currentTransaction().commit();
         time += System.currentTimeMillis();
 
-        out.println("clusterj_insert_" + m + "  \t: " + time + " ms");
+        out.println("clusterj_insert_" + m + "  \t: " + time + "\tms");
     }
 
-    public void runNdbjtieInsert(XMode mode) {
+    protected void runNdbjtieInsert(XMode mode) {
         final String m = mode.toString().toLowerCase();
         //out.println("insert " + nRows + " rows by NDB JTie " + m + " tx ...");
 
@@ -931,10 +1024,10 @@ public class Main
         }
         time += System.currentTimeMillis();
 
-        out.println("ndbjtie_insert_" + m + "  \t: " + time + " ms");
+        out.println("ndbjtie_insert_" + m + "  \t: " + time + "\tms");
     }
 
-    public void jdbcInsert(int c0, XMode mode) {
+    protected void jdbcInsert(int c0, XMode mode) {
         // include exception handling as part of jdbc pattern
         try {
             final int i = c0;
@@ -958,7 +1051,7 @@ public class Main
         }
     }
 
-    public void clusterjInsert(int c0) {
+    protected void clusterjInsert(int c0) {
         final CJSubscriber o = session.newInstance(CJSubscriber.class);
         final int i = c0;
         final String str = Integer.toString(i);
@@ -1042,7 +1135,7 @@ public class Main
 
     // ----------------------------------------------------------------------
 
-    public void runJdbcLookup(XMode mode) throws SQLException {
+    protected void runJdbcLookup(XMode mode) throws SQLException {
         final String m = mode.toString().toLowerCase();
         //out.println("lookup " + nRows + " rows by JDBC " + m + " tx ...");
 
@@ -1060,10 +1153,10 @@ public class Main
             connection.commit();
         time += System.currentTimeMillis();
 
-        out.println("jdbc_lookup_" + m + "    \t: " + time + " ms");
+        out.println("jdbc_lookup_" + m + "    \t: " + time + "\tms");
     }
 
-    public void runClusterjLookup(XMode mode) {
+    protected void runClusterjLookup(XMode mode) {
         final String m = mode.toString().toLowerCase();
         //out.println("lookup " + nRows + " rows by ClusterJ " + m + " tx ...");
 
@@ -1077,10 +1170,10 @@ public class Main
             session.currentTransaction().commit();
         time += System.currentTimeMillis();
 
-        out.println("clusterj_lookup_" + m + "  \t: " + time + " ms");
+        out.println("clusterj_lookup_" + m + "  \t: " + time + "\tms");
     }
 
-    public void runNdbjtieLookup(XMode mode) {
+    protected void runNdbjtieLookup(XMode mode) {
         final String m = mode.toString().toLowerCase();
         //out.println("lookup " + nRows + " rows by NDB JTie " + m + " tx ...");
 
@@ -1109,10 +1202,10 @@ public class Main
         }
         time += System.currentTimeMillis();
 
-        out.println("ndbjtie_lookup_" + m + "  \t: " + time + " ms");
+        out.println("ndbjtie_lookup_" + m + "  \t: " + time + "\tms");
     }
 
-    public void jdbcLookup(int c0) {
+    protected void jdbcLookup(int c0) {
         // include exception handling as part of jdbc pattern
         try {
             sel0.setString(1, Integer.toString(c0)); // key
@@ -1144,7 +1237,7 @@ public class Main
         }
     }
 
-    public void clusterjLookup(int c0) {
+    protected void clusterjLookup(int c0) {
         final CJSubscriber o
             = session.find(CJSubscriber.class, Integer.toString(c0));
         if (o != null) {
@@ -1285,7 +1378,7 @@ public class Main
 
     // ----------------------------------------------------------------------
 
-    public void runJdbcUpdate(XMode mode) throws SQLException {
+    protected void runJdbcUpdate(XMode mode) throws SQLException {
         final String m = mode.toString().toLowerCase();
         //out.println("update " + nRows + " rows by JDBC " + m + " tx ...");
 
@@ -1300,10 +1393,10 @@ public class Main
             connection.commit();
         time += System.currentTimeMillis();
 
-        out.println("jdbc_update_" + m + "    \t: " + time + " ms");
+        out.println("jdbc_update_" + m + "    \t: " + time + "\tms");
     }
 
-    public void runClusterjUpdate(XMode mode) {
+    protected void runClusterjUpdate(XMode mode) {
         final String m = mode.toString().toLowerCase();
         //out.println("update " + nRows + " rows by ClusterJ " + m + " tx ...");
 
@@ -1317,10 +1410,10 @@ public class Main
             session.currentTransaction().commit();
         time += System.currentTimeMillis();
 
-        out.println("clusterj_update_" + m + "  \t: " + time + " ms");
+        out.println("clusterj_update_" + m + "  \t: " + time + "\tms");
     }
 
-    public void runNdbjtieUpdate(XMode mode) {
+    protected void runNdbjtieUpdate(XMode mode) {
         final String m = mode.toString().toLowerCase();
         //out.println("update " + nRows + " rows by NDB JTie " + m + " tx ...");
 
@@ -1345,10 +1438,10 @@ public class Main
         }
         time += System.currentTimeMillis();
 
-        out.println("ndbjtie_update_" + m + "  \t: " + time + " ms");
+        out.println("ndbjtie_update_" + m + "  \t: " + time + "\tms");
     }
 
-    public void jdbcUpdate(int c0, XMode mode) {
+    protected void jdbcUpdate(int c0, XMode mode) {
         final String str0 = Integer.toString(c0);
         final int r = -c0;
         final String str1 = Integer.toString(r);
@@ -1374,7 +1467,7 @@ public class Main
         }
     }
 
-    public void clusterjUpdate(int c0) {
+    protected void clusterjUpdate(int c0) {
         final String str0 = Integer.toString(c0);
         final int r = -c0;
         final String str1 = Integer.toString(r);
@@ -1464,7 +1557,7 @@ public class Main
 
     // ----------------------------------------------------------------------
 
-    public void runJdbcDelete(XMode mode) throws SQLException {
+    protected void runJdbcDelete(XMode mode) throws SQLException {
         final String m = mode.toString().toLowerCase();
         //out.println("delete " + nRows + " rows by JDBC " + m + " tx ...");
 
@@ -1479,10 +1572,10 @@ public class Main
             connection.commit();
         time += System.currentTimeMillis();
 
-        out.println("jdbc_delete_" + m + "    \t: " + time + " ms");
+        out.println("jdbc_delete_" + m + "    \t: " + time + "\tms");
     }
 
-    public void runClusterjDelete(XMode mode) {
+    protected void runClusterjDelete(XMode mode) {
         final String m = mode.toString().toLowerCase();
         //out.println("delete " + nRows + " rows by ClusterJ " + m + " tx ...");
 
@@ -1496,10 +1589,10 @@ public class Main
             session.currentTransaction().commit();
         time += System.currentTimeMillis();
 
-        out.println("clusterj_delete_" + m + "  \t: " + time + " ms");
+        out.println("clusterj_delete_" + m + "  \t: " + time + "\tms");
     }
 
-    public void runNdbjtieDelete(XMode mode) {
+    protected void runNdbjtieDelete(XMode mode) {
         final String m = mode.toString().toLowerCase();
         //out.println("delete " + nRows + " rows by NDB JTie " + m + " tx ...");
 
@@ -1524,10 +1617,10 @@ public class Main
         }
         time += System.currentTimeMillis();
 
-        out.println("ndbjtie_delete_" + m + "  \t: " + time + " ms");
+        out.println("ndbjtie_delete_" + m + "  \t: " + time + "\tms");
     }
 
-    public void jdbcDelete(int c0, XMode mode) {
+    protected void jdbcDelete(int c0, XMode mode) {
         // include exception handling as part of jdbc pattern
         try {
             final String str = Integer.toString(c0);
@@ -1543,7 +1636,7 @@ public class Main
         }
     }
 
-    public void clusterjDelete(int c0) {
+    protected void clusterjDelete(int c0) {
         // can do a blind delete
         final CJSubscriber o = session.newInstance(CJSubscriber.class);
         o.setC0(Integer.toString(c0));
@@ -1695,7 +1788,7 @@ public class Main
 
     @PersistenceCapable(table="mytable")
     //@Index(name="c0_UNIQUE")
-    static public interface CJSubscriber
+    static protected interface CJSubscriber
     {
         @PrimaryKey
         String getC0();

@@ -101,7 +101,7 @@ public class A implements Serializable {
 
     // while implementing Serializable...
     static private final long serialVersionUID = -3359921162347129079L;
-     
+
     // while implementing Serializable...
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();

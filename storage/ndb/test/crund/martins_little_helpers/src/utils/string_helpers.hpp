@@ -35,7 +35,7 @@ using std::set;
  * "true"; otherwise, false.
  */
 inline bool
-toBool(const wstring& ws)
+toBool(const wstring& ws, bool vdefault)
 {
     // can't get manipulators to compile
     //bool r;
@@ -52,12 +52,18 @@ toBool(const wstring& ws)
     //std::transform(ws.begin(), ws.end(), t.begin(),
     //               static_cast< int (*)(int) >(std::tolower));
 
-    // short & simple
-    return  ((ws.length() == 4)
-             && (ws[0] == L'T' || ws[0] == L't')
-             && (ws[1] == L'R' || ws[1] == L'r')
-             && (ws[2] == L'U' || ws[2] == L'u')
-             && (ws[3] == L'E' || ws[3] == L'e'));
+    bool val;
+    if (ws.length() == 0) {
+        val = vdefault;
+    } else {
+        // short & simple
+        val = ((ws.length() == 4)
+               && (ws[0] == L'T' || ws[0] == L't')
+               && (ws[1] == L'R' || ws[1] == L'r')
+               && (ws[2] == L'U' || ws[2] == L'u')
+               && (ws[3] == L'E' || ws[3] == L'e'));
+    }
+    return val;
 }
 
 /**

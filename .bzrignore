@@ -3124,7 +3124,7 @@ storage/ndb/test/crund/*.properties
 storage/ndb/test/crund/build/
 storage/ndb/test/crund/javadoc/
 storage/ndb/test/crund/lib/
-storage/ndb/test/crund/log*
+storage/ndb/test/crund/**/log*
 storage/ndb/test/crund/martins_little_helpers/src/utils/Properties_test
 storage/ndb/test/crund/martins_little_helpers/src/utils/hrt_stopwatch_test
 storage/ndb/test/crund/martins_little_helpers/src/utils/hrt_utils_test
@@ -3132,7 +3132,7 @@ storage/ndb/test/crund/martins_little_helpers/src/utils/utils_HrtStopwatch.h
 storage/ndb/test/crund/martins_little_helpers/src/utils/utils_JniInstrumentationTest.h
 storage/ndb/test/crund/scripts/ndblog
 storage/ndb/test/crund/scripts/results
-storage/ndb/test/crund/src/crundndb/Driver
+storage/ndb/test/crund/src/crundndb/NdbApiDriver
 storage/ndb/test/crund/src/crundndb/com_mysql_cluster_crund_NdbApiLoad.h
 storage/ndb/test/crund/tws_benchmark/build/
 storage/ndb/test/crund/tws_benchmark/nbproject/configs/
