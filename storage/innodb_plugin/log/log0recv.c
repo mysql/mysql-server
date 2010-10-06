@@ -559,10 +559,8 @@ recv_synchronize_groups(
 	ib_uint64_t	start_lsn;
 	ib_uint64_t	end_lsn;
 	ib_uint64_t	recovered_lsn;
-	ib_uint64_t	limit_lsn;
 
 	recovered_lsn = recv_sys->recovered_lsn;
-	limit_lsn = recv_sys->limit_lsn;
 
 	/* Read the last recovered log block to the recovery system buffer:
 	the block is always incomplete */
@@ -2891,7 +2889,9 @@ recv_recovery_from_checkpoint_start_func(
 	ib_uint64_t	old_scanned_lsn;
 	ib_uint64_t	group_scanned_lsn;
 	ib_uint64_t	contiguous_lsn;
+#ifdef UNIV_LOG_ARCHIVE
 	ib_uint64_t	archived_lsn;
+#endif /* UNIV_LOG_ARCHIVE */
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	ulint		err;
@@ -2946,7 +2946,9 @@ recv_recovery_from_checkpoint_start_func(
 
 	checkpoint_lsn = mach_read_ull(buf + LOG_CHECKPOINT_LSN);
 	checkpoint_no = mach_read_ull(buf + LOG_CHECKPOINT_NO);
+#ifdef UNIV_LOG_ARCHIVE
 	archived_lsn = mach_read_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN);
+#endif /* UNIV_LOG_ARCHIVE */
 
 	/* Read the first log file header to print a note if this is
 	a recovery from a restored InnoDB Hot Backup */

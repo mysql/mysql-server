@@ -639,4 +639,24 @@ SET SESSION sql_safe_updates = 1;
 UPDATE IGNORE t1, t1 t1a SET t1.a = 1 WHERE t1a.a = 1;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
 DROP TABLE t1;
+#
+# Bug#54543: update ignore with incorrect subquery leads to assertion
+# failure: inited==INDEX
+#
+SET SESSION sql_safe_updates = 0;
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES (1), (2);
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES (1), (2);
+# Should not crash
+UPDATE IGNORE
+( SELECT ( SELECT COUNT(*) FROM t1 GROUP BY a, @v ) a FROM t2 ) x, t3
+SET t3.a = 0;
+Warnings:
+Error	1242	Subquery returns more than 1 row
+Error	1242	Subquery returns more than 1 row
+DROP TABLE t1, t2, t3;
+SET SESSION sql_safe_updates = DEFAULT;
 end of tests
