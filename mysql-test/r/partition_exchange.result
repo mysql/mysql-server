@@ -8,7 +8,7 @@ engine=innodb
 PARTITION BY LIST (s1)
 (PARTITION p1 VALUES IN (1,2,3));
 ALTER TABLE t3 EXCHANGE PARTITION p1 WITH TABLE t1;
-ERROR HY000: Table to exchange with partition have foreign key references: 't1'
+ERROR HY000: Table to exchange with partition has foreign key references: 't1'
 DROP TABLE t2, t1, t3;
 # Tests for WL#4445
 CREATE TABLE t (a INT,
