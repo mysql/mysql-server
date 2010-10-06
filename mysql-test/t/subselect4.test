@@ -62,3 +62,19 @@ FROM t3 WHERE 1 = 0 GROUP BY 1;
 DROP TABLE t1,t2,t3;
 
 --echo End of 5.0 tests.
+
+--echo #
+--echo # Bug#54568: create view cause Assertion failed: 0, 
+--echo # file .\item_subselect.cc, line 836
+--echo #
+EXPLAIN SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+DESCRIBE SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+--echo # None of the below should crash
+CREATE VIEW v1 AS SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+CREATE VIEW v2 AS SELECT 1 LIKE '%' ESCAPE ( 1 IN ( SELECT 1 ) );
+DROP VIEW v1, v2;
+
+
+--echo #
+--echo # End of 5.1 tests.
+--echo #

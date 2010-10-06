@@ -41,10 +41,8 @@ let $message= ####### Testcase for mix of db and table level: #######;
         grant SELECT,INSERT on priv2_db.* to test_noprivs@localhost;
         show grants for test_noprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	use priv1_db;
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	use priv1_db;
 

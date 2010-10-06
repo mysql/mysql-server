@@ -95,10 +95,7 @@ a	b
 22	10
 24	10
 INSERT INTO t1 VALUES(23, 23);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t1 VALUES(25, 25);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-Bug: Only even rows are being locked, error 1205 should'nt have occured
 SELECT * FROM t1;
 a	b
 2	10
@@ -109,7 +106,9 @@ a	b
 18	10
 20	10
 22	10
+23	23
 24	10
+25	25
 COMMIT;
 ** Connection con0 **
 COMMIT;
@@ -144,7 +143,9 @@ a	b
 18	10
 20	10
 22	10
+23	23
 24	10
+25	25
 INSERT INTO t1 VALUES(5, 5);
 INSERT INTO t1 VALUES(7, 7);
 SELECT * FROM t1;
@@ -159,7 +160,9 @@ a	b
 18	10
 20	10
 22	10
+23	23
 24	10
+25	25
 COMMIT;
 ** Connection con0 **
 COMMIT;
@@ -196,7 +199,9 @@ a	b
 18	11
 20	11
 22	11
+23	23
 24	11
+25	25
 INSERT INTO t1 VALUES(9, 9);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t1 VALUES(13, 13);
@@ -214,7 +219,9 @@ a	b
 18	11
 20	11
 22	11
+23	23
 24	11
+25	25
 COMMIT;
 ** Connection con0 **
 COMMIT;
@@ -225,6 +232,8 @@ SELECT * FROM t1 WHERE a IN (2,4,6,8,10,12,14,16,18,20,22,24,26) = 0 FOR UPDATE;
 a	b
 5	5
 7	7
+23	23
+25	25
 UPDATE t1 SET b = 13 WHERE a IN (2,4,6,8,10,12,14,16,18,20,22,24,26) = 0;
 ** Connection con1 **
 START TRANSACTION;
@@ -240,7 +249,9 @@ a	b
 18	12
 20	12
 22	12
+23	23
 24	12
+25	25
 INSERT INTO t1 VALUES(9, 9);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t1 VALUES(13, 13);
@@ -258,7 +269,9 @@ a	b
 18	12
 20	12
 22	12
+23	23
 24	12
+25	25
 COMMIT;
 ** Connection con0 **
 COMMIT;
@@ -273,7 +286,9 @@ a	b
 18	12
 20	12
 22	12
+23	13
 24	12
+25	13
 UPDATE t1 SET b = 14 WHERE a IN (2,4,6,8) = 0;
 ** Connection con1 **
 START TRANSACTION;
@@ -289,7 +304,9 @@ a	b
 18	12
 20	12
 22	12
+23	13
 24	12
+25	13
 INSERT INTO t1 VALUES(9, 9);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t1 VALUES(13, 13);
@@ -307,7 +324,9 @@ a	b
 18	12
 20	12
 22	12
+23	13
 24	12
+25	13
 COMMIT;
 ** Connection con0 **
 COMMIT;

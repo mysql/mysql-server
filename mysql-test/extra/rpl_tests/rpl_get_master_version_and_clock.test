@@ -68,19 +68,15 @@ eval SET DEBUG_SYNC=$debug_sync_action;
 
 # Show slave last IO errno
 connection slave;
-source include/wait_for_slave_io_error.inc;
-let $last_io_errno= query_get_value("show slave status", Last_IO_Errno, 1);
 --echo Check network error happened here
-if (`SELECT '$last_io_errno' = '2013' || # CR_SERVER_LOST
-            '$last_io_errno' = '2003' || # CR_CONN_HOST_ERROR
-            '$last_io_errno' = '2002' || # CR_CONNECTION_ERROR
-            '$last_io_errno' = '2006' || # CR_SERVER_GONE_ERROR
-            '$last_io_errno' = '1040' || # ER_CON_COUNT_ERROR
-            '$last_io_errno' = '1053'    # ER_SERVER_SHUTDOWN
-            `)
-{
-  --echo NETWORK ERROR
-}
+# '2013' CR_SERVER_LOST 
+# '2003' CR_CONN_HOST_ERROR 
+# '2002' CR_CONNECTION_ERROR 
+# '2006' CR_SERVER_GONE_ERROR 
+# '1040' ER_CON_COUNT_ERROR 
+# '1053' ER_SERVER_SHUTDOWN
+let $slave_io_errno= 1040, 1053, 2002, 2003, 2006, 2013;
+source include/wait_for_slave_io_error.inc;
 
 # deactivate the sync point of get_master_version_and_clock()
 # now to avoid restarting IO-thread to re-enter it.

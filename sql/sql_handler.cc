@@ -543,6 +543,14 @@ retry:
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), keyname, tables->alias);
       goto err;
     }
+    /* Check if the same index involved. */
+    if ((uint) keyno != table->file->get_index())
+    {
+      if (mode == RNEXT)
+        mode= RFIRST;
+      else if (mode == RPREV)
+        mode= RLAST;
+    }
   }
 
   if (insert_fields(thd, &thd->lex->select_lex.context,
@@ -565,9 +573,16 @@ retry:
     case RNEXT:
       if (table->file->inited != handler::NONE)
       {
-        error=keyname ?
-	  table->file->index_next(table->record[0]) :
-	  table->file->rnd_next(table->record[0]);
+        if (keyname)
+        {
+          /* Check if we read from the same index. */
+          DBUG_ASSERT((uint) keyno == table->file->get_index());
+          error= table->file->index_next(table->record[0]);
+        }
+        else
+        {
+          error= table->file->rnd_next(table->record[0]);
+        }
         break;
       }
       /* else fall through */
@@ -588,6 +603,8 @@ retry:
       break;
     case RPREV:
       DBUG_ASSERT(keyname != 0);
+      /* Check if we read from the same index. */
+      DBUG_ASSERT((uint) keyno == table->file->get_index());
       if (table->file->inited != handler::NONE)
       {
         error=table->file->index_prev(table->record[0]);

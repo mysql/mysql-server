@@ -1,0 +1,50 @@
+-- source include/not_embedded.inc
+-- source include/have_innodb_plugin.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+
+#
+# BUG#11238 - in prelocking mode SELECT .. FOR UPDATE is changed to
+# non-blocking SELECT
+#
+SET GLOBAL log_bin_trust_function_creators = 1;
+create table t1 (col1 integer primary key, col2 integer) engine=innodb;
+insert t1 values (1,100);
+delimiter |;
+create function f1 () returns integer begin
+declare var1 int;
+select col2 into var1 from t1 where col1=1 for update;
+return var1;
+end|
+delimiter ;|
+start transaction;
+select f1();
+connection b;
+send update t1 set col2=0 where col1=1;
+connection default;
+select * from t1;
+connection a;
+rollback;
+connection b;
+reap;
+rollback;
+
+# Cleanup
+connection a;
+disconnect a;
+--source include/wait_until_disconnected.inc
+connection b;
+disconnect b;
+--source include/wait_until_disconnected.inc
+connection default;
+drop table t1;
+drop function f1;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

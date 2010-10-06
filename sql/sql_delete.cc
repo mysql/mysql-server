@@ -36,7 +36,7 @@
 */
 
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_LIST *order, ha_rows limit, ulonglong options,
+                  SQL_I_List<ORDER> *order, ha_rows limit, ulonglong options,
                   bool reset_auto_increment)
 {
   bool          will_batch;
@@ -54,6 +54,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_delete");
   bool save_binlog_row_based;
+  bool skip_record;
 
   THD::enum_binlog_query_type query_type=
     thd->lex->sql_command == SQLCOM_TRUNCATE ?
@@ -87,7 +88,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
       if (select_lex->setup_ref_array(thd, order->elements) ||
 	  setup_order(thd, select_lex->ref_pointer_array, &tables,
-                    fields, all_fields, (ORDER*) order->first))
+                    fields, all_fields, order->first))
     {
       delete select;
       free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -233,14 +234,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     ha_rows examined_rows;
     
     if ((!select || table->quick_keys.is_clear_all()) && limit != HA_POS_ERROR)
-      usable_index= get_index_for_order(table, (ORDER*)(order->first), limit);
+      usable_index= get_index_for_order(table, order->first, limit);
 
     if (usable_index == MAX_KEY)
     {
       table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                    MYF(MY_FAE | MY_ZEROFILL));
     
-      if (!(sortorder= make_unireg_sortorder((ORDER*) order->first,
+      if (!(sortorder= make_unireg_sortorder(order->first,
                                              &length, NULL)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
                                                 select, HA_POS_ERROR, 1,
@@ -251,6 +252,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
         free_underlaid_joins(thd, &thd->lex->select_lex);
         DBUG_RETURN(TRUE);
       }
+      thd->examined_row_count+= examined_rows;
       /*
         Filesort has already found and selected the rows we want to delete,
         so we don't need the where clause
@@ -268,7 +270,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(TRUE);
   }
-  if (usable_index==MAX_KEY)
+  if (usable_index==MAX_KEY || (select && select->quick))
     init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
     init_read_record_idx(&info, thd, table, 1, usable_index);
@@ -307,8 +309,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
   {
+    thd->examined_row_count++;
     // thd->is_error() is tested to disallow delete row on error
-    if (!(select && select->skip_record())&& ! thd->is_error() )
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
 
       if (triggers_applicable &&
@@ -548,7 +551,7 @@ extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
 int mysql_multi_delete_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  TABLE_LIST *aux_tables= (TABLE_LIST *)lex->auxiliary_table_list.first;
+  TABLE_LIST *aux_tables= lex->auxiliary_table_list.first;
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
 

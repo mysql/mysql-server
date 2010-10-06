@@ -15,7 +15,7 @@ dnl
 dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
-AC_INIT([MySQL Server], [5.1.47-ndb-6.2.19], [], [mysql])
+AC_INIT([MySQL Server], [5.1.51-ndb-6.2.19], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -73,6 +73,7 @@ MYSQL_TCP_PORT_DEFAULT=3306
 MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 
 dnl Include m4 
+sinclude(config/ac-macros/maintainer.m4)
 sinclude(config/ac-macros/alloca.m4)
 sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
@@ -110,6 +111,8 @@ AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 
+# Whether the maintainer mode should be enabled.
+MY_MAINTAINER_MODE
 
 # Canonicalize the configuration name.
 
@@ -282,40 +285,6 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
 AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
 AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
-
-#check the return type of sprintf
-AC_MSG_CHECKING("return type of sprintf")
-AC_TRY_RUN([
-  int main()
-    {
-      char* s = "hello";
-      char buf[6];
-      if((int)sprintf(buf, s) == strlen(s))
-	return 0;
-      
-      return -1;
-     }
-   ],
-   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
-   AC_MSG_RESULT("int")],
-   [AC_TRY_RUN([
- int main()
-   {
-     char* s = "hello";
-     char buf[6];
-     if((char*)sprintf(buf,s) == buf + strlen(s))
-       return 0;
-     return -1;
-   }           ],
-               [AC_DEFINE(SPRINTF_RETURNS_PTR, [1], [Broken sprintf])
-                AC_MSG_RESULT("ptr")],
-               [AC_DEFINE(SPRINTF_RETURNS_GARBAGE, [1], [Broken sprintf])
-                AC_MSG_RESULT("garbage")]
-   )],
-   # Cross compile, assume POSIX
-   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
-    AC_MSG_RESULT("int (we assume)")]
-)
 
 AC_PATH_PROG(uname_prog, uname, no)
 
@@ -847,8 +816,8 @@ AC_TYPE_SIZE_T
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
- memory.h pwd.h select.h \
+AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h fpu_control.h \
+ ieeefp.h limits.h memory.h pwd.h select.h \
  stdlib.h stddef.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
@@ -1739,6 +1708,17 @@ else
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
 fi
 
+AC_ARG_WITH([valgrind],
+  [AS_HELP_STRING([--with-valgrind],
+    [Valgrind instrumentation @<:@default=no@:>@])],
+    [], [with_valgrind=no])
+
+if test "$with_valgrind" != "no"
+then
+  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
+    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
+fi
+
 # Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.
 AC_MSG_CHECKING(if Debug Sync Facility should be enabled.)
 AC_ARG_ENABLE(debug_sync,
@@ -2101,7 +2081,7 @@ MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
-AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
+AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fconvert fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
@@ -2881,6 +2861,12 @@ do
 done
 AC_SUBST(sql_union_dirs)
 
+#
+# Setup maintainer mode options by the end to not disturb
+# system and other checks.
+#
+MY_MAINTAINER_MODE_SETUP
+
 # Some usefull subst
 AC_SUBST(CC)
 AC_SUBST(GXX)
@@ -2906,7 +2892,8 @@ fi
 
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile mysys/tests/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
- unittest/mysys/Makefile unittest/examples/Makefile dnl
+ unittest/mysys/Makefile unittest/strings/Makefile dnl
+ unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile libmysql_r/Makefile client/Makefile dnl
