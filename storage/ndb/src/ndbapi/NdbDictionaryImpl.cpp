@@ -2265,7 +2265,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       m_error.code = 4013;
       continue;
     }
-    if(m_impl->theWaiter.m_state == WST_WAIT_TIMEOUT)
+    if(m_impl->theWaiter.get_state() == WST_WAIT_TIMEOUT)
     {
       DBUG_PRINT("info", ("dictSignal caught time-out"));
       m_error.code = 4008;
@@ -5754,24 +5754,27 @@ NdbDictInterface::forceGCPWait(int type)
     const Uint32 RETRIES = 100;
     for (Uint32 i = 0; i < RETRIES; i++)
     {
-      getTransporter()->lock_mutex();
+      PollGuard pg(* m_impl);
       Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
         m_error.code= 4009;
-        getTransporter()->unlock_mutex();
         return -1;
       }
-      if (getTransporter()->sendSignal(&tSignal, aNodeId) != 0) {
-        getTransporter()->unlock_mutex();
+      if (getTransporter()->sendSignal(&tSignal, aNodeId) != 0)
+      {
         continue;
       }
 
       m_error.code= 0;
-      m_impl->theWaiter.m_node = aNodeId;
-      m_impl->theWaiter.m_state = WAIT_LIST_TABLES_CONF;
-      m_impl->theWaiter.wait(DICT_WAITFOR_TIMEOUT);
-      getTransporter()->unlock_mutex();
-      return m_error.code == 0 ? 0 : -1;
+      
+      int ret_val= pg.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
+                                    aNodeId, WAIT_LIST_TABLES_CONF);
+      // end protected
+      if (ret_val == 0 && m_error.code == 0)
+        return 0;
+      if (ret_val == -2) //WAIT_NODE_FAILURE
+        continue;
+      return -1;
     }
     return -1;
   }

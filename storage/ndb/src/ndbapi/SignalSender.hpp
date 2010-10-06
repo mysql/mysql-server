@@ -129,8 +129,6 @@ public:
   
   virtual void trp_node_status(Uint32 nodeId, Uint32 _event);
 
-  int m_lock;
-  struct NdbCondition * m_cond;
   Vector<SimpleSignal *> m_jobBuffer;
   Vector<SimpleSignal *> m_usedBuffer;
 
