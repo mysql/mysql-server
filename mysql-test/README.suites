@@ -32,6 +32,16 @@ files cannot. Special options are
  --timezone, --plugin-load, --result-file, --config-file-template,
  --default-time-zone, --force-restart
 
+In particular, all --plugin-load instances on the command line (on the
+combined command line, assembled from different .opt and combinations
+files) are merged into one. That is, if, say, test-master.opt file contains
+--plugin-load=aaa.so and suite.opt has --plugin-load=bbb.so that mysqld
+will get --plugin-load=aaa.so:bbb.so. Also, empty --plugin-load options are
+removed from the command line. Which means that one can safely specify
+--plugin-load=$AAA_SO and if aaa.so was not built (perhaps, the plugin was
+statically linked into the server), the .opt file will not result in the
+invalid command line option that can cause the server to refuse to start.
+
 ==========================
 A suite can have suite.pm file in the suitedir. It must declare a
 package that inherits from My::Suite.

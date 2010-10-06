@@ -312,7 +312,7 @@ typedef struct XTIndex {
 	u_int				mi_flags;
 	u_int				mi_key_size;
 	u_int				mi_max_items;				/* The maximum number of items that can fit in a leaf node. */
-	xtBool				mi_low_byte_first;
+	xtBool				mi_key_corrupted;			/* Set to TRUE if a currupted index key is detected. */
 	xtBool				mi_fix_key;
 	xtBool				mi_lazy_delete;				/* TRUE if index entries are "lazy deleted". */
 	u_int				mi_single_type;				/* Used when the index contains a single field. */

@@ -25,7 +25,7 @@ socket		= @MYSQL_UNIX_ADDR@
 [mysqld]
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
-skip-locking
+skip-external-locking
 key_buffer_size = 384M
 max_allowed_packet = 1M
 table_open_cache = 512
