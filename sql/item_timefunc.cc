@@ -2270,8 +2270,6 @@ void Item_extract::print(String *str, enum_query_type query_type)
 
 void Item_extract::fix_length_and_dec()
 {
-  value.alloc(32);				// alloc buffer
-
   maybe_null=1;					// If wrong date
   switch (int_type) {
   case INTERVAL_YEAR:		max_length=4; date_value=1; break;
@@ -2314,6 +2312,8 @@ longlong Item_extract::val_int()
   }
   else
   {
+    char buf[40];
+    String value(buf, sizeof(buf), &my_charset_bin);;
     String *res= args[0]->val_str(&value);
     if (!res || str_to_time_with_warn(res->ptr(), res->length(), &ltime))
     {
