@@ -3090,6 +3090,17 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#54488 crash when using explain and prepared statements with subqueries
+--echo #
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES (1),(1);
+PREPARE stmt FROM 'EXPLAIN SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1))';
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
 --echo 
 --echo End of 5.1 tests.
 
