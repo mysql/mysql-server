@@ -1460,6 +1460,10 @@ cmd: testNdbApi
 args: -n ReadColumnDuplicates
 
 max-time: 300
+cmd: testNdbApi
+args: -n Bug51775 T1
+
+max-time: 300
 cmd: testBasic
 args: -n DDInsertFailUpdateBatch
 
