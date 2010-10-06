@@ -6356,6 +6356,35 @@ ER_VALUES_IS_NOT_INT_TYPE_ERROR
   eng "VALUES value for partition '%-.64s' must have type INT"
   swe "Värden i VALUES för partition '%-.64s' måste ha typen INT"
 
+ER_ACCESS_DENIED_NO_PASSWORD_ERROR 28000 
+        cze "P-Břístup pro uživatele '%-.48s'@'%-.64s'"
+        dan "Adgang nægtet bruger: '%-.48s'@'%-.64s'"
+        nla "Toegang geweigerd voor gebruiker: '%-.48s'@'%-.64s'"
+        eng "Access denied for user '%-.48s'@'%-.64s'"
+        est "Ligipääs keelatud kasutajale '%-.48s'@'%-.64s'"
+        fre "Accès refusé pour l'utilisateur: '%-.48s'@'@%-.64s'"
+        ger "Benutzer '%-.48s'@'%-.64s' hat keine Zugriffsberechtigung"
+        greek "Δεν επιτέρεται η πρόσβαση στο χρήστη: '%-.48s'@'%-.64s'"
+        hun "A(z) '%-.48s'@'%-.64s' felhasznalo szamara tiltott eleres."
+        ita "Accesso non consentito per l'utente: '%-.48s'@'%-.64s'"
+        kor "'%-.48s'@'%-.64s' 사용자는 접근이 거부 되었습니다."
+        nor "Tilgang nektet for bruker: '%-.48s'@'%-.64s'"
+        norwegian-ny "Tilgang ikke tillate for brukar: '%-.48s'@'%-.64s'"
+        por "Acesso negado para o usuário '%-.48s'@'%-.64s'"
+        rum "Acces interzis pentru utilizatorul: '%-.48s'@'%-.64s'"
+        rus "Доступ закрыт для пользователя '%-.48s'@'%-.64s'"
+        serbian "Pristup je zabranjen korisniku '%-.48s'@'%-.64s'"
+        slo "Zakázaný prístup pre užívateľa: '%-.48s'@'%-.64s'"
+        spa "Acceso negado para usuario: '%-.48s'@'%-.64s'"
+        swe "Användare '%-.48s'@'%-.64s' är ej berättigad att logga in"
+        ukr "Доступ заборонено для користувача: '%-.48s'@'%-.64s'"
+
+ER_SET_PASSWORD_AUTH_PLUGIN
+        eng "SET PASSWORD has no significance for users authenticating via plugins"
+
+ER_GRANT_PLUGIN_USER_EXISTS
+        eng "GRANT with IDENTIFIED WITH is illegal because the user %-.*s already exists"
+
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
   ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
