@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, MySQL AB & Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -87,6 +87,7 @@ extern "C" {
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
+#include "srv0mon.h"
 }
 
 #include "ha_innodb.h"
@@ -148,6 +149,10 @@ static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
+static char*	innobase_monitor_counter_on		= NULL;
+static char*	innobase_monitor_counter_off		= NULL;
+static char*	innobase_monitor_counter_reset		= NULL;
+static char*	innobase_monitor_counter_reset_all	= NULL;
 
 /* The highest file format being used in the database. The value can be
 set by user, however, it will be adjusted to the newer file format if
@@ -2462,6 +2467,11 @@ innobase_change_buffering_inited_ok:
 	/* Get the current high water mark format. */
 	innobase_file_format_max = (char*) trx_sys_file_format_max_get();
 
+	/* Currently, monitor counter information are not persistent. */
+	memset(monitor_set_tbl, 0, sizeof monitor_set_tbl);
+
+	memset(innodb_counter_value, 0, sizeof innodb_counter_value);
+
 	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
@@ -3693,6 +3703,8 @@ retry:
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
+
+	MONITOR_INC(MONITOR_TABLE_OPEN);
 
 	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		sql_print_error("MySQL is trying to open a table handle but "
@@ -10733,6 +10745,247 @@ innodb_change_buffering_update(
 		 *static_cast<const char*const*>(save);
 }
 
+/*************************************************************//**
+Validate the passed in monitor name, find and save the
+corresponding monitor id in the function parameter "save".
+@return	0 if monitor name is valid */
+static
+int
+innodb_monitor_valid_byname(
+/*========================*/
+	void*			save,	/*!< out: immediate result
+					for update function */
+	const char*		name)	/*!< in: incoming monitor name */
+{
+	if (name) {
+		ulint	use;
+
+		for (use = 0; use < NUM_MONITOR; use++) {
+			if (!innobase_strcasecmp(
+				name, srv_mon_get_name((monitor_id_t)use))) {
+				*(ulint*) save = use;
+				return(0);
+			}
+		}
+	}
+
+	return(1);
+}
+/*************************************************************//**
+Validate passed-in "value" is a valid monitor counter name.
+This function is registered as a callback with MySQL.
+@return	0 for valid name */
+static
+int
+innodb_monitor_validate(
+/*====================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	const char*	monitor_name;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	monitor_name = value->val_str(value, buff, &len);
+
+	return(innodb_monitor_valid_byname(save, monitor_name));
+}
+
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_* according to
+the "set_option" and turn on/off or reset specified monitor counter. */
+static
+void
+innodb_monitor_update(
+/*==================*/
+	THD*			thd,		/*!< in: thread handle */
+	void*			var_ptr,	/*!< out: where the
+						formal string goes */
+	const void*		save,		/*!< in: immediate result
+						from check function */
+	mon_option_t		set_option)	/*!< in: the set option,
+						whether to turn on/off or
+						reset the counter */
+{
+	monitor_info_t*	monitor_info;
+	monitor_id_t	monitor_id;
+	ulint		temp_id;
+	ulint		err_monitor = 0;
+
+	ut_a(var_ptr != NULL);
+	ut_a(save != NULL);
+
+	temp_id = *(ulint *) save;
+	ut_a(temp_id <= NUM_MONITOR);
+
+	monitor_id = (monitor_id_t) temp_id;
+
+	if (monitor_id == MONITOR_DEFAULT_START) {
+		/* If user set the variable to "default", we will
+		print a message and make this set operation a "noop".
+		The check is being made here is because "set default"
+		does not go through validation function */
+		push_warning_printf(thd,
+				    MYSQL_ERROR::WARN_LEVEL_WARN,
+				    ER_NO_DEFAULT,
+				    "Default value is not defined for "
+				    "this set option. Please specify "
+				    "counter or module name to turn on/off "
+				    "or reset monitor counters.");
+		*(const char**) var_ptr = NULL;
+	} else {
+		monitor_info = srv_mon_get_info(monitor_id);
+
+		ut_a(monitor_info);
+
+		/* If monitor is already truned on, someone could already
+		collect monitor data, exit and ask user to turn off the
+		monitor before turn it on again. */
+		if (set_option == MONITOR_TURN_ON
+		    && MONITOR_IS_ON(monitor_id)) {
+			err_monitor = monitor_id;
+			goto exit;
+		}
+
+		*(const char**) var_ptr = monitor_info->monitor_name;
+
+		/* Depending on the monitor name is for a module or
+		a counter, process counters in the whole module or
+		individual counter. */
+		if (monitor_info->monitor_type & MONITOR_MODULE) {
+			err_monitor = srv_mon_set_module_control(monitor_id,
+								 set_option);
+		} else {
+			switch (set_option) {
+			case MONITOR_TURN_ON:
+				MONITOR_ON(monitor_id);
+				MONITOR_INIT(monitor_id);
+				MONITOR_SET_START(monitor_id);
+
+				/* If the monitor to be turned on uses
+				exisitng monitor counter (status variable),
+				make special processing to remember existing
+				counter value. */
+				if (monitor_info->monitor_type
+				    & MONITOR_EXISTING) {
+					srv_mon_process_existing_counter(
+						monitor_id, MONITOR_TURN_ON);
+				}
+			break;
+
+			case MONITOR_TURN_OFF:
+				if (monitor_info->monitor_type
+				    & MONITOR_EXISTING) {
+					srv_mon_process_existing_counter(
+						monitor_id, MONITOR_TURN_OFF);
+				}
+				MONITOR_OFF(monitor_id);
+				MONITOR_SET_OFF(monitor_id);
+				break;
+
+			case MONITOR_RESET_VALUE:
+				srv_mon_reset(monitor_id);
+				break;
+
+			case MONITOR_RESET_ALL_VALUE:
+				srv_mon_reset_all(monitor_id);
+				break;
+
+			default:
+				ut_error;
+			}
+		}
+	}
+exit:
+	/* Only if we are trying to turn on a monitor that already
+	been turned on, we will set err_monitor. Print related
+	information */
+	if (err_monitor) {
+		sql_print_warning("Monitor %s already turned on.",
+				  srv_mon_get_name((monitor_id_t)err_monitor));
+	}
+
+	return;
+}
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_on and turn on
+specified monitor counter.
+This function is registered as a callback with MySQL. */
+static
+void
+innodb_monitor_on_update(
+/*=====================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON);
+}
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_off and turn
+off specified monitor counter. */
+static
+void
+innodb_monitor_off_update(
+/*======================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF);
+}
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_reset and reset
+specified monitor counter(s).
+This function is registered as a callback with MySQL. */
+static
+void
+innodb_monitor_reset_update(
+/*========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_VALUE);
+}
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_reset_all and reset
+all value related monitor counter.
+This function is registered as a callback with MySQL. */
+static
+void
+innodb_monitor_reset_all_update(
+/*============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE);
+}
+
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -10962,6 +11215,11 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
+static MYSQL_SYSVAR_ULONG(page_hash_mutexes, srv_n_page_hash_mutexes,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Number of mutexes protecting buffer pool page_hash. Rounded up to the next power of 2",
+  NULL, NULL, 256, 1, MAX_PAGE_HASH_MUTEXES, 0);
+
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
@@ -11098,6 +11356,30 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
+static MYSQL_SYSVAR_STR(monitor_counter_on, innobase_monitor_counter_on,
+  PLUGIN_VAR_RQCMDARG,
+  "Turn on a monitor counter",
+  innodb_monitor_validate,
+  innodb_monitor_on_update, NULL);
+
+static MYSQL_SYSVAR_STR(monitor_counter_off, innobase_monitor_counter_off,
+  PLUGIN_VAR_RQCMDARG,
+  "Turn off a monitor counter",
+  innodb_monitor_validate,
+  innodb_monitor_off_update, NULL);
+
+static MYSQL_SYSVAR_STR(monitor_counter_reset, innobase_monitor_counter_reset,
+  PLUGIN_VAR_RQCMDARG,
+  "Reset a monitor counter",
+  innodb_monitor_validate,
+  innodb_monitor_reset_update, NULL);
+
+static MYSQL_SYSVAR_STR(monitor_counter_reset_all, innobase_monitor_counter_reset_all,
+  PLUGIN_VAR_RQCMDARG,
+  "Reset all values for a monitor counter",
+  innodb_monitor_validate,
+  innodb_monitor_reset_all_update, NULL);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11157,8 +11439,13 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(monitor_counter_on),
+  MYSQL_SYSVAR(monitor_counter_off),
+  MYSQL_SYSVAR(monitor_counter_reset),
+  MYSQL_SYSVAR(monitor_counter_reset_all),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
+  MYSQL_SYSVAR(page_hash_mutexes),
   NULL
 };
 
@@ -11183,7 +11470,8 @@ i_s_innodb_lock_waits,
 i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
-i_s_innodb_cmpmem_reset
+i_s_innodb_cmpmem_reset,
+i_s_innodb_metrics
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
