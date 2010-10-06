@@ -161,6 +161,8 @@ typedef struct st_join_table {
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
   COND		*select_cond;
+  COND          *on_precond;    /**< part of on condition to check before
+				     accessing the first inner table           */  
   QUICK_SELECT_I *quick;
   /* 
     The value of select_cond before we've attempted to do Index Condition
@@ -678,6 +680,14 @@ protected:
   */
   uchar *curr_rec_link;
 
+  /* 
+    This flag is set to TRUE if join_tab is the first inner table of an outer
+    join and  the latest record written to the join buffer is detected to be
+    null complemented after checking on conditions over the outer tables for
+    this outer join operation
+  */ 
+  bool last_written_is_null_compl;
+
   /*
     The number of fields put in the join buffer of the join cache that are
     used in building keys to access the table join_tab
@@ -792,8 +802,17 @@ protected:
   /* Read a referenced field from the join buffer */
   bool read_referenced_field(CACHE_FIELD *copy, uchar *rec_ptr, uint *len);
 
-  /* Shall skip record from the join buffer if its match flag is on */
-  virtual bool skip_recurrent_match();
+  /* 
+    Shall skip record from the join buffer if its match flag
+    is set to MATCH_FOUND
+ */
+  virtual bool skip_if_matched();
+
+  /* 
+    Shall skip record from the join buffer if its match flag
+    commands to do so
+  */
+  virtual bool skip_if_not_needed_match();
 
   /* 
     True if rec_ptr points to the record whose blob data stay in
@@ -836,9 +855,9 @@ protected:
   virtual uchar *get_next_candidate_for_match()= 0;
   /*
     Shall check whether the given record from the join buffer has its match
-    flag set on and, if so, skip the record in the buffer.
+    flag settings commands to skip the record in the buffer.
   */
-  virtual bool skip_recurrent_candidate_for_match(uchar *rec_ptr)= 0;
+  virtual bool skip_next_candidate_for_match(uchar *rec_ptr)= 0;
   /*
     Shall read the given record from the join buffer into the
     the corresponding record buffer
@@ -867,6 +886,21 @@ protected:
   bool check_match(uchar *rec_ptr);
 
 public:
+
+  /* 
+    The enumeration type Match_flag describes possible states of the match flag
+    field  stored for the records of the first inner tables of outer joins and
+    semi-joins in the cases when the first match strategy is used for them.
+    When a record with match flag field is written into the join buffer the
+    state of the field usually is MATCH_NOT_FOUND unless this is a record of the
+    first inner table of the outer join for which the on precondition (the
+    condition from on expression over outer tables)  has turned out not to be 
+    true. In the last case the state of the match flag is MATCH_IMPOSSIBLE.
+    The state of the match flag field is changed to MATCH_FOUND as soon as
+    the first full matching combination of inner tables of the outer join or
+    the semi-join is discovered. 
+  */
+  enum Match_flag { MATCH_NOT_FOUND, MATCH_FOUND, MATCH_IMPOSSIBLE };
 
   /* Table to be joined with the partial join records from the cache */ 
   JOIN_TAB *join_tab;
@@ -920,7 +954,7 @@ public:
   virtual void get_record_by_pos(uchar *rec_ptr);
 
   /* Shall return the value of the match flag for the positioned record */
-  virtual bool get_match_flag_by_pos(uchar *rec_ptr);
+  virtual enum Match_flag get_match_flag_by_pos(uchar *rec_ptr);
 
   /* Shall return the position of the current record */
   virtual uchar *get_curr_rec() { return curr_rec_pos; }
@@ -1189,8 +1223,17 @@ protected:
     return max(last_key_entry-end_pos-aux_buff_size,0);
   }
 
-  /* Skip record from a hashed join buffer if its match flag is on */
-  bool skip_recurrent_match();
+  /* 
+    Skip record from a hashed join buffer if its match flag
+    is set to MATCH_FOUND
+  */
+  bool skip_if_matched();
+
+  /*
+    Skip record from a hashed join buffer if its match flag setting 
+    commands to do so
+  */
+  bool skip_if_not_needed_match();
 
   /* Search for a key in the hash table of the join buffer */
   bool key_search(uchar *key, uint key_len, uchar **key_ref_ptr);
@@ -1314,7 +1357,7 @@ protected:
 
   uchar *get_next_candidate_for_match();
 
-  bool skip_recurrent_candidate_for_match(uchar *rec_ptr);
+  bool skip_next_candidate_for_match(uchar *rec_ptr);
 
   void read_next_candidate_for_match(uchar *rec_ptr);
 
@@ -1391,7 +1434,7 @@ protected:
 
   uchar *get_next_candidate_for_match();
 
-  bool skip_recurrent_candidate_for_match(uchar *rec_ptr);
+  bool skip_next_candidate_for_match(uchar *rec_ptr);
 
   void read_next_candidate_for_match(uchar *rec_ptr);
 
@@ -1527,7 +1570,7 @@ protected:
 
   uchar *get_next_candidate_for_match();
 
-  bool skip_recurrent_candidate_for_match(uchar *rec_ptr);
+  bool skip_next_candidate_for_match(uchar *rec_ptr);
 
   void read_next_candidate_for_match(uchar *rec_ptr);
 

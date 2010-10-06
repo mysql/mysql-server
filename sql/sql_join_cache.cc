@@ -790,7 +790,6 @@ int JOIN_CACHE::alloc_buffer()
 {
   JOIN_TAB *tab;
   JOIN_CACHE *cache;
-  uint i= join->const_tables;
   ulonglong curr_buff_space_sz= 0;
   ulonglong curr_min_buff_space_sz= 0;
   ulonglong join_buff_space_limit=
@@ -816,9 +815,9 @@ int JOIN_CACHE::alloc_buffer()
   }
 
   if (curr_min_buff_space_sz > join_buff_space_limit ||
-      curr_buff_space_sz > join_buff_space_limit &&
-      join->shrink_join_buffers(join_tab, curr_buff_space_sz,
-                                join_buff_space_limit))
+      (curr_buff_space_sz > join_buff_space_limit &&
+       join->shrink_join_buffers(join_tab, curr_buff_space_sz,
+                                 join_buff_space_limit)))
     goto fail;
                                
   for (ulong buff_size_decr= (buff_size-min_buff_size)/4 + 1; ; )
@@ -1144,6 +1143,9 @@ bool JOIN_CACHE::check_emb_key_usage()
     The 'last_rec_blob_data_is_in_rec_buff' is set on if the blob data 
     remains in the record buffers and not copied to the join buffer. It may
     happen only to the blob data from the last record added into the cache.
+    If on_precond is attached to join_tab and it is not evaluated to TRUE
+    then MATCH_IMPOSSIBLE is placed in the match flag field of the record
+    written into the join buffer.
        
   RETURN VALUE
     length of the written record data
@@ -1155,6 +1157,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   bool last_record;
   CACHE_FIELD *copy;
   CACHE_FIELD *copy_end;
+  uchar *flags_pos;
   uchar *cp= pos;
   uchar *init_pos= cp;
   uchar *rec_len_ptr= 0;
@@ -1233,6 +1236,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 
   /* First put into the cache the values of all flag fields */
   copy_end= field_descr+flag_fields;
+  flags_pos= cp;
   for ( ; copy < copy_end; copy++)
   {
     memcpy(cp, copy->str, copy->length);
@@ -1335,6 +1339,20 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   last_rec_pos= curr_rec_pos; 
   end_pos= pos= cp;
   *is_full= last_record;
+
+  if (!join_tab->first_unmatched && join_tab->on_precond)
+  { 
+    join_tab->found= 0;
+    join_tab->not_null_compl= 1;
+    if (!join_tab->on_precond->val_int())
+    {
+      flags_pos[0]= MATCH_IMPOSSIBLE;     
+      last_written_is_null_compl= 1;
+    }
+  } 
+  else
+    last_written_is_null_compl= 0;   
+      
   return (uint) (cp-init_pos);
 }
 
@@ -1489,7 +1507,7 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
 
 
 /* 
-  Test the match flag from the referenced record: the default implementation
+  Get the match flag from the referenced record: the default implementation
 
   SYNOPSIS
     get_match_flag_by_pos()
@@ -1497,26 +1515,29 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
 
   DESCRIPTION
     This default implementation of the virtual function get_match_flag_by_pos
-    test the match flag for the record pointed by the reference at the position
-    rec_ptr. If the match flag in placed one of the previous buffers the function
-    first reaches the linked record fields in this buffer.
+    get the match flag for the record pointed by the reference at the position
+    rec_ptr. If the match flag is placed in one of the previous buffers the
+    function first reaches the linked record fields in this buffer.
 
   RETURN VALUE
-    TRUE    if the match flag is set on
-    FALSE   otherwise
+    match flag for the record at the position rec_ptr
 */
 
-bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
+enum JOIN_CACHE::Match_flag JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
 {
+  Match_flag match_fl= MATCH_NOT_FOUND;
   if (with_match_flag)
-    return test(*rec_ptr);
+  {
+    match_fl= (enum Match_flag) rec_ptr[0];
+    return match_fl;
+  }
   if (prev_cache)
   {
     uchar *prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
     return prev_cache->get_match_flag_by_pos(prev_rec_ptr);
   } 
   DBUG_ASSERT(0);
-  return FALSE;
+  return match_fl;
 }
 
 
@@ -1604,6 +1625,12 @@ uint JOIN_CACHE::read_flag_fields()
   uchar *init_pos= pos;
   CACHE_FIELD *copy= field_descr;
   CACHE_FIELD *copy_end= copy+flag_fields;
+  if (with_match_flag)
+  {
+    copy->str[0]= test((Match_flag) pos[0] == MATCH_FOUND);
+    pos+= copy->length;
+    copy++;    
+  } 
   for ( ; copy < copy_end; copy++)
   {
     memcpy(copy->str, pos, copy->length);
@@ -1754,30 +1781,69 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
    
 
 /* 
-  Skip record from join buffer if its match flag is on: default implementation
+  Skip record from join buffer if's already matched: default implementation
 
   SYNOPSIS
-    skip_recurrent_match()
+    skip_if_matched()
 
   DESCRIPTION
-    This default implementation of the virtual function skip_record_if_match
-    skips the next record from the join buffer if its  match flag is set on.
-    If the record is skipped the value of 'pos' is set to points to the position
+    This default implementation of the virtual function skip_if_matched
+    skips the next record from the join buffer if its  match flag is set to 
+    MATCH_FOUND.
+    If the record is skipped the value of 'pos' is set to point to the position
     right after the record.
 
   RETURN VALUE
-    TRUE    the match flag is on and the record has been skipped
-    FALSE   the match flag is off 
+    TRUE   the match flag is set to MATCH_FOUND and the record has been skipped
+    FALSE  otherwise
 */
 
-bool JOIN_CACHE::skip_recurrent_match()
+bool JOIN_CACHE::skip_if_matched()
 {
   DBUG_ASSERT(with_length);
   uint offset= size_of_rec_len;
   if (prev_cache)
     offset+= prev_cache->get_size_of_rec_offset();
-  /* Check whether the match flag is on */
-  if (get_match_flag_by_pos(pos+offset))
+  /* Check whether the match flag is MATCH_FOUND */
+  if (get_match_flag_by_pos(pos+offset) == MATCH_FOUND)
+  {
+    pos+= size_of_rec_len + get_rec_length(pos);
+    return TRUE;
+  }
+  return FALSE;
+}      
+
+
+/* 
+  Skip record from join buffer if the match isn't needed: default implementation
+
+  SYNOPSIS
+    skip_if_not_needed_match()
+
+  DESCRIPTION
+    This default implementation of the virtual function skip_if_not_needed_match
+    skips the next record from the join buffer if its match flag is not 
+    MATCH_NOT_FOUND, and, either its value is MATCH_FOUND and join_tab is the
+    first inner table of an inner join, or, its value is MATCH_IMPOSSIBLE
+    and join_tab is the first inner table of an outer join.
+    If the record is skipped the value of 'pos' is set to point to the position
+    right after the record.
+
+  RETURN VALUE
+    TRUE    the record has to be skipped
+    FALSE   otherwise 
+*/
+
+bool JOIN_CACHE::skip_if_not_needed_match()
+{
+  DBUG_ASSERT(with_length);
+  enum Match_flag match_fl;
+  uint offset= size_of_rec_len;
+  if (prev_cache)
+    offset+= prev_cache->get_size_of_rec_offset();
+
+  if ((match_fl= get_match_flag_by_pos(pos+offset)) != MATCH_NOT_FOUND &&
+      (join_tab->check_only_first_match() == (match_fl == MATCH_FOUND)) )
   {
     pos+= size_of_rec_len + get_rec_length(pos);
     return TRUE;
@@ -1990,9 +2056,9 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
 {
   int error;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool check_only_first_match= join_tab->check_only_first_match();
-
   join_tab->table->null_row= 0;
+  bool check_only_first_match= join_tab->check_only_first_match();
+  bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
 
   /* Return at once if there are no records in the join buffer */
   if (!records)     
@@ -2042,9 +2108,11 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
       /* 
         If only the first match is needed, and, it has been already found for
         the next record read from the join buffer, then the record is skipped.
+        Also those records that must be null complemented are not considered
+        as candidates for matches.
       */
-      if (!(check_only_first_match &&
-            skip_recurrent_candidate_for_match(rec_ptr)))
+      if ((!check_only_first_match && !outer_join_first_inner) ||
+          !skip_next_candidate_for_match(rec_ptr))
       {
 	read_next_candidate_for_match(rec_ptr);
         rc= generate_full_extensions(rec_ptr);
@@ -2268,7 +2336,6 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   uint cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool is_first_inner= join_tab == join_tab->first_unmatched;
-  bool is_last_inner= join_tab == join_tab->first_unmatched->last_inner;
  
   /* Return at once if there are no records in the join buffer */
   if (!records)
@@ -2289,7 +2356,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       goto finish;
     }
     /* Just skip the whole record if a match for it has been already found */
-    if (!is_first_inner || !skip_recurrent_match())
+    if (!is_first_inner || !skip_if_matched())
     {
       get_record();
       /* The outer row is complemented by nulls for each inner table */
@@ -2527,6 +2594,8 @@ void JOIN_CACHE_HASHED::reset(bool for_writing)
     is attached to the key entry. The key value is either placed in the hash 
     element added for the key or, if the use_emb_key flag is set, remains in
     the record from the partial join.
+    If the match flag field of a record contains MATCH_IMPOSSIBLE the key is
+    not created for this record. 
     
   RETURN VALUE
     TRUE    if it has been decided that it should be the last record
@@ -2549,6 +2618,9 @@ bool JOIN_CACHE_HASHED::put_record()
   if (prev_cache)
     link= prev_cache->get_curr_rec_link();
   write_record_data(link, &is_full);
+
+  if (last_written_is_null_compl)
+    return is_full;    
 
   if (use_emb_key)
     key= get_curr_emb_key();
@@ -2634,26 +2706,55 @@ bool JOIN_CACHE_HASHED::get_record()
 
 
 /* 
-  Skip record from a hashed join buffer if its match flag is on
+  Skip record from a hashed join buffer if its match flag is set to MATCH_FOUND
 
   SYNOPSIS
-    skip_recurrent_match()
+    skip_if_matched()
 
   DESCRIPTION
-    This implementation of the virtual function skip_recurrent_match does
+    This implementation of the virtual function skip_if_matched does
     the same as the default implementation does, but it takes into account
     the link element used to connect the records with the same key into a chain. 
 
   RETURN VALUE
-    TRUE    the match flag is on and the record has been skipped
-    FALSE   the match flag is off 
+    TRUE    the match flag is MATCH_FOUND  and the record has been skipped
+    FALSE   otherwise 
 */
 
-bool JOIN_CACHE_HASHED::skip_recurrent_match()
+bool JOIN_CACHE_HASHED::skip_if_matched()
 {
   uchar *save_pos= pos;
   pos+= get_size_of_rec_offset();
-  if (!this->JOIN_CACHE::skip_recurrent_match())
+  if (!this->JOIN_CACHE::skip_if_matched())
+  {
+    pos= save_pos;
+    return FALSE;
+  }
+  return TRUE;
+}
+
+
+/* 
+  Skip record from a hashed join buffer if its match flag dictates to do so
+
+  SYNOPSIS
+    skip_if_uneeded_match()
+
+  DESCRIPTION
+    This implementation of the virtual function skip_if_not_needed_match does
+    the same as the default implementation does, but it takes into account
+    the link element used to connect the records with the same key into a chain. 
+
+  RETURN VALUE
+    TRUE    the match flag dictates to skip the record
+    FALSE   the match flag is off 
+*/
+
+bool JOIN_CACHE_HASHED::skip_if_not_needed_match()
+{
+  uchar *save_pos= pos;
+  pos+= get_size_of_rec_offset();
+  if (!this->JOIN_CACHE::skip_if_not_needed_match())
   {
     pos= save_pos;
     return FALSE;
@@ -2780,7 +2881,7 @@ void JOIN_CACHE_HASHED:: cleanup_hash_table()
     last element of this chain. 
             
   RETURN VALUE
-    TRUE   if each retrieved record has its match flag set on
+    TRUE   if each retrieved record has its match flag set to MATCH_FOUND
     FALSE  otherwise 
 */
 
@@ -2792,7 +2893,7 @@ bool JOIN_CACHE_HASHED::check_all_match_flags_for_key(uchar *key_chain_ptr)
   {
     next_rec_ref_ptr= get_next_rec_ref(next_rec_ref_ptr);
     uchar *rec_ptr= next_rec_ref_ptr+rec_fields_offset;
-    if (!get_match_flag_by_pos(rec_ptr))
+    if (get_match_flag_by_pos(rec_ptr) != MATCH_FOUND)
       return FALSE;
   }
   while (next_rec_ref_ptr != last_rec_ref_ptr);
@@ -3000,25 +3101,28 @@ uchar *JOIN_CACHE_BNL::get_next_candidate_for_match()
   Check whether the matching record from the BNL cache is to be skipped 
 
   SYNOPSIS
-    skip_recurrent_candidate_for_match
+    skip_next_candidate_for_match
     rec_ptr  pointer to the position in the join buffer right after the prefix 
              of the current record
 
   DESCRIPTION
     This implementation of the virtual function just calls the
-    method skip_recurrent_match to check whether the record referenced by
-    ref_ptr has its match flag set on and, if so, just skips this record
-    setting the value of the cursor 'pos' to the position right after it.
+    method skip_if_not_needed_match to check whether the record referenced by
+    ref_ptr has its match flag set either to MATCH_FOUND and join_tab is the
+    first inner table of a semi-join, or it's set to MATCH_IMPOSSIBLE and
+    join_tab is the first inner table of an outer join.
+    If so, the function just skips this record setting the value of the
+    cursor 'pos' to the position right after it.
 
   RETURN VALUE    
     TRUE   the record referenced by rec_ptr has been skipped
     FALSE  otherwise  
 */
 
-bool JOIN_CACHE_BNL::skip_recurrent_candidate_for_match(uchar *rec_ptr)
+bool JOIN_CACHE_BNL::skip_next_candidate_for_match(uchar *rec_ptr)
 {
   pos= rec_ptr-base_prefix_length; 
-  return skip_recurrent_match();
+  return skip_if_not_needed_match();
 }
 
 
@@ -3162,7 +3266,7 @@ bool JOIN_CACHE_BNLH::prepare_look_for_matches(bool skip_last)
     The methods performs the necessary preparations to read the next record
     from the join buffer into the record buffer by the method
     read_next_candidate_for_match, or, to skip the next record from the join 
-    buffer by the method skip_recurrent_candidate_for_match.    
+    buffer by the method skip_next_candidate_for_match.    
     This implementation of the virtual method moves to the next record
     in the chain of all records from the join buffer that are to be
     equi-joined with the current record from join_tab.
@@ -3187,23 +3291,25 @@ uchar *JOIN_CACHE_BNLH::get_next_candidate_for_match()
   Check whether the matching record from the BNLH cache is to be skipped 
 
   SYNOPSIS
-    skip_recurrent_candidate_for_match
+    skip_next_candidate_for_match
     rec_ptr  pointer to the position in the join buffer right after 
              the previous record
 
   DESCRIPTION
     This implementation of the virtual function just calls the
     method get_match_flag_by_pos to check whether the record referenced
-    by ref_ptr has its match flag set on.
+    by ref_ptr has its match flag set to MATCH_FOUND.
 
   RETURN VALUE    
-    TRUE   the record referenced by rec_ptr has its match flag set on
+    TRUE   the record referenced by rec_ptr has its match flag set to 
+           MATCH_FOUND
     FALSE  otherwise  
 */
 
-bool JOIN_CACHE_BNLH::skip_recurrent_candidate_for_match(uchar *rec_ptr)
+bool JOIN_CACHE_BNLH::skip_next_candidate_for_match(uchar *rec_ptr)
 {
-  return get_match_flag_by_pos(rec_ptr);
+ return  join_tab->check_only_first_match() &&
+          (get_match_flag_by_pos(rec_ptr) == MATCH_FOUND);
 }
 
 
@@ -3364,7 +3470,7 @@ int JOIN_TAB_SCAN_MRR::open()
 int JOIN_TAB_SCAN_MRR::next()
 {
   char **ptr= (char **) cache->get_curr_association_ptr();
-  uint rc= join_tab->table->file->multi_range_read_next(ptr) ? -1 : 0;
+  int rc= join_tab->table->file->multi_range_read_next(ptr) ? -1 : 0;
   if (!rc)
   {
     /* 
@@ -3482,7 +3588,8 @@ bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar *rowid)
 {
   DBUG_ENTER("bka_range_seq_skip_record");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
-  bool res= cache->get_match_flag_by_pos((uchar *) range_info);
+  bool res= cache->get_match_flag_by_pos((uchar *) range_info) ==
+            JOIN_CACHE::MATCH_FOUND;
   DBUG_RETURN(res);
 }
 
@@ -3560,7 +3667,7 @@ bool JOIN_CACHE_BKA::prepare_look_for_matches(bool skip_last)
     The method performs the necessary preparations to read the next record
     from the join buffer into the record buffer by the method
     read_next_candidate_for_match, or, to skip the next record from the join 
-    buffer by the method skip_recurrent_match.    
+    buffer by the method skip_if_not_needed_match.    
     This implementation of the virtual method get_next_candidate_for_match
     just  decrements the counter of the records that are to be iterated over
     and returns the value of curr_association as a reference to the position
@@ -3584,23 +3691,25 @@ uchar *JOIN_CACHE_BKA::get_next_candidate_for_match()
   Check whether the matching record from the BKA cache is to be skipped 
 
   SYNOPSIS
-    skip_recurrent_candidate_for_match
+    skip_next_candidate_for_match
     rec_ptr  pointer to the position in the join buffer right after 
              the previous record
 
   DESCRIPTION
     This implementation of the virtual function just calls the
     method get_match_flag_by_pos to check whether the record referenced
-    by ref_ptr has its match flag set on.
+    by ref_ptr has its match flag set to MATCH_FOUND.
 
   RETURN VALUE   
-    TRUE   the record referenced by rec_ptr has its match flag set on
+    TRUE   the record referenced by rec_ptr has its match flag set to
+           MATCH_FOUND
     FALSE  otherwise  
 */
 
-bool JOIN_CACHE_BKA::skip_recurrent_candidate_for_match(uchar *rec_ptr)
+bool JOIN_CACHE_BKA::skip_next_candidate_for_match(uchar *rec_ptr)
 {
-  return get_match_flag_by_pos(rec_ptr);
+  return join_tab->check_only_first_match() && 
+         (get_match_flag_by_pos(rec_ptr) == MATCH_FOUND);
 }
 
 
@@ -3691,7 +3800,9 @@ int JOIN_CACHE_BKA::init()
     If is assumed that the functions starts reading at the position of
     the record length which is provided for each records in a BKA cache.
     After the key is built the 'pos' value points to the first position after
-    the current record. 
+    the current record.
+    The function just skips the records with MATCH_IMPOSSIBLE in the
+    match flag field if there is any. 
     The function returns 0 if the initial position is after the beginning
     of the record fields for last record from the join buffer. 
 
@@ -3708,6 +3819,8 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
   uchar *init_pos;
   JOIN_CACHE *cache;
   
+start:
+
   /* Any record in a BKA cache is prepended with its length */
   DBUG_ASSERT(with_length);
    
@@ -3727,6 +3840,13 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
 
   /* Read all flag fields of the record */
   read_flag_fields();
+
+  if (with_match_flag && 
+      (Match_flag) curr_rec_pos[0] == MATCH_IMPOSSIBLE )
+  {
+    pos= init_pos+rec_len;
+    goto start;
+  }
  
   if (use_emb_key)
   {
