@@ -958,6 +958,7 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_ALL_PARTITION      (1L << 21)
 #define ALTER_REMOVE_PARTITIONING (1L << 22)
 #define ALTER_FOREIGN_KEY        (1L << 23)
+#define ALTER_TRUNCATE_PARTITION (1L << 24)
 
 enum enum_alter_table_change_level
 {
