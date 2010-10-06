@@ -1,0 +1,120 @@
+drop table if exists t1, t2;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+**** Preparing the enviroment to check commit and its effect on
+**** the binlog_cache_use and binlog_cache_disk_use.
+**** Expected: binlog_cache_use = 0, binlog_cache_disk_use = 0.
+flush status;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	0
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	0
+**** Now we are going to create transactional changes which are long enough so
+**** they will be flushed to disk...
+**** Expected: binlog_cache_use = 1, binlog_cache_disk_use = 1.
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	1
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+**** Transactional changes which should not be flushed to disk and so should not
+**** increase binlog_cache_disk_use.
+**** Expected: binlog_cache_use = 2, binlog_cache_disk_use = 1.
+begin;
+insert into t1 values( 1 );
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	2
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+**** Non-Transactional changes which should not be flushed to disk and so should not
+**** increase binlog_cache_disk_use.
+**** Expected: binlog_cache_use = 3, binlog_cache_disk_use = 1.
+begin;
+insert into t2 values( 1 );
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	3
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+**** Mixed changes which should not be flushed to disk and so should not
+**** increase binlog_cache_disk_use.
+**** Expected: binlog_cache_use = 5, binlog_cache_disk_use = 1.
+begin;
+insert into t1 values( 1 );
+insert into t2 values( 1 );
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	5
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+**** Preparing the enviroment to check abort and its effect on
+**** the binlog_cache_use and binlog_cache_disk_use
+**** Expected: binlog_cache_use = 0, binlog_cache_disk_use = 0.
+flush status;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	0
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	0
+**** Now we are going to create transactional changes which are long enough so
+**** they will be flushed to disk...
+**** Expected: binlog_cache_use = 1, binlog_cache_disk_use = 1.
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	1
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+**** Transactional changes which should not be flushed to disk and so should not
+**** increase binlog_cache_disk_use.
+**** Expected: binlog_cache_use = 2, binlog_cache_disk_use = 1.
+begin;
+insert into t1 values( 1 );
+rollback;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	2
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+**** Non-Transactional changes which should not be flushed to disk and so should not
+**** increase binlog_cache_disk_use.
+**** Expected: binlog_cache_use = 3, binlog_cache_disk_use = 1.
+begin;
+insert into t2 values( 1 );
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	3
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+**** Mixed changes which should not be flushed to disk and so should not
+**** increase binlog_cache_disk_use.
+**** Expected: binlog_cache_use = 5, binlog_cache_disk_use = 1.
+begin;
+insert into t1 values( 1 );
+insert into t2 values( 1 );
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	5
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+drop table t1, t2;

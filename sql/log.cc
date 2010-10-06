@@ -210,6 +210,9 @@ class binlog_cache_data
 public:
   binlog_cache_data(): m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF),
   incident(FALSE), changes_to_non_trans_temp_table_flag(FALSE)
+#ifndef DBUG_OFF
+  , has_trans(FALSE)
+#endif
   {
     cache_log.end_of_file= max_binlog_cache_size;
   }
@@ -262,6 +265,14 @@ public:
     incident= FALSE;
     before_stmt_pos= MY_OFF_T_UNDEF;
     cache_log.end_of_file= max_binlog_cache_size;
+    /*
+      When a truncate is called there may be write activity and by consequence
+      "disk_writes" is increased. This breaks the "disk_writes"' use by the
+      binary log which aims to compute the ratio between in-memory cache usage
+      and disk cache usage. To avoid this undesirable behavior, we reset the
+      variable after truncating the cache.
+    */
+    cache_log.disk_writes= 0;
     DBUG_ASSERT(empty());
   }
 
@@ -292,6 +303,18 @@ public:
       before_stmt_pos= MY_OFF_T_UNDEF;
   }
 
+#ifndef DBUG_OFF
+  bool is_transactional()
+  {
+    return(has_trans);
+  }
+
+  void set_transactional(bool is_transactional)
+  {
+    has_trans= is_transactional;
+  }
+#endif
+
   /*
     Cache to store data before copying it to the binary log.
   */
@@ -320,6 +343,13 @@ private:
     @TODO This a temporary fix and should be removed after BUG#54562.
   */
   bool changes_to_non_trans_temp_table_flag;
+
+#ifndef DBUG_OFF
+  /*
+    Defines the type of the cache either: transactional or non-transactional.
+  */
+  bool has_trans;
+#endif
 
   /*
     It truncates the cache to a certain position. This includes deleting the
@@ -1506,54 +1536,144 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
 }
 
 /**
-  This function flushes a transactional cache upon commit/rollback.
+  This function computes binlog cache and disk usage.
 
-  @param thd        The thread whose transaction should be flushed
-  @param cache_mngr Pointer to the cache data to be flushed
-  @param end_ev     The end event either commit/rollback.
+  @param cache_data  Pointer to the cache where data is
+                     stored.
+*/
+static inline void
+binlog_compute_statistics(binlog_cache_data* cache_data)
+{
+  if (!cache_data->empty())
+  {
+    statistic_increment(binlog_cache_use, &LOCK_status);
+    if (cache_data->cache_log.disk_writes != 0)
+      statistic_increment(binlog_cache_disk_use, &LOCK_status);
+  }
+}
+
+/**
+  This function flushes a cache upon commit/rollback.
+
+  @param thd                The thread whose transaction should be flushed
+  @param cache_data         Pointer to the cache
+  @param end_ev             The end event either commit/rollback
+  @param is_transactional   The type of the cache: transactional or
+                            non-transactional
 
   @return
-    nonzero if an error pops up when flushing the transactional cache.
+    nonzero if an error pops up when flushing the cache.
 */
-static int
-binlog_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr,
-                       Log_event *end_ev)
+static inline int
+binlog_flush_cache(THD *thd, binlog_cache_data* cache_data, Log_event *end_evt,
+                   bool is_transactional)
 {
-  DBUG_ENTER("binlog_flush_trx_cache");
-  int error=0;
-  IO_CACHE *cache_log= &cache_mngr->trx_cache.cache_log;
+  DBUG_ENTER("binlog_flush_cache");
+  int error= 0;
 
-  /*
-    This function handles transactional changes and as such
-    this flag equals to true.
-  */
-  bool const is_transactional= TRUE;
-
-  if (thd->binlog_flush_pending_rows_event(TRUE, is_transactional))
-    DBUG_RETURN(1);
-  /*
-    Doing a commit or a rollback including non-transactional tables,
-    i.e., ending a transaction where we might write the transaction
-    cache to the binary log.
-
-    We can always end the statement when ending a transaction since
-    transactions are not allowed inside stored functions. If they
-    were, we would have to ensure that we're not ending a statement
-    inside a stored function.
-  */
-  error= mysql_bin_log.write(thd, &cache_mngr->trx_cache.cache_log, end_ev,
-                             cache_mngr->trx_cache.has_incident());
-  cache_mngr->reset_cache(&cache_mngr->trx_cache);
-
-  statistic_increment(binlog_cache_use, &LOCK_status);
-  if (cache_log->disk_writes != 0)
+  if (!cache_data->empty())
   {
-    statistic_increment(binlog_cache_disk_use, &LOCK_status);
-    cache_log->disk_writes= 0;
-  }
+#ifndef DBUG_OFF   
+    DBUG_PRINT("info", ("is_transactional(%d), event(%d), cache_data(%d)",
+               is_transactional, end_evt->use_trans_cache(),
+               cache_data->is_transactional()));
+    DBUG_ASSERT(is_transactional == end_evt->use_trans_cache() &&
+                is_transactional == cache_data->is_transactional());
+#endif
+    if (thd->binlog_flush_pending_rows_event(TRUE, is_transactional))
+      DBUG_RETURN(1);
+    /*
+      Doing a commit or a rollback including non-transactional tables,
+      i.e., ending a transaction where we might write the transaction
+      cache to the binary log.
 
-  DBUG_ASSERT(cache_mngr->trx_cache.empty());
+      We can always end the statement when ending a transaction since
+      transactions are not allowed inside stored functions. If they
+      were, we would have to ensure that we're not ending a statement
+      inside a stored function.
+    */
+    error= mysql_bin_log.write(thd, &cache_data->cache_log, end_evt,
+                               cache_data->has_incident());
+  }
+  binlog_compute_statistics(cache_data);
+  cache_data->reset();
+
+  DBUG_ASSERT(cache_data->empty());
   DBUG_RETURN(error);
+}
+
+/**
+  This function flushes the stmt-cache upon commit.
+
+  @param thd                The thread whose transaction should be flushed
+  @param cache_mngr         Pointer to the cache manager
+
+  @return
+    nonzero if an error pops up when flushing the cache.
+*/
+static inline int
+binlog_commit_flush_stmt_cache(THD *thd,
+                               binlog_cache_mngr *cache_mngr)
+{
+  Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
+                          FALSE, FALSE, TRUE, 0);
+  return (binlog_flush_cache(thd, &cache_mngr->stmt_cache, &end_evt,
+                             FALSE));
+}
+
+/**
+  This function flushes the trx-cache upon commit.
+
+  @param thd                The thread whose transaction should be flushed
+  @param cache_mngr         Pointer to the cache manager
+
+  @return
+    nonzero if an error pops up when flushing the cache.
+*/
+static inline int
+binlog_commit_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr)
+{
+  Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
+                          TRUE, FALSE, TRUE, 0);
+  return (binlog_flush_cache(thd, &cache_mngr->trx_cache, &end_evt,
+                             TRUE));
+}
+
+/**
+  This function flushes the trx-cache upon rollback.
+
+  @param thd                The thread whose transaction should be flushed
+  @param cache_mngr         Pointer to the cache manager
+
+  @return
+    nonzero if an error pops up when flushing the cache.
+*/
+static inline int
+binlog_rollback_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr)
+{
+  Query_log_event end_evt(thd, STRING_WITH_LEN("ROLLBACK"),
+                          TRUE, FALSE, TRUE, 0);
+  return (binlog_flush_cache(thd, &cache_mngr->trx_cache, &end_evt,
+                             TRUE));
+}
+
+/**
+  This function flushes the trx-cache upon commit.
+
+  @param thd                The thread whose transaction should be flushed
+  @param cache_mngr         Pointer to the cache manager
+  @param xid                Transaction Id
+
+  @return
+    nonzero if an error pops up when flushing the cache.
+*/
+static inline int
+binlog_commit_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr,
+                              my_xid xid)
+{
+  Xid_log_event end_evt(thd, xid);
+  return (binlog_flush_cache(thd, &cache_mngr->trx_cache, &end_evt,
+                             TRUE));
 }
 
 /**
@@ -1579,23 +1699,26 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
   */
   bool const is_transactional= TRUE;
 
-  DBUG_PRINT("info", ("thd->options={ %s%s}, transaction: %s",
+  DBUG_PRINT("info", ("thd->options={ %s %s}, transaction: %s",
                       FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->variables.option_bits, OPTION_BEGIN),
                       all ? "all" : "stmt"));
+
+  thd->binlog_remove_pending_rows_event(TRUE, is_transactional);
   /*
     If rolling back an entire transaction or a single statement not
     inside a transaction, we reset the transaction cache.
   */
-  thd->binlog_remove_pending_rows_event(TRUE, is_transactional);
   if (ending_trans(thd, all))
   {
     if (cache_mngr->trx_cache.has_incident())
       error= mysql_bin_log.write_incident(thd, TRUE);
 
-    cache_mngr->reset_cache(&cache_mngr->trx_cache);
-
     thd->clear_binlog_table_maps();
+
+    binlog_compute_statistics(&cache_mngr->trx_cache);
+
+    cache_mngr->reset_cache(&cache_mngr->trx_cache);
   }
   /*
     If rolling back a statement in a transaction, we truncate the
@@ -1617,51 +1740,6 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     real work will be done in MYSQL_BIN_LOG::log_xid()
   */
   return 0;
-}
-
-/**
-  This function flushes the non-transactional to the binary log upon
-  committing or rolling back a statement.
-
-  @param thd        The thread whose transaction should be flushed
-  @param cache_mngr Pointer to the cache data to be flushed
-
-  @return
-    nonzero if an error pops up when flushing the non-transactional cache.
-*/
-static int
-binlog_flush_stmt_cache(THD *thd, binlog_cache_mngr *cache_mngr)
-{
-  int error= 0;
-  DBUG_ENTER("binlog_flush_stmt_cache");
-  /*
-    If we are flushing the statement cache, it means that the changes get
-    through otherwise the cache is empty and this routine should not be called.
-  */
-  DBUG_ASSERT(cache_mngr->stmt_cache.has_incident() == FALSE);
-  /*
-    This function handles non-transactional changes and as such this flag equals
-    to false.
-  */
-  bool const is_transactional= FALSE;
-  IO_CACHE *cache_log= &cache_mngr->stmt_cache.cache_log;
-
-  if (thd->binlog_flush_pending_rows_event(TRUE, is_transactional))
-    DBUG_RETURN(1);
-
-  Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE, TRUE, 0);
-  if ((error= mysql_bin_log.write(thd, cache_log, &qev,
-                                  cache_mngr->stmt_cache.has_incident())))
-    DBUG_RETURN(error);
-  cache_mngr->reset_cache(&cache_mngr->stmt_cache);
-
-  statistic_increment(binlog_cache_use, &LOCK_status);
-  if (cache_log->disk_writes != 0)
-  {
-    statistic_increment(binlog_cache_disk_use, &LOCK_status);
-    cache_log->disk_writes= 0;
-  }
-  DBUG_RETURN(error);
 }
 
 /**
@@ -1690,19 +1768,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
 
-  if (!cache_mngr->stmt_cache.empty())
-  {
-    binlog_flush_stmt_cache(thd, cache_mngr);
-  }
-
-  if (cache_mngr->trx_cache.empty())
-  {
-    /*
-      we're here because cache_log was flushed in MYSQL_BIN_LOG::log_xid()
-    */
-    cache_mngr->reset_cache(&cache_mngr->trx_cache);
-    DBUG_RETURN(0);
-  }
+  binlog_commit_flush_stmt_cache(thd, cache_mngr);
 
   /*
     We commit the transaction if:
@@ -1711,16 +1777,14 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     Otherwise, we accumulate the changes.
   */
   if (ending_trans(thd, all))
-  {
-    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE, TRUE, 0);
-    error= binlog_flush_trx_cache(thd, cache_mngr, &qev);
-  }
+    error= binlog_commit_flush_trx_cache(thd, cache_mngr);
 
   /*
     This is part of the stmt rollback.
   */
   if (!all)
     cache_mngr->trx_cache.set_prev_position(MY_OFF_T_UNDEF);
+
   DBUG_RETURN(error);
 }
 
@@ -1755,19 +1819,8 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     error= mysql_bin_log.write_incident(thd, TRUE);
     cache_mngr->reset_cache(&cache_mngr->stmt_cache);
   }
-  else if (!cache_mngr->stmt_cache.empty())
-  {
-    binlog_flush_stmt_cache(thd, cache_mngr);
-  }
-
-  if (cache_mngr->trx_cache.empty())
-  {
-    /* 
-      we're here because cache_log was flushed in MYSQL_BIN_LOG::log_xid()
-    */
-    cache_mngr->reset_cache(&cache_mngr->trx_cache);
-    DBUG_RETURN(0);
-  }
+  else
+    binlog_commit_flush_stmt_cache(thd, cache_mngr);
 
   if (mysql_bin_log.check_write_error(thd))
   {
@@ -1796,7 +1849,6 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
         . the format is MIXED, non-trans table was updated and
           aborting a single statement transaction;
     */
-
     if (ending_trans(thd, all) &&
         ((thd->variables.option_bits & OPTION_KEEP_LOG) ||
          (trans_has_updated_non_trans_table(thd) &&
@@ -1806,10 +1858,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
          (trans_has_updated_non_trans_table(thd) &&
           ending_single_stmt_trans(thd,all) &&
           thd->variables.binlog_format == BINLOG_FORMAT_MIXED)))
-    {
-      Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE, TRUE, 0);
-      error= binlog_flush_trx_cache(thd, cache_mngr, &qev);
-    }
+      error= binlog_rollback_flush_trx_cache(thd, cache_mngr);
     /*
       Truncate the cache if:
         . aborting a single or multi-statement transaction or;
@@ -1832,7 +1881,8 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     This is part of the stmt rollback.
   */
   if (!all)
-    cache_mngr->trx_cache.set_prev_position(MY_OFF_T_UNDEF); 
+    cache_mngr->trx_cache.set_prev_position(MY_OFF_T_UNDEF);
+
   DBUG_RETURN(error);
 }
 
@@ -4364,6 +4414,11 @@ int THD::binlog_setup_trx_data()
 
   cache_mngr= new (thd_get_ha_data(this, binlog_hton)) binlog_cache_mngr;
 
+#ifndef DBUG_OFF
+  cache_mngr->trx_cache.set_transactional(TRUE);
+  cache_mngr->stmt_cache.set_transactional(FALSE);
+#endif
+
   DBUG_RETURN(0);
 }
 
@@ -6291,15 +6346,14 @@ void TC_LOG_BINLOG::close()
 int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
 {
   DBUG_ENTER("TC_LOG_BINLOG::log");
-  Xid_log_event xle(thd, xid);
   binlog_cache_mngr *cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
   /*
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.
    */
-  DBUG_RETURN(!binlog_flush_stmt_cache(thd, cache_mngr) &&
-              !binlog_flush_trx_cache(thd, cache_mngr, &xle));
+  DBUG_RETURN(!binlog_commit_flush_stmt_cache(thd, cache_mngr) &&
+              !binlog_commit_flush_trx_cache(thd, cache_mngr, xid));
 }
 
 void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
