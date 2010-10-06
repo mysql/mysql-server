@@ -89,7 +89,6 @@ utils_HrtStopwatch.h:	$(API_PKG_PATH)/HrtStopwatch.class
 	$(COMPILE.javah) utils.HrtStopwatch
 
 libutils.a:	libutils.a(hrt_utils.o hrt_stopwatch.o hrt_gstopwatch.o) \
-	libutils.a(Properties.o) \
 	libutils.a(utils_HrtStopwatch.o)
 
 libutils.so:	libutils.a
