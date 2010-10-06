@@ -3278,7 +3278,90 @@ int runReadColumnDuplicates(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+class TransGuard
+{
+  NdbTransaction* pTrans;
+public:
+  TransGuard(NdbTransaction * p) : pTrans(p) {}
+  ~TransGuard() { if (pTrans) pTrans->close(); pTrans = 0; }
+};
+
+int
+runBug51775(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  NdbTransaction * pTrans1 = pNdb->startTransaction();
+  if (pTrans1 == NULL)
+  {
+    ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+  TransGuard g1(pTrans1);
+
+  NdbTransaction * pTrans2 = pNdb->startTransaction();
+  if (pTrans2 == NULL)
+  {
+    pTrans1->close();
+    ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  TransGuard g2(pTrans2);
+
+  {
+    NdbOperation * pOp = pTrans1->getNdbOperation(ctx->getTab()->getName());
+    if (pOp == NULL)
+    {
+      ERR(pOp->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    if (pOp->insertTuple() != 0)
+    {
+      ERR(pOp->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    HugoOperations hugoOps(* ctx->getTab());
+    hugoOps.setValues(pOp, 0, 0);
+  }
+
+  {
+    NdbOperation * pOp = pTrans2->getNdbOperation(ctx->getTab()->getName());
+    if (pOp == NULL)
+    {
+      ERR(pOp->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    if (pOp->readTuple() != 0)
+    {
+      ERR(pOp->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    HugoOperations hugoOps(* ctx->getTab());
+    hugoOps.equalForRow(pOp, 0);
+    pOp->getValue(NdbDictionary::Column::FRAGMENT);
+  }
+
+
+  pTrans1->execute(NoCommit); // We now have un uncommitted insert
+
+  /**
+   * Now send a read...which will get 266
+   */
+  pTrans2->executeAsynch(NoCommit, 0, 0);
+  int res = pNdb->pollNdb(1, 1000);
+  ndbout_c("res: %u", res);
   
+  NdbSleep_SecSleep(10);
+  ndbout_c("pollNdb()");
+  while (pNdb->pollNdb() + res == 0);
+
+  return NDBT_OK;
+}  
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -3452,6 +3535,10 @@ TESTCASE("ReadColumnDuplicates",
   INITIALIZER(runLoadTable);
   STEP(runReadColumnDuplicates);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug51775", "")
+{
+  INITIALIZER(runBug51775);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
