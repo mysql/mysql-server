@@ -1,8 +1,6 @@
 #include <mysql/plugin.h>
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
-#include <stdarg.h>
-#include <stdlib.h>
 extern struct my_snprintf_service_st {
   size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
   size_t (*my_vsnprintf_type)(char *, size_t, const char*, va_list);
@@ -10,7 +8,6 @@ extern struct my_snprintf_service_st {
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
 #include <mysql/service_thd_alloc.h>
-#include <stdlib.h>
 struct st_mysql_lex_string
 {
   char *str;
@@ -34,6 +31,27 @@ void *thd_memdup(void* thd, const void* str, unsigned int size);
 MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
                                       const char *str, unsigned int size,
                                       int allocate_lex_string);
+#include <mysql/service_thd_wait.h>
+typedef enum _thd_wait_type_e {
+  THD_WAIT_MUTEX= 1,
+  THD_WAIT_DISKIO= 2,
+  THD_WAIT_ROW_TABLE_LOCK= 3,
+  THD_WAIT_GLOBAL_LOCK= 4
+} thd_wait_type;
+extern struct thd_wait_service_st {
+  void (*thd_wait_begin_func)(void*, thd_wait_type);
+  void (*thd_wait_end_func)(void*);
+} *thd_wait_service;
+void thd_wait_begin(void* thd, thd_wait_type wait_type);
+void thd_wait_end(void* thd);
+#include <mysql/service_thread_scheduler.h>
+struct scheduler_functions;
+extern struct my_thread_scheduler_service {
+  int (*set)(struct scheduler_functions *scheduler);
+  int (*reset)();
+} *my_thread_scheduler_service;
+int my_thread_scheduler_set(struct scheduler_functions *scheduler);
+int my_thread_scheduler_reset();
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -155,6 +173,7 @@ long long thd_test_options(const void* thd, long long test_options);
 int thd_sql_command(const void* thd);
 const char *thd_proc_info(void* thd, const char *info);
 void **thd_ha_data(const void* thd, const struct handlerton *hton);
+void thd_storage_lock_wait(void* thd, long long value);
 int thd_tx_isolation(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
@@ -187,7 +206,7 @@ typedef struct st_plugin_vio
 } MYSQL_PLUGIN_VIO;
 typedef struct st_mysql_server_auth_info
 {
-  const char *user_name;
+  char *user_name;
   unsigned int user_name_length;
   const char *auth_string;
   unsigned long auth_string_length;
