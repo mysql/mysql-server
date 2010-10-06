@@ -207,6 +207,7 @@ GRANT EXECUTE ON PROCEDURE `test`.`p1` TO 'user49119'@'localhost'
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 ##############################################################
 ### Showing grants for both users: root and user49119 (master)
@@ -217,6 +218,7 @@ GRANT EXECUTE ON PROCEDURE `test`.`p1` TO 'user49119'@'localhost'
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 ## This statement will make the revoke fail because root has no
 ## execute grant. However, it will still revoke the grant for
@@ -232,6 +234,7 @@ GRANT USAGE ON *.* TO 'user49119'@'localhost'
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 #############################################################
 ### Showing grants for both users: root and user49119 (slave)
@@ -242,6 +245,7 @@ GRANT USAGE ON *.* TO 'user49119'@'localhost'
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 DROP TABLE t1;
 DROP PROCEDURE p1;
