@@ -7,15 +7,13 @@ SET AUTOCOMMIT=0;
 INSERT t1 VALUES (1);
 # Switch to connection con2
 FLUSH TABLES WITH READ LOCK;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 # Switch to connection con1
 COMMIT;
 # Switch to connection con2
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 UNLOCK TABLES;
 # Switch to connection con1
 DROP TABLE t1;

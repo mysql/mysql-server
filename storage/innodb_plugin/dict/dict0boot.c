@@ -62,32 +62,47 @@ dict_hdr_get(
 }
 
 /**********************************************************************//**
-Returns a new table, index, or tree id.
-@return	the new id */
+Returns a new table, index, or space id. */
 UNIV_INTERN
-dulint
+void
 dict_hdr_get_new_id(
 /*================*/
-	ulint	type)	/*!< in: DICT_HDR_ROW_ID, ... */
+	dulint*	table_id,	/*!< out: table id (not assigned if NULL) */
+	dulint*	index_id,	/*!< out: index id (not assigned if NULL) */
+	ulint*	space_id)	/*!< out: space id (not assigned if NULL) */
 {
 	dict_hdr_t*	dict_hdr;
 	dulint		id;
 	mtr_t		mtr;
 
-	ut_ad((type == DICT_HDR_TABLE_ID) || (type == DICT_HDR_INDEX_ID));
-
 	mtr_start(&mtr);
 
 	dict_hdr = dict_hdr_get(&mtr);
 
-	id = mtr_read_dulint(dict_hdr + type, &mtr);
-	id = ut_dulint_add(id, 1);
+	if (table_id) {
+		id = mtr_read_dulint(dict_hdr + DICT_HDR_TABLE_ID, &mtr);
+		id = ut_dulint_add(id, 1);
+		mlog_write_dulint(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
+		*table_id = id;
+	}
 
-	mlog_write_dulint(dict_hdr + type, id, &mtr);
+	if (index_id) {
+		id = mtr_read_dulint(dict_hdr + DICT_HDR_INDEX_ID, &mtr);
+		id = ut_dulint_add(id, 1);
+		mlog_write_dulint(dict_hdr + DICT_HDR_INDEX_ID, id, &mtr);
+		*index_id = id;
+	}
+
+	if (space_id) {
+		*space_id = mtr_read_ulint(dict_hdr + DICT_HDR_MAX_SPACE_ID,
+					   MLOG_4BYTES, &mtr);
+		if (fil_assign_new_space_id(space_id)) {
+			mlog_write_ulint(dict_hdr + DICT_HDR_MAX_SPACE_ID,
+					 *space_id, MLOG_4BYTES, &mtr);
+		}
+	}
 
 	mtr_commit(&mtr);
-
-	return(id);
 }
 
 /**********************************************************************//**
@@ -151,9 +166,12 @@ dict_hdr_create(
 	mlog_write_dulint(dict_header + DICT_HDR_INDEX_ID,
 			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
-	/* Obsolete, but we must initialize it to 0 anyway. */
-	mlog_write_dulint(dict_header + DICT_HDR_MIX_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ulint(dict_header + DICT_HDR_MAX_SPACE_ID,
+			 0, MLOG_4BYTES, mtr);
+
+	/* Obsolete, but we must initialize it anyway. */
+	mlog_write_ulint(dict_header + DICT_HDR_MIX_ID_LOW,
+			 DICT_HDR_FIRST_ID, MLOG_4BYTES, mtr);
 
 	/* Create the B-tree roots for the clustered indexes of the basic
 	system tables */

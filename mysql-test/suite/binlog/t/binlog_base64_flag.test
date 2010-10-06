@@ -150,3 +150,16 @@ iONkSBcBAAAAKwAAAMQBAAAQABAAAAAAAAEAA//4AQAAAAMAMTIzAQAAAA==
 ';
 
 drop table t1, char63_utf8, char128_utf8;
+
+
+--echo #
+--echo # Bug #54393: crash and/or valgrind errors in 
+--echo # mysql_client_binlog_statement
+--echo #
+--error ER_SYNTAX_ERROR
+BINLOG '';
+BINLOG '123';
+--error ER_SYNTAX_ERROR
+BINLOG '-2079193929';
+--error ER_SYNTAX_ERROR
+BINLOG 'xç↓%~∙D╒ƒ╡';

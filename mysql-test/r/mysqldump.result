@@ -4561,5 +4561,20 @@ a	b	c
 SET NAMES default;
 DROP TABLE t1, t2;
 #
+# Bug #53088: mysqldump with -T & --default-character-set set
+#             truncates text/blob to 766 chars
+#
+# Also see outfile_loaddata.test
+#
+CREATE TABLE t1 (a BLOB) CHARSET latin1;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (REPEAT('.', 800));
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET latin1;
+# should be 800
+SELECT LENGTH(a) FROM t2;
+LENGTH(a)
+800
+DROP TABLE t1, t2;
+#
 # End of 5.1 tests
 #

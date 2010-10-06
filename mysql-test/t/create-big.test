@@ -305,8 +305,7 @@ connection default;
 show create table t2;
 drop table t2;
 # Let us check that statements were executed/binlogged in correct order
---replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 106;
+source include/show_binlog_events.inc;
 
 # Now let us check the gap between check for target table
 # existance and copying of .frm file. 
@@ -330,8 +329,7 @@ drop table t1;
 connection default;
 --reap
 drop table t2;
---replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 106;
+source include/show_binlog_events.inc;
 
 # And now he gap between copying of .frm file and ha_create_table() call. 
 create table t1 (i int);
@@ -359,8 +357,7 @@ drop table t1;
 connection default;
 --reap
 drop table t2;
---replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 106;
+source include/show_binlog_events.inc;
 
 # Finally we check the gap between ha_create_table() and binlogging
 create table t1 (i int);
@@ -386,7 +383,6 @@ drop table t1;
 connection default;
 --reap
 drop table t2;
---replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 106;
+source include/show_binlog_events.inc;
 
 set session debug="-d,sleep_create_like_before_binlogging";

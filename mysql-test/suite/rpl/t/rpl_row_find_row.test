@@ -1,0 +1,104 @@
+# BUG#47312: RBR: Disabling key on slave breaks replication:
+# HA_ERR_WRONG_INDEX
+#
+# Description
+# ===========
+#   
+#   This test case checks whether disabling a key on a slave breaks
+#   replication or not.
+#   
+#   Case #1, shows that while not using ALTER TABLE... DISABLE KEYS and
+#   the slave has no key defined while the master has one, replication
+#   won't break.
+#
+#   Case #2, shows that before patch for BUG#47312, if defining key on
+#   slave table, and later disable it, replication would break. This
+#   has been fixed.
+# 
+
+-- source include/master-slave.inc
+-- source include/have_binlog_format_row.inc
+
+#
+# Case #1: master has key, but slave has not. 
+#          Replication does not break.
+# 
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE t (a int, b int, c int, key(b));
+SET SQL_LOG_BIN=1;
+
+-- connection slave
+
+CREATE TABLE t (a int, b int, c int);
+
+-- connection master
+
+INSERT INTO t VALUES (1,2,4);
+INSERT INTO t VALUES (4,3,4);
+DELETE FROM t;
+
+-- sync_slave_with_master
+
+-- connection master
+DROP TABLE t;
+
+-- sync_slave_with_master
+
+#
+# Case #2: master has key, slave also has one, 
+#          but it gets disabled sometime.
+#          Replication does not break anymore.
+# 
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (a int, b int, c int, key(b));
+
+-- sync_slave_with_master
+
+ALTER TABLE t DISABLE KEYS;
+
+-- connection master
+
+INSERT INTO t VALUES (1,2,4);
+INSERT INTO t VALUES (4,3,4);
+DELETE FROM t;
+
+-- sync_slave_with_master
+
+-- connection master
+DROP TABLE t;
+
+-- sync_slave_with_master
+
+#
+# BUG#53893: RBR: nullable unique key can lead to out-of-sync slave
+#
+
+#
+# We insert two rows. Both with part of UNIQUE KEY set to null.
+# Then we update the last row inserted. On master the correct
+# row is updated. On the slave the wrong row would be updated
+# because the engine would look it up by the NULL Unique KEY.
+# As a consquence, the wrong row would be updated.
+#
+
+-- connection master
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NOT NULL, c3 INT, UNIQUE KEY(c1,c3), KEY(c2));
+INSERT INTO t1(c1,c2) VALUES(1,1);
+INSERT INTO t1(c1,c2) VALUES(1,2);
+UPDATE t1 SET c1=1000 WHERE c2=2;
+-- sync_slave_with_master
+
+-- let $diff_table_1=master:test.t1
+-- let $diff_table_2=slave:test.t1
+-- source include/diff_tables.inc
+
+-- connection master
+DROP TABLE t1;
+-- sync_slave_with_master
+
