@@ -268,7 +268,9 @@ API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin_audit.h \
 			$(top_srcdir)/include/mysql/plugin_ftparser.h \
 			$(top_srcdir)/include/mysql.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
-			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h
+			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h \
+                        $(top_srcdir)/include/mysql/client_plugin.h \
+                        $(top_srcdir)/include/mysql/plugin_auth.h
 
 #
 # Rules for checking that the abi/api has not changed.
