@@ -2537,6 +2537,22 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   bool trx_cache= FALSE;
   cache_type= Log_event::EVENT_INVALID_CACHE;
 
+#ifndef DBUG_OFF
+  /*
+    If debug is enabled, we make sure that begin, commit and rollback
+    have the cache_type exclusively defined by the param using_trans.
+    as this is important while checking if the correct cache is used.
+
+    Note this is the only way to accurately set the type of the cache
+    when a begin, commit or rollback event is created because such
+    events may be artificially produced to compose the binary log.
+  */
+  if (strncmp("BEGIN", query_arg, query_length) &&
+      strncmp("COMMIT", query_arg, query_length) &&
+      strncmp("ROLLBACK", query_arg, query_length))
+  {  
+#endif
+
   switch (lex->sql_command)
   {
     case SQLCOM_DROP_TABLE:
@@ -2574,6 +2590,15 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
   else
     cache_type= Log_event::EVENT_STMT_CACHE;
+
+#ifndef DBUG_OFF
+  }
+  else if (using_trans)
+    cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
+  else
+    cache_type= Log_event::EVENT_STMT_CACHE;
+#endif
+
   DBUG_ASSERT(cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
                      (ulong) flags2, sql_mode));
