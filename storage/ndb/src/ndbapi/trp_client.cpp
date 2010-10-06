@@ -1,14 +1,118 @@
 #include "trp_client.hpp"
+#include "TransporterFacade.hpp"
+
+trp_client::trp_client()
+  : m_blockNo(~Uint32(0)), m_facade(0)
+{
+  m_poll.m_locked = false;
+  m_poll.m_poll_owner = false;
+  m_poll.m_next = 0;
+  m_poll.m_prev = 0;
+  m_poll.m_condition = NdbCondition_Create();
+}
+
+trp_client::~trp_client()
+{
+  /**
+   * require that trp_client user
+   *  doesnt destroy object when holding any locks
+   */
+  assert(m_poll.m_locked == 0);
+  assert(m_poll.m_poll_owner == false);
+  assert(m_poll.m_next == 0);
+  assert(m_poll.m_prev == 0);
+
+  close();
+  NdbCondition_Destroy(m_poll.m_condition);
+}
+
+int
+trp_client::open(TransporterFacade* tf, int blockNo)
+{
+  int res = -1;
+  assert(m_facade == 0);
+  if (m_facade == 0)
+  {
+    m_facade = tf;
+    res = tf->open_clnt(this, blockNo);
+    if (res >= 0)
+    {
+      m_blockNo = Uint32(res);
+    }
+    else
+    {
+      m_facade = 0;
+    }
+  }
+  return res;
+}
+
+void
+trp_client::close()
+{
+  if (m_facade)
+  {
+    m_facade->close_clnt(this);
+
+    m_facade = 0;
+    m_blockNo = ~Uint32(0);
+  }
+}
+
+void
+trp_client::start_poll()
+{
+  m_facade->start_poll(this);
+}
+
+void
+trp_client::do_poll(Uint32 to)
+{
+  m_facade->do_poll(this, to);
+}
+
+void
+trp_client::complete_poll()
+{
+  m_facade->complete_poll(this);
+}
+
+void
+trp_client::cond_signal()
+{
+  assert(m_poll.m_locked);
+  assert(m_poll.m_poll_owner == false);
+  NdbCondition_Signal(m_poll.m_condition);
+}
+
+void
+trp_client::cond_wait(Uint32 timeout, NdbMutex* mutexPtr)
+{
+  assert(m_poll.m_locked);
+  assert(m_poll.m_poll_owner == false);
+  NdbCondition_WaitTimeout(m_poll.m_condition, mutexPtr, (int)timeout);
+}
+
+void
+trp_client::forceSend(int val)
+{
+  if (val == 0)
+  {
+    m_facade->checkForceSend(m_blockNo);
+  }
+  else if (val == 1)
+  {
+    m_facade->forceSend(m_blockNo);
+  }
+}
 
 #include "NdbImpl.hpp"
 
 PollGuard::PollGuard(NdbImpl& impl)
 {
-  m_tp= impl.m_transporter_facade;
+  m_clnt = &impl;
   m_waiter= &impl.theWaiter;
-  m_locked= true;
-  m_block_no= impl.m_ndb.theNdbBlockNumber;
-  m_tp->lock_mutex();
+  m_clnt->start_poll();
 }
 
 /*
@@ -47,10 +151,7 @@ int PollGuard::wait_scan(int wait_time, Uint32 nodeId, bool forceSend)
 int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 {
   int ret_val;
-  if (forceSend)
-    m_tp->forceSend(m_block_no);
-  else
-    m_tp->checkForceSend(m_block_no);
+  m_clnt->forceSend(forceSend ? 1 : 0);
 
   NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
   NDB_TICKS max_time = curr_time + (NDB_TICKS)wait_time;
@@ -96,80 +197,10 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 
 void PollGuard::wait_for_input(int wait_time)
 {
-  NdbWaiter *t_poll_owner= m_tp->get_poll_owner();
-  if (t_poll_owner != NULL && t_poll_owner != m_waiter)
-  {
-    /*
-      We didn't get hold of the poll "right". We will sleep on a
-      conditional mutex until the thread owning the poll "right"
-      will wake us up after all data is received. If no data arrives
-      we will wake up eventually due to the timeout.
-      After receiving all data we take the object out of the cond wait
-      queue if it hasn't happened already. It is usually already out of the
-      queue but at time-out it could be that the object is still there.
-    */
-    (void) m_tp->put_in_cond_wait_queue(m_waiter);
-    m_waiter->wait(wait_time);
-    if (m_waiter->get_cond_wait_index() != TransporterFacade::MAX_NO_THREADS)
-    {
-      m_tp->remove_from_cond_wait_queue(m_waiter);
-    }
-  }
-  else
-  {
-    /*
-      We got the poll "right" and we poll until data is received. After
-      receiving data we will check if all data is received, if not we
-      poll again.
-    */
-#ifdef NDB_SHM_TRANSPORTER
-    /*
-      If shared memory transporters are used we need to set our sigmask
-      such that we wake up also on interrupts on the shared memory
-      interrupt signal.
-    */
-    NdbThread_set_shm_sigmask(FALSE);
-#endif
-    m_tp->set_poll_owner(m_waiter);
-    m_waiter->set_poll_owner(true);
-    m_tp->external_poll((Uint32)wait_time);
-  }
+  m_clnt->do_poll(wait_time);
 }
 
 void PollGuard::unlock_and_signal()
 {
-  NdbWaiter *t_signal_cond_waiter= 0;
-  if (!m_locked)
-    return;
-  /*
-   When completing the poll for this thread we must return the poll
-   ownership if we own it. We will give it to the last thread that
-   came here (the most recent) which is likely to be the one also
-   last to complete. We will remove that thread from the conditional
-   wait queue and set him as the new owner of the poll "right".
-   We will wait however with the signal until we have unlocked the
-   mutex for performance reasons.
-   See Stevens book on Unix NetworkProgramming: The Sockets Networking
-   API Volume 1 Third Edition on page 703-704 for a discussion on this
-   subject.
-  */
-  if (m_tp->get_poll_owner() == m_waiter)
-  {
-#ifdef NDB_SHM_TRANSPORTER
-    /*
-      If shared memory transporters are used we need to reset our sigmask
-      since we are no longer the thread to receive interrupts.
-    */
-    NdbThread_set_shm_sigmask(TRUE);
-#endif
-    m_waiter->set_poll_owner(false);
-    t_signal_cond_waiter= m_tp->rem_last_from_cond_wait_queue();
-    m_tp->set_poll_owner(t_signal_cond_waiter);
-    if (t_signal_cond_waiter)
-      t_signal_cond_waiter->set_poll_owner(true);
-  }
-  if (t_signal_cond_waiter)
-    t_signal_cond_waiter->cond_signal();
-  m_tp->unlock_mutex();
-  m_locked=false;
+  m_clnt->complete_poll();
 }

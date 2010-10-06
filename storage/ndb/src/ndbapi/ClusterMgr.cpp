@@ -73,7 +73,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   waitForHBCond= NdbCondition_Create();
   m_auto_reconnect = -1;
 
-  int ret = theFacade.open(this, API_CLUSTERMGR);
+  int ret = this->open(&theFacade, API_CLUSTERMGR);
   if (unlikely(ret < 0))
   {
     ndbout_c("Failed to register ClusterMgr! ret: %d", ret);
