@@ -61,6 +61,11 @@ SET(BUILDTYPE_DOCSTRING
  
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
+  IF(UNIX AND NOT APPLE)
+    # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
+    # Predefine it to ON, in case user chooses to build embedded. 
+    SET(WITH_PIC ON CACHE BOOL "Compile with PIC")
+  ENDIF()
   SET(OLD_WITH_DEBUG 1 CACHE INTERNAL "" FORCE)
 ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   IF(CUSTOM_C_FLAGS)
