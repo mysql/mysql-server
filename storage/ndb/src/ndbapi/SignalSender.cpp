@@ -76,53 +76,41 @@ SimpleSignal::print(FILE * out) const {
 }
 
 SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
-  : m_lock(0)
 {
-  m_cond = NdbCondition_Create();
   theFacade = facade;
-  lock();
-  m_blockNo = theFacade->open(this, blockNo);
-  unlock();
+  m_blockNo = open(theFacade, blockNo);
   assert(m_blockNo > 0);
 }
 
 SignalSender::SignalSender(Ndb_cluster_connection* connection)
 {
-  m_cond = NdbCondition_Create();
   theFacade = connection->m_impl.m_transporter_facade;
-  lock();
-  m_blockNo = theFacade->open(this, -1);
-  unlock();
+  m_blockNo = open(theFacade, -1);
   assert(m_blockNo > 0);
 }
 
 SignalSender::~SignalSender(){
   int i;
-  if (m_lock)
-    unlock();
-  theFacade->close(m_blockNo);
+  unlock();
+  close();
+
   // free these _after_ closing theFacade to ensure that
   // we delete all signals
   for (i= m_jobBuffer.size()-1; i>= 0; i--)
     delete m_jobBuffer[i];
   for (i= m_usedBuffer.size()-1; i>= 0; i--)
     delete m_usedBuffer[i];
-  NdbCondition_Destroy(m_cond);
 }
 
 int SignalSender::lock()
 {
-  if (NdbMutex_Lock(theFacade->theMutexPtr))
-    return -1;
-  m_lock= 1;
+  start_poll();
   return 0;
 }
 
 int SignalSender::unlock()
 {
-  if (NdbMutex_Unlock(theFacade->theMutexPtr))
-    return -1;
-  m_lock= 0;
+  complete_poll();
   return 0;
 }
 
@@ -213,10 +201,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
   NDB_TICKS stop = now + timeOutMillis;
   Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
   do {
-    NdbCondition_WaitTimeout(m_cond,
-			     theFacade->theMutexPtr, 
-			     wait);
-    
+    do_poll(wait);
     
     SimpleSignal * s = t.check(m_jobBuffer);
     if(s != 0){
@@ -269,7 +254,7 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
     memcpy(s->ptr[i].p, ptr[i].p, 4 * ptr[i].sz);
   }
   m_jobBuffer.push_back(s);
-  NdbCondition_Signal(m_cond);
+  wakeup();
 }
   
 void 
@@ -318,7 +303,7 @@ ok:
   }
 
   m_jobBuffer.push_back(s);
-  NdbCondition_Signal(m_cond);
+  wakeup();
 }
 
 
