@@ -126,12 +126,27 @@ my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
 my $opt_tmpdir_pid;
 
+my $opt_start;
+my $opt_start_dirty;
+my $opt_start_exit;
+my $start_only;
+
+my $auth_filename;              # the name of the authentication test plugin
+my $auth_plugin;                # the path to the authentication test plugin
+
 END {
   if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
   {
-    # Remove the tempdir this process has created
-    mtr_verbose("Removing tmpdir '$opt_tmpdir");
-    rmtree($opt_tmpdir);
+    if (!$opt_start_exit)
+    {
+      # Remove the tempdir this process has created
+      mtr_verbose("Removing tmpdir $opt_tmpdir");
+      rmtree($opt_tmpdir);
+    }
+    else
+    {
+      mtr_warning("tmpdir $opt_tmpdir should be removed after the server has finished");
+    }
   }
 }
 
@@ -234,10 +249,6 @@ my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 sub suite_timeout { return $opt_suite_timeout * 60; };
 sub check_timeout { return $opt_testcase_timeout * 6; };
 
-my $opt_start;
-my $opt_start_dirty;
-my $opt_start_exit;
-my $start_only;
 my $opt_wait_all;
 my $opt_user_args;
 my $opt_repeat= 1;
@@ -273,7 +284,8 @@ sub testcase_timeout ($) {
 
 our $opt_warnings= 1;
 
-our $opt_skip_ndbcluster= 0;
+our $opt_include_ndbcluster= 0;
+our $opt_skip_ndbcluster= 1;
 
 my $exe_ndbd;
 my $exe_ndb_mgmd;
@@ -869,6 +881,7 @@ sub command_line_setup {
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
+             'include-ndbcluster'       => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
@@ -1048,6 +1061,22 @@ sub command_line_setup {
   $path_charsetsdir =   mtr_path_exists("$basedir/share/mysql/charsets",
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
+
+  # Look for client test plugin 
+  if (IS_WINDOWS)
+  {
+    $auth_filename = "auth_test_plugin.dll";
+  }
+  else
+  {
+    $auth_filename = "auth_test_plugin.so";
+  }
+  $auth_plugin=
+  mtr_file_exists(vs_config_dirs('plugin/auth/',$auth_filename),
+    "$basedir/plugin/auth/.libs/" . $auth_filename,
+    "$basedir/lib/mysql/plugin/" . $auth_filename,
+    "$basedir/lib/plugin/" . $auth_filename);
+
 
   if (using_extern())
   {
@@ -1936,6 +1965,24 @@ sub environment_setup {
     ($lib_udf_example ? dirname($lib_udf_example) : "");
 
   # --------------------------------------------------------------------------
+  # Add the path where mysqld will find the auth test plugin (dialog.so/dll)
+  # --------------------------------------------------------------------------
+  if ($auth_plugin)
+  {
+    $ENV{'PLUGIN_AUTH'}= basename($auth_plugin);
+    $ENV{'PLUGIN_AUTH_OPT'}= "--plugin-dir=".dirname($auth_plugin);
+
+    $ENV{'PLUGIN_AUTH_LOAD'}="--plugin_load=test_plugin_server=".$auth_filename;
+  }
+  else
+  {
+    $ENV{'PLUGIN_AUTH'}= "";
+    $ENV{'PLUGIN_AUTH_OPT'}="--plugin-dir=";
+    $ENV{'PLUGIN_AUTH_LOAD'}="";
+  }
+  
+
+  # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
   if ($mysql_version_id >= 50100) {
@@ -2186,6 +2233,11 @@ sub environment_setup {
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
+  # Add dir of this perl to aid mysqltest in finding perl
+  my $perldir= dirname($^X);
+  my $pathsep= ":";
+  $pathsep= ";" if IS_WINDOWS && ! IS_CYGWIN;
+  $ENV{'PATH'}= "$ENV{'PATH'}".$pathsep.$perldir;
 }
 
 
@@ -2457,6 +2509,11 @@ sub vs_config_dirs ($$) {
 
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
+
+  if ($opt_include_ndbcluster)
+  {
+    $opt_skip_ndbcluster= 0;
+  }
 
   if ($opt_skip_ndbcluster)
   {
@@ -3658,6 +3715,9 @@ sub run_testcase ($) {
 	# Try to get reason from test log file
 	find_testcase_skipped_reason($tinfo);
 	mtr_report_test_skipped($tinfo);
+	# Restart if skipped due to missing perl, it may have had side effects
+	stop_all_servers($opt_shutdown_timeout)
+	  if ($tinfo->{'comment'} =~ /^perl not found/);
       }
       elsif ( $res == 65 )
       {
@@ -5022,6 +5082,10 @@ sub start_mysqltest ($) {
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
+  if ($auth_plugin)
+  {
+    mtr_add_arg($args, "--plugin_dir=%s", dirname($auth_plugin));
+  }
 
   # Log line number and time  for each line in .test file
   mtr_add_arg($args, "--mark-progress")
@@ -5500,7 +5564,8 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster
+  skip-ndb[cluster]     Skip all tests that need cluster. Default.
+  include-ndb[cluster]  Enable all tests that need cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX

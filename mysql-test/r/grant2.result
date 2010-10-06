@@ -11,7 +11,7 @@ grant create user on *.* to mysqltest_1@localhost;
 create user mysqltest_2@localhost;
 grant select on `my\_1`.* to mysqltest_2@localhost;
 grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
-ERROR 42000: You must have privileges to update tables in the mysql database to be able to change passwords for others
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysql'
 grant update on mysql.* to mysqltest_1@localhost;
 grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
 grant select on `my\_1`.* to mysqltest_3@localhost;
@@ -287,6 +287,7 @@ Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
+Warning	1364	Field 'authentication_string' doesn't have a default value
 create user mysqltest_A@'%';
 rename user mysqltest_B@'%' to mysqltest_C@'%';
 drop user mysqltest_C@'%';
@@ -334,7 +335,7 @@ delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
 drop database mysqltest_1;
 set password = password("changed");
-ERROR 42000: Access denied for user ''@'localhost' to database 'mysql'
+ERROR 42000: Can't find any matching row in the user table
 lock table mysql.user write;
 flush privileges;
 grant all on *.* to 'mysqltest_1'@'localhost';
@@ -354,6 +355,7 @@ Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
+Warning	1364	Field 'authentication_string' doesn't have a default value
 INSERT INTO mysql.db (host, db, user, select_priv) VALUES
 ('%','TESTDB','mysqltest_1','Y');
 FLUSH PRIVILEGES;

@@ -155,8 +155,19 @@ int pthread_cancel(pthread_t thread)
 int my_pthread_once(my_pthread_once_t *once_control, 
     void (*init_routine)(void))
 {
-  LONG state= InterlockedCompareExchange(once_control, MY_PTHREAD_ONCE_INPROGRESS,
-                                          MY_PTHREAD_ONCE_INIT);
+  LONG state;
+
+  /*
+    Do "dirty" read to find out if initialization is already done, to
+    save an interlocked operation in common case. Memory barriers are ensured by 
+    Visual C++ volatile implementation.
+  */
+  if (*once_control == MY_PTHREAD_ONCE_DONE)
+    return 0;
+
+  state= InterlockedCompareExchange(once_control, MY_PTHREAD_ONCE_INPROGRESS,
+                                        MY_PTHREAD_ONCE_INIT);
+
   switch(state)
   {
   case MY_PTHREAD_ONCE_INIT:
