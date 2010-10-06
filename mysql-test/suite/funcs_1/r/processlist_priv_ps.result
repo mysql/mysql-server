@@ -65,6 +65,7 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 SHOW GRANTS;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 CREATE INDEX i_processlist ON processlist (user);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 DROP TABLE processlist;

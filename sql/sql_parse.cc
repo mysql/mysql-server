@@ -502,9 +502,8 @@ static void handle_bootstrap_impl(THD *thd)
 #endif /* EMBEDDED_LIBRARY */
 
   thd_proc_info(thd, 0);
-  thd->security_ctx->priv_user=
-    thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
-  thd->security_ctx->priv_host[0]=0;
+  thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
+  thd->security_ctx->priv_user[0]= thd->security_ctx->priv_host[0]=0;
   /*
     Make the "client" handle multiple results. This is necessary
     to enable stored procedures with SELECTs and Dynamic SQL
@@ -937,96 +936,34 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CHANGE_USER:
   {
     status_var_increment(thd->status_var.com_other);
-    char *user= (char*) packet, *packet_end= packet + packet_length;
-    /* Safe because there is always a trailing \0 at the end of the packet */
-    char *passwd= strend(user)+1;
 
     thd->change_user();
     thd->clear_error();                         // if errors from rollback
 
-    /*
-      Old clients send null-terminated string ('\0' for empty string) for
-      password.  New clients send the size (1 byte) + string (not null
-      terminated, so also '\0' for empty string).
+    /* acl_authenticate() takes the data from net->read_pos */
+    net->read_pos= (uchar*)packet;
 
-      Cast *passwd to an unsigned char, so that it doesn't extend the sign
-      for *passwd > 127 and become 2**32-127 after casting to uint.
-    */
-    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
-    char *db= passwd;
-    char *save_db;
-    /*
-      If there is no password supplied, the packet must contain '\0',
-      in any type of handshake (4.1 or pre-4.1).
-     */
-    if (passwd >= packet_end)
-    {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      break;
-    }
-    uint passwd_len= (thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                      (uchar)(*passwd++) : strlen(passwd));
-    uint dummy_errors, save_db_length, db_length;
-    int res;
+    uint save_db_length= thd->db_length;
+    char *save_db= thd->db;
+    USER_CONN *save_user_connect= thd->user_connect;
     Security_context save_security_ctx= *thd->security_ctx;
-    USER_CONN *save_user_connect;
+    CHARSET_INFO *save_character_set_client=
+      thd->variables.character_set_client;
+    CHARSET_INFO *save_collation_connection=
+      thd->variables.collation_connection;
+    CHARSET_INFO *save_character_set_results=
+      thd->variables.character_set_results;
 
-    db+= passwd_len + 1;
-    /*
-      Database name is always NUL-terminated, so in case of empty database
-      the packet must contain at least the trailing '\0'.
-    */
-    if (db >= packet_end)
-    {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      break;
-    }
-    db_length= strlen(db);
-
-    char *ptr= db + db_length + 1;
-    uint cs_number= 0;
-
-    if (ptr < packet_end)
-    {
-      if (ptr + 2 > packet_end)
-      {
-        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-        break;
-      }
-
-      cs_number= uint2korr(ptr);
-    }
-
-    /* Convert database name to utf8 */
-    db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
-                             system_charset_info, db, db_length,
-                             thd->charset(), &dummy_errors)]= 0;
-    db= db_buff;
-
-    /* Save user and privileges */
-    save_db_length= thd->db_length;
-    save_db= thd->db;
-    save_user_connect= thd->user_connect;
-
-    if (!(thd->security_ctx->user= my_strdup(user, MYF(0))))
-    {
-      thd->security_ctx->user= save_security_ctx.user;
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      break;
-    }
-
-    /* Clear variables that are allocated */
-    thd->user_connect= 0;
-    thd->security_ctx->priv_user= thd->security_ctx->user;
-    res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
-
-    if (res)
+    if (acl_authenticate(thd, 0, packet_length))
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
-      thd->db= save_db;
-      thd->db_length= save_db_length;
+      thd->reset_db (save_db, save_db_length);
+      thd->variables.character_set_client= save_character_set_client;
+      thd->variables.collation_connection= save_collation_connection;
+      thd->variables.character_set_results= save_character_set_results;
+      thd->update_charset();
     }
     else
     {
@@ -1037,12 +974,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
       my_free(save_db);
       my_free(save_security_ctx.user);
-
-      if (cs_number)
-      {
-        thd_init_client_charset(thd, cs_number);
-        thd->update_charset();
-      }
     }
     break;
   }
@@ -3483,7 +3414,8 @@ end_with_restore_list:
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
-    if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
+    if (lex->type != TYPE_ENUM_PROXY &&
+        check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
                      first_table ?  first_table->db : select_lex->db,
                      first_table ? &first_table->grant.privilege : NULL,
                      first_table ? &first_table->grant.m_internal : NULL,
@@ -3493,6 +3425,7 @@ end_with_restore_list:
     if (thd->security_ctx->user)              // If not replication
     {
       LEX_USER *user, *tmp_user;
+      bool first_user= TRUE;
 
       List_iterator <LEX_USER> user_list(lex->users_list);
       while ((tmp_user= user_list++))
@@ -3507,20 +3440,23 @@ end_with_restore_list:
                               user->host.str);
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
-        if (strcmp(thd->security_ctx->user, user->user.str) ||
-            my_strcasecmp(system_charset_info,
-                          user->host.str, thd->security_ctx->host_or_ip))
+
+        /*
+          GRANT/REVOKE PROXY has the target user as a first entry in the list. 
+         */
+        if (lex->type == TYPE_ENUM_PROXY && first_user)
         {
-          // TODO: use check_change_password()
-          if (is_acl_user(user->host.str, user->user.str) &&
-              user->password.str &&
-              check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1))
-          {
-            my_message(ER_PASSWORD_NOT_ALLOWED,
-                       ER(ER_PASSWORD_NOT_ALLOWED), MYF(0));
+          first_user= FALSE;
+          if (acl_check_proxy_grant_access (thd, user->host.str, user->user.str,
+                                        lex->grant & GRANT_ACL))
             goto error;
-          }
-        }
+        } 
+        else if (is_acl_user(user->host.str, user->user.str) &&
+                 user->password.str &&
+                 check_change_password (thd, user->host.str, user->user.str, 
+                                        user->password.str, 
+                                        user->password.length))
+          goto error;
       }
     }
     if (first_table)
@@ -3555,16 +3491,19 @@ end_with_restore_list:
     }
     else
     {
-      if (lex->columns.elements || lex->type)
+      if (lex->columns.elements || (lex->type && lex->type != TYPE_ENUM_PROXY))
       {
 	my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
                    MYF(0));
         goto error;
       }
       else
-	/* Conditionally writes to binlog */
-	res = mysql_grant(thd, select_lex->db, lex->users_list, lex->grant,
-			  lex->sql_command == SQLCOM_REVOKE);
+      {
+        /* Conditionally writes to binlog */
+        res = mysql_grant(thd, select_lex->db, lex->users_list, lex->grant,
+                          lex->sql_command == SQLCOM_REVOKE,
+                          lex->type == TYPE_ENUM_PROXY);
+      }
       if (!res)
       {
 	if (lex->sql_command == SQLCOM_GRANT)
@@ -3864,8 +3803,8 @@ end_with_restore_list:
         if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                       ER_PROC_AUTO_GRANT_FAIL,
-                       ER(ER_PROC_AUTO_GRANT_FAIL));
+                       ER_PROC_AUTO_GRANT_FAIL, ER(ER_PROC_AUTO_GRANT_FAIL));
+        thd->clear_error();
       }
 
       /*
@@ -4759,12 +4698,19 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   {						// We can never grant this
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
-      my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-               sctx->priv_user,
-               sctx->priv_host,
-               (thd->password ?
-                ER(ER_YES) :
-                ER(ER_NO)));                    /* purecov: tested */
+    {
+      if (thd->password == 2)
+        my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
+                 sctx->priv_user,
+                 sctx->priv_host);
+      else
+        my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+                 sctx->priv_user,
+                 sctx->priv_host,
+                 (thd->password ?
+                  ER(ER_YES) :
+                  ER(ER_NO)));                    /* purecov: tested */
+    }
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
@@ -7008,8 +6954,9 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->host.str= (char *) sctx->priv_host;
   definer->host.length= strlen(definer->host.str);
 
-  definer->password.str= NULL;
-  definer->password.length= 0;
+  definer->password= null_lex_str;
+  definer->plugin= empty_lex_str;
+  definer->auth= empty_lex_str;
 }
 
 
