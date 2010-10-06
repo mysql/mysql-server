@@ -2600,11 +2600,12 @@ UNLOCK TABLES;
 DROP TABLE m1, t1;
 
 --echo #
---echo # Locking the merge table will implicitly lock children.
+--echo # Locking the merge table won't implicitly lock children.
 --echo #
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
 LOCK TABLE m1 WRITE;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
 ALTER TABLE t1 ADD INDEX (c1);
 LOCK TABLE m1 WRITE, t1 WRITE;
 ALTER TABLE t1 ADD INDEX (c1);
@@ -2774,6 +2775,27 @@ CREATE TABLE t2(a INT) engine= MERGE UNION (t1);
 REPAIR TABLE t2 USE_FRM;
 
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#57002 Assert in upgrade_shared_lock_to_exclusive()
+--echo #           for ALTER TABLE + MERGE tables
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, m1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) engine=myisam;
+CREATE TABLE m1(a INT) engine=merge UNION(t1);
+LOCK TABLES t1 READ, m1 WRITE;
+
+# This caused an assert
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+ALTER TABLE t1 engine=myisam;
+
+UNLOCK TABLES;
+DROP TABLE m1, t1;
 
 
 --echo End of 6.0 tests
