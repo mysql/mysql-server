@@ -7,9 +7,11 @@ flush status;
 show grants for current_user;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 show grants;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 create database if not exists mysqltest;
 create table mysqltest.t1 (a int,b int,c int);
 create table mysqltest.t2 (a int,b int,c int);

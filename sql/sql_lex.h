@@ -1047,6 +1047,8 @@ struct st_sp_chistics
   enum enum_sp_data_access daccess;
 };
 
+extern const LEX_STRING null_lex_str;
+extern const LEX_STRING empty_lex_str;
 
 struct st_trg_chistics
 {
@@ -2317,6 +2319,7 @@ struct LEX: public Query_tables_list
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
+  bool proxy_priv;
   sp_pcontext *spcont;
 
   st_sp_chistics sp_chistics;
