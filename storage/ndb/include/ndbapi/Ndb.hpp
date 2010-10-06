@@ -1761,11 +1761,8 @@ private:
 /*****************************************************************************
  *     These are service routines used by the other classes in the NDBAPI.
  ****************************************************************************/
-  Uint32 get_cond_wait_index() { return cond_wait_index; }
-  void set_cond_wait_index(Uint32 index) { cond_wait_index = index; }
-  Uint32 cond_wait_index;
-  Ndb *cond_signal_ndb;
-  void cond_signal();
+  Uint32 _unused;
+  void *_unused2;
 
   Ndb(const Ndb&); // Not impl.
   Ndb&operator=(const Ndb&);

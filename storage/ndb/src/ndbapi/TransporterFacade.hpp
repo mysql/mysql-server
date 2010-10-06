@@ -75,10 +75,9 @@ public:
    * @blockNo block number to use, -1 => any blockNumber
    * @return BlockNumber or -1 for failure
    */
-  int open(trp_client*, int blockNo = -1);
-  
-  // Close this block number
-  int close(BlockNumber blockNumber);
+  int open_clnt(trp_client*, int blockNo = -1);
+  int close_clnt(trp_client*);
+
   Uint32 get_active_ndb_objects() const;
 
   // Only sends to nodes which are alive
@@ -131,9 +130,6 @@ public:
   void forceSend(Uint32 block_number);
   void checkForceSend(Uint32 block_number);
 
-  // Close this block number
-  int close_local(BlockNumber blockNumber);
-
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
 /*
@@ -152,12 +148,22 @@ public:
   as seldom as possible we always pick the last thread which is likely to
   be the last to complete its reception.
 */
+  void start_poll(trp_client*);
+  void do_poll(trp_client* clnt, Uint32 wait_time);
+  void complete_poll(trp_client*);
+
   void external_poll(Uint32 wait_time);
-  NdbWaiter* get_poll_owner(void) const { return poll_owner; }
-  void set_poll_owner(NdbWaiter* new_owner) { poll_owner= new_owner; }
-  Uint32 put_in_cond_wait_queue(NdbWaiter *aWaiter);
-  void remove_from_cond_wait_queue(NdbWaiter *aWaiter);
-  NdbWaiter* rem_last_from_cond_wait_queue();
+
+  trp_client* get_poll_owner(bool) const { return m_poll_owner;}
+  trp_client* remove_last_from_poll_queue();
+  void add_to_poll_queue(trp_client* clnt);
+  void remove_from_poll_queue(trp_client* clnt);
+
+  trp_client * m_poll_owner;
+  trp_client * m_poll_queue_head; // First in queue
+  trp_client * m_poll_queue_tail; // Last in queue
+  /* End poll owner stuff */
+
   // heart beat received from a node (e.g. a signal came)
   void hb_received(NodeId n);
   void set_auto_reconnect(int val);
@@ -194,18 +200,7 @@ public:
   }
 
 private:
-  void init_cond_wait_queue();
-  struct CondWaitQueueElement {
-    NdbWaiter *cond_wait_object;
-    Uint32 next_cond_wait;
-    Uint32 prev_cond_wait;
-  };
-  NdbWaiter *poll_owner;
-  CondWaitQueueElement cond_wait_array[MAX_NO_THREADS];
-  Uint32 first_in_cond_wait;
-  Uint32 first_free_cond_wait;
-  Uint32 last_in_cond_wait;
-  /* End poll owner stuff */
+
   /**
    * Send a signal unconditional of node status (used by ClusterMgr)
    */

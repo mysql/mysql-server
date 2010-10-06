@@ -71,21 +71,20 @@ Ndb::init(int aMaxNoOfTransactions)
   }//if
   theInitState = StartingInit;
   TransporterFacade * theFacade =  theImpl->m_transporter_facade;
-  theFacade->lock_mutex();
-  
-  const int tBlockNo = theFacade->open(theImpl);
+  theEventBuffer->m_mutex = theFacade->theMutexPtr;
+
+  const int tBlockNo = theImpl->open(theFacade);
 
   if ( tBlockNo == -1 ) {
     theError.code = 4105;
-    theFacade->unlock_mutex();
     DBUG_RETURN(-1); // no more free blocknumbers
   }//if
   
   theNdbBlockNumber = tBlockNo;
 
   /* Init cached min node version */
+  theFacade->lock_mutex();
   theCachedMinDbNodeVersion = theFacade->getMinDbNodeVersion();
-
   theFacade->unlock_mutex();
   
   theDictionary->setTransporter(this, theFacade);
@@ -140,7 +139,7 @@ error_handler:
   ndbout << "error_handler" << endl;
   releaseTransactionArrays();
   delete theDictionary;
-  theImpl->m_transporter_facade->close(theNdbBlockNumber);
+  theImpl->close();
   DBUG_RETURN(-1);
 }
 
@@ -908,8 +907,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
     goto InvalidSignal;
   }//swich
 
-  t_waiter->set_state(tNewState);
-  if (tNewState == NO_WAIT && tWaitState != NO_WAIT)
+  if (tNewState != tWaitState)
   {
     /*
       If our waiter object is the owner of the "poll rights", then we
@@ -922,16 +920,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       its conditional wait. This will wake up this thread so that it
       can continue its work.
     */
-    TransporterFacade *tp= theImpl->m_transporter_facade;
-    if (tp->get_poll_owner() != t_waiter)
-    {
-      /*
-         Wake up the thread waiting for response and remove it from queue
-         of objects waiting for receive completion
-      */
-      tp->remove_from_cond_wait_queue(t_waiter);
-      t_waiter->cond_signal();
-    }
+    t_waiter->signal(tNewState);
   }
 
   return;
@@ -989,19 +978,7 @@ Ndb::completedTransaction(NdbTransaction* aCon)
     if ((theMinNoOfEventsToWakeUp != 0) &&
         (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
       theMinNoOfEventsToWakeUp = 0;
-      TransporterFacade *tp = theImpl->m_transporter_facade;
-      NdbWaiter *t_waiter= &theImpl->theWaiter;
-      if (tp->get_poll_owner() != t_waiter) {
-        /*
-          When we come here, this is executed by the thread owning the "poll
-          rights". This thread is not where our waiter object belongs.
-          Thus we wake up the thread owning this waiter object but first
-          we must remove it from the conditional wait queue so that we
-          don't assign it as poll owner later on.
-        */
-        tp->remove_from_cond_wait_queue(t_waiter);
-        t_waiter->cond_signal();
-      }
+      theImpl->theWaiter.signal(NO_WAIT);
       return;
     }//if
   } else {
@@ -1252,9 +1229,11 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
 			       int noOfEventsToWaitFor,
                                PollGuard *poll_guard)
 {
-  theImpl->theWaiter.m_state = NO_WAIT; 
+  theImpl->theWaiter.set_node(0);
+  theImpl->theWaiter.set_state(WAIT_TRANS);
+
   /**
-   * theImpl->theWaiter.m_state = NO_WAIT; 
+   * theImpl->theWaiter.set_node(0)
    * To ensure no messup with synchronous node fail handling
    * (see ReportFailure)
    */
@@ -1273,10 +1252,6 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   } while (waitTime > 0);
 }//Ndb::waitCompletedTransactions()
 
-void Ndb::cond_signal()
-{
-  NdbCondition_Signal(theImpl->theWaiter.m_condition);
-}
 /*****************************************************************************
 void sendPreparedTransactions(int forceSend = 0);
 
