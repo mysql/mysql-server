@@ -13,11 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define COPYRIGHT_NOTICE "\
-Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL v2 license\n"
-
 /* mysql command tool
  * Commands compatible with mSQL by David J. Hughes
  *
@@ -110,6 +105,7 @@ extern "C" {
 #endif
 
 #include "completion_hash.h"
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -1177,7 +1173,7 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-  put_info(COPYRIGHT_NOTICE, INFO_INFO);
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"), INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1595,7 +1591,7 @@ static void usage(int version)
 
   if (version)
     return;
-  printf("%s", COPYRIGHT_NOTICE);
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
