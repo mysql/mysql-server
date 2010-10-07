@@ -106,6 +106,7 @@ private:
   static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
   static UintR getNoDiskFlag(const UintR & requestInfo);
   static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
+  static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -123,6 +124,7 @@ private:
   static void setDistributionKeyFlag(Uint32& requestInfo, Uint32 flag);
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
   static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
+  static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
 };
 
 /**
@@ -144,10 +146,11 @@ private:
  d = Distribution key flag - 1  Bit 26
  n = No disk flag          - 1  Bit 9
  j = Via SPJ flag          - 1  Bit 27
+ a = Pass all confs flag   - 1  Bit 28
 
            1111111111222222222233
  01234567890123456789012345678901
- pppppppplnhcktzxbbbbbbbbbbd
+ pppppppplnhcktzxbbbbbbbbbbdja
 */
 
 #define PARALLEL_SHIFT     (0)
@@ -184,6 +187,8 @@ private:
 #define SCAN_NODISK_MASK (1)
 
 #define SCAN_SPJ_SHIFT (27)
+
+#define SCAN_PASS_CONF_SHIFT (28)
 
 inline
 Uint8
@@ -356,6 +361,19 @@ void
 ScanTabReq::setViaSPJFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setViaSPJFlag");
   requestInfo |= (flag << SCAN_SPJ_SHIFT);
+}
+
+inline
+UintR
+ScanTabReq::getPassAllConfsFlag(const UintR & requestInfo){
+  return (requestInfo >> SCAN_PASS_CONF_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::setPassAllConfsFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
+  requestInfo |= (flag << SCAN_PASS_CONF_SHIFT);
 }
 
 /**

@@ -319,6 +319,13 @@ public:
   /** Get the result ordering for this operation.*/
   NdbQueryOptions::ScanOrdering getOrdering() const;
 
+  /** 
+   * Set the number of fragments to be scanned in parallel for the root 
+   * operation of this query. This only applies to table scans and non-sorted
+   * scans of ordered indexes.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setParallelism(Uint32 parallelism);
 
   /**
    * Set the NdbInterpretedCode needed for defining a scan filter for 

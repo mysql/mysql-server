@@ -10241,6 +10241,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->m_queued_count = 0;
   scanptr.p->m_scan_cookie = RNIL;
   scanptr.p->m_close_scan_req = false;
+  scanptr.p->m_pass_all_confs =  ScanTabReq::getPassAllConfsFlag(ri);
 
   ScanFragList list(c_scan_frag_pool, 
 		    scanptr.p->m_running_scan_frags);
@@ -10954,9 +10955,15 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   }
 
   if(noCompletedOps == 0 && status != 0 && 
+     !scanptr.p->m_pass_all_confs &&
      scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count < scanptr.p->scanNoFrag){
     /**
-     * Start on next fragment
+     * Start on next fragment. Don't do this if we scan via the SPJ block. In
+     * that case, dropping the last SCAN_TABCONF message for a fragment would
+     * mean dropping the 'nodeMask' (which is sent in ScanFragConf::total_len).
+     * This would confuse the API with respect to which pushed operations that
+     * would get new tuples in the next batch. If we use SPJ, we must thus
+     * send SCAN_TABCONF and let the API ask for the next batch.
      */
     scanFragptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF; 
     scanFragptr.p->startFragTimer(ctcTimer);
@@ -10988,6 +10995,22 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     run.remove(scanFragptr);
     queued.add(scanFragptr);
     scanptr.p->m_queued_count++;
+  }
+
+  if (status != 0 && 
+      scanptr.p->m_pass_all_confs &&
+      scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count 
+      < scanptr.p->scanNoFrag){
+    /**
+     * nodeMask(=total_len) should be zero since there will be no more
+     * rows from this fragment.
+     */
+    ndbrequire(total_len==0);
+    /**
+     * Now set it to one to tell the API that there may be more rows from 
+     * the next fragment.
+     */
+    total_len  = 1;
   }
 
   scanFragptr.p->m_scan_frag_conf_status = status;

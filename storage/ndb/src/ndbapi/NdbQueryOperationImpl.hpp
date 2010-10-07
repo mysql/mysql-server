@@ -566,10 +566,25 @@ public:
   NdbQueryOperation& getInterface()
   { return m_interface; }
 
+  /** Define result ordering for ordered index scan. It is an error to call
+   * this method on an operation that is not a scan, or to call it if an
+   * ordering was already set on the operation defintion by calling 
+   * NdbQueryOperationDef::setOrdering().
+   * @param ordering The desired ordering of results.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
   int setOrdering(NdbQueryOptions::ScanOrdering ordering);
 
   NdbQueryOptions::ScanOrdering getOrdering() const
   { return m_ordering; }
+
+   /** 
+   * Set the number of fragments to be scanned in parallel for the root 
+   * operation of this query. This only applies to table scans and non-sorted
+   * scans of ordered indexes.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setParallelism(Uint32 parallelism);
 
   /**
    * Set the NdbInterpretedCode needed for defining a scan filter for 
@@ -658,7 +673,10 @@ private:
   /** True if this operation reads from any disk column. */
   bool m_diskInUserProjection;
 
-private:
+  /** Number of scan fragments to read in parallel.
+   */
+  Uint32 m_parallelism;
+  
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
   ~NdbQueryOperationImpl();

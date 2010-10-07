@@ -45,6 +45,7 @@
 STATIC_CONST(Err_TupleNotFound = 626);
 STATIC_CONST(Err_MemoryAlloc = 4000);
 STATIC_CONST(Err_SendFailed = 4002);
+STATIC_CONST(Err_FunctionNotImplemented = 4003);
 STATIC_CONST(Err_UnknownColumn = 4004);
 STATIC_CONST(Err_ReceiveFromNdbFailed = 4008);
 STATIC_CONST(Err_NodeFailCausedAbort = 4028);
@@ -1005,6 +1006,10 @@ NdbQueryOptions::ScanOrdering
 NdbQueryOperation::getOrdering() const
 {
   return m_impl.getOrdering();
+}
+
+int NdbQueryOperation::setParallelism(Uint32 parallelism){
+  return m_impl.setParallelism(parallelism);
 }
 
 int NdbQueryOperation::setInterpretedCode(const NdbInterpretedCode& code) const
@@ -2032,9 +2037,17 @@ NdbQueryImpl::prepareSend()
   {
     /* For the first batch, we read from all fragments for both ordered 
      * and unordered scans.*/
-    m_pendingFrags = m_rootFragCount 
-      = getRoot().getQueryOperationDef().getTable().getFragmentCount();
-    
+    if (getQueryOperation(0U).m_parallelism > 0)
+    {
+      m_pendingFrags = m_rootFragCount 
+        = MIN(getRoot().getQueryOperationDef().getTable().getFragmentCount(),
+              getQueryOperation(0U).m_parallelism);
+    }
+    else
+    {
+      m_pendingFrags = m_rootFragCount 
+        = getRoot().getQueryOperationDef().getTable().getFragmentCount();
+    }
     Ndb* const ndb = m_transaction.getNdb();
 
     /** Scan operations need a own sub-transaction object associated with each 
@@ -2296,6 +2309,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->first_batch_size = firstBatchRows;
 
     ScanTabReq::setViaSPJFlag(reqInfo, 1);
+    ScanTabReq::setPassAllConfsFlag(reqInfo, 1);
     ScanTabReq::setParallelism(reqInfo, getRootFragCount());
     ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
     ScanTabReq::setDescendingFlag(reqInfo, descending);
@@ -3057,7 +3071,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_lastRecAttr(NULL),
   m_ordering(NdbQueryOptions::ScanOrdering_unordered),
   m_interpretedCode(NULL),
-  m_diskInUserProjection(false)
+  m_diskInUserProjection(false),
+  m_parallelism(0)
 { 
   // Fill in operations parent refs, and append it as child of its parent
   const NdbQueryOperationDefImpl* parent = def.getParentOperation();
@@ -4329,6 +4344,8 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF(rows: " << rowCount
            << " nodeMask: H'" << hex << nodeMask << ")" << endl;
   }
+  assert((tcPtrI==RNIL && nodeMask==0) || 
+         (tcPtrI!=RNIL && nodeMask!=0));
   assert(checkMagicNumber());
   // For now, only the root operation may be a scan.
   assert(&getRoot() == this);
@@ -4424,6 +4441,12 @@ NdbQueryOperationImpl::setOrdering(NdbQueryOptions::ScanOrdering ordering)
     return -1;
   }
 
+  if (m_parallelism != 0)
+  {
+    getQuery().setErrorCodeAbort(QRY_SEQUENTIAL_SCAN_SORTED);
+    return -1;
+  }
+
   if(static_cast<const NdbQueryIndexScanOperationDefImpl&>
        (getQueryOperationDef())
      .getOrdering() != NdbQueryOptions::ScanOrdering_void)
@@ -4494,6 +4517,26 @@ int NdbQueryOperationImpl::setInterpretedCode(const NdbInterpretedCode& code)
   return 0;
 } // NdbQueryOperationImpl::setInterpretedCode()
 
+int NdbQueryOperationImpl::setParallelism(Uint32 parallelism){
+  if (!getQueryOperationDef().isScanOperation())
+  {
+    getQuery().setErrorCodeAbort(QRY_WRONG_OPERATION_TYPE);
+    return -1;
+  }
+  else if (getOrdering() == NdbQueryOptions::ScanOrdering_ascending ||
+           getOrdering() == NdbQueryOptions::ScanOrdering_descending)
+  {
+    getQuery().setErrorCodeAbort(QRY_SEQUENTIAL_SCAN_SORTED);
+    return -1;
+  }
+  else if (getQueryOperationDef().getQueryOperationIx() > 0)
+  {
+    getQuery().setErrorCodeAbort(Err_FunctionNotImplemented);
+    return -1;
+  }
+  m_parallelism = parallelism;
+  return 0;
+}
 
 NdbResultStream& 
 NdbQueryOperationImpl::getResultStream(Uint32 rootFragNo) const
@@ -4558,6 +4601,8 @@ NdbQueryOperationImpl::getReceiver(Uint32 recNo) const {
 NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "[ this: " << &op
       << "  m_magic: " << op.m_magic;
+  out << " op.operationDef.getQueryOperationIx()" 
+      << op.m_operationDef.getQueryOperationIx();
   if (op.getParentOperation()){
     out << "  m_parent: " << op.getParentOperation(); 
   }

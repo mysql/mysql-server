@@ -801,6 +801,8 @@ ErrorBundle ErrorCodes[] = {
     "Query has scans that are not descendants/ancestors of each other." },
   { QRY_MULTIPLE_SCAN_SORTED, DMEC, AE, 
     "Query with multiple scans may not be sorted." },
+  { QRY_SEQUENTIAL_SCAN_SORTED, DMEC, AE, 
+    "Parallelism cannot be restricted for sorted scans." },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},
