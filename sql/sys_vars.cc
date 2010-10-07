@@ -2943,11 +2943,8 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      (active_mi? active_mi->heartbeat_period : 0.0)));
   if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                        "The current value for master_heartbeat_period"
-                        " exceeds the new value of `slave_net_timeout' sec."
-                        " A sensible value for the period should be"
-                        " less than the timeout.");
+                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                        ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
   return false;
 }

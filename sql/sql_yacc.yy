@@ -1933,35 +1933,28 @@ master_def:
         | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
           {
             Lex->mi.heartbeat_period= (float) $3->val_real();
-           if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
-               Lex->mi.heartbeat_period < 0.0)
-           {
-             const char format[]= "%d seconds";
-             char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
-             sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
-             my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                      MYF(0), " is negative or exceeds the maximum ", buf);
-              MYSQL_YYABORT;
+            if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
+                Lex->mi.heartbeat_period < 0.0)
+            {
+               const char format[]= "%d";
+               char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
+               sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
+               my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE, MYF(0), buf);
+               MYSQL_YYABORT;
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
             {
               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE),
-                                  " exceeds the value of `slave_net_timeout' sec.",
-                                  " A sensible value for the period should be"
-                                  " less than the timeout.");
+                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
             if (Lex->mi.heartbeat_period < 0.001)
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
                 push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE),
-                                    " is less than 1 msec.",
-                                    " The period is reset to zero which means"
-                                    " no heartbeats will be sending");
+                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
+                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
               }
               Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
