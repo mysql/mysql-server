@@ -1481,7 +1481,12 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table);
+	/* We update table statistics only if it is a DELETE or UPDATE
+	that changes indexed columns, UPDATEs that change only non-indexed
+	columns would not affect statistics. */
+	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		row_update_statistics_if_needed(prebuilt->table);
+	}
 
 	trx->op_info = "";
 
@@ -2980,8 +2985,7 @@ next_rec:
 		dict_table_change_id_in_cache(table, new_id);
 	}
 
-	/* MySQL calls ha_innobase::reset_auto_increment() which does
-	the same thing. */
+	/* Reset auto-increment. */
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);

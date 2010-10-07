@@ -265,8 +265,12 @@ public:
 	    CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
   bool append(const char *s);
-  bool append(const char *s,uint32 arg_length);
-  bool append(const char *s,uint32 arg_length, CHARSET_INFO *cs);
+  bool append(LEX_STRING *ls)
+  {
+    return append(ls->str, ls->length);
+  }
+  bool append(const char *s, uint32 arg_length);
+  bool append(const char *s, uint32 arg_length, CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
   bool append(IO_CACHE* file, uint32 arg_length);
   bool append_with_prefill(const char *s, uint32 arg_length, 
