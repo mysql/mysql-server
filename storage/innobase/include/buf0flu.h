@@ -228,8 +228,8 @@ make sure that a read-ahead batch can be read efficiently in a single
 sweep). */
 #define BUF_FLUSH_FREE_BLOCK_MARGIN(b)	(5 + BUF_READ_AHEAD_AREA(b))
 /** Extra margin to apply above BUF_FLUSH_FREE_BLOCK_MARGIN */
-#define BUF_FLUSH_EXTRA_MARGIN(b)	(BUF_FLUSH_FREE_BLOCK_MARGIN(b) / 4 \
-					+ 100)
+#define BUF_FLUSH_EXTRA_MARGIN(b)	((BUF_FLUSH_FREE_BLOCK_MARGIN(b) / 4 \
+					+ 100) / srv_buf_pool_instances)
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
