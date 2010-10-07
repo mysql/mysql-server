@@ -11222,7 +11222,8 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       ndbrequire(curr.p->scanFragState == ScanFragRec::DELIVERED);
       delivered.remove(curr);
       
-      if(curr.p->m_ops > 0 && curr.p->m_scan_frag_conf_status == 0){
+      if (curr.p->m_scan_frag_conf_status == 0)
+      {
 	jam();
 	running.add(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
@@ -11231,7 +11232,9 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		   ScanFragNextReq::SignalLength, JBB);
 	
-      } else {
+      }
+      else 
+      {
 	jam();
 	c_scan_frag_pool.release(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
@@ -11251,7 +11254,8 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       queued.remove(curr); 
       scanP->m_queued_count--;
       
-      if(curr.p->m_ops > 0){
+      if (curr.p->m_scan_frag_conf_status == 0)
+      {
 	jam();
 	running.add(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
@@ -11259,7 +11263,9 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	nextReq->senderData = curr.i;
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		   ScanFragNextReq::SignalLength, JBB);
-      } else {
+      }
+      else 
+      {
 	jam();
 	c_scan_frag_pool.release(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
