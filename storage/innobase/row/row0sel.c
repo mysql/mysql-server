@@ -2688,12 +2688,6 @@ row_sel_store_mysql_rec(
 		prebuilt->blob_heap = NULL;
 	}
 
-	/* init null bytes with default values as they might be
-	left uninitialized in some cases and these uninited bytes
-	might be copied into mysql record buffer that leads to
-	valgrind warnings */
-	memcpy(mysql_rec, prebuilt->default_rec, prebuilt->null_bitmap_len);
-
 	for (i = 0; i < prebuilt->n_template; i++) {
 
 		templ = prebuilt->mysql_template + i;
