@@ -4206,7 +4206,6 @@ dict_update_statistics_low(
 					dictionary mutex */
 {
 	dict_index_t*	index;
-	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
 
 	if (table->ibd_file_missing) {
@@ -4217,14 +4216,6 @@ dict_update_statistics_low(
 			" please refer to\n"
 			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 			table->name);
-
-		return;
-	}
-
-	/* If we have set a high innodb_force_recovery level, do not calculate
-	statistics, as a badly corrupted index can cause a crash in it. */
-
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
 		return;
 	}
@@ -4240,26 +4231,48 @@ dict_update_statistics_low(
 		return;
 	}
 
-	while (index) {
-		size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-		index->stat_index_size = size;
+	do {
+		if (UNIV_LIKELY
+		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
+		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+			 && dict_index_is_clust(index)))) {
+			ulint	size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-		sum_of_index_sizes += size;
+			index->stat_index_size = size;
 
-		size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			sum_of_index_sizes += size;
 
-		if (size == 0) {
-			/* The root node of the tree is a leaf */
-			size = 1;
+			size = btr_get_size(index, BTR_N_LEAF_PAGES);
+
+			if (size == 0) {
+				/* The root node of the tree is a leaf */
+				size = 1;
+			}
+
+			index->stat_n_leaf_pages = size;
+
+			btr_estimate_number_of_different_key_vals(index);
+		} else {
+			/* If we have set a high innodb_force_recovery
+			level, do not calculate statistics, as a badly
+			corrupted index can cause a crash in it.
+			Initialize some bogus index cardinality
+			statistics, so that the data can be queried in
+			various means, also via secondary indexes. */
+			ulint	i;
+
+			sum_of_index_sizes++;
+			index->stat_index_size = index->stat_n_leaf_pages = 1;
+
+			for (i = dict_index_get_n_unique(index); i; ) {
+				index->stat_n_diff_key_vals[i--] = 1;
+			}
 		}
 
-		index->stat_n_leaf_pages = size;
-
-		btr_estimate_number_of_different_key_vals(index);
-
 		index = dict_table_get_next_index(index);
-	}
+	} while (index);
 
 	index = dict_table_get_first_index(table);
 
@@ -4442,7 +4455,6 @@ dict_index_print_low(
 {
 	ib_int64_t	n_vals;
 	ulint		i;
-	const char*	type_string;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -4456,14 +4468,6 @@ dict_index_print_low(
 	}
 
 	dict_index_stat_mutex_exit(index);
-
-	if (dict_index_is_clust(index)) {
-		type_string = "clustered index";
-	} else if (dict_index_is_unique(index)) {
-		type_string = "unique index";
-	} else {
-		type_string = "secondary index";
-	}
 
 	fprintf(stderr,
 		"  INDEX: name %s, id %llu, fields %lu/%lu,"

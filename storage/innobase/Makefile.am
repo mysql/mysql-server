@@ -207,7 +207,6 @@ noinst_HEADERS=		\
 			include/usr0sess.h	\
 			include/usr0sess.ic	\
 			include/usr0types.h	\
-			include/ut0auxconf.h	\
 			include/ut0byte.h	\
 			include/ut0byte.ic	\
 			include/ut0dbg.h	\
