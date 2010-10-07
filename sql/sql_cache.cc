@@ -334,6 +334,7 @@ TODO list:
 #include "tztime.h"                             // struct Time_zone
 #include "sql_acl.h"                            // SELECT_ACL
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
+#include "debug_sync.h"                         // DEBUG_SYNC
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -372,30 +373,32 @@ TODO list:
 #define DUMP(C) DBUG_EXECUTE("qcache", {\
   (C)->cache_dump(); (C)->queries_dump();(C)->tables_dump();})
 
-
 /**
-  Causes the thread to wait in a spin lock for a query kill signal.
-  This function is used by the test frame work to identify race conditions.
-
-  The signal is caught and ignored and the thread is not killed.
+  Thread state to be used when the query cache lock needs to be acquired.
+  Sets the thread state name in the constructor, resets on destructor.
 */
 
-static void debug_wait_for_kill(const char *info)
+struct Query_cache_wait_state
 {
-  DBUG_ENTER("debug_wait_for_kill");
-  const char *prev_info;
-  THD *thd;
-  thd= current_thd;
-  prev_info= thd->proc_info;
-  thd->proc_info= info;
-  sql_print_information("%s", info);
-  while(!thd->killed)
-    my_sleep(1000);
-  thd->killed= THD::NOT_KILLED;
-  sql_print_information("Exit debug_wait_for_kill");
-  thd->proc_info= prev_info;
-  DBUG_VOID_RETURN;
-}
+  THD *m_thd;
+  const char *m_proc_info;
+
+  Query_cache_wait_state(THD *thd, const char *func,
+                         const char *file, unsigned int line)
+  : m_thd(thd)
+  {
+    if (m_thd)
+      m_proc_info= set_thd_proc_info(m_thd,
+                                     "Waiting for query cache lock",
+                                     func, file, line);
+  }
+
+  ~Query_cache_wait_state()
+  {
+    if (m_thd)
+      set_thd_proc_info(m_thd, m_proc_info, NULL, NULL, 0);
+  }
+};
 
 #else
 #define RW_WLOCK(M) mysql_rwlock_wrlock(M)
@@ -429,6 +432,8 @@ static void debug_wait_for_kill(const char *info)
 bool Query_cache::try_lock(bool use_timeout)
 {
   bool interrupt= FALSE;
+  THD *thd= current_thd;
+  Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::try_lock");
 
   mysql_mutex_lock(&structure_guard_mutex);
@@ -438,7 +443,6 @@ bool Query_cache::try_lock(bool use_timeout)
     {
       m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
-      THD *thd= current_thd;
       if (thd)
         m_cache_lock_thread_id= thd->thread_id;
 #endif
@@ -497,6 +501,8 @@ bool Query_cache::try_lock(bool use_timeout)
 
 void Query_cache::lock_and_suspend(void)
 {
+  THD *thd= current_thd;
+  Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::lock_and_suspend");
 
   mysql_mutex_lock(&structure_guard_mutex);
@@ -504,7 +510,6 @@ void Query_cache::lock_and_suspend(void)
     mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED_NO_WAIT;
 #ifndef DBUG_OFF
-  THD *thd= current_thd;
   if (thd)
     m_cache_lock_thread_id= thd->thread_id;
 #endif
@@ -525,6 +530,8 @@ void Query_cache::lock_and_suspend(void)
 
 void Query_cache::lock(void)
 {
+  THD *thd= current_thd;
+  Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::lock");
 
   mysql_mutex_lock(&structure_guard_mutex);
@@ -532,7 +539,6 @@ void Query_cache::lock(void)
     mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
-  THD *thd= current_thd;
   if (thd)
     m_cache_lock_thread_id= thd->thread_id;
 #endif
@@ -872,9 +878,7 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
   if (is_disabled() || query_cache_tls->first_query_block == NULL)
     DBUG_VOID_RETURN;
 
-  DBUG_EXECUTE_IF("wait_in_query_cache_insert",
-                  debug_wait_for_kill("wait_in_query_cache_insert"); );
-
+  DEBUG_SYNC(current_thd, "wait_in_query_cache_insert");
 
   if (try_lock())
     DBUG_VOID_RETURN;
@@ -1779,8 +1783,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
       invalidate_table(thd, tables_used);
   }
 
-  DBUG_EXECUTE_IF("wait_after_query_cache_invalidate",
-                  debug_wait_for_kill("wait_after_query_cache_invalidate"););
+  DEBUG_SYNC(thd, "wait_after_query_cache_invalidate");
 
   DBUG_VOID_RETURN;
 }
@@ -1971,8 +1974,7 @@ void Query_cache::flush()
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  DBUG_EXECUTE_IF("wait_in_query_cache_flush1",
-                  debug_wait_for_kill("wait_in_query_cache_flush1"););
+  DEBUG_SYNC(current_thd, "wait_in_query_cache_flush1");
 
   lock_and_suspend();
   if (query_cache_size > 0)
@@ -2312,9 +2314,7 @@ void Query_cache::free_cache()
 
 void Query_cache::flush_cache()
 {
-  
-  DBUG_EXECUTE_IF("wait_in_query_cache_flush2",
-                  debug_wait_for_kill("wait_in_query_cache_flush2"););
+  DEBUG_SYNC(current_thd, "wait_in_query_cache_flush2");
 
   my_hash_reset(&queries);
   while (queries_blocks != 0)
@@ -2760,8 +2760,7 @@ void Query_cache::invalidate_table(THD *thd, TABLE *table)
 
 void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
 {
-  DBUG_EXECUTE_IF("wait_in_query_cache_invalidate1",
-                   debug_wait_for_kill("wait_in_query_cache_invalidate1"); );
+  DEBUG_SYNC(thd, "wait_in_query_cache_invalidate1");
 
   /*
     Lock the query cache and queue all invalidation attempts to avoid
@@ -2769,9 +2768,7 @@ void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
   */
   lock();
 
-  DBUG_EXECUTE_IF("wait_in_query_cache_invalidate2",
-                  debug_wait_for_kill("wait_in_query_cache_invalidate2"); );
-
+  DEBUG_SYNC(thd, "wait_in_query_cache_invalidate2");
 
   if (query_cache_size > 0)
     invalidate_table_internal(thd, key, key_length);
@@ -2821,7 +2818,6 @@ Query_cache::invalidate_query_block_list(THD *thd,
     Query_cache_block *query_block= list_root->next->block();
     BLOCK_LOCK_WR(query_block);
     free_query(query_block);
-    DBUG_EXECUTE_IF("debug_cache_locks", sleep(10););
   }
 }
 
