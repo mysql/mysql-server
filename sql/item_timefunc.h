@@ -948,6 +948,8 @@ public:
       return save_date_in_field(field);
     return Item_str_func::save_in_field(field, no_conversions);
   }
+  longlong val_int();
+  MYSQL_TIME *val_datetime(MYSQL_TIME *time, date_time_format_types *format);
 };
 
 class Item_func_timediff :public Item_str_timefunc
