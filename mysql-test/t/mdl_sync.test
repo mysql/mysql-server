@@ -3969,7 +3969,8 @@ INSERT INTO t1 VALUES (1),(2),(3);
 
 --echo # Connection: con1
 connection con1;
-SET debug_sync='lock_table_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
+LOCK TABLES t1 WRITE;
+SET debug_sync='upgrade_lock_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
 send TRUNCATE TABLE t1;
 
 connection default;
@@ -3994,15 +3995,17 @@ connection default;
 --echo # Connection: default
 SET debug_sync='now WAIT_FOR parked_flush';
 SET debug_sync='now SIGNAL go_truncate';
+--echo # Ensure that truncate waits for a exclusive lock
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table metadata lock' AND info='TRUNCATE TABLE t1';
+--source include/wait_condition.inc
+SET debug_sync= 'now SIGNAL go_show';
 
 connection con1;
---echo # Connection: con1
+--echo # Connection: con1 (TRUNCATE)
 --echo # Reaping...
 reap;
-
-connection default;
---echo # Connection: default
-SET debug_sync= 'now SIGNAL go_show';
+UNLOCK TABLES;
 
 connection con2;
 --echo # Connection: con2 (SHOW FIELDS FROM t1)
