@@ -397,7 +397,7 @@ bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
 bool Rpl_info_table::do_get_info(const int pos, ulong *value,
                                  const ulong default_value)
 {
-  *value= (int) strtoul(field_values->field[pos].value.str, 0, 10);
+  *value= strtoul(field_values->field[pos].value.str, 0, 10);
 
   return FALSE;
 }
@@ -405,7 +405,7 @@ bool Rpl_info_table::do_get_info(const int pos, ulong *value,
 bool Rpl_info_table::do_get_info(const int pos, int *value,
                                  const int default_value)
 {
-  *value=  (int) strtol(field_values->field[pos].value.str, 0, 10);
+  *value=  atoi(field_values->field[pos].value.str);
 
   return FALSE;
 }
