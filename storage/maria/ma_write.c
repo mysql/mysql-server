@@ -768,6 +768,10 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
   DBUG_PRINT("enter",("key_pos: 0x%lx", (ulong) key_pos));
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, key););
 
+  /*
+    Note that anc_page->size can be bigger then block_size in case of
+    delete key that caused increase of page length
+  */
   org_anc_length= a_length= anc_page->size;
   nod_flag= anc_page->node;
 
@@ -887,7 +891,8 @@ ChangeSet@1.2562, 2008-04-09 07:41:40+02:00, serg@janus.mylan +9 -0
     {
       if (share->now_transactional && 
           _ma_log_add(anc_page, org_anc_length,
-                      key_pos, s_temp.changed_length, t_length, 1))
+                      key_pos, s_temp.changed_length, t_length, 1,
+                      KEY_OP_DEBUG_LOG_ADD_1))
         DBUG_RETURN(-1);
     }
     DBUG_RETURN(0);				/* There is room on page */
@@ -911,7 +916,9 @@ ChangeSet@1.2562, 2008-04-09 07:41:40+02:00, serg@janus.mylan +9 -0
                                  father_page, father_key_pos,
                                  &s_temp));
   }
-  DBUG_RETURN(_ma_split_page(info, key, anc_page, org_anc_length,
+  DBUG_RETURN(_ma_split_page(info, key, anc_page,
+                             min(org_anc_length,
+                                 info->s->max_index_block_size),
                              key_pos, s_temp.changed_length, t_length,
                              key_buff, insert_last));
 } /* _ma_insert */
@@ -1971,7 +1978,8 @@ my_bool _ma_log_change(MARIA_PAGE *ma_page, const uchar *key_pos, uint length,
    @fn     _ma_log_split()
    @param
      ma_page		Page that is changed
-     org_length	        Original length of page
+     org_length	        Original length of page. Can be bigger than block_size
+                        for block that overflowed
      new_length		New length of page
      key_pos		Where key is inserted on page (may be 0 if no key)
      key_length		Number of bytes changed at key_pos

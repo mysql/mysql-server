@@ -59,7 +59,8 @@ int maria_rtree_add_key(const MARIA_KEY *key, MARIA_PAGE *page,
     page_store_size(share, page);
     if (share->now_transactional &&
         _ma_log_add(page, key_pos - page->buff,
-                    key_pos, tot_key_length, tot_key_length, 0))
+                    key_pos, tot_key_length, tot_key_length, 0,
+                    KEY_OP_DEBUG_LOG_ADD_1))
       DBUG_RETURN(-1);
     DBUG_RETURN(0);
   }

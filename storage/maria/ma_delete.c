@@ -702,7 +702,8 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
 
   if (share->now_transactional &&
       _ma_log_add(anc_page, a_length,
-                  key_start, s_temp.changed_length, s_temp.move_length, 1))
+                  key_start, s_temp.changed_length, s_temp.move_length, 1,
+                  KEY_OP_DEBUG_LOG_ADD_2))
     goto err;
 
   DBUG_RETURN(new_leaf_length <=
@@ -971,7 +972,8 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                             anc_key_inserted.move_length,
                             key_deleted.changed_length),
                         anc_key_inserted.move_length -
-                        key_deleted.move_length, 1))
+                        key_deleted.move_length, 1,
+                        KEY_OP_DEBUG_LOG_ADD_3))
           goto err;
 
         /*
@@ -1211,7 +1213,7 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                           anc_key_inserted.move_length,
                           key_deleted.changed_length),
                       anc_key_inserted.move_length -
-                      key_deleted.move_length, 1))
+                      key_deleted.move_length, 1,KEY_OP_DEBUG_LOG_ADD_4))
         goto err;
 
       /*

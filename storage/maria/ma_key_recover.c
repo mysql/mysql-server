@@ -488,7 +488,8 @@ my_bool _ma_log_suffix(MARIA_PAGE *ma_page, uint org_length, uint new_length)
 my_bool _ma_log_add(MARIA_PAGE *ma_page,
                     uint org_page_length __attribute__ ((unused)),
                     uchar *key_pos, uint changed_length, int move_length,
-                    my_bool handle_overflow __attribute__ ((unused)))
+                    my_bool handle_overflow __attribute__ ((unused)),
+                    enum en_key_debug debug_marker __attribute__((unused)))
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 3 + 3 + 3 + 3 + 7 +
@@ -511,7 +512,7 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
   DBUG_ASSERT(move_length <= (int) changed_length);
   DBUG_ASSERT(ma_page->org_size == min(org_page_length, max_page_size));
   DBUG_ASSERT(ma_page->size == org_page_length + move_length);
-  DBUG_ASSERT(offset < max_page_size);
+  DBUG_ASSERT(offset <= ma_page->org_size);
 
   /*
     Write REDO entry that contains the logical operations we need
@@ -525,7 +526,7 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
 
 #ifdef EXTRA_DEBUG_KEY_CHANGES
   *log_pos++= KEY_OP_DEBUG;
-  *log_pos++= KEY_OP_DEBUG_LOG_ADD;
+  *log_pos++= debug_marker;
 #endif
 
   /* Store keypage_flag */
@@ -575,10 +576,32 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
     log_pos+= 3;
     if (move_length)
     {
+      if (move_length < 0)
+      {
+        DBUG_ASSERT(offset - move_length <= org_page_length);
+        if (offset - move_length > current_size)
+        {
+          /*
+            Truncate to end of page. We will add data to it from
+            the page buffer below
+          */
+          move_length= (int) offset - (int) current_size;
+        }
+      }
       log_pos[0]= KEY_OP_SHIFT;
       int2store(log_pos+1, move_length);
       log_pos+= 3;
       current_size+= move_length;
+    }
+    /*
+      Handle case where page was shortend but 'changed_length' goes over
+      'current_size'. This can only happen when there was a page overflow
+      and we will below add back the overflow part
+    */
+    if (offset + changed_length > current_size)
+    {
+      DBUG_ASSERT(offset + changed_length <= ma_page->size);
+      changed_length= current_size - offset;
     }
     log_pos[0]= KEY_OP_CHANGE;
   }
