@@ -6382,3 +6382,6 @@ ER_GRANT_PLUGIN_USER_EXISTS
 
 ER_TRUNCATE_ILLEGAL_FK 42000
   eng "Cannot truncate a table referenced in a foreign key constraint (%.192s)"
+
+ER_PLUGIN_IS_PERMANENT
+  eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
