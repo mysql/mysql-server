@@ -4023,49 +4023,39 @@ create_sp_error:
       int sp_result;
       int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
                  TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
+      char *db= lex->spname->m_db.str;
+      char *name= lex->spname->m_name.str;
 
-      /*
-        @todo: here we break the metadata locking protocol by
-        looking up the information about the routine without
-        a metadata lock. Rewrite this piece to make sp_drop_routine
-        return whether the routine existed or not.
-      */
-      sp_result= sp_routine_exists_in_table(thd, type, lex->spname);
-      thd->warning_info->opt_clear_warning_info(thd->query_id);
-      if (sp_result == SP_OK)
-      {
-        char *db= lex->spname->m_db.str;
-	char *name= lex->spname->m_name.str;
+      if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
+                               lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
+        goto error;
 
-	if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
-                                 lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
-          goto error;
-
-        /* Conditionally writes to binlog */
-        sp_result= sp_drop_routine(thd, type, lex->spname);
+      /* Conditionally writes to binlog */
+      sp_result= sp_drop_routine(thd, type, lex->spname);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-        /*
-          We're going to issue an implicit REVOKE statement.
-          It takes metadata locks and updates system tables.
-          Make sure that sp_create_routine() did not leave any
-          locks in the MDL context, so there is no risk to
-          deadlock.
-        */
-        close_mysql_tables(thd);
+      /*
+        We're going to issue an implicit REVOKE statement.
+        It takes metadata locks and updates system tables.
+        Make sure that sp_create_routine() did not leave any
+        locks in the MDL context, so there is no risk to
+        deadlock.
+      */
+      close_mysql_tables(thd);
 
-        if (sp_automatic_privileges && !opt_noacl &&
-            sp_revoke_privileges(thd, db, name,
-                                 lex->sql_command == SQLCOM_DROP_PROCEDURE))
-        {
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                       ER_PROC_AUTO_REVOKE_FAIL,
-                       ER(ER_PROC_AUTO_REVOKE_FAIL));
-          /* If this happens, an error should have been reported. */
-          goto error;
-        }
-#endif
+      if (sp_result != SP_KEY_NOT_FOUND &&
+          sp_automatic_privileges && !opt_noacl &&
+          sp_revoke_privileges(thd, db, name,
+                               lex->sql_command == SQLCOM_DROP_PROCEDURE))
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_PROC_AUTO_REVOKE_FAIL,
+                     ER(ER_PROC_AUTO_REVOKE_FAIL));
+        /* If this happens, an error should have been reported. */
+        goto error;
       }
+#endif
+
       res= sp_result;
       switch (sp_result) {
       case SP_OK:

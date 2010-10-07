@@ -1636,38 +1636,6 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any)
 }
 
 
-/**
-  Check if a routine exists in the mysql.proc table, without actually
-  parsing the definition. (Used for dropping).
-
-  @param thd          thread context
-  @param name         name of procedure
-
-  @retval
-    0       Success
-  @retval
-    non-0   Error;  SP_OPEN_TABLE_FAILED or SP_KEY_NOT_FOUND
-*/
-
-int
-sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
-{
-  TABLE *table;
-  int ret;
-  Open_tables_backup open_tables_state_backup;
-
-  if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
-    ret= SP_OPEN_TABLE_FAILED;
-  else
-  {
-    if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
-      ret= SP_KEY_NOT_FOUND;
-    close_system_tables(thd, &open_tables_state_backup);
-  }
-  return ret;
-}
-
-
 extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
                                   my_bool first)
 {
