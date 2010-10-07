@@ -7356,9 +7356,11 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
   case DECIMAL_RESULT:
     return new Item_cache_decimal();
   case STRING_RESULT:
-    if (item->field_type() == MYSQL_TYPE_DATE ||
-        item->field_type() == MYSQL_TYPE_DATETIME ||
-        item->field_type() == MYSQL_TYPE_TIME)
+    /* Not all functions that return DATE/TIME are actually DATE/TIME funcs. */
+    if ((item->field_type() == MYSQL_TYPE_DATE ||
+         item->field_type() == MYSQL_TYPE_DATETIME ||
+         item->field_type() == MYSQL_TYPE_TIME) &&
+        (const_cast<Item*>(item))->result_as_longlong())
       return new Item_cache_datetime(item->field_type());
     return new Item_cache_str(item);
   case ROW_RESULT:
