@@ -141,10 +141,6 @@ private:
   ReceiveBuffer receiveBuffer;
 
   bool send_limit_reached(int bufsize) { return bufsize > TCP_SEND_LIMIT; }
-
-  unsigned m_poll_index;
-  void set_poll_index(unsigned index) { m_poll_index = index; };
-  unsigned get_poll_index(void) const { return m_poll_index; };
 };
 
 inline

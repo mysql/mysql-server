@@ -96,8 +96,7 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      0, false, 
 	      conf->checksum,
 	      conf->signalId,
-              conf->tcp.sendBufferSize),
-  m_poll_index(~0)
+              conf->tcp.sendBufferSize)
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
