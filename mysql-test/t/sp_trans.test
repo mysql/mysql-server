@@ -636,6 +636,30 @@ UPDATE t1_aux SET f2 = 2 WHERE f1 = f1_two_inserts()|
 DROP TABLE t1_aux, t1_not_null|
 DROP FUNCTION f1_two_inserts|
 
+--echo #
+--echo # Bug#49938: Failing assertion: inode or deadlock in fsp/fsp0fsp.c
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1|
+DROP TABLE IF EXISTS t1|
+--enable_warnings
+
+CREATE TABLE t1 (a INT) ENGINE=INNODB|
+
+CREATE PROCEDURE p1()
+BEGIN
+  TRUNCATE TABLE t1;
+END|
+
+LOCK TABLES t1 WRITE|
+CALL p1()|
+FLUSH TABLES;
+UNLOCK TABLES|
+CALL p1()|
+
+DROP PROCEDURE p1|
+DROP TABLE t1|
 
 #
 # BUG#NNNN: New bug synopsis
