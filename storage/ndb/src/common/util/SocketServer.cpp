@@ -18,7 +18,6 @@
 
 
 #include <ndb_global.h>
-#include <my_pthread.h>
 
 #include <SocketServer.hpp>
 

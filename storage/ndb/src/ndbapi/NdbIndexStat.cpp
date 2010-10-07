@@ -24,7 +24,6 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbInterpretedCode.hpp>
 #include <NdbRecord.hpp>
-#include <my_sys.h>
 
 NdbIndexStat::NdbIndexStat(const NdbDictionary::Index* index) :
   m_index(index->m_impl),

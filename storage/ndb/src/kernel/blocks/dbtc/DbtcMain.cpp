@@ -22,7 +22,6 @@
 #include "md5_hash.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
-#include <my_sys.h>
 #include <ndb_rand.h>
 
 #include <signaldata/DiGetNodes.hpp>
