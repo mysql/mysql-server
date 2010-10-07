@@ -34,7 +34,7 @@
 #include "sql_locale.h"                         // my_locale_en_US
 #include "log.h"                                // flush_error_log
 #include "sql_view.h"         // mysql_create_view, mysql_drop_view
-#include "sql_delete.h"       // mysql_truncate, mysql_delete
+#include "sql_delete.h"       // mysql_delete
 #include "sql_insert.h"       // mysql_insert
 #include "sql_update.h"       // mysql_update, mysql_multi_update
 #include "sql_partition.h"    // struct partition_info
@@ -49,7 +49,6 @@
                               // mysql_recreate_table,
                               // mysql_backup_table,
                               // mysql_restore_table
-#include "sql_truncate.h"     // mysql_truncate_table
 #include "sql_reload.h"       // reload_acl_and_cache
 #include "sql_admin.h"        // mysql_assign_to_keycache
 #include "sql_connect.h"      // check_user,
