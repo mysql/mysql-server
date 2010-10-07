@@ -139,11 +139,6 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	delete	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	delete	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL

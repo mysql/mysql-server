@@ -6420,3 +6420,6 @@ ER_TABLES_DIFFERENT_METADATA
 ER_ROW_DOES_NOT_MATCH_PARTITION
   eng "Found row that does not match the partition"
   swe "Hittade rad som inte passar i partitionen"
+
+ER_TRUNCATE_ILLEGAL_FK 42000
+  eng "Cannot truncate a table referenced in a foreign key constraint (%.192s)"

@@ -341,6 +341,7 @@ TODO list:
 #include "../storage/myisammrg/ha_myisammrg.h"
 #include "../storage/myisammrg/myrg_def.h"
 #include "probes_mysql.h"
+#include "transaction.h"
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
@@ -1683,6 +1684,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       }
       else
         thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
+      /* End the statement transaction potentially started by engine. */
+      trans_rollback_stmt(thd);
       goto err_unlock;				// Parse query
     }
     else
@@ -1724,6 +1727,13 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
+  /*
+    End the statement transaction potentially started by an
+    engine callback. We ignore the return value for now,
+    since as long as EOF packet is part of the query cache
+    response, we can't handle it anyway.
+  */
+  (void) trans_commit_stmt(thd);
   if (!thd->stmt_da->is_set())
     thd->stmt_da->disable_status();
 
