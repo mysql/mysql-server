@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,8 @@
 #endif
 #include <signal.h>
 #include <my_stacktrace.h>
+
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #ifdef __WIN__
 #include <crtdbg.h>
@@ -6260,8 +6262,7 @@ void print_version(void)
 void usage()
 {
   print_version();
-  printf("MySQL AB, by Sasha, Matt, Monty & Jani\n");
-  printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
