@@ -3244,12 +3244,11 @@ static int init_common_variables()
     desired page sizes.
   */
    int nelem;
-   int max_desired_page_size;
-   int max_page_size;
+   size_t max_desired_page_size;
    if (opt_super_large_pages)
-     max_page_size= SUPER_LARGE_PAGESIZE;
+     max_desired_page_size= SUPER_LARGE_PAGESIZE;
    else
-     max_page_size= LARGE_PAGESIZE;
+     max_desired_page_size= LARGE_PAGESIZE;
    nelem = getpagesizes(NULL, 0);
    if (nelem > 0)
    {
