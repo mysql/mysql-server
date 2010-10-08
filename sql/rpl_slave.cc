@@ -2519,7 +2519,6 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
-  bool skip_event= FALSE;
 
   DBUG_ENTER("apply_event_and_update_pos");
 
@@ -2564,10 +2563,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 
   int reason= ev->shall_skip(rli);
   if (reason == Log_event::EVENT_SKIP_COUNT)
-  {
     sql_slave_skip_counter= --rli->slave_skip_counter;
-    skip_event= TRUE;
-  }
   if (reason == Log_event::EVENT_SKIP_NOT)
   {
     // Sleeps if needed, and unlocks rli->data_lock.
@@ -2608,10 +2604,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
       the XID event and as such do not need to be updated again.
       See sql/rpl_rli.h for further details.
     */
-    int error= 0;
-    if (ev->get_type_code() != XID_EVENT || skip_event ||
-        !rli->is_transactional())
-      error= ev->update_pos(rli);
+    int error= ev->update_pos(rli);
 #ifndef DBUG_OFF
     DBUG_PRINT("info", ("update_pos error = %d", error));
     if (!rli->belongs_to_client())

@@ -147,8 +147,7 @@ lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
         since this would be a DOS attack.
       */
       if ((t->reginfo.lock_type >= TL_READ_NO_INSERT
-          || thd->lex->sql_command == SQLCOM_LOCK_TABLES) &&
-          thd->system_thread != SYSTEM_THREAD_INFO)
+          || thd->lex->sql_command == SQLCOM_LOCK_TABLES))
       {
         my_error(ER_CANT_LOCK_LOG_TABLE, MYF(0));
         DBUG_RETURN(1);

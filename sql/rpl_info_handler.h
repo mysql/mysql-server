@@ -18,7 +18,6 @@
 
 #include <my_global.h>
 #include <server_ids.h>
-#include "rpl_info_fields.h"
 
 class Rpl_info_handler
 {
@@ -259,13 +258,6 @@ public:
     @retval FALSE Otherwise.
   */
   bool is_transactional() { return do_is_transactional(); }
-
-  /*                                                                                                                                    
-    Pre-store information before writing it to the repository and if
-    necessary after reading it from the repository. The decision is
-    delegated to the sub-classes.
-  */
-  Rpl_info_fields *field_values;
 
 protected:
   /* Number of fields to be stored in the repository. */

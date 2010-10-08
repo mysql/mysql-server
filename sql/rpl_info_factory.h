@@ -23,27 +23,15 @@
 
 enum enum_mi_repository
 {
-  MI_REPOSITORY_FILE= 0,
-  MI_REPOSITORY_TABLE= 1
+  MI_REPOSITORY_FILE= 0
 };
 extern ulong opt_mi_repository_id;
 
 enum enum_rli_repository
 {
-  RLI_REPOSITORY_FILE= 0,
-  RLI_REPOSITORY_TABLE= 1
+  RLI_REPOSITORY_FILE= 0
 };
 extern ulong opt_rli_repository_id;
-
-#define MI_FIELD_ID 0
-
-#define MI_SCHEMA "mysql"
-#define MI_TABLE  "slave_master_info"
-
-#define RLI_FIELD_ID 0
-
-#define RLI_SCHEMA "mysql"
-#define RLI_TABLE  "slave_relay_log_info"
 
 class Rpl_info_factory
 {
