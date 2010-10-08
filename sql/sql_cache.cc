@@ -372,6 +372,17 @@ TODO list:
   __LINE__,(ulong)(B)));B->query()->unlock_reading();}
 #define DUMP(C) DBUG_EXECUTE("qcache", {\
   (C)->cache_dump(); (C)->queries_dump();(C)->tables_dump();})
+#else
+#define RW_WLOCK(M) mysql_rwlock_wrlock(M)
+#define RW_RLOCK(M) mysql_rwlock_rdlock(M)
+#define RW_UNLOCK(M) mysql_rwlock_unlock(M)
+#define BLOCK_LOCK_WR(B) B->query()->lock_writing()
+#define BLOCK_LOCK_RD(B) B->query()->lock_reading()
+#define BLOCK_UNLOCK_WR(B) B->query()->unlock_writing()
+#define BLOCK_UNLOCK_RD(B) B->query()->unlock_reading()
+#define DUMP(C)
+#endif
+
 
 /**
   Thread state to be used when the query cache lock needs to be acquired.
@@ -400,16 +411,6 @@ struct Query_cache_wait_state
   }
 };
 
-#else
-#define RW_WLOCK(M) mysql_rwlock_wrlock(M)
-#define RW_RLOCK(M) mysql_rwlock_rdlock(M)
-#define RW_UNLOCK(M) mysql_rwlock_unlock(M)
-#define BLOCK_LOCK_WR(B) B->query()->lock_writing()
-#define BLOCK_LOCK_RD(B) B->query()->lock_reading()
-#define BLOCK_UNLOCK_WR(B) B->query()->unlock_writing()
-#define BLOCK_UNLOCK_RD(B) B->query()->unlock_reading()
-#define DUMP(C)
-#endif
 
 /**
   Serialize access to the query cache.
