@@ -43,7 +43,7 @@ typedef enum {
 	IBUF_OP_DELETE = 2,
 
 	/* Number of different operation types. */
-	IBUF_OP_COUNT = 3,
+	IBUF_OP_COUNT = 3
 } ibuf_op_t;
 
 /** Combinations of operations that can be buffered.  Because the enum
