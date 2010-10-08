@@ -211,6 +211,11 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
   }
   table->field[9]->set_notnull();
 
+  table->field[10]->store(
+    global_plugin_typelib_names[plugin_load_option(plugin)],
+    strlen(global_plugin_typelib_names[plugin_load_option(plugin)]),
+    cs);
+
   return schema_table_store_record(thd, table);
 }
 
@@ -7214,6 +7219,7 @@ ST_FIELD_INFO plugin_fields_info[]=
   {"PLUGIN_AUTHOR", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"PLUGIN_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"PLUGIN_LICENSE", 80, MYSQL_TYPE_STRING, 0, 1, "License", SKIP_OPEN_TABLE},
+  {"LOAD_OPTION", 64, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
