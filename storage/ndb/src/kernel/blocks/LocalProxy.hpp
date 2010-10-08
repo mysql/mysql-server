@@ -94,7 +94,7 @@ protected:
 
   // convert between worker index and worker instance
 
-  Uint32 workerInstance(Uint32 i) {
+  Uint32 workerInstance(Uint32 i) const {
     ndbrequire(i < c_workers);
     Uint32 ino;
     if (i < c_lqhWorkers)
@@ -104,7 +104,7 @@ protected:
     return ino;
   }
 
-  Uint32 workerIndex(Uint32 ino) {
+  Uint32 workerIndex(Uint32 ino) const {
     ndbrequire(ino != 0);
     Uint32 i;
     if (ino != 1 + MaxLqhWorkers)

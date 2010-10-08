@@ -1050,10 +1050,13 @@ LocalProxy::find_next(Ndbinfo::ScanCursor* cursor) const
   ndbrequire(node == getOwnNodeId());
   ndbrequire(block == number());
 
-  if (instance++ < c_workers)
+
+  Uint32 worker = (instance > 0) ? workerIndex(instance) + 1 : 0;
+
+  if (worker < c_workers)
   {
     jam();
-    cursor->currRef = switchRef(block, instance, node);
+    cursor->currRef = switchRef(block, workerInstance(worker), node);
     return true;
   }
 
