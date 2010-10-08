@@ -1391,8 +1391,17 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   DBUG_ENTER("Relay_log_info::read_info");
 
   /*
-    @todo Uncomment the following assertion. See todo in
-    Relay_log_info::init() for details. /Sven
+    Should not read RLI from file in client threads. Client threads
+    only use RLI to execute BINLOG statements.
+
+    @todo Uncomment the following assertion. Currently,
+    Relay_log_info::init() is called from init_master_info() before
+    the THD object Relay_log_info::sql_thd is created. That means we
+    cannot call belongs_to_client() since belongs_to_client()
+    dereferences Relay_log_info::sql_thd. So we need to refactor
+    slightly: the THD object should be created by Relay_log_info
+    constructor (or passed to it), so that we are guaranteed that it
+    exists at this point. /Sven
   */
   //DBUG_ASSERT(!belongs_to_client());
 
@@ -1462,7 +1471,7 @@ bool Relay_log_info::write_info(Rpl_info_handler *to, bool force)
 
   /*
     @todo Uncomment the following assertion. See todo in
-    Relay_log_info::init() for details. /Sven
+    Relay_log_info::read_info() for details. /Sven
   */
   //DBUG_ASSERT(!belongs_to_client());
 
