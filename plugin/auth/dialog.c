@@ -1,15 +1,15 @@
 /*  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
-    
+
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
     published by the Free Software Foundation; version 2 of the
     License.
-    
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
@@ -181,7 +181,7 @@ mysql_declare_plugin_end;
   To support all this variety, the dialog plugin has a callback function
   "authentication_dialog_ask". If the client has a function of this name
   dialog plugin will use it for communication with the user. Otherwise
-  a default gets() based implementation will be used.
+  a default fgets() based implementation will be used.
 */
 
 /**
@@ -208,12 +208,15 @@ static mysql_authentication_dialog_ask_t ask;
 static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          int type __attribute__((unused)),
                          const char *prompt,
-                         char *buf, int buf_len __attribute__((unused)))
+                         char *buf, int buf_len)
 {
+  char *ptr;
   fputs(prompt, stdout);
   fputc(' ', stdout);
-  if (gets(buf) == 0)
-    return 0;
+  if (fgets(buf, buf_len, stdin) == NULL)
+    return NULL;
+  if ((ptr= strchr(buf, '\n')))
+    *ptr= 0;
 
   return buf;
 }
