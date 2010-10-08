@@ -13586,18 +13586,6 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
   return (*join_tab->next_select)(join, join_tab+1, 0);
 }
 
-#ifdef MERGE_JUNK
-//psergey3-merge: remove:
-    int err= 0;
-         (err= join_tab->cache.select->skip_record(join->thd)) != 0 ))
-        return NESTED_LOOP_ERROR;
-      rc= NESTED_LOOP_OK;
-	if (!select || (err= select->skip_record(join->thd)) != 0)
-          if (err < 0)
-            return NESTED_LOOP_ERROR;
-      
-    rc= NESTED_LOOP_OK;
-#endif
 /*****************************************************************************
   The different ways to read a record
   Returns -1 if row was not found, 0 if row was found and 1 on errors
