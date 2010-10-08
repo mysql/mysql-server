@@ -3202,6 +3202,11 @@ static int init_common_variables()
     return 1;
   set_server_version();
 
+#ifndef EMBEDDED_LIBRARY
+  if (opt_help && !opt_verbose)
+    unireg_abort(0);
+#endif /*!EMBEDDED_LIBRARY*/
+
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
