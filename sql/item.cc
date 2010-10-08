@@ -1783,8 +1783,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  arena= thd->is_stmt_prepare() ? thd->activate_stmt_arena_if_needed(&backup)
-                                : NULL;
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
