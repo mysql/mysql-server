@@ -14,8 +14,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SUBDIRS = include src tools . swig @ndb_opt_subdirs@
-DIST_SUBDIRS = src tools include test docs swig
+SUBDIRS = include src tools . @ndb_opt_subdirs@
+DIST_SUBDIRS = src tools include test docs
 EXTRA_DIST = config ndbapi-examples plug.in
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 
