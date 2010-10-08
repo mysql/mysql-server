@@ -73,33 +73,49 @@ class CrundNdbApiOperations
 // But for now, having all in one class is good enough.
 
 public:
-    // the benchmark's metadata shortcuts
+
+    CrundNdbApiOperations()
+        : model(NULL), mgmd(NULL), ndb(NULL), tx(NULL) {
+    }
+
+    ~CrundNdbApiOperations() {
+        assert(model == NULL);
+        assert(mgmd == NULL); assert(ndb == NULL); assert(tx == NULL);
+    }
+
+    // NDB Api metadata resources
     const CrundModel* model;
 
-//protected:
-    // singleton object representing the NDB cluster (one per process)
+protected:
+
+    // NDB API resources
     Ndb_cluster_connection* mgmd;
-
-    // object representing a connection to an NDB database
     Ndb* ndb;
-
-    // object representing an NDB database transaction
     NdbTransaction* tx;
+    NdbOperation::LockMode ndbOpLockMode;
+
+    // NDB Api data resources
+    // XXX not used yet, see TwsDriver
+    //char* bb;
+    //char* bb_pos;
+    //NdbRecAttr** ra;
+    //NdbRecAttr** ra_pos;
+
+private:
+
+    CrundNdbApiOperations(const CrundNdbApiOperations&);
+    CrundNdbApiOperations& operator=(const CrundNdbApiOperations&);
 
 public:
+
     void init(const char* mgmd_conn_str);
 
     void close();
 
-    void initConnection(const char* catalog, const char* schema);
+    void initConnection(const char* catalog, const char* schema,
+                        NdbOperation::LockMode defaultLockMode);
 
     void closeConnection();
-
-    void beginTransaction();
-
-    void commitTransaction();
-
-    void rollbackTransaction();
 
     void clearData();
 
@@ -152,10 +168,15 @@ public:
                    bool batch);
 
 protected:
-    // executes the operations in the current transaction
-    void executeOperations();
 
-    // closes the current transaction
+    // XXX not used yet, see TwsDriver
+    //void ndbapiBeginTransaction();
+    //void ndbapiExecuteTransaction();
+    //void ndbapiCommitTransaction();
+    //void ndbapiCloseTransaction();
+    void beginTransaction();
+    void executeOperations();
+    void commitTransaction();
     void closeTransaction();
 
     void setVar(const NdbDictionary::Table* table, int attr_cvar,
@@ -163,6 +184,10 @@ protected:
 
     void getVar(const NdbDictionary::Table* table, int attr_cvar,
                 int from, int to, bool batch, const char* str);
+
+    // XXX not used yet, see TwsDriver
+    //static void ndbapiToBuffer1blp(void* to, const char* from, size_t width);
+    //static void ndbapiToString1blp(char* to, const void* from, size_t width);
 };
 
 #endif // CrundNdbApiOperations_hpp

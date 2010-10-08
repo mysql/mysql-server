@@ -73,7 +73,8 @@ JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbApiLoad_initConnection(JNIEnv* env,
                                                        jobject obj,
                                                        jstring catalog_jstr,
-                                                       jstring schema_jstr)
+                                                       jstring schema_jstr,
+                                                       jint defaultLockMode)
 {
     TRACE("initConnection()");
     assert (catalog_jstr);
@@ -82,8 +83,9 @@ Java_com_mysql_cluster_crund_NdbApiLoad_initConnection(JNIEnv* env,
     // get native strings from the Java strings
     const char* catalog_cstr = env->GetStringUTFChars(catalog_jstr, NULL);
     const char* schema_cstr = env->GetStringUTFChars(schema_jstr, NULL);
+    NdbOperation::LockMode dlm = (NdbOperation::LockMode)defaultLockMode;
 
-    ops->initConnection(catalog_cstr, schema_cstr);
+    ops->initConnection(catalog_cstr, schema_cstr, dlm);
 
     // release the native and Java strings
     env->ReleaseStringUTFChars(schema_jstr, schema_cstr);
@@ -104,30 +106,6 @@ Java_com_mysql_cluster_crund_NdbApiLoad_clearData(JNIEnv* env,
 {
     TRACE("clearData()");
     ops->clearData();
-}
-
-JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_beginTransaction(JNIEnv* env,
-                                                         jobject obj)
-{
-    TRACE("beginTransaction()");
-    ops->beginTransaction();
-}
-
-JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_commitTransaction(JNIEnv* env,
-                                                          jobject obj)
-{
-    TRACE("commitTransaction()");
-    ops->commitTransaction();
-}
-
-JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_rollbackTransaction(JNIEnv* env,
-                                                            jobject obj)
-{
-    TRACE("rollbackTransaction()");
-    ops->rollbackTransaction();
 }
 
 JNIEXPORT void JNICALL

@@ -104,10 +104,22 @@ NdbApiDriver::initProperties() {
     ostringstream msg;
 
     mgmdConnect = toString(props[L"ndb.mgmdConnect"]);
-    catalog = toString(props[L"ndb.catalog"]);
-    schema = toString(props[L"ndb.schema"]);
+    if (mgmdConnect.empty()) {
+        mgmdConnect = string("localhost");
+    }
 
-    if (msg.tellp() == 0) {
+    catalog = toString(props[L"ndb.catalog"]);
+    if (catalog.empty()) {
+        catalog = string("crunddb");
+    }
+
+    schema = toString(props[L"ndb.schema"]);
+    if (schema.empty()) {
+        schema = string("def");
+    }
+
+    //if (msg.tellp() == 0) {
+    if (msg.str().empty()) {
         cout << "      [ok]" << endl;
     } else {
         cout << endl << msg.str() << endl;
@@ -119,7 +131,7 @@ NdbApiDriver::initProperties() {
 void
 NdbApiDriver::printProperties() {
     CrundDriver::printProperties();
-    
+
     const ios_base::fmtflags f = cout.flags();
     // no effect calling manipulator function, not sure why
     //cout << ios_base::boolalpha;
@@ -133,15 +145,7 @@ NdbApiDriver::printProperties() {
     cout.flags(f);
 }
 
-void
-NdbApiDriver::initConnection() {
-    ops->initConnection(catalog.c_str(), schema.c_str());
-}
-
-void
-NdbApiDriver::closeConnection() {
-    ops->closeConnection();
-}
+//---------------------------------------------------------------------------
 
 void
 NdbApiDriver::initOperations() {
@@ -377,9 +381,37 @@ NdbApiDriver::closeOperations() {
     cout << "          [ok]" << endl;
 }
 
+//---------------------------------------------------------------------------
+
+void
+NdbApiDriver::initConnection() {
+    NdbOperation::LockMode ndbOpLockMode;
+    switch (lockMode) {
+    case READ_COMMITTED:
+        ndbOpLockMode = NdbOperation::LM_CommittedRead;
+        break;
+    case SHARED:
+        ndbOpLockMode = NdbOperation::LM_Read;
+        break;
+    case EXCLUSIVE:
+        ndbOpLockMode = NdbOperation::LM_Exclusive;
+        break;
+    default:
+        ndbOpLockMode = NdbOperation::LM_CommittedRead;
+        assert(false);
+    }
+
+    ops->initConnection(catalog.c_str(), schema.c_str(), ndbOpLockMode);
+}
+
+void
+NdbApiDriver::closeConnection() {
+    ops->closeConnection();
+}
+
 void
 NdbApiDriver::clearPersistenceContext() {
-    // XXX not implemented yet
+    assert(false); // XXX not implemented yet
 }
 
 void

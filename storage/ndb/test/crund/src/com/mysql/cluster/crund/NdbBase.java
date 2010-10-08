@@ -47,11 +47,11 @@ abstract public class NdbBase extends CrundDriver {
         assert mgmdConnect != null;
 
         // the database
-        catalog = props.getProperty("ndb.catalog", "");
+        catalog = props.getProperty("ndb.catalog", "crunddb");
         assert catalog != null;
 
         // the schema
-        schema = props.getProperty("ndb.schema", "");
+        schema = props.getProperty("ndb.schema", "def");
         assert schema != null;
 
         if (msg.length() == 0) {

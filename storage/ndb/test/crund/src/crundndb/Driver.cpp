@@ -100,13 +100,13 @@ Driver::parseArguments(int argc, const char* argv[])
         // get time, convert to timeinfo (statically allocated) then to string
         const time_t now = time(0);
         const int nchars = strftime(dest, size, format, localtime(&now));
-        assert (nchars == size-1);
+        assert(nchars == size-1);
         (void)nchars;
 
         logFileName += dest;
         logFileName += ".txt";
-        //cout << "logFileName='" << logFileName << "'" << endl;
     }
+    //cout << "logFileName='" << logFileName << "'" << endl;
 }
 
 // ----------------------------------------------------------------------
@@ -115,39 +115,38 @@ void
 Driver::run() {
     init();
 
-    // warmup runs
-    for (int i = 0; i < warmupRuns; i++) {
-        runTests();
+    if (warmupRuns > 0) {
+        cout << endl
+             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
+             << "warmup runs ..." << endl
+             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+
+        for (int i = 0; i < warmupRuns; i++) {
+            runTests();
+        }
+
+        // truncate log file, reset log buffers
+        closeLogFile();
+        openLogFile();
+        header.rdbuf()->str("");
+        rtimes.rdbuf()->str("");
+        logHeader = true;
     }
 
-    // truncate log file, reset log buffers
-    cout << endl
-         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
-         << "start logging results ..." << endl
-         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
-         << endl;
-    header.rdbuf()->str("");
-    rtimes.rdbuf()->str("");
-    closeLogFile();
-    openLogFile();
+    if (hotRuns > 0) {
+        cout << endl
+             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
+             << "hot runs ..." << endl
+             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
 
-    // hot runs
-    for (int i = 0; i < hotRuns; i++) {
-        runTests();
-    }
+        for (int i = 0; i < hotRuns; i++) {
+            runTests();
+        }
 
-    // write log buffers
-    if (logRealTime) {
-        // doesn't work: ostream << ostringstream->rdbuf()
+        // write log buffers
         log << descr << ", rtime[ms]"
             << header.rdbuf()->str() << endl
             << rtimes.rdbuf()->str() << endl << endl << endl;
-    }
-    if (logCpuTime) {
-        // doesn't work: ostream << ostringstream->rdbuf()
-        log << descr << ", ctime[ms]"
-            << header.rdbuf()->str() << endl
-            << ctimes.rdbuf()->str() << endl << endl << endl;
     }
 
     close();
@@ -182,8 +181,7 @@ Driver::loadProperties() {
          i != propFileNames.end(); ++i) {
         cout << "reading properties file:        " << *i << endl;
         props.load(i->c_str());
-        props.load(i->c_str());
-        //wcout << props << endl;
+        //cout << "props = {" << endl << props << "}" << endl;
     }
 }
 
@@ -211,7 +209,8 @@ Driver::initProperties() {
         hotRuns = 1;
     }
 
-    if (msg.tellp() == 0) {
+    //if (msg.tellp() == 0) // netbeans reports amibuities
+    if (msg.str().empty()) {
         cout << "   [ok]" << endl;
     } else {
         cout << endl << msg.str() << endl;
@@ -238,17 +237,18 @@ Driver::printProperties() {
 void
 Driver::openLogFile() {
     cout << endl
-         << "writing results to file:        " << logFileName << endl;
-    //log.open(logFileName.c_str());
+         << "opening results file:" << flush;
     log.open(logFileName.c_str(), ios_base::out | ios_base::trunc);
-    assert (log.good());
+    assert(log.good());
+    cout << "           [ok: " << logFileName << "]" << endl;
 }
 
 void
 Driver::closeLogFile() {
-    cout << "closing files ..." << flush;
+    cout << endl
+         << "closing results file:" << flush;
     log.close();
-    cout << "               [ok]" << endl;
+    cout << "           [ok: " << logFileName << "]" << endl;
 }
 
 // ----------------------------------------------------------------------

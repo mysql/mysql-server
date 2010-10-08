@@ -51,7 +51,7 @@ for ((i=3; i>=0; i--)) ; do
 
   echo
   echo "load tws schema..."
-  "$MYSQL_BIN/mysql" -v < ../tws_benchmark/schema.sql
+  "$MYSQL_BIN/mysql" -v < ../tws/schema.sql
   s=$?
   echo "mysql exit status: $s"
 

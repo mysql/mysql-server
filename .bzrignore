@@ -3134,10 +3134,12 @@ storage/ndb/test/crund/scripts/ndblog
 storage/ndb/test/crund/scripts/results
 storage/ndb/test/crund/src/crundndb/NdbApiDriver
 storage/ndb/test/crund/src/crundndb/com_mysql_cluster_crund_NdbApiLoad.h
-storage/ndb/test/crund/tws_benchmark/build/
-storage/ndb/test/crund/tws_benchmark/nbproject/configs/
-storage/ndb/test/crund/tws_benchmark/nbproject/private/
-storage/ndb/test/crund/tws_benchmark/run.properties
+storage/ndb/test/crund/tws/tws_java/build/
+storage/ndb/test/crund/tws/tws_java/nbproject/configs/
+storage/ndb/test/crund/tws/tws_java/nbproject/private/
+storage/ndb/test/crund/tws/tws_java/run.properties
+storage/ndb/test/crund/tws/*.properties
+storage/ndb/test/crund/tws/tws_cpp/TwsDriver
 
 libmysqld/examples/mysqltest.cc
 libmysqld/debug_sync.cc

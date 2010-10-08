@@ -45,14 +45,29 @@ using utils::toString;
 void
 CrundDriver::initProperties() {
     Driver::initProperties();
-    
+
     cout << "setting crund properties ..." << flush;
 
     ostringstream msg;
 
     renewOperations = toBool(props[L"renewOperations"], false);
+
+    string lm = toString(props[L"lockMode"]);
+    if (lm.empty()) {
+        lockMode = READ_COMMITTED;
+    } else if (lm.compare("READ_COMMITTED") == 0) {
+        lockMode = READ_COMMITTED;
+    } else if (lm.compare("SHARED") == 0) {
+        lockMode = SHARED;
+    } else if (lm.compare("EXCLUSIVE") == 0) {
+        lockMode = EXCLUSIVE;
+    } else {
+        msg << "[ignored] lockMode:         '" << lm << "'" << endl;
+        lockMode = READ_COMMITTED;
+    }
+
     logSumOfOps = toBool(props[L"logSumOfOps"], true);
-    //logSumOfOps = toBool(props[L"allowExtendedPC"], false); // not used
+    //allowExtendedPC = toBool(props[L"allowExtendedPC"], false); // not used
 
     aStart = toInt(props[L"aStart"], 256, 0);
     if (aStart < 1) {
@@ -150,7 +165,7 @@ CrundDriver::initProperties() {
 void
 CrundDriver::printProperties() {
     Driver::printProperties();
-    
+
     const ios_base::fmtflags f = cout.flags();
     // no effect calling manipulator function, not sure why
     //cout << ios_base::boolalpha;
@@ -158,6 +173,7 @@ CrundDriver::printProperties() {
 
     cout << endl << "crund settings ..." << endl;
     cout << "renewOperations:                " << renewOperations << endl;
+    cout << "lockMode:                       " << toStr(lockMode) << endl;
     cout << "logSumOfOps:                    " << logSumOfOps << endl;
     //cout << "allowExtendedPC:                " << allowExtendedPC << endl;
     cout << "aStart:                         " << aStart << endl;
@@ -186,21 +202,21 @@ CrundDriver::runTests() {
     assert(bStart <= bEnd && bScale > 1);
     for (int i = aStart; i <= aEnd; i *= aScale) {
         for (int j = bStart; j <= bEnd; j *= bScale) {
-            runOperations(i, j);
+            runLoads(i, j);
         }
     }
 
     cout << endl
          << "------------------------------------------------------------" << endl
          << endl;
-
+    
     clearData();
     closeOperations();
     closeConnection();
 }
 
 void
-CrundDriver::runOperations(int countA, int countB) {
+CrundDriver::runLoads(int countA, int countB) {
     cout << endl
          << "------------------------------------------------------------" << endl;
 
@@ -234,21 +250,7 @@ CrundDriver::runOperations(int countA, int countB) {
     }
     clearData();
 
-    // run operations
-    for (Operations::const_iterator i = operations.begin();
-         i != operations.end(); ++i) {
-        // no need for pre-tx cleanup with NDBAPI-based loads
-        //if (!allowExtendedPC) {
-        //    // effectively prevent caching beyond Tx scope by clearing
-        //    // any data/result caches before the next transaction
-        //    clearPersistenceContext();
-        //}
-        runOp(**i, countA, countB);
-    }
-    if (logHeader) {
-        if (logSumOfOps)
-            header << "\ttotal";
-    }
+    runOperations(countA, countB);
 
     if (logSumOfOps) {
         cout << endl
@@ -264,7 +266,12 @@ CrundDriver::runOperations(int countA, int countB) {
     }
 
     // log buffers
-    logHeader = false;
+    if (logHeader) {
+        if (logSumOfOps) {
+            header << "\ttotal";
+        }
+        logHeader = false;
+    }
     if (logRealTime) {
         if (logSumOfOps) {
             rtimes << "\t" << rta;
@@ -280,6 +287,20 @@ CrundDriver::runOperations(int countA, int countB) {
 }
 
 void
+CrundDriver::runOperations(int countA, int countB) {
+    for (Operations::const_iterator i = operations.begin();
+         i != operations.end(); ++i) {
+        // no need for pre-tx cleanup with NDBAPI-based loads
+        //if (!allowExtendedPC) {
+        //    // effectively prevent caching beyond Tx scope by clearing
+        //    // any data/result caches before the next transaction
+        //    clearPersistenceContext();
+        //}
+        runOp(**i, countA, countB);
+    }
+}
+
+void
 CrundDriver::runOp(const Op& op, int countA, int countB) {
     const string& name = op.name;
     if (exclude.find(name) == exclude.end()) {
@@ -287,6 +308,36 @@ CrundDriver::runOp(const Op& op, int countA, int countB) {
         op.run(countA, countB);
         commit(name);
     }
+}
+
+const char*
+CrundDriver::toStr(XMode mode) {
+    switch (mode) {
+    case SINGLE:
+        return "single";
+    case BULK:
+        return "bulk";
+    case BATCH:
+        return "batch";
+    default:
+        assert(false);
+        return "<invalid value>";
+    };
+}
+
+const char*
+CrundDriver::toStr(LockMode mode) {
+    switch (mode) {
+    case SINGLE:
+        return "read_committed";
+    case SHARED:
+        return "shared";
+    case EXCLUSIVE:
+        return "exclusive";
+    default:
+        assert(false);
+        return "<invalid value>";
+    };
 }
 
 //---------------------------------------------------------------------------
