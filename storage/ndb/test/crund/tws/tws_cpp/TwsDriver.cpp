@@ -232,7 +232,7 @@ public:
         : mgmd(NULL), ndb(NULL), tx(NULL), model(NULL), bb(NULL), ra(NULL) {
     }
 
-    ~NdbApiTwsDriver() {
+    virtual ~NdbApiTwsDriver() {
         assert(mgmd == NULL); assert(ndb == NULL); assert(tx == NULL);
         assert(model == NULL); assert(bb == NULL); assert(ra == NULL);
     }
@@ -241,7 +241,7 @@ private:
 
     NdbApiTwsDriver(const NdbApiTwsDriver&);
     NdbApiTwsDriver& operator=(const NdbApiTwsDriver&);
-    
+
 protected:
 
     // NDB API settings
@@ -257,7 +257,7 @@ protected:
 
     // NDB Api metadata resources
     NdbApiTwsModel* model;
-    
+
     // NDB Api data resources
     char* bb;
     char* bb_pos;
@@ -286,7 +286,6 @@ protected:
     void ndbapiBeginTransaction();
     void ndbapiExecuteTransaction();
     void ndbapiCommitTransaction();
-    void ndbapiRollbackTransaction();
     void ndbapiCloseTransaction();
     static void ndbapiToBuffer1blp(void* to, const char* from, size_t width);
     static void ndbapiToString1blp(char* to, const void* from, size_t width);
@@ -410,6 +409,7 @@ Driver::run() {
         openLogFile();
         header.rdbuf()->str("");
         rtimes.rdbuf()->str("");
+        logHeader = true;
     }
 
     if (hotRuns > 0) {
@@ -421,7 +421,7 @@ Driver::run() {
         for (int i = 0; i < hotRuns; i++) {
             runTests();
         }
-    
+
         // write log buffers
         log << descr << ", rtime[ms]"
             << header.rdbuf()->str() << endl
@@ -704,7 +704,7 @@ TwsDriver::toStr(XMode mode) {
         return "batch";
     default:
         assert(false);
-        return NULL;
+        return "<invalid value>";
     };
 }
 
@@ -712,14 +712,14 @@ const char*
 TwsDriver::toStr(LockMode mode) {
     switch (mode) {
     case SINGLE:
-        return "READ_COMMITTED";
-    case BULK:
-        return "bulk";
-    case BATCH:
-        return "batch";
+        return "read_committed";
+    case SHARED:
+        return "shared";
+    case EXCLUSIVE:
+        return "exclusive";
     default:
         assert(false);
-        return NULL;
+        return "<invalid value>";
     };
 }
 
@@ -1226,7 +1226,7 @@ NdbApiTwsDriver::ndbapiRead(int c0) {
     verify(c0, i1);
     bb_pos += model->width_c2;
     ra_pos++;
- 
+
     memcpy(&i1, bb_pos, model->width_c3);
     verify(c0, i1);
     bb_pos += model->width_c3;
@@ -1462,7 +1462,7 @@ NdbApiTwsDriver::ndbapiCommitTransaction() {
 void
 NdbApiTwsDriver::ndbapiCloseTransaction() {
     assert(tx != NULL);
-        
+
     // close the current transaction
     // to be called irrespectively of success or failure
     ndb->closeTransaction(tx);
@@ -1481,10 +1481,10 @@ NdbApiTwsDriver::initConnection() {
     cout << endl;
 
     // instantiate NDB cluster singleton
-    cout << "creating cluster conn ..." << flush;
+    cout << "creating cluster connection ..." << flush;
     assert(!mgmdConnect.empty());
     mgmd = new Ndb_cluster_connection(mgmdConnect.c_str());
-    cout << "       [ok]" << endl; // no useful mgmd->string conversion
+    cout << " [ok]" << endl; // no useful mgmd->string conversion
 
     // connect to cluster management node (ndb_mgmd)
     cout << "connecting to mgmd ..." << flush;
@@ -1498,24 +1498,24 @@ NdbApiTwsDriver::initConnection() {
     cout << "          [ok: " << mgmdConnect << "]" << endl;
 
     // optionally, connect and wait for reaching the data nodes (ndbds)
-    cout << "waiting for data nodes..." << flush;
+    cout << "waiting for data nodes ..." << flush;
     const int initial_wait = 10; // seconds to wait until first node detected
     const int final_wait = 0;    // seconds to wait after first node detected
     // returns: 0 all nodes live, > 0 at least one node live, < 0 error
     if (mgmd->wait_until_ready(initial_wait, final_wait) < 0)
         ABORT_ERROR("data nodes were not ready within "
                      << (initial_wait + final_wait) << "s.");
-    cout << "       [ok]" << endl;
+    cout << "      [ok]" << endl;
 
     // connect to database
-    cout << "connecting to database..." << flush;
+    cout << "connecting to database ..." << flush;
     ndb = new Ndb(mgmd, catalog.c_str(), schema.c_str());
     const int max_no_tx = 10; // maximum number of parallel tx (<=1024)
     // note each scan or index scan operation uses one extra transaction
     //if (ndb->init() != 0)
     if (ndb->init(max_no_tx) != 0)
         ABORT_NDB_ERROR(ndb->getNdbError());
-    cout << "       [ok: " + catalog + "." + schema + "]" << endl;
+    cout << "      [ok: " << catalog << "." << schema << "]" << endl;
 
     cout << "caching metadata ..." << flush;
     model = new NdbApiTwsModel(ndb);

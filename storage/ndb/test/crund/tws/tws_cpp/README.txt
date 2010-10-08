@@ -1,12 +1,12 @@
 
-How to Build and Run the NDB API TWS Benchmark
-----------------------------------------------
+How to Build and Run the C++ TWS Benchmark
+------------------------------------------
 
-This benchmark is built with
+This benchmark is being built with
 -> Gnu 'make' (using generic, hand-coded Makefiles)
 -> Gnu g++    (or Solaris Studio CC as compilers)
 
-0)  Configure external dependencies
+0)  Configure external dependencies paths
 
     Edit the file
         ../../env.properties
