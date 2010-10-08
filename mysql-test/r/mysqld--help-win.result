@@ -65,6 +65,17 @@ The following options may be given as the first argument:
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
  size if possible. The value has to be a multiple of 256.
+ --binlog-row-image=name 
+ Controls whether rows should be logged in 'FULL',
+ 'NOBLOB' or 'MINIMAL' formats. 'FULL', means that all
+ columns in the before and after image are logged.
+ 'NOBLOB', means that mysqld avoids logging blob columns
+ whenever possible (eg, blob column was not changed or is
+ not part of primary key). 'MINIMAL', means that a PK
+ equivalent (PK columns or full row if there is no PK in
+ the table) is logged in the before image, and only
+ changed columns are logged in the after image. (Default:
+ FULL).
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
  --bootstrap         Used by mysql installation scripts.
@@ -738,6 +749,7 @@ binlog-cache-size 32768
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
+binlog-row-image FULL
 binlog-rows-query-log-events FALSE
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
