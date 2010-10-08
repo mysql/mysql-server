@@ -17,6 +17,7 @@
 #define RPL_INFO_H
 
 #include "sql_priv.h"
+#include "sql_class.h"
 #include "rpl_info_handler.h"
 #include "rpl_reporting.h"
 

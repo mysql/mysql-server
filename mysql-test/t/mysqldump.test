@@ -1422,7 +1422,7 @@ insert into u1 values (4);
 create view v1 (c1) as select * from t1;
 
 # Backup should not fail for Bug#21527. Flush priviliges test begins.
---exec $MYSQL_DUMP --skip-comments --add-drop-table --flush-privileges --ignore-table=mysql.general_log --ignore-table=mysql.slow_log --ignore-table=mysql.mi_info --ignore-table=mysql.rli_info --databases mysqldump_myDB mysql > $MYSQLTEST_VARDIR/tmp/bug21527.sql
+--exec $MYSQL_DUMP --skip-comments --add-drop-table --flush-privileges --ignore-table=mysql.general_log --ignore-table=mysql.slow_log --databases mysqldump_myDB mysql > $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Clean up
 connection root;
