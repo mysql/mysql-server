@@ -198,14 +198,15 @@
   </target>
 
   <!-- deletes also log files -->
-  <target name="clobber" depends="clean">
+  <target name="clobber" depends="mostlyclean"/>
+  <target name="mostlyclean" depends="clean">
     <delete includeEmptyDirs="true" quiet="true" >
       <fileset dir="${basedir}" includes="log_*"/>
     </delete>
   </target>
 
   <!-- deletes also database files -->
-  <target name="distclean" depends="clobber">
+  <target name="distclean" depends="mostlyclean">
     <delete verbose="true">
       <fileset dir="${src.java}" includes="**/*~" defaultexcludes="no"/>
     </delete>

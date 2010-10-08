@@ -2,7 +2,7 @@
 
   SRC		= ./src
 
-.PHONY:	all help dep dbg opt prf clean clobber distclean check
+.PHONY:	all help dep dbg opt prf clean mostlclean clobber distclean check
 all:	dbg
 
 help:
@@ -16,7 +16,7 @@ help:
 	@echo "distclean	-- delete also database and server log files"
 	@echo "check		-- perform self-tests (if any)"
 
-dep dbg opt prf clean mostlyclean check:
+dep dbg opt prf clean mostlyclean clobber check:
 	ant $@
 	@cd $(SRC)/crundndb && $(MAKE) $(MFLAGS) $@
 

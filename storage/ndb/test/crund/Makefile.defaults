@@ -144,7 +144,9 @@
 
 # Default Targets Section:
 
-.PHONY:	dep depend dbg opt prf clean mostlyclean distclean check
+.PHONY:	dep depend dbg opt prf clean mostlyclean clobber distclean check
+
+help:
 
 dep depend:
 	@set -e; \
@@ -180,7 +182,7 @@ clean:
 
 # library-archiving removes .o files with empty .depend file,
 # so, better delete it only as part of mostlyclean
-mostlyclean:	clean
+mostlyclean clobber:	clean
 	rm -rf $(MOSTLYCLEAN) .depend
 
 distclean:	mostlyclean

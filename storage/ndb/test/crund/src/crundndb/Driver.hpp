@@ -51,13 +51,18 @@ public:
     Driver() {}
 
     /**
+     * Deletes an instance.
+     */
+    virtual ~Driver() {}
+
+    /**
      * Runs the benchmark.
      */
     void run();
 
 protected:
 
-    // driver command-line arguments
+    // command-line arguments
     static vector< string > propFileNames;
     static string logFileName;
 

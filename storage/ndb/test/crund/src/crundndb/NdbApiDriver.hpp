@@ -32,6 +32,14 @@ using std::string;
 typedef const NdbDictionary::Table* NdbTable;
 
 class NdbApiDriver : public CrundDriver {
+public:
+
+    // the generated features are OK
+    //NdbApiDriver() {}
+    //virtual ~NdbApsDriver() {}
+    //NdbApiDriver(const NdbApiDriver&) {}
+    //NdbApiDriver& operator=(const NdbApiDriver&) {}
+
 protected:
 
     // NDB API resources
@@ -47,12 +55,6 @@ protected:
     virtual void printProperties();
     virtual void init();
     virtual void close();
-    virtual void initConnection();
-    virtual void closeConnection();
-    virtual void initOperations();
-    virtual void closeOperations();
-    virtual void clearPersistenceContext();
-    virtual void clearData();
 
     // NDB API operations
     template< bool feat > void initOperationsFeat();
@@ -80,6 +82,14 @@ protected:
               void (CrundNdbApiOperations::*)(int,int,bool),
               bool >
     struct RelOp;
+    virtual void initOperations();
+    virtual void closeOperations();
+
+    // NDB API datastore operations
+    virtual void initConnection();
+    virtual void closeConnection();
+    virtual void clearPersistenceContext();
+    virtual void clearData();
 };
 
 #endif // Driver_hpp

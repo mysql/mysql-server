@@ -332,9 +332,15 @@ public class NdbApiLoad extends NdbBase {
     // NDB API datastore operations
     // ----------------------------------------------------------------------
 
-    protected native void initConnection(String catalog, String schema);
+    protected native void initConnection(String catalog,
+                                         String schema,
+                                         int defaultLockMode);
     protected void initConnection() {
-        initConnection(catalog, schema);
+        // XXX add lockMode property to CrundDriver, switch then here
+        final int LM_Read = 0;
+        final int LM_Exclusive = 1;
+        final int LM_CommittedRead = 2;
+        initConnection(catalog, schema, LM_CommittedRead);
     }
     protected native void closeConnection();
     protected native void clearData();

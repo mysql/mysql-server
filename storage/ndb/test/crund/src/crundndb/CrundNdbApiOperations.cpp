@@ -21,6 +21,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <string>
 #include <cstring>
 #include <cassert>
 
@@ -36,6 +37,7 @@
 using std::cout;
 using std::flush;
 using std::endl;
+using std::string;
 using std::vector;
 
 // JNI crashes with gcc & operator<<(ostream &, long/int)
@@ -172,7 +174,8 @@ CrundModel::init(Ndb* ndb)
 void
 CrundNdbApiOperations::init(const char* mgmd_conn_str)
 {
-    assert (mgmd_conn_str);
+    assert(mgmd == NULL);
+    assert(mgmd_conn_str);
 
     // ndb_init must be called first
     cout << endl
@@ -183,9 +186,10 @@ CrundNdbApiOperations::init(const char* mgmd_conn_str)
     cout << "         [ok]" << endl;
 
     // instantiate NDB cluster singleton
-    cout << "creating cluster conn ..." << flush;
+    cout << "creating cluster connection ..." << flush;
+    assert(mgmd_conn_str);
     mgmd = new Ndb_cluster_connection(mgmd_conn_str);
-    cout << "       [ok]" << endl; // no useful mgmd->string conversion
+    cout << " [ok]" << endl; // no useful mgmd->string conversion
 
     // connect to cluster management node (ndb_mgmd)
     cout << "connecting to mgmd ..." << flush;
@@ -202,10 +206,12 @@ CrundNdbApiOperations::init(const char* mgmd_conn_str)
 void
 CrundNdbApiOperations::close()
 {
-    cout << "closing mgmd conn ..." << flush;
+    assert(mgmd != NULL);
+
+    cout << "closing cluster connection ..." << flush;
     delete mgmd;
     mgmd = NULL;
-    cout << "           [ok]" << endl;
+    cout << "  [ok]" << endl;
 
     // ndb_close must be called last
     cout << "closing NDBAPI ...   " << flush;
@@ -214,49 +220,86 @@ CrundNdbApiOperations::close()
 }
 
 void
-CrundNdbApiOperations::initConnection(const char* catalog, const char* schema)
+CrundNdbApiOperations::initConnection(const char* catalog, const char* schema,
+                                      NdbOperation::LockMode defaultLockMode)
 {
+    assert(mgmd != NULL);
+    assert(ndb == NULL);
+    assert(tx == NULL);
+    assert(model == NULL);
+
     // optionally, connect and wait for reaching the data nodes (ndbds)
-    cout << "waiting for data nodes..." << flush;
+    cout << "waiting for data nodes ..." << flush;
     const int initial_wait = 10; // seconds to wait until first node detected
     const int final_wait = 0;    // seconds to wait after first node detected
     // returns: 0 all nodes live, > 0 at least one node live, < 0 error
     if (mgmd->wait_until_ready(initial_wait, final_wait) < 0)
         ABORT_ERROR("data nodes were not ready within "
                      << (initial_wait + final_wait) << "s.");
-    cout << "       [ok]" << endl;
+    cout << "      [ok]" << endl;
 
     // connect to database
-    cout << "connecting to database..." << flush;
+    cout << "connecting to database ..." << flush;
     ndb = new Ndb(mgmd, catalog, schema);
     const int max_no_tx = 10; // maximum number of parallel tx (<=1024)
     // note each scan or index scan operation uses one extra transaction
     //if (ndb->init() != 0)
     if (ndb->init(max_no_tx) != 0)
         ABORT_NDB_ERROR(ndb->getNdbError());
-    cout << "       [ok]" << endl;
+    cout << "      [ok: " << catalog << "." << schema << "]" << endl;
 
-    // initialize the schema shortcuts
+    cout << "caching metadata ..." << flush;
     CrundModel* m = new CrundModel();
     m->init(ndb);
     model = m;
+    cout << "            [ok]" << endl;
+
+    cout << "using lock mode for reads ..." << flush;
+    ndbOpLockMode = defaultLockMode;
+    string lm;
+    switch (defaultLockMode) {
+    case NdbOperation::LM_CommittedRead:
+        lm = "LM_CommittedRead";
+        break;
+    case NdbOperation::LM_Read:
+        lm = "LM_Read";
+        break;
+    case NdbOperation::LM_Exclusive:
+        lm = "LM_Exclusive";
+        break;
+    default:
+        ndbOpLockMode = NdbOperation::LM_CommittedRead;
+        lm = "LM_CommittedRead";
+        assert(false);
+    }
+    cout << "   [ok: " + lm + "]" << endl;
 }
 
 void
 CrundNdbApiOperations::closeConnection()
 {
-    cout << "closing database conn ..." << flush;
+    assert(mgmd != NULL);
+    assert(ndb != NULL);
+    assert(tx == NULL);
+    assert(model != NULL);
+
+    cout << "clearing metadata cache ..." << flush;
     delete model;
     model = NULL;
+    cout << "     [ok]" << endl;
+
+    cout << "closing database connection ..." << flush;
     // no ndb->close();
     delete ndb;
     ndb = NULL;
-    cout << "       [ok]" << endl;
+    cout << " [ok]" << endl;
 }
 
 void
 CrundNdbApiOperations::beginTransaction()
 {
+    assert(tx == NULL);
+
     // start a transaction
     // must be closed with Ndb::closeTransaction or NdbTransaction::close
     if ((tx = ndb->startTransaction()) == NULL)
@@ -266,6 +309,8 @@ CrundNdbApiOperations::beginTransaction()
 void
 CrundNdbApiOperations::executeOperations()
 {
+    assert(tx != NULL);
+
     // execute but don't commit the current transaction
     if (tx->execute(NdbTransaction::NoCommit) != 0
         || tx->getNdbError().status != NdbError::Success)
@@ -275,6 +320,8 @@ CrundNdbApiOperations::executeOperations()
 void
 CrundNdbApiOperations::commitTransaction()
 {
+    assert(tx != NULL);
+
     // commit the current transaction
     if (tx->execute(NdbTransaction::Commit) != 0
         || tx->getNdbError().status != NdbError::Success)
@@ -282,17 +329,10 @@ CrundNdbApiOperations::commitTransaction()
 }
 
 void
-CrundNdbApiOperations::rollbackTransaction()
-{
-    // abort the current transaction
-    if (tx->execute(NdbTransaction::Rollback) != 0
-        || tx->getNdbError().status != NdbError::Success)
-        ABORT_NDB_ERROR(tx->getNdbError());
-}
-
-void
 CrundNdbApiOperations::closeTransaction()
 {
+    assert(tx != NULL);
+
     // close the current transaction
     // to be called irrespectively of success or failure
     ndb->closeTransaction(tx);
@@ -357,7 +397,7 @@ selectString(int length)
     case 100: return astring100;
     case 1000: return astring1000;
     default:
-        assert (false);
+        assert(false);
         return "";
     }
 }
@@ -416,11 +456,6 @@ CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
     const int batch_ = 0;
     if (op->readTuples(lock_mode, scan_flags, parallel, batch_) != 0)
         ABORT_NDB_ERROR(tx->getNdbError());
-
-    // define a read scan with exclusive locks
-    // XXX deprecated: readTuplesExclusive(int parallell = 0);
-    //if (op->readTuplesExclusive() != 0)
-    //    ABORT_NDB_ERROR(tx->getNdbError());
 
     // start the scan; don't commit yet
     executeOperations();
@@ -501,7 +536,7 @@ CrundNdbApiOperations::setByPK(const NdbDictionary::Table* table,
 {
     beginTransaction();
     for (int i = from; i <= to; i++) {
-        // get an insert operation for the table
+        // get an update operation for the table
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
@@ -545,7 +580,7 @@ CrundNdbApiOperations::getByPK_bb(const NdbDictionary::Table* table,
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
@@ -625,7 +660,7 @@ CrundNdbApiOperations::getByPK_ar(const NdbDictionary::Table* table,
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
@@ -711,7 +746,7 @@ CrundNdbApiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
         // XXX assumes column declared as VARBINARY/CHAR(<255)
         size_t sbuf = 1 + slen;
         // XXX buffer overflow if slen >255!!!
-        assert (slen < 255);
+        assert(slen < 255);
         buf = new char[sbuf];
         buf[0] = (char)slen;
         memcpy(buf + 1, str, slen);
@@ -722,7 +757,7 @@ CrundNdbApiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
 
     beginTransaction();
     for (int i = from; i <= to; i++) {
-        // get an insert operation for the table
+        // get an update operation for the table
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
@@ -753,7 +788,7 @@ CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
                    int from, int to,
                    bool batch, const char* str)
 {
-    assert (str);
+    assert(str);
 
     // allocate attributes holder
     const int count = (to - from) + 1;
@@ -775,7 +810,7 @@ CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
@@ -792,7 +827,7 @@ CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
     }
     commitTransaction();
     closeTransaction();
-    assert (s == buf + sbuf);
+    assert(s == buf + sbuf);
 
     // copy (move) the strings to make them aligned and 0-terminated
     s = buf;
@@ -812,7 +847,7 @@ CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
         // check fetched values
         VERIFY(strcmp(s, str) == 0);
     }
-    assert (s == buf + sbuf);
+    assert(s == buf + sbuf);
 
     // release attributes holder
     delete[] buf;
@@ -895,7 +930,7 @@ CrundNdbApiOperations::navB0ToA(int count_A, int count_B,
             NdbOperation* op = tx->getNdbOperation(model->table_B0);
             if (op == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+            if (op->readTuple(ndbOpLockMode) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // set key attribute
@@ -914,11 +949,11 @@ CrundNdbApiOperations::navB0ToA(int count_A, int count_B,
             NdbOperation* op = tx->getNdbOperation(model->table_A);
             if (op == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+            if (op->readTuple(ndbOpLockMode) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // set key attribute
-            assert (a_id == ((i - 1) % count_A) + 1);
+            assert(a_id == ((i - 1) % count_A) + 1);
             if (op->equal(model->attr_id, a_id) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -973,7 +1008,7 @@ CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
         NdbOperation* op = tx->getNdbOperation(model->table_B0);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
@@ -1001,11 +1036,11 @@ CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
         NdbOperation* op = tx->getNdbOperation(model->table_A);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        assert (*pa_id == ((i - 1) % count_A) + 1);
+        assert(*pa_id == ((i - 1) % count_A) + 1);
         if (op->equal(model->attr_id, (Int32)*pa_id) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -1067,8 +1102,7 @@ CrundNdbApiOperations::navAToB0(int count_A, int count_B,
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // define a read scan without locks (LM_CommittedRead)
-        if (op->readTuples(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuples(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // define the scan's bounds (more efficient than using a scan filter)
@@ -1102,7 +1136,7 @@ CrundNdbApiOperations::navAToB0(int count_A, int count_B,
         int stat;
         const bool allowFetch = true; // request new batches when exhausted
         while ((stat = op->nextResult(allowFetch, forceSend)) == 0) {
-            assert (ab <= pab && pab < ab + count_B);
+            assert(ab <= pab && pab < ab + count_B);
             *pab++ = h;
         }
         if (stat != 1)
@@ -1113,7 +1147,7 @@ CrundNdbApiOperations::navAToB0(int count_A, int count_B,
     commitTransaction();
     closeTransaction();
     //CDBG << "!!! pab - ab =" << toString(pab-ab) << endl;
-    assert (pab == ab + count_B);
+    assert(pab == ab + count_B);
 
     // check fetched values
     // XXX this is not the most efficient way of testing...
@@ -1158,8 +1192,7 @@ CrundNdbApiOperations::navAToB0alt(int count_A, int count_B,
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // XXX ? no locks (LM_CommittedRead) or shared locks (LM_Read)
-            // define a read scan without locks
-            if (op[i]->readTuples(NdbOperation::LM_CommittedRead) != 0)
+            if (op[i]->readTuples(ndbOpLockMode) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // define the scan's bounds (more efficient than using a scan filter)
@@ -1197,7 +1230,7 @@ CrundNdbApiOperations::navAToB0alt(int count_A, int count_B,
             int stat;
             const bool allowFetch = true; // request new batches when exhausted
             while ((stat = op[i]->nextResult(allowFetch, forceSend)) == 0) {
-                assert (ab <= pab && pab < ab + count_B);
+                assert(ab <= pab && pab < ab + count_B);
                 *pab++ = h;
             }
             if (stat != 1)
@@ -1212,8 +1245,8 @@ CrundNdbApiOperations::navAToB0alt(int count_A, int count_B,
     commitTransaction();
     closeTransaction();
     //CDBG << "!!! pab - ab =" << toString(pab-ab) << endl;
-    assert (a_id == count_A + 1);
-    assert (pab == ab + count_B);
+    assert(a_id == count_A + 1);
+    assert(pab == ab + count_B);
 
     // check fetched values
     // XXX this is not the most efficient way of testing...

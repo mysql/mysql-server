@@ -275,10 +275,6 @@ abstract public class CrundDriver extends Driver {
             }
             runOp(op, countA, countB);
         }
-        if (logHeader) {
-            if (logSumOfOps)
-                header.append("\ttotal");
-        }
 
         if (logSumOfOps) {
             out.println();
@@ -295,7 +291,12 @@ abstract public class CrundDriver extends Driver {
         }
 
         // log buffers
-        logHeader = false;
+        if (logHeader) {
+            if (logSumOfOps) {
+                header.append("\ttotal");
+            }
+            logHeader = false;
+        }
         if (logRealTime) {
             rtimes.append(endl);
             if (logSumOfOps) {

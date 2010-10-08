@@ -37,7 +37,12 @@ class CrundDriver : public Driver {
 protected:
 
     // benchmark settings
+    enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
+    static const char* toStr(LockMode mode);
+    enum XMode { SINGLE, BULK, BATCH }; // XXX not used yet
+    static const char* toStr(XMode mode); // XXX not used yet
     bool renewOperations;
+    LockMode lockMode;
     bool logSumOfOps;
     //bool allowExtendedPC; // not used
     int aStart;
@@ -56,7 +61,7 @@ protected:
     virtual void initProperties();
     virtual void printProperties();
 
-    // a database operation to be benchmarked
+    // measured units of work
     struct Op {
         const string name;
 
@@ -66,8 +71,6 @@ protected:
 
         virtual ~Op() {}
     };
-
-    // the list of database operations to be benchmarked
     typedef vector< const Op* > Operations;
     Operations operations;
 
@@ -75,11 +78,9 @@ protected:
     virtual void initOperations() = 0;
     virtual void closeOperations() = 0;
     virtual void runTests();
+    virtual void runLoads(int countA, int countB);
     virtual void runOperations(int countA, int countB);
     virtual void runOp(const Op& op, int countA, int countB);
-
-    // reports an error if a condition is not met // XXX not covered yet
-    //static void verify(bool cond);
 };
 
 #endif // CrundDriver_hpp

@@ -23,8 +23,11 @@ using std::map;
 using std::wstring;
 using std::ios_base;
 using std::istream;
+//using std::wistream;
 using std::ostream;
+//using std::wostream;
 using std::streambuf;
+//using std::wstreambuf;
 
 /**
  * The Properties class is a specialized map container that stores
@@ -66,22 +69,22 @@ class Properties : public map<wstring, wstring>
 {
 public:
     /**
-     * Reads properties from the file and adds them to this
+     * Reads properties from the character file and adds them to this
      * property table.
      */
     void load(const char* filename)
         throw (ios_base::failure);
 
     /**
-     * Reads properties from the input stream and adds them to this
-     * property table.
+     * Reads properties from the character input stream and adds them
+     * to this property table.
      */
     void load(istream& is)
         throw (ios_base::failure);
 
     /**
-     * Reads properties from the input byte buffer and adds them to this
-     * property table.
+     * Reads properties from the character buffer and adds them
+     * to this property table.
      *
      * The line-oriented format is the same as used by Java Properties.
      * The byte stream is read under the ISO 8859-1 character encoding,
@@ -92,19 +95,39 @@ public:
         throw (ios_base::failure);
 
     /**
-     * Writes this property table to the file.
+     * Reads properties from the wide character input stream and adds them
+     * to this property table.
+     */
+    // not implemented yet
+    //void load(wistream& is)
+    //    throw (ios_base::failure);
+
+    /**
+     * Reads properties from the wide character buffer and adds them
+     * to this property table.
+     *
+     * The byte stream is read under the UTF-32/UCS-4 character encoding,
+     * and characters of the key and value strings are not parsed as an
+     * escape sequence.
+     */
+    // not implemented yet
+    //void load(wstreambuf& ib)
+    //    throw (ios_base::failure);
+
+    /**
+     * Writes this property table to the character file.
      */
     void store(const char* filename, const wstring* header = NULL) const
         throw (ios_base::failure);
 
     /**
-     * Writes this property table to the output stream.
+     * Writes this property table to the character output stream.
      */
     void store(ostream& os, const wstring* header = NULL) const
         throw (ios_base::failure);
 
     /**
-     * Writes this property table to the output byte buffer.
+     * Writes this property table to the character buffer.
      *
      * The format is suitable for reading the properties using the load
      * function.  The stream is written using the ISO 8859-1 character
@@ -117,6 +140,29 @@ public:
      */
     void store(streambuf& ob, const wstring* header = NULL) const
         throw (ios_base::failure);
+
+    /**
+     * Writes this property table to the wide character output stream.
+     */
+    // not implemented yet
+    //void store(wostream& os, const wstring* header = NULL) const
+    //    throw (ios_base::failure);
+
+    /**
+     * Writes this property table to the wide character buffer.
+     *
+     * The format is suitable for reading the properties using the load
+     * function.  The stream is written using the UTF-32/UCS-4 character
+     * encoding, and characters of the key and value strings are not
+     * rendered as an escape sequence.
+     *
+     * If the header argument is not null, then an ASCII # character, the
+     * header string, and a line separator are first written to the output
+     * stream. Thus, the header can serve as an identifying comment.
+     */
+    // not implemented yet
+    //void store(wstreambuf& ob, const wstring* header = NULL) const
+    //    throw (ios_base::failure);
 
 protected:
     static bool isWS(int c);
@@ -146,12 +192,33 @@ operator>>(istream& s, Properties& p)
     return s;
 }
 
+/*
+// not implemented yet
+inline wistream&
+operator>>(wistream& s, Properties& p)
+{
+    p.load(s);
+    return s;
+}
+*/
+
 inline ostream&
 operator<<(ostream& s, const Properties& p)
 {
     p.store(s);
     return s;
 }
+
+/*
+// not implemented yet
+inline wostream&
+operator<<(wostream& s, const Properties& p)
+{
+    p.store(s);
+    return s;
+}
+*/
+
 
 // ---------------------------------------------------------------------------
 // Properties Implementation
