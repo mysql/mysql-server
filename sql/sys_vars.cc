@@ -2014,15 +2014,6 @@ static Sys_var_ulong Sys_thread_cache_size(
        GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
-#if HAVE_POOL_OF_THREADS == 1
-static Sys_var_ulong Sys_thread_pool_size(
-       "thread_pool_size",
-       "How many threads we should create to handle query requests in "
-       "case of 'thread_handling=pool-of-threads'",
-       GLOBAL_VAR(thread_pool_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 16384), DEFAULT(20), BLOCK_SIZE(0));
-#endif
-
 /**
   Can't change the 'next' tx_isolation if we are already in a
   transaction.
