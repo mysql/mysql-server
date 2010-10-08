@@ -385,6 +385,22 @@ TODO list:
 
 
 /**
+  Macro that executes the requested action at a synchronization point
+  only if the thread has a associated THD session.
+*/
+#if defined(ENABLED_DEBUG_SYNC)
+#define QC_DEBUG_SYNC(name)               \
+  do {                                    \
+    THD *thd= current_thd;                \
+    if (thd)                              \
+      DEBUG_SYNC(thd, name);              \
+  } while (0)
+#else
+#define QC_DEBUG_SYNC(name)
+#endif
+
+
+/**
   Thread state to be used when the query cache lock needs to be acquired.
   Sets the thread state name in the constructor, resets on destructor.
 */
@@ -879,7 +895,7 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
   if (is_disabled() || query_cache_tls->first_query_block == NULL)
     DBUG_VOID_RETURN;
 
-  DEBUG_SYNC(current_thd, "wait_in_query_cache_insert");
+  QC_DEBUG_SYNC("wait_in_query_cache_insert");
 
   if (try_lock())
     DBUG_VOID_RETURN;
@@ -1975,7 +1991,7 @@ void Query_cache::flush()
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  DEBUG_SYNC(current_thd, "wait_in_query_cache_flush1");
+  QC_DEBUG_SYNC("wait_in_query_cache_flush1");
 
   lock_and_suspend();
   if (query_cache_size > 0)
@@ -2315,7 +2331,7 @@ void Query_cache::free_cache()
 
 void Query_cache::flush_cache()
 {
-  DEBUG_SYNC(current_thd, "wait_in_query_cache_flush2");
+  QC_DEBUG_SYNC("wait_in_query_cache_flush2");
 
   my_hash_reset(&queries);
   while (queries_blocks != 0)
