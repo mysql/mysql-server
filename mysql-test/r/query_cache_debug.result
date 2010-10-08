@@ -123,16 +123,20 @@ SET DEBUG_SYNC="now WAIT_FOR parked1_1";
 ** On THD2: Insert a result into the cache. This attempt will be blocked
 ** because of a debug hook placed just before the mutex lock after which
 ** the first part of the result set is written.
-SET DEBUG_SYNC="wait_in_query_cache_insert SIGNAL parked2 WAIT_FOR go2";
+SET DEBUG_SYNC="wait_in_query_cache_insert SIGNAL parked2 WAIT_FOR go2 EXECUTE 1";
 SELECT SQL_CACHE * FROM t2 UNION SELECT * FROM t3;
+=================================== Connection default
+** Assert that the SELECT-stmt thread reaches the sync point.
+SET DEBUG_SYNC="now WAIT_FOR parked2";
+**
+**
 =================================== Connection thd3
 ** On THD3: Insert another result into the cache and block on the same
 ** debug hook.
-SET DEBUG_SYNC="wait_in_query_cache_insert SIGNAL parked3 WAIT_FOR go3";
-SELECT SQL_CACHE * FROM t4 UNION SELECT * FROM t5;;
+SET DEBUG_SYNC="wait_in_query_cache_insert SIGNAL parked3 WAIT_FOR go3 EXECUTE 1";
+SELECT SQL_CACHE * FROM t4 UNION SELECT * FROM t5;
 =================================== Connection default
-** Assert that the two SELECT-stmt threads to reach the hook.
-SET DEBUG_SYNC="now WAIT_FOR parked2";
+** Assert that the SELECT-stmt thread reaches the sync point.
 SET DEBUG_SYNC="now WAIT_FOR parked3";
 **
 **
