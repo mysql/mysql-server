@@ -581,6 +581,11 @@ protected:
 
 #ifdef DBUG_OFF 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
+/*
+TODO: Materialization is off by default to mimic 5.1/5.2 behavior.
+Once cost based choice between materialization and in-to-exists should be
+enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
+*/
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
@@ -588,7 +593,6 @@ protected:
                                     OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
                                     OPTIMIZER_SWITCH_FIRSTMATCH | \
                                     OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
                                     OPTIMIZER_SWITCH_IN_TO_EXISTS | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
@@ -603,7 +607,6 @@ protected:
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
                                     OPTIMIZER_SWITCH_FIRSTMATCH | \
                                     OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
                                     OPTIMIZER_SWITCH_IN_TO_EXISTS | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\

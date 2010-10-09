@@ -3643,15 +3643,15 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     JOIN *outer_join= unit->outer_select() ? unit->outer_select()->join : NULL;
     JOIN *inner_join= this;
     /* Cost of the outer JOIN. */
-    double outer_read_time= 0, outer_record_count= 0;
+    double outer_read_time, outer_record_count;
     /* Cost of the unmodified subquery. */
-    double inner_read_time_1= 0, inner_record_count_1= 0;
+    double inner_read_time_1, inner_record_count_1;
     /* Cost of the subquery with injected IN-EXISTS predicates. */
-    double inner_read_time_2= 0, inner_record_count_2= 0;
+    double inner_read_time_2, inner_record_count_2;
     /* The cost to compute IN via materialization. */
-    double materialize_strategy_cost= 0;
+    double materialize_strategy_cost;
     /* The cost of the IN->EXISTS strategy. */
-    double in_exists_strategy_cost= 1;
+    double in_exists_strategy_cost;
 
     if (outer_join)
       get_partial_join_cost(outer_join, outer_join->tables,
@@ -3688,6 +3688,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     {
       /* Reoptimization would not produce any better plan. */
       inner_read_time_2= inner_read_time_1;
+      inner_record_count_2= inner_record_count_1;
     }
 
     /* Compute execution costs. */

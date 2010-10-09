@@ -412,11 +412,11 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_condition_pushdown=on,"
                                         "firstmatch=on,"
                                         "loosescan=on,"
-                                        "materialization=on,"
+                                        "materialization=off,"
                                         "in_to_exists=on,"
                                         "semijoin=on,"
                                         "partial_match_rowid_merge=on,"
-  "partial_match_table_scan=on,"
+                                        "partial_match_table_scan=on,"
                                         "subquery_cache=on"
 #ifndef DBUG_OFF
                                         ",table_elimination=on";

@@ -1,0 +1,191 @@
+drop table if exists t1, t2, t3, t1i, t2i, t3i;
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8), b2 char(8));
+create table t3 (c1 char(8), c2 char(8));
+Unindexed tables
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t1 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 03', '2 - 03');
+insert into t3 values ('1 - 01', '2 - 01');
+insert into t3 values ('1 - 02', '2 - 02');
+insert into t3 values ('1 - 03', '2 - 03');
+insert into t3 values ('1 - 04', '2 - 04');
+Indexed tables
+create table t1i (a1 char(8), a2 char(8));
+create table t2i (b1 char(8), b2 char(8));
+create table t3i (c1 char(8), c2 char(8));
+create index it1i1 on t1i (a1);
+create index it1i2 on t1i (a2);
+create index it1i3 on t1i (a1, a2);
+create index it2i1 on t2i (b1);
+create index it2i2 on t2i (b2);
+create index it2i3 on t2i (b1, b2);
+create index it3i1 on t3i (c1);
+create index it3i2 on t3i (c2);
+create index it3i3 on t3i (c1, c2);
+insert into t1i select * from t1;
+insert into t2i select * from t2;
+insert into t3i select * from t3;
+
+1. Both materialization and in-to-exists are possible to execute
+
+set @@optimizer_switch='materialization=on,in_to_exists=on';
+
+1.1 In-to-exists is cheaper
+set @@optimizer_switch='semijoin=off';
+explain extended
+select * from t1 where a1 in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(select `test`.`t2`.`b1` from `test`.`t2` where ((`test`.`t2`.`b1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`))))
+select * from t1 where a1 in (select b1 from t2 where b1 > '0');
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where ((`test`.`t2`.`b1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`))))
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0');
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+set @@optimizer_switch='semijoin=on';
+explain extended
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(select `test`.`t2`.`b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1` having (<cache>(`test`.`t1`.`a1`) = <ref_null_helper>(`test`.`t2`.`b1`))))
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1`,`test`.`t2`.`b2` having (((<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) or isnull(`test`.`t2`.`b1`)) and ((<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`) or isnull(`test`.`t2`.`b2`)) and <is_not_null_test>(`test`.`t2`.`b1`) and <is_not_null_test>(`test`.`t2`.`b2`))))
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1`,`test`.`t2`.`b2` having ((`test`.`t2`.`b2` < '2 - 04') and ((<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) or isnull(`test`.`t2`.`b1`)) and ((<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`) or isnull(`test`.`t2`.`b2`)) and <is_not_null_test>(`test`.`t2`.`b1`) and <is_not_null_test>(`test`.`t2`.`b2`))))
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+
+1.2 Materialization is cheaper
+1.2.1 Materialization is executable
+insert into t1 values ('1 - 03', '2 - 03');
+insert into t1 values ('1 - 04', '2 - 04');
+insert into t1 values ('1 - 05', '2 - 05');
+set @@optimizer_switch='semijoin=off';
+explain extended
+select * from t1 where a1 in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (select `test`.`t2`.`b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`)))))
+select * from t1 where a1 in (select b1 from t2 where b1 > '0');
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`)))))
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0');
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+set @@optimizer_switch='semijoin=on';
+explain extended
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (select `test`.`t2`.`b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`)))))
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1`,`test`.`t2`.`b2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`)))))
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1`,`test`.`t2`.`b2` having (`test`.`t2`.`b2` < '2 - 04') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`)))))
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+delete from t1 where a1 >= '1 - 03';
+1.2.2 Materialization is NOT executable, revert to in-to-exists
+
+2. Materialization is OFF, in-to-exists is ON
+
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+
+3. Materialization is ON, in-to-exists is OFF
+
+set @@optimizer_switch='materialization=on,in_to_exists=off';
+3.1 Materialization is executable
+3.2 Materialization is NOT executable, revert to in-to-exists
+
+4. Edge cases
+
+4.0 Both materialization and in_to_exists cannot be off
+set @@optimizer_switch='materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+4.1 Outer query with no tables
+4.2 Subquery with no tables
+4.3 optimize_cond detects FALSE where/having clause
+4.4 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const
+4.4 make_join_select detects impossible WHERE
+4.5 constant optimization detects "no matching row in const table"
+5. UPDATE/DELETE with subqueries
+drop table t1, t2, t3, t1i, t2i, t3i;

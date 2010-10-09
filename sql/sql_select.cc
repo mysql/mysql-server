@@ -1308,7 +1308,6 @@ JOIN::optimize()
   if (!(select_options & SELECT_DESCRIBE))
     init_ftfuncs(thd, select_lex, test(order));
 
-  /* Create all structures needed for materialized subquery execution. */
   if (optimize_unflattened_subqueries())
     DBUG_RETURN(1);
   
@@ -1411,8 +1410,6 @@ setup_subq_exit:
   /*
     Even with zero matching rows, subqueries in the HAVING clause may
     need to be evaluated if there are aggregate functions in the query.
-    If we planned to materialize the subquery, we need to set it up
-    properly before prematurely leaving optimize().
   */
   if (optimize_unflattened_subqueries())
     DBUG_RETURN(1);
