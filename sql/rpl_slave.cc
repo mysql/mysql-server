@@ -2787,9 +2787,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           else
           {
             exec_res= 0;
-            trans_rollback(thd);
-            close_thread_tables(thd);
-            thd->mdl_context.release_transactional_locks();
+            rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                        (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
@@ -3647,6 +3645,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     request is detected only by the present function, not by events), so we
     must "proactively" clear playgrounds:
   */
+  thd->clear_error();
   rli->cleanup_context(thd, 1);
   /*
     Some extra safety, which should not been needed (normally, event deletion
