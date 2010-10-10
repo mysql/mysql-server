@@ -220,7 +220,7 @@ public:
 
 
 class Item_cache;
-#define UNKNOWN ((my_bool)-1)
+#define UNKNOWN (-1)
 
 
 /*
@@ -250,7 +250,7 @@ protected:
       FALSE   - result is FALSE
       TRUE    - result is NULL
   */
-  my_bool result_for_null_param;
+  int result_for_null_param;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
     Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0), expr_cache(0),
@@ -671,7 +671,7 @@ struct interval_range
 class Item_func_interval :public Item_int_func
 {
   Item_row *row;
-  my_bool use_decimal_comparison;
+  bool use_decimal_comparison;
   interval_range *intervals;
 public:
   Item_func_interval(Item_row *a)
@@ -879,7 +879,7 @@ public:
   void value_to_item(uint pos, Item *item)
   {
     ((Item_int*) item)->value= ((packed_longlong*) base)[pos].val;
-    ((Item_int*) item)->unsigned_flag= (my_bool)
+    ((Item_int*) item)->unsigned_flag= (bool)
       ((packed_longlong*) base)[pos].unsigned_flag;
   }
   Item_result result_type() { return INT_RESULT; }
@@ -1327,8 +1327,8 @@ public:
     else
     {
       args[0]->update_used_tables();
-      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables())) &&
-          !with_subselect)
+      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
+          !with_subselect))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();

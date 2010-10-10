@@ -26,12 +26,16 @@ if ($mms_copy)
 if ($mms_reverse_copy)
 {
   # do not call this without flushing target table first!
+  --disable_warnings
   --echo * copied $mms_tname$mms_table_to_use back for $mms_purpose
   -- error 0,1
   remove_file $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAD;
+  --enable_warnings
   copy_file $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAD $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAD;
+  --disable_warnings
   -- error 0,1
   remove_file $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAI;
+  --enable_warnings
   copy_file $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAI $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAI;
 }
 

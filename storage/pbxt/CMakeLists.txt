@@ -22,6 +22,8 @@
 #
 # This file is used to make the Windows version
 
+INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMYSQL_SERVER")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DMYSQL_SERVER")
 
@@ -101,3 +103,4 @@ src/xt_defs.h
 src/xt_errno.h)
 
 MYSQL_STORAGE_ENGINE(PBXT)
+

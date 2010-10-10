@@ -5,7 +5,7 @@
 --source include/have_debug.inc
 --source include/have_maria.inc
 
-set global maria_log_file_size=4294967295;
+set global aria_log_file_size=4294967295;
 let $MARIA_LOG=../../tmp;
 
 --disable_warnings
@@ -28,7 +28,7 @@ let $mms_tables=1;
 let $mvr_restore_old_snapshot=0;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 
 -- source include/maria_empty_logs.inc
 
@@ -39,7 +39,7 @@ let $mvr_restore_old_snapshot=0;
 # UNDO phase prevents physical comparison, normally,
 # so we'll only use checksums to compare.
 let $mms_compare_physically=0;
-create table t1(a int primary key) engine=maria;
+create table t1(a int primary key) engine=aria;
 insert into t1 values(1);
 -- source include/maria_make_snapshot_for_comparison.inc
 set session debug="+d,maria_sleep_in_commit";
@@ -49,7 +49,7 @@ sleep 1;
 # but not yet called trnman_commit(), so for checkpoint it's not
 # committed.
 connection admin;
-set global maria_checkpoint_interval=1000; # force a checkpoint
+set global aria_checkpoint_interval=1000; # force a checkpoint
 connection default;
 reap; # end of INSERT
 delete from t1 where a=2;
@@ -64,17 +64,17 @@ drop table t1;
 # before checkpoint happens, test should still pass (though it won't
 # reproduce the conditions of the bug).
 
-# Test for BUG#41493 Maria: two recovery failures (wrong logging of BLOB pages)
+# Test for BUG#41493 Aria: two recovery failures (wrong logging of BLOB pages)
 --echo * TEST of logging of BLOBs
 let $mvr_restore_old_snapshot=1;
 let $mms_compare_physically=1;
 CREATE TABLE `t1` (
 `blob` blob,
 `blob_key` blob
-) ENGINE=maria ROW_FORMAT=page
+) ENGINE=aria ROW_FORMAT=page
 ;
 -- source include/maria_make_snapshot_for_feeding_recovery.inc
-set global maria_checkpoint_interval=0; # no checkpoints
+set global aria_checkpoint_interval=0; # no checkpoints
 INSERT INTO `t1` VALUES (NULL,repeat('A',5198));
 INSERT INTO `t1` VALUES (NULL,repeat('B',65535));
 INSERT INTO `t1` VALUES (repeat('K',5198),repeat('L',2325));
@@ -88,14 +88,14 @@ check table t1 extended;
 -- source include/maria_verify_recovery.inc
 drop table t1;
 
-# Test for BUG#42112 "Maria: recovery failure (pushbuild2) Assertion
+# Test for BUG#42112 "Aria: recovery failure (pushbuild2) Assertion
 # `rownr == 0 && new_page' failed"
 
 let $mvr_restore_old_snapshot=0;
 let $mms_compare_physically=0;
-create table t1 engine=maria select 1;
+create table t1 engine=aria select 1;
 -- source include/maria_make_snapshot_for_feeding_recovery.inc
-set global maria_checkpoint_interval=0; # no checkpoints
+set global aria_checkpoint_interval=0; # no checkpoints
 insert into t1 values(2);
 truncate table t1;
 -- source include/maria_make_snapshot_for_comparison.inc

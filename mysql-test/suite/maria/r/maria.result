@@ -1,10 +1,10 @@
-select * from INFORMATION_SCHEMA.ENGINES where ENGINE="MARIA";
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
-MARIA	YES	Crash-safe tables with MyISAM heritage	YES	NO	NO
-set global storage_engine=maria;
-set session storage_engine=maria;
-set global maria_page_checksum=0;
-set global maria_log_file_size=4294967295;
+Aria	YES	Crash-safe tables with MyISAM heritage	YES	NO	NO
+set global storage_engine=aria;
+set session storage_engine=aria;
+set global aria_page_checksum=0;
+set global aria_log_file_size=4294967295;
 drop table if exists t1,t2;
 drop view if exists v1;
 SET SQL_WARNINGS=1;
@@ -702,9 +702,9 @@ checksum table t1;
 Table	Checksum
 test.t1	4183529555
 drop table t1;
-show variables like 'maria_stats_method';
+show variables like 'aria_stats_method';
 Variable_name	Value
-maria_stats_method	nulls_unequal
+aria_stats_method	nulls_unequal
 create table t1 (a int, key(a));
 insert into t1 values (0),(1),(2),(3),(4);
 insert into t1 select NULL from t1;
@@ -722,10 +722,10 @@ test.t1	check	status	OK
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE	
-set maria_stats_method=nulls_equal;
-show variables like 'maria_stats_method';
+set aria_stats_method=nulls_equal;
+show variables like 'aria_stats_method';
 Variable_name	Value
-maria_stats_method	nulls_equal
+aria_stats_method	nulls_equal
 insert into t1 values (11);
 delete from t1 where a=11;
 analyze table t1;
@@ -742,10 +742,10 @@ test.t1	check	status	OK
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE	
-set maria_stats_method=DEFAULT;
-show variables like 'maria_stats_method';
+set aria_stats_method=DEFAULT;
+show variables like 'aria_stats_method';
 Variable_name	Value
-maria_stats_method	nulls_unequal
+aria_stats_method	nulls_unequal
 insert into t1 values (11);
 delete from t1 where a=11;
 analyze table t1;
@@ -763,10 +763,10 @@ show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE	
 drop table t1;
-set maria_stats_method=nulls_ignored;
-show variables like 'maria_stats_method';
+set aria_stats_method=nulls_ignored;
+show variables like 'aria_stats_method';
 Variable_name	Value
-maria_stats_method	nulls_ignored
+aria_stats_method	nulls_ignored
 create table t1 (
 a char(3), b char(4), c char(5), d char(6),
 key(a,b,c,d)
@@ -794,7 +794,7 @@ t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE
 t1	1	a	2	b	A	0	NULL	NULL	YES	BTREE	
 t1	1	a	3	c	A	0	NULL	NULL	YES	BTREE	
 t1	1	a	4	d	A	0	NULL	NULL	YES	BTREE	
-set maria_stats_method=DEFAULT;
+set aria_stats_method=DEFAULT;
 drop table t1;
 create table t1(
 cip INT NOT NULL,
@@ -819,7 +819,7 @@ id2 int not null default '0',
 t text not null,
 primary key  (id1),
 key x (id2, t(32))
-) engine=maria;
+) engine=aria;
 insert into t1 (id2, t) values
 (10, 'abc'), (10, 'abc'), (10, 'abc'),
 (20, 'abc'), (20, 'abc'), (20, 'def'),
@@ -852,10 +852,10 @@ a	b
 xxxxxxxxx	bbbbbb
 xxxxxxxxx	bbbbbb
 DROP TABLE t1;
-SET @@maria_repair_threads=2;
-SHOW VARIABLES LIKE 'maria_repair%';
+SET @@aria_repair_threads=2;
+SHOW VARIABLES LIKE 'aria_repair%';
 Variable_name	Value
-maria_repair_threads	2
+aria_repair_threads	2
 CREATE TABLE t1 (
 `_id` int(11) NOT NULL default '0',
 `url` text,
@@ -897,7 +897,7 @@ _id
 DELETE FROM t1 WHERE _id < 8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	Aria	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -909,7 +909,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	Aria	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
 SELECT _id FROM t1;
 _id
 8
@@ -956,7 +956,7 @@ _id
 DELETE FROM t1 WHERE _id < 8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	Aria	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -968,16 +968,16 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	Aria	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
 SELECT _id FROM t1;
 _id
 8
 9
 DROP TABLE t1;
-SET @@maria_repair_threads=1;
-SHOW VARIABLES LIKE 'maria_repair%';
+SET @@aria_repair_threads=1;
+SHOW VARIABLES LIKE 'aria_repair%';
 Variable_name	Value
-maria_repair_threads	1
+aria_repair_threads	1
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
 --- Testing varchar ---
@@ -997,7 +997,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 create table t2 like t1;
 show create table t2;
 Table	Create Table
@@ -1005,7 +1005,7 @@ t2	CREATE TABLE `t2` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 create table t3 select * from t1;
 show create table t3;
 Table	Create Table
@@ -1013,7 +1013,7 @@ t3	CREATE TABLE `t3` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
@@ -1021,7 +1021,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
@@ -1029,7 +1029,7 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 alter table t1 modify t varchar(10);
 Warnings:
 Note	1265	Data truncated for column 't' at row 2
@@ -1039,7 +1039,7 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(10) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+*+*+ *
@@ -1055,7 +1055,7 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`),
   KEY `c` (`c`),
   KEY `t` (`t`(10))
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select count(*) from t1;
 count(*)
 270
@@ -1274,7 +1274,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select count(*) from t1 where v='a';
 count(*)
 10
@@ -1354,7 +1354,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`(30))
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select count(*) from t1 where v='a';
 count(*)
 10
@@ -1434,7 +1434,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1512,14 +1512,14 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
   KEY `t` (`t`(5))
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (v char(10) character set utf8);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` char(10) CHARACTER SET utf8 DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
 show create table t1;
@@ -1527,7 +1527,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED
 insert into t1 values('a','a'),('a ','a ');
 select concat('*',v,'*',c,'*') from t1;
 concat('*',v,'*',c,'*')
@@ -1560,7 +1560,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` mediumtext
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (v varchar(65530) character set utf8);
 Warnings:
@@ -1569,7 +1569,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` mediumtext CHARACTER SET utf8
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (v varchar(65535));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
@@ -1696,32 +1696,32 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE INDEX (c1), INDEX (c2));
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	0	#	#	#	8192	#	#	#	#	#	#	#		
+t1	Aria	10	Page	0	#	#	#	8192	#	#	#	#	#	#	#		
 INSERT INTO t1 VALUES (1,1);
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+t1	Aria	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
 ALTER TABLE t1 DISABLE KEYS;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+t1	Aria	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
 ALTER TABLE t1 ENABLE KEYS;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+t1	Aria	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
 ALTER TABLE t1 DISABLE KEYS;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+t1	Aria	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
 ALTER TABLE t1 ENABLE KEYS;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+t1	Aria	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
 # Enable keys with parallel repair
-SET @@maria_repair_threads=2;
+SET @@aria_repair_threads=2;
 ALTER TABLE t1 DISABLE KEYS;
 ALTER TABLE t1 ENABLE KEYS;
-SET @@maria_repair_threads=1;
+SET @@aria_repair_threads=1;
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1748,7 +1748,7 @@ id	ref
 3	2
 4	5
 DROP TABLE t1, t2;
-CREATE TABLE t1 (a INT) ENGINE=MARIA CHECKSUM=1 ROW_FORMAT=DYNAMIC;
+CREATE TABLE t1 (a INT) ENGINE=ARIA CHECKSUM=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES (0);
 UPDATE t1 SET a=1;
 SELECT a FROM t1;
@@ -1777,7 +1777,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=2048);
 show create table t1;
@@ -1785,7 +1785,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a));
 Warnings:
@@ -1795,7 +1795,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(1208))
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1024);
 Warnings:
@@ -1805,7 +1805,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(1208)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=1024;
 Warnings:
@@ -1817,7 +1817,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`(1208)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=1024
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=1024
 alter table t1 key_block_size=2048;
 show create table t1;
 Table	Create Table
@@ -1826,7 +1826,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`(1208)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=2048
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=2048
 alter table t1 add c int, add key (c);
 show create table t1;
 Table	Create Table
@@ -1837,7 +1837,7 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`(1208)) KEY_BLOCK_SIZE=8192,
   KEY `c` (`c`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=2048
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=2048
 alter table t1 key_block_size=0;
 alter table t1 add d int, add key (d);
 show create table t1;
@@ -1851,7 +1851,7 @@ t1	CREATE TABLE `t1` (
   KEY `b` (`b`(1208)) KEY_BLOCK_SIZE=8192,
   KEY `c` (`c`) KEY_BLOCK_SIZE=8192,
   KEY `d` (`d`)
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=8192;
 Warnings:
@@ -1863,7 +1863,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`(1208))
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=8192
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=8192
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a) key_block_size=1024, key(b)) key_block_size=8192;
 Warnings:
@@ -1875,7 +1875,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`(1208))
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=8192
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=8192
 drop table t1;
 create table t1 (a int not null, b int, key (a) key_block_size=1024, key(b) key_block_size=8192) key_block_size=16384;
 show create table t1;
@@ -1885,7 +1885,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=16384
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=16384
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=512);
 show create table t1;
@@ -1893,7 +1893,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
 Warnings:
@@ -1903,7 +1903,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(1208)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=1025);
 show create table t1;
@@ -1911,7 +1911,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
@@ -1965,7 +1965,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(130),
 c2 VARCHAR(1)
-) ENGINE=maria;
+) ENGINE=aria;
 INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -1986,7 +1986,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(130),
 c2 VARCHAR(1)
-) ENGINE=maria;
+) ENGINE=aria;
 INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -2007,7 +2007,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(130),
 c2 VARCHAR(1)
-) ENGINE=maria;
+) ENGINE=aria;
 INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
 INSERT INTO t1 VALUES('b', 'b');
 INSERT INTO t1 VALUES('c', 'b');
@@ -2026,13 +2026,13 @@ CREATE TABLE t1 (
 c1 CHAR(130),
 c2 VARCHAR(1),
 KEY (c1)
-) ENGINE=maria;
+) ENGINE=aria;
 # Insert 100 rows. Query log disabled.
 UPDATE t1 SET c1=REPEAT("a",128) LIMIT 90;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 100
-ALTER TABLE t1 ENGINE=maria;
+ALTER TABLE t1 ENGINE=aria;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 100
@@ -2046,7 +2046,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(50),
 c2 VARCHAR(1)
-) ENGINE=maria DEFAULT CHARSET UTF8;
+) ENGINE=aria DEFAULT CHARSET UTF8;
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -2067,7 +2067,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(50),
 c2 VARCHAR(1)
-) ENGINE=maria DEFAULT CHARSET UTF8;
+) ENGINE=aria DEFAULT CHARSET UTF8;
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -2088,7 +2088,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(50),
 c2 VARCHAR(1)
-) ENGINE=maria DEFAULT CHARSET UTF8;
+) ENGINE=aria DEFAULT CHARSET UTF8;
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 INSERT INTO t1 VALUES('b', 'b');
 INSERT INTO t1 VALUES('c', 'b');
@@ -2107,13 +2107,13 @@ CREATE TABLE t1 (
 c1 CHAR(50),
 c2 VARCHAR(1),
 KEY (c1)
-) ENGINE=maria DEFAULT CHARSET UTF8;
+) ENGINE=aria DEFAULT CHARSET UTF8;
 # Insert 100 rows. Query log disabled.
 UPDATE t1 SET c1=REPEAT(_utf8 x'e0ae85',43) LIMIT 90;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 100
-ALTER TABLE t1 ENGINE=maria;
+ALTER TABLE t1 ENGINE=aria;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 100
@@ -2130,8 +2130,8 @@ c2 CHAR(10) DEFAULT NULL,
 c3 VARCHAR(10) NOT NULL,
 KEY (c1),
 KEY (c2)
-) ENGINE=maria DEFAULT CHARSET=utf8 PACK_KEYS=0;
-MARIA file:          MYSQLD_DATADIR/test/t1
+) ENGINE=aria DEFAULT CHARSET=utf8 PACK_KEYS=0;
+Aria file:          MYSQLD_DATADIR/test/t1
 Record format:       Block
 Crashsafe:           yes
 Character set:       utf8_general_ci (33)
@@ -2139,7 +2139,7 @@ Data records:                       0  Deleted blocks:                      0
 Block_size:                      8192
 Recordlength:                      99
 
-table description:
+Table description:
 Key Start Len Index   Type
 1   2     30  multip. varchar                
 2   33    30  multip. char NULL              
@@ -2150,14 +2150,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `n` int(11) NOT NULL,
   `c` char(1) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=1
 drop table t1;
-CREATE TABLE t1 (line LINESTRING NOT NULL) engine=maria;
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=aria;
 INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
 checksum table t1;
 Table	Checksum
 test.t1	326284887
-CREATE TABLE t2 (line LINESTRING NOT NULL) engine=maria;
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=aria;
 INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
 checksum table t2;
 Table	Checksum
@@ -2168,7 +2168,7 @@ Table	Checksum
 test.t3	326284887
 drop table t1,t2,t3;
 End of 5.1 tests
-create table t2(a varchar(255),key(a))engine=maria row_format=dynamic transactional=0;
+create table t2(a varchar(255),key(a))engine=aria row_format=dynamic transactional=0;
 insert into t2 values (repeat('o',124)), (repeat('h',226)), (repeat('i',236)),
 (repeat('l',234)), (repeat('b',13)), (repeat('g',236)), (repeat('y',205)),
 (repeat('c',99)), (repeat('g',145)), (repeat('o',131)), (repeat('e',63)),
@@ -2380,7 +2380,7 @@ col172 tinyint(1) DEFAULT NULL,
 col173 tinytext,
 col174 decimal(10,0) DEFAULT NULL,
 col175 double DEFAULT NULL
-) engine=maria;
+) engine=aria;
 insert ignore into t1 set 
 col10=abs(28449) % 2,
 col11='1973',
@@ -2505,7 +2505,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (a char(200) primary key, b int default 12345) engine=maria;
+create table t1 (a char(200) primary key, b int default 12345) engine=aria;
 insert t1 (a) values (repeat('0', 200));
 insert t1 (a) values (repeat('1', 200)), (repeat('2', 200)), (repeat('3', 200)),
 (repeat('4', 200)), (repeat('5', 200)), (repeat('6', 200)), (repeat('7', 200)),
@@ -2525,14 +2525,14 @@ b
 12345
 12345
 drop table t1;
-create table t1 (a int) engine=maria transactional=1;
+create table t1 (a int) engine=aria transactional=1;
 insert into t1 values (1);
 lock table t1 write concurrent;
 delete from t1;
 ERROR 42000: The storage engine for the table doesn't support DELETE in WRITE CONCURRENT
 drop table t1;
 create table t1 (p int primary key, i int, a char(10), key k1(i), key k2(a))
-engine maria;
+engine aria;
 insert into t1 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
 (3, 1, 'yyyy'), (4, 3, 'zzzz');
 insert into t1 values (5, 3, 'yyyy'), (6, 3, 'yyyy'), (7, 0, NULL),
@@ -2563,8 +2563,8 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (f1 int unique, f2 int) engine=maria;
-create table t2 (f3 int, f4 int) engine=maria;
+create table t1 (f1 int unique, f2 int) engine=aria;
+create table t2 (f3 int, f4 int) engine=aria;
 create view v1 as select * from t1, t2 where f1= f3;
 insert into t1 values (1,11), (2,22);
 insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
@@ -2573,7 +2573,7 @@ insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
 ERROR HY000: Can not modify more than one base table through a join view 'test.v1'
 drop table t1,t2;
 drop view v1;
-CREATE TABLE t1 (id int, c varchar(10)) engine=maria;
+CREATE TABLE t1 (id int, c varchar(10)) engine=aria;
 INSERT INTO t1 VALUES (1,"1");
 ALTER TABLE t1 CHANGE c d varchar(10);
 affected rows: 0
@@ -2590,7 +2590,7 @@ lock table t1 read, t2 read;
 flush tables with read lock;
 unlock tables;
 drop table t1, t2;
-create table t1(a int primary key, b blob, c blob) engine=maria;
+create table t1(a int primary key, b blob, c blob) engine=aria;
 insert into t1 values(1,repeat('a',100), repeat('b',657860));
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
@@ -2599,4 +2599,28 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;
+Create table t1 (a int) engine="aria";
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+drop table t1;
+CREATE TABLE t1 ( f1 DOUBLE , f2 DOUBLE , f3 DOUBLE , f4 DOUBLE , v3 DOUBLE , v4 DOUBLE , KEY ( v3 ) , KEY ( v4 ) ) engine=maria;
+REPLACE t1 ( f2 , f1 ) VALUES ( f2 , 56 ) ;
+INSERT t1 ( f1 , f2 , f3 , f4 ) VALUES ( 0 , f2 , 8 , f3 ) ;
+INSERT t1 ( f4 , f2 ) VALUES ( 4 , 92 ) ;
+DELETE FROM t1 WHERE v3 = 173 OR v4 = 9 ;
+drop table t1;
+CREATE TABLE t1 (
+f1 CHAR(255) BINARY ,
+f2 CHAR(255) BINARY NOT NULL DEFAULT '0',
+f3 CHAR(255) BINARY NOT NULL ,
+f4 CHAR(255) BINARY NOT NULL DEFAULT '0' ,
+v3 CHAR(255) BINARY AS ( ( f1 NOT LIKE '%' ) ) PERSISTENT,
+KEY (v3)
+) ENGINE=Maria;
+INSERT INTO t1 ( f1 , f2 , f3 , f4 ) SELECT f1 , f4 , f1 , f4 FROM t1;
+DELETE FROM t1;
 drop table t1;

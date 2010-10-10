@@ -46,7 +46,7 @@ static struct my_option my_long_options[] =
   {"stats", 's', "Report global stats.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Be verbose.",
-   (uchar**) &verbose, (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -263,7 +263,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 static void usage()
 {
-  printf("Use: maria_ft_dump <table_name> <index_num>\n");
+  printf("Use: aria_ft_dump <table_name> <index_num>\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   NETWARE_SET_SCREEN_MODE(1);

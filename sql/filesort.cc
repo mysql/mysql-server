@@ -515,7 +515,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   THD *thd= current_thd;
   volatile THD::killed_state *killed= &thd->killed;
   handler *file;
-  MY_BITMAP *save_read_set, *save_write_set;
+  MY_BITMAP *save_read_set, *save_write_set, *save_vcol_set;
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",
                      (select ? select->quick ? "ranges" : "where":
@@ -537,7 +537,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   if (! indexfile && ! quick_select)
   {
     next_pos=(uchar*) 0;			/* Find records in sequence */
-    file->ha_rnd_init(1);
+    if (file->ha_rnd_init_with_error(1))
+      DBUG_RETURN(HA_POS_ERROR);
     file->extra_opt(HA_EXTRA_CACHE,
 		    current_thd->variables.read_buff_size);
   }
@@ -551,6 +552,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   /* Remember original bitmaps */
   save_read_set=  sort_form->read_set;
   save_write_set= sort_form->write_set;
+  save_vcol_set= sort_form->vcol_set;
   /* Set up temporary column read map for columns used by sort */
   bitmap_clear_all(&sort_form->tmp_set);
   /* Temporary set for register_used_fields and register_field_in_read_map */
@@ -559,7 +561,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   if (select && select->cond)
     select->cond->walk(&Item::register_field_in_read_map, 1,
                        (uchar*) sort_form);
-  sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
+  sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set, 
+                                &sort_form->tmp_set);
 
   for (;;)
   {
@@ -568,7 +571,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       if ((error= select->quick->get_next()))
         break;
       if (!error)
-        update_virtual_fields(sort_form);
+        update_virtual_fields(thd, sort_form);
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
     }
@@ -587,7 +590,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       {
 	error=file->ha_rnd_next(sort_form->record[0]);
 	if (!error)
-	  update_virtual_fields(sort_form);
+	  update_virtual_fields(thd, sort_form);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
@@ -642,7 +645,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     DBUG_RETURN(HA_POS_ERROR);
   
   /* Signal we should use orignal column read and write maps */
-  sort_form->column_bitmaps_set(save_read_set, save_write_set);
+  sort_form->column_bitmaps_set(save_read_set, save_write_set, save_vcol_set);
 
   DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
   if (error != HA_ERR_END_OF_FILE)
@@ -1009,7 +1012,14 @@ static void register_used_fields(SORTPARAM *param)
     if ((field= sort_field->field))
     {
       if (field->table == table)
-      bitmap_set_bit(bitmap, field->field_index);
+      {
+        if (field->vcol_info)
+	{
+          Item *vcol_item= field->vcol_info->expr_item;
+          vcol_item->walk(&Item::register_field_in_read_map, 1, (uchar *) 0);
+        }                   
+        bitmap_set_bit(bitmap, field->field_index);
+      }
     }
     else
     {						// Item

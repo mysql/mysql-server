@@ -1,10 +1,10 @@
-set global maria_log_file_size=4294967295;
+set global aria_log_file_size=4294967295;
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
 * TEST of recovery with blobs
 * shut down mysqld, removed logs, restarted it
-create table t1 (a int, b longtext) engine=maria table_checksum=1;
+create table t1 (a int, b longtext) engine=aria table_checksum=1;
 * copied t1 for feeding_recovery
 insert into t1 values (1,"123456789012345678901234567890"),(2,"09876543210987654321");
 flush table t1;
@@ -62,7 +62,7 @@ a	length(b)
 2	5
 SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * copied t1 back for feeding_recovery
 * recovery happens

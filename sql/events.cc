@@ -917,7 +917,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 */
 
 bool
-Events::init(my_bool opt_noacl_or_bootstrap)
+Events::init(bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;
@@ -1214,7 +1214,12 @@ Events::load_events_from_db(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE);
+  if (init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE))
+  {
+    close_thread_tables(thd);
+    DBUG_RETURN(TRUE);
+  }
+
   while (!(read_record_info.read_record(&read_record_info)))
   {
     Event_queue_element *et;

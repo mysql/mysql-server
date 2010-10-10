@@ -236,6 +236,3 @@ link_sources:
 clean-local:
 	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlstoragesources) $(storagesources) | sed "s;\.lo;.c;g"`; \
 	rm -f client_settings.h
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

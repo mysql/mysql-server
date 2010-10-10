@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -915,6 +915,10 @@ row_raw_format(
 
 		ret = row_raw_format_int(data, data_len, prtype,
 					 buf, buf_size, &format_in_hex);
+		if (format_in_hex) {
+
+			goto format_in_hex;
+		}
 		break;
 	case DATA_CHAR:
 	case DATA_VARCHAR:
@@ -923,14 +927,15 @@ row_raw_format(
 
 		ret = row_raw_format_str(data, data_len, prtype,
 					 buf, buf_size, &format_in_hex);
+		if (format_in_hex) {
+
+			goto format_in_hex;
+		}
+
 		break;
 	/* XXX support more data types */
 	default:
-
-		format_in_hex = TRUE;
-	}
-
-	if (format_in_hex) {
+	format_in_hex:
 
 		if (UNIV_LIKELY(buf_size > 2)) {
 

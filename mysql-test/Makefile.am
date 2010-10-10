@@ -63,13 +63,14 @@ nobase_test_DATA = \
 	lib/My/SafeProcess.pm \
 	lib/My/File/Path.pm \
 	lib/My/SysInfo.pm \
+	lib/My/Suite.pm \
 	lib/My/CoreDump.pm \
 	lib/My/SafeProcess/Base.pm \
 	lib/My/SafeProcess/safe_process.pl
 
 SUBDIRS =	lib/My/SafeProcess
 
-EXTRA_DIST =	README \
+EXTRA_DIST =	README README.suites \
 		$(test_SCRIPTS) \
 		$(nobase_test_DATA)
 
@@ -83,6 +84,10 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
 	suite/bugs suite/bugs/data suite/bugs/t suite/bugs/r \
 	suite/federated \
+	suite/pbxt/t suite/pbxt/r suite/pbxt \
+	suite/vcol suite/vcol/t suite/vcol/r suite/vcol/inc \
+	suite/oqgraph suite/oqgraph/t suite/oqgraph/r suite/oqgraph/include \
+	suite/percona suite/sphinx \
 	suite/funcs_1 suite/funcs_1/bitdata \
 	suite/funcs_1/include suite/funcs_1/lib suite/funcs_1/r \
 	suite/funcs_1/t suite/funcs_1/views suite/funcs_1/cursors \
@@ -101,10 +106,9 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/ndb suite/ndb/t suite/ndb/r \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
 	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
-	suite/pbxt/t suite/pbxt/r \
 	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
-	suite/vcol suite/vcol/t suite/vcol/r suite/vcol/inc \
-	suite/oqgraph suite/oqgraph/t suite/oqgraph/r suite/oqgraph/include \
+	suite/innodb_plugin suite/innodb_plugin/t suite/innodb_plugin/r \
+	suite/innodb_plugin/include \
 	suite/engines suite/engines/funcs suite/engines/iuds suite/engines/rr_trx \
 	suite/engines/funcs/r suite/engines/funcs/t suite/engines/iuds/r \
 	suite/engines/iuds/t suite/engines/rr_trx/include suite/engines/rr_trx/r \
@@ -145,6 +149,3 @@ mtr:
 mysql-test-run:
 	$(RM) -f mysql-test-run
 	$(LN_S) mysql-test-run.pl mysql-test-run
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

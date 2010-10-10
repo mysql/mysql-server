@@ -3,7 +3,7 @@
 --source include/master-slave.inc
 
 --replace_regex /\.dll/.so/
-eval install plugin example soname $HA_EXAMPLE_SO;
+eval install plugin example soname '$HA_EXAMPLE_SO';
 set storage_engine=example;
 
 sync_slave_with_master;

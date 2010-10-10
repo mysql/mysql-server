@@ -1,13 +1,21 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
 briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,32 +30,6 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
-/***********************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
-
-Portions of this file contain modifications contributed and copyrighted
-by Percona Inc.. Those modifications are
-gratefully acknowledged and are described briefly in the InnoDB
-documentation. The contributions by Percona Inc. are incorporated with
-their permission, and subject to the conditions contained in the file
-COPYING.Percona.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-***********************************************************************/
 
 /**************************************************//**
 @file srv/srv0srv.c
@@ -122,7 +104,8 @@ UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
 in microseconds, in order to reduce the lagging of the purge thread. */
 UNIV_INTERN ulint	srv_dml_needed_delay = 0;
 
-UNIV_INTERN ibool	srv_lock_timeout_and_monitor_active = FALSE;
+UNIV_INTERN ibool	srv_lock_timeout_active = FALSE;
+UNIV_INTERN ibool	srv_monitor_active = FALSE;
 UNIV_INTERN ibool	srv_error_monitor_active = FALSE;
 
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
@@ -162,9 +145,10 @@ UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
 UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
+UNIV_INTERN char*	srv_doublewrite_file = NULL;
+
 UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 
-UNIV_INTERN ibool	srv_fast_recovery = FALSE;
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
 UNIV_INTERN ulint	srv_use_purge_thread = 0;
@@ -198,11 +182,20 @@ UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 the checkpoints. */
 UNIV_INTERN char	srv_adaptive_flushing	= TRUE;
 
-UNIV_INTERN ulong  srv_show_locks_held     = 10;
-UNIV_INTERN ulong  srv_show_verbose_locks  = 0;
+UNIV_INTERN ulong	srv_show_locks_held	= 10;
+UNIV_INTERN ulong	srv_show_verbose_locks	= 0;
 
+/** Maximum number of times allowed to conditionally acquire
+mutex before switching to blocking wait on the mutex */
+#define MAX_MUTEX_NOWAIT	20
 
-/* The sort order table of the MySQL latin1_swedish_ci character set
+/** Check whether the number of failed nonblocking mutex
+acquisition attempts exceeds maximum allowed value. If so,
+srv_printf_innodb_monitor() will request mutex acquisition
+with mutex_enter(), which will wait until it gets the mutex. */
+#define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
+
+/** The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
 
@@ -217,6 +210,9 @@ UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 /* size in bytes */
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
+
+/* key value for shm */
+UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
@@ -387,6 +383,7 @@ UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ulong	srv_stats_method = 0;
 UNIV_INTERN ulong	srv_stats_auto_update = 1;
 UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
+UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -410,7 +407,6 @@ UNIV_INTERN ulong	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
 UNIV_INTERN ulong	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
 
 UNIV_INTERN ulong	srv_expand_import = 0; /* 0:disable 1:enable */
-UNIV_INTERN ulint	srv_relax_table_creation = 0; /* 0:disable 1:enable */
 UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
 
 UNIV_INTERN ulong	srv_extra_rsegments = 0; /* extra rseg for users */
@@ -439,7 +435,7 @@ static ulint	srv_n_rows_inserted_old		= 0;
 static ulint	srv_n_rows_updated_old		= 0;
 static ulint	srv_n_rows_deleted_old		= 0;
 static ulint	srv_n_rows_read_old		= 0;
-
+UNIV_INTERN ulint               srv_n_lock_deadlock_count       = 0;
 UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
 UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
 UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
@@ -1771,6 +1767,11 @@ srv_suspend_mysql_thread(
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 	}
+
+	if (trx_is_interrupted(trx)) {
+
+		trx->error_state = DB_INTERRUPTED;
+	}
 }
 
 /********************************************************************//**
@@ -1833,12 +1834,15 @@ srv_refresh_innodb_monitor_stats(void)
 }
 
 /******************************************************************//**
-Outputs to a file the output of the InnoDB Monitor. */
+Outputs to a file the output of the InnoDB Monitor.
+@return FALSE if not all information printed
+due to failure to obtain necessary mutex */
 UNIV_INTERN
-void
+ibool
 srv_printf_innodb_monitor(
 /*======================*/
 	FILE*	file,		/*!< in: output stream */
+	ibool	nowait,		/*!< in: whether to wait for kernel mutex */
 	ulint*	trx_start,	/*!< out: file position of the start of
 				the list of active transactions */
 	ulint*	trx_end)	/*!< out: file position of the end of
@@ -1847,6 +1851,7 @@ srv_printf_innodb_monitor(
 	double	time_elapsed;
 	time_t	current_time;
 	ulint	n_reserved;
+	ibool	ret;
 
 	ulint	btr_search_sys_subtotal;
 	ulint	lock_sys_subtotal;
@@ -1877,9 +1882,9 @@ srv_printf_innodb_monitor(
 		"Per second averages calculated from the last %lu seconds\n",
 		(ulong)time_elapsed);
 
-	fputs("----------\n"
-		"BACKGROUND THREAD\n"
-		"----------\n", file);
+	fputs("-----------------\n"
+	      "BACKGROUND THREAD\n"
+	      "-----------------\n", file);
 	srv_print_master_thread_info(file);
 
 	fputs("----------\n"
@@ -2069,22 +2074,28 @@ srv_printf_innodb_monitor(
 	srv_n_rows_deleted_old = srv_n_rows_deleted;
 	srv_n_rows_read_old = srv_n_rows_read;
 
-	lock_print_info_summary(file);
-	if (trx_start) {
-		long	t = ftell(file);
-		if (t < 0) {
-			*trx_start = ULINT_UNDEFINED;
-		} else {
-			*trx_start = (ulint) t;
+	/* Only if lock_print_info_summary proceeds correctly,
+	before we call the lock_print_info_all_transactions
+	to print all the lock information. */
+	ret = lock_print_info_summary(file, nowait);
+
+	if (ret) {
+		if (trx_start) {
+			long	t = ftell(file);
+			if (t < 0) {
+				*trx_start = ULINT_UNDEFINED;
+			} else {
+				*trx_start = (ulint) t;
+			}
 		}
-	}
-	lock_print_info_all_transactions(file);
-	if (trx_end) {
-		long	t = ftell(file);
-		if (t < 0) {
-			*trx_end = ULINT_UNDEFINED;
-		} else {
-			*trx_end = (ulint) t;
+		lock_print_info_all_transactions(file);
+		if (trx_end) {
+			long	t = ftell(file);
+			if (t < 0) {
+				*trx_end = ULINT_UNDEFINED;
+			} else {
+				*trx_end = (ulint) t;
+			}
 		}
 	}
 
@@ -2093,6 +2104,8 @@ srv_printf_innodb_monitor(
 	      "============================\n", file);
 	mutex_exit(&srv_innodb_monitor_mutex);
 	fflush(file);
+
+	return(ret);
 }
 
 /******************************************************************//**
@@ -2133,6 +2146,8 @@ srv_export_innodb_status(void)
 		= UT_LIST_GET_LEN(buf_pool->flush_list);
 	export_vars.innodb_buffer_pool_pages_free
 		= UT_LIST_GET_LEN(buf_pool->free);
+	export_vars.innodb_deadlocks
+	        = srv_n_lock_deadlock_count;
 #ifdef UNIV_DEBUG
 	export_vars.innodb_buffer_pool_pages_latched
 		= buf_get_latched_pages_number();
@@ -2181,26 +2196,23 @@ srv_export_innodb_status(void)
 }
 
 /*********************************************************************//**
-A thread which wakes up threads whose lock wait may have lasted too long.
-This also prints the info output by various InnoDB monitors.
+A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
-srv_lock_timeout_and_monitor_thread(
-/*================================*/
+srv_monitor_thread(
+/*===============*/
 	void*	arg __attribute__((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
-	srv_slot_t*	slot;
 	double		time_elapsed;
 	time_t		current_time;
 	time_t		last_table_monitor_time;
 	time_t		last_tablespace_monitor_time;
 	time_t		last_monitor_time;
-	ibool		some_waits;
-	double		wait_time;
-	ulint		i;
+	ulint		mutex_skipped;
+	ibool		last_srv_print_monitor;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Lock timeout thread starts, id %lu\n",
@@ -2211,13 +2223,15 @@ srv_lock_timeout_and_monitor_thread(
 	last_table_monitor_time = time(NULL);
 	last_tablespace_monitor_time = time(NULL);
 	last_monitor_time = time(NULL);
+	mutex_skipped = 0;
+	last_srv_print_monitor = srv_print_innodb_monitor;
 loop:
-	srv_lock_timeout_and_monitor_active = TRUE;
+	srv_monitor_active = TRUE;
 
-	/* When someone is waiting for a lock, we wake up every second
-	and check if a timeout has passed for a lock wait */
+	/* Wake up every 5 seconds to see if we need to print
+	monitor information. */
 
-	os_thread_sleep(1000000);
+	os_thread_sleep(5000000);
 
 	current_time = time(NULL);
 
@@ -2227,14 +2241,40 @@ loop:
 		last_monitor_time = time(NULL);
 
 		if (srv_print_innodb_monitor) {
-			srv_printf_innodb_monitor(stderr, NULL, NULL);
+			/* Reset mutex_skipped counter everytime
+			srv_print_innodb_monitor changes. This is to
+			ensure we will not be blocked by kernel_mutex
+			for short duration information printing,
+			such as requested by sync_array_print_long_waits() */
+			if (!last_srv_print_monitor) {
+				mutex_skipped = 0;
+				last_srv_print_monitor = TRUE;
+			}
+
+			if (!srv_printf_innodb_monitor(stderr,
+						MUTEX_NOWAIT(mutex_skipped),
+						NULL, NULL)) {
+				mutex_skipped++;
+			} else {
+				/* Reset the counter */
+				mutex_skipped = 0;
+			}
+		} else {
+			last_srv_print_monitor = FALSE;
 		}
+
 
 		if (srv_innodb_status) {
 			mutex_enter(&srv_monitor_file_mutex);
 			rewind(srv_monitor_file);
-			srv_printf_innodb_monitor(srv_monitor_file, NULL,
-						  NULL);
+			if (!srv_printf_innodb_monitor(srv_monitor_file,
+						MUTEX_NOWAIT(mutex_skipped),
+						NULL, NULL)) {
+				mutex_skipped++;
+			} else {
+				mutex_skipped = 0;
+			}
+
 			os_file_set_eof(srv_monitor_file);
 			mutex_exit(&srv_monitor_file_mutex);
 		}
@@ -2287,6 +2327,56 @@ loop:
 		}
 	}
 
+	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+		goto exit_func;
+	}
+
+	if (srv_print_innodb_monitor
+	    || srv_print_innodb_lock_monitor
+	    || srv_print_innodb_tablespace_monitor
+	    || srv_print_innodb_table_monitor) {
+		goto loop;
+	}
+
+	srv_monitor_active = FALSE;
+
+	goto loop;
+
+exit_func:
+	srv_monitor_active = FALSE;
+
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+/*********************************************************************//**
+A thread which wakes up threads whose lock wait may have lasted too long.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_lock_timeout_thread(
+/*====================*/
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by
+			os_thread_create */
+{
+	srv_slot_t*	slot;
+	ibool		some_waits;
+	double		wait_time;
+	ulint		i;
+
+loop:
+	/* When someone is waiting for a lock, we wake up every second
+	and check if a timeout has passed for a lock wait */
+
+	os_thread_sleep(1000000);
+
+	srv_lock_timeout_active = TRUE;
+
 	mutex_enter(&kernel_mutex);
 
 	some_waits = FALSE;
@@ -2310,9 +2400,10 @@ loop:
 			lock_wait_timeout = thd_lock_wait_timeout(
 				trx->mysql_thd);
 
-			if (lock_wait_timeout < 100000000
-			    && (wait_time > (double) lock_wait_timeout
-				|| wait_time < 0)) {
+			if (trx_is_interrupted(trx)
+			    || (lock_wait_timeout < 100000000
+				&& (wait_time > (double) lock_wait_timeout
+				    || wait_time < 0))) {
 
 				/* Timeout exceeded or a wrap-around in system
 				time counter: cancel the lock request queued
@@ -2337,17 +2428,11 @@ loop:
 		goto exit_func;
 	}
 
-	if (some_waits || srv_print_innodb_monitor
-	    || srv_print_innodb_lock_monitor
-	    || srv_print_innodb_tablespace_monitor
-	    || srv_print_innodb_table_monitor) {
+	if (some_waits) {
 		goto loop;
 	}
 
-	/* No one was waiting for a lock and no monitor was active:
-	suspend this thread */
-
-	srv_lock_timeout_and_monitor_active = FALSE;
+	srv_lock_timeout_active = FALSE;
 
 #if 0
 	/* The following synchronisation is disabled, since
@@ -2357,7 +2442,7 @@ loop:
 	goto loop;
 
 exit_func:
-	srv_lock_timeout_and_monitor_active = FALSE;
+	srv_lock_timeout_active = FALSE;
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -2706,7 +2791,10 @@ loop:
 						BUF_FLUSH_LIST,
 						n_flush,
 						IB_ULONGLONG_MAX);
-				skip_sleep = TRUE;
+
+				if (n_flush == PCT_IO(100)) {
+					skip_sleep = TRUE;
+				}
 			}
 
 			mutex_enter(&(log_sys->mutex));
@@ -2817,7 +2905,7 @@ loop:
 					if (bpl) {
 retry_flush_batch:
 						n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
-									bpl,
+									(ulint) bpl,
 									oldest_lsn + (lsn - lsn_old));
 						if (n_pages_flushed == ULINT_UNDEFINED) {
 							os_thread_sleep(5000);

@@ -24,7 +24,7 @@
    ======================================================================
 */
 
-#include <strings.h>
+#include <string.h>
 
 #define BOOST_ALL_NO_LIB 1
 
@@ -49,7 +49,7 @@
 using namespace open_query;
 using namespace boost;
 
-static const row empty_row = { 0 };
+static const row empty_row = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 namespace open_query
 {
@@ -997,7 +997,7 @@ int stack_cursor::fetch_row(const row &row_info, row &result,
                             const reference &ref)
 {
   last= ref;
-  if (optional<Vertex> v= last.vertex())
+  if (last.vertex())
   {
     optional<int> seq;
     optional<EdgeWeight> w;

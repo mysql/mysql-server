@@ -576,7 +576,7 @@ set global table_open_cache=100;
 set storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
-set tmp_table_size=100;
+set tmp_table_size=1024;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;
@@ -1017,6 +1017,13 @@ hostname	#
 # Test 'myisam_mmap_size' option is not dynamic
 SET @@myisam_mmap_size= 500M;
 ERROR HY000: Variable 'myisam_mmap_size' is a read only variable
+#
+# Bug #52315: utc_date() crashes when system time > year 2037
+#
+SET TIMESTAMP=2*1024*1024*1024;
+#Should not crash
+SELECT UTC_DATE();
+SET TIMESTAMP=DEFAULT;
 End of 5.0 tests
 set join_buffer_size=1;
 Warnings:

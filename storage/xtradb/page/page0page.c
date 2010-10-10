@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -658,6 +658,14 @@ page_copy_rec_list_end(
 						index, mtr);
 	}
 
+	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
+	Modifications will be redo logged and copied to the compressed
+	page in page_zip_compress() or page_zip_reorganize() below. */
+	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+		page_update_max_trx_id(new_block, NULL,
+				       page_get_max_trx_id(page), mtr);
+	}
+
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		mtr_set_log_mode(mtr, log_mode);
 
@@ -696,14 +704,9 @@ page_copy_rec_list_end(
 		}
 	}
 
-	/* Update the lock table, MAX_TRX_ID, and possible hash index */
+	/* Update the lock table and possible hash index */
 
 	lock_move_rec_list_end(new_block, block, rec);
-
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
-		page_update_max_trx_id(new_block, new_page_zip,
-				       page_get_max_trx_id(page), mtr);
-	}
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 
@@ -772,6 +775,16 @@ page_copy_rec_list_start(
 		mem_heap_free(heap);
 	}
 
+	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
+	Modifications will be redo logged and copied to the compressed
+	page in page_zip_compress() or page_zip_reorganize() below. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && page_is_leaf(page_align(rec))) {
+		page_update_max_trx_id(new_block, NULL,
+				       page_get_max_trx_id(page_align(rec)),
+				       mtr);
+	}
+
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		mtr_set_log_mode(mtr, log_mode);
 
@@ -809,14 +822,7 @@ page_copy_rec_list_start(
 		}
 	}
 
-	/* Update MAX_TRX_ID, the lock table, and possible hash index */
-
-	if (dict_index_is_sec_or_ibuf(index)
-	    && page_is_leaf(page_align(rec))) {
-		page_update_max_trx_id(new_block, new_page_zip,
-				       page_get_max_trx_id(page_align(rec)),
-				       mtr);
-	}
+	/* Update the lock table and possible hash index */
 
 	lock_move_rec_list_start(new_block, block, rec, ret);
 
@@ -2408,8 +2414,13 @@ page_validate(
 		}
 
 		offs = page_offset(rec_get_start(rec, offsets));
+		i = rec_offs_size(offsets);
+		if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
+			fputs("InnoDB: record offset out of bounds\n", stderr);
+			goto func_exit;
+		}
 
-		for (i = rec_offs_size(offsets); i--; ) {
+		while (i--) {
 			if (UNIV_UNLIKELY(buf[offs + i])) {
 				/* No other record may overlap this */
 
@@ -2517,8 +2528,13 @@ n_owned_zero:
 
 		count++;
 		offs = page_offset(rec_get_start(rec, offsets));
+		i = rec_offs_size(offsets);
+		if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
+			fputs("InnoDB: record offset out of bounds\n", stderr);
+			goto func_exit;
+		}
 
-		for (i = rec_offs_size(offsets); i--; ) {
+		while (i--) {
 
 			if (UNIV_UNLIKELY(buf[offs + i])) {
 				fputs("InnoDB: Record overlaps another"

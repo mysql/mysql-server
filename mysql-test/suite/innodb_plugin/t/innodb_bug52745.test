@@ -1,4 +1,6 @@
 -- source include/have_innodb_plugin.inc
+let collation=utf8_persian_ci;
+--source include/have_collation.inc
 
 let $file_format=`select @@innodb_file_format`;
 let $file_format_check=`select @@innodb_file_format_check`;

@@ -1,20 +1,20 @@
 #
-# Testing of potential problems in Maria
+# Testing of potential problems in Aria
 # This code was initially taken from myisam.test
 #
 
 -- source include/have_maria.inc
 -- source include/have_partition.inc
 
-select * from INFORMATION_SCHEMA.ENGINES where ENGINE="MARIA";
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
 
 let $default_engine=`select @@global.storage_engine`;
-let $default_checksum=`select @@global.maria_page_checksum`;
-set global storage_engine=maria;
-set session storage_engine=maria;
-set global maria_page_checksum=0;
-let $default_log_file_size=`select @@global.maria_log_file_size`;
-set global maria_log_file_size=4294967295;
+let $default_checksum=`select @@global.aria_page_checksum`;
+set global storage_engine=aria;
+set session storage_engine=aria;
+set global aria_page_checksum=0;
+let $default_log_file_size=`select @@global.aria_log_file_size`;
+set global aria_log_file_size=4294967295;
 
 # Initialise
 --disable_warnings
@@ -116,7 +116,7 @@ DROP TABLE t1;
 
 #
 # Test of optimize, when only mi_sort_index (but not mi_repair*) is done
-# in ha_maria::repair, and index size is changed (decreased).
+# in ha_aria::repair, and index size is changed (decreased).
 #
 
 create table t1 ( t1 char(255), key(t1(250)));
@@ -154,7 +154,7 @@ check table t1;
 drop table t1;
 
 #
-# test of maria with huge number of packed fields
+# test of aria with huge number of packed fields
 #
 
 create table t1 (i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
@@ -533,7 +533,7 @@ drop table t1;
 
 #
 # Test join that could miss concurrently inserted row
-# Note that for the moment Maria only supports multiple writers if we have
+# Note that for the moment Aria only supports multiple writers if we have
 # static or dynamic row format
 #
 # Partial key.
@@ -664,10 +664,10 @@ checksum table t1;
 drop table t1;
 
 #
-# maria_stats_method variable.
+# aria_stats_method variable.
 #
 
-show variables like 'maria_stats_method';
+show variables like 'aria_stats_method';
 
 create table t1 (a int, key(a));
 insert into t1 values (0),(1),(2),(3),(4);
@@ -682,8 +682,8 @@ check table t1;
 show index from t1;
 
 # Set nulls to be equal:
-set maria_stats_method=nulls_equal;
-show variables like 'maria_stats_method';
+set aria_stats_method=nulls_equal;
+show variables like 'aria_stats_method';
 insert into t1 values (11);
 delete from t1 where a=11;
 
@@ -697,8 +697,8 @@ check table t1;
 show index from t1;
 
 # Set nulls back to be equal 
-set maria_stats_method=DEFAULT;
-show variables like 'maria_stats_method';
+set aria_stats_method=DEFAULT;
+show variables like 'aria_stats_method';
 insert into t1 values (11);
 delete from t1 where a=11;
 
@@ -713,9 +713,9 @@ show index from t1;
 
 drop table t1;
 
-# WL#2609, CSC#XXXX: MARIA 
-set maria_stats_method=nulls_ignored;
-show variables like 'maria_stats_method';
+# WL#2609, CSC#XXXX: ARIA 
+set aria_stats_method=nulls_ignored;
+show variables like 'aria_stats_method';
 
 create table t1 (
   a char(3), b char(4), c char(5), d char(6),
@@ -735,7 +735,7 @@ delete from t1;
 analyze table t1;
 show index from t1;
 
-set maria_stats_method=DEFAULT;
+set aria_stats_method=DEFAULT;
 
 drop table t1;
 
@@ -768,7 +768,7 @@ create table t1 (
   t text not null,
   primary key  (id1),
   key x (id2, t(32))
-) engine=maria; # engine clause is redundant but it's to test its parsing
+) engine=aria; # engine clause is redundant but it's to test its parsing
 insert into t1 (id2, t) values
 (10, 'abc'), (10, 'abc'), (10, 'abc'),
 (20, 'abc'), (20, 'abc'), (20, 'def'),
@@ -801,8 +801,8 @@ DROP TABLE t1;
 #
 # OPTIMIZE TABLE with multiple threads
 #
-SET @@maria_repair_threads=2;
-SHOW VARIABLES LIKE 'maria_repair%';
+SET @@aria_repair_threads=2;
+SHOW VARIABLES LIKE 'aria_repair%';
 #
 # Test OPTIMIZE. This creates a new data file.
 CREATE TABLE t1 (
@@ -888,8 +888,8 @@ SHOW TABLE STATUS LIKE 't1';
 SELECT _id FROM t1;
 DROP TABLE t1;
 #
-SET @@maria_repair_threads=1;
-SHOW VARIABLES LIKE 'maria_repair%';
+SET @@aria_repair_threads=1;
+SHOW VARIABLES LIKE 'aria_repair%';
 
 #
 # Test varchar
@@ -910,7 +910,7 @@ create table t1 (v varchar(65530) character set utf8);
 show create table t1;
 drop table t1;
 
-# MARIA specific varchar tests
+# ARIA specific varchar tests
 --error 1118
 create table t1 (v varchar(65535));
 
@@ -1040,7 +1040,7 @@ create table t4 (c1 int) pack_keys=2;
 drop table t1, t2, t3;
 
 #
-# Bug#28476: force index on a disabled maria index gives error 124
+# Bug#28476: force index on a disabled aria index gives error 124
 #
 
 CREATE TABLE t1(a INT, b INT, KEY inx (a), UNIQUE KEY uinx (b));
@@ -1078,13 +1078,13 @@ ALTER TABLE t1 ENABLE KEYS;
 --replace_column 6 # 7 # 8 # 10 # 11 # 12 # 13 # 14 # 15 # 16 #
 SHOW TABLE STATUS LIKE 't1';
 #--exec ls -log var/mysqld.1/data/test/t1
-#--exec maria_chk -dvv var/mysqld.1/data/test/t1
-#--exec maria_chk -iev var/mysqld.1/data/test/t1
+#--exec aria_chk -dvv var/mysqld.1/data/test/t1
+#--exec aria_chk -iev var/mysqld.1/data/test/t1
 --echo # Enable keys with parallel repair
-SET @@maria_repair_threads=2;
+SET @@aria_repair_threads=2;
 ALTER TABLE t1 DISABLE KEYS;
 ALTER TABLE t1 ENABLE KEYS;
-SET @@maria_repair_threads=1;
+SET @@aria_repair_threads=1;
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 
@@ -1108,7 +1108,7 @@ DROP TABLE t1, t2;
 #
 # Bug#37310: 'on update CURRENT_TIMESTAMP' option crashes the table
 #
-CREATE TABLE t1 (a INT) ENGINE=MARIA CHECKSUM=1 ROW_FORMAT=DYNAMIC;
+CREATE TABLE t1 (a INT) ENGINE=ARIA CHECKSUM=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES (0);
 UPDATE t1 SET a=1;
 SELECT a FROM t1;
@@ -1237,7 +1237,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(130),
   c2 VARCHAR(1)
-) ENGINE=maria;
+) ENGINE=aria;
 INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
 SELECT COUNT(*) FROM t1;
 CHECK TABLE t1;
@@ -1252,7 +1252,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(130),
   c2 VARCHAR(1)
-) ENGINE=maria;
+) ENGINE=aria;
 INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
 SELECT COUNT(*) FROM t1;
 CHECK TABLE t1 EXTENDED;
@@ -1267,7 +1267,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(130),
   c2 VARCHAR(1)
-) ENGINE=maria;
+) ENGINE=aria;
 INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
 # Insert more rows and delete one in the middle to force optimize.
 INSERT INTO t1 VALUES('b', 'b');
@@ -1286,7 +1286,7 @@ CREATE TABLE t1 (
   c1 CHAR(130),
   c2 VARCHAR(1),
   KEY (c1)
-) ENGINE=maria;
+) ENGINE=aria;
 #
 # Insert 100 rows. This turns bulk insert on during the copy phase of
 # ALTER TABLE. Bulk insert disables keys before the insert and re-enables
@@ -1304,7 +1304,7 @@ while ($count)
 # Change most of the rows into long character values with > 127 characters.
 UPDATE t1 SET c1=REPEAT("a",128) LIMIT 90;
 SELECT COUNT(*) FROM t1;
-ALTER TABLE t1 ENGINE=maria;
+ALTER TABLE t1 ENGINE=aria;
 #
 # With bug present, this shows that all long rows are gone.
 SELECT COUNT(*) FROM t1;
@@ -1318,7 +1318,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(50),
   c2 VARCHAR(1)
-) ENGINE=maria DEFAULT CHARSET UTF8;
+) ENGINE=aria DEFAULT CHARSET UTF8;
 # Using Tamil Letter A, Unicode U+0B85
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 SELECT COUNT(*) FROM t1;
@@ -1334,7 +1334,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(50),
   c2 VARCHAR(1)
-) ENGINE=maria DEFAULT CHARSET UTF8;
+) ENGINE=aria DEFAULT CHARSET UTF8;
 # Using Tamil Letter A, Unicode U+0B85
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 SELECT COUNT(*) FROM t1;
@@ -1350,7 +1350,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(50),
   c2 VARCHAR(1)
-) ENGINE=maria DEFAULT CHARSET UTF8;
+) ENGINE=aria DEFAULT CHARSET UTF8;
 # Using Tamil Letter A, Unicode U+0B85
 INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
 # Insert more rows and delete one in the middle to force optimize.
@@ -1370,7 +1370,7 @@ CREATE TABLE t1 (
   c1 CHAR(50),
   c2 VARCHAR(1),
   KEY (c1)
-) ENGINE=maria DEFAULT CHARSET UTF8;
+) ENGINE=aria DEFAULT CHARSET UTF8;
 #
 # Insert 100 rows. This turns bulk insert on during the copy phase of
 # ALTER TABLE. Bulk insert disables keys before the insert and re-enables
@@ -1389,7 +1389,7 @@ while ($count)
 # Using Tamil Letter A, Unicode U+0B85
 UPDATE t1 SET c1=REPEAT(_utf8 x'e0ae85',43) LIMIT 90;
 SELECT COUNT(*) FROM t1;
-ALTER TABLE t1 ENGINE=maria;
+ALTER TABLE t1 ENGINE=aria;
 #
 # With bug present, this shows that all long rows are gone.
 SELECT COUNT(*) FROM t1;
@@ -1406,7 +1406,7 @@ CREATE TABLE t1 (
   c3 VARCHAR(10) NOT NULL,
   KEY (c1),
   KEY (c2)
-) ENGINE=maria DEFAULT CHARSET=utf8 PACK_KEYS=0;
+) ENGINE=aria DEFAULT CHARSET=utf8 PACK_KEYS=0;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --exec $MARIA_CHK -d $MYSQLD_DATADIR/test/t1
@@ -1423,10 +1423,10 @@ drop table t1;
 # (same content / differen checksum)
 #
 
-CREATE TABLE t1 (line LINESTRING NOT NULL) engine=maria;
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=aria;
 INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
 checksum table t1;
-CREATE TABLE t2 (line LINESTRING NOT NULL) engine=maria;
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=aria;
 INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
 checksum table t2;
 CREATE TABLE t3 select * from t1;
@@ -1437,7 +1437,7 @@ drop table t1,t2,t3;
 #
 # from bug37276_reduced_corruption.sql
 #
-create table t2(a varchar(255),key(a))engine=maria row_format=dynamic transactional=0;
+create table t2(a varchar(255),key(a))engine=aria row_format=dynamic transactional=0;
 insert into t2 values (repeat('o',124)), (repeat('h',226)), (repeat('i',236)),
 (repeat('l',234)), (repeat('b',13)), (repeat('g',236)), (repeat('y',205)),
 (repeat('c',99)), (repeat('g',145)), (repeat('o',131)), (repeat('e',63)),
@@ -1649,7 +1649,7 @@ col172 tinyint(1) DEFAULT NULL,
 col173 tinytext,
 col174 decimal(10,0) DEFAULT NULL,
 col175 double DEFAULT NULL
-) engine=maria;
+) engine=aria;
 
 insert ignore into t1 set 
 col10=abs(28449) % 2,
@@ -1766,10 +1766,10 @@ check table t1;
 drop table t1;
 
 #
-# Bug#38466 maria: range query returns no data
+# Bug#38466 aria: range query returns no data
 #
 
-create table t1 (a char(200) primary key, b int default 12345) engine=maria;
+create table t1 (a char(200) primary key, b int default 12345) engine=aria;
 insert t1 (a) values (repeat('0', 200));
 insert t1 (a) values (repeat('1', 200)), (repeat('2', 200)), (repeat('3', 200)),
  (repeat('4', 200)), (repeat('5', 200)), (repeat('6', 200)), (repeat('7', 200)),
@@ -1787,7 +1787,7 @@ drop table t1;
 #
 # BUG#38606  test suite
 #
-create table t1 (a int) engine=maria transactional=1;
+create table t1 (a int) engine=aria transactional=1;
 insert into t1 values (1);
 lock table t1 write concurrent;
 # should be fixed with fully implemented versioning
@@ -1801,7 +1801,7 @@ drop table t1;
 #
 
 create table t1 (p int primary key, i int, a char(10), key k1(i), key k2(a))
-engine maria;
+engine aria;
 insert into t1 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
                       (3, 1, 'yyyy'), (4, 3, 'zzzz');
 insert into t1 values (5, 3, 'yyyy'), (6, 3, 'yyyy'), (7, 0, NULL),
@@ -1819,8 +1819,8 @@ drop table t1;
 # --mysqld=--binlog-format=row --ps-protocol
 #
 
-create table t1 (f1 int unique, f2 int) engine=maria;
-create table t2 (f3 int, f4 int) engine=maria;
+create table t1 (f1 int unique, f2 int) engine=aria;
+create table t2 (f3 int, f4 int) engine=aria;
 create view v1 as select * from t1, t2 where f1= f3;
 insert into t1 values (1,11), (2,22);
 --error 1393
@@ -1834,7 +1834,7 @@ drop view v1;
 # BUG#39399 ALTER TABLE renaming column: affected_rows > 0
 #
 
-CREATE TABLE t1 (id int, c varchar(10)) engine=maria;
+CREATE TABLE t1 (id int, c varchar(10)) engine=aria;
 INSERT INTO t1 VALUES (1,"1");
 --enable_info
 ALTER TABLE t1 CHANGE c d varchar(10);
@@ -1842,7 +1842,7 @@ ALTER TABLE t1 CHANGE c d varchar(10);
 drop table t1;
 
 #
-# Bug #39227 Maria: crash with ALTER TABLE PARTITION
+# Bug #39227 Aria: crash with ALTER TABLE PARTITION
 #
 
 create table t1 (s1 int);
@@ -1852,7 +1852,7 @@ alter table t1 partition by list (s1) (partition p1 values in (2));
 drop table t1;
 
 #
-# Bug #39226 Maria: crash with FLUSH TABLES WITH READ LOCK after LOCK TABLES
+# Bug #39226 Aria: crash with FLUSH TABLES WITH READ LOCK after LOCK TABLES
 
 create table t1 (c1 int);
 create table t2 (c1 int);
@@ -1866,18 +1866,58 @@ drop table t1, t2;
 # Crash when aborting inserting of row with 2 blobs where first is short
 #
 
-create table t1(a int primary key, b blob, c blob) engine=maria;
+create table t1(a int primary key, b blob, c blob) engine=aria;
 insert into t1 values(1,repeat('a',100), repeat('b',657860));
 --error ER_DUP_ENTRY
 insert into t1 values(1,repeat('a',100), repeat('b',657860));
 check table t1;
 drop table t1;
 
+#
+# Check we can create a table with the 'Aria' alias
+#
+
+Create table t1 (a int) engine="aria";
+show create table t1;
+drop table t1;
+
+#
+# Test of LP#614265. This happens when we where using quick_range_select in
+# delete
+#
+
+CREATE TABLE t1 ( f1 DOUBLE , f2 DOUBLE , f3 DOUBLE , f4 DOUBLE , v3 DOUBLE , v4 DOUBLE , KEY ( v3 ) , KEY ( v4 ) ) engine=maria;
+REPLACE t1 ( f2 , f1 ) VALUES ( f2 , 56 ) ;
+INSERT t1 ( f1 , f2 , f3 , f4 ) VALUES ( 0 , f2 , 8 , f3 ) ;
+INSERT t1 ( f4 , f2 ) VALUES ( 4 , 92 ) ;
+DELETE FROM t1 WHERE v3 = 173 OR v4 = 9 ;
+drop table t1;
+
+#
+# Test for LP#61465 Memory corruption with (M)aria storage engine and
+# virtual columns
+#
+
+CREATE TABLE t1 (
+         f1 CHAR(255) BINARY ,
+         f2 CHAR(255) BINARY NOT NULL DEFAULT '0',
+         f3 CHAR(255) BINARY NOT NULL ,
+         f4 CHAR(255) BINARY NOT NULL DEFAULT '0' ,
+         v3 CHAR(255) BINARY AS ( ( f1 NOT LIKE '%' ) ) PERSISTENT,
+         KEY (v3)
+) ENGINE=Maria;
+INSERT INTO t1 ( f1 , f2 , f3 , f4 ) SELECT f1 , f4 , f1 , f4 FROM t1;
+DELETE FROM t1;
+drop table t1;
+
+#
+# End of test
+#
 # Set defaults back
 --disable_result_log
 --disable_query_log
 eval set global storage_engine=$default_engine,
-maria_page_checksum=$default_checksum,
-maria_log_file_size=$default_log_file_size;
+aria_page_checksum=$default_checksum,
+aria_log_file_size=$default_log_file_size;
 --enable_result_log
 --enable_query_log

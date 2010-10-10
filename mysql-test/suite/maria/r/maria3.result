@@ -1,10 +1,10 @@
-select * from INFORMATION_SCHEMA.ENGINES where ENGINE="MARIA";
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
-MARIA	YES	Crash-safe tables with MyISAM heritage	YES	NO	NO
-set global storage_engine=maria;
-set session storage_engine=maria;
-set global maria_page_checksum=0;
-set global maria_log_file_size=4294967295;
+Aria	YES	Crash-safe tables with MyISAM heritage	YES	NO	NO
+set global storage_engine=aria;
+set session storage_engine=aria;
+set global aria_page_checksum=0;
+set global aria_log_file_size=4294967295;
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
 create table t1 (a int not null, key `a` (a) key_block_size=512);
@@ -13,7 +13,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
 Warnings:
@@ -23,7 +23,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(1208)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=1025);
 show create table t1;
@@ -31,7 +31,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
@@ -87,14 +87,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=0
 drop table t1;
 create table t1 (a int) row_format=dynamic transactional=0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
 drop table t1;
 create table t1 (a int) row_format=dynamic transactional=1;
 Warnings:
@@ -103,13 +103,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 row_format=PAGE;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 row_format=DYNAMIC;
 Warnings:
 Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
@@ -117,46 +117,46 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 transactional=0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
 alter table t1 row_format=DYNAMIC;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
 drop table t1;
 create table t1 (a int) row_format=PAGE;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE
 drop table t1;
 create table t1 (a int) row_format=PAGE TRANSACTIONAL=DEFAULT;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE
 alter table t1 row_format=DYNAMIC;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC
 drop table t1;
 create table t1 (a int) transactional=0 row_format=FIXED;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
 alter table t1 transactional=1;
 Warnings:
 Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
@@ -164,20 +164,20 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 transactional=0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
 drop table t1;
 create table t1 (a int) transactional=0 row_format=FIXED;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
 alter table t1 transactional=1;
 Warnings:
 Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
@@ -185,20 +185,20 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 transactional=0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
 drop table t1;
 create table `t1` (
 t1_name varchar(255) default null,
 t1_id int(10) unsigned not null auto_increment,
 key (t1_name),
 primary key (t1_id)
-) engine=maria auto_increment = 1000 default charset=latin1;
+) engine=aria auto_increment = 1000 default charset=latin1;
 lock tables t1 write;
 INSERT INTO `t1` VALUES ('bla',1000),('bla',1001),('bla',1002);
 check table t1;
@@ -226,7 +226,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-CREATE TABLE t1 (a int, b int, v varchar(60000)) checksum=1 engine=maria;
+CREATE TABLE t1 (a int, b int, v varchar(60000)) checksum=1 engine=aria;
 insert into t1 values (1,1,"aaa"),(1,2,null);
 checksum table t1;
 Table	Checksum
@@ -278,9 +278,9 @@ KEY (umedium),
 KEY (ulong),
 KEY (ulonglong,ulong),
 KEY (options,flags)
-) engine=maria;
+) engine=aria;
 insert into t1 values (10,1,1,1,1,1,1,1,1,1,1,1,1,1,NULL,0,0,0,1,1,1,1,'one','one');
-create table t2 (primary key (auto)) engine=maria row_format=page select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+create table t2 (primary key (auto)) engine=aria row_format=page select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
 check table t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -289,7 +289,7 @@ select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
 t1	t2	length(t3)	length(t4)	length(t5)	length(t6)	t7	t8
 1	a	256	256	4096	4096		
 drop table t2;
-create table t2 (primary key (auto)) engine=maria row_format=dynamic select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+create table t2 (primary key (auto)) engine=aria row_format=dynamic select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
 check table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
@@ -301,35 +301,35 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-select lower(variable_name) as Variable_name, Variable_value as Value from information_schema.session_variables where variable_name like "maria%" and variable_name not like "maria_used_for_temp_tables" order by 1;
+select lower(variable_name) as Variable_name, Variable_value as Value from information_schema.session_variables where variable_name like "aria%" and variable_name not like "aria_used_for_temp_tables" order by 1;
 Variable_name	Value
-maria_block_size	8192
-maria_checkpoint_interval	30
-maria_force_start_after_recovery_failures	0
-maria_group_commit	none
-maria_group_commit_interval	0
-maria_log_file_size	4294959104
-maria_log_purge_type	immediate
-maria_max_sort_file_size	9223372036853727232
-maria_pagecache_age_threshold	300
-maria_pagecache_buffer_size	8384512
-maria_pagecache_division_limit	100
-maria_page_checksum	OFF
-maria_recover	OFF
-maria_repair_threads	1
-maria_sort_buffer_size	8388608
-maria_stats_method	nulls_unequal
-maria_sync_log_dir	NEWFILE
-show status like 'maria%';
+aria_block_size	8192
+aria_checkpoint_interval	30
+aria_force_start_after_recovery_failures	0
+aria_group_commit	none
+aria_group_commit_interval	0
+aria_log_file_size	4294959104
+aria_log_purge_type	immediate
+aria_max_sort_file_size	9223372036853727232
+aria_pagecache_age_threshold	300
+aria_pagecache_buffer_size	134213632
+aria_pagecache_division_limit	100
+aria_page_checksum	OFF
+aria_recover	NORMAL
+aria_repair_threads	1
+aria_sort_buffer_size	134217728
+aria_stats_method	nulls_unequal
+aria_sync_log_dir	NEWFILE
+show status like 'aria%';
 Variable_name	Value
-Maria_pagecache_blocks_not_flushed	#
-Maria_pagecache_blocks_unused	#
-Maria_pagecache_blocks_used	#
-Maria_pagecache_read_requests	#
-Maria_pagecache_reads	#
-Maria_pagecache_write_requests	#
-Maria_pagecache_writes	#
-Maria_transaction_log_syncs	#
+Aria_pagecache_blocks_not_flushed	#
+Aria_pagecache_blocks_unused	#
+Aria_pagecache_blocks_used	#
+Aria_pagecache_read_requests	#
+Aria_pagecache_reads	#
+Aria_pagecache_write_requests	#
+Aria_pagecache_writes	#
+Aria_transaction_log_syncs	#
 create table t1 (b char(0));
 insert into t1 values(NULL),("");
 select length(b) from t1;
@@ -385,15 +385,15 @@ drop table t1;
 CREATE TABLE t1 (col1 int, s1 char(16) DEFAULT NULL, s2 char(16) DEFAULT NULL, KEY (s1,s2));
 insert into t1 (col1) values(0);
 drop table t1;
-set global maria_page_checksum=1;
+set global aria_page_checksum=1;
 create table t1 (a int);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
 drop table t1;
-set global maria_log_file_size=4294967296;
+set global aria_log_file_size=4294967296;
 Warnings:
 Warning	1292	Truncated incorrect log_file_size value: '4294967296'
 create table t1 (a int not null);
@@ -415,7 +415,7 @@ create table t3 select * from t1, t2;
 ERROR 42S21: Duplicate column name 'c'
 create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
 drop table t1, t2, t3;
-create table t1 (t datetime) engine=maria;
+create table t1 (t datetime) engine=aria;
 insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
 select * from t1;
 t
@@ -500,38 +500,38 @@ n	c
 301	c
 302	d
 drop table t1;
-create table t1 (n int not null, c char(1)) engine=maria;
+create table t1 (n int not null, c char(1)) engine=aria;
 alter table t1 engine=myisam;
-alter table t1 engine=maria;
+alter table t1 engine=aria;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `n` int(11) NOT NULL,
   `c` char(1) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
 drop table t1;
-create table t1 (n int not null, c char(1)) engine=maria transactional=1;
+create table t1 (n int not null, c char(1)) engine=aria transactional=1;
 alter table t1 engine=myisam;
 Warnings:
 Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
-alter table t1 engine=maria;
+alter table t1 engine=aria;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `n` int(11) NOT NULL,
   `c` char(1) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
 drop table t1;
 create table t1 (n int not null, c char(1)) engine=myisam transactional=1;
 Warnings:
 Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
-alter table t1 engine=maria;
+alter table t1 engine=aria;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `n` int(11) NOT NULL,
   `c` char(1) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
 drop table t1;
 create table t1 (a int, key(a)) transactional=0;
 insert into t1 values (0),(1),(2),(3),(4);
@@ -542,6 +542,30 @@ test.t1	check	status	OK
 drop table t1;
 create temporary table t1 (a int, key(a)) transactional=1;
 create temporary table t2 (a int, key(a)) transactional=1;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 where a >= 4;
+count(*)
+1
+drop table t1, t2;
+create temporary table t1 (a int, key(a)) transactional=0 row_format=page;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=page;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 where a >= 4;
+count(*)
+1
+drop table t1, t2;
+create temporary table t1 (a int, key(a)) transactional=0 row_format=fixed;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=dynamic;
 insert into t1 values (0),(1),(2),(3),(4);
 insert into t2 select * from t1;
 insert into t1 select NULL from t2;
@@ -579,17 +603,17 @@ SELECT a FROM t1 WHERE MATCH a AGAINST ('+city (of)*' IN BOOLEAN MODE);
 a
 City Of God
 DROP TABLE t1;
-create table t1(a int) engine=maria transactional=1;
+create table t1(a int) engine=aria transactional=1;
 select CREATE_OPTIONS from information_schema.TABLES where
 TABLE_SCHEMA='test' and TABLE_NAME='t1';
 CREATE_OPTIONS
 transactional=1
 drop table t1;
-create table t1 (a int, unique(a)) engine=maria transactional=1;
+create table t1 (a int, unique(a)) engine=aria transactional=1;
 insert into t1 values(1);
 insert into t1 values(2),(2);
 ERROR 23000: Duplicate entry '2' for key 'a'
-create table t2 (a int, unique(a)) engine=maria transactional=0 row_format=dynamic;
+create table t2 (a int, unique(a)) engine=aria transactional=0 row_format=dynamic;
 insert into t2 values(1);
 insert into t2 values(2),(2);
 ERROR 23000: Duplicate entry '2' for key 'a'

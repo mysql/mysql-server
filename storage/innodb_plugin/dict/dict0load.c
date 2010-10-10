@@ -316,7 +316,7 @@ dict_check_tablespaces_and_store_max_id(
 	dict_index_t*	sys_index;
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
-	ulint		max_space_id	= 0;
+	ulint		max_space_id;
 	mtr_t		mtr;
 
 	mutex_enter(&(dict_sys->mutex));
@@ -326,6 +326,11 @@ dict_check_tablespaces_and_store_max_id(
 	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
 	ut_a(!dict_table_is_comp(sys_tables));
+
+	max_space_id = mtr_read_ulint(dict_hdr_get(&mtr)
+				      + DICT_HDR_MAX_SPACE_ID,
+				      MLOG_4BYTES, &mtr);
+	fil_set_max_space_id_if_bigger(max_space_id);
 
 	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
 				    TRUE, &mtr);
@@ -973,6 +978,7 @@ err_exit:
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
 				    TRUE, space,
+				    flags == DICT_TF_COMPACT ? 0 :
 				    flags & ~(~0 << DICT_TF_BITS), name)) {
 				/* We failed to find a sensible
 				tablespace file */

@@ -99,31 +99,30 @@ static struct my_option my_long_options[]=
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (uchar**) & default_dbug_option,
-   (uchar**) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", &default_dbug_option,
+   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) & info_flag,
-   (uchar**) & info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", &info_flag,
+   &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Prints version", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"charset", 'C', "Charset dir", (uchar**) & charsets_dir,
-   (uchar**) & charsets_dir,
+  {"charset", 'C', "Charset dir",
+   (char**) &charsets_dir, (char**) &charsets_dir,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"in_file", 'F', "Input file", (uchar**) & TXTFILE, (uchar**) & TXTFILE,
+  {"in_file", 'F', "Input file", &TXTFILE, &TXTFILE,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"out_dir", 'D', "Output base directory", (uchar**) & DATADIRECTORY,
-   (uchar**) & DATADIRECTORY,
+  {"out_dir", 'D', "Output base directory", &DATADIRECTORY, &DATADIRECTORY,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"out_file", 'O', "Output filename (errmsg.sys)", (uchar**) & OUTFILE,
-   (uchar**) & OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"header_file", 'H', "mysqld_error.h file ", (uchar**) & HEADERFILE,
-   (uchar**) & HEADERFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"name_file", 'N', "mysqld_ername.h file ", (uchar**) & NAMEFILE,
-   (uchar**) & NAMEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"state_file", 'S', "sql_state.h file", (uchar**) & STATEFILE,
-   (uchar**) & STATEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"out_file", 'O', "Output filename (errmsg.sys)", &OUTFILE,
+   &OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"header_file", 'H', "mysqld_error.h file ", &HEADERFILE,
+   &HEADERFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"name_file", 'N', "mysqld_ername.h file ", &NAMEFILE,
+   &NAMEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"state_file", 'S', "sql_state.h file", &STATEFILE,
+   &STATEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -641,9 +640,9 @@ static struct message *find_message(struct errors *err, const char *lang,
 static ha_checksum checksum_format_specifier(const char* msg)
 {
   ha_checksum chksum= 0;
-  const char* p= msg;
-  const char* start= 0;
-  int num_format_specifiers= 0;
+  const uchar* p= (const uchar*) msg;
+  const uchar* start= NULL;
+  uint32 num_format_specifiers= 0;
   while (*p)
   {
 
@@ -833,7 +832,6 @@ static struct message *parse_message_string(struct message *new_message,
 static struct errors *parse_error_string(char *str, int er_count)
 {
   struct errors *new_error;
-  char *start;
   DBUG_ENTER("parse_error_string");
   DBUG_PRINT("enter", ("str: %s", str));
 
@@ -844,7 +842,6 @@ static struct errors *parse_error_string(char *str, int er_count)
     DBUG_RETURN(0);				/* OOM: Fatal error */
 
   /* getting the error name */
-  start= str;
   str= skip_delimiters(str);
 
   if (!(new_error->er_name= get_word(&str)))

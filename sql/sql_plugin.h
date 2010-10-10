@@ -107,6 +107,9 @@ extern char *opt_plugin_load;
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
+extern uint plugin_maturity;
+extern TYPELIB plugin_maturity_values;
+extern const char *plugin_maturity_names[];
 
 extern int plugin_init(int *argc, char **argv, int init_flags);
 extern void plugin_shutdown(void);

@@ -1,0 +1,15 @@
+#
+# Test of alter table with transactional tables
+#
+
+--source include/have_innodb.inc
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+# This test caused a crash in wait_if_global_read_lock()
+#
+CREATE TABLE t1 (a INT, INDEX(a)) engine=innodb;
+ALTER TABLE t1 RENAME TO t2, DISABLE KEYS;
+DROP TABLE t2;

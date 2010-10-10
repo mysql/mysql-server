@@ -625,7 +625,8 @@ static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEY *key,
       {
         maria_rtree_combine_rect(keyinfo->seg, k, key->data, k, key_length);
         if (share->now_transactional &&
-            _ma_log_change(&page, k, key_length))
+            _ma_log_change(&page, k, key_length,
+                           KEY_OP_DEBUG_RTREE_COMBINE))
           goto err;
         page_mark_changed(info, &page);
         if (_ma_write_keypage(&page, PAGECACHE_LOCK_LEFT_WRITELOCKED,
@@ -652,7 +653,8 @@ static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEY *key,
         if (maria_rtree_set_key_mbr(info, &k_key, _ma_kpos(nod_flag, k)))
           goto err;
         if (share->now_transactional &&
-            _ma_log_change(&page, k, key_length))
+            _ma_log_change(&page, k, key_length,
+                           KEY_OP_DEBUG_RTREE_SPLIT))
           goto err;
         /* add new key for new page */
         _ma_kpointer(info, new_key_buff - nod_flag, *new_page);
@@ -964,7 +966,8 @@ static int maria_rtree_delete_req(MARIA_HA *info, const MARIA_KEY *key,
                                           _ma_kpos(nod_flag, k)))
                 goto err;
               if (share->now_transactional &&
-                  _ma_log_change(&page, k, key->data_length))
+                  _ma_log_change(&page, k, key->data_length,
+                                 KEY_OP_DEBUG_RTREE_SET_KEY))
                 goto err;
               page_mark_changed(info, &page)
               if (_ma_write_keypage(&page,

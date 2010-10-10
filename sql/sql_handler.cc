@@ -539,6 +539,14 @@ retry:
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), keyname, tables->alias);
       goto err;
     }
+    /* Check if the same index involved. */
+    if ((uint) keyno != table->file->get_index())
+    {
+      if (mode == RNEXT)
+        mode= RFIRST;
+      else if (mode == RPREV)
+        mode= RLAST;
+    }
   }
 
   if (insert_fields(thd, &thd->lex->select_lex.context,
@@ -561,9 +569,16 @@ retry:
     case RNEXT:
       if (table->file->inited != handler::NONE)
       {
-        error=keyname ?
-	  table->file->ha_index_next(table->record[0]) :
-	  table->file->ha_rnd_next(table->record[0]);
+        if (keyname)
+        {
+          /* Check if we read from the same index. */
+          DBUG_ASSERT((uint) keyno == table->file->get_index());
+          error= table->file->ha_index_next(table->record[0]);
+        }
+        else
+        {
+          error= table->file->ha_rnd_next(table->record[0]);
+        }
         break;
       }
       /* else fall through */
@@ -584,6 +599,8 @@ retry:
       break;
     case RPREV:
       DBUG_ASSERT(keyname != 0);
+      /* Check if we read from the same index. */
+      DBUG_ASSERT((uint) keyno == table->file->get_index());
       if (table->file->inited != handler::NONE)
       {
         error=table->file->ha_index_prev(table->record[0]);
@@ -664,7 +681,7 @@ retry:
       goto ok;
     }
     /* Generate values for virtual fields */
-    update_virtual_fields(table);
+    update_virtual_fields(thd, table);
     if (cond && !cond->val_int())
       continue;
     if (num_rows >= offset_limit_cnt)

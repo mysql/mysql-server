@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -372,6 +372,8 @@ btr_cur_search_to_nth_level(
 	ulint		has_search_latch,/*!< in: info on the latch mode the
 				caller currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	page_cur_t*	page_cursor;
@@ -550,7 +552,7 @@ btr_cur_search_to_nth_level(
 retry_page_get:
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 rw_latch, guess, buf_mode,
-					 __FILE__, __LINE__, mtr);
+					 file, line, mtr);
 		if (block == NULL) {
 			if (srv_pass_corrupt_table && buf_mode != BUF_GET_IF_IN_POOL) {
 				page_cursor->block = 0;
@@ -727,13 +729,15 @@ func_exit:
 Opens a cursor at either end of an index. */
 UNIV_INTERN
 void
-btr_cur_open_at_index_side(
-/*=======================*/
+btr_cur_open_at_index_side_func(
+/*============================*/
 	ibool		from_left,	/*!< in: TRUE if open to the low end,
 					FALSE if to the high end */
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: latch mode */
 	btr_cur_t*	cursor,		/*!< in: cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	page_cur_t*	page_cursor;
@@ -778,7 +782,7 @@ btr_cur_open_at_index_side(
 		page_t*		page;
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					 __FILE__, __LINE__, mtr);
+					 file, line, mtr);
 		page = buf_block_get_frame(block);
 
 		if (srv_pass_corrupt_table && !page) {
@@ -869,11 +873,13 @@ btr_cur_open_at_index_side(
 Positions a cursor at a randomly chosen position within a B-tree. */
 UNIV_INTERN
 void
-btr_cur_open_at_rnd_pos(
-/*====================*/
+btr_cur_open_at_rnd_pos_func(
+/*=========================*/
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_cur_t*	cursor,		/*!< in/out: B-tree cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	page_cur_t*	page_cursor;
@@ -908,7 +914,7 @@ btr_cur_open_at_rnd_pos(
 
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					 __FILE__, __LINE__, mtr);
+					 file, line, mtr);
 		page = buf_block_get_frame(block);
 
 		if (srv_pass_corrupt_table && !page) {
@@ -1229,7 +1235,6 @@ btr_cur_optimistic_insert(
 	ibool		inherit;
 	ulint		zip_size;
 	ulint		rec_size;
-	mem_heap_t*	heap		= NULL;
 	ulint		err;
 
 	*big_rec = NULL;
@@ -1315,10 +1320,6 @@ btr_cur_optimistic_insert(
 					index, entry, big_rec_vec);
 			}
 
-			if (heap) {
-				mem_heap_free(heap);
-			}
-
 			return(DB_TOO_BIG_RECORD);
 		}
 	}
@@ -1341,15 +1342,11 @@ fail_err:
 			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 		}
 
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-
 		return(err);
 	}
 
 	if (UNIV_UNLIKELY(max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT
-	     || max_size < rec_size)
+			  || max_size < rec_size)
 	    && UNIV_LIKELY(page_get_n_recs(page) > 1)
 	    && page_get_max_insert_size(page, 1) < rec_size) {
 
@@ -1413,10 +1410,6 @@ fail_err:
 				(ulong) max_size);
 			ut_error;
 		}
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
 	}
 
 #ifdef BTR_CUR_HASH_ADAPT
@@ -2143,9 +2136,8 @@ any_extern:
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
 					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
-err_exit:
-		mem_heap_free(heap);
-		return(err);
+
+		goto err_exit;
 	}
 
 	/* Ok, we may do the replacement. Store on the page infimum the
@@ -2191,9 +2183,10 @@ err_exit:
 
 	page_cur_move_to_next(page_cursor);
 
+	err = DB_SUCCESS;
+err_exit:
 	mem_heap_free(heap);
-
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*************************************************************//**
@@ -3282,7 +3275,8 @@ btr_estimate_n_rows_in_range(
 
 		btr_cur_search_to_nth_level(index, 0, tuple1, mode1,
 					    BTR_SEARCH_LEAF | BTR_ESTIMATE,
-					    &cursor, 0, &mtr);
+					    &cursor, 0,
+					    __FILE__, __LINE__, &mtr);
 	} else {
 		btr_cur_open_at_index_side(TRUE, index,
 					   BTR_SEARCH_LEAF | BTR_ESTIMATE,
@@ -3299,7 +3293,8 @@ btr_estimate_n_rows_in_range(
 
 		btr_cur_search_to_nth_level(index, 0, tuple2, mode2,
 					    BTR_SEARCH_LEAF | BTR_ESTIMATE,
-					    &cursor, 0, &mtr);
+					    &cursor, 0,
+					    __FILE__, __LINE__, &mtr);
 	} else {
 		btr_cur_open_at_index_side(FALSE, index,
 					   BTR_SEARCH_LEAF | BTR_ESTIMATE,
@@ -3438,7 +3433,7 @@ btr_estimate_n_pages_not_null(
 
 	btr_cur_search_to_nth_level(index, 0, tuple1, PAGE_CUR_G,
 				    BTR_SEARCH_LEAF | BTR_ESTIMATE,
-				    &cursor, 0, &mtr);
+				    &cursor, 0, __FILE__, __LINE__, &mtr);
 
 	mtr_commit(&mtr);
 
@@ -3588,9 +3583,11 @@ btr_estimate_number_of_different_key_vals(
 		effective_pages = btr_estimate_n_pages_not_null(index, 1 /*k*/, first_rec_path);
 
 		if (!effective_pages) {
+			dict_index_stat_mutex_enter(index);
 			for (j = 0; j <= n_cols; j++) {
 				index->stat_n_diff_key_vals[j] = (ib_int64_t)index->stat_n_leaf_pages;
 			}
+			dict_index_stat_mutex_exit(index);
 			return;
 		} else if (effective_pages > index->stat_n_leaf_pages) {
 			effective_pages = index->stat_n_leaf_pages;
@@ -3732,6 +3729,8 @@ btr_estimate_number_of_different_key_vals(
 	also the pages used for external storage of fields (those pages are
 	included in index->stat_n_leaf_pages) */
 
+	dict_index_stat_mutex_enter(index);
+
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
@@ -3770,8 +3769,9 @@ btr_estimate_number_of_different_key_vals(
 		}
 	}
 
-	mem_free(n_diff);
+	dict_index_stat_mutex_exit(index);
 
+	mem_free(n_diff);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -4259,6 +4259,8 @@ btr_store_big_rec_extern_fields(
 			field_ref += local_len;
 		}
 		extern_len = big_rec_vec->fields[i].len;
+		UNIV_MEM_ASSERT_RW(big_rec_vec->fields[i].data,
+				   extern_len);
 
 		ut_a(extern_len > 0);
 
@@ -4639,7 +4641,7 @@ btr_free_externally_stored_field(
 		/* In the rollback of uncommitted transactions, we may
 		encounter a clustered index record whose BLOBs have
 		not been written.  There is nothing to free then. */
-		ut_a(rb_ctx == RB_RECOVERY);
+		ut_a(rb_ctx == RB_RECOVERY || rb_ctx == RB_RECOVERY_PURGE_REC);
 		return;
 	}
 
@@ -4685,7 +4687,7 @@ btr_free_externally_stored_field(
 		    || (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			& BTR_EXTERN_OWNER_FLAG)
 		    /* Rollback and inherited field */
-		    || (rb_ctx != RB_NONE
+		    || ((rb_ctx == RB_NORMAL || rb_ctx == RB_RECOVERY)
 			&& (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			    & BTR_EXTERN_INHERITED_FLAG))) {
 
@@ -4895,6 +4897,7 @@ btr_copy_blob_prefix(
 		mtr_commit(&mtr);
 
 		if (page_no == FIL_NULL || copy_len != part_len) {
+			UNIV_MEM_ASSERT_RW(buf, copied_len);
 			return(copied_len);
 		}
 
@@ -5078,6 +5081,7 @@ btr_copy_externally_stored_field_prefix_low(
 				      space_id, page_no, offset);
 		inflateEnd(&d_stream);
 		mem_heap_free(heap);
+		UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
 		return(d_stream.total_out);
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,

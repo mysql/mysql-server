@@ -115,6 +115,3 @@ test_db.sql: init_db.sql $(top_srcdir)/scripts/mysql_test_data_timezone.sql
 	@echo "Building $@";
 	@cat init_db.sql \
 	     $(top_srcdir)/scripts/mysql_test_data_timezone.sql  > $@;
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

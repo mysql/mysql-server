@@ -909,7 +909,7 @@ char *translog_filename_by_fileno(uint32 file_no, char *path)
   DBUG_ASSERT(file_no <= 0xfffffff);
 
   /* log_descriptor.directory is already formated */
-  end= strxmov(path, log_descriptor.directory, "maria_log.0000000", NullS);
+  end= strxmov(path, log_descriptor.directory, "aria_log.0000000", NullS);
   length= (uint) (int10_to_str(file_no, buff, 10) - buff);
   strmov(end - length +1, buff);
 
@@ -1219,7 +1219,7 @@ my_bool translog_read_file_header(LOGHANDLER_FILE_INFO *desc, File file)
     DBUG_RETURN(1);
   }
   translog_interpret_file_header(desc, page_buff);
-  DBUG_PRINT("info", ("timestamp: %llu  maria ver: %lu mysql ver: %lu  "
+  DBUG_PRINT("info", ("timestamp: %llu  aria ver: %lu mysql ver: %lu  "
                       "server id %lu page size %lu file number %lu  "
                       "max lsn: (%lu,0x%lx)",
                       (ulonglong) desc->timestamp,
@@ -3470,7 +3470,7 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
 
 /**
   Applies function 'callback' to all files (in a directory) which
-  name looks like a log's name (maria_log.[0-9]{7}).
+  name looks like a log's name (aria_log.[0-9]{7}).
   If 'callback' returns TRUE this interrupts the walk and returns
   TRUE. Otherwise FALSE is returned after processing all log files.
   It cannot just use log_descriptor.directory because that may not yet have
@@ -3496,7 +3496,7 @@ my_bool translog_walk_filenames(const char *directory,
   for (i= 0; i < dirp->number_off_files; i++)
   {
     char *file= dirp->dir_entry[i].name;
-    if (strncmp(file, "maria_log.", 10) == 0 &&
+    if (strncmp(file, "aria_log.", 10) == 0 &&
         file[10] >= '0' && file[10] <= '9' &&
         file[11] >= '0' && file[11] <= '9' &&
         file[12] >= '0' && file[12] <= '9' &&
@@ -3727,7 +3727,7 @@ my_bool translog_init_with_table(const char *directory,
     my_bool pageok;
     DBUG_PRINT("info", ("log found..."));
     /*
-      TODO: scan directory for maria_log.XXXXXXXX files and find
+      TODO: scan directory for aria_log.XXXXXXXX files and find
        highest XXXXXXXX & set logs_found
       TODO: check that last checkpoint within present log addresses space
 
@@ -8073,7 +8073,7 @@ retest:
   }
   else
   {
-    soft_sync_max= lsn;
+    soft_sync_max= LSN_FILE_NO(lsn);
     soft_need_sync= 1;
   }
 
@@ -8864,13 +8864,13 @@ void  translog_soft_sync_end(void)
 #ifdef MARIA_DUMP_LOG
 #include <my_getopt.h>
 extern void translog_example_table_init();
-static const char *load_default_groups[]= { "maria_dump_log",0 };
+static const char *load_default_groups[]= { "aria_dump_log",0 };
 static void get_options(int *argc,char * * *argv);
 #ifndef DBUG_OFF
 #if defined(__WIN__)
-const char *default_dbug_option= "d:t:i:O,\\maria_dump_log.trace";
+const char *default_dbug_option= "d:t:i:O,\\aria_dump_log.trace";
 #else
-const char *default_dbug_option= "d:t:i:o,/tmp/maria_dump_log.trace";
+const char *default_dbug_option= "d:t:i:o,/tmp/aria_dump_log.trace";
 #endif
 #endif
 static ulonglong opt_offset;
@@ -8927,7 +8927,7 @@ static void usage(void)
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
-  puts("Dump content of maria log pages.");
+  puts("Dump content of aria log pages.");
   VOID(printf("\nUsage: %s -f file OPTIONS\n", my_progname_short));
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -8984,7 +8984,7 @@ static void dump_header_page(uchar *buff)
   translog_interpret_file_header(&desc, buff);
   printf("  This can be header page:\n"
          "    Timestamp: %s\n"
-         "    Maria log version: %lu\n"
+         "    Aria log version: %lu\n"
          "    Server version: %lu\n"
          "    Server id %lu\n"
          "    Page size %lu\n",

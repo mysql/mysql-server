@@ -255,7 +255,6 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   SplitStruct *stop;
   double *coord_buf;
   double *next_coord;
-  double *old_coord;
   int n_dim;
   uchar *source_cur, *cur1, *cur2;
   uchar *new_page= info->buff;
@@ -292,8 +291,6 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   cur->coords = reserve_coords(&next_coord, n_dim);
   rtree_d_mbr(keyinfo->seg, key, key_length, cur->coords);
   cur->key = key;
-
-  old_coord = next_coord;
 
   if (split_rtree_node(task, max_keys + 1,
        mi_getint(page) + full_length + 2, full_length, 

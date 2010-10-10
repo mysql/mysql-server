@@ -66,10 +66,10 @@ class Master_info : public Slave_reporting_capability
   char host[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
   char password[MAX_PASSWORD_LENGTH+1];
-  my_bool ssl; // enables use of SSL connection if true
+  bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
-  my_bool ssl_verify_server_cert;
+  bool ssl_verify_server_cert;
 
   my_off_t master_log_pos;
   File fd; // we keep the file open, so we need to remember the file pointer
@@ -108,7 +108,8 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
 		     bool abort_if_no_master_info_file,
 		     int thread_mask);
 void end_master_info(Master_info* mi);
-int flush_master_info(Master_info* mi, bool flush_relay_log_cache);
-
+int flush_master_info(Master_info* mi, 
+                      bool flush_relay_log_cache, 
+                      bool need_lock_relay_log);
 #endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */

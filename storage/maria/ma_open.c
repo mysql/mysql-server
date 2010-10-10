@@ -209,6 +209,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
   DBUG_RETURN(m_info);
 
 err:
+  DBUG_PRINT("error", ("error: %d", my_errno));
   save_errno=my_errno ? my_errno : HA_ERR_END_OF_FILE;
   if ((save_errno == HA_ERR_CRASHED) ||
       (save_errno == HA_ERR_CRASHED_ON_USAGE) ||
@@ -433,8 +434,14 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         share->base.born_transactional &&
         ((!(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
           memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE)) ||
-         share->state.create_trid > trnman_get_max_trid()))
+         (share->state.create_trid > trnman_get_max_trid() &&
+          !maria_in_recovery)))
     {
+      DBUG_PRINT("warning", ("table is moved from another system.  uuid_diff: %d  create_trid: %lu  max_trid: %lu",
+                            memcmp(share->base.uuid, maria_uuid,
+                                   MY_UUID_SIZE) != 0,
+                             (ulong) share->state.create_trid,
+                             (ulong) trnman_get_max_trid()));
       if (open_flags & HA_OPEN_FOR_REPAIR)
         share->state.changed|= STATE_MOVED;
       else
@@ -549,6 +556,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     strmov(share->open_file_name.str,  name);
 
     share->block_size= share->base.block_size;   /* Convenience */
+    share->max_index_block_size= share->block_size - KEYPAGE_CHECKSUM_SIZE;
     {
       HA_KEYSEG *pos=share->keyparts;
       uint32 ftkey_nr= 1;
@@ -892,6 +900,11 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           share->lock_restore_status= _ma_restore_status;
         }
       }
+      else if (share->now_transactional)
+      {
+        DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
+        share->lock.get_status=     _ma_block_get_status_no_versioning;
+      }
     }
 #endif
     /*
@@ -913,10 +926,15 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   if (!(m_info= maria_clone_internal(share, name, mode, data_file)))
     goto err;
 
+  if (maria_is_crashed(m_info))
+    DBUG_PRINT("warning", ("table is crashed: changed: %u",
+                           share->state.changed));
+
   pthread_mutex_unlock(&THR_LOCK_maria);
   DBUG_RETURN(m_info);
 
 err:
+  DBUG_PRINT("error", ("error: %d  errpos: %d", my_errno, errpos));
   save_errno=my_errno ? my_errno : HA_ERR_END_OF_FILE;
   if ((save_errno == HA_ERR_CRASHED) ||
       (save_errno == HA_ERR_CRASHED_ON_USAGE) ||

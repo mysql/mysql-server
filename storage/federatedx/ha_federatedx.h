@@ -1,5 +1,5 @@
-/* 
-Copyright (c) 2008, Patrick Galbraith 
+/*
+Copyright (c) 2008, Patrick Galbraith
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ class federatedx_io;
 typedef struct st_fedrated_server {
   MEM_ROOT mem_root;
   uint use_count, io_count;
-  
+
   uchar *key;
   uint key_length;
 
@@ -74,10 +74,10 @@ typedef struct st_fedrated_server {
 
 #include <mysql.h>
 
-/* 
+/*
   handler::print_error has a case statement for error numbers.
-  This value is (10000) is far out of range and will envoke the 
-  default: case.  
+  This value is (10000) is far out of range and will envoke the
+  default: case.
   (Current error range is 120-159 from include/my_base.h)
 */
 #define HA_FEDERATEDX_ERROR_WITH_REMOTE_SYSTEM 10000
@@ -158,7 +158,7 @@ public:
   const char * get_database() const { return server->database; }
   ushort       get_port() const     { return server->port; }
   const char * get_socket() const   { return server->socket; }
-  
+
   static bool handles_scheme(const char *scheme);
   static federatedx_io *construct(MEM_ROOT *server_root,
                                   FEDERATEDX_SERVER *server);
@@ -167,7 +167,7 @@ public:
   { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr, size_t size)
   { TRASH(ptr, size); }
-    
+
   virtual int query(const char *buffer, uint length)=0;
   virtual FEDERATEDX_IO_RESULT *store_result()=0;
 
@@ -178,25 +178,25 @@ public:
 
   virtual int error_code()=0;
   virtual const char *error_str()=0;
-  
+
   virtual void reset()=0;
   virtual int commit()=0;
   virtual int rollback()=0;
-  
+
   virtual int savepoint_set(ulong sp)=0;
   virtual ulong savepoint_release(ulong sp)=0;
   virtual ulong savepoint_rollback(ulong sp)=0;
   virtual void savepoint_restrict(ulong sp)=0;
-  
+
   virtual ulong last_savepoint() const=0;
   virtual ulong actual_savepoint() const=0;
   virtual bool is_autocommit() const=0;
 
   virtual bool table_metadata(ha_statistics *stats, const char *table_name,
                               uint table_name_length, uint flag) = 0;
-  
+
   /* resultset operations */
-  
+
   virtual void free_result(FEDERATEDX_IO_RESULT *io_result)=0;
   virtual unsigned int get_num_fields(FEDERATEDX_IO_RESULT *io_result)=0;
   virtual my_ulonglong get_num_rows(FEDERATEDX_IO_RESULT *io_result)=0;
@@ -206,6 +206,13 @@ public:
                                       unsigned int column)=0;
   virtual bool is_column_null(const FEDERATEDX_IO_ROW *row,
                               unsigned int column) const=0;
+
+  virtual size_t get_ref_length() const=0;
+  virtual void mark_position(FEDERATEDX_IO_RESULT *io_result,
+                             void *ref)=0;
+  virtual int seek_position(FEDERATEDX_IO_RESULT **io_result,
+                            const void *ref)=0;
+
 };
 
 
@@ -215,12 +222,12 @@ class federatedx_txn
   ulong savepoint_level;
   ulong savepoint_stmt;
   ulong savepoint_next;
-  
+
   void release_scan();
 public:
   federatedx_txn();
   ~federatedx_txn();
-  
+
   bool has_connections() const { return txn_list != NULL; }
   bool in_transaction() const { return savepoint_next != 0; }
   int acquire(FEDERATEDX_SHARE *share, bool readonly, federatedx_io **io);
@@ -254,12 +261,16 @@ class ha_federatedx: public handler
   federatedx_txn *txn;
   federatedx_io *io;
   FEDERATEDX_IO_RESULT *stored_result;
+  /**
+      Array of all stored results we get during a query execution.
+  */
+  DYNAMIC_ARRAY results;
+  bool position_called;
   uint fetch_num; // stores the fetch num
-  FEDERATEDX_IO_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;
   char remote_error_buf[FEDERATEDX_QUERY_BUFFER_SIZE];
   bool ignore_duplicates, replace_duplicates;
-  bool insert_dup_update;
+  bool insert_dup_update, table_will_be_deleted;
   DYNAMIC_STRING bulk_insert;
 
 private:
@@ -269,7 +280,7 @@ private:
   */
   uint convert_row_to_internal_format(uchar *buf, FEDERATEDX_IO_ROW *row,
                                       FEDERATEDX_IO_RESULT *result);
-  bool create_where_from_key(String *to, KEY *key_info, 
+  bool create_where_from_key(String *to, KEY *key_info,
                              const key_range *start_key,
                              const key_range *end_key,
                              bool records_in_range, bool eq_range);
@@ -348,18 +359,18 @@ public:
     Talk to Kostja about this - how to get the
     number of rows * ...
     disk scan time on other side (block size, size of the row) + network time ...
-    The reason for "records * 1000" is that such a large number forces 
+    The reason for "records * 1000" is that such a large number forces
     this to use indexes "
   */
   double scan_time()
   {
     DBUG_PRINT("info", ("records %lu", (ulong) stats.records));
-    return (double)(stats.records*1000); 
+    return (double)(stats.records*1000);
   }
   /*
     The next method will never be called if you do not implement indexes.
   */
-  double read_time(uint index, uint ranges, ha_rows rows) 
+  double read_time(uint index, uint ranges, ha_rows rows)
   {
     /*
       Per Brian, this number is bugus, but this method must be implemented,
@@ -379,7 +390,7 @@ public:
   int close(void);                                              // required
 
   void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert(bool abort);
+  int end_bulk_insert();
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);

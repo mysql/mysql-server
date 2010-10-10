@@ -13,9 +13,10 @@ key_buffer_size=            1M
 sort_buffer=                256K
 max_heap_table_size=        1M
 
+loose-skip-innodb
+loose-skip-pbxt
+
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
 
 slave-net-timeout=120
-
-log-bin=mysqld-bin
 

@@ -21,6 +21,3 @@ AUTOMAKE_OPTIONS =	foreign
 EXTRA_DIST = mysql_storage_engine.cmake	
 SUBDIRS = @mysql_se_dirs@
 DIST_SUBDIRS = @mysql_se_distdirs@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

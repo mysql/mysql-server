@@ -17,7 +17,7 @@ $opt_abort_on_error=0;
 
 my $silent= "-s";
 my $maria_path;     # path to "storage/maria"
-my $maria_exe_path; # path to executables (ma_test1, maria_chk etc)
+my $maria_exe_path; # path to executables (ma_test1, aria_chk etc)
 my $tmp= "./tmp";
 my $my_progname= $0;
 my $suffix;
@@ -74,7 +74,7 @@ sub main
   {
     mkdir $tmp;
   }
-  print "MARIA RECOVERY TESTS\n";
+  print "ARIA RECOVERY TESTS\n";
 
   # To not flood the screen, we redirect all the commands below to a text file
   # and just give a final error if their output is not as expected
@@ -98,7 +98,7 @@ sub main
 
   foreach my $prog (@t)
   {
-    unlink <maria_log.* maria_log_control>;
+    unlink <aria_log.* aria_log_control>;
     my $prog_no_suffix= $prog;
     $prog_no_suffix=~ s/$suffix// if ($suffix);
     print MY_LOG "TEST WITH $prog_no_suffix\n";
@@ -113,11 +113,11 @@ sub main
     {
       die("can't guess table name");
     }
-    $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
+    $com=  "$maria_exe_path/aria_chk$suffix -dvv $table ";
     $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\"";
-    $com.= "> $tmp/maria_chk_message.good.txt 2>&1";
+    $com.= "> $tmp/aria_chk_message.good.txt 2>&1";
     my_exec($com);
-    my $checksum= my_exec("$maria_exe_path/maria_chk$suffix -dss $table");
+    my $checksum= my_exec("$maria_exe_path/aria_chk$suffix -dss $table");
     move("$table.MAD", "$tmp/$table-good.MAD") ||
       die "Can't move $table.MAD to $tmp/$table-good.MAD\n";
     move("$table.MAI", "$tmp/$table-good.MAI") ||
@@ -181,7 +181,7 @@ sub main
           }
           $commit_run_args= $t2[$k + 1];
           $abort_run_args= $t2[$k + 2];
-          unlink <maria_log.* maria_log_control>;
+          unlink <aria_log.* aria_log_control>;
           my $prog_no_suffix= $prog;
           $prog_no_suffix=~ s/$suffix// if ($suffix);
           print MY_LOG "TEST WITH $prog_no_suffix $commit_run_args (commit at end)\n";
@@ -196,17 +196,17 @@ sub main
           {
             die("can't guess table name");
           }
-          $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
+          $com=  "$maria_exe_path/aria_chk$suffix -dvv $table ";
           $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" ";
-          $com.= "> $tmp/maria_chk_message.good.txt 2>&1";
+          $com.= "> $tmp/aria_chk_message.good.txt 2>&1";
           $res= my_exec($com);
           print MY_LOG $res;
-          $checksum= my_exec("$maria_exe_path/maria_chk$suffix -dss $table");
+          $checksum= my_exec("$maria_exe_path/aria_chk$suffix -dss $table");
           move("$table.MAD", "$tmp/$table-good.MAD") ||
             die "Can't move $table.MAD to $tmp/$table-good.MAD\n";
           move("$table.MAI", "$tmp/$table-good.MAI") ||
             die "Can't move $table.MAI to $tmp/$table-good.MAI\n";
-          unlink <maria_log.* maria_log_control>;
+          unlink <aria_log.* aria_log_control>;
           print MY_LOG "TEST WITH $prog_no_suffix $abort_run_args$test_undo[$j] (additional aborted work)\n";
           $res= my_exec("$maria_exe_path/$prog $abort_run_args$test_undo[$j]");
           print MY_LOG $res;
@@ -216,10 +216,10 @@ sub main
             die "Can't copy $table.MAI to $tmp/$table-before_undo.MAI\n";
 
           # The lines below seem unneeded, will be removed soon
-          # We have to copy and restore logs, as running maria_read_log will
-          # change the maria_control_file
-          #    rm -f $tmp/maria_log.* $tmp/maria_log_control
-          #    cp $maria_path/maria_log* $tmp
+          # We have to copy and restore logs, as running aria_read_log will
+          # change the aria_control_file
+          #    rm -f $tmp/aria_log.* $tmp/aria_log_control
+          #    cp $maria_path/aria_log* $tmp
 
           if ($test_undo[$j] != 3) {
             apply_log($table, "shouldchangelog"); # should undo aborted work
@@ -246,13 +246,13 @@ sub main
           print MY_LOG $res;
           print MY_LOG "testing applying of CLRs to recreate table\n";
           unlink <$table.MA?>;
-          #    cp $tmp/maria_log* $maria_path  #unneeded
+          #    cp $tmp/aria_log* $maria_path  #unneeded
           apply_log($table, "shouldnotchangelog");
           check_table_is_same($table, $checksum);
           $res= physical_cmp($table, "$tmp/$table-after_undo");
           print MY_LOG $res;
         }
-        unlink <$table.* $tmp/$table* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt>;
+        unlink <$table.* $tmp/$table* $tmp/aria_chk_*.txt $tmp/aria_read_log_$table.txt>;
       }
     }
   }
@@ -263,7 +263,7 @@ sub main
   }
 
   close(MY_LOG);
-  # also note that maria_chk -dvv shows differences for ma_test2 in UNDO phase,
+  # also note that aria_chk -dvv shows differences for ma_test2 in UNDO phase,
   # this is normal: removing records does not shrink the data/key file,
   # does not put back the "analyzed,optimized keys"(etc) index state.
   `diff -b $maria_path/unittest/ma_test_recovery.expected $tmp/ma_test_recovery.output`;
@@ -296,29 +296,29 @@ sub check_table_is_same
     print "checking if table $table has changed\n";
   }
 
-  $com=  "$maria_exe_path/maria_chk$suffix -dvv $table | grep -v \"Creation time:\" ";
-  $com.= "| grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" > $tmp/maria_chk_message.txt 2>&1";
+  $com=  "$maria_exe_path/aria_chk$suffix -dvv $table | grep -v \"Creation time:\" ";
+  $com.= "| grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" > $tmp/aria_chk_message.txt 2>&1";
   $res= `$com`;
   print MY_LOG $res;
-  $res= `$maria_exe_path/maria_chk$suffix -s -e --read-only $table`;
+  $res= `$maria_exe_path/aria_chk$suffix -ss -e --read-only $table`;
   print MY_LOG $res;
-  $checksum2= `$maria_exe_path/maria_chk$suffix -dss $table`;
+  $checksum2= `$maria_exe_path/aria_chk$suffix -dss $table`;
   if ("$checksum" ne "$checksum2")
   {
     print MY_LOG "checksum differs for $table before and after recovery\n";
     return 1;
   }
 
-  $com=  "diff $tmp/maria_chk_message.good.txt $tmp/maria_chk_message.txt ";
-  $com.= "> $tmp/maria_chk_diff.txt || true";
+  $com=  "diff $tmp/aria_chk_message.good.txt $tmp/aria_chk_message.txt ";
+  $com.= "> $tmp/aria_chk_diff.txt || true";
   $res= `$com`;
   print MY_LOG $res;
 
-  if (-s "$tmp/maria_chk_diff.txt")
+  if (-s "$tmp/aria_chk_diff.txt")
   {
-    print MY_LOG "Differences in maria_chk -dvv, recovery not yet perfect !\n";
+    print MY_LOG "Differences in aria_chk -dvv, recovery not yet perfect !\n";
     print MY_LOG "========DIFF START=======\n";
-    open(MY_FILE, "<$tmp/maria_chk_diff.txt") || die "Can't open file maria_chk_diff.txt\n";
+    open(MY_FILE, "<$tmp/aria_chk_diff.txt") || die "Can't open file aria_chk_diff.txt\n";
     while (<MY_FILE>)
     {
       print MY_LOG $_;
@@ -346,13 +346,13 @@ sub apply_log
     print MY_LOG "bad argument '$shouldchangelog'\n";
     return 1;
   }
-  foreach (<maria_log.*>)
+  foreach (<aria_log.*>)
   {
     $log_md5.= md5_conv($_);
   }
   print MY_LOG "applying log\n";
-  my_exec("$maria_exe_path/maria_read_log$suffix -a > $tmp/maria_read_log_$table.txt");
-  foreach (<maria_log.*>)
+  my_exec("$maria_exe_path/aria_read_log$suffix -a > $tmp/aria_read_log_$table.txt");
+  foreach (<aria_log.*>)
   {
     $log_md5_2.= md5_conv($_);
   }
@@ -360,13 +360,13 @@ sub apply_log
   {
     if ("$shouldchangelog" eq "shouldnotchangelog")
     {
-      print MY_LOG "maria_read_log should not have modified the log\n";
+      print MY_LOG "aria_read_log should not have modified the log\n";
       return 1;
     }
   }
   elsif ("$shouldchangelog" eq "shouldchangelog")
   {
-    print MY_LOG "maria_read_log should have modified the log\n";
+    print MY_LOG "aria_read_log should have modified the log\n";
     return 1;
   }
 }
@@ -415,7 +415,7 @@ sub physical_cmp
         # save original tables to restore them later
         copy("$table.MAD", "$tmp/before_zerofill$table_no.MAD") || die();
         copy("$table.MAI", "$tmp/before_zerofill$table_no.MAI") || die();
-        $com= "$maria_exe_path/maria_chk$suffix -s --zerofill-keep-lsn $table";
+        $com= "$maria_exe_path/aria_chk$suffix -ss --zerofill-keep-lsn $table";
         $res= `$com`;
         print MY_LOG $res;
         $table_no= $table_no + 1;
@@ -467,7 +467,7 @@ $my_progname version $VER
 
 Description:
 
-Run various maria recovery tests and print the results
+Run various Aria recovery tests and print the results
 
 Options
 --help             Show this help and exit.

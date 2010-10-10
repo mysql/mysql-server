@@ -24,7 +24,9 @@ sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 # Things that can be ignored in InnoDB
 #
 pars0grm.tab.c: .*'yyerrorlab' : unreferenced label.*
+pars0grm.c: 'yyerrorlab' : unreferenced label
 _flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
+lexyy.c : not enough actual parameters for macro 'yywrap'
 pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
 btr/btr0cur\.c: .*value computed is not used.*: 3175-3375
 include/buf0buf\.ic: unused parameter .*mtr.*
@@ -44,6 +46,7 @@ buf/buf0buf\.c: .*block_mutex.* might be used uninitialized
 btr/btr0cur\.c: null argument where non-null required: 1800-3000
 btr/btr0btr\.c: null argument where non-null required: 2500-3000
 ibuf/ibuf0ibuf.c: null argument where non-null required: 700-1000
+fsp0fsp\.c: result of 32-bit shift implicitly converted to 64 bits
 
 #
 # bdb is not critical to keep up to date
@@ -70,6 +73,7 @@ term\.c : .*
 #
 .*/extra/libevent/.* : .*unused parameter.*
 .*/extra/libevent/select\.c : .*comparison between signed and unsigned.* : 270-280
+signal\.c : .*unused parameter.*
 
 #
 # Ignore warnings from system libraries
@@ -107,6 +111,12 @@ term\.c : .*
 .* : conversion from '.*size_t' to 'UINT'.*
 .* : conversion from '.*size_t' to 'uInt'.*
 .* : conversion from '.*size_t' to 'uint16'.*
+.* : The following environment variables were not found.*
+.* : no public symbols found; archive member will be inaccessible
+.* : DESCRIPTION statement not supported
+
+# Ignore uninitialized local variables on windows
+.* : uninitialized local variable .* used
 
 #
 # The following should be fixed by the ndb team
@@ -116,7 +126,7 @@ term\.c : .*
 .*/ndb/.* : .*defined but not used.*
 
 #
-# Maria warning that is ok in debug builds
+# Aria warning that is ok in debug builds
 #
 storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 
@@ -124,13 +134,15 @@ storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 # Pbxt
 #
 xaction_xt\.cc: may be used uninitialized in this function
+lock_xt\.cc : uninitialized local variable .* used
+restart_xt\.cc : dereferencing pointer .* does break strict-aliasing
 
 #
 # I think these are due to mix of C and C++.
 #
 storage/pbxt/ : typedef.*was ignored in this declaration
 ha_pbxt\.cc : variable.*might be clobbered by.*longjmp
-table_xt\.cc : variable.*might be clobbered by ~longjm~p or ~vfork~
+table_xt\.cc : variable.*might be clobbered by.*longjmp
 
 #
 # Yassl
@@ -151,6 +163,11 @@ mySTL/algorithm\.hpp: is used uninitialized in this function
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
 net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
+
+#
+# Ignorable warnings from header files
+#
+backward_warning\.h : This file includes at least one
 
 # allow a little moving space for the warning below
 mi_packrec\.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600

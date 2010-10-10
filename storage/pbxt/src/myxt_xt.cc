@@ -1088,7 +1088,10 @@ xtPublic u_int myxt_get_key_length(XTIndexPtr ind, xtWord1 *key_buf)
 	}
 
 	end:
-	return (xtWord1 *) key_data - key_buf;
+	u_int ilen = (xtWord1 *) key_data - key_buf;
+	if (ilen > XT_INDEX_MAX_KEY_SIZE)
+		ind->mi_key_corrupted = TRUE;
+	return ilen;
 }
 
 /* Derived from ha_key_cmp */
@@ -2183,7 +2186,8 @@ static XTIndexPtr my_create_index(XTThreadPtr self, TABLE *table_arg, u_int idx,
 	xt_spinlock_init_with_autoname(self, &ind->mi_dirty_lock);
 	ind->mi_index_no = idx;
 	ind->mi_flags = (index->flags & (HA_NOSAME | HA_NULL_ARE_EQUAL | HA_UNIQUE_CHECK));
-	ind->mi_low_byte_first = TS(table_arg)->db_low_byte_first;
+	//ind->mi_low_byte_first = TS(table_arg)->db_low_byte_first;
+	ind->mi_key_corrupted = FALSE;
 	ind->mi_fix_key = TRUE;
 	ind->mi_select_total = 0;
 	ind->mi_subset_of = 0;

@@ -5054,8 +5054,6 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  CHARSET_INFO *cs)
 {
   Item *UNINIT_VAR(res);
-  ulong len;
-  uint dec;
 
   switch (cast_type) {
   case ITEM_CAST_BINARY:
@@ -5078,11 +5076,10 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     break;
   case ITEM_CAST_DECIMAL:
   {
-    if (c_len == NULL)
-    {
-      len= 0;
-    }
-    else
+    ulong len= 0;
+    uint dec= 0;
+
+    if (c_len)
     {
       ulong decoded_size;
       errno= 0;
@@ -5096,11 +5093,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       len= decoded_size;
     }
 
-    if (c_dec == NULL)
-    {
-      dec= 0;
-    }
-    else
+    if (c_dec)
     {
       ulong decoded_size;
       errno= 0;
@@ -5136,12 +5129,9 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   }
   case ITEM_CAST_CHAR:
   {
+    int len= -1;
     CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
-    if (c_len == NULL)
-    {
-      len= (ulong) -1L;
-    }
-    else
+    if (c_len)
     {
       ulong decoded_size;
       errno= 0;
@@ -5151,7 +5141,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
         return NULL;
       }
-      len= decoded_size;
+      len= (int) decoded_size;
     }
     res= new (thd->mem_root) Item_char_typecast(a, len, real_cs);
     break;

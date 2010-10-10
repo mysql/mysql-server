@@ -57,7 +57,7 @@ const char field_separator=',';
 ((ulong) ((LL(1) << min(arg, 4) * 8) - LL(1)))
 
 #define ASSERT_COLUMN_MARKED_FOR_READ DBUG_ASSERT(!table || (!table->read_set || bitmap_is_set(table->read_set, field_index)))
-#define ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED DBUG_ASSERT(!table || (!table->write_set || bitmap_is_set(table->write_set, field_index) || bitmap_is_set(&table->vcol_set, field_index)))
+#define ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED DBUG_ASSERT(!table || (!table->write_set || bitmap_is_set(table->write_set, field_index) || bitmap_is_set(table->vcol_set, field_index)))
 
 /*
   Rules for merging different types of fields in UNION
@@ -1284,7 +1284,7 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
   This is used for printing bit_fields as numbers while debugging.
 */
 
-String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
+String *Field::val_int_as_str(String *val_buffer, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   CHARSET_INFO *cs= &my_charset_bin;
@@ -5319,7 +5319,6 @@ String *Field_time::val_str(String *val_buffer,
  
 bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
-  long tmp;
   THD *thd= table ? table->in_use : current_thd;
   if (!(fuzzydate & TIME_FUZZY_DATE))
   {
@@ -5329,19 +5328,7 @@ bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
                         thd->row_count);
     return 1;
   }
-  tmp=(long) sint3korr(ptr);
-  ltime->neg=0;
-  if (tmp < 0)
-  {
-    ltime->neg= 1;
-    tmp=-tmp;
-  }
-  ltime->hour=tmp/10000;
-  tmp-=ltime->hour*10000;
-  ltime->minute=   tmp/100;
-  ltime->second= tmp % 100;
-  ltime->year= ltime->month= ltime->day= ltime->second_part= 0;
-  return 0;
+  return Field_time::get_time(ltime);
 }
 
 
@@ -6722,8 +6709,7 @@ void Field_string::sql_type(String &res) const
 
   length= cs->cset->snprintf(cs,(char*) res.ptr(),
                              res.alloced_length(), "%s(%d)",
-                             ((type() == MYSQL_TYPE_VAR_STRING &&
-                               !thd->variables.new_mode) ?
+                             (type() == MYSQL_TYPE_VAR_STRING ?
                               (has_charset() ? "varchar" : "varbinary") :
 			      (has_charset() ? "char" : "binary")),
                              (int) field_length / charset()->mbmaxlen);
@@ -6875,7 +6861,7 @@ int Field_string::do_save_field_metadata(uchar *metadata_ptr)
 */
 
 int Field_string::pack_cmp(const uchar *a, const uchar *b, uint length,
-                           my_bool insert_or_update)
+                           bool insert_or_update)
 {
   uint a_length, b_length;
   if (length > 255)
@@ -6913,7 +6899,7 @@ int Field_string::pack_cmp(const uchar *a, const uchar *b, uint length,
 */
 
 int Field_string::pack_cmp(const uchar *key, uint length,
-                           my_bool insert_or_update)
+                           bool insert_or_update)
 {
   uint row_length, local_key_length;
   uchar *end;
@@ -7392,7 +7378,7 @@ Field_varstring::unpack(uchar *to, const uchar *from,
 
 int Field_varstring::pack_cmp(const uchar *a, const uchar *b,
                               uint key_length_arg,
-                              my_bool insert_or_update)
+                              bool insert_or_update)
 {
   uint a_length, b_length;
   if (key_length_arg > 255)
@@ -7413,7 +7399,7 @@ int Field_varstring::pack_cmp(const uchar *a, const uchar *b,
 
 
 int Field_varstring::pack_cmp(const uchar *b, uint key_length_arg,
-                              my_bool insert_or_update)
+                              bool insert_or_update)
 {
   uchar *a= ptr+ length_bytes;
   uint a_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
@@ -8144,7 +8130,7 @@ const uchar *Field_blob::unpack(uchar *to,
 /* Keys for blobs are like keys on varchars */
 
 int Field_blob::pack_cmp(const uchar *a, const uchar *b, uint key_length_arg,
-                         my_bool insert_or_update)
+                         bool insert_or_update)
 {
   uint a_length, b_length;
   if (key_length_arg > 255)
@@ -8165,7 +8151,7 @@ int Field_blob::pack_cmp(const uchar *a, const uchar *b, uint key_length_arg,
 
 
 int Field_blob::pack_cmp(const uchar *b, uint key_length_arg,
-                         my_bool insert_or_update)
+                         bool insert_or_update)
 {
   uchar *a;
   uint a_length, b_length;
@@ -8715,7 +8701,13 @@ int Field_set::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED;
   int error= 0;
-  ulonglong max_nr= set_bits(ulonglong, typelib->count);
+  ulonglong max_nr;
+
+  if (sizeof(ulonglong)*8 <= typelib->count)
+    max_nr= ULONGLONG_MAX;
+  else
+    max_nr= (ULL(1) << typelib->count) - 1;
+
   if ((ulonglong) nr > max_nr)
   {
     nr&= max_nr;

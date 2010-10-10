@@ -39,6 +39,7 @@
 #define SANITY_CHECKS 1
 #ifdef EXTRA_DEBUG
 #define EXTRA_DEBUG_KEY_CHANGES
+#define EXTRA_STORE_FULL_PAGE_IN_KEY_CHANGES
 #endif
 
 #define MAX_NONMAPPED_INSERTS 1000
@@ -243,7 +244,8 @@ typedef struct st_maria_file_bitmap
   uchar *map;
   pgcache_page_no_t page;              /* Page number for current bitmap */
   uint used_size;                      /* Size of bitmap head that is not 0 */
-  my_bool changed;                     /* 1 if page needs to be flushed */
+  my_bool changed;                     /* 1 if page needs to be written */
+  my_bool changed_not_flushed;         /* 1 if some bitmap is not flushed */
   my_bool flush_all_requested;         /**< If _ma_bitmap_flush_all waiting */
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
@@ -361,6 +363,7 @@ typedef struct st_maria_share
   uint in_trans;                        /* Number of references by trn */
   uint w_locks, r_locks, tot_locks;	/* Number of read/write locks */
   uint block_size;			/* block_size of keyfile & data file*/
+  uint max_index_block_size;            /* block_size - end_of_page_info */
   /* Fixed length part of a packed row in BLOCK_RECORD format */
   uint base_length;
   myf write_flag;
@@ -459,8 +462,9 @@ typedef struct st_maria_row
   uint *null_field_lengths;             /* All null field lengths */
   ulong *blob_lengths;                  /* Length for each blob */
   ulong min_length, normal_length, char_length, varchar_length;
-  ulong blob_length, head_length, total_length;
+  ulong blob_length, total_length;
   size_t extents_buffer_length;         /* Size of 'extents' buffer */
+  uint head_length, header_length;
   uint field_lengths_length;            /* Length of data in field_lengths */
   uint extents_count;                   /* number of extents in 'extents' */
   uint full_page_count, tail_count;     /* For maria_chk */
@@ -483,7 +487,8 @@ typedef ICP_RESULT (*index_cond_func_t)(void *param);
 struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
-  struct st_ma_transaction *trn;           /* Pointer to active transaction */
+  struct st_ma_transaction *trn;        /* Pointer to active transaction */
+  void *external_ptr;           	/* Pointer to THD in mysql */
   MARIA_STATUS_INFO *state, state_save;
   MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
@@ -614,6 +619,7 @@ struct st_maria_handler
 #define STATE_NOT_ZEROFILLED     128
 #define STATE_NOT_MOVABLE        256
 #define STATE_MOVED              512 /* set if base->uuid != maria_uuid */
+#define STATE_IN_REPAIR  	 1024 /* We are running repair on table */
 
 /* options to maria_read_cache */
 
@@ -669,11 +675,17 @@ struct st_maria_handler
 #define maria_mark_crashed_on_repair(x) do{(x)->s->state.changed|=      \
       STATE_CRASHED|STATE_CRASHED_ON_REPAIR;                            \
     (x)->update|= HA_STATE_CHANGED;                                     \
-    DBUG_PRINT("error",                                                 \
-               ("Marked table crashed"));                               \
+    DBUG_PRINT("error", ("Marked table crashed on repair"));            \
+  }while(0)
+#define maria_mark_in_repair(x) do{(x)->s->state.changed|=      \
+      STATE_CRASHED | STATE_IN_REPAIR;                          \
+    (x)->update|= HA_STATE_CHANGED;                             \
+    DBUG_PRINT("error", ("Marked table crashed for repair"));   \
   }while(0)
 #define maria_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define maria_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
+#define maria_in_repair(x) ((x)->s->state.changed & STATE_IN_REPAIR)
+
 #ifdef EXTRA_DEBUG
 /**
   Brings additional information in certain debug builds and in standalone
@@ -792,8 +804,10 @@ extern uint32 maria_read_vec[], maria_readnext_vec[];
 extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
-extern my_bool maria_inited, maria_in_ha_maria;
+extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
+extern my_bool maria_recovery_verbose;
 extern HASH maria_stored_state;
+extern int (*maria_create_trn_hook)(MARIA_HA *);
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
@@ -826,6 +840,7 @@ typedef struct st_maria_page
   uchar *buff;				/* Data for page */
   my_off_t pos;                         /* Disk address to page */
   uint     size;                        /* Size of data on page */
+  uint     org_size;                    /* Size of page at read or after log */
   uint     node;      			/* 0 or share->base.key_reflength */
   uint     flag;			/* Page flag */
   uint     link_offset;
@@ -1076,7 +1091,7 @@ typedef struct st_maria_block_info
 
 #define USE_BUFFER_INIT		(((1024L*1024L*128-MALLOC_OVERHEAD)/8192)*8192)
 #define READ_BUFFER_INIT	(1024L*256L-MALLOC_OVERHEAD)
-#define SORT_BUFFER_INIT	(1024L*1024L*64-MALLOC_OVERHEAD)
+#define SORT_BUFFER_INIT	(1024L*1024L*256-MALLOC_OVERHEAD)
 #define MIN_SORT_BUFFER		(4096-MALLOC_OVERHEAD)
 
 #define fast_ma_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _ma_writeinfo((INFO),0)
@@ -1246,7 +1261,6 @@ extern my_bool maria_flush_log_for_page(uchar *page,
 extern my_bool maria_flush_log_for_page_none(uchar *page,
                                              pgcache_page_no_t page_no,
                                              uchar *data_ptr);
-void maria_concurrent_inserts(MARIA_HA *info, my_bool concurrent_insert);
 extern PAGECACHE *maria_log_pagecache;
 extern void ma_set_index_cond_func(MARIA_HA *info, index_cond_func_t func,
                                    void *func_arg);

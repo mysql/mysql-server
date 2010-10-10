@@ -4,7 +4,7 @@
 # can't restart server in embedded
 --source include/not_embedded.inc
 
-set global maria_log_file_size=4294967295;
+set global aria_log_file_size=4294967295;
 
 --disable_warnings
 drop database if exists mysqltest;
@@ -19,8 +19,8 @@ use mysqltest;
 --enable_reconnect
 
 # checkpoints can make log unrepeatable
-let $def_checkinterval=`select @@global.maria_checkpoint_interval`;
-set global maria_checkpoint_interval=0;
+let $def_checkinterval=`select @@global.aria_checkpoint_interval`;
+set global aria_checkpoint_interval=0;
 
 # Prepare table to help for big load
 create table t2 (a varchar(100)) engine=myisam;
@@ -36,24 +36,24 @@ insert into t2 select * from t2;
 
 # no optimization because table not empty
 
-# SHOW ENGINE MARIA LOGS could be influenced by older logs
+# SHOW ENGINE ARIA LOGS could be influenced by older logs
 -- source include/maria_empty_logs.inc
-create table t1 (a varchar(100)) engine=maria transactional=1;
+create table t1 (a varchar(100)) engine=aria transactional=1;
 show create table t1;
---replace_regex /; .+maria_log/maria_log/
-show engine maria logs;
+--replace_regex /; .+aria_log/aria_log/
+show engine aria logs;
 
 insert into t1 values('a');
 insert into t1 select * from t2;
---replace_regex /; .+maria_log/maria_log/
-show engine maria logs;
+--replace_regex /; .+aria_log/aria_log/
+show engine aria logs;
 
 # optimization because table is empty
 -- source include/maria_empty_logs.inc
 truncate table t1;
 insert into t1 select * from t2;
---replace_regex /; .+maria_log/maria_log/
-show engine maria logs;
+--replace_regex /; .+aria_log/aria_log/
+show engine aria logs;
 
 drop table t1;
 
@@ -61,23 +61,23 @@ drop table t1;
 
 # no optimization because table not empty
 -- source include/maria_empty_logs.inc
-create table t1 (a varchar(100)) engine=maria transactional=1;
+create table t1 (a varchar(100)) engine=aria transactional=1;
 insert into t1 values('a');
 create table if not exists t1 select * from t2;
---replace_regex /; .+maria_log/maria_log/
-show engine maria logs;
+--replace_regex /; .+aria_log/aria_log/
+show engine aria logs;
 
 # optimization because table is empty
 -- source include/maria_empty_logs.inc
 drop table t1;
-create table t1 engine=maria transactional=1 select * from t2;
---replace_regex /; .+maria_log/maria_log/
-show engine maria logs;
+create table t1 engine=aria transactional=1 select * from t2;
+--replace_regex /; .+aria_log/aria_log/
+show engine aria logs;
 
 drop database mysqltest;
 
 --disable_result_log
 --disable_query_log
-eval set global maria_checkpoint_interval=$def_checkinterval;
+eval set global aria_checkpoint_interval=$def_checkinterval;
 --enable_result_log
 --enable_query_log

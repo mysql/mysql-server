@@ -59,6 +59,7 @@ void _ma_page_setup(MARIA_PAGE *page, MARIA_HA *info,
   page->buff=    buff;
   page->pos=     pos;
   page->size=    _ma_get_page_used(share, buff);
+  page->org_size= page->size;
   page->flag=    _ma_get_keypage_flag(share, buff);
   page->node=    ((page->flag & KEYPAGE_FLAG_ISNOD) ?
                   share->base.key_reflength : 0);
@@ -68,7 +69,7 @@ void _ma_page_setup(MARIA_PAGE *page, MARIA_HA *info,
 void page_cleanup(MARIA_SHARE *share, MARIA_PAGE *page)
 {
   uint length= page->size;
-  DBUG_ASSERT(length <= block_size - KEYPAGE_CHECKSUM_SIZE);
+  DBUG_ASSERT(length <= share->max_index_block_size);
   bzero(page->buff + length, share->block_size - length);
 }
 #endif
@@ -103,7 +104,7 @@ my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
   MARIA_SHARE *share= info->s;
   uint block_size= share->block_size;
   DBUG_ENTER("_ma_fetch_keypage");
-  DBUG_PRINT("enter",("pos: %ld", (long) pos));
+  DBUG_PRINT("enter",("page: %lu", (ulong) (pos / block_size)));
 
   tmp= pagecache_read(share->pagecache, &share->kfile,
                       (pgcache_page_no_t) (pos / block_size), level, buff,
@@ -142,6 +143,7 @@ my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
   page->buff=    tmp;
   page->pos=     pos;
   page->size=    _ma_get_page_used(share, tmp);
+  page->org_size= page->size;                    /* For debugging */
   page->flag=    _ma_get_keypage_flag(share, tmp);
   page->node=   ((page->flag & KEYPAGE_FLAG_ISNOD) ?
                  share->base.key_reflength : 0);
@@ -149,7 +151,7 @@ my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
 #ifdef EXTRA_DEBUG
   {
     uint page_size= page->size;
-    if (page_size < 4 || page_size > block_size ||
+    if (page_size < 4 || page_size > share->max_index_block_size ||
         _ma_get_keynr(share, tmp) != keyinfo->key_nr)
     {
       DBUG_PRINT("error",("page %lu had wrong page length: %u  keynr: %u",
@@ -159,7 +161,7 @@ my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
       info->last_keypage = HA_OFFSET_ERROR;
       maria_print_error(share, HA_ERR_CRASHED);
       my_errno= HA_ERR_CRASHED;
-      tmp= 0;
+      DBUG_RETURN(1);
     }
   }
 #endif
@@ -179,6 +181,13 @@ my_bool _ma_write_keypage(MARIA_PAGE *page, enum pagecache_page_lock lock,
   MARIA_PINNED_PAGE page_link;
   DBUG_ENTER("_ma_write_keypage");
 
+  /*
+    The following ensures that for transactional tables we have logged
+    all changes that changes the page size (as the logging code sets
+    page->org_size)
+  */
+  DBUG_ASSERT(!share->now_transactional || page->size == page->org_size);
+
 #ifdef EXTRA_DEBUG				/* Safety check */
   {
     uint page_length, nod_flag;
@@ -193,7 +202,7 @@ my_bool _ma_write_keypage(MARIA_PAGE *page, enum pagecache_page_lock lock,
         (page->pos & (maria_block_size-1)))
     {
       DBUG_PRINT("error",("Trying to write inside key status region: "
-                          "key_start: %lu  length: %lu  page: %lu",
+                          "key_start: %lu  length: %lu  page_pos: %lu",
                           (long) share->base.keystart,
                           (long) share->state.state.key_file_length,
                           (long) page->pos));
@@ -201,7 +210,7 @@ my_bool _ma_write_keypage(MARIA_PAGE *page, enum pagecache_page_lock lock,
       DBUG_ASSERT(0);
       DBUG_RETURN(1);
     }
-    DBUG_PRINT("page",("write page at: %lu",(long) page->pos));
+    DBUG_PRINT("page",("write page at: %lu",(ulong) (page->pos / block_size)));
     DBUG_DUMP("buff", buff, page_length);
     DBUG_ASSERT(page_length >= share->keypage_header + nod_flag +
                 page->keyinfo->minlength || maria_in_recovery);
@@ -274,7 +283,7 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
   enum pagecache_page_lock lock_method;
   enum pagecache_page_pin pin_method;
   DBUG_ENTER("_ma_dispose");
-  DBUG_PRINT("enter",("pos: %ld", (long) pos));
+  DBUG_PRINT("enter",("page: %lu", (ulong) (pos / block_size)));
   DBUG_ASSERT(pos % block_size == 0);
 
   (void) _ma_lock_key_del(info, 0);
@@ -423,8 +432,7 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
       share->key_del_current= mi_sizekorr(buff+share->keypage_header);
 #ifndef DBUG_OFF
       key_del_current= share->key_del_current;
-      DBUG_ASSERT(key_del_current != share->state.key_del &&
-                  (key_del_current != 0) &&
+      DBUG_ASSERT((key_del_current != 0) &&
                   ((key_del_current == HA_OFFSET_ERROR) ||
                    (key_del_current <=
                     (share->state.state.key_file_length - block_size))));
@@ -453,32 +461,48 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
    Log compactation of a index page
 */
 
-static my_bool _ma_log_compact_keypage(MARIA_HA *info, my_off_t page,
+static my_bool _ma_log_compact_keypage(MARIA_PAGE *ma_page,
                                        TrID min_read_from)
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 1 + TRANSID_SIZE];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 1 + 7 + TRANSID_SIZE];
+  uchar *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+  MARIA_HA *info= ma_page->info;
   MARIA_SHARE *share= info->s;
+  uint translog_parts, extra_length;
+  my_off_t page= ma_page->pos;
   DBUG_ENTER("_ma_log_compact_keypage");
-  DBUG_PRINT("enter", ("page: %lu", (ulong) page));
+  DBUG_PRINT("enter", ("page: %lu", (ulong) (page / share->block_size)));
 
   /* Store address of new root page */
   page/= share->block_size;
   page_store(log_data + FILEID_STORE_SIZE, page);
 
-  log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE]= KEY_OP_COMPACT_PAGE;
-  transid_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE +1,
-                min_read_from);
+  log_pos= log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE;
+
+  log_pos[0]= KEY_OP_COMPACT_PAGE;
+  transid_store(log_pos + 1, min_read_from);
+  log_pos+= 1 + TRANSID_SIZE;
 
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
+                                                         log_data);
+  translog_parts= 1;
+  extra_length= 0;
+
+  _ma_log_key_changes(ma_page,
+                      log_array + TRANSLOG_INTERNAL_PARTS + translog_parts,
+                      log_pos, &extra_length, &translog_parts);
+  /* Remember new page length for future log entires for same page */
+  ma_page->org_size= ma_page->size;
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,
-                            (translog_size_t) sizeof(log_data),
-                            TRANSLOG_INTERNAL_PARTS + 1, log_array,
-                            log_data, NULL))
+                            log_array[TRANSLOG_INTERNAL_PARTS +
+                                      0].length + extra_length,
+                            TRANSLOG_INTERNAL_PARTS + translog_parts,
+                            log_array, log_data, NULL))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -526,7 +550,7 @@ my_bool _ma_compact_keypage(MARIA_PAGE *ma_page, TrID min_read_from)
   {
     if (!(page= (*ma_page->keyinfo->skip_key)(&key, 0, 0, page)))
     {
-      DBUG_PRINT("error",("Couldn't find last key:  page: 0x%lx",
+      DBUG_PRINT("error",("Couldn't find last key:  page_pos: 0x%lx",
                           (long) page));
       maria_print_error(share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
@@ -588,7 +612,7 @@ my_bool _ma_compact_keypage(MARIA_PAGE *ma_page, TrID min_read_from)
 
   if (share->now_transactional)
   {
-    if (_ma_log_compact_keypage(info, ma_page->pos, min_read_from))
+    if (_ma_log_compact_keypage(ma_page, min_read_from))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

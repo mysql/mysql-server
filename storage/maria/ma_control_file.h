@@ -21,7 +21,7 @@
 #ifndef _ma_control_file_h
 #define _ma_control_file_h
 
-#define CONTROL_FILE_BASE_NAME "maria_log_control"
+#define CONTROL_FILE_BASE_NAME "aria_log_control"
 /*
   Major version for control file. Should only be changed when doing
   big changes that made the new control file incompatible with all

@@ -17,7 +17,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/yassl/include
                     ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include
                     ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
 
-ADD_DEFINITIONS("-D_LIB -DYASSL_PREFIX")
+ADD_DEFINITIONS("-D_LIB -DYASSL_PREFIX -DYASSL_THREAD_SAFE")
 
 SET(YASSL_SOURCES  src/buffer.cpp src/cert_wrapper.cpp src/crypto_wrapper.cpp src/handshake.cpp src/lock.cpp 
 				src/log.cpp src/socket_wrapper.cpp src/ssl.cpp src/timer.cpp src/yassl_error.cpp 

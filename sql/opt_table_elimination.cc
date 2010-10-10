@@ -1544,7 +1544,7 @@ Dep_value_table *Dep_analysis_context::create_table_value(TABLE *table)
   for (uint i=0; i < table->s->keys; i++)
   {
     KEY *key= table->key_info + i; 
-    if ((key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME)
+    if (key->flags & HA_NOSAME)
     {
       Dep_module_key *key_dep;
       if (!(key_dep= new Dep_module_key(tbl_dep, i, key->key_parts)))

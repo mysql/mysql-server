@@ -66,9 +66,12 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
 {
   DBUG_ENTER("mi_dynmap_file");
-  if (size > (my_off_t) (~((size_t) 0)))
+  if (size == 0 || size > (my_off_t) (~((size_t) 0)))
   {
-    DBUG_PRINT("warning", ("File is too large for mmap"));
+    if (size)
+      DBUG_PRINT("warning", ("File is too large for mmap"));
+    else
+      DBUG_PRINT("warning", ("Do not mmap zero-length"));
     DBUG_RETURN(1);
   }
   /*
@@ -116,7 +119,7 @@ int mi_munmap_file(MI_INFO *info)
 {
   int ret;
   DBUG_ENTER("mi_unmap_file");
-  if ((ret= my_munmap(info->s->file_map, info->s->mmaped_length)))
+  if ((ret= my_munmap(info->s->file_map, (size_t) info->s->mmaped_length)))
     DBUG_RETURN(ret);
   info->s->file_read= mi_nommap_pread;
   info->s->file_write= mi_nommap_pwrite;

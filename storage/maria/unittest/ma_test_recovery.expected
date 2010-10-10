@@ -67,7 +67,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t2 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -76,7 +76,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -85,7 +85,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -96,7 +96,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t6 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -105,7 +105,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -114,7 +114,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -164,7 +164,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t2 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -173,7 +173,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -182,7 +182,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -193,7 +193,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t6 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -202,7 +202,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -211,7 +211,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -261,7 +261,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t2 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -270,7 +270,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -279,7 +279,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -290,7 +290,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t6 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -299,7 +299,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -308,7 +308,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -358,7 +358,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t2 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -367,7 +367,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -376,7 +376,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -387,7 +387,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t6 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -396,7 +396,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -405,7 +405,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -455,7 +455,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t2 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -464,7 +464,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -473,7 +473,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -484,7 +484,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t6 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -493,7 +493,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -502,7 +502,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -552,7 +552,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t2 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -561,7 +561,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -570,7 +570,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -581,7 +581,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t6 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -590,7 +590,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -599,7 +599,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -649,7 +649,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t2 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -658,7 +658,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -667,7 +667,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -678,7 +678,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t6 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -687,7 +687,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -696,7 +696,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -746,7 +746,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t2 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -755,7 +755,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -764,7 +764,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -775,7 +775,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t6 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -784,7 +784,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -793,7 +793,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -843,7 +843,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t2 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -852,7 +852,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -861,7 +861,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -872,7 +872,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t6 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -881,7 +881,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -890,7 +890,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -940,7 +940,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t2 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -949,7 +949,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -958,7 +958,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -969,7 +969,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t6 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -978,7 +978,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -987,7 +987,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1037,7 +1037,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t2 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1046,7 +1046,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1055,7 +1055,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1066,7 +1066,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t6 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1075,7 +1075,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1084,7 +1084,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1134,7 +1134,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t2 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1143,7 +1143,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1152,7 +1152,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1163,7 +1163,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t6 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1172,7 +1172,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1181,7 +1181,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1231,7 +1231,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t2 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1240,7 +1240,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1249,7 +1249,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1260,7 +1260,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t6 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1269,7 +1269,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1278,7 +1278,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1328,7 +1328,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t2 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1337,7 +1337,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1346,7 +1346,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1357,7 +1357,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t6 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1366,7 +1366,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1375,7 +1375,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1425,7 +1425,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t2 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1434,7 +1434,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1443,7 +1443,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1454,7 +1454,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t6 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1463,7 +1463,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1472,7 +1472,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1522,7 +1522,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t2 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1531,7 +1531,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1540,7 +1540,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1551,7 +1551,7 @@ TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t6 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1560,7 +1560,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing idempotency
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
@@ -1569,7 +1569,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
-Differences in maria_chk -dvv, recovery not yet perfect !
+Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable

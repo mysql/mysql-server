@@ -717,14 +717,16 @@ row_merge_read(
 }
 
 /********************************************************************//**
-Read a merge block from the file system.
+Write a merge block to the file system.
 @return	TRUE if request was successful, FALSE if fail */
 static
 ibool
 row_merge_write(
 /*============*/
 	int		fd,	/*!< in: file descriptor */
-	ulint		offset,	/*!< in: offset where to write */
+	ulint		offset,	/*!< in: offset where to read
+				in number of row_merge_block_t
+				elements */
 	const void*	buf)	/*!< in: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset)
@@ -1075,11 +1077,14 @@ row_merge_cmp(
 						record to be compared */
 	const ulint*		offsets1,	/*!< in: first record offsets */
 	const ulint*		offsets2,	/*!< in: second record offsets */
-	const dict_index_t*	index)		/*!< in: index */
+	const dict_index_t*	index,		/*!< in: index */
+	ibool*			null_eq)	/*!< out: set to TRUE if
+						found matching null values */
 {
 	int	cmp;
 
-	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index);
+	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index,
+				 null_eq);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_cmp) {
@@ -1445,11 +1450,13 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
+		ibool	null_eq = FALSE;
 		switch (row_merge_cmp(mrec0, mrec1,
-				      offsets0, offsets1, index)) {
+				      offsets0, offsets1, index,
+				      &null_eq)) {
 		case 0:
 			if (UNIV_UNLIKELY
-			    (dict_index_is_unique(index))) {
+			    (dict_index_is_unique(index) && !null_eq)) {
 				innobase_rec_to_mysql(table, mrec0,
 						      index, offsets0);
 				mem_heap_free(heap);
@@ -1571,22 +1578,28 @@ row_merge(
 	const dict_index_t*	index,	/*!< in: index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
-	ulint*			half,	/*!< in/out: half the file */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd,	/*!< in/out: temporary file handle */
-	TABLE*			table)	/*!< in/out: MySQL table, for
+	TABLE*			table,	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	ulint*			num_run,/*!< in/out: Number of runs remain
+					to be merged */
+	ulint*			run_offset) /*!< in/out: Array contains the
+					first offset number for each merge
+					run */
 {
 	ulint		foffs0;	/*!< first input offset */
 	ulint		foffs1;	/*!< second input offset */
 	ulint		error;	/*!< error code */
 	merge_file_t	of;	/*!< output file */
-	const ulint	ihalf	= *half;
+	const ulint	ihalf	= run_offset[*num_run / 2];
 				/*!< half the input file */
-	ulint		ohalf;	/*!< half the output file */
+	ulint		n_run	= 0;
+				/*!< num of runs generated from this merge */
 
 	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
+
 	ut_ad(ihalf < file->offset);
 
 	of.fd = *tmpfd;
@@ -1594,16 +1607,19 @@ row_merge(
 	of.n_rec = 0;
 
 	/* Merge blocks to the output file. */
-	ohalf = 0;
 	foffs0 = 0;
 	foffs1 = ihalf;
 
+	UNIV_MEM_INVALID(run_offset, *num_run * sizeof *run_offset);
+
 	for (; foffs0 < ihalf && foffs1 < file->offset; foffs0++, foffs1++) {
-		ulint	ahalf;	/*!< arithmetic half the input file */
 
 		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 			return(DB_INTERRUPTED);
 		}
+
+		/* Remember the offset number for this run */
+		run_offset[n_run++] = of.offset;
 
 		error = row_merge_blocks(index, file, block,
 					 &foffs0, &foffs1, &of, table);
@@ -1612,21 +1628,6 @@ row_merge(
 			return(error);
 		}
 
-		/* Record the offset of the output file when
-		approximately half the output has been generated.  In
-		this way, the next invocation of row_merge() will
-		spend most of the time in this loop.  The initial
-		estimate is ohalf==0. */
-		ahalf = file->offset / 2;
-		ut_ad(ohalf <= of.offset);
-
-		/* Improve the estimate until reaching half the input
-		file size, or we can not get any closer to it.  All
-		comparands should be non-negative when !(ohalf < ahalf)
-		because ohalf <= of.offset. */
-		if (ohalf < ahalf || of.offset - ahalf < ohalf - ahalf) {
-			ohalf = of.offset;
-		}
 	}
 
 	/* Copy the last blocks, if there are any. */
@@ -1635,6 +1636,9 @@ row_merge(
 		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 			return(DB_INTERRUPTED);
 		}
+
+		/* Remember the offset number for this run */
+		run_offset[n_run++] = of.offset;
 
 		if (!row_merge_blocks_copy(index, file, block, &foffs0, &of)) {
 			return(DB_CORRUPTION);
@@ -1648,6 +1652,9 @@ row_merge(
 			return(DB_INTERRUPTED);
 		}
 
+		/* Remember the offset number for this run */
+		run_offset[n_run++] = of.offset;
+
 		if (!row_merge_blocks_copy(index, file, block, &foffs1, &of)) {
 			return(DB_CORRUPTION);
 		}
@@ -1659,10 +1666,23 @@ row_merge(
 		return(DB_CORRUPTION);
 	}
 
+	ut_ad(n_run <= *num_run);
+
+	*num_run = n_run;
+
+	/* Each run can contain one or more offsets. As merge goes on,
+	the number of runs (to merge) will reduce until we have one
+	single run. So the number of runs will always be smaller than
+	the number of offsets in file */
+	ut_ad((*num_run) <= file->offset);
+
+	/* The number of offsets in output file is always equal or
+	smaller than input file */
+	ut_ad(of.offset <= file->offset);
+
 	/* Swap file descriptors for the next pass. */
 	*tmpfd = file->fd;
 	*file = of;
-	*half = ohalf;
 
 	UNIV_MEM_INVALID(block[0], 3 * sizeof block[0]);
 
@@ -1687,27 +1707,44 @@ row_merge_sort(
 					if applicable */
 {
 	ulint	half = file->offset / 2;
+	ulint	num_runs;
+	ulint*	run_offset;
+	ulint	error = DB_SUCCESS;
+
+	/* Record the number of merge runs we need to perform */
+	num_runs = file->offset;
+
+	/* If num_runs are less than 1, nothing to merge */
+	if (num_runs <= 1) {
+		return(error);
+	}
+
+	/* "run_offset" records each run's first offset number */
+	run_offset = (ulint*) mem_alloc(file->offset * sizeof(ulint));
+
+	/* This tells row_merge() where to start for the first round
+	of merge. */
+	run_offset[half] = half;
 
 	/* The file should always contain at least one byte (the end
 	of file marker).  Thus, it must be at least one block. */
 	ut_ad(file->offset > 0);
 
+	/* Merge the runs until we have one big run */
 	do {
-		ulint	error;
+		error = row_merge(trx, index, file, block, tmpfd,
+				  table, &num_runs, run_offset);
 
-		error = row_merge(trx, index, file, &half,
-				  block, tmpfd, table);
+		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
 
 		if (error != DB_SUCCESS) {
-			return(error);
+			break;
 		}
+	} while (num_runs > 1);
 
-		/* half > 0 should hold except when the file consists
-		of one block.  No need to merge further then. */
-		ut_ad(half > 0 || file->offset == 1);
-	} while (half < file->offset && half > 0);
+	mem_free(run_offset);
 
-	return(DB_SUCCESS);
+	return(error);
 }
 
 /*************************************************************//**
@@ -1743,6 +1780,11 @@ row_merge_copy_blobs(
 		(below). */
 		data = btr_rec_copy_externally_stored_field(
 			mrec, offsets, zip_size, i, &len, heap);
+		/* Because we have locked the table, any records
+		written by incomplete transactions must have been
+		rolled back already. There must not be any incomplete
+		BLOB columns. */
+		ut_a(data);
 
 		dfield_set_data(field, data, len);
 	}
@@ -2087,13 +2129,16 @@ row_merge_drop_temp_indexes(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table_on_id(table_id);
+		table = dict_table_get_on_id_low(table_id);
 
 		if (table) {
 			dict_index_t*	index;
+			dict_index_t*	next_index;
 
 			for (index = dict_table_get_first_index(table);
-			     index; index = dict_table_get_next_index(index)) {
+			     index; index = next_index) {
+
+				next_index = dict_table_get_next_index(index);
 
 				if (*index->name == TEMP_INDEX_PREFIX) {
 					row_merge_drop_index(index, table, trx);
@@ -2296,13 +2341,24 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	const char*	old_name= old_table->name;
+	char		old_name[MAX_TABLE_NAME_LEN + 1];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
+	/* store the old/current name to an automatic variable */
+	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
+		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
+	} else {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "InnoDB: too long table name: '%s', "
+			"max length is %d\n", old_table->name,
+			MAX_TABLE_NAME_LEN);
+		ut_error;
+	}
 
 	trx->op_info = "renaming tables";
 

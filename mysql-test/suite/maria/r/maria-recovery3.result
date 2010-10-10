@@ -1,20 +1,20 @@
-set global maria_log_file_size=4294967295;
+set global aria_log_file_size=4294967295;
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
 * shut down mysqld, removed logs, restarted it
 * TEST of Checkpoint between writing the commit log record and committing in trnman
-create table t1(a int primary key) engine=maria;
+create table t1(a int primary key) engine=aria;
 insert into t1 values(1);
 flush table t1;
 * copied t1 for comparison
 set session debug="+d,maria_sleep_in_commit";
 insert into t1 values(2);
-set global maria_checkpoint_interval=1000;
+set global aria_checkpoint_interval=1000;
 delete from t1 where a=2;
 SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
 check table t1 extended;
@@ -29,11 +29,11 @@ drop table t1;
 CREATE TABLE `t1` (
 `blob` blob,
 `blob_key` blob
-) ENGINE=maria ROW_FORMAT=page
+) ENGINE=aria ROW_FORMAT=page
 ;
 * copied t1 for feeding_recovery
 * compared t1 to old version
-set global maria_checkpoint_interval=0;
+set global aria_checkpoint_interval=0;
 INSERT INTO `t1` VALUES (NULL,repeat('A',5198));
 INSERT INTO `t1` VALUES (NULL,repeat('B',65535));
 INSERT INTO `t1` VALUES (repeat('K',5198),repeat('L',2325));
@@ -50,7 +50,7 @@ flush table t1;
 * compared t1 to old version
 SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * copied t1 back for feeding_recovery
 * recovery happens
@@ -63,9 +63,9 @@ ok
 * compared t1 to old version
 use mysqltest;
 drop table t1;
-create table t1 engine=maria select 1;
+create table t1 engine=aria select 1;
 * copied t1 for feeding_recovery
-set global maria_checkpoint_interval=0;
+set global aria_checkpoint_interval=0;
 insert into t1 values(2);
 truncate table t1;
 flush table t1;

@@ -217,6 +217,7 @@ noinst_HEADERS=		\
 			include/ut0lst.h	\
 			include/ut0mem.h	\
 			include/ut0mem.ic	\
+			include/ut0rbt.h	\
 			include/ut0rnd.h	\
 			include/ut0rnd.ic	\
 			include/ut0sort.h	\
@@ -228,9 +229,9 @@ noinst_HEADERS=		\
 			handler/innodb_patch_info.h	\
 			mem/mem0dbg.c
 
-EXTRA_LIBRARIES=	libinnobase.a
-noinst_LIBRARIES=	@plugin_innobase_static_target@
-libinnobase_a_SOURCES=	\
+EXTRA_LIBRARIES=	libxtradb.a
+noinst_LIBRARIES=	@plugin_xtradb_static_target@
+libxtradb_a_SOURCES=	\
 			btr/btr0btr.c			\
 			btr/btr0cur.c			\
 			btr/btr0pcur.c			\
@@ -319,21 +320,22 @@ libinnobase_a_SOURCES=	\
 			ut/ut0dbg.c			\
 			ut/ut0list.c			\
 			ut/ut0mem.c			\
+			ut/ut0rbt.c			\
 			ut/ut0rnd.c			\
 			ut/ut0ut.c			\
 			ut/ut0vec.c			\
 			ut/ut0wqueue.c
 
-libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
-libinnobase_a_CFLAGS=	$(AM_CFLAGS)
+libxtradb_a_CXXFLAGS=	$(AM_CFLAGS)
+libxtradb_a_CFLAGS=	$(AM_CFLAGS)
 
-EXTRA_LTLIBRARIES=	ha_innodb.la
-pkgplugin_LTLIBRARIES=	@plugin_innobase_shared_target@
+EXTRA_LTLIBRARIES=	ha_xtradb.la
+pkgplugin_LTLIBRARIES=	@plugin_xtradb_shared_target@
 
-ha_innodb_la_LDFLAGS=	-module -rpath $(pkgplugindir)
-ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
-ha_innodb_la_CFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
-ha_innodb_la_SOURCES=	$(libinnobase_a_SOURCES)
+ha_xtradb_la_LDFLAGS=	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
+ha_xtradb_la_CXXFLAGS=	-shared $(AM_CXXFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_xtradb_la_CFLAGS=	-shared $(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_xtradb_la_SOURCES=	$(libxtradb_a_SOURCES)
 
 EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \

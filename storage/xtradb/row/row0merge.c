@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -424,14 +424,13 @@ row_merge_dup_report(
 	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
 	const dfield_t*		entry)	/*!< in: duplicate index entry */
 {
-	mrec_buf_t 		buf;
+	mrec_buf_t* 		buf;
 	const dtuple_t*		tuple;
 	dtuple_t		tuple_store;
 	const rec_t*		rec;
 	const dict_index_t*	index	= dup->index;
 	ulint			n_fields= dict_index_get_n_fields(index);
-	mem_heap_t*		heap	= NULL;
-	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
+	mem_heap_t*		heap;
 	ulint*			offsets;
 	ulint			n_ext;
 
@@ -441,22 +440,22 @@ row_merge_dup_report(
 		return;
 	}
 
-	rec_offs_init(offsets_);
-
 	/* Convert the tuple to a record and then to MySQL format. */
+	heap = mem_heap_create((1 + REC_OFFS_HEADER_SIZE + n_fields)
+			       * sizeof *offsets
+			       + sizeof *buf);
+
+	buf = mem_heap_alloc(heap, sizeof *buf);
 
 	tuple = dtuple_from_fields(&tuple_store, entry, n_fields);
 	n_ext = dict_index_is_clust(index) ? dtuple_get_n_ext(tuple) : 0;
 
-	rec = rec_convert_dtuple_to_rec(buf, index, tuple, n_ext);
-	offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
-				  &heap);
+	rec = rec_convert_dtuple_to_rec(*buf, index, tuple, n_ext);
+	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
 	innobase_rec_to_mysql(dup->table, rec, index, offsets);
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
+	mem_heap_free(heap);
 }
 
 /*************************************************************//**
@@ -627,22 +626,26 @@ row_merge_buf_write(
 }
 
 /******************************************************//**
-Create a memory heap and allocate space for row_merge_rec_offsets().
+Create a memory heap and allocate space for row_merge_rec_offsets()
+and mrec_buf_t[3].
 @return	memory heap */
 static
 mem_heap_t*
 row_merge_heap_create(
 /*==================*/
 	const dict_index_t*	index,		/*!< in: record descriptor */
+	mrec_buf_t**		buf,		/*!< out: 3 buffers */
 	ulint**			offsets1,	/*!< out: offsets */
 	ulint**			offsets2)	/*!< out: offsets */
 {
 	ulint		i	= 1 + REC_OFFS_HEADER_SIZE
 		+ dict_index_get_n_fields(index);
-	mem_heap_t*	heap	= mem_heap_create(2 * i * sizeof *offsets1);
+	mem_heap_t*	heap	= mem_heap_create(2 * i * sizeof **offsets1
+						  + 3 * sizeof **buf);
 
-	*offsets1 = mem_heap_alloc(heap, i * sizeof *offsets1);
-	*offsets2 = mem_heap_alloc(heap, i * sizeof *offsets2);
+	*buf = mem_heap_alloc(heap, 3 * sizeof **buf);
+	*offsets1 = mem_heap_alloc(heap, i * sizeof **offsets1);
+	*offsets2 = mem_heap_alloc(heap, i * sizeof **offsets2);
 
 	(*offsets1)[0] = (*offsets2)[0] = i;
 	(*offsets1)[1] = (*offsets2)[1] = dict_index_get_n_fields(index);
@@ -714,14 +717,16 @@ row_merge_read(
 }
 
 /********************************************************************//**
-Read a merge block from the file system.
+Write a merge block to the file system.
 @return	TRUE if request was successful, FALSE if fail */
 static
 ibool
 row_merge_write(
 /*============*/
 	int		fd,	/*!< in: file descriptor */
-	ulint		offset,	/*!< in: offset where to write */
+	ulint		offset,	/*!< in: offset where to read
+				in number of row_merge_block_t
+				elements */
 	const void*	buf)	/*!< in: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset)
@@ -1072,11 +1077,14 @@ row_merge_cmp(
 						record to be compared */
 	const ulint*		offsets1,	/*!< in: first record offsets */
 	const ulint*		offsets2,	/*!< in: second record offsets */
-	const dict_index_t*	index)		/*!< in: index */
+	const dict_index_t*	index,		/*!< in: index */
+	ibool*			null_eq)	/*!< out: set to TRUE if
+						found matching null values */
 {
 	int	cmp;
 
-	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index);
+	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index,
+				 null_eq);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_cmp) {
@@ -1401,7 +1409,8 @@ row_merge_blocks(
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
-	mrec_buf_t	buf[3];	/*!< buffer for handling split mrec in block[] */
+	mrec_buf_t*	buf;	/*!< buffer for handling
+				split mrec in block[] */
 	const byte*	b0;	/*!< pointer to block[0] */
 	const byte*	b1;	/*!< pointer to block[1] */
 	byte*		b2;	/*!< pointer to block[2] */
@@ -1421,7 +1430,7 @@ row_merge_blocks(
 	}
 #endif /* UNIV_DEBUG */
 
-	heap = row_merge_heap_create(index, &offsets0, &offsets1);
+	heap = row_merge_heap_create(index, &buf, &offsets0, &offsets1);
 
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
@@ -1448,11 +1457,13 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
+		ibool	null_eq = FALSE;
 		switch (row_merge_cmp(mrec0, mrec1,
-				      offsets0, offsets1, index)) {
+				      offsets0, offsets1, index,
+				      &null_eq)) {
 		case 0:
 			if (UNIV_UNLIKELY
-			    (dict_index_is_unique(index))) {
+			    (dict_index_is_unique(index) && !null_eq)) {
 				innobase_rec_to_mysql(table, mrec0,
 						      index, offsets0);
 				mem_heap_free(heap);
@@ -1507,7 +1518,7 @@ row_merge_blocks_copy(
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
-	mrec_buf_t	buf[3];	/*!< buffer for handling
+	mrec_buf_t*	buf;	/*!< buffer for handling
 				split mrec in block[] */
 	const byte*	b0;	/*!< pointer to block[0] */
 	byte*		b2;	/*!< pointer to block[2] */
@@ -1525,7 +1536,7 @@ row_merge_blocks_copy(
 	}
 #endif /* UNIV_DEBUG */
 
-	heap = row_merge_heap_create(index, &offsets0, &offsets1);
+	heap = row_merge_heap_create(index, &buf, &offsets0, &offsets1);
 
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
@@ -1574,22 +1585,28 @@ row_merge(
 	const dict_index_t*	index,	/*!< in: index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
-	ulint*			half,	/*!< in/out: half the file */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd,	/*!< in/out: temporary file handle */
-	TABLE*			table)	/*!< in/out: MySQL table, for
+	TABLE*			table,	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	ulint*			num_run,/*!< in/out: Number of runs remain
+					to be merged */
+	ulint*			run_offset) /*!< in/out: Array contains the
+					first offset number for each merge
+					run */
 {
 	ulint		foffs0;	/*!< first input offset */
 	ulint		foffs1;	/*!< second input offset */
 	ulint		error;	/*!< error code */
 	merge_file_t	of;	/*!< output file */
-	const ulint	ihalf	= *half;
+	const ulint	ihalf	= run_offset[*num_run / 2];
 				/*!< half the input file */
-	ulint		ohalf;	/*!< half the output file */
+	ulint		n_run	= 0;
+				/*!< num of runs generated from this merge */
 
 	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
+
 	ut_ad(ihalf < file->offset);
 
 	of.fd = *tmpfd;
@@ -1597,16 +1614,19 @@ row_merge(
 	of.n_rec = 0;
 
 	/* Merge blocks to the output file. */
-	ohalf = 0;
 	foffs0 = 0;
 	foffs1 = ihalf;
 
+	UNIV_MEM_INVALID(run_offset, *num_run * sizeof *run_offset);
+
 	for (; foffs0 < ihalf && foffs1 < file->offset; foffs0++, foffs1++) {
-		ulint	ahalf;	/*!< arithmetic half the input file */
 
 		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 			return(DB_INTERRUPTED);
 		}
+
+		/* Remember the offset number for this run */
+		run_offset[n_run++] = of.offset;
 
 		error = row_merge_blocks(index, file, block,
 					 &foffs0, &foffs1, &of, table);
@@ -1615,21 +1635,6 @@ row_merge(
 			return(error);
 		}
 
-		/* Record the offset of the output file when
-		approximately half the output has been generated.  In
-		this way, the next invocation of row_merge() will
-		spend most of the time in this loop.  The initial
-		estimate is ohalf==0. */
-		ahalf = file->offset / 2;
-		ut_ad(ohalf <= of.offset);
-
-		/* Improve the estimate until reaching half the input
-		file size, or we can not get any closer to it.  All
-		comparands should be non-negative when !(ohalf < ahalf)
-		because ohalf <= of.offset. */
-		if (ohalf < ahalf || of.offset - ahalf < ohalf - ahalf) {
-			ohalf = of.offset;
-		}
 	}
 
 	/* Copy the last blocks, if there are any. */
@@ -1638,6 +1643,9 @@ row_merge(
 		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 			return(DB_INTERRUPTED);
 		}
+
+		/* Remember the offset number for this run */
+		run_offset[n_run++] = of.offset;
 
 		if (!row_merge_blocks_copy(index, file, block, &foffs0, &of)) {
 			return(DB_CORRUPTION);
@@ -1651,6 +1659,9 @@ row_merge(
 			return(DB_INTERRUPTED);
 		}
 
+		/* Remember the offset number for this run */
+		run_offset[n_run++] = of.offset;
+
 		if (!row_merge_blocks_copy(index, file, block, &foffs1, &of)) {
 			return(DB_CORRUPTION);
 		}
@@ -1662,10 +1673,23 @@ row_merge(
 		return(DB_CORRUPTION);
 	}
 
+	ut_ad(n_run <= *num_run);
+
+	*num_run = n_run;
+
+	/* Each run can contain one or more offsets. As merge goes on,
+	the number of runs (to merge) will reduce until we have one
+	single run. So the number of runs will always be smaller than
+	the number of offsets in file */
+	ut_ad((*num_run) <= file->offset);
+
+	/* The number of offsets in output file is always equal or
+	smaller than input file */
+	ut_ad(of.offset <= file->offset);
+
 	/* Swap file descriptors for the next pass. */
 	*tmpfd = file->fd;
 	*file = of;
-	*half = ohalf;
 
 	UNIV_MEM_INVALID(block[0], 3 * sizeof block[0]);
 
@@ -1690,27 +1714,44 @@ row_merge_sort(
 					if applicable */
 {
 	ulint	half = file->offset / 2;
+	ulint	num_runs;
+	ulint*	run_offset;
+	ulint	error = DB_SUCCESS;
+
+	/* Record the number of merge runs we need to perform */
+	num_runs = file->offset;
+
+	/* If num_runs are less than 1, nothing to merge */
+	if (num_runs <= 1) {
+		return(error);
+	}
+
+	/* "run_offset" records each run's first offset number */
+	run_offset = (ulint*) mem_alloc(file->offset * sizeof(ulint));
+
+	/* This tells row_merge() where to start for the first round
+	of merge. */
+	run_offset[half] = half;
 
 	/* The file should always contain at least one byte (the end
 	of file marker).  Thus, it must be at least one block. */
 	ut_ad(file->offset > 0);
 
+	/* Merge the runs until we have one big run */
 	do {
-		ulint	error;
+		error = row_merge(trx, index, file, block, tmpfd,
+				  table, &num_runs, run_offset);
 
-		error = row_merge(trx, index, file, &half,
-				  block, tmpfd, table);
+		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
 
 		if (error != DB_SUCCESS) {
-			return(error);
+			break;
 		}
+	} while (num_runs > 1);
 
-		/* half > 0 should hold except when the file consists
-		of one block.  No need to merge further then. */
-		ut_ad(half > 0 || file->offset == 1);
-	} while (half < file->offset && half > 0);
+	mem_free(run_offset);
 
-	return(DB_SUCCESS);
+	return(error);
 }
 
 /*************************************************************//**
@@ -1767,7 +1808,6 @@ row_merge_insert_index_tuples(
 	int			fd,	/*!< in: file descriptor */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
-	mrec_buf_t		buf;
 	const byte*		b;
 	que_thr_t*		thr;
 	ins_node_t*		node;
@@ -1786,7 +1826,7 @@ row_merge_insert_index_tuples(
 
 	trx->op_info = "inserting index entries";
 
-	graph_heap = mem_heap_create(500);
+	graph_heap = mem_heap_create(500 + sizeof(mrec_buf_t));
 	node = ins_node_create(INS_DIRECT, table, graph_heap);
 
 	thr = pars_complete_graph_for_exec(node, trx, graph_heap);
@@ -1808,12 +1848,14 @@ row_merge_insert_index_tuples(
 	if (!row_merge_read(fd, foffs, block)) {
 		error = DB_CORRUPTION;
 	} else {
+		mrec_buf_t*	buf = mem_heap_alloc(graph_heap, sizeof *buf);
+
 		for (;;) {
 			const mrec_t*	mrec;
 			dtuple_t*	dtuple;
 			ulint		n_ext;
 
-			b = row_merge_read_rec(block, &buf, b, index,
+			b = row_merge_read_rec(block, buf, b, index,
 					       fd, &foffs, &mrec, offsets);
 			if (UNIV_UNLIKELY(!b)) {
 				/* End of list, or I/O error */
@@ -1981,17 +2023,17 @@ row_merge_drop_index(
 		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
 		TEMP_INDEX_PREFIX_STR "', NAME) WHERE ID = :indexid;\n"
 		"COMMIT WORK;\n"
+		/* Drop the statistics of the index. */
+		"DELETE FROM SYS_STATS WHERE INDEX_ID = :indexid;\n"
 		/* Drop the field definitions of the index. */
 		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
 		/* Drop the index definition and the B-tree. */
-		"DELETE FROM SYS_INDEXES WHERE ID = :indexid\n"
-		"		AND TABLE_ID = :tableid;\n"
+		"DELETE FROM SYS_INDEXES WHERE ID = :indexid;\n"
 		"END;\n";
 
 	ut_ad(index && table && trx);
 
 	pars_info_add_dulint_literal(info, "indexid", index->id);
-	pars_info_add_dulint_literal(info, "tableid", table->id);
 
 	trx_start_if_not_started(trx);
 	trx->op_info = "dropping index";
@@ -2040,47 +2082,82 @@ row_merge_drop_temp_indexes(void)
 /*=============================*/
 {
 	trx_t*		trx;
-	ulint		err;
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
 
-	/* We use the private SQL parser of Innobase to generate the
-	query graphs needed in deleting the dictionary data from system
-	tables in Innobase. Deleting a row from SYS_INDEXES table also
-	frees the file segments of the B-tree associated with the index. */
-	static const char drop_temp_indexes[] =
-		"PROCEDURE DROP_TEMP_INDEXES_PROC () IS\n"
-		"indexid CHAR;\n"
-		"DECLARE CURSOR c IS SELECT ID FROM SYS_INDEXES\n"
-		"WHERE SUBSTR(NAME,0,1)='" TEMP_INDEX_PREFIX_STR "';\n"
-		"BEGIN\n"
-		"\tOPEN c;\n"
-		"\tWHILE 1=1 LOOP\n"
-		"\t\tFETCH c INTO indexid;\n"
-		"\t\tIF (SQL % NOTFOUND) THEN\n"
-		"\t\t\tEXIT;\n"
-		"\t\tEND IF;\n"
-		"\t\tDELETE FROM SYS_FIELDS WHERE INDEX_ID = indexid;\n"
-		"\t\tDELETE FROM SYS_INDEXES WHERE ID = indexid;\n"
-		"\tEND LOOP;\n"
-		"\tCLOSE c;\n"
-		"\tCOMMIT WORK;\n"
-		"END;\n";
-
+	/* Load the table definitions that contain partially defined
+	indexes, so that the data dictionary information can be checked
+	when accessing the tablename.ibd files. */
 	trx = trx_allocate_for_background();
 	trx->op_info = "dropping partially created indexes";
 	row_mysql_lock_data_dictionary(trx);
 
-	/* Incomplete transactions may be holding some locks on the
-	data dictionary tables.  However, they should never have been
-	able to lock the records corresponding to the partially
-	created indexes that we are attempting to delete, because the
-	table was locked when the indexes were being created.  We will
-	drop the partially created indexes before the rollback of
-	incomplete transactions is initiated.  Thus, this should not
-	interfere with the incomplete transactions. */
-	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-	err = que_eval_sql(NULL, drop_temp_indexes, FALSE, trx);
-	ut_a(err == DB_SUCCESS);
+	mtr_start(&mtr);
 
+	btr_pcur_open_at_index_side(
+		TRUE,
+		dict_table_get_first_index(dict_sys->sys_indexes),
+		BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+
+	for (;;) {
+		const rec_t*	rec;
+		const byte*	field;
+		ulint		len;
+		dulint		table_id;
+		dict_table_t*	table;
+
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
+			break;
+		}
+
+		rec = btr_pcur_get_rec(&pcur);
+		field = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_NAME_FIELD,
+					      &len);
+		if (len == UNIV_SQL_NULL || len == 0
+		    || (char) *field != TEMP_INDEX_PREFIX) {
+			continue;
+		}
+
+		/* This is a temporary index. */
+
+		field = rec_get_nth_field_old(rec, 0/*TABLE_ID*/, &len);
+		if (len != 8) {
+			/* Corrupted TABLE_ID */
+			continue;
+		}
+
+		table_id = mach_read_from_8(field);
+
+		btr_pcur_store_position(&pcur, &mtr);
+		btr_pcur_commit_specify_mtr(&pcur, &mtr);
+
+		table = dict_table_get_on_id_low(table_id);
+
+		if (table) {
+			dict_index_t*	index;
+			dict_index_t*	next_index;
+
+			for (index = dict_table_get_first_index(table);
+			     index; index = next_index) {
+
+				next_index = dict_table_get_next_index(index);
+
+				if (*index->name == TEMP_INDEX_PREFIX) {
+					row_merge_drop_index(index, table, trx);
+					trx_commit_for_mysql(trx);
+				}
+			}
+		}
+
+		mtr_start(&mtr);
+		btr_pcur_restore_position(BTR_SEARCH_LEAF,
+					  &pcur, &mtr);
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_background(trx);
 }
@@ -2268,13 +2345,24 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	const char*	old_name= old_table->name;
+	char		old_name[MAX_TABLE_NAME_LEN + 1];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
+	/* store the old/current name to an automatic variable */
+	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
+		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
+	} else {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "InnoDB: too long table name: '%s', "
+			"max length is %d\n", old_table->name,
+			MAX_TABLE_NAME_LEN);
+		ut_error;
+	}
 
 	trx->op_info = "renaming tables";
 

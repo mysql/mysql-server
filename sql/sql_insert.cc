@@ -273,7 +273,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
   }
   /* Mark virtual columns used in the insert statement */
   if (table->vfield)
-    table->mark_virtual_columns_for_write();
+    table->mark_virtual_columns_for_write(TRUE);
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
@@ -881,7 +881,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       auto_inc values from the delayed_insert thread as they share TABLE.
     */
     table->file->ha_release_auto_increment();
-    if (using_bulk_insert && table->file->ha_end_bulk_insert(0) && !error)
+    if (using_bulk_insert && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -1267,7 +1267,6 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   if (mysql_prepare_insert_check_table(thd, table_list, fields, select_insert))
     DBUG_RETURN(TRUE);
 
-
   /* Prepare the fields in the statement. */
   if (values)
   {
@@ -1319,6 +1318,18 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
   if (!table)
     table= table_list->table;
+
+  if (!fields.elements && table->vfield)
+  {
+    for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+    {
+      if ((*vfield_ptr)->stored_in_db)
+      {
+        thd->lex->unit.insert_table_with_stored_vcol= table;
+        break;
+      }
+    }
+  }
 
   if (!select_insert)
   {
@@ -1504,7 +1515,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
         info->touched++;
-        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+        if (((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) &&
              !bitmap_is_subset(table->write_set, table->read_set)) ||
             compare_record(table))
         {
@@ -2098,7 +2109,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
 				   (share->fields+1)*sizeof(Field**)+
 				   share->reclength +
-                                   share->column_bitmap_size*2);
+                                   share->column_bitmap_size*3);
   if (!copy)
     goto error;
 
@@ -2108,7 +2119,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   /* Assign the pointers for the field pointers array and the record. */
   field= copy->field= (Field**) (copy + 1);
   bitmap= (uchar*) (field + share->fields + 1);
-  copy->record[0]= (bitmap + share->column_bitmap_size * 2);
+  copy->record[0]= (bitmap + share->column_bitmap_size*3);
   memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
   /*
     Make a copy of all fields.
@@ -2150,10 +2161,13 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy->def_read_set.bitmap= (my_bitmap_map*) bitmap;
   copy->def_write_set.bitmap= ((my_bitmap_map*)
                                (bitmap + share->column_bitmap_size));
+  copy->def_vcol_set.bitmap= ((my_bitmap_map*)
+                               (bitmap + 2*share->column_bitmap_size));
   copy->tmp_set.bitmap= 0;                      // To catch errors
-  bzero((char*) bitmap, share->column_bitmap_size*2);
+  bzero((char*) bitmap, share->column_bitmap_size*3);
   copy->read_set=  &copy->def_read_set;
   copy->write_set= &copy->def_write_set;
+  copy->vcol_set= &copy->def_vcol_set;
 
   DBUG_RETURN(copy);
 
@@ -3274,7 +3288,7 @@ bool select_insert::send_eof()
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
-  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert(0) : 0;
+  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert() : 0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3357,7 +3371,7 @@ void select_insert::abort() {
       before.
     */
     if (!thd->prelocked_mode)
-      table->file->ha_end_bulk_insert(0);
+      table->file->ha_end_bulk_insert();
 
     /*
       If at least one row has been inserted/modified and will stay in
@@ -3473,7 +3487,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   tmp_table.s->db_low_byte_first= 
         test(create_info->db_type == myisam_hton ||
              create_info->db_type == heap_hton);
-  tmp_table.null_row=tmp_table.maybe_null=0;
+  tmp_table.null_row= 0;
+  tmp_table.maybe_null= 0;
 
   while ((item=it++))
   {
@@ -3910,6 +3925,17 @@ void select_create::abort()
 
   if (table)
   {
+    if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+        thd->current_stmt_binlog_row_based &&
+        !(thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+        mysql_bin_log.is_open())
+    {
+      /*
+        This should be removed after BUG#47899.
+      */
+      mysql_bin_log.reset_gathered_updates(thd);
+    }
+
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     if (!create_info->table_existed)

@@ -27,44 +27,47 @@ LDADD =
 
 DEFS =                  @DEFS@
 
-# "." is needed first because tests in unittest need libmaria
+# "." is needed first because tests in unittest need libaria
 SUBDIRS =		. unittest
 
 EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_test_big.sh \
 			ma_ft_stem.c CMakeLists.txt plug.in ma_test_recovery
 pkgdata_DATA =		
-pkglib_LIBRARIES =	libmaria.a
-bin_PROGRAMS =		maria_chk maria_pack maria_ftdump maria_read_log \
-			maria_dump_log
-maria_chk_DEPENDENCIES=	$(LIBRARIES)
+pkglib_LIBRARIES =	libaria.a
+bin_PROGRAMS =		aria_chk aria_pack aria_ftdump aria_read_log \
+			aria_dump_log
+aria_chk_DEPENDENCIES=	$(LIBRARIES)
 # Only reason to link with libmyisam.a here is that it's where some fulltext
-# pieces are (but soon we'll remove fulltext dependencies from Maria).
+# pieces are (but soon we'll remove fulltext dependencies from Aria).
 # For now, it imposes that storage/myisam be built before storage/maria.
-maria_chk_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+aria_chk_SOURCES=	maria_chk.c
+aria_chk_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-maria_pack_DEPENDENCIES=$(LIBRARIES)
-maria_pack_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+aria_pack_SOURCES=	maria_pack.c
+aria_pack_DEPENDENCIES=$(LIBRARIES)
+aria_pack_LDADD=	@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-maria_read_log_DEPENDENCIES=$(LIBRARIES)
-maria_read_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+aria_read_log_SOURCES=	maria_read_log.c
+aria_read_log_DEPENDENCIES=$(LIBRARIES)
+aria_read_log_LDADD=	@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-maria_dump_log_DEPENDENCIES=$(LIBRARIES) ma_loghandler.c
-maria_dump_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+aria_dump_log_DEPENDENCIES=$(LIBRARIES) ma_loghandler.c
+aria_dump_log_LDADD=	@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
                         $(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-maria_dump_log_SOURCES= ma_loghandler.c unittest/ma_loghandler_examples.c
-maria_dump_log_CPPFLAGS= -DMARIA_DUMP_LOG
+aria_dump_log_SOURCES= 	ma_loghandler.c unittest/ma_loghandler_examples.c
+aria_dump_log_CPPFLAGS= -DMARIA_DUMP_LOG
 noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test
 noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h \
@@ -74,46 +77,47 @@ noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_checkpoint.h ma_recovery.h ma_commit.h ma_state.h \
 			trnman_public.h ma_check_standalone.h \
 			ma_key_recover.h ma_recovery_util.h \
-			ma_servicethread.h
+			ma_servicethread.h compat_aliases.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
-ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 ma_test2_DEPENDENCIES=	$(LIBRARIES)
-ma_test2_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+ma_test2_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 ma_test3_DEPENDENCIES=	$(LIBRARIES)
-ma_test3_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+ma_test3_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 #ma_ft_test1_DEPENDENCIES=	$(LIBRARIES)
 #ma_ft_eval_DEPENDENCIES=	$(LIBRARIES)
-maria_ftdump_DEPENDENCIES=	$(LIBRARIES)
-maria_ftdump_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+aria_ftdump_SOURCES=	maria_ftdump.c
+aria_ftdump_DEPENDENCIES= $(LIBRARIES)
+aria_ftdump_LDADD=	@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 ma_rt_test_DEPENDENCIES=	$(LIBRARIES)
-ma_rt_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+ma_rt_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 ma_sp_test_DEPENDENCIES=	$(LIBRARIES)
-ma_sp_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+ma_sp_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
+libaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_rnext.c ma_rnext_same.c \
 			ma_search.c ma_page.c ma_key_recover.c ma_key.c \
 			ma_locking.c ma_state.c \
@@ -136,8 +140,8 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_pagecache.c ma_pagecaches.c \
 			ma_checkpoint.c ma_recovery.c ma_commit.c \
 			ma_pagecrc.c ma_recovery_util.c \
-			ha_maria.cc ma_servicethread.c
-CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA? maria_log_control maria_log.0000*
+			ha_maria.cc compat_aliases.cc ma_servicethread.c
+CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA? aria_log_control aria_log.0000*
 
 SUFFIXES = .sh
 

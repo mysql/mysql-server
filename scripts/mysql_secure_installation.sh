@@ -68,7 +68,8 @@ parse_arguments()
 # release or installed source directory and return the path.
 find_in_basedir()
 {
-  return_dir=
+  return_dir=0
+  found=0
   case "$1" in
     --dir)
       return_dir=1; shift
@@ -81,7 +82,8 @@ find_in_basedir()
   do
     if test -f "$basedir/$dir/$file"
     then
-      if test -n "$return_dir"
+      found=1
+      if test $return_dir -eq 1
       then
         echo "$basedir/$dir"
       else
@@ -90,6 +92,17 @@ find_in_basedir()
       break
     fi
   done
+
+  if test $found -eq 0
+  then
+      # Test if command is in PATH
+      $file --no-defaults --version > /dev/null 2>&1
+      status=$?
+      if test $status -eq 0
+      then
+        echo $file
+      fi
+  fi
 }
 
 cannot_find_file()
@@ -298,7 +311,7 @@ remove_anonymous_users() {
 }
 
 remove_remote_root() {
-    do_query "DELETE FROM mysql.user WHERE User='root' AND Host!='localhost';"
+    do_query "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
     if [ $? -eq 0 ]; then
 	echo " ... Success!"
     else
@@ -355,14 +368,15 @@ cleanup() {
 # The actual script starts here
 
 prepare
+find_mysql_client
 set_echo_compat
 
 echo
-echo "NOTE: RUNNING ALL PARTS OF THIS SCRIPT IS RECOMMENDED FOR ALL MySQL"
+echo "NOTE: RUNNING ALL PARTS OF THIS SCRIPT IS RECOMMENDED FOR ALL MariaDB"
 echo "      SERVERS IN PRODUCTION USE!  PLEASE READ EACH STEP CAREFULLY!"
 echo
-echo "In order to log into MySQL to secure it, we'll need the current"
-echo "password for the root user.  If you've just installed MySQL, and"
+echo "In order to log into MariaDB to secure it, we'll need the current"
+echo "password for the root user.  If you've just installed MariaDB, and"
 echo "you haven't set the root password yet, the password will be blank,"
 echo "so you should just press enter here."
 echo
@@ -374,7 +388,7 @@ get_root_password
 # Set the root password
 #
 
-echo "Setting the root password ensures that nobody can log into the MySQL"
+echo "Setting the root password ensures that nobody can log into the MariaDB"
 echo "root user without the proper authorisation."
 echo
 
@@ -403,8 +417,8 @@ echo
 # Remove anonymous users
 #
 
-echo "By default, a MySQL installation has an anonymous user, allowing anyone"
-echo "to log into MySQL without having to have a user account created for"
+echo "By default, a MariaDB installation has an anonymous user, allowing anyone"
+echo "to log into MariaDB without having to have a user account created for"
 echo "them.  This is intended only for testing, and to make the installation"
 echo "go a bit smoother.  You should remove them before moving into a"
 echo "production environment."
@@ -443,7 +457,7 @@ echo
 # Remove test database
 #
 
-echo "By default, MySQL comes with a database named 'test' that anyone can"
+echo "By default, MariaDB comes with a database named 'test' that anyone can"
 echo "access.  This is also intended only for testing, and should be removed"
 echo "before moving into a production environment."
 echo
@@ -478,8 +492,7 @@ echo
 cleanup
 
 echo
-echo "All done!  If you've completed all of the above steps, your MySQL"
+echo "All done!  If you've completed all of the above steps, your MariaDB"
 echo "installation should now be secure."
 echo
-echo "Thanks for using MySQL!"
-
+echo "Thanks for using MariaDB!"

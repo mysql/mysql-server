@@ -1,7 +1,7 @@
 -- source include/have_maria.inc
 -- source include/have_geometry.inc
 
-set storage_engine=maria;
+set storage_engine=aria;
 
 #
 # test of rtree (using with spatial data)

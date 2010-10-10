@@ -3,7 +3,7 @@ CREATE TABLE t1 (
 line BLOB,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32)
-) transactional=0 row_format=page engine=maria;
+) transactional=0 row_format=page engine=aria;
 select count(*) from t1;
 count(*)
 810
@@ -17,8 +17,8 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (i int) engine=maria;
-create table t2 (j int) engine=maria;
+create table t1 (i int) engine=aria;
+create table t2 (j int) engine=aria;
 lock table t1 write, t2 read;
 alter table t1 modify i int default 1;
 insert into t1 values (2);
@@ -30,7 +30,7 @@ select * from t1;
 i
 2
 drop table t1,t2;
-create table t1(id int, s char(1), unique(s)) engine=maria;
+create table t1(id int, s char(1), unique(s)) engine=aria;
 insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
 insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
 insert into t1 select 1,"a" on duplicate key update t1.id=t1.id+1;
@@ -42,7 +42,7 @@ select * from t1;
 id	s
 1	a
 drop table t1;
-create table t1 (pk int primary key, apk int unique, data int) engine=maria;
+create table t1 (pk int primary key, apk int unique, data int) engine=aria;
 insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
 load data concurrent infile '../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
 select * from t1 order by pk;

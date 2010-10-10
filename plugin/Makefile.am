@@ -23,6 +23,3 @@ EXTRA_DIST =	fulltext/configure.in
 
 SUBDIRS =	@mysql_pg_dirs@
 DIST_SUBDIRS =	@mysql_pg_distdirs@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

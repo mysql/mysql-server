@@ -44,17 +44,17 @@ try
             case "EMBED_MANIFESTS":
             case "EXTRA_DEBUG":
             case "WITH_EMBEDDED_SERVER":
-            case "WITHOUT_MARIA_TEMP_TABLES":
+            case "WITHOUT_ARIA_TEMP_TABLES":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
-            case "WITH_MARIA_STORAGE_ENGINE":
+            case "WITH_ARIA_STORAGE_ENGINE":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     if(with_maria_tmp_tables == -1)
                     {
                       with_maria_tmp_tables = 1;
                     }
                     break;
-            case "WITH_MARIA_TMP_TABLES":
+            case "WITH_ARIA_TMP_TABLES":
                     with_maria_tmp_tables = ( parts.length == 1 ||
                            parts[1] == "YES" || parts[1] == "TRUE");
                     break;
@@ -73,7 +73,7 @@ try
     }
     if (with_maria_tmp_tables == 1)
     {
-      configfile.WriteLine("SET (WITH_MARIA_TMP_TABLES TRUE)");
+      configfile.WriteLine("SET (WITH_ARIA_TMP_TABLES TRUE)");
     }
     if (actual_port == 0)
 	{

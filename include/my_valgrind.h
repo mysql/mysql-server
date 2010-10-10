@@ -24,15 +24,19 @@
 
 #if defined(HAVE_valgrind)&& defined(HAVE_VALGRIND_MEMCHECK_H)
 #include <valgrind/memcheck.h>
-#else
-#define VALGRIND_MAKE_MEM_DEFINED(addr, size) do { } while(0)
-#define VALGRIND_MAKE_MEM_NOACCESS(addr, size) do { } while(0)
-#ifdef SAFEMALLOC
-#define VALGRIND_MAKE_MEM_UNDEFINED(addr, size) bfill(addr, size, 0x8F)
-#else
-#define VALGRIND_MAKE_MEM_UNDEFINED(addr, size) do { } while(0)
-#endif /* SAFEMALLOC */
-#endif /* HAVE_valgrind */
+#define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
+#define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
+#define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
+#define MEM_CHECK_DEFINED(a,len) VALGRIND_CHECK_MEM_IS_DEFINED(a,len)
+#else /* HAVE_VALGRIND */
+# define MEM_UNDEFINED(a,len) ((void) 0)
+# define MEM_NOACCESS(a,len) ((void) 0)
+# define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
+# define MEM_CHECK_DEFINED(a,len) ((void) 0)
+#endif /* HAVE_VALGRIND */
 
-/* Compatibility with old source */
-#define TRASH(A,B) VALGRIND_MAKE_MEM_UNDEFINED(A, B)
+#ifdef SAFEMALLOC
+#define TRASH(A,B) do { bfill(A, B, 0x8F); MEM_UNDEFINED(A, B); } while (0)
+#else
+#define TRASH(A,B) do{MEM_CHECK_ADDRESSABLE(A,B);MEM_UNDEFINED(A,B);} while (0)
+#endif

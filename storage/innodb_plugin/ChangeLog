@@ -1,3 +1,152 @@
+2010-07-27	The InnoDB Team
+
+	* include/mem0pool.h, mem/mem0mem.c, mem/mem0pool.c, srv/srv0start.c:
+	Fix Bug#55581 shutdown with innodb-use-sys-malloc=0: assert
+	mutex->magic_n == MUTEX_MAGIC_N.
+
+2010-06-30	The InnoDB Team
+
+	* btr/btr0sea.c, ha/ha0ha.c, handler/ha_innodb.cc, include/btr0sea.h:
+	Fix Bug#54311 Crash on CHECK PARTITION after concurrent LOAD DATA
+	and adaptive_hash_index=OFF
+
+2010-06-29	The InnoDB Team
+	* row/row0row.c, row/row0undo.c, row/row0upd.c:
+	Fix Bug#54408 txn rollback after recovery: row0umod.c:673
+	dict_table_get_format(index->table)
+
+2010-06-29	The InnoDB Team
+
+	* btr/btr0cur.c, include/btr0cur.h,
+	include/row0mysql.h, row/row0merge.c, row/row0sel.c:
+	Fix Bug#54358 READ UNCOMMITTED access failure of off-page DYNAMIC
+	or COMPRESSED columns
+
+2010-06-24	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#54679 alter table causes compressed row_format to revert
+	to compact
+
+2010-06-22	The InnoDB Team
+
+	* dict/dict0dict.c, dict/dict0mem.c, include/dict0mem.h,
+	include/univ.i, page/page0zip.c, row/row0merge.c:
+	Fix Bug#47991 InnoDB Dictionary Cache memory usage increases
+	indefinitely when renaming tables
+
+2010-06-22	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#54686: "field->col->mtype == type" assertion error at
+	row/row0sel.c
+
+2010-06-22	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb_bug54044.result, innodb_bug54044.test:
+	Fix Bug#54044 Create temporary tables and using innodb crashes.
+
+2010-06-21	The InnoDB Team
+
+	* dict/dict0load.c, fil/fil0fil.c:
+	Fix Bug#54658: InnoDB: Warning: allocated tablespace %lu,
+	old maximum was 0 (introduced in Bug #53578 fix)
+
+2010-06-16	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#54330 Broken fast index creation
+
+2010-06-10	The InnoDB Team
+
+	* include/log0log.ic, row/row0ins.c, row/row0purge.c,
+	row/row0uins.c, row/row0umod.c, row/row0upd.c:
+	Fix Bug#39168 ERROR: the age of the last checkpoint ... exceeds
+	the log group capacity
+
+2010-06-08	The InnoDB Team
+
+	* dict/dict0load.c:
+	Fix Bug#54009 Server crashes when data is selected from non backed
+	up table for InnoDB plugin
+
+2010-06-02	The InnoDB Team
+
+	* include/db0err.h, include/lock0lock.h, include/row0mysql.h,
+	lock/lock0lock.c, row/row0ins.c, row/row0mysql.c, row/row0sel.c:
+	Fix Bug#53674 InnoDB: Error: unlock row could not find a
+	4 mode lock on the record
+
+2010-06-01	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0rw.c:
+	Fix Bug#48197 Concurrent rw_lock_free may cause assertion failure
+
+2010-06-01	The InnoDB Team
+
+	* row/row0umod.c:
+	Fix Bug#53812 assert row/row0umod.c line 660 in txn rollback
+	after crash recovery
+
+2010-05-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
+	Fix Bug#53592: crash replacing duplicates into table after fast
+	alter table added unique key 
+
+2010-05-24	The InnoDB Team
+
+	* dict/dict0boot.c, dict/dict0crea.c, fil/fil0fil.c,
+	include/dict0boot.h, include/fil0fil.h, row/row0mysql.c:
+	Fix Bug#53578: assert on invalid page access, in fil_io()
+
+2010-05-14	The InnoDB Team
+	* mysql-test/innodb_bug48024.test, mysql-test/innodb_bug48024.result,
+	dict/dict0dict.c, handler/ha_innodb.cc, handler/ha_innodb.h,
+	include/dict0dict.h, include/ha_prototypes.h, include/row0mysql.h,
+	include/trx0trx.h, row/row0mysql.c, trx/trx0i_s.c, trx/trx0trx.c:
+	Fix Bug#48024 Innodb doesn't work with multi-statements
+	Fix Bug#53644 InnoDB thinks that /*/ starts and ends a comment
+
+2010-05-12	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Fix Bug#53591 crash with fast alter table and text/blob prefix
+	primary key
+
+2010-05-12	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#53471 row_merge_drop_temp_indexes() refers freed memory, SEGVs
+
+2010-05-11	The InnoDB Team
+
+	* mysql-test/innodb_bug53290.test, mysql-test/innodb_bug53290.result,
+	include/rem0cmp.h, rem/rem0cmp.c, row/row0merge.c:
+	Fix Bug#53290 wrong duplicate key error when adding a unique index
+	via fast alter table
+
+2010-05-11	The InnoDB Team
+	* buf/buf0lru.c, include/buf0buf.ic:
+	Fix Bug#53307 valgrind: warnings in main.partition_innodb_plugin
+
+2010-05-05	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#53256 in a stress test, assert dict/dict0dict.c:815
+	table2 == NULL
+
+2010-05-05	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#53165 Setting innodb_change_buffering=DEFAULT produces
+	incorrect result
+
+2010-05-04	The InnoDB Team
+
+	* fsp/fsp0fsp.c:
+	Fix Bug#53306 valgrind: warnings in innodb.innodb
+
 2010-05-03	The InnoDB Team
 
 	* buf0buf.c:
@@ -48,12 +197,6 @@
 	Only check the record size at index creation time when
 	innodb_strict_mode is set or when ROW_FORMAT is DYNAMIC or COMPRESSED.
 
-2010-04-20	The InnoDB Team
-
-	* btr/btr0btr.c, include/univ.i:
-	Implement UNIV_BTR_AVOID_COPY, for avoiding writes when a B-tree
-	node is split at the first or last record.
-
 2010-04-15	The InnoDB Team
 
 	* trx/trx0rec.c:
@@ -71,6 +214,10 @@
 
 	* mysql-test/innodb_bug38231.test:
 	Remove non-determinism in the test case.
+
+2010-03-29	The InnoDB Team
+
+	InnoDB Plugin 1.0.7 released
 
 2010-03-18	The InnoDB Team
 
@@ -193,6 +340,14 @@
 	mysql-test/innodb-autoinc-44030.result:
 	Fix Bug#49497 Error 1467 (ER_AUTOINC_READ_FAILED) on inserting
 	a negative value
+
+2010-01-28	The InnoDB Team
+	*  handler/ha_innodb.h, handler/ha_innodb.cc,
+	handler/handler0alter.cc,
+	mysql-test/innodb_bug47622.test,
+	mysql-test/innodb_bug47622.result:
+	Fix Bug#47622 the new index is added before the existing ones
+	in MySQL, but after one in SE
 
 2010-01-27	The InnoDB Team
 

@@ -18,7 +18,7 @@ the test suite expects you to provide the names of the tests to run.
 For example, here is the command to run the "alias" and "analyze" tests
 with an external server:
 
-mysql-test-run --extern alias analyze
+mysql-test-run --extern socket=/tmp/mysql.sock alias analyze
 
 To match your setup, you might also need to provide --socket, --user, and
 other relevant options.

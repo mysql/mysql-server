@@ -6,7 +6,7 @@ use warnings;
 
 my $usage= <<EOF;
 This program tests that the options
---maria-force-start-after-recovery-failures --maria-recover work as
+--aria-force-start-after-recovery-failures --aria-recover work as
 expected.
 It has to be run from directory mysql-test, and works with non-debug
 and debug binaries.
@@ -43,7 +43,7 @@ my $error_log_name= "./var/log/master.err";
 my @cmd_output;
 my $whatever; # garbage data
 $ENV{MTR_VERSION} = 1; # MTR2 does not have --start-and-exit
-my $base_server_cmd= "perl mysql-test-run.pl --mysqld=--maria-force-start-after-recovery-failures=$force_after --suite=maria maria.maria-recover ";
+my $base_server_cmd= "perl mysql-test-run.pl --mysqld=--aria-force-start-after-recovery-failures=$force_after --suite=maria maria.maria-recover ";
 if ($^O =~ /^mswin/i)
   {
     print <<EOF;
@@ -101,7 +101,7 @@ open(FILE, ">", $sql_name) or die;
 # sort_get_next_record() whose failure itself does not cause a retry.
 
 print FILE "create table t1 (a varchar(1000)".
-  ($corrupt_index ? ", index(a)" : "") .") engine=maria;\n";
+  ($corrupt_index ? ", index(a)" : "") .") engine=aria;\n";
 print FILE <<EOF;
 insert into t1 values("ThursdayMorningsMarket");
 # If Recovery executes REDO_INDEX_NEW_PAGE it will overwrite our
@@ -109,7 +109,7 @@ insert into t1 values("ThursdayMorningsMarket");
 # create_rename_lsn using OPTIMIZE TABLE. This also makes sure to put
 # the pages on disk, so that we can corrupt them.
 optimize table t1;
-# mark table open, so that --maria-recover repairs it
+# mark table open, so that --aria-recover repairs it
 insert into t1 select concat(a,'b') from t1 limit 1;
 EOF
 close FILE;
@@ -123,7 +123,7 @@ kill_server(9);
 
 print "ruining " .
   ($corrupt_index ? "first page of keys" : "bitmap page") .
-  " in table to test maria-recover\n";
+  " in table to test aria-recover\n";
 open(FILE, "+<", "./var/master-data/test/t1.$corrupt_file") or die;
 $whatever= ("\xAB" x 100);
 sysseek (FILE, $corrupt_index ? 8192 : (8192-100-100), 0) or die;
@@ -131,7 +131,7 @@ syswrite (FILE, $whatever) or die;
 close FILE;
 
 print "ruining log to make recovery fail; mysqld should fail the $force_after first restarts\n";
-open(FILE, "+<", "./var/tmp/maria_log.00000001") or die;
+open(FILE, "+<", "./var/tmp/aria_log.00000001") or die;
 $whatever= ("\xAB" x 8192);
 sysseek (FILE, 99, 0) or die;
 syswrite (FILE, $whatever) or die;
@@ -148,8 +148,8 @@ for($i= 1; $i <= $force_after; $i= $i + 1)
     open(FILE, "<", $error_log_name) or die;
     @cmd_output= <FILE>;
     close FILE;
-    die unless grep(/\[ERROR\] mysqld(.exe)*: Maria engine: log initialization failed/, @cmd_output);
-    die unless grep(/\[ERROR\] Plugin 'MARIA' init function returned error./, @cmd_output);
+    die unless grep(/\[ERROR\] mysqld(.exe)*: Aria engine: log initialization failed/, @cmd_output);
+    die unless grep(/\[ERROR\] Plugin 'Aria' init function returned error./, @cmd_output);
     print "failed - ok\n";
   }
 
@@ -160,13 +160,13 @@ die if $?;
 open(FILE, "<", $error_log_name) or die;
 @cmd_output= <FILE>;
 close FILE;
-die unless grep(/\[Warning\] mysqld(.exe)*: Maria engine: removed all logs after [\d]+ consecutive failures of recovery from logs/, @cmd_output);
-die unless grep(/\[ERROR\] mysqld(.exe)*: File '.*tmp.maria_log.00000001' not found \(Errcode: 2\)/, @cmd_output);
+die unless grep(/\[Warning\] mysqld(.exe)*: Aria engine: removed all logs after [\d]+ consecutive failures of recovery from logs/, @cmd_output);
+die unless grep(/\[ERROR\] mysqld(.exe)*: File '.*tmp.aria_log.00000001' not found \(Errcode: 2\)/, @cmd_output);
 print "success - ok\n";
 
 open(FILE, ">", $sql_name) or die;
 print FILE <<EOF;
-set global maria_recover=normal;
+set global aria_recover=normal;
 insert into t1 values('aaa');
 EOF
 close FILE;

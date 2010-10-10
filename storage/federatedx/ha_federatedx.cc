@@ -1717,14 +1717,14 @@ federatedx_txn *ha_federatedx::get_txn(THD *thd, bool no_create)
   return *txnp;
 }
 
-  
+
 int ha_federatedx::disconnect(handlerton *hton, MYSQL_THD thd)
 {
   federatedx_txn *txn= (federatedx_txn *) thd_get_ha_data(thd, hton);
   delete txn;
   return 0;
 }
- 
+
 
 /*
   Used for opening tables. The name will be the name of the file.
@@ -1756,13 +1756,14 @@ int ha_federatedx::open(const char *name, int mode, uint test_if_locked)
     free_share(txn, share);
     DBUG_RETURN(error);
   }
- 
+
+  ref_length= io->get_ref_length();
+
   txn->release(&io);
- 
-  ref_length= (table->s->primary_key != MAX_KEY ?
-               table->key_info[table->s->primary_key].key_length :
-               table->s->reclength);
+
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
+
+  my_init_dynamic_array(&results, sizeof(FEDERATEDX_IO_RESULT*), 4, 4);
 
   reset();
 
@@ -1788,8 +1789,9 @@ int ha_federatedx::close(void)
   DBUG_ENTER("ha_federatedx::close");
 
   /* free the result set */
-  if (stored_result)
-    retval= free_result();
+  reset();
+
+  delete_dynamic(&results);
 
   /* Disconnect from mysql */
   if (!thd || !(txn= get_txn(thd, true)))
@@ -1799,7 +1801,7 @@ int ha_federatedx::close(void)
     tmp_txn.release(&io);
 
     DBUG_ASSERT(io == NULL);
-    
+
     if ((error= free_share(&tmp_txn, share)))
       retval= error;
   }
@@ -2143,12 +2145,12 @@ void ha_federatedx::start_bulk_insert(ha_rows rows)
   @retval       != 0    Error occured at remote server. Also sets my_errno.
 */
 
-int ha_federatedx::end_bulk_insert(bool abort)
+int ha_federatedx::end_bulk_insert()
 {
   int error= 0;
   DBUG_ENTER("ha_federatedx::end_bulk_insert");
   
-  if (bulk_insert.str && bulk_insert.length && !abort)
+  if (bulk_insert.str && bulk_insert.length && !table_will_be_deleted)
   {
     if ((error= txn->acquire(share, FALSE, &io)))
       DBUG_RETURN(error);
@@ -2525,7 +2527,7 @@ int ha_federatedx::index_read_idx(uchar *buf, uint index, const uchar *key,
                                  uint key_len, enum ha_rkey_function find_flag)
 {
   int retval;
-  FEDERATEDX_IO_RESULT *io_result;
+  FEDERATEDX_IO_RESULT *io_result= 0;
   DBUG_ENTER("ha_federatedx::index_read_idx");
 
   if ((retval= index_read_idx_with_result_set(buf, index, key,
@@ -2601,7 +2603,7 @@ int ha_federatedx::index_read_idx_with_result_set(uchar *buf, uint index,
   if (!(retval= read_next(buf, *result)))
     DBUG_RETURN(retval);
 
-  io->free_result(*result);
+  insert_dynamic(&results, (uchar*) result);
   *result= 0;
   table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(retval);
@@ -2669,10 +2671,7 @@ int ha_federatedx::read_range_first(const key_range *start_key,
     DBUG_RETURN(retval);
 
   if (stored_result)
-  {
-    io->free_result(stored_result);
-    stored_result= 0;
-  }
+    (void) free_result();
 
   if (io->query(sql_query.ptr(), sql_query.length()))
   {
@@ -2773,10 +2772,7 @@ int ha_federatedx::rnd_init(bool scan)
       DBUG_RETURN(error);
 
     if (stored_result)
-    {
-      io->free_result(stored_result);
-      stored_result= 0;
-    }
+      (void) free_result();
 
     if (io->query(share->select_query,
                   strlen(share->select_query)))
@@ -2803,17 +2799,35 @@ int ha_federatedx::rnd_end()
 int ha_federatedx::free_result()
 {
   int error;
-  federatedx_io *tmp_io= 0, **iop;
+  DBUG_ENTER("ha_federatedx::free_result");
   DBUG_ASSERT(stored_result);
-  if (!*(iop= &io) && (error= txn->acquire(share, TRUE, (iop= &tmp_io))))
+  for (uint i= 0; i < results.elements; ++i)
   {
-    DBUG_ASSERT(0);                             // Fail when testing
-    return error;
+    FEDERATEDX_IO_RESULT *result= 0;
+    get_dynamic(&results, (uchar*) &result, i);
+    if (result == stored_result)
+      goto end;
   }
-  (*iop)->free_result(stored_result);
+  if (position_called)
+  {
+    insert_dynamic(&results, (uchar*) &stored_result);
+  }
+  else
+  {
+    federatedx_io *tmp_io= 0, **iop;
+    if (!*(iop= &io) && (error= txn->acquire(share, TRUE, (iop= &tmp_io))))
+    {
+      DBUG_ASSERT(0);                             // Fail when testing
+      insert_dynamic(&results, (uchar*) &stored_result);
+      goto end;
+    }
+    (*iop)->free_result(stored_result);
+    txn->release(&tmp_io);
+  }
+end:
   stored_result= 0;
-  txn->release(&tmp_io);
-  return 0;
+  position_called= FALSE;
+  DBUG_RETURN(0);
 }
 
 int ha_federatedx::index_end(void)
@@ -2862,8 +2876,8 @@ int ha_federatedx::rnd_next(uchar *buf)
 
   SYNOPSIS
     field_in_record_is_null()
-      buf       byte pointer to record 
-      result    mysql result set 
+      buf       byte pointer to record
+      result    mysql result set
 
     DESCRIPTION
      This method is a wrapper method that reads one record from a result
@@ -2896,24 +2910,43 @@ int ha_federatedx::read_next(uchar *buf, FEDERATEDX_IO_RESULT *result)
 }
 
 
-/*
-  store reference to current row so that we can later find it for
-  a re-read, update or delete.
+/**
+  @brief      Store a reference to current row.
 
-  In case of federatedx, a reference is either a primary key or
-  the whole record.
+  @details    During a query execution we may have different result sets (RS),
+              e.g. for different ranges. All the RS's used are stored in
+              memory and placed in @c results dynamic array. At the end of
+              execution all stored RS's are freed at once in the
+              @c ha_federated::reset().
+              So, in case of federated, a reference to current row is a
+              stored result address and current data cursor position.
+              As we keep all RS in memory during a query execution,
+              we can get any record using the reference any time until
+              @c ha_federated::reset() is called.
+              TODO: we don't have to store all RS's rows but only those
+              we call @c ha_federated::position() for, so we can free memory
+              where we store other rows in the @c ha_federated::index_end().
 
-  Called from filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc.
+  @param[in]  record  record data (unused)
+
 */
 
-void ha_federatedx::position(const uchar *record)
+void ha_federatedx::position(const uchar *record __attribute__ ((unused)))
 {
   DBUG_ENTER("ha_federatedx::position");
-  if (table->s->primary_key != MAX_KEY)
-    key_copy(ref, (uchar *)record, table->key_info + table->s->primary_key,
-             ref_length);
-  else
-    memcpy(ref, record, ref_length);
+
+  bzero(ref, ref_length);
+
+  if (!stored_result)
+    DBUG_VOID_RETURN;
+
+  if (txn->acquire(share, TRUE, &io))
+    DBUG_VOID_RETURN;
+
+  io->mark_position(stored_result, ref);
+
+  position_called= TRUE;
+
   DBUG_VOID_RETURN;
 }
 
@@ -2929,23 +2962,26 @@ void ha_federatedx::position(const uchar *record)
 
 int ha_federatedx::rnd_pos(uchar *buf, uchar *pos)
 {
-  int result;
+  int retval;
+  FEDERATEDX_IO_RESULT *result= stored_result;
   DBUG_ENTER("ha_federatedx::rnd_pos");
   ha_statistic_increment(&SSV::ha_read_rnd_count);
-  if (table->s->primary_key != MAX_KEY)
-  {
-    /* We have a primary key, so use index_read_idx to find row */
-    result= index_read_idx(buf, table->s->primary_key, pos,
-                           ref_length, HA_READ_KEY_EXACT);
-  }
-  else
-  {
-    /* otherwise, get the old record ref as obtained in ::position */
-    memcpy(buf, pos, ref_length);
-    result= 0;
-  }
-  table->status= result ? STATUS_NOT_FOUND : 0;
-  DBUG_RETURN(result);
+
+  /* We have to move this to 'ref' to get things aligned */
+  bmove(ref, pos, ref_length);
+
+  if ((retval= txn->acquire(share, TRUE, &io)))
+    goto error;
+
+  if ((retval= io->seek_position(&result, ref)))
+    goto error;
+
+  retval= read_next(buf, result);
+  DBUG_RETURN(retval);
+
+error:
+  table->status= STATUS_NOT_FOUND;
+  DBUG_RETURN(retval);
 }
 
 
@@ -2995,17 +3031,21 @@ int ha_federatedx::rnd_pos(uchar *buf, uchar *pos)
 
 int ha_federatedx::info(uint flag)
 {
-  char error_buffer[FEDERATEDX_QUERY_BUFFER_SIZE];
   uint error_code;
+  THD *thd= current_thd;
+  federatedx_txn *tmp_txn;
   federatedx_io *tmp_io= 0, **iop= 0;
   DBUG_ENTER("ha_federatedx::info");
 
   error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
   
+  // external_lock may not have been called so txn may not be set
+  tmp_txn= get_txn(thd);
+
   /* we want not to show table status if not needed to do so */
   if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST | HA_STATUS_AUTO))
   {
-    if (!*(iop= &io) && (error_code= txn->acquire(share, TRUE, (iop= &tmp_io))))
+    if (!*(iop= &io) && (error_code= tmp_txn->acquire(share, TRUE, (iop= &tmp_io))))
       goto fail;
   }
 
@@ -3030,25 +3070,23 @@ int ha_federatedx::info(uint flag)
     If ::info created it's own transaction, close it. This happens in case
     of show table status;
   */
-  txn->release(&tmp_io);
+  tmp_txn->release(&tmp_io);
 
   DBUG_RETURN(0);
 
 error:
   if (iop && *iop)
   {
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              (*iop)->error_code(), (*iop)->error_str()));
-    my_error(error_code, MYF(0), error_buffer);
+    my_printf_error((*iop)->error_code(), "Received error: %d : %s", MYF(0),
+                    (*iop)->error_code(), (*iop)->error_str());
   }
-  else
-  if (remote_error_number != -1 /* error already reported */)
+  else if (remote_error_number != -1 /* error already reported */)
   {
     error_code= remote_error_number;
     my_error(error_code, MYF(0), ER(error_code));
   }
 fail:
-  txn->release(&tmp_io);
+  tmp_txn->release(&tmp_io);
   DBUG_RETURN(error_code);
 }
 
@@ -3085,6 +3123,9 @@ int ha_federatedx::extra(ha_extra_function operation)
   case HA_EXTRA_INSERT_WITH_UPDATE:
     insert_dup_update= TRUE;
     break;
+  case HA_EXTRA_PREPARE_FOR_DROP:
+    table_will_be_deleted = TRUE;
+    break;
   default:
     /* do nothing */
     DBUG_PRINT("info",("unhandled operation: %d", (uint) operation));
@@ -3105,12 +3146,44 @@ int ha_federatedx::extra(ha_extra_function operation)
 
 int ha_federatedx::reset(void)
 {
+  int error = 0;
+
   insert_dup_update= FALSE;
   ignore_duplicates= FALSE;
   replace_duplicates= FALSE;
-  return 0;
-}
+  position_called= FALSE;
 
+  if (stored_result)
+    insert_dynamic(&results, (uchar*) &stored_result);
+  stored_result= 0;
+
+  if (results.elements)
+  {
+    federatedx_txn *tmp_txn;
+    federatedx_io *tmp_io= 0, **iop;
+
+    // external_lock may not have been called so txn may not be set
+    tmp_txn= get_txn(current_thd);
+
+    if (!*(iop= &io) && (error= tmp_txn->acquire(share, TRUE, (iop= &tmp_io))))
+    {
+      DBUG_ASSERT(0);                             // Fail when testing
+      return error;
+    }
+
+    for (uint i= 0; i < results.elements; ++i)
+    {
+      FEDERATEDX_IO_RESULT *result= 0;
+      get_dynamic(&results, (uchar*) &result, i);
+      (*iop)->free_result(result);
+    }
+    tmp_txn->release(&tmp_io);
+    reset_dynamic(&results);
+  }
+
+  return error;
+
+}
 
 /*
   Used to delete all rows in a table. Both for cases of truncate and
@@ -3237,7 +3310,7 @@ static int test_connection(MYSQL_THD thd, federatedx_io *io,
 
   str.length(0);
   str.append(STRING_WITH_LEN("SELECT * FROM "));
-  append_identifier(thd, &str, share->table_name, 
+  append_identifier(thd, &str, share->table_name,
                     share->table_name_length);
   str.append(STRING_WITH_LEN(" WHERE 1=0"));
 
@@ -3288,14 +3361,14 @@ int ha_federatedx::create(const char *name, TABLE *table_arg,
   pthread_mutex_lock(&federatedx_mutex);
   tmp_share.s= get_server(&tmp_share, NULL);
   pthread_mutex_unlock(&federatedx_mutex);
-    
+
   if (tmp_share.s)
   {
     tmp_txn= get_txn(thd);
     if (!(retval= tmp_txn->acquire(&tmp_share, TRUE, &tmp_io)))
     {
       retval= test_connection(thd, tmp_io, &tmp_share);
-      tmp_txn->release(&tmp_io);    
+      tmp_txn->release(&tmp_io);
     }
     free_server(tmp_txn, tmp_share.s);
   }
@@ -3394,6 +3467,7 @@ int ha_federatedx::external_lock(MYSQL_THD thd, int lock_type)
     txn->release(&io);
   else
   {
+    table_will_be_deleted = FALSE;
     txn= get_txn(thd);  
     if (!(error= txn->acquire(share, lock_type == F_RDLCK, &io)) &&
         (lock_type == F_WRLCK || !io->is_autocommit()))
@@ -3495,7 +3569,7 @@ int ha_federatedx::rollback(handlerton *hton, MYSQL_THD thd, bool all)
 struct st_mysql_storage_engine federatedx_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-mysql_declare_plugin(federated)
+mysql_declare_plugin(federatedx)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &federatedx_storage_engine,
@@ -3511,7 +3585,7 @@ mysql_declare_plugin(federated)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
-maria_declare_plugin(federated)
+maria_declare_plugin(federatedx)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &federatedx_storage_engine,

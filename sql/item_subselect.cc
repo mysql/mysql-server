@@ -445,12 +445,12 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
         if (item->walk(processor, walk_subquery, argument))
           return 1;
       }
-      for (order= (ORDER*) lex->order_list.first ; order; order= order->next)
+      for (order= lex->order_list.first ; order; order= order->next)
       {
         if ((*order->item)->walk(processor, walk_subquery, argument))
           return 1;
       }
-      for (order= (ORDER*) lex->group_list.first ; order; order= order->next)
+      for (order= lex->group_list.first ; order; order= order->next)
       {
         if ((*order->item)->walk(processor, walk_subquery, argument))
           return 1;
@@ -2519,15 +2519,15 @@ int subselect_single_select_engine::prepare()
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
   if (join->prepare(&select_lex->ref_pointer_array,
-		    (TABLE_LIST*) select_lex->table_list.first,
+		    select_lex->table_list.first,
 		    select_lex->with_wild,
 		    select_lex->where,
 		    select_lex->order_list.elements +
 		    select_lex->group_list.elements,
-		    (ORDER*) select_lex->order_list.first,
-		    (ORDER*) select_lex->group_list.first,
+		    select_lex->order_list.first,
+		    select_lex->group_list.first,
 		    select_lex->having,
-		    (ORDER*) 0, select_lex,
+		    NULL, select_lex,
 		    select_lex->master_unit()))
     return 1;
   thd->lex->current_select= save_select;
@@ -2778,7 +2778,8 @@ int subselect_uniquesubquery_engine::scan_table()
   if (table->file->inited)
     table->file->ha_index_end();
  
-  table->file->ha_rnd_init(1);
+  if (table->file->ha_rnd_init_with_error(1))
+    DBUG_RETURN(1);
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;
@@ -3297,14 +3298,13 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 
 table_map subselect_single_select_engine::upper_select_const_tables()
 {
-  return calc_const_tables((TABLE_LIST *) select_lex->outer_select()->
-			   leaf_tables);
+  return calc_const_tables(select_lex->outer_select()->leaf_tables);
 }
 
 
 table_map subselect_union_engine::upper_select_const_tables()
 {
-  return calc_const_tables((TABLE_LIST *) unit->outer_select()->leaf_tables);
+  return calc_const_tables(unit->outer_select()->leaf_tables);
 }
 
 

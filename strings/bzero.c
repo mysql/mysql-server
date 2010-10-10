@@ -35,10 +35,10 @@
 
 #if VaxAsm
 
-static void _bzero64 _A((char *dst,int	len));
+static void _bzero64 _A((void *dst,int	len));
 
 void bzero(dst, len)
-char *dst;
+void *dst;
 uint len;
 {
   while ((int) len >= 64*K)
@@ -51,7 +51,7 @@ uint len;
 }
 
 _bzero64(dst, len)
-char *dst;
+void *dst;
 int  len;
 {
   asm("movc5 $0,*4(ap),$0,8(ap),*4(ap)");
@@ -62,7 +62,7 @@ int  len;
 #if defined(MC68000) && defined(DS90)
 
 void bzero(dst, len)
-char *dst;
+void *dst;
 uint len;
 {
   bfill(dst,len,0);				/* This is very optimized ! */
@@ -71,7 +71,7 @@ uint len;
 #else
 
 void bzero(dst, len)
-register char *dst;
+register void *dst;
 register uint len;
 {
   while (len-- != 0) *dst++ = 0;

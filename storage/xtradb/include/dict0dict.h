@@ -352,6 +352,7 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
+	size_t		sql_length,	/*!< in: length of sql_string */
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */
@@ -928,9 +929,10 @@ UNIV_INTERN
 void
 dict_table_check_for_dup_indexes(
 /*=============================*/
-	const dict_table_t*	table);	/*!< in: Check for dup indexes
+	const dict_table_t*	table,	/*!< in: Check for dup indexes
 					in this table */
-
+	ibool			tmp_ok);/*!< in: TRUE=allow temporary
+					index names */
 #endif /* UNIV_DEBUG */
 /**********************************************************************//**
 Builds a node pointer out of a physical record and a page number.
@@ -1038,8 +1040,9 @@ void
 dict_update_statistics_low(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex);/*!< in: TRUE if the caller has the
+	ibool		has_dict_mutex,	/*!< in: TRUE if the caller has the
 					dictionary mutex */
+	ibool		sync);
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
@@ -1047,7 +1050,8 @@ UNIV_INTERN
 void
 dict_update_statistics(
 /*===================*/
-	dict_table_t*	table);	/*!< in/out: table */
+	dict_table_t*	table,	/*!< in/out: table */
+	ibool		sync);
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN
@@ -1060,6 +1064,22 @@ UNIV_INTERN
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
+/**********************************************************************//**
+Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
+index->id is used to pick the right mutex and it should not change
+before dict_index_stat_mutex_exit() is called on this index. */
+UNIV_INTERN
+void
+dict_index_stat_mutex_enter(
+/*========================*/
+	const dict_index_t*	index);	/*!< in: index */
+/**********************************************************************//**
+Unlock the appropriate mutex that protects index->stat_n_diff_key_vals[]. */
+UNIV_INTERN
+void
+dict_index_stat_mutex_exit(
+/*=======================*/
+	const dict_index_t*	index);	/*!< in: index */
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return	TRUE if same db name */
@@ -1142,6 +1162,7 @@ struct dict_sys_struct{
 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
+	dict_table_t*	sys_stats;	/*!< SYS_STATS table */
 };
 #endif /* !UNIV_HOTBACKUP */
 

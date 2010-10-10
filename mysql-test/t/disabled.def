@@ -11,6 +11,7 @@
 ##############################################################################
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
-subselect_notembedded    : MariaDB LPBUG#545137: crashes on some platforms
-# partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
-# ps_3innodb               : Bug#53309 2010-04-30 VasilDimov valgrind warnings
+partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
+main.mysqlhotcopy_myisam : bug#54129 2010-06-04 Horst
+main.mysqlhotcopy_archive: bug#54129 2010-06-04 Horst
+main.events_time_zone    : Test is not predictable as it depends on precise timing.

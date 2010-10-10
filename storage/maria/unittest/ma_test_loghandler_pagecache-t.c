@@ -31,7 +31,7 @@ static const char *default_dbug_option;
 #define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
 #define LOG_FLAGS 0
 
-static char *first_translog_file= (char*)"maria_log.00000001";
+static char *first_translog_file= (char*)"aria_log.00000001";
 static char *file1_name= (char*)"page_cache_test_file_1";
 static PAGECACHE_FILE file1;
 

@@ -176,6 +176,7 @@ my_bool _ma_compare_block_record(register MARIA_HA *info,
 void    _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
                                my_bool extend_block, TrID min_read_from,
                                uint min_row_length);
+my_bool enough_free_entries_on_page(MARIA_SHARE *share, uchar *page_buff);
 TRANSLOG_ADDRESS
 maria_page_get_lsn(uchar *page, pgcache_page_no_t page_no, uchar* data_ptr);
 
@@ -279,7 +280,8 @@ my_bool write_hook_for_file_id(enum translog_record_type type,
 my_bool write_hook_for_commit(enum translog_record_type type,
                               TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                               void *hook_arg);
-void _ma_block_get_status(void* param, my_bool concurrent_insert);
+void _ma_block_get_status(void *param, my_bool concurrent_insert);
+void _ma_block_get_status_no_versioning(void *param, my_bool concurrent_ins);
 void _ma_block_update_status(void *param);
 void _ma_block_restore_status(void *param);
 my_bool _ma_block_check_status(void *param);

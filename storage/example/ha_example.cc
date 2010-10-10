@@ -225,7 +225,7 @@ static int example_done_func(void *p)
   hash_free(&example_open_tables);
   pthread_mutex_destroy(&example_mutex);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
@@ -367,6 +367,7 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(1);
   thr_lock_data_init(&share->lock,&lock,NULL);
 
+#ifndef DBUG_OFF
   example_table_options_struct *options=
     (example_table_options_struct *)table->s->option_struct;
 
@@ -375,6 +376,7 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
                       "boolparam: %u",
                       (options->strparam ? options->strparam : "<NULL>"),
                       options->ullparam, options->enumparam, options->boolparam));
+#endif
 
   DBUG_RETURN(0);
 }
@@ -588,7 +590,7 @@ int ha_example::index_last(uchar *buf)
 int ha_example::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_example::rnd_init");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_RETURN(0);
 }
 
 int ha_example::rnd_end()
@@ -896,6 +898,7 @@ ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
 int ha_example::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
+#ifndef DBUG_OFF
   example_table_options_struct *options=
     (example_table_options_struct *)table_arg->s->option_struct;
   DBUG_ENTER("ha_example::create");
@@ -918,9 +921,8 @@ int ha_example::create(const char *name, TABLE *table_arg,
                          (field_options->compex_param_to_parse_it_in_engine ?
                           field_options->compex_param_to_parse_it_in_engine :
                           "<NULL>")));
-
   }
-
+#endif
   DBUG_RETURN(0);
 }
 

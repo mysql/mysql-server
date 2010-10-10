@@ -1,4 +1,4 @@
-set global maria_log_file_size=4294967295;
+set global aria_log_file_size=4294967295;
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
@@ -8,12 +8,12 @@ line LINESTRING NOT NULL,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32)
 ,SPATIAL key (line)
-) transactional=1 row_format=page engine=maria;
+) transactional=1 row_format=page engine=aria;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	line	1	line	A	NULL	32	NULL		SPATIAL	
 CREATE TABLE t2 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)
-) transactional=1 row_format=page engine=maria;
+) transactional=1 row_format=page engine=aria;
 SHOW INDEX FROM t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t2	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT	
@@ -27,7 +27,7 @@ flush table t1;
 * copied t1 for comparison
 SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * copied t2 back for feeding_recovery
 * copied t1 back for feeding_recovery
@@ -53,7 +53,7 @@ flush table t1;
 lock tables t1 write, t2 write;
 SET SESSION debug="+d,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
 check table t2 extended;
@@ -76,7 +76,7 @@ flush table t1;
 lock tables t1 write, t2 write;
 SET SESSION debug="+d,maria_flush_whole_page_cache,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
 check table t2 extended;
@@ -99,7 +99,7 @@ flush table t1;
 lock tables t1 write, t2 write;
 SET SESSION debug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
 check table t2 extended;
@@ -122,7 +122,7 @@ flush table t1;
 lock tables t1 write, t2 write;
 SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
 check table t2 extended;
@@ -140,7 +140,7 @@ ok
 use mysqltest;
 SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
 check table t2 extended;

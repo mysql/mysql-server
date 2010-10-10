@@ -297,7 +297,7 @@ row_undo(
 
 	if (locked_data_dict) {
 
-		row_mysql_lock_data_dictionary(trx);
+		row_mysql_freeze_data_dictionary(trx);
 	}
 
 	if (node->state == UNDO_NODE_INSERT) {
@@ -312,7 +312,7 @@ row_undo(
 
 	if (locked_data_dict) {
 
-		row_mysql_unlock_data_dictionary(trx);
+		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	/* Do some cleanup */

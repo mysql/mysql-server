@@ -122,13 +122,14 @@ Database: information_schema
 | INNODB_TRX                            |
 | INNODB_SYS_TABLES                     |
 | INNODB_LOCK_WAITS                     |
-| INNODB_CMPMEM_RESET                   |
+| INNODB_SYS_STATS                      |
 | INNODB_LOCKS                          |
 | INNODB_CMPMEM                         |
 | INNODB_TABLE_STATS                    |
 | INNODB_SYS_INDEXES                    |
 | INNODB_CMP_RESET                      |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_CMPMEM_RESET                   |
 | INNODB_INDEX_STATS                    |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
@@ -178,13 +179,14 @@ Database: INFORMATION_SCHEMA
 | INNODB_TRX                            |
 | INNODB_SYS_TABLES                     |
 | INNODB_LOCK_WAITS                     |
-| INNODB_CMPMEM_RESET                   |
+| INNODB_SYS_STATS                      |
 | INNODB_LOCKS                          |
 | INNODB_CMPMEM                         |
 | INNODB_TABLE_STATS                    |
 | INNODB_SYS_INDEXES                    |
 | INNODB_CMP_RESET                      |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_CMPMEM_RESET                   |
 | INNODB_INDEX_STATS                    |
 +---------------------------------------+
 Wildcard: inf_rmation_schema

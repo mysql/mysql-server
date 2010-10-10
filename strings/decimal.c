@@ -346,7 +346,7 @@ int decimal2string(decimal_t *from, char *to, int *to_len,
   char *s=to;
   dec1 *buf, *buf0=from->buf, tmp;
 
-  DBUG_ASSERT(*to_len >= 2+from->sign);
+  DBUG_ASSERT(*to_len >= 2+ (int) from->sign);
 
   /* removing leading zeroes */
   buf0= remove_leading_zeroes(from, &intg);
@@ -971,7 +971,7 @@ int decimal2double(decimal_t *from, double *to)
 
   *to= from->sign ? -result : result;
 
-  DBUG_PRINT("info", ("result: %f (%lx)", *to, *(ulong *)to));
+  DBUG_PRINT("info", ("result: %f", *to));
 
   return E_DEC_OK;
 }
@@ -1801,7 +1801,8 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac);
   int frac0=max(frac1, frac2), error;
-  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2, carry=0;
+  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2;
+  my_bool carry=0;
 
   /* let carry:=1 if from2 > from1 */
   start1=buf1=from1->buf; stop1=buf1+intg1;
@@ -1869,7 +1870,7 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
     swap_variables(dec1 *,start1, start2);
     swap_variables(int,intg1,intg2);
     swap_variables(int,frac1,frac2);
-    to->sign= 1 - to->sign;
+    to->sign= !to->sign;
   }
 
   FIX_INTG_FRAC_ERROR(to->len, intg1, frac0, error);
@@ -1934,8 +1935,7 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
 int decimal_intg(decimal_t *from)
 {
   int res;
-  dec1 *tmp_res;
-  tmp_res= remove_leading_zeroes(from, &res);
+  remove_leading_zeroes(from, &res);
   return res;
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -253,15 +253,6 @@ row_table_got_default_clust_index(
 /*==============================*/
 	const dict_table_t*	table);	/*!< in: table */
 /*********************************************************************//**
-Calculates the key number used inside MySQL for an Innobase index. We have
-to take into account if we generated a default clustered index for the table
-@return	the key number used inside MySQL */
-UNIV_INTERN
-ulint
-row_get_mysql_key_number_for_index(
-/*===============================*/
-	const dict_index_t*	index);	/*!< in: index */
-/*********************************************************************//**
 Does an update or delete of a row for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -273,27 +264,26 @@ row_update_for_mysql(
 	row_prebuilt_t*	prebuilt);	/*!< in: prebuilt struct in MySQL
 					handle */
 /*********************************************************************//**
-This can only be used when srv_locks_unsafe_for_binlog is TRUE or
-session is using a READ COMMITTED isolation level. Before
-calling this function we must use trx_reset_new_rec_lock_info() and
-trx_register_new_rec_lock() to store the information which new record locks
-really were set. This function removes a newly set lock under prebuilt->pcur,
-and also under prebuilt->clust_pcur. Currently, this is only used and tested
-in the case of an UPDATE or a DELETE statement, where the row lock is of the
-LOCK_X type.
-Thus, this implements a 'mini-rollback' that releases the latest record
-locks we set.
-@return	error code or DB_SUCCESS */
+This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
+session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
+Before calling this function row_search_for_mysql() must have
+initialized prebuilt->new_rec_locks to store the information which new
+record locks really were set. This function removes a newly set
+clustered index record lock under prebuilt->pcur or
+prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
+releases the latest clustered index record lock we set.
+@return error code or DB_SUCCESS */
 UNIV_INTERN
 int
 row_unlock_for_mysql(
 /*=================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in MySQL
+	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt struct in MySQL
 					handle */
-	ibool		has_latches_on_recs);/*!< TRUE if called so that we have
-					the latches on the records under pcur
-					and clust_pcur, and we do not need to
-					reposition the cursors. */
+	ibool		has_latches_on_recs);/*!< in: TRUE if called
+					so that we have the latches on
+					the records under pcur and
+					clust_pcur, and we do not need
+					to reposition the cursors. */
 /*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
@@ -386,6 +376,14 @@ row_create_index_for_mysql(
 					then checked for not being too
 					large. */
 /*********************************************************************//**
+*/
+UNIV_INTERN
+int
+row_insert_stats_for_mysql(
+/*=======================*/
+	dict_index_t*	index,
+	trx_t*		trx);
+/*********************************************************************//**
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
@@ -403,6 +401,7 @@ row_table_add_foreign_constraints(
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
 					table2 can be written also with the
 					database name before it: test.table2 */
+	size_t		sql_length,	/*!< in: length of sql_string */
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */
@@ -451,6 +450,12 @@ row_drop_table_for_mysql(
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: transaction handle */
 	ibool		drop_db);/*!< in: TRUE=dropping whole database */
+/*********************************************************************//**
+Drop all temporary tables during crash recovery. */
+UNIV_INTERN
+void
+row_mysql_drop_temp_tables(void);
+/*============================*/
 
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
@@ -494,14 +499,19 @@ row_rename_table_for_mysql(
 	trx_t*		trx,		/*!< in: transaction handle */
 	ibool		commit);	/*!< in: if TRUE then commit trx */
 /*********************************************************************//**
-Checks a table for corruption.
-@return	DB_ERROR or DB_SUCCESS */
+Checks that the index contains entries in an ascending order, unique
+constraint is not broken, and calculates the number of index entries
+in the read view of the current transaction.
+@return	DB_SUCCESS if ok */
 UNIV_INTERN
 ulint
-row_check_table_for_mysql(
+row_check_index_for_mysql(
 /*======================*/
-	row_prebuilt_t*	prebuilt);	/*!< in: prebuilt struct in MySQL
-					handle */
+	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
+						in MySQL handle */
+	const dict_index_t*	index,		/*!< in: index */
+	ulint*			n_rows);	/*!< out: number of entries
+						seen in the consistent read */
 
 /*********************************************************************//**
 Determines if a table is a magic monitor table.
@@ -701,18 +711,17 @@ struct row_prebuilt_struct {
 	ulint		new_rec_locks;	/*!< normally 0; if
 					srv_locks_unsafe_for_binlog is
 					TRUE or session is using READ
-					COMMITTED isolation level, in a
-					cursor search, if we set a new
-					record lock on an index, this is
-					incremented; this is used in
-					releasing the locks under the
-					cursors if we are performing an
-					UPDATE and we determine after
-					retrieving the row that it does
-					not need to be locked; thus,
-					these can be used to implement a
-					'mini-rollback' that releases
-					the latest record locks */
+					COMMITTED or READ UNCOMMITTED
+					isolation level, set in
+					row_search_for_mysql() if we set a new
+					record lock on the secondary
+					or clustered index; this is
+					used in row_unlock_for_mysql()
+					when releasing the lock under
+					the cursor if we determine
+					after retrieving the row that
+					it does not need to be locked
+					('mini-rollback') */
 	ulint		mysql_prefix_len;/*!< byte offset of the end of
 					the last requested column */
 	ulint		mysql_row_len;	/*!< length in bytes of a row in the

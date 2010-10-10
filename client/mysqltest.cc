@@ -74,6 +74,10 @@
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
 
+#ifndef HAVE_SETENV
+static int setenv(const char *name, const char *value, int overwrite);
+#endif
+
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
@@ -227,7 +231,6 @@ typedef struct
   int alloced_len;
   int int_dirty; /* do not update string if int is updated until first read */
   int alloced;
-  char *env_s;
 } VAR;
 
 /*Perl/shell-like variable registers */
@@ -539,7 +542,7 @@ public:
   {
     DBUG_ENTER("LogFile::open");
     DBUG_PRINT("enter", ("dir: '%s', name: '%s'",
-                         dir, name));
+                         val_or_null(dir), val_or_null(name)));
     if (!name)
     {
       m_file= stdout;
@@ -1077,7 +1080,8 @@ void check_command_args(struct st_command *command,
   DBUG_VOID_RETURN;
 }
 
-void handle_command_error(struct st_command *command, uint error)
+void handle_command_error(struct st_command *command, uint error,
+                          int sys_errno)
 {
   DBUG_ENTER("handle_command_error");
   DBUG_PRINT("enter", ("error: %d", error));
@@ -1093,12 +1097,13 @@ void handle_command_error(struct st_command *command, uint error)
 
     if (i >= 0)
     {
-      DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
-                          command->first_word_len, command->query, error));
+      DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %u, errno: %d",
+                          command->first_word_len, command->query, error,
+                          sys_errno));
       DBUG_VOID_RETURN;
     }
-    die("command \"%.*s\" failed with wrong error: %d",
-        command->first_word_len, command->query, error);
+    die("command \"%.*s\" failed with wrong error: %u, errno: %d",
+        command->first_word_len, command->query, error, sys_errno);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1807,7 +1812,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   {
     my_close(fd, MYF(0));
     /* Remove the temporary file */
-    my_delete(temp_file_path, MYF(0));
+    my_delete(temp_file_path, MYF(MY_WME));
     die("Failed to write file '%s'", temp_file_path);
   }
 
@@ -1815,7 +1820,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 
   my_close(fd, MYF(0));
   /* Remove the temporary file */
-  my_delete(temp_file_path, MYF(0));
+  my_delete(temp_file_path, MYF(MY_WME));
 
   DBUG_RETURN(error);
 }
@@ -1982,13 +1987,20 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
                                                   + name_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  tmp_var->name = (name) ? (char*) tmp_var + sizeof(*tmp_var) : 0;
+  if (name != NULL)
+  {
+    tmp_var->name= reinterpret_cast<char*>(tmp_var) + sizeof(*tmp_var);
+    memcpy(tmp_var->name, name, name_len);
+    tmp_var->name[name_len]= 0;
+  }
+  else
+    tmp_var->name= NULL;
+
   tmp_var->alloced = (v == 0);
 
   if (!(tmp_var->str_val = (char*)my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  memcpy(tmp_var->name, name, name_len);
   if (val)
   {
     memcpy(tmp_var->str_val, val, val_len);
@@ -1999,7 +2011,6 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   tmp_var->alloced_len = val_alloc_len;
   tmp_var->int_val = (val) ? atoi(val) : 0;
   tmp_var->int_dirty = 0;
-  tmp_var->env_s = 0;
   return tmp_var;
 }
 
@@ -2127,20 +2138,15 @@ void var_set(const char *var_name, const char *var_name_end,
 
   if (env_var)
   {
-    char buf[1024], *old_env_s= v->env_s;
     if (v->int_dirty)
     {
       sprintf(v->str_val, "%d", v->int_val);
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    my_snprintf(buf, sizeof(buf), "%.*s=%.*s",
-                v->name_len, v->name,
-                v->str_val_len, v->str_val);
-    if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
-      die("Out of memory");
-    putenv(v->env_s);
-    my_free(old_env_s, MYF(MY_ALLOW_ZERO_PTR));
+    /* setenv() expects \0-terminated strings */
+    DBUG_ASSERT(v->name[v->name_len] == 0);
+    setenv(v->name, v->str_val, 1);
   }
   DBUG_VOID_RETURN;
 }
@@ -2928,8 +2934,8 @@ void do_remove_file(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
-  error= my_delete(ds_filename.str, MYF(0)) != 0;
-  handle_command_error(command, error);
+  error= my_delete(ds_filename.str, MYF(disable_warnings ? 0 : MY_WME)) != 0;
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
 }
@@ -2947,7 +2953,7 @@ void do_remove_file(struct st_command *command)
 
 void do_remove_files_wildcard(struct st_command *command)
 {
-  int error= 0;
+  int error= 0, sys_errno= 0;
   uint i;
   MY_DIR *dir_info;
   FILEINFO *file;
@@ -2971,9 +2977,10 @@ void do_remove_files_wildcard(struct st_command *command)
 
   DBUG_PRINT("info", ("listing directory: %s", dirname));
   /* Note that my_dir sorts the list if not given any flags */
-  if (!(dir_info= my_dir(dirname, MYF(MY_DONT_SORT | MY_WANT_STAT))))
+  if (!(dir_info= my_dir(dirname, MYF(MY_DONT_SORT | MY_WANT_STAT | MY_WME))))
   {
     error= 1;
+    sys_errno= my_errno;
     goto end;
   }
   init_dynamic_string(&ds_file_to_remove, dirname, 1024, 1024);
@@ -2995,14 +3002,15 @@ void do_remove_files_wildcard(struct st_command *command)
     ds_file_to_remove.str[ds_directory.length + 1]= 0;
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
-    error= my_delete(ds_file_to_remove.str, MYF(0)) != 0;
+    if ((error= (my_delete(ds_file_to_remove.str, MYF(MY_WME)) != 0)))
+      sys_errno= my_errno;
     if (error)
       break;
   }
   my_dirend(dir_info);
 
 end:
-  handle_command_error(command, error);
+  handle_command_error(command, error, sys_errno);
   dynstr_free(&ds_directory);
   dynstr_free(&ds_wild);
   dynstr_free(&ds_file_to_remove);
@@ -3040,8 +3048,8 @@ void do_copy_file(struct st_command *command)
 
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_copy(ds_from_file.str, ds_to_file.str,
-                  MYF(MY_DONT_OVERWRITE_FILE)) != 0);
-  handle_command_error(command, error);
+                  MYF(MY_DONT_OVERWRITE_FILE | MY_WME)) != 0);
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
   DBUG_VOID_RETURN;
@@ -3076,8 +3084,8 @@ void do_move_file(struct st_command *command)
 
   DBUG_PRINT("info", ("Move %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_rename(ds_from_file.str, ds_to_file.str,
-                    MYF(0)) != 0);
-  handle_command_error(command, error);
+                    MYF(disable_warnings ? 0 : MY_WME)) != 0);
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
   DBUG_VOID_RETURN;
@@ -3097,6 +3105,7 @@ void do_move_file(struct st_command *command)
 
 void do_chmod_file(struct st_command *command)
 {
+  int error;
   long mode= 0;
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
@@ -3117,7 +3126,10 @@ void do_chmod_file(struct st_command *command)
     die("You must write a 4 digit octal number for mode");
 
   DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
-  handle_command_error(command, chmod(ds_file.str, mode));
+  error= 0;
+  if (chmod(ds_file.str, mode))
+    error= 1;
+  handle_command_error(command, error, errno);
   dynstr_free(&ds_mode);
   dynstr_free(&ds_file);
   DBUG_VOID_RETURN;
@@ -3150,7 +3162,7 @@ void do_file_exist(struct st_command *command)
 
   DBUG_PRINT("info", ("Checking for existence of file: %s", ds_filename.str));
   error= (access(ds_filename.str, F_OK) != 0);
-  handle_command_error(command, error);
+  handle_command_error(command, error, errno);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
 }
@@ -3180,8 +3192,8 @@ void do_mkdir(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("creating directory: %s", ds_dirname.str));
-  error= my_mkdir(ds_dirname.str, 0777, MYF(0)) != 0;
-  handle_command_error(command, error);
+  error= my_mkdir(ds_dirname.str, 0777, MYF(MY_WME)) != 0;
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_dirname);
   DBUG_VOID_RETURN;
 }
@@ -3211,7 +3223,7 @@ void do_rmdir(struct st_command *command)
 
   DBUG_PRINT("info", ("removing directory: %s", ds_dirname.str));
   error= rmdir(ds_dirname.str) != 0;
-  handle_command_error(command, error);
+  handle_command_error(command, error, errno);
   dynstr_free(&ds_dirname);
   DBUG_VOID_RETURN;
 }
@@ -3285,7 +3297,7 @@ static void do_list_files(struct st_command *command)
                      sizeof(list_files_args)/sizeof(struct command_arg), ' ');
 
   error= get_list_files(&ds_res, &ds_dirname, &ds_wild);
-  handle_command_error(command, error);
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_dirname);
   dynstr_free(&ds_wild);
   DBUG_VOID_RETURN;
@@ -3327,7 +3339,7 @@ static void do_list_files_write_file_command(struct st_command *command,
 
   init_dynamic_string(&ds_content, "", 1024, 1024);
   error= get_list_files(&ds_content, &ds_dirname, &ds_wild);
-  handle_command_error(command, error);
+  handle_command_error(command, error, my_errno);
   str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
   dynstr_free(&ds_content);
   dynstr_free(&ds_filename);
@@ -3609,7 +3621,7 @@ void do_diff_files(struct st_command *command)
 
   dynstr_free(&ds_filename);
   dynstr_free(&ds_filename2);
-  handle_command_error(command, error);
+  handle_command_error(command, error, -1);
   DBUG_VOID_RETURN;
 }
 
@@ -3817,9 +3829,9 @@ void do_perl(struct st_command *command)
     error= pclose(res_file);
 
     /* Remove the temporary file */
-    my_delete(temp_file_path, MYF(0));
+    my_delete(temp_file_path, MYF(MY_WME));
 
-    handle_command_error(command, WEXITSTATUS(error));
+    handle_command_error(command, WEXITSTATUS(error), my_errno);
   }
   dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
@@ -4723,11 +4735,11 @@ char *get_string(char **to_ptr, char **from_ptr,
 }
 
 
-void set_reconnect(MYSQL* mysql, int val)
+void set_reconnect(MYSQL* mysql, my_bool val)
 {
   my_bool reconnect= val;
   DBUG_ENTER("set_reconnect");
-  DBUG_PRINT("info", ("val: %d", val));
+  DBUG_PRINT("info", ("val: %d", (int) val));
 #if MYSQL_VERSION_ID < 50000
   mysql->reconnect= reconnect;
 #else
@@ -5824,7 +5836,7 @@ int read_command(struct st_command** command_ptr)
         (struct st_command*) my_malloc(sizeof(*command),
                                        MYF(MY_WME|MY_ZEROFILL))) ||
       insert_dynamic(&q_lines, (uchar*) &command))
-    die(NullS);
+    die("Out of memory");
   command->type= Q_UNKNOWN;
 
   read_command_buf[0]= 0;
@@ -5880,18 +5892,18 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Basedir for tests.", (uchar**) &opt_basedir,
-   (uchar**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"basedir", 'b', "Basedir for tests.", &opt_basedir,
+   &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", (uchar**) &opt_charsets_dir,
-   (uchar**) &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", &opt_charsets_dir,
+   &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use the compressed server/client protocol.",
-   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statements.",
-   (uchar**) &cursor_protocol, (uchar**) &cursor_protocol, 0,
+   &cursor_protocol, &cursor_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use.", (uchar**) &opt_db, (uchar**) &opt_db, 0,
+  {"database", 'D', "Database to use.", &opt_db, &opt_db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
@@ -5901,33 +5913,33 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
-   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"global-subst", OPT_GLOBAL_SUBST, "argument should be 'X,Y' ;"
    " substitute string X with another Y accross the whole test's current"
    " result before comparing with expected result file",
-   (uchar**) &global_subst, (uchar**) &global_subst, 0,
+   &global_subst, &global_subst, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (uchar**) &opt_host, (uchar**) &opt_host, 0,
+  {"host", 'h', "Connect to host.", &opt_host, &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"include", 'i', "Include SQL before each test case.", (uchar**) &opt_include,
-   (uchar**) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"logdir", OPT_LOG_DIR, "Directory for log files", (uchar**) &opt_logdir,
-   (uchar**) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"include", 'i', "Include SQL before each test case.", &opt_include,
+   &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"logdir", OPT_LOG_DIR, "Directory for log files", &opt_logdir,
+   &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
    "Write line number and elapsed time to <testname>.progress.",
-   (uchar**) &opt_mark_progress, (uchar**) &opt_mark_progress, 0,
+   &opt_mark_progress, &opt_mark_progress, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
    "Maximum number of attempts to connect to server.",
-   (uchar**) &opt_max_connect_retries, (uchar**) &opt_max_connect_retries, 0,
+   &opt_max_connect_retries, &opt_max_connect_retries, 0,
    GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
   {"max-connections", OPT_MAX_CONNECTIONS,
    "Max number of open connections to server",
-   (uchar**) &opt_max_connections, (uchar**) &opt_max_connections, 0,
+   &opt_max_connections, &opt_max_connections, 0,
    GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -5937,18 +5949,17 @@ static struct my_option my_long_options[] =
    "/etc/services, "
 #endif
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-   (uchar**) &opt_port,
-   (uchar**) &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_port, &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ps-protocol", OPT_PS_PROTOCOL, 
    "Use prepared-statement protocol for communication.",
-   (uchar**) &ps_protocol, (uchar**) &ps_protocol, 0,
+   &ps_protocol, &ps_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"quiet", 's', "Suppress all normal output.", (uchar**) &silent,
-   (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"quiet", 's', "Suppress all normal output.", &silent,
+   &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"result-file", 'R', "Read/store result from/in this file.",
-   (uchar**) &result_file_name, (uchar**) &result_file_name, 0,
+   &result_file_name, &result_file_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5956,28 +5967,28 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
-   (uchar**) &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
+   "Base name of shared memory.", &shared_memory_base_name, 
+   &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
    0, 0, 0},
 #endif
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
-   (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &silent, &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
    "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"sleep", 'T', "Always sleep this many seconds on sleep commands.",
-   (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, -1, 0,
+   &opt_sleep, &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, -1, 0,
    0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
-   (uchar**) &unix_sock, (uchar**) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   &unix_sock, &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
-   (uchar**) &sp_protocol, (uchar**) &sp_protocol, 0,
+   &sp_protocol, &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the result to include in a failure report.",
-   (uchar**) &opt_tail_lines, (uchar**) &opt_tail_lines, 0,
+   &opt_tail_lines, &opt_tail_lines, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5988,14 +5999,14 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u', "User for login.", (uchar**) &opt_user, (uchar**) &opt_user, 0,
+  {"user", 'u', "User for login.", &opt_user, &opt_user, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Write more.", (uchar**) &verbose, (uchar**) &verbose, 0,
+  {"verbose", 'v', "Write more.", &verbose, &verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
-   (uchar**) &view_protocol, (uchar**) &view_protocol, 0,
+   &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -6322,7 +6333,7 @@ void init_win_path_patterns()
     }
 
     if (insert_dynamic(&patterns, (uchar*) &p))
-      die(NullS);
+      die("Out of memory");
 
     DBUG_PRINT("info", ("p: %s", p));
     while (*p)
@@ -7668,7 +7679,7 @@ void mark_progress(struct st_command* command __attribute__((unused)),
     die("Out of memory");
 
   /* Milliseconds since start */
-  end= longlong2str(timer, buf, 10);
+  end= longlong10_to_str(timer, buf, 10);
   dynstr_append_mem(&ds_progress, buf, (int)(end-buf));
   dynstr_append_mem(&ds_progress, "\t", 1);
 
@@ -8199,12 +8210,12 @@ int main(int argc, char **argv)
         command->last_argument= command->end;
 	break;
       case Q_PING:
-        handle_command_error(command, mysql_ping(&cur_con->mysql));
+        handle_command_error(command, mysql_ping(&cur_con->mysql), -1);
         break;
       case Q_SEND_SHUTDOWN:
         handle_command_error(command,
                              mysql_shutdown(&cur_con->mysql,
-                                            SHUTDOWN_DEFAULT));
+                                            SHUTDOWN_DEFAULT), -1);
         break;
       case Q_SHUTDOWN_SERVER:
         do_shutdown_server(command);
@@ -8426,7 +8437,7 @@ void timer_output(void)
   {
     char buf[32], *end;
     ulonglong timer= timer_now() - timer_start;
-    end= longlong2str(timer, buf, 10);
+    end= longlong10_to_str(timer, buf, 10);
     str_to_file(timer_file,buf, (int) (end-buf));
     /* Timer has been written to the file, don't use it anymore */
     timer_file= 0;
@@ -8588,15 +8599,15 @@ void free_replace()
 
 
 typedef struct st_replace {
-  my_bool found;
+  int found;
   struct st_replace *next[256];
 } REPLACE;
 
 typedef struct st_replace_found {
-  my_bool found;
-  char *replace_string;
+  int found;
   uint to_offset;
   int from_offset;
+  char *replace_string;
 } REPLACE_STRING;
 
 
@@ -8628,7 +8639,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
     }
 
     /* Found a string that needs to be replaced */
-    DBUG_PRINT("info", ("found: %d, to_offset: %d, from_offset: %d, string: %s",
+    DBUG_PRINT("info", ("found: %d, to_offset: %u, from_offset: %d, string: %s",
                         rep_str->found, rep_str->to_offset,
                         rep_str->from_offset, rep_str->replace_string));
 
@@ -9402,8 +9413,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     for (i=1 ; i <= found_sets ; i++)
     {
       pos=from[found_set[i-1].table_offset];
-      rep_str[i].found= !bcmp((const uchar*) pos,
-			      (const uchar*) "\\^", 3) ? 2 : 1;
+      rep_str[i].found= !memcmp(pos, "\\^", 3) ? 2 : 1;
       rep_str[i].replace_string=to_array[found_set[i-1].table_offset];
       rep_str[i].to_offset=found_set[i-1].found_offset-start_at_word(pos);
       rep_str[i].from_offset=found_set[i-1].found_offset-replace_len(pos)+
@@ -9531,8 +9541,8 @@ void copy_bits(REP_SET *to,REP_SET *from)
 
 int cmp_bits(REP_SET *set1,REP_SET *set2)
 {
-  return bcmp((uchar*) set1->bits,(uchar*) set2->bits,
-	      sizeof(uint) * set1->size_of_bits);
+  return memcmp(set1->bits, set2->bits,
+                sizeof(uint) * set1->size_of_bits);
 }
 
 
@@ -9601,17 +9611,15 @@ int find_found(FOUND_SET *found_set,uint table_offset, int found_offset)
 
 uint start_at_word(char * pos)
 {
-  return (((!bcmp((const uchar*) pos, (const uchar*) "\\b",2) && pos[2]) ||
-           !bcmp((const uchar*) pos, (const uchar*) "\\^", 2)) ? 1 : 0);
+  return (((!memcmp(pos, "\\b",2) && pos[2]) ||
+           !memcmp(pos, "\\^", 2)) ? 1 : 0);
 }
 
 uint end_of_word(char * pos)
 {
   char * end=strend(pos);
-  return ((end > pos+2 && !bcmp((const uchar*) end-2,
-                                (const uchar*) "\\b", 2)) ||
-	  (end >= pos+2 && !bcmp((const uchar*) end-2,
-                                (const uchar*) "\\$",2))) ? 1 : 0;
+  return ((end > pos+2 && !memcmp(end-2, "\\b", 2)) ||
+	  (end >= pos+2 && !memcmp(end-2, "\\$",2))) ? 1 : 0;
 }
 
 /****************************************************************************
@@ -9831,3 +9839,18 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
   delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }
+
+#ifndef HAVE_SETENV
+static int setenv(const char *name, const char *value, int overwrite)
+{
+  size_t buflen= strlen(name) + strlen(value) + 2;
+  char *envvar= (char *)malloc(buflen);
+  if(!envvar)
+    return ENOMEM;
+  strcpy(envvar, name);
+  strcat(envvar, "=");
+  strcat(envvar, value);
+  putenv(envvar);
+  return 0;
+}
+#endif

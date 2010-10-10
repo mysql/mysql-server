@@ -47,7 +47,7 @@ my_bool my_gethwaddr(uchar *to)
   uchar  *buf, *next, *end, *addr;
   struct if_msghdr *ifm;
   struct sockaddr_dl *sdl;
-  int i, res=1, mib[6]={CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
+  int res=1, mib[6]={CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
 
   if (sysctl(mib, 6, NULL, &len, NULL, 0) == -1)
     goto err;

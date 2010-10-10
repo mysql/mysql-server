@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,8 +33,10 @@ Created 11/5/1995 Heikki Tuuri
 #include "hash0hash.h"
 #include "ut0byte.h"
 #include "page0types.h"
+#include "ut0rbt.h"
 #ifndef UNIV_HOTBACKUP
 #include "os0proc.h"
+#include "srv0srv.h"
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
@@ -202,20 +204,14 @@ with care. */
 #define buf_page_get_with_no_latch(SP, ZS, OF, MTR)	   buf_page_get_gen(\
 				SP, ZS, OF, RW_NO_LATCH, NULL,\
 				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
-/**************************************************************//**
-NOTE! The following macros should be used instead of
-buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
-RW_X_LATCH are allowed as LA! */
-#define buf_page_optimistic_get(LA, BL, MC, MTR)			     \
-	buf_page_optimistic_get_func(LA, BL, MC, __FILE__, __LINE__, MTR)
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
 page.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-buf_page_optimistic_get_func(
-/*=========================*/
+buf_page_optimistic_get(
+/*====================*/
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/*!< in: guessed block */
 	ib_uint64_t	modify_clock,/*!< in: modify clock value if mode is
@@ -1205,15 +1201,21 @@ struct buf_block_struct{
 	rw_lock_t	lock;		/*!< read-write lock of the buffer
 					frame */
 	unsigned	lock_hash_val:32;/*!< hashed value of the page address
-					in the record lock hash table */
-	unsigned	check_index_page_at_flush:1;
+					in the record lock hash table;
+					protected by buf_block_t::lock
+					(or buf_block_t::mutex, buf_pool_mutex
+				        in buf_page_get_gen(),
+					buf_page_init_for_read()
+					and buf_page_create()) */
+	ibool		check_index_page_at_flush;
 					/*!< TRUE if we know that this is
 					an index page, and want the database
 					to check its consistency before flush;
 					note that there may be pages in the
 					buffer pool which are index pages,
 					but this flag is not set because
-					we do not keep track of all pages */
+					we do not keep track of all pages;
+					NOT protected by any mutex */
 	/* @} */
 	/** @name Optimistic search field */
 	/* @{ */
@@ -1300,10 +1302,22 @@ struct buf_block_struct{
 /**********************************************************************//**
 Compute the hash fold value for blocks in buf_pool->zip_hash. */
 /* @{ */
-#define BUF_POOL_ZIP_FOLD_PTR(ptr) ((ulint) (ptr) / UNIV_PAGE_SIZE)
+/* the fold should be relative when srv_buffer_pool_shm_key is enabled */
+#define BUF_POOL_ZIP_FOLD_PTR(ptr) (!srv_buffer_pool_shm_key\
+					?((ulint) (ptr) / UNIV_PAGE_SIZE)\
+					:((ulint) ((char*)ptr - (char*)(buf_pool->chunks->blocks->frame)) / UNIV_PAGE_SIZE))
 #define BUF_POOL_ZIP_FOLD(b) BUF_POOL_ZIP_FOLD_PTR((b)->frame)
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */
+
+/** A chunk of buffers.  The buffer pool is allocated in chunks. */
+struct buf_chunk_struct{
+	ulint		mem_size;	/*!< allocated size of the chunk */
+	ulint		size;		/*!< size of frames[] and blocks[] */
+	void*		mem;		/*!< pointer to the memory area which
+					was allocated for the frames */
+	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+};
 
 /** @brief The buffer pool statistics structure. */
 struct buf_pool_stat_struct{
@@ -1379,6 +1393,19 @@ struct buf_pool_struct{
 					/*!< this is in the set state
 					when there is no flush batch
 					of the given type running */
+	ib_rbt_t*	flush_rbt;	/* !< a red-black tree is used
+					exclusively during recovery to
+					speed up insertions in the
+					flush_list. This tree contains
+					blocks in order of
+					oldest_modification LSN and is
+					kept in sync with the
+					flush_list.
+					Each member of the tree MUST
+					also be on the flush_list.
+					This tree is relevant only in
+					recovery and is set to NULL
+					once the recovery is over. */
 	ulint		freed_page_clock;/*!< a sequence number used
 					to count the number of buffer
 					blocks removed from the end of

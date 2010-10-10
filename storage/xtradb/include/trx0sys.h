@@ -124,6 +124,22 @@ trx_sys_hdr_page(
 /*=============*/
 	ulint	space,	/*!< in: space */
 	ulint	page_no);/*!< in: page number */
+/***************************************************************//**
+Checks if a space is the system tablespaces.
+@return TRUE if system tablespace */
+UNIV_INLINE
+ibool
+trx_sys_sys_space(
+/*==============*/
+	ulint	space);	/*!< in: space */
+/***************************************************************//**
+Checks if a space is the doublewrite tablespace.
+@return TRUE if doublewrite tablespace */
+UNIV_INLINE
+ibool
+trx_sys_doublewrite_space(
+/*======================*/
+	ulint	space);	/*!< in: space */
 /*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started. */
@@ -137,6 +153,13 @@ UNIV_INTERN
 void
 trx_sys_create(void);
 /*================*/
+/*****************************************************************//**
+Creates and initializes the dummy transaction system page for tablespace. */
+UNIV_INTERN
+void
+trx_sys_dummy_create(
+/*=================*/
+	ulint	space);
 /*********************************************************************
 Create extra rollback segments when create_new_db */
 UNIV_INTERN
@@ -303,6 +326,7 @@ UNIV_INTERN
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
+	trx_sysf_t*	sys_header,
 	const char*	file_name_in,/*!< in: MySQL log file name */
 	ib_int64_t	offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
@@ -343,12 +367,14 @@ UNIV_INTERN
 void
 trx_sys_file_format_tag_init(void);
 /*==============================*/
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Shutdown/Close the transaction system. */
 UNIV_INTERN
 void
 trx_sys_close(void);
 /*===============*/
+#endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the name */
@@ -444,6 +470,8 @@ trx_sys_file_format_id_to_name(
 
 /* Space id and page no where the trx system file copy resides */
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+#define	TRX_DOUBLEWRITE_SPACE	1	/* the doublewrite buffer tablespace if used */
+#define	TRX_SYS_SPACE_MAX	9	/* reserved max space id for system tablespaces */
 #include "fsp0fsp.h"
 #define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
 
@@ -507,7 +535,6 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 						within that file */
 #define TRX_SYS_MYSQL_LOG_NAME		12	/*!< MySQL log file name */
 
-#ifndef UNIV_HOTBACKUP
 /** Doublewrite buffer */
 /* @{ */
 /** The offset of the doublewrite buffer header on the trx system header page */
@@ -559,6 +586,7 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE
 /* @} */
 
+#ifndef UNIV_HOTBACKUP
 /** File format tag */
 /* @{ */
 /** The offset of the file format tag on the trx system header page

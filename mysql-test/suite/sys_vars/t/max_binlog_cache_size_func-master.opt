@@ -1,2 +1,2 @@
 --log-bin
---innodb
+--loose-innodb

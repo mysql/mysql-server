@@ -136,9 +136,10 @@ static bool set_one_value(ha_create_table_option *opt,
         DBUG_RETURN(0);
       }
 
-      my_option optp= { opt->name, 1, 0, (uchar **)val, 0, 0, GET_ULL,
-        REQUIRED_ARG, opt->def_value, opt->min_value, opt->max_value,
-        0, opt->block_size, 0};
+      my_option optp=
+        { opt->name, 1, 0, (uchar **)val, 0, 0, GET_ULL,
+          REQUIRED_ARG, opt->def_value, opt->min_value, opt->max_value,
+          0, (long) opt->block_size, 0};
 
       ulonglong orig_val= strtoull(value->str, NULL, 10);
       my_bool unused;
@@ -167,7 +168,7 @@ static bool set_one_value(ha_create_table_option *opt,
     {
       uint *val= (uint *)((char *)base + opt->offset), num;
 
-      *val= opt->def_value;
+      *val= (uint) opt->def_value;
       if (!value->str)
         DBUG_RETURN(0);
 
@@ -600,6 +601,7 @@ engine_option_value *merge_engine_table_options(engine_option_value *first,
 {
   engine_option_value *end, *opt;
   DBUG_ENTER("merge_engine_table_options");
+  LINT_INIT(end);
 
   /* find last element */
   if (first && second)

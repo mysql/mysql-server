@@ -23,7 +23,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
-SET(MARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c 
+SET(ARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c 
             ma_rnext.c ma_rnext_same.c 
             ma_search.c ma_page.c ma_key_recover.c ma_key.c 
             ma_locking.c ma_state.c
@@ -43,52 +43,55 @@ SET(MARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c
             ha_maria.cc trnman.c lockman.c tablockman.c 
             ma_rt_index.c ma_rt_key.c ma_rt_mbr.c ma_rt_split.c 
             ma_sp_key.c ma_control_file.c ma_loghandler.c 
-            ma_pagecache.c ma_pagecaches.c 
+            ma_pagecache.c ma_pagecaches.c compat_aliases.cc compat_aliases.h
             ma_checkpoint.c ma_recovery.c ma_commit.c ma_pagecrc.c
             ha_maria.h maria_def.h ma_recovery_util.c ma_servicethread.c
 )
 
-MYSQL_STORAGE_ENGINE(MARIA)
+MYSQL_STORAGE_ENGINE(ARIA)
 IF(NOT SOURCE_SUBLIBS)
 
-  ADD_DEPENDENCIES(maria GenError)
+  ADD_DEPENDENCIES(aria GenError)
 
-ADD_EXECUTABLE(maria_ftdump maria_ftdump.c)
-TARGET_LINK_LIBRARIES(maria_ftdump maria myisam mysys dbug strings zlib wsock32)
+ADD_EXECUTABLE(aria_ftdump maria_ftdump.c)
+TARGET_LINK_LIBRARIES(aria_ftdump aria myisam mysys dbug strings zlib wsock32)
 
-ADD_EXECUTABLE(maria_chk maria_chk.c)
-TARGET_LINK_LIBRARIES(maria_chk maria myisam mysys dbug strings zlib wsock32)
+ADD_EXECUTABLE(aria_chk maria_chk.c)
+TARGET_LINK_LIBRARIES(aria_chk aria myisam mysys dbug strings zlib wsock32)
 
-ADD_EXECUTABLE(maria_read_log maria_read_log.c)
-TARGET_LINK_LIBRARIES(maria_read_log maria myisam mysys dbug strings zlib wsock32)
+ADD_EXECUTABLE(aria_read_log maria_read_log.c)
+TARGET_LINK_LIBRARIES(aria_read_log aria myisam mysys dbug strings zlib wsock32)
 
-ADD_EXECUTABLE(maria_pack maria_pack.c)
-TARGET_LINK_LIBRARIES(maria_pack maria myisam mysys dbug strings zlib wsock32)
+ADD_EXECUTABLE(aria_pack maria_pack.c)
+TARGET_LINK_LIBRARIES(aria_pack aria myisam mysys dbug strings zlib wsock32)
 
-ADD_EXECUTABLE(maria_dump_log ma_loghandler.c unittest/ma_loghandler_examples.c)
-TARGET_LINK_LIBRARIES(maria_dump_log maria myisam mysys dbug strings zlib wsock32)
-SET_TARGET_PROPERTIES(maria_dump_log PROPERTIES COMPILE_FLAGS "-DMARIA_DUMP_LOG")
+ADD_EXECUTABLE(aria_dump_log ma_loghandler.c unittest/ma_loghandler_examples.c)
+TARGET_LINK_LIBRARIES(aria_dump_log aria myisam mysys dbug strings zlib wsock32)
+SET_TARGET_PROPERTIES(aria_dump_log PROPERTIES COMPILE_FLAGS "-DMARIA_DUMP_LOG")
 
 ADD_EXECUTABLE(ma_test1 ma_test1.c)
-TARGET_LINK_LIBRARIES(ma_test1 maria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_test1 aria myisam mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(ma_test2 ma_test2.c)
-TARGET_LINK_LIBRARIES(ma_test2 maria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_test2 aria myisam mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(ma_test3 ma_test3.c)
-TARGET_LINK_LIBRARIES(ma_test3 maria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_test3 aria myisam mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(ma_rt_test ma_rt_test.c)
-TARGET_LINK_LIBRARIES(ma_rt_test maria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_rt_test aria myisam mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(ma_sp_test ma_sp_test.c)
-TARGET_LINK_LIBRARIES(ma_sp_test maria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_sp_test aria myisam mysys dbug strings zlib wsock32)
 
 IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("maria_ftdump" "asInvoker")
-  MYSQL_EMBED_MANIFEST("maria_chk" "asInvoker")
-  MYSQL_EMBED_MANIFEST("maria_read_log" "asInvoker")
-  MYSQL_EMBED_MANIFEST("maria_pack" "asInvoker")
+  MYSQL_EMBED_MANIFEST("aria_ftdump" "asInvoker")
+  MYSQL_EMBED_MANIFEST("aria_chk" "asInvoker")
+  MYSQL_EMBED_MANIFEST("aria_read_log" "asInvoker")
+  MYSQL_EMBED_MANIFEST("aria_pack" "asInvoker")
 ENDIF(EMBED_MANIFESTS)
+
+INSTALL(TARGETS aria_ftdump aria_chk aria_read_log aria_pack aria_dump_log
+	DESTINATION bin COMPONENT runtime)
 
 ENDIF(NOT SOURCE_SUBLIBS)

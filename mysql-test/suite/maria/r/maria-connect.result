@@ -1,5 +1,5 @@
-set global storage_engine=maria;
-set session storage_engine=maria;
+set global storage_engine=aria;
+set session storage_engine=aria;
 drop table if exists t1;
 SET SQL_WARNINGS=1;
 RESET MASTER;

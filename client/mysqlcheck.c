@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB & Jani Tolonen
+   Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.5.0"
+#define CHECK_VERSION "2.6.0"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -54,13 +55,13 @@ static struct my_option my_long_options[] =
 {
   {"all-databases", 'A',
    "Check all the databases. This is the same as --databases with all databases selected.",
-   (uchar**) &opt_alldbs, (uchar**) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   &opt_alldbs, &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"analyze", 'a', "Analyze given tables.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"all-in-1", '1',
    "Instead of issuing one query for each table, use one query per database, naming all tables in the database in a comma-separated list.",
-   (uchar**) &opt_all_in_1, (uchar**) &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_all_in_1, &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
 #ifdef __NETWARE__
   {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
@@ -68,11 +69,11 @@ static struct my_option my_long_options[] =
 #endif
   {"auto-repair", OPT_AUTO_REPAIR,
    "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
-   (uchar**) &opt_auto_repair, (uchar**) &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
+   &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", (uchar**) &charsets_dir,
-   (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", (char**) &charsets_dir,
+   (char**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"check-only-changed", 'C',
@@ -82,11 +83,11 @@ static struct my_option my_long_options[] =
    "Check tables for version-dependent changes. May be used with --auto-repair to correct tables requiring version-dependent updates.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
-   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"databases", 'B',
    "Check several databases. Note the difference in usage; in this case no tables are given. All name arguments are regarded as database names.",
-   (uchar**) &opt_databases, (uchar**) &opt_databases, 0, GET_BOOL, NO_ARG,
+   &opt_databases, &opt_databases, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
@@ -96,40 +97,40 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
-   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (uchar**) &default_charset,
-   (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Set the default character set.", &default_charset,
+   &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fast",'F', "Check only tables that haven't been closed properly.",
-   (uchar**) &opt_fast, (uchar**) &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"fix-db-names", OPT_FIX_DB_NAMES, "Fix database names.",
-    (uchar**) &opt_fix_db_names, (uchar**) &opt_fix_db_names,
+    &opt_fix_db_names, &opt_fix_db_names,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fix-table-names", OPT_FIX_TABLE_NAMES, "Fix table names.",
-    (uchar**) &opt_fix_table_names, (uchar**) &opt_fix_table_names,
+    &opt_fix_table_names, &opt_fix_table_names,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Continue even if we get an SQL error.",
-   (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
+   &ignore_errors, &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"extended", 'e',
    "If you are using this option with CHECK TABLE, it will ensure that the table is 100 percent consistent, but will take a long time. If you are using this option with REPAIR TABLE, it will force using old slow repair with keycache method, instead of much faster repair by sorting.",
-   (uchar**) &opt_extended, (uchar**) &opt_extended, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_extended, &opt_extended, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"host",'h', "Connect to host.", (uchar**) &current_host,
-   (uchar**) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"host",'h', "Connect to host.", &current_host,
+   &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
    "Log ANALYZE, OPTIMIZE and REPAIR TABLE commands. Enabled by default; use --skip-write-binlog when commands should not be sent to replication slaves.",
-   (uchar**) &opt_write_binlog, (uchar**) &opt_write_binlog, 0, GET_BOOL, NO_ARG,
+   &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -146,38 +147,38 @@ static struct my_option my_long_options[] =
    "/etc/services, "
 #endif
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-   (uchar**) &opt_mysql_port,
-   (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
+   &opt_mysql_port,
+   &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
    "If you are using this option with CHECK TABLE, it prevents the check from scanning the rows to check for wrong links. This is the fastest check. If you are using this option with REPAIR TABLE, it will try to repair only the index tree. This is the fastest repair method for a table.",
-   (uchar**) &opt_quick, (uchar**) &opt_quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   &opt_quick, &opt_quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"repair", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
+   "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"silent", 's', "Print only error messages.", (uchar**) &opt_silent,
-   (uchar**) &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Print only error messages.", &opt_silent,
+   &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
-   (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
+   &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"use-frm", OPT_FRM,
    "When used with REPAIR, get table structure from .frm file, so the table can be repaired even if .MYI header is corrupted.",
-   (uchar**) &opt_frm, (uchar**) &opt_frm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   &opt_frm, &opt_frm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user.", (uchar**) &current_user,
-   (uchar**) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", &current_user,
+   &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v', "Print info about the various stages.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -222,24 +223,26 @@ static void usage(void)
 {
   print_version();
   puts("By Jani Tolonen, 2001-04-20, MySQL Development Team.\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license.\n");
+  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
+  printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
+	 my_progname);
+  printf("OR     %s [OPTIONS] --all-databases\n\n", my_progname);
   puts("This program can be used to CHECK (-c, -m, -C), REPAIR (-r), ANALYZE (-a),");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
-  puts("Please consult the MySQL manual for latest information about the");
-  puts("above. The options -c, -r, -a, and -o are exclusive to each other, which");
+  puts("The options -c, -r, -a, and -o are exclusive to each other, which");
   puts("means that the last option will be used, if several was specified.\n");
-  puts("The option -c will be used by default, if none was specified. You");
-  puts("can change the default behavior by making a symbolic link, or");
+  puts("The option -c (--check) will be used by default, if none was specified.");
+  puts("You can change the default behavior by making a symbolic link, or");
   puts("copying this file somewhere with another name, the alternatives are:");
   puts("mysqlrepair:   The default option will be -r");
   puts("mysqlanalyze:  The default option will be -a");
   puts("mysqloptimize: The default option will be -o\n");
-  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
-  printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
-	 my_progname);
-  printf("OR     %s [OPTIONS] --all-databases\n", my_progname);
+  puts("Please consult the MariaDB/MySQL knowledgebase at");
+  puts("http://kb.askmonty.org/v/mysqlcheck for latest information about");
+  puts("this program.");
   print_defaults("my", load_default_groups);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
@@ -416,6 +419,8 @@ static int process_all_databases()
 		    MYF(0), mysql_error(sock));
     return 1;
   }
+  if (verbose)
+    printf("Processing databases\n");
   while ((row = mysql_fetch_row(tableres)))
   {
     if (process_one_db(row[0]))
@@ -429,6 +434,8 @@ static int process_all_databases()
 static int process_databases(char **db_names)
 {
   int result = 0;
+  if (verbose)
+    printf("Processing databases\n");
   for ( ; *db_names ; db_names++)
   {
     if (process_one_db(*db_names))
@@ -521,6 +528,7 @@ static int process_all_tables_in_db(char *database)
   MYSQL_RES *res;
   MYSQL_ROW row;
   uint num_columns;
+  my_bool system_database= 0;
 
   LINT_INIT(res);
   if (use_db(database))
@@ -533,6 +541,9 @@ static int process_all_tables_in_db(char *database)
 		    MYF(0), database, mysql_error(sock));
     return 1;
   }
+
+  if (!strcmp(database, "mysql") || !strcmp(database, "MYSQL"))
+    system_database= 1;
 
   num_columns= mysql_num_fields(res);
 
@@ -576,6 +587,10 @@ static int process_all_tables_in_db(char *database)
       /* Skip views if we don't perform renaming. */
       if ((what_to_do != DO_UPGRADE) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
         continue;
+      if (system_database &&
+          (!strcmp(row[0], "general_log") ||
+           !strcmp(row[0], "slow_log")))
+        continue;                               /* Skip logging tables */
 
       handle_request_for_tables(row[0], fixed_name_length(row[0]));
     }
@@ -624,6 +639,8 @@ static int fix_database_storage_name(const char *name)
 
 static int process_one_db(char *database)
 {
+  if (verbose)
+    puts(database);
   if (what_to_do == DO_UPGRADE)
   {
     int rc= 0;
@@ -731,7 +748,7 @@ static void print_result()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  char prev[NAME_LEN*2+2];
+  char prev[(NAME_LEN+9)*2+2];
   uint i;
   my_bool found_error=0;
 
@@ -761,7 +778,15 @@ static void print_result()
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
     {
-      printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      /*
+        If the error message includes REPAIR TABLE, we assume it means
+        we have to run upgrade on it. In this case we write a nicer message
+        than "Please do "REPAIR TABLE""...
+      */
+      if (!strcmp(row[2],"error") && strinstr(row[3],"REPAIR TABLE") != 0)
+        printf("%-50s %s", row[0], "Needs upgrade");
+      else
+        printf("%s\n%-9s: %s", row[0], row[2], row[3]);
       if (strcmp(row[2],"note"))
 	found_error=1;
     }
@@ -780,7 +805,7 @@ static void print_result()
 static int dbConnect(char *host, char *user, char *passwd)
 {
   DBUG_ENTER("dbConnect");
-  if (verbose)
+  if (verbose > 1)
   {
     fprintf(stderr, "# Connecting to %s...\n", host ? host : "localhost");
   }
@@ -813,7 +838,7 @@ static int dbConnect(char *host, char *user, char *passwd)
 
 static void dbDisconnect(char *host)
 {
-  if (verbose)
+  if (verbose > 1)
     fprintf(stderr, "# Disconnecting from %s...\n", host ? host : "localhost");
   mysql_close(sock);
 } /* dbDisconnect */

@@ -63,7 +63,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
       info->update= 0;
       DBUG_RETURN(my_errno);
     }
-    if (!(keyinfo->flag & HA_NOSAME) || (keyinfo->flag & HA_END_SPACE_KEY))
+    if (!(keyinfo->flag & HA_NOSAME))
       memcpy(info->lastkey, key, (size_t) keyinfo->length);
   }
   memcpy(record, pos, (size_t) share->reclength);

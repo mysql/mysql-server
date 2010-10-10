@@ -1639,8 +1639,22 @@ void Item_sum_hybrid::cleanup()
 
 void Item_sum_hybrid::no_rows_in_result()
 {
-  was_values= FALSE;
-  clear();
+  /* We may be called here twice in case of ref field in function */
+  if (was_values)
+  {
+    was_values= FALSE;
+    was_null_value= value->null_value;
+    clear();
+  }
+}
+
+void Item_sum_hybrid::restore_to_before_no_rows_in_result()
+{
+  if (!was_values)
+  {
+    was_values= TRUE;
+    null_value= value->null_value= was_null_value;
+  }
 }
 
 
@@ -2624,8 +2638,10 @@ void Item_udf_sum::clear()
 
 bool Item_udf_sum::add()
 {
+  my_bool tmp_null_value;
   DBUG_ENTER("Item_udf_sum::add");
-  udf.add(&null_value);
+  udf.add(&tmp_null_value);
+  null_value= tmp_null_value;
   DBUG_RETURN(0);
 }
 
@@ -2661,11 +2677,15 @@ Item *Item_sum_udf_float::copy_or_same(THD* thd)
 
 double Item_sum_udf_float::val_real()
 {
+  my_bool tmp_null_value;
+  double res;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_float::val");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
-  DBUG_RETURN(udf.val(&null_value));
+  res= udf.val(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -2701,12 +2721,16 @@ longlong Item_sum_udf_decimal::val_int()
 
 my_decimal *Item_sum_udf_decimal::val_decimal(my_decimal *dec_buf)
 {
+  my_decimal *res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_decimal::val_decimal");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
                      args[0]->result_type(), arg_count));
 
-  DBUG_RETURN(udf.val_decimal(&null_value, dec_buf));
+  res= udf.val_decimal(&tmp_null_value, dec_buf);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -2723,11 +2747,15 @@ Item *Item_sum_udf_int::copy_or_same(THD* thd)
 
 longlong Item_sum_udf_int::val_int()
 {
+  my_bool tmp_null_value;
+  longlong res;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_int::val_int");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
-  DBUG_RETURN(udf.val_int(&null_value));
+  res= udf.val_int(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -2965,7 +2993,7 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_LIST *order_list, String *separator_arg)
+                       SQL_I_List<ORDER> *order_list, String *separator_arg)
   :tmp_table_param(0), warning(0),
    separator(separator_arg), tree(0), unique_filter(NULL), table(0),
    order(0), context(context_arg),
@@ -3009,7 +3037,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= (ORDER*) order_list->first;
+    for (ORDER *order_item= order_list->first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3030,7 +3058,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree(item->tree),
   unique_filter(item->unique_filter),
   table(item->table),
-  order(item->order),
   context(item->context),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
@@ -3043,8 +3070,25 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
 {
   quick_group= item->quick_group;
   result.set_charset(collation.collation);
-}
 
+  /*
+    Since the ORDER structures pointed to by the elements of the 'order' array
+    may be modified in find_order_in_list() called from
+    Item_func_group_concat::setup(), create a copy of those structures so that
+    such modifications done in this object would not have any effect on the
+    object being copied.
+  */
+  ORDER *tmp;
+  if (!(tmp= (ORDER *) thd->alloc(sizeof(ORDER *) * arg_count_order +
+                                     sizeof(ORDER) * arg_count_order)))
+    return;
+  order= (ORDER **)(tmp + arg_count_order);
+  for (uint i= 0; i < arg_count_order; i++, tmp++)
+  {
+    memcpy(tmp, item->order[i], sizeof(ORDER));
+    order[i]= tmp;
+  }
+}
 
 
 void Item_func_group_concat::cleanup()

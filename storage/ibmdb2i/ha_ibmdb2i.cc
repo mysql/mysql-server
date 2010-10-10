@@ -1158,9 +1158,7 @@ int ha_ibmdb2i::rnd_init(bool scan)
   
   rrnAssocHandle= 0;
 
-  DBUG_RETURN(0); // MySQL sometimes does not check the return code, causing 
-                  // an assert in ha_rnd_end later on if we return a non-zero
-                  // value here. 
+  DBUG_RETURN(0);
 }
 
 int ha_ibmdb2i::rnd_end()

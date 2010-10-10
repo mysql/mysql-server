@@ -303,7 +303,6 @@ bool Instance_options::fill_log_options()
   enum { MAX_LOG_OPTION_LENGTH= 256 };
   char datadir[MAX_LOG_OPTION_LENGTH];
   char hostname[MAX_LOG_OPTION_LENGTH];
-  uint hostname_length;
   struct log_files_st
   {
     const char *name;
@@ -335,8 +334,6 @@ bool Instance_options::fill_log_options()
     strmov(hostname, "mysql");
 
   hostname[MAX_LOG_OPTION_LENGTH - 1]= 0; /* Safety */
-  hostname_length= strlen(hostname);
-
 
   for (log_files= logs_st; log_files->name; log_files++)
   {

@@ -16,12 +16,14 @@
 #ifndef _ma_loghandler_h
 #define _ma_loghandler_h
 
+#define MB (1024UL*1024)
+
 /* transaction log default cache size  (TODO: make it global variable) */
-#define TRANSLOG_PAGECACHE_SIZE (1024U*1024*2)
+#define TRANSLOG_PAGECACHE_SIZE (2*MB)
 /* transaction log default file size */
-#define TRANSLOG_FILE_SIZE (1024U*1024*1024)
+#define TRANSLOG_FILE_SIZE (1024U*MB)
 /* minimum possible transaction log size */
-#define TRANSLOG_MIN_FILE_SIZE (1024U*1024*8)
+#define TRANSLOG_MIN_FILE_SIZE (8*MB)
 /* transaction log default flags (TODO: make it global variable) */
 #define TRANSLOG_DEFAULT_FLAGS 0
 
@@ -165,7 +167,31 @@ enum en_key_op
   KEY_OP_CHECK,         /* For debugging; CRC of used part of page */
   KEY_OP_MULTI_COPY,    /* List of memcpy()s with fixed-len sources in page */
   KEY_OP_SET_PAGEFLAG,  /* Set pageflag from next byte */
-  KEY_OP_COMPACT_PAGE   /* Compact key page */
+  KEY_OP_COMPACT_PAGE,	/* Compact key page */
+  KEY_OP_MAX_PAGELENGTH, /* Set page to max page length */
+  KEY_OP_DEBUG		/* Entry for storing what triggered redo_index */
+};
+
+enum en_key_debug
+{
+  KEY_OP_DEBUG_RTREE_COMBINE, 		/* 0 */
+  KEY_OP_DEBUG_RTREE_SPLIT,		/* 1 */
+  KEY_OP_DEBUG_RTREE_SET_KEY,		/* 2 */
+  KEY_OP_DEBUG_FATHER_CHANGED_1,	/* 3 */
+  KEY_OP_DEBUG_FATHER_CHANGED_2,	/* 4 */
+  KEY_OP_DEBUG_LOG_SPLIT,		/* 5 */
+  KEY_OP_DEBUG_LOG_ADD,			/* 6 */
+  KEY_OP_DEBUG_LOG_PREFIX_1,		/* 7 */
+  KEY_OP_DEBUG_LOG_PREFIX_2,		/* 8 */
+  KEY_OP_DEBUG_LOG_PREFIX_3,		/* 9 */
+  KEY_OP_DEBUG_LOG_PREFIX_4,		/* 10 */
+  KEY_OP_DEBUG_LOG_PREFIX_5,		/* 11 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_1,	/* 12 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_2,	/* 13 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_3,	/* 14 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_RT,	/* 15 */
+  KEY_OP_DEBUG_LOG_DEL_PREFIX,		/* 16 */
+  KEY_OP_DEBUG_LOG_MIDDLE		/* 17 */
 };
 
 

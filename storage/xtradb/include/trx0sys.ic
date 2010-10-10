@@ -71,6 +71,40 @@ trx_sys_hdr_page(
 }
 
 /***************************************************************//**
+Checks if a space is the system tablespaces.
+@return TRUE if system tablespace */
+UNIV_INLINE
+ibool
+trx_sys_sys_space(
+/*==============*/
+	ulint	space)	/*!< in: space */
+{
+	if (srv_doublewrite_file) {
+		/* several spaces are reserved */
+		return((ibool)(space <= TRX_SYS_SPACE_MAX));
+	} else {
+		return((ibool)(space == TRX_SYS_SPACE));
+	}
+}
+
+/***************************************************************//**
+Checks if a space is the doublewrite tablespace.
+@return TRUE if doublewrite tablespace */
+UNIV_INLINE
+ibool
+trx_sys_doublewrite_space(
+/*======================*/
+	ulint	space)	/*!< in: space */
+{
+	if (srv_doublewrite_file) {
+		/* doublewrite buffer is separated */
+		return((ibool)(space == TRX_DOUBLEWRITE_SPACE));
+	} else {
+		return((ibool)(space == TRX_SYS_SPACE));
+	}
+}
+
+/***************************************************************//**
 Gets the pointer in the nth slot of the rseg array.
 @return	pointer to rseg object, NULL if slot not in use */
 UNIV_INLINE

@@ -34,6 +34,36 @@
 
 extern "C" uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first);
 
+/**
+  Helper function which operates on a THD object to set the query start_time to
+  the current time.
+
+  @param[in, out] thd The session object
+
+*/
+
+static void reset_start_time_for_sp(THD *thd)
+{
+  /*
+    Do nothing if the context is a trigger or function because time should be
+    constant during the execution of those.
+  */
+  if (!thd->in_sub_stmt)
+  {
+    /*
+      First investigate if there is a cached time stamp
+    */
+    if (thd->user_time)
+    {
+      thd->start_time= thd->user_time;
+    }
+    else
+    {
+      my_micro_time_and_time(&thd->start_time);
+    }
+  }
+}
+
 Item_result
 sp_map_result_type(enum enum_field_types type)
 {
@@ -1057,7 +1087,7 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed= FALSE;
@@ -1227,10 +1257,13 @@ sp_head::execute(THD *thd)
 
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
-    /* Don't change NOW() in FUNCTION or TRIGGER */
-    if (!thd->in_sub_stmt)
-      thd->set_time();		// Make current_time() et al work
-    
+    /*
+      We need to reset start_time to allow for time to flow inside a stored
+      procedure. This is only done for SP since time is suppose to be constant
+      during execution of triggers and functions.
+    */
+    reset_start_time_for_sp(thd);
+
     /*
       We have to set thd->stmt_arena before executing the instruction
       to store in the instruction free_list all new items, created
@@ -1842,8 +1875,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   bool err_status= FALSE;
   uint params = m_pcont->context_var_count();
-  /* Query start time may be reset in a multi-stmt SP; keep this for later. */
-  ulonglong utime_before_sp_exec= thd->utime_after_lock;
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
   bool save_enable_slow_log;
@@ -2036,8 +2067,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   delete nctx;
   thd->spcont= save_spcont;
-  thd->utime_after_lock= utime_before_sp_exec;
-
   DBUG_RETURN(err_status);
 }
 
@@ -3827,7 +3856,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
   for (; table ; table= table->next_global)
     if (!table->derived && !table->schema_table)
     {
-      char tname[(NAME_LEN + 1) * 3];           // db\0table\0alias\0
+      char tname[(SAFE_NAME_LEN + 1) * 3];           // db\0table\0alias\0
       uint tlen, alen;
 
       tlen= table->db_length;

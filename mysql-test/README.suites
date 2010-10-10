@@ -1,0 +1,155 @@
+These are the assorted notes that will be turned into a manual eventually.
+
+==========================
+Tests are organized in suites.
+A "suite" is a subdirectory inside, one of,
+
+  <basedir>/mysql-test/suite
+  <basedir>/mysql-test
+  <basedir>/share/mysql-test/suite
+  <basedir>/share/mysql-test
+  <basedir>/share/mysql/mysql-test/suite
+  <basedir>/share/mysql/mysql-test
+  <basedir>/storage/*/mysql-test-suites
+
+This is supposed to cover running mtr from a source directory and installed.
+
+==========================
+A suite contains *.test and *.result files. They can be in the t/ and r/
+subdirectories under the suitedir or directly in the suitedir
+(that is suitedir/t/*.test or suitedir/*.test, same for *.result))
+
+==========================
+A suite can contain a suite.opt file - at the same location where .test files
+are or in the suite directory. As usual, the .opt file can use $-substitutions
+for the environment variables.
+
+Usually, using my.cnf template (see below) is preferrable.
+
+But command line options (.opt files and combinations file) get special
+treatment - they can have special options that affect mtr behavior. cnf
+files cannot. Special options are
+ --timezone, --plugin-load, --result-file, --config-file-template,
+ --default-time-zone, --force-restart
+
+In particular, all --plugin-load instances on the command line (on the
+combined command line, assembled from different .opt and combinations
+files) are merged into one. That is, if, say, test-master.opt file contains
+--plugin-load=aaa.so and suite.opt has --plugin-load=bbb.so that mysqld
+will get --plugin-load=aaa.so:bbb.so. Also, empty --plugin-load options are
+removed from the command line. Which means that one can safely specify
+--plugin-load=$AAA_SO and if aaa.so was not built (perhaps, the plugin was
+statically linked into the server), the .opt file will not result in the
+invalid command line option that can cause the server to refuse to start.
+
+==========================
+A suite can have suite.pm file in the suitedir. It must declare a
+package that inherits from My::Suite.
+
+The suite.pm needs to have @ISA=qw(My::Suite) and it must end
+with bless {}; - that is it must return an object of that class.
+It can also return a string - in this case all tests in the suite
+will be skipped, with this string being printed as a reason.
+
+A suite class can define config_files() and servers() methods.
+
+A config_files method returns a list of additional config files (besides
+my.cnf), that this suite needs to be created. For every file it specifies
+a function that will create it, when given a My::Config object. For example:
+
+   sub config_files { ( 'config.ini' => \&write_ini,
+                         'new.conf' => \&do_new_conf ) }
+
+A servers method returns a list of processes that needs to be started for
+this suite. A process is specified as a pair (regex, hash). A regex must
+match a section in the my.cnf template (for example, qr/mysqld\./ corresponds
+to all mysqld processes), a hash contains these options:
+
+   SORT => a number, processes are started in the order of increasing SORT
+           values (and stopped in the reverse order). mysqld has number 300.
+   START => a function to start a process. It takes two arguments,
+            My::Config::Group and My::Test. If START is undefined the process
+            will not be started.
+   WAIT => a function waits for the process to be started. It takes
+           My::Config::Group as an argument. Internallys mtr first invokes
+           START for all processes, then WAIT for all started processes.
+
+example: sub servers { ( qr/^foo$/ => { SORT => 200,
+                                        START => \&start_foo,
+                                        WAIT => \&wait_foo } ) }
+
+See sphinx suite for an example.
+
+==========================
+A suite can have my.cnf template file in the suitedir.
+A my.cnf template uses a normal my.cnf syntax - groups, options,
+and values - with templating extensions. They are
+
+* There can be groups with non-standard names, not used by mysqld.
+  These groups may be used by the suite.pm file somehow.
+  For example, they can be written to the additional config files.
+  See sphinx suite for an example.
+
+* There can be ENV group. It sets values for the environment variables.
+
+* Values can refer to each other - they will be expanded as needed.
+  A reference to a value of an option looks like @groupname.optionname.
+  For example
+
+  [mysqld.2]
+  master-port= @mysqld.1.port
+
+  it sets the master-port in the mysqld.2 group to the value of
+  port in the mysqld.1 group.
+
+* An option name may start from '#'. In the resulting my.cnf it will look
+  like a comment, but it still can be referred to. For example:
+
+  [example]
+  #foo = localhost:@mysqld.1.port
+  bar = http://@example.#foo/index.html
+
+* There are two special - in this regard - groups.
+
+  Via the ENV group one can refer to any environment variable, not only
+    to values in the [ENV] group of my.cnf file.
+
+  Via the OPT group one can refer to special values:
+    @OPT.vardir - a path to vardir
+    @OPT.port - a new port number is reserved out of the pool. It will not
+                match any other port number used by this test run.
+  See sphinx suite for an example.
+
+Most probably a suite my.cnf will need to start from
+
+  !include include/default_my.cnf
+
+and then modify the configuration as necessary.
+
+==========================
+A suite can have combinations file in the suitedir. It uses my.cnf syntax
+but it cannot use @-substitutions. Instead, it can use $-substitutions for
+the environment variables. Because the combination options will not be
+merged to a my.cnf, but will be added to the command line. Example:
+
+  [conf1]
+  opt1=val1
+
+  [conf2]
+  opt1=val2
+  opt2=$HAVE_SOMETHING
+
+Such a file will cause every test from the suite to be run twice - once
+with mysqld using --opt1=val1 and the other one with mysqld using
+--opt1=val2 --opt2=$HAVE_SOMETHING
+
+One can limit mtr run to a subset of combinations by setting environment
+variable SUITENAME_COMBINATIONS to the ':'-separated set of combination
+names. E.g.
+
+  RPL_COMBINATIONS=mix:row ./mtr --suite rpl
+
+See innodb_plugin suite for an example of how suite.pm may set this variable
+to exclude unsupported configurations.
+==========================
+

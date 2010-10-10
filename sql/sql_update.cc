@@ -29,12 +29,12 @@
 
 bool compare_record(TABLE *table)
 {
-  if (table->s->blob_fields + table->s->varchar_fields == 0)
+  if (table->s->can_cmp_whole_record)
     return cmp_record(table,record[1]);
   /* Compare null bits */
   if (memcmp(table->null_flags,
 	     table->null_flags+table->s->rec_buff_length,
-	     table->s->null_bytes))
+	     table->s->null_bytes_for_compare))
     return TRUE;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr= table->field ; *ptr ; ptr++)
@@ -394,7 +394,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-      table->mark_columns_used_by_index(used_index);
+      table->add_read_columns_used_by_index(used_index);
     else
     {
       table->use_all_columns();
@@ -422,6 +422,7 @@ int mysql_update(THD *thd,
       {
 	goto err;
       }
+      thd->examined_row_count+= examined_rows;
       /*
 	Filesort has already found and selected the rows we want to update,
 	so we don't need the where clause
@@ -459,17 +460,21 @@ int mysql_update(THD *thd,
       */
 
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info, thd, table, select, 0, 1, FALSE);
+      {
+        if (init_read_record(&info, thd, table, select, 0, 1, FALSE))
+          goto err;
+      }
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
       thd_proc_info(thd, "Searching rows for update");
       ha_rows tmp_limit= limit;
 
-      while (!(error=info.read_record(&info)) && 
-             !thd->killed && !thd->is_error())
+      while (!(error=info.read_record(&info)) && !thd->killed)
       {
-	if (!select || select->skip_record(thd) > 0)
+        update_virtual_fields(thd, table);
+        thd->examined_row_count++;
+	if (!select || (error= select->skip_record(thd)) > 0)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -488,7 +493,15 @@ int mysql_update(THD *thd,
 	  }
 	}
 	else
+        {
 	  table->file->unlock_row();
+          if (error < 0)
+          {
+            /* Fatal error from select->skip_record() */
+            error= 1;
+            break;
+          }
+        }
       }
       if (thd->killed && !error)
 	error= 1;				// Aborted
@@ -526,7 +539,8 @@ int mysql_update(THD *thd,
   if (select && select->quick && select->quick->reset())
     goto err;
   table->file->try_semi_consistent_read(1);
-  init_read_record(&info, thd, table, select, 0, 1, FALSE);
+  if (init_read_record(&info, thd, table, select, 0, 1, FALSE))
+    goto err;
 
   updated= found= 0;
   /*
@@ -575,6 +589,8 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
+    update_virtual_fields(thd, table);
+    thd->examined_row_count++;
     if (!select || select->skip_record(thd) > 0)
     {
       if (table->file->was_semi_consistent_read())
@@ -1048,7 +1064,7 @@ reopen_tables:
         correct order of statements. Otherwise, we use a TL_READ lock to
         improve performance.
       */
-      tl->lock_type= read_lock_type_for_table(thd, table);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
@@ -1326,7 +1342,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
-  SQL_LIST update;
+  SQL_I_List<TABLE_LIST> update;
   table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
@@ -1406,11 +1422,11 @@ int multi_update::prepare(List<Item> &not_used_values,
     leaf_table_count++;
     if (tables_to_update & table->map)
     {
-      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup((char*) table_ref,
+      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
-      update.link_in_list((uchar*) tl, (uchar**) &tl->next_local);
+      update.link_in_list(tl, &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
@@ -1431,7 +1447,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
 
   table_count=  update.elements;
-  update_tables= (TABLE_LIST*) update.first;
+  update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
   tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *
@@ -1954,7 +1970,7 @@ int multi_update::do_updates()
   TABLE_LIST *cur_table;
   int local_error= 0;
   ha_rows org_updated;
-  TABLE *table, *tmp_table;
+  TABLE *table, *tmp_table, *err_table;
   List_iterator_fast<TABLE> check_opt_it(unupdated_check_opt_tables);
   DBUG_ENTER("multi_update::do_updates");
 
@@ -1972,14 +1988,21 @@ int multi_update::do_updates()
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
-    (void) table->file->ha_rnd_init(0);
+    if ((local_error= table->file->ha_rnd_init(0)))
+    {
+      err_table= table;
+      goto err;
+    }
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     check_opt_it.rewind();
     while(TABLE *tbl= check_opt_it++)
     {
-      if (tbl->file->ha_rnd_init(1))
+      if ((local_error= tbl->file->ha_rnd_init(1)))
+      {
+        err_table= tbl;
         goto err;
+      }
       tbl->file->extra(HA_EXTRA_CACHE);
     }
 
@@ -1987,9 +2010,11 @@ int multi_update::do_updates()
       Setup copy functions to copy fields from temporary table
     */
     List_iterator_fast<Item> field_it(*fields_for_table[offset]);
-    Field **field= tmp_table->field + 
-                   1 + unupdated_check_opt_tables.elements; // Skip row pointers
+    Field **field;
     Copy_field *copy_field_ptr= copy_field, *copy_field_end;
+
+    /* Skip row pointers */
+    field= tmp_table->field + 1 + unupdated_check_opt_tables.elements;
     for ( ; *field ; field++)
     {
       Item_field *item= (Item_field* ) field_it++;
@@ -1997,8 +2022,11 @@ int multi_update::do_updates()
     }
     copy_field_end=copy_field_ptr;
 
-    if ((local_error = tmp_table->file->ha_rnd_init(1)))
+    if ((local_error= tmp_table->file->ha_rnd_init(1)))
+    {
+      err_table= tmp_table;
       goto err;
+    }
 
     can_compare_record= (!(table->file->ha_table_flags() &
                            HA_PARTIAL_COLUMN_READ) ||
@@ -2008,13 +2036,17 @@ int multi_update::do_updates()
     for (;;)
     {
       if (thd->killed && trans_safe)
-	goto err;
+      {
+        thd->fatal_error();
+	goto err2;
+      }
       if ((local_error= tmp_table->file->ha_rnd_next(tmp_table->record[0])))
       {
 	if (local_error == HA_ERR_END_OF_FILE)
 	  break;
 	if (local_error == HA_ERR_RECORD_DELETED)
 	  continue;				// May happen on dup key
+        err_table= tmp_table;
 	goto err;
       }
 
@@ -2027,7 +2059,10 @@ int multi_update::do_updates()
         if ((local_error=
              tbl->file->ha_rnd_pos(tbl->record[0],
                                    (uchar*) tmp_table->field[field_num]->ptr)))
+        {
+          err_table= tbl;
           goto err;
+        }
         field_num++;
       } while ((tbl= check_opt_it++));
 
@@ -2054,7 +2089,10 @@ int multi_update::do_updates()
           if (error == VIEW_CHECK_SKIP)
             continue;
           else if (error == VIEW_CHECK_ERROR)
-            goto err;
+          {
+            thd->fatal_error();
+            goto err2;
+          }
         }
 	if ((local_error=table->file->ha_update_row(table->record[1],
 						    table->record[0])) &&
@@ -2062,7 +2100,10 @@ int multi_update::do_updates()
 	{
 	  if (!ignore ||
               table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+          {
+            err_table= table;
 	    goto err;
+          }
 	}
         if (local_error != HA_ERR_RECORD_IS_THE_SAME)
           updated++;

@@ -191,10 +191,11 @@ connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
 # Replication should have stopped, since max retries were not enough.
-# verify with show slave status
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 19 <Last_Errno> 20 <Last_Error> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error> 37 <Last_SQL_Errno> 38 <Last_SQL_Error>
---query_vertical SHOW SLAVE STATUS;
+# verify with show slave status 
+# 1205 = ER_LOCK_WAIT_TIMEOUT 
+--let $slave_sql_errno= 1205 
+--let $show_slave_sql_error= 1 
+--source include/wait_for_slave_sql_error.inc
 
 # now set max retries high enough to succeed, and start slave again
 set GLOBAL slave_transaction_retries=10;

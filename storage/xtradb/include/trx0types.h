@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,6 +70,13 @@ typedef struct trx_named_savept_struct trx_named_savept_t;
 enum trx_rb_ctx {
 	RB_NONE = 0,	/*!< no rollback */
 	RB_NORMAL,	/*!< normal rollback */
+	RB_RECOVERY_PURGE_REC,
+			/*!< rolling back an incomplete transaction,
+			in crash recovery, rolling back an
+			INSERT that was performed by updating a
+			delete-marked record; if the delete-marked record
+			no longer exists in an active read view, it will
+			be purged */
 	RB_RECOVERY	/*!< rolling back an incomplete transaction,
 			in crash recovery */
 };

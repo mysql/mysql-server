@@ -61,13 +61,9 @@ sub _name {
 
 sub _mtr_report_test_name ($) {
   my $tinfo= shift;
-  my $tname= $tinfo->{name};
+  my $tname= $tinfo->fullname();
 
   return unless defined $verbose;
-
-  # Add combination name if any
-  $tname.= " '$tinfo->{combination}'"
-    if defined $tinfo->{combination};
 
   print _name(). _timestamp();
   printf "%-40s ", $tname;

@@ -1,7 +1,7 @@
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
-create table t1(a int) engine=maria;
+create table t1(a int) engine=aria;
 insert into t1 values(1);
 flush table t1;
 create_rename_lsn has non-magic value

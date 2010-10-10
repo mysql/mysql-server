@@ -83,6 +83,9 @@ int main(int argc, char *argv[])
   if (! async_io)
     my_disable_async_io=1;
 
+  /* If we sync or not have no affect on this test */
+  my_disable_sync= 1;
+
   maria_data_root= (char *)".";
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
@@ -351,7 +354,10 @@ int main(int argc, char *argv[])
       key3[atoi((char*) read_record+keyinfo[2].seg[0].start)]=0;
     }
     else
+    {
       puts("Warning: Skipping delete test because no dupplicate keys");
+      break;
+    }
   }
   if (testflag == 3)
     goto end;

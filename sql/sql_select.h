@@ -160,7 +160,9 @@ typedef struct st_join_table {
   TABLE		*table;
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
-  COND		*select_cond;
+  COND          *select_cond;
+  COND          *on_precond;    /**< part of on condition to check before
+				     accessing the first inner table           */  
   QUICK_SELECT_I *quick;
   /* 
     The value of select_cond before we've attempted to do Index Condition
@@ -1497,24 +1499,31 @@ public:
     the number of rows in it may vary from one subquery execution to another.
   */
   bool no_const_tables; 
+  /*
+    This flag is set if we call no_rows_in_result() as par of end_group().
+    This is used as a simple speed optimization to avoiding calling
+    restore_no_rows_in_result() in ::reinit()
+  */
+  bool no_rows_in_result_called;
   
   /**
     Copy of this JOIN to be used with temporary tables.
 
-    tmp_join is used when the JOIN needs to be "reusable" (e.g. in a subquery
-    that gets re-executed several times) and we know will use temporary tables
-    for materialization. The materialization to a temporary table overwrites the
-    JOIN structure to point to the temporary table after the materialization is
-    done. This is where tmp_join is used : it's a copy of the JOIN before the
-    materialization and is used in restoring before re-execution by overwriting
-    the current JOIN structure with the saved copy.
-    Because of this we should pay extra care of not freeing up helper structures
-    that are referenced by the original contents of the JOIN. We can check for
-    this by making sure the "current" join is not the temporary copy, e.g.
-    !tmp_join || tmp_join != join
+    tmp_join is used when the JOIN needs to be "reusable" (e.g. in a
+    subquery that gets re-executed several times) and we know will use
+    temporary tables for materialization. The materialization to a
+    temporary table overwrites the JOIN structure to point to the
+    temporary table after the materialization is done. This is where
+    tmp_join is used : it's a copy of the JOIN before the
+    materialization and is used in restoring before re-execution by
+    overwriting the current JOIN structure with the saved copy.
+    Because of this we should pay extra care of not freeing up helper
+    structures that are referenced by the original contents of the
+    JOIN. We can check for this by making sure the "current" join is
+    not the temporary copy, e.g.  !tmp_join || tmp_join != join
  
-    We should free these sub-structures at JOIN::destroy() if the "current" join
-    has a copy is not that copy.
+    We should free these sub-structures at JOIN::destroy() if the
+    "current" join has a copy is not that copy.
   */
   JOIN *tmp_join;
   ROLLUP rollup;				///< Used with rollup
@@ -1651,6 +1660,7 @@ public:
     optimized= 0;
     cond_equal= 0;
     group_optimized_away= 0;
+    no_rows_in_result_called= 0;
 
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */

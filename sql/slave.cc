@@ -1439,7 +1439,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi, 1))
+      if (flush_master_info(mi, TRUE, TRUE))
         sql_print_error("Failed to flush master info file");
       delete ev;
     }
@@ -2073,7 +2073,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->options, OPTION_BEGIN),
-                      rli->last_event_start_time));
+                      (ulong) rli->last_event_start_time));
 
   /*
     Execute the event to change the database and update the binary
@@ -2692,7 +2692,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
                    "could not queue event from master");
         goto err;
       }
-      if (flush_master_info(mi, 1))
+      if (flush_master_info(mi, TRUE, TRUE))
       {
         sql_print_error("Failed to flush master info file");
         goto err;
@@ -2846,8 +2846,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
-  my_off_t saved_log_pos;
-  my_off_t saved_master_log_pos;
+  my_off_t UNINIT_VAR(saved_log_pos);
+  my_off_t UNINIT_VAR(saved_master_log_pos);
   my_off_t saved_skip= 0;
   Relay_log_info* rli = &((Master_info*)arg)->rli;
   const char *errmsg;
@@ -3969,11 +3969,11 @@ bool flush_relay_log_info(Relay_log_info* rli)
   my_b_seek(file, 0L);
   pos=strmov(buff, rli->group_relay_log_name);
   *pos++='\n';
-  pos=longlong2str(rli->group_relay_log_pos, pos, 10);
+  pos= longlong10_to_str(rli->group_relay_log_pos, pos, 10);
   *pos++='\n';
   pos=strmov(pos, rli->group_master_log_name);
   *pos++='\n';
-  pos=longlong2str(rli->group_master_log_pos, pos, 10);
+  pos=longlong10_to_str(rli->group_master_log_pos, pos, 10);
   *pos='\n';
   if (my_b_write(file, (uchar*) buff, (size_t) (pos-buff)+1))
     error=1;

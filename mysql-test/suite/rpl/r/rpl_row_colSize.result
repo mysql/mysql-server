@@ -18,45 +18,7 @@ CREATE TABLE t1 (a DECIMAL(20, 10));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -72,45 +34,7 @@ CREATE TABLE t1 (a DECIMAL(27, 18));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -126,45 +50,7 @@ CREATE TABLE t1 (a NUMERIC(20, 10));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -181,45 +67,7 @@ CREATE TABLE t1 (a FLOAT(47));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -236,45 +84,7 @@ CREATE TABLE t1 (a BIT(64));
 RESET MASTER;
 INSERT INTO t1 VALUES (B'10101');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -290,45 +100,7 @@ CREATE TABLE t1 (a BIT(12));
 RESET MASTER;
 INSERT INTO t1 VALUES (B'10101');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -345,45 +117,7 @@ CREATE TABLE t1 (a SET('1','2','3','4','5','6','7','8','9'));
 RESET MASTER;
 INSERT INTO t1 VALUES ('4');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -400,45 +134,7 @@ CREATE TABLE t1 (a CHAR(20));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -486,45 +182,7 @@ CREATE TABLE t1 (a ENUM(
 RESET MASTER;
 INSERT INTO t1 VALUES ('44');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -541,45 +199,7 @@ CREATE TABLE t1 (a VARCHAR(2000));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -595,45 +215,7 @@ CREATE TABLE t1 (a VARCHAR(200));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -649,45 +231,7 @@ CREATE TABLE t1 (a VARCHAR(2000));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -704,45 +248,7 @@ CREATE TABLE t1 (a LONGBLOB);
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0

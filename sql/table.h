@@ -27,6 +27,7 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
+class Query_arena;
 
 /*************************************************************************/
 
@@ -57,7 +58,6 @@ typedef struct st_order {
   struct st_order *next;
   Item	 **item;			/* Point at item in select fields */
   Item	 *item_ptr;			/* Storage for initial item */
-  Item   **item_copy;			/* For SPs; the original item ptr */
   int    counter;                       /* position in SELECT list, correct
                                            only if counter_used is true*/
   bool	 asc;				/* true if ascending */
@@ -407,6 +407,11 @@ typedef struct st_table_share
   uint blob_ptr_size;			/* 4 or 8 */
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
+  /*
+    Same as null_bytes, except that if there is only a 'delete-marker' in
+    the record then this value is 0.
+  */
+  uint null_bytes_for_compare;
   uint fields;				/* Number of fields */
   /* Number of stored fields, generated-only virtual fields are not included */
   uint stored_fields;                   
@@ -441,8 +446,8 @@ typedef struct st_table_share
   bool name_lock, replace_with_name_lock;
   bool waiting_on_cond;                 /* Protection against free */
   bool deleting;                        /* going to delete this table */
+  bool can_cmp_whole_record;
   ulong table_map_id;                   /* for row-based replication */
-  ulonglong table_map_version;
 
   /*
     Cache for row-based replication table share checks that does not
@@ -455,7 +460,7 @@ typedef struct st_table_share
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /** @todo: Move into *ha_data for partitioning */
   bool auto_partitioned;
-  const char *partition_info;
+  char *partition_info;
   uint  partition_info_len;
   uint  partition_info_buffer_size;
   const char *part_state;
@@ -718,9 +723,8 @@ struct st_table {
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
-  MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
-  MY_BITMAP     vcol_set;                 /* set of used virtual columns */
-  MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+  MY_BITMAP     def_read_set, def_write_set, def_vcol_set, tmp_set; 
+  MY_BITMAP     *read_set, *write_set, *vcol_set; /* Active column sets */
   /*
    The ID of the query that opened and is using this table. Has different
    meanings depending on the table type.
@@ -789,7 +793,7 @@ struct st_table {
   /* number of select if it is derived table */
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
-  my_bool copy_blobs;			/* copy_blobs when storing */
+  bool copy_blobs;			/* copy_blobs when storing */
 
   /*
     0 or JOIN_TYPE_{LEFT|RIGHT}. Currently this is only compared to 0.
@@ -801,34 +805,34 @@ struct st_table {
     If true, the current table row is considered to have all columns set to 
     NULL, including columns declared as "not null" (see maybe_null).
   */
-  my_bool null_row;
+  bool null_row;
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily
     be put into one single unsigned long and instead of taking up 18
     bytes, it would take up 4.
   */
-  my_bool force_index;
+  bool force_index;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR ORDER BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_order;
+  bool force_index_order;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR GROUP BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_group;
-  my_bool distinct,const_table,no_rows;
+  bool force_index_group;
+  bool distinct,const_table,no_rows;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
      tree only.
    */
-  my_bool key_read;
-  my_bool no_keyread;
+  bool key_read;
+  bool no_keyread;
   /*
     Placeholder for an open table which prevents other connections
     from taking name-locks on this table. Typically used with
@@ -846,30 +850,38 @@ struct st_table {
     object associated with it (db_stat is always 0), but please do
     not rely on that.
   */
-  my_bool open_placeholder;
-  my_bool locked_by_logger;
-  my_bool no_replicate;
-  my_bool locked_by_name;
-  my_bool fulltext_searched;
-  my_bool no_cache;
+  bool open_placeholder;
+  bool locked_by_logger;
+  bool no_replicate;
+  bool locked_by_name;
+  bool fulltext_searched;
+  bool no_cache;
   /* To signal that the table is associated with a HANDLER statement */
-  my_bool open_by_handler;
+  bool open_by_handler;
   /*
     To indicate that a non-null value of the auto_increment field
     was provided by the user or retrieved from the current record.
     Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
   */
-  my_bool auto_increment_field_not_null;
-  my_bool insert_or_update;             /* Can be used by the handler */
-  my_bool alias_name_used;		/* true if table_name is alias */
-  my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  bool auto_increment_field_not_null;
+  bool insert_or_update;             /* Can be used by the handler */
+  bool alias_name_used;		/* true if table_name is alias */
+  bool get_fields_in_item_tree;      /* Signal to fix_field */
   /* If MERGE children attached to parent. See top comment in ha_myisammrg.cc */
-  my_bool children_attached;
+  bool children_attached;
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
   FILESORT_INFO sort;
+  /*
+    The arena which the items for expressions from the table definition
+    are associated with.  
+    Currently only the items of the expressions for virtual columns are
+    associated with this arena.
+    TODO: To attach the partitioning expressions to this arena.  
+  */
+  Query_arena *expr_arena;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
   bool no_partitions_used; /* If true, all partitions have been pruned away */
@@ -881,18 +893,29 @@ struct st_table {
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
+  void add_read_columns_used_by_index(uint index);
   void restore_column_maps_after_mark_index();
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(void);
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
   bool mark_virtual_col(Field *field);
-  void mark_virtual_columns_for_write(void);
+  void mark_virtual_columns_for_write(bool insert_fl);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {
     read_set= read_set_arg;
     write_set= write_set_arg;
+    if (file)
+      file->column_bitmaps_signal();
+  }
+  inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
+                                 MY_BITMAP *write_set_arg,
+                                 MY_BITMAP *vcol_set_arg)
+  {
+    read_set= read_set_arg;
+    write_set= write_set_arg;
+    vcol_set= vcol_set_arg;
     if (file)
       file->column_bitmaps_signal();
   }
@@ -902,6 +925,14 @@ struct st_table {
     read_set= read_set_arg;
     write_set= write_set_arg;
   }
+  inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
+                                           MY_BITMAP *write_set_arg,
+                                           MY_BITMAP *vcol_set_arg)
+  {
+    read_set= read_set_arg;
+    write_set= write_set_arg;
+    vcol_set= vcol_set_arg;
+  }
   inline void use_all_columns()
   {
     column_bitmaps_set(&s->all_set, &s->all_set);
@@ -910,6 +941,7 @@ struct st_table {
   {
     read_set= &def_read_set;
     write_set= &def_write_set;
+    vcol_set= &def_vcol_set;
   }
   /* Is table open or should be treated as such by name-locking? */
   inline bool is_name_opened() { return db_stat || open_placeholder; }
@@ -1200,7 +1232,7 @@ struct TABLE_LIST
   }
 
   /*
-    List of tables local to a subquery (used by SQL_LIST). Considers
+    List of tables local to a subquery (used by SQL_I_List). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
     in st_select_lex::add_table_to_list() -> table_list.link_in_list().
   */
@@ -1745,7 +1777,11 @@ typedef struct st_nested_join
   */
   table_map         used_tables;
   table_map         not_null_tables; /* tables that rejects nulls           */
-  struct st_join_table *first_nested;/* the first nested table in the plan  */
+  /**
+    Used for pointing out the first table in the plan being covered by this
+    join nest. It is used exclusively within make_outerjoin_info().
+   */
+  struct st_join_table *first_nested;
   /* 
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info(). 
@@ -1768,6 +1804,15 @@ typedef struct st_nested_join
   /* Outer non-trivially correlated tables */
   table_map         sj_corr_tables;
   List<Item>        sj_outer_expr_list;
+  /**
+     True if this join nest node is completely covered by the query execution
+     plan. This means two things.
+
+     1. All tables on its @c join_list are covered by the plan.
+
+     2. All child join nest nodes are fully covered.
+   */
+  bool is_fully_covered() const { return join_list.elements == counter; }
 } NESTED_JOIN;
 
 

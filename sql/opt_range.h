@@ -71,6 +71,85 @@ class QUICK_RANGE :public Sql_alloc {
       dummy=0;
 #endif
     }
+
+  /**
+     Initalizes a key_range object for communication with storage engine. 
+
+     This function facilitates communication with the Storage Engine API by
+     translating the minimum endpoint of the interval represented by this
+     QUICK_RANGE into an index range endpoint specifier for the engine.
+
+     @param Pointer to an uninitialized key_range C struct.
+
+     @param prefix_length The length of the search key prefix to be used for
+     lookup.
+     
+     @param keypart_map A set (bitmap) of keyparts to be used.
+  */
+  void make_min_endpoint(key_range *kr, uint prefix_length, 
+                         key_part_map keypart_map) {
+    make_min_endpoint(kr);
+    kr->length= min(kr->length, prefix_length);
+    kr->keypart_map&= keypart_map;
+  }
+  
+  /**
+     Initalizes a key_range object for communication with storage engine. 
+
+     This function facilitates communication with the Storage Engine API by
+     translating the minimum endpoint of the interval represented by this
+     QUICK_RANGE into an index range endpoint specifier for the engine.
+
+     @param Pointer to an uninitialized key_range C struct.
+  */
+  void make_min_endpoint(key_range *kr) {
+    kr->key= (const uchar*)min_key;
+    kr->length= min_length;
+    kr->keypart_map= min_keypart_map;
+    kr->flag= ((flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
+               (flag & EQ_RANGE) ? HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
+  }
+
+  /**
+     Initalizes a key_range object for communication with storage engine. 
+
+     This function facilitates communication with the Storage Engine API by
+     translating the maximum endpoint of the interval represented by this
+     QUICK_RANGE into an index range endpoint specifier for the engine.
+
+     @param Pointer to an uninitialized key_range C struct.
+
+     @param prefix_length The length of the search key prefix to be used for
+     lookup.
+     
+     @param keypart_map A set (bitmap) of keyparts to be used.
+  */
+  void make_max_endpoint(key_range *kr, uint prefix_length, 
+                         key_part_map keypart_map) {
+    make_max_endpoint(kr);
+    kr->length= min(kr->length, prefix_length);
+    kr->keypart_map&= keypart_map;
+  }
+
+  /**
+     Initalizes a key_range object for communication with storage engine. 
+
+     This function facilitates communication with the Storage Engine API by
+     translating the maximum endpoint of the interval represented by this
+     QUICK_RANGE into an index range endpoint specifier for the engine.
+
+     @param Pointer to an uninitialized key_range C struct.
+  */
+  void make_max_endpoint(key_range *kr) {
+    kr->key= (const uchar*)max_key;
+    kr->length= max_length;
+    kr->keypart_map= max_keypart_map;
+    /*
+      We use READ_AFTER_KEY here because if we are reading on a key
+      prefix we want to find all keys with this prefix
+    */
+    kr->flag= (flag & NEAR_MAX ? HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY);
+  }
 };
 
 
@@ -349,7 +428,7 @@ public:
   int reset(void);
   int get_next();
   void range_end();
-  int get_next_prefix(uint prefix_length, key_part_map keypart_map,
+  int get_next_prefix(uint prefix_length, uint group_key_parts, 
                       uchar *cur_prefix);
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
@@ -462,6 +541,7 @@ public:
 
 class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I
 {
+  Unique *unique;
 public:
   QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table);
   ~QUICK_INDEX_MERGE_SELECT();
@@ -649,13 +729,13 @@ private:
 class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I
 {
 private:
-  handler *file;         /* The handler used to get data. */
+  handler * const file;   /* The handler used to get data. */
   JOIN *join;            /* Descriptor of the current query */
   KEY  *index_info;      /* The index chosen for data access */
   uchar *record;          /* Buffer where the next record is returned. */
   uchar *tmp_record;      /* Temporary storage for next_min(), next_max(). */
   uchar *group_prefix;    /* Key prefix consisting of the GROUP fields. */
-  uint group_prefix_len; /* Length of the group prefix. */
+  const uint group_prefix_len; /* Length of the group prefix. */
   uint group_key_parts;  /* A number of keyparts in the group prefix */
   uchar *last_prefix;     /* Prefix of the last group for detecting EOF. */
   bool have_min;         /* Specify whether we are computing */

@@ -308,7 +308,7 @@ static my_bool _ma_log_rt_split(MARIA_PAGE *page,
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 1 + 2 + 1 + 2 + 2 + 7],
     *log_pos;
-  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 5];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 6];
   uint translog_parts, extra_length= 0;
   my_off_t page_pos;
   DBUG_ENTER("_ma_log_rt_split");
@@ -344,24 +344,11 @@ static my_bool _ma_log_rt_split(MARIA_PAGE *page,
     translog_parts+= 2;
   }
 
-#ifdef EXTRA_DEBUG_KEY_CHANGES
-  {
-    int page_length= page->size;
-    ha_checksum crc;
-    uchar *check_start= log_pos;
-    crc= my_checksum(0, page->buff + LSN_STORE_SIZE,
-                     page_length - LSN_STORE_SIZE);
-    log_pos[0]= KEY_OP_CHECK;
-    log_pos++;
-    int2store(log_pos, page_length);
-    log_pos+= 2;
-    int4store(log_pos, crc);
-    log_pos+= 4;
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    check_start;
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
-    translog_parts++;
-  }
-#endif
+  _ma_log_key_changes(page,
+                      log_array + TRANSLOG_INTERNAL_PARTS + translog_parts,
+                      log_pos, &extra_length, &translog_parts);
+  /* Remember new page length for future log entires for same page */
+  page->org_size= page->size;
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,

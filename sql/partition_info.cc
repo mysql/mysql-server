@@ -103,8 +103,8 @@ char *partition_info::create_default_partition_names(uint part_no,
   {
     do
     {
-      my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
-      move_ptr+=MAX_PART_NAME_SIZE;
+      sprintf(move_ptr, "p%u", (start_no + i));
+      move_ptr+= MAX_PART_NAME_SIZE;
     } while (++i < no_parts_arg);
   }
   else
@@ -135,7 +135,7 @@ char *partition_info::create_subpartition_name(uint subpart_no,
 
   if (likely(ptr != NULL))
   {
-    my_sprintf(ptr, (ptr, "%ssp%u", part_name, subpart_no));
+    my_snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
   }
   else
   {
@@ -1104,8 +1104,8 @@ void partition_info::print_no_partition_found(TABLE *table)
     if (part_expr->null_value)
       buf_ptr= (char*)"NULL";
     else
-      longlong2str(err_value, buf,
-                   part_expr->unsigned_flag ? 10 : -10);
+      longlong10_to_str(err_value, buf,
+                        part_expr->unsigned_flag ? 10 : -10);
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
     dbug_tmp_restore_column_map(table->read_set, old_map);
   }

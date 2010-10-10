@@ -5,9 +5,9 @@
 --source include/have_dynamic_loading.inc
 
 #
-# Check if the variable EXAMPLE_PLUGIN is set
+# Check if the variable HA_EXAMPLE_SO is set
 #
 --require r/have_example_plugin.require
 disable_query_log;
-eval select LENGTH('$EXAMPLE_PLUGIN') > 0 as 'have_example_plugin';
+eval select LENGTH('$HA_EXAMPLE_SO') > 0 as 'have_example_plugin';
 enable_query_log;

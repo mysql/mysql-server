@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+# Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
 # 
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -14,12 +14,13 @@
 # Place, Suite 330, Boston, MA 02111-1307 USA
 #
 
-MYSQL_STORAGE_ENGINE(innobase,  innodb, [InnoDB Storage Engine],
-        [Transactional Tables using InnoDB], [max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(innobase, [storage/xtradb])
-MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
-MYSQL_PLUGIN_DYNAMIC(innobase,  [ha_innodb.la])
-MYSQL_PLUGIN_ACTIONS(innobase,  [
+MYSQL_STORAGE_ENGINE(xtradb,  xtradb, [XtraDB Storage Engine],
+        [XtraDB - a drop-in replacement for InnoDB], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(xtradb, [storage/xtradb])
+MYSQL_PLUGIN_STATIC(xtradb,   [libxtradb.a])
+MYSQL_PLUGIN_DYNAMIC(xtradb,  [ha_xtradb.la])
+MYSQL_PLUGIN_ACTIONS(xtradb,  [
+  with_plugin_innobase=$with_plugin_xtradb # for legacy code in configure.in
   AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
   AC_SUBST(innodb_system_libs)
   AC_CHECK_HEADERS(aio.h sched.h)

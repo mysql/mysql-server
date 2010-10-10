@@ -571,7 +571,7 @@ page_zip_dir_encode(
 	/* Traverse the list of stored records in the collation order,
 	starting from the first user record. */
 
-	rec = page + PAGE_NEW_INFIMUM, TRUE;
+	rec = page + PAGE_NEW_INFIMUM;
 
 	i = 0;
 
@@ -1153,6 +1153,10 @@ page_zip_compress(
 	FILE*		logfile = NULL;
 #endif
 
+	if (!page) {
+		return(FALSE);
+	}
+
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(page_simple_validate_new((page_t*) page));
@@ -1464,6 +1468,7 @@ page_zip_fields_free(
 		dict_table_t*	table = index->table;
 		mem_heap_free(index->heap);
 		mutex_free(&(table->autoinc_mutex));
+		ut_free(table->name);
 		mem_heap_free(table->heap);
 	}
 }
@@ -3117,8 +3122,13 @@ page_zip_validate_low(
 	temp_page_zip in a debugger when running valgrind --db-attach. */
 	VALGRIND_GET_VBITS(page, temp_page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
+# if UNIV_WORD_SIZE == 4
 	VALGRIND_GET_VBITS(page_zip, &temp_page_zip, sizeof temp_page_zip);
+	/* On 32-bit systems, there is no padding in page_zip_des_t.
+	On other systems, Valgrind could complain about uninitialized
+	pad bytes. */
 	UNIV_MEM_ASSERT_RW(page_zip, sizeof *page_zip);
+# endif
 	VALGRIND_GET_VBITS(page_zip->data, temp_page,
 			   page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));

@@ -162,7 +162,9 @@ static LEX_STRING old_password_plugin_name= {
 LEX_STRING *default_auth_plugin_name= &native_password_plugin_name;
 
 static plugin_ref native_password_plugin;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static plugin_ref old_password_plugin;
+#endif
 
 /* Classes */
 
@@ -292,6 +294,7 @@ static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
+static inline void get_grantor(THD *thd, char* grantor);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -465,7 +468,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   READ_RECORD read_record_info;
   my_bool return_val= TRUE;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  char tmp_name[NAME_LEN+1];
+  char tmp_name[SAFE_NAME_LEN+1];
   int password_length;
   ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("acl_load");
@@ -477,8 +480,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   acl_cache->clear(1);				// Clear locked hostname cache
 
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
-  init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0, 
-                   FALSE);
+  if (init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0, 
+                       FALSE))
+    goto end;
+
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -527,7 +532,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_hosts);
 
-  init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0,
+                       FALSE))
+    goto end;
+
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
   password_length= table->field[2]->field_length /
@@ -748,7 +756,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_users);
 
-  init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0,
+                       FALSE))
+    goto end;
+
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -2471,7 +2482,7 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
                                     const char *user, const char *tname,
                                     bool exact, bool name_tolower)
 {
-  char helping [NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
+  char helping [SAFE_NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
@@ -2724,6 +2735,20 @@ end:
   DBUG_RETURN(result);
 }
 
+static inline void get_grantor(THD *thd, char *grantor)
+{
+  const char *user= thd->security_ctx->user;
+  const char *host= thd->security_ctx->host_or_ip;
+
+#if defined(HAVE_REPLICATION)
+  if (thd->slave_thread && thd->has_invoker())
+  {
+    user= thd->get_invoker_user().str;
+    host= thd->get_invoker_host().str;
+  }
+#endif
+  strxmov(grantor, user, "@", host, NullS);
+}
 
 static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       TABLE *table, const LEX_USER &combo,
@@ -2738,9 +2763,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   uchar user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_table_table");
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     The following should always succeed as new users are created before
     this function is called!
@@ -2870,9 +2893,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     DBUG_RETURN(-1);
   }
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     New users are created before this function is called.
 
@@ -3439,7 +3460,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 {
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str, *tmp_Str;
-  char tmp_db[NAME_LEN+1];
+  char tmp_db[SAFE_NAME_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
   bool save_binlog_row_based;
@@ -4326,7 +4347,7 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
 bool check_grant_db(THD *thd,const char *db)
 {
   Security_context *sctx= thd->security_ctx;
-  char helping [NAME_LEN+USERNAME_LENGTH+2];
+  char helping [SAFE_NAME_LEN + USERNAME_LENGTH+2];
   uint len;
   bool error= TRUE;
 
@@ -7271,7 +7292,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   char *passwd= strend(user)+1;
   uint user_len= passwd - user - 1;
   char *db= passwd;
-  char db_buff[NAME_LEN + 1];                 // buffer to store db in utf8
+  char db_buff[SAFE_NAME_LEN + 1];            // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];	      // buffer to store user in utf8
   uint dummy_errors;
 
@@ -7470,7 +7491,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   char *passwd= strend(user)+1;
   uint user_len= passwd - user - 1, db_len;
   char *db= passwd;
-  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
+  char db_buff[SAFE_NAME_LEN + 1];      // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
   uint dummy_errors;
 

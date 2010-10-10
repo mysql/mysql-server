@@ -1,0 +1,12 @@
+[innodb_plugin]
+ignore-builtin-innodb
+plugin-load=$HA_INNODB_PLUGIN_SO
+innodb
+
+[xtradb_plugin]
+ignore-builtin-innodb
+plugin-load=$HA_XTRADB_SO
+innodb
+
+[xtradb]
+innodb

@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,19 @@
 
 /*
   Sometimes, the number of tests is not known beforehand. In those
-  cases, the plan can be omitted and will instead be written at the
-  end of the test (inside exit_status()).
+  cases, you should invoke plan(NO_PLAN).
+  The plan will be printed at the end of the test (inside exit_status()).
 
   Use this sparingly, it is a last resort: planning how many tests you
   are going to run will help you catch that offending case when some
   tests are skipped for an unknown reason.
 */
 int main() {
+  /*
+    We recommend calling plan(NO_PLAN), but want to verify that
+    omitting the call works as well.
+    plan(NO_PLAN);
+  */
   ok(1, " ");
   ok(1, " ");
   ok(1, " ");

@@ -17,8 +17,8 @@ regoff_t startoff = 0;
 regoff_t endoff = 0;
 
 
-extern int split();
-extern void regprint();
+extern int split(char *string, char **fields, int nfields, const char *sep);
+extern void regprint(my_regex_t *r, FILE *d);
 
 /*
  - main - do the simple case, hand off to regress() for regression

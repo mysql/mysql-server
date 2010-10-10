@@ -79,7 +79,3 @@ test_decimal$(EXEEXT): decimal.c $(pkglib_LIBRARIES)
 	$(CP) $(srcdir)/decimal.c ./test_decimal.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_decimal.c $(LDADD) $(pkglib_LIBRARIES)
 	$(RM) -f ./test_decimal.c
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-

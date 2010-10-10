@@ -48,6 +48,9 @@ int my_sync(File fd, myf my_flags)
   DBUG_ENTER("my_sync");
   DBUG_PRINT("my",("fd: %d  my_flags: %d", fd, my_flags));
 
+  if (my_disable_sync)
+    DBUG_RETURN(0);
+
   statistic_increment(my_sync_count,&THR_LOCK_open);
   do
   {
@@ -65,6 +68,8 @@ int my_sync(File fd, myf my_flags)
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);
+    if (res == -1 && errno == ENOLCK)
+      res= 0;                                   /* Result Bug in Old FreeBSD */
 #elif defined(__WIN__)
     res= _commit(fd);
 #else

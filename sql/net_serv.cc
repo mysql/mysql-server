@@ -16,11 +16,7 @@
 /**
   @file
 
-  This file is the net layer API for the MySQL client/server protocol,
-  which is a tightly coupled, proprietary protocol owned by MySQL AB.
-  @note
-  Any re-implementations of this protocol must also be under GPL
-  unless one has got an license from MySQL AB stating otherwise.
+  This file is the net layer API for the MySQL client/server protocol.
 
   Write and read of logical packets to/from socket.
 
@@ -914,13 +910,18 @@ my_real_read(NET *net, size_t *complen)
 		       ("Packets out of order (Found: %d, expected %u)",
 			(int) net->buff[net->where_b + 3],
 			net->pkt_nr));
-#ifdef EXTRA_DEBUG
+            /* 
+              We don't make noise server side, since the client is expected
+              to break the protocol for e.g. --send LOAD DATA .. LOCAL where
+              the server expects the client to send a file, but the client
+              may reply with a new command instead.
+            */
+#if defined (EXTRA_DEBUG) && !defined (MYSQL_SERVER)
             fflush(stdout);
 	    fprintf(stderr,"Error: Packets out of order (Found: %d, expected %d)\n",
 		    (int) net->buff[net->where_b + 3],
 		    (uint) (uchar) net->pkt_nr);
             fflush(stderr);
-            DBUG_ASSERT(0);
 #endif
 	  }
 	  len= packet_error;

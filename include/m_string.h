@@ -33,10 +33,6 @@
 /* need by my_vsnprintf */
 #include <stdarg.h> 
 
-#ifdef _AIX
-#undef HAVE_BCMP
-#endif
-
 /*  This is needed for the definitions of bzero... on solaris */
 #if defined(HAVE_STRINGS_H)
 #include <strings.h>
@@ -114,7 +110,7 @@ extern	void bfill(uchar *dst,size_t len,pchar fill);
 #endif
 
 #if !defined(bzero) && !defined(HAVE_BZERO)
-extern	void bzero(uchar * dst,size_t len);
+extern	void bzero(void * dst,size_t len);
 #endif
 
 #if !defined(bcmp) && !defined(HAVE_BCMP)
@@ -124,9 +120,6 @@ extern	size_t bcmp(const uchar *s1,const uchar *s2,size_t len);
 extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
 #undef bcmp
 #define bcmp(A,B,C) my_bcmp((A),(B),(C))
-#define bzero_if_valgrind(A,B) bzero(A,B)
-#else
-#define bzero_if_valgrind(A,B)
 #endif /* HAVE_valgrind */
 
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS)
@@ -213,7 +206,7 @@ extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
 longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
-#define longlong2str(A,B,C) int2str((A),(B),(C),1)
+#define longlong2str(A,B,C,D) int2str((A),(B),(C),(D))
 #define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))
 #undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))
@@ -226,7 +219,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #endif
 #else
 #ifdef HAVE_LONG_LONG
-extern char *longlong2str(longlong val,char *dst,int radix);
+  extern char *longlong2str(longlong val,char *dst,int radix, int upcase);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
 #if (!defined(HAVE_STRTOULL) || defined(NO_STRTOLL_PROTO))
 extern longlong strtoll(const char *str, char **ptr, int base);

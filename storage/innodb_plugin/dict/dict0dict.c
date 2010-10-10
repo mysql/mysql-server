@@ -82,7 +82,7 @@ static char	dict_ibfk[] = "_ibfk_";
 
 /** array of mutexes protecting dict_index_t::stat_n_diff_key_vals[] */
 #define DICT_INDEX_STAT_MUTEX_SIZE	32
-mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
+static mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
 
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
@@ -570,13 +570,11 @@ dict_table_get_on_id(
 
 	if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0
 	    || trx->dict_operation_lock_mode == RW_X_LATCH) {
-		/* It is a system table which will always exist in the table
-		cache: we avoid acquiring the dictionary mutex, because
-		if we are doing a rollback to handle an error in TABLE
-		CREATE, for example, we already have the mutex! */
 
-		ut_ad(mutex_own(&(dict_sys->mutex))
-		      || trx->dict_operation_lock_mode == RW_X_LATCH);
+		/* Note: An X latch implies that the transaction
+		already owns the dictionary mutex. */
+
+		ut_ad(mutex_own(&dict_sys->mutex));
 
 		return(dict_table_get_on_id_low(table_id));
 	}
@@ -850,7 +848,8 @@ dict_table_add_to_cache(
 	/* Add table to LRU list of tables */
 	UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
 
-	dict_sys->size += mem_heap_get_size(table->heap);
+	dict_sys->size += mem_heap_get_size(table->heap)
+		+ strlen(table->name) + 1;
 }
 
 /**********************************************************************//**
@@ -904,14 +903,21 @@ dict_table_rename_in_cache(
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		fold;
-	ulint		old_size;
-	const char*	old_name;
+	char		old_name[MAX_TABLE_NAME_LEN + 1];
 
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	old_size = mem_heap_get_size(table->heap);
-	old_name = table->name;
+	/* store the old/current name to an automatic variable */
+	if (strlen(table->name) + 1 <= sizeof(old_name)) {
+		memcpy(old_name, table->name, strlen(table->name) + 1);
+	} else {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "InnoDB: too long table name: '%s', "
+			"max length is %d\n", table->name,
+			MAX_TABLE_NAME_LEN);
+		ut_error;
+	}
 
 	fold = ut_fold_string(new_name);
 
@@ -957,12 +963,22 @@ dict_table_rename_in_cache(
 	/* Remove table from the hash tables of tables */
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
 		    ut_fold_string(old_name), table);
-	table->name = mem_heap_strdup(table->heap, new_name);
+
+	if (strlen(new_name) > strlen(table->name)) {
+		/* We allocate MAX_TABLE_NAME_LEN+1 bytes here to avoid
+		memory fragmentation, we assume a repeated calls of
+		ut_realloc() with the same size do not cause fragmentation */
+		ut_a(strlen(new_name) <= MAX_TABLE_NAME_LEN);
+		table->name = ut_realloc(table->name, MAX_TABLE_NAME_LEN + 1);
+	}
+	memcpy(table->name, new_name, strlen(new_name) + 1);
 
 	/* Add table to hash table of tables */
 	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold,
 		    table);
-	dict_sys->size += (mem_heap_get_size(table->heap) - old_size);
+
+	dict_sys->size += strlen(new_name) - strlen(old_name);
+	ut_a(dict_sys->size > 0);
 
 	/* Update the table_name field in indexes */
 	index = dict_table_get_first_index(table);
@@ -1187,7 +1203,7 @@ dict_table_remove_from_cache(
 	/* Remove table from LRU list of tables */
 	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
 
-	size = mem_heap_get_size(table->heap);
+	size = mem_heap_get_size(table->heap) + strlen(table->name) + 1;
 
 	ut_ad(dict_sys->size >= size);
 
@@ -3008,25 +3024,28 @@ static
 char*
 dict_strip_comments(
 /*================*/
-	const char*	sql_string)	/*!< in: SQL string */
+	const char*	sql_string,	/*!< in: SQL string */
+	size_t		sql_length)	/*!< in: length of sql_string */
 {
 	char*		str;
 	const char*	sptr;
+	const char*	eptr	= sql_string + sql_length;
 	char*		ptr;
 	/* unclosed quote character (0 if none) */
 	char		quote	= 0;
 
-	str = mem_alloc(strlen(sql_string) + 1);
+	str = mem_alloc(sql_length + 1);
 
 	sptr = sql_string;
 	ptr = str;
 
 	for (;;) {
 scan_more:
-		if (*sptr == '\0') {
+		if (sptr >= eptr || *sptr == '\0') {
+end_of_string:
 			*ptr = '\0';
 
-			ut_a(ptr <= str + strlen(sql_string));
+			ut_a(ptr <= str + sql_length);
 
 			return(str);
 		}
@@ -3045,30 +3064,35 @@ scan_more:
 			   || (sptr[0] == '-' && sptr[1] == '-'
 			       && sptr[2] == ' ')) {
 			for (;;) {
+				if (++sptr >= eptr) {
+					goto end_of_string;
+				}
+
 				/* In Unix a newline is 0x0A while in Windows
 				it is 0x0D followed by 0x0A */
 
-				if (*sptr == (char)0x0A
-				    || *sptr == (char)0x0D
-				    || *sptr == '\0') {
-
+				switch (*sptr) {
+				case (char) 0X0A:
+				case (char) 0x0D:
+				case '\0':
 					goto scan_more;
 				}
-
-				sptr++;
 			}
 		} else if (!quote && *sptr == '/' && *(sptr + 1) == '*') {
+			sptr += 2;
 			for (;;) {
-				if (*sptr == '*' && *(sptr + 1) == '/') {
-
-					sptr += 2;
-
-					goto scan_more;
+				if (sptr >= eptr) {
+					goto end_of_string;
 				}
 
-				if (*sptr == '\0') {
-
+				switch (*sptr) {
+				case '\0':
 					goto scan_more;
+				case '*':
+					if (sptr[1] == '/') {
+						sptr += 2;
+						goto scan_more;
+					}
 				}
 
 				sptr++;
@@ -3749,6 +3773,7 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
+	size_t		sql_length,	/*!< in: length of sql_string */
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */
@@ -3763,7 +3788,7 @@ dict_create_foreign_constraints(
 	ut_a(trx);
 	ut_a(trx->mysql_thd);
 
-	str = dict_strip_comments(sql_string);
+	str = dict_strip_comments(sql_string, sql_length);
 	heap = mem_heap_create(10000);
 
 	err = dict_create_foreign_constraints_low(
@@ -3796,6 +3821,7 @@ dict_foreign_parse_drop_constraints(
 	dict_foreign_t*		foreign;
 	ibool			success;
 	char*			str;
+	size_t			len;
 	const char*		ptr;
 	const char*		id;
 	FILE*			ef	= dict_foreign_err_file;
@@ -3810,7 +3836,10 @@ dict_foreign_parse_drop_constraints(
 
 	*constraints_to_drop = mem_heap_alloc(heap, 1000 * sizeof(char*));
 
-	str = dict_strip_comments(*(trx->mysql_query_str));
+	ptr = innobase_get_stmt(trx->mysql_thd, &len);
+
+	str = dict_strip_comments(ptr, len);
+
 	ptr = str;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));

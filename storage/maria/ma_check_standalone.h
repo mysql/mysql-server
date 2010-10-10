@@ -64,7 +64,7 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt,...)
   if (!param->warning_printed && !param->error_printed)
   {
     if (param->testflag & T_SILENT)
-      fprintf(stderr,"%s: MARIA file %s\n",my_progname_short,
+      fprintf(stderr,"%s: Aria file %s\n",my_progname_short,
 	      param->isam_file_name);
     param->out_flag|= O_DATA_LOST;
   }
@@ -90,7 +90,7 @@ void _ma_check_print_error(HA_CHECK *param, const char *fmt,...)
   if (!param->warning_printed && !param->error_printed)
   {
     if (param->testflag & T_SILENT)
-      fprintf(stderr,"%s: MARIA file %s\n",my_progname_short,param->isam_file_name);
+      fprintf(stderr,"%s: Aria file %s\n",my_progname_short,param->isam_file_name);
     param->out_flag|= O_DATA_LOST;
   }
   param->error_printed|=1;

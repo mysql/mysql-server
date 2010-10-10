@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -402,6 +402,149 @@ start_again:
 
 		goto start_again;
 	}
+
+    if (srv_doublewrite_file) {
+	/* the same doublewrite buffer to TRX_SYS_SPACE should exist.
+	check and create if not exist.*/
+
+	mtr_start(&mtr);
+	trx_doublewrite_buf_is_being_created = TRUE;
+
+	block = buf_page_get(TRX_DOUBLEWRITE_SPACE, 0, TRX_SYS_PAGE_NO,
+			     RW_X_LATCH, &mtr);
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+
+	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
+
+	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
+	    == TRX_SYS_DOUBLEWRITE_MAGIC_N) {
+		/* The doublewrite buffer has already been created:
+		just read in some numbers */
+
+		mtr_commit(&mtr);
+	} else {
+		fprintf(stderr,
+			"InnoDB: Doublewrite buffer not found in the doublewrite file:"
+			" creating new\n");
+
+		if (buf_pool_get_curr_size()
+		    < ((2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
+			+ FSP_EXTENT_SIZE / 2 + 100)
+		       * UNIV_PAGE_SIZE)) {
+			fprintf(stderr,
+				"InnoDB: Cannot create doublewrite buffer:"
+				" you must\n"
+				"InnoDB: increase your buffer pool size.\n"
+				"InnoDB: Cannot continue operation.\n");
+
+			exit(1);
+		}
+
+		block2 = fseg_create(TRX_DOUBLEWRITE_SPACE, TRX_SYS_PAGE_NO,
+				     TRX_SYS_DOUBLEWRITE
+				     + TRX_SYS_DOUBLEWRITE_FSEG, &mtr);
+
+		/* fseg_create acquires a second latch on the page,
+		therefore we must declare it: */
+
+		buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
+
+		if (block2 == NULL) {
+			fprintf(stderr,
+				"InnoDB: Cannot create doublewrite buffer:"
+				" you must\n"
+				"InnoDB: increase your tablespace size.\n"
+				"InnoDB: Cannot continue operation.\n");
+
+			/* We exit without committing the mtr to prevent
+			its modifications to the database getting to disk */
+
+			exit(1);
+		}
+
+		fseg_header = buf_block_get_frame(block)
+			+ TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_FSEG;
+		prev_page_no = 0;
+
+		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
+			     + FSP_EXTENT_SIZE / 2; i++) {
+			page_no = fseg_alloc_free_page(fseg_header,
+						       prev_page_no + 1,
+						       FSP_UP, &mtr);
+			if (page_no == FIL_NULL) {
+				fprintf(stderr,
+					"InnoDB: Cannot create doublewrite"
+					" buffer: you must\n"
+					"InnoDB: increase your"
+					" tablespace size.\n"
+					"InnoDB: Cannot continue operation.\n"
+					);
+
+				exit(1);
+			}
+
+			/* We read the allocated pages to the buffer pool;
+			when they are written to disk in a flush, the space
+			id and page number fields are also written to the
+			pages. When we at database startup read pages
+			from the doublewrite buffer, we know that if the
+			space id and page number in them are the same as
+			the page position in the tablespace, then the page
+			has not been written to in doublewrite. */
+
+			new_block = buf_page_get(TRX_DOUBLEWRITE_SPACE, 0, page_no,
+						 RW_X_LATCH, &mtr);
+			buf_block_dbg_add_level(new_block,
+						SYNC_NO_ORDER_CHECK);
+
+			if (i == FSP_EXTENT_SIZE / 2) {
+				ut_a(page_no == FSP_EXTENT_SIZE);
+				mlog_write_ulint(doublewrite
+						 + TRX_SYS_DOUBLEWRITE_BLOCK1,
+						 page_no, MLOG_4BYTES, &mtr);
+				mlog_write_ulint(doublewrite
+						 + TRX_SYS_DOUBLEWRITE_REPEAT
+						 + TRX_SYS_DOUBLEWRITE_BLOCK1,
+						 page_no, MLOG_4BYTES, &mtr);
+			} else if (i == FSP_EXTENT_SIZE / 2
+				   + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+				ut_a(page_no == 2 * FSP_EXTENT_SIZE);
+				mlog_write_ulint(doublewrite
+						 + TRX_SYS_DOUBLEWRITE_BLOCK2,
+						 page_no, MLOG_4BYTES, &mtr);
+				mlog_write_ulint(doublewrite
+						 + TRX_SYS_DOUBLEWRITE_REPEAT
+						 + TRX_SYS_DOUBLEWRITE_BLOCK2,
+						 page_no, MLOG_4BYTES, &mtr);
+			} else if (i > FSP_EXTENT_SIZE / 2) {
+				ut_a(page_no == prev_page_no + 1);
+			}
+
+			prev_page_no = page_no;
+		}
+
+		mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC,
+				 TRX_SYS_DOUBLEWRITE_MAGIC_N,
+				 MLOG_4BYTES, &mtr);
+		mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC
+				 + TRX_SYS_DOUBLEWRITE_REPEAT,
+				 TRX_SYS_DOUBLEWRITE_MAGIC_N,
+				 MLOG_4BYTES, &mtr);
+
+		mlog_write_ulint(doublewrite
+				 + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
+				 TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
+				 MLOG_4BYTES, &mtr);
+		mtr_commit(&mtr);
+
+		/* Flush the modified pages to disk and make a checkpoint */
+		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+
+		fprintf(stderr, "InnoDB: Doublewrite buffer created in the doublewrite file\n");
+	}
+
+	trx_doublewrite_buf_is_being_created = FALSE;
+    }
 }
 
 /****************************************************************//**
@@ -425,9 +568,18 @@ trx_sys_doublewrite_init_or_restore_pages(
 	ulint	source_page_no;
 	byte*	page;
 	byte*	doublewrite;
+	ulint	doublewrite_space_id;
 	ulint	space_id;
 	ulint	page_no;
 	ulint	i;
+
+	doublewrite_space_id = (srv_doublewrite_file ? TRX_DOUBLEWRITE_SPACE : TRX_SYS_SPACE);
+
+	if (srv_doublewrite_file) {
+		fprintf(stderr,
+			"InnoDB: doublewrite file '%s' is used.\n",
+			srv_doublewrite_file);
+	}
 
 	/* We do the file i/o past the buffer pool */
 
@@ -437,7 +589,7 @@ trx_sys_doublewrite_init_or_restore_pages(
 	/* Read the trx sys header to check if we are using the doublewrite
 	buffer */
 
-	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, 0,
+	fil_io(OS_FILE_READ, TRUE, doublewrite_space_id, 0, TRX_SYS_PAGE_NO, 0,
 	       UNIV_PAGE_SIZE, read_buf, NULL);
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
@@ -475,10 +627,10 @@ trx_sys_doublewrite_init_or_restore_pages(
 
 	/* Read the pages from the doublewrite buffer to memory */
 
-	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, 0, block1, 0,
+	fil_io(OS_FILE_READ, TRUE, doublewrite_space_id, 0, block1, 0,
 	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
 	       buf, NULL);
-	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, 0, block2, 0,
+	fil_io(OS_FILE_READ, TRUE, doublewrite_space_id, 0, block2, 0,
 	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
 	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
 	       NULL);
@@ -534,7 +686,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 				" doublewrite buf.\n",
 				(ulong) space_id, (ulong) page_no, (ulong) i);
 
-		} else if (space_id == TRX_SYS_SPACE
+		} else if ((space_id == TRX_SYS_SPACE
+			    || (srv_doublewrite_file && space_id == TRX_DOUBLEWRITE_SPACE))
 			   && ((page_no >= block1
 				&& page_no
 				< block1 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
@@ -594,8 +747,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 						" recover the database"
 						" with the my.cnf\n"
 						"InnoDB: option:\n"
-						"InnoDB: set-variable="
-						"innodb_force_recovery=6\n");
+						"InnoDB:"
+						" innodb_force_recovery=6\n");
 					exit(1);
 				}
 
@@ -687,13 +840,13 @@ UNIV_INTERN
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
+	trx_sysf_t*	sys_header,
 	const char*	file_name_in,/*!< in: MySQL log file name */
 	ib_int64_t	offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	trx_sysf_t*	sys_header;
 	const char*	file_name;
 
 	if (ut_strlen(file_name_in) >= TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN) {
@@ -706,8 +859,6 @@ trx_sys_update_mysql_binlog_offset(
 	else {
 		file_name = file_name_in;
 	}
-
-	sys_header = trx_sysf_get(mtr);
 
 	if (mach_read_from_4(sys_header + field
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
@@ -982,6 +1133,83 @@ trx_sysf_create(
 }
 
 /*****************************************************************//**
+Creates dummy of the file page for the transaction system. */
+static
+void
+trx_sysf_dummy_create(
+/*==================*/
+	ulint	space,
+	mtr_t*	mtr)
+{
+	buf_block_t*	block;
+	page_t*		page;
+
+	ut_ad(mtr);
+
+	/* Note that below we first reserve the file space x-latch, and
+	then enter the kernel: we must do it in this order to conform
+	to the latching order rules. */
+
+	mtr_x_lock(fil_space_get_latch(space, NULL), mtr);
+	mutex_enter(&kernel_mutex);
+
+	/* Create the trx sys file block in a new allocated file segment */
+	block = fseg_create(space, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
+			    mtr);
+	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
+
+	fprintf(stderr, "%lu\n", buf_block_get_page_no(block));
+	ut_a(buf_block_get_page_no(block) == TRX_SYS_PAGE_NO);
+
+	page = buf_block_get_frame(block);
+
+	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_TRX_SYS,
+			 MLOG_2BYTES, mtr);
+
+	/* Reset the doublewrite buffer magic number to zero so that we
+	know that the doublewrite buffer has not yet been created (this
+	suppresses a Valgrind warning) */
+
+	mlog_write_ulint(page + TRX_SYS_DOUBLEWRITE
+			 + TRX_SYS_DOUBLEWRITE_MAGIC, 0, MLOG_4BYTES, mtr);
+
+#ifdef UNDEFINED
+	/* TODO: REMOVE IT: The bellow is not needed, I think */
+	sys_header = trx_sysf_get(mtr);
+
+	/* Start counting transaction ids from number 1 up */
+	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
+			  ut_dulint_create(0, 1), mtr);
+
+	/* Reset the rollback segment slots */
+	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+
+		trx_sysf_rseg_set_space(sys_header, i, ULINT_UNDEFINED, mtr);
+		trx_sysf_rseg_set_page_no(sys_header, i, FIL_NULL, mtr);
+	}
+
+	/* The remaining area (up to the page trailer) is uninitialized.
+	Silence Valgrind warnings about it. */
+	UNIV_MEM_VALID(sys_header + (TRX_SYS_RSEGS
+				     + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
+				     + TRX_SYS_RSEG_SPACE),
+		       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
+			- (TRX_SYS_RSEGS
+			   + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
+			   + TRX_SYS_RSEG_SPACE))
+		       + page - sys_header);
+
+	/* Create the first rollback segment in the SYSTEM tablespace */
+	page_no = trx_rseg_header_create(space, 0, ULINT_MAX, &slot_no,
+					 mtr);
+	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
+	ut_a(page_no != FIL_NULL);
+#endif
+
+	mutex_exit(&kernel_mutex);
+}
+
+/*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started. */
 UNIV_INTERN
@@ -1085,6 +1313,26 @@ trx_sys_create(void)
 	mtr_commit(&mtr);
 
 	trx_sys_init_at_db_start();
+}
+
+/*****************************************************************//**
+Creates and initializes the dummy transaction system page for tablespace. */
+UNIV_INTERN
+void
+trx_sys_dummy_create(
+/*=================*/
+	ulint	space)
+{
+	mtr_t	mtr;
+
+	/* This function is only for doublewrite file for now */
+	ut_a(space == TRX_DOUBLEWRITE_SPACE);
+
+	mtr_start(&mtr);
+
+	trx_sysf_dummy_create(space, &mtr);
+
+	mtr_commit(&mtr);
 }
 
 /*********************************************************************
@@ -1608,6 +1856,7 @@ trx_sys_file_format_id_to_name(
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Shutdown/Close the transaction system. */
 UNIV_INTERN
@@ -1684,3 +1933,4 @@ trx_sys_close(void)
 	trx_sys = NULL;
 	mutex_exit(&kernel_mutex);
 }
+#endif /* !UNIV_HOTBACKUP */

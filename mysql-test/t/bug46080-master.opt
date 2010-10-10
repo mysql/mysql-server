@@ -1,1 +1,1 @@
---skip-grant-tables --skip-name-resolve --safemalloc-mem-limit=20000000
+--skip-grant-tables --skip-name-resolve --safemalloc-mem-limit=20000000 --loose-aria-pagecache-buffer-size=1M

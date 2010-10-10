@@ -1,22 +1,22 @@
-select @@global.maria_recover;
-@@global.maria_recover
+select @@global.aria_recover;
+@@global.aria_recover
 BACKUP
-set global maria_recover=off;
-select @@global.maria_recover;
-@@global.maria_recover
+set global aria_recover=off;
+select @@global.aria_recover;
+@@global.aria_recover
 OFF
-set global maria_recover=default;
-select @@global.maria_recover;
-@@global.maria_recover
-OFF
-set global maria_recover=normal;
-select @@global.maria_recover;
-@@global.maria_recover
+set global aria_recover=default;
+select @@global.aria_recover;
+@@global.aria_recover
+NORMAL
+set global aria_recover=normal;
+select @@global.aria_recover;
+@@global.aria_recover
 NORMAL
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
-create table t1 (a varchar(1000), index(a)) engine=maria;
+create table t1 (a varchar(1000), index(a)) engine=aria;
 insert into t1 values("ThursdayMorningsMarket");
 flush table t1;
 insert into t1 select concat(a,'b') from t1 limit 1;
@@ -32,4 +32,4 @@ select * from t_corrupted2;
 a
 ThursdayMorningsMarket
 drop database mysqltest;
-set global maria_recover=backup;
+set global aria_recover=backup;

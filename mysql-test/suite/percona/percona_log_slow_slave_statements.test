@@ -1,0 +1,162 @@
+-- source include/not_windows.inc
+
+-- echo # Activate master-slave replication
+-- source include/master-slave.inc
+
+connection master;
+-- echo # Make table t for test
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+CREATE TABLE t(id INT);
+
+
+-- echo # Start slave replication
+-- disable_warnings
+connection slave;
+START SLAVE;
+-- source include/wait_for_slave_to_start.inc
+-- enable_warnings
+
+#-- echo # Make insert(1) on master
+connection master;
+INSERT INTO t VALUES (1);
+-- echo # Read information about master binlog
+let $binlog_file     = query_get_value(SHOW MASTER STATUS,File,1);
+let $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
+
+-- echo # Sync(1) slave thread
+connection slave;
+let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
+
+-- echo # Read and change log_slow_slave_statements to ON on slave
+show variables like 'log_slow_slave_statements';
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+
+#-- echo # Make insert(2) on master
+connection master;
+INSERT INTO t VALUES (2);
+-- echo # Read information about master binlog
+let $binlog_file     = query_get_value(SHOW MASTER STATUS,File,1);
+let $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
+
+-- echo # Sync slave(2) thread
+connection slave;
+let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
+-- echo # Restart slave
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc
+START SLAVE;
+-- source include/wait_for_slave_to_start.inc
+
+#-- echo # Make insert(3) on master
+connection master;
+INSERT INTO t VALUES (3);
+-- echo # Read information about master binlog
+let $binlog_file     = query_get_value(SHOW MASTER STATUS,File,1);
+let $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
+
+-- echo # Sync(3) slave thread
+connection slave;
+let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
+-- echo # Read and change log_slow_slave_statements to OFF on slave
+show variables like 'log_slow_slave_statements';
+set global log_slow_slave_statements=OFF;
+show variables like 'log_slow_slave_statements';
+
+#-- echo # Make insert(4) on master
+connection master;
+INSERT INTO t VALUES (4);
+-- echo # Read information about master binlog
+let $binlog_file     = query_get_value(SHOW MASTER STATUS,File,1);
+let  $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
+
+-- echo # Sync slave(4) thread
+connection slave;
+let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
+-- echo # Restart slave
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc
+START SLAVE;
+-- source include/wait_for_slave_to_start.inc
+
+#-- echo # Make insert(5) on master
+connection master;
+INSERT INTO t VALUES (5);
+-- echo # Read information about master binlog
+let $binlog_file     = query_get_value(SHOW MASTER STATUS,File,1);
+let $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
+
+-- echo # Sync slave(5) thread
+connection slave;
+let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
+-- echo # Read and change log_slow_slave_statements to ON on slave
+show variables like 'log_slow_slave_statements';
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+
+#-- echo # Make insert(6) on master
+connection master;
+INSERT INTO t VALUES (6);
+-- echo # Read information about master binlog
+let $binlog_file     = query_get_value(SHOW MASTER STATUS,File,1);
+let $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
+
+-- echo # Sync slave(6) thread
+connection slave;
+let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
+-- echo # Restart slave
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc
+START SLAVE;
+-- source include/wait_for_slave_to_start.inc
+
+#-- echo # Make insert(7) on master
+connection master;
+let $MASTER_DATADIR= `select @@datadir`;
+INSERT INTO t VALUES (7);
+-- echo # Read information about master binlog
+let $binlog_file     = query_get_value(SHOW MASTER STATUS,File,1);
+let $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
+
+-- echo # Sync slave(7) thread
+connection slave;
+let $SLAVE_DATADIR= `select @@datadir`;
+let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
+
+-- echo # Analyse master slow_query_log
+let $i=7;
+let $k=1;
+let $cmd=cat $MASTER_DATADIR/percona_log_slow_slave_statements-master.log | grep -c;
+while($i)
+{
+    let $current_cmd = $cmd "INSERT INTO t VALUES ($k)";
+    exec $current_cmd;
+    dec $i;
+    inc $k;
+}
+
+-- echo # Analyse slave slow_query_log
+let $i=7;
+let $k=1;
+let $cmd=cat $SLAVE_DATADIR/percona_log_slow_slave_statements-slave.log | grep -c;
+while($i)
+{
+    let $current_cmd = $cmd "INSERT INTO t VALUES ($k)";
+    exec $current_cmd;
+    dec $i;
+    inc $k;
+}
+set global log_slow_slave_statements=OFF;
+
+connection master;
+DROP TABLE t;
+
+-- echo # Read information about master binlog
+let $binlog_file     = query_get_value(SHOW MASTER STATUS,File,1);
+let $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
+
+-- echo # Sync slave(8) thread
+connection slave;
+let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;

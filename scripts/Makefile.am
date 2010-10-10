@@ -37,7 +37,8 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqld_multi
 
 noinst_SCRIPTS =	make_binary_distribution \
-			make_sharedlib_distribution
+			make_sharedlib_distribution \
+			convert-debug-for-diff
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
@@ -59,7 +60,8 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysqlhotcopy.sh \
 			mysqldumpslow.sh \
 			mysqld_multi.sh \
-			mysqld_safe.sh
+			mysqld_safe.sh \
+			convert-debug-for-diff.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
@@ -91,6 +93,7 @@ CLEANFILES =		@server_scripts@ \
 			mysqlhotcopy \
 			mysqldumpslow \
 			mysqld_multi \
+			convert-debug-for-diff \
 			$(EXTRA_PROGRAMS)
 
 pkgplugindir =		$(pkglibdir)/plugin
@@ -193,7 +196,3 @@ SUFFIXES = .sh
 	$< > $@-t
 	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
-
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

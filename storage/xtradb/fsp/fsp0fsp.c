@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -48,7 +48,7 @@ Created 11/29/1995 Heikki Tuuri
 # include "log0log.h"
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
-
+#include "trx0sys.h"
 
 #define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
 						within a file page */
@@ -392,11 +392,11 @@ UNIV_INLINE
 ibool
 xdes_get_bit(
 /*=========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	ulint	bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ulint	offset,	/*!< in: page offset within extent:
-			0 ... FSP_EXTENT_SIZE - 1 */
-	mtr_t*	mtr)	/*!< in: mtr */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+	ulint		offset,	/*!< in: page offset within extent:
+				0 ... FSP_EXTENT_SIZE - 1 */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	index;
 	ulint	byte_index;
@@ -533,8 +533,8 @@ UNIV_INLINE
 ulint
 xdes_get_n_used(
 /*============*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*	mtr)	/*!< in: mtr */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	i;
 	ulint	count	= 0;
@@ -557,8 +557,8 @@ UNIV_INLINE
 ibool
 xdes_is_free(
 /*=========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*	mtr)	/*!< in: mtr */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	if (0 == xdes_get_n_used(descr, mtr)) {
 
@@ -575,8 +575,8 @@ UNIV_INLINE
 ibool
 xdes_is_full(
 /*=========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*	mtr)	/*!< in: mtr */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	if (FSP_EXTENT_SIZE == xdes_get_n_used(descr, mtr)) {
 
@@ -592,7 +592,7 @@ UNIV_INLINE
 void
 xdes_set_state(
 /*===========*/
-	xdes_t*	descr,	/*!< in: descriptor */
+	xdes_t*	descr,	/*!< in/out: descriptor */
 	ulint	state,	/*!< in: state to set */
 	mtr_t*	mtr)	/*!< in: mtr handle */
 {
@@ -611,8 +611,8 @@ UNIV_INLINE
 ulint
 xdes_get_state(
 /*===========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*	mtr)	/*!< in: mtr handle */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	mtr_t*		mtr)	/*!< in: mtr handle */
 {
 	ulint	state;
 
@@ -708,7 +708,7 @@ UNIV_INLINE
 xdes_t*
 xdes_get_descriptor_with_space_hdr(
 /*===============================*/
-	fsp_header_t*	sp_header,/*!< in: space header, x-latched */
+	fsp_header_t*	sp_header,/*!< in/out: space header, x-latched */
 	ulint		space,	/*!< in: space id */
 	ulint		offset,	/*!< in: page offset;
 				if equal to the free limit,
@@ -878,14 +878,10 @@ fsp_init_file_page_low(
 		return;
 	}
 
-#ifdef UNIV_BASIC_LOG_DEBUG
-	memset(page, 0xff, UNIV_PAGE_SIZE);
-#endif
+	memset(page, 0, UNIV_PAGE_SIZE);
 	mach_write_to_4(page + FIL_PAGE_OFFSET, buf_block_get_page_no(block));
-	memset(page + FIL_PAGE_LSN, 0, 8);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			buf_block_get_space(block));
-	memset(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 8);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1013,10 +1009,10 @@ fsp_header_init(
 	flst_init(header + FSP_SEG_INODES_FREE, mtr);
 
 	mlog_write_dulint(header + FSP_SEG_ID, ut_dulint_create(0, 1), mtr);
-	if (space == 0) {
+	if (space == TRX_SYS_SPACE || space == TRX_DOUBLEWRITE_SPACE) {
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
-			   0, 0, ut_dulint_add(DICT_IBUF_ID_MIN, space),
+			   space, 0, ut_dulint_add(DICT_IBUF_ID_MIN, space),
 			   dict_ind_redundant, mtr);
 	} else {
 		fsp_fill_free_list(TRUE, space, header, mtr);
@@ -1351,7 +1347,7 @@ fsp_fill_free_list(
 					descriptor page and ibuf bitmap page;
 					then we do not allocate more extents */
 	ulint		space,		/*!< in: space */
-	fsp_header_t*	header,		/*!< in: space header */
+	fsp_header_t*	header,		/*!< in/out: space header */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint	limit;

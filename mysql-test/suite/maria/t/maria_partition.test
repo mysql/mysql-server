@@ -1,13 +1,13 @@
-# Maria tests which require partitioning enabled
+# Aria tests which require partitioning enabled
 
 --source include/have_partition.inc
 -- source include/have_maria.inc
 
 let $default_engine=`select @@global.storage_engine`;
-let $default_checksum=`select @@global.maria_page_checksum`;
-set global storage_engine=maria;
-set session storage_engine=maria;
-set global maria_page_checksum=0;
+let $default_checksum=`select @@global.aria_page_checksum`;
+set global storage_engine=aria;
+set session storage_engine=aria;
+set global aria_page_checksum=0;
 
 # Initialise
 --disable_warnings
@@ -17,7 +17,7 @@ drop view if exists v1;
 SET SQL_WARNINGS=1;
 
 #
-# Bug #39227 Maria: crash with ALTER TABLE PARTITION
+# Bug #39227 Aria: crash with ALTER TABLE PARTITION
 #
 
 create table t1 (s1 int);
@@ -29,8 +29,8 @@ drop table t1;
 #
 # Test outer join const propagation
 #
-create table t2(a blob) engine=maria;
-create table t1(a int primary key) engine=maria;
+create table t2(a blob) engine=aria;
+create table t1(a int primary key) engine=aria;
 insert into t2 values ('foo'),('bar');
 select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
 insert into t1 values (1);
@@ -52,7 +52,7 @@ drop table t1,t2;
 # Set defaults back
 --disable_result_log
 --disable_query_log
-eval set global storage_engine=$default_engine, maria_page_checksum=$default_checksum;
-set global maria_log_file_size=default;
+eval set global storage_engine=$default_engine, aria_page_checksum=$default_checksum;
+set global aria_log_file_size=default;
 --enable_result_log
 --enable_query_log

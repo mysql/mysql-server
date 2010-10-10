@@ -147,6 +147,12 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   DBUG_ASSERT(bitmap->file.write_callback != 0);
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
 
+  /*
+    Mark that a bitmap page has been written to page cache and we have
+    to flush it during checkpoint.
+  */
+  bitmap->changed_not_flushed= 1;
+
   if ((bitmap->non_flushable == 0)
 #ifdef WRONG_BITMAP_FLUSH
       || 1
@@ -347,7 +353,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   DBUG_ENTER("_ma_bitmap_flush_all");
   pthread_mutex_lock(&bitmap->bitmap_lock);
-  if (bitmap->changed)
+  if (bitmap->changed || bitmap->changed_not_flushed)
   {
     bitmap->flush_all_requested= TRUE;
 #ifndef WRONG_BITMAP_FLUSH
@@ -365,8 +371,8 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
     */
     if (bitmap->changed)
     {
-      res= write_changed_bitmap(share, bitmap);
       bitmap->changed= FALSE;
+      res= write_changed_bitmap(share, bitmap);
     }
     /*
       We do NOT use FLUSH_KEEP_LAZY because we must be sure that bitmap
@@ -384,6 +390,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
                                            &bitmap->pages_covered) &
         PCFLUSH_PINNED_AND_ERROR)
       res= TRUE;
+    bitmap->changed_not_flushed= FALSE;
     bitmap->flush_all_requested= FALSE;
     /*
       Some well-behaved threads may be waiting for flush_all_requested to
@@ -1875,6 +1882,7 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   uint offset_page, offset, tmp, org_tmp;
   uchar *data;
   DBUG_ENTER("set_page_bits");
+  DBUG_ASSERT(fill_pattern <= 7);
 
   bitmap_page= page - page % bitmap->pages_covered;
   if (bitmap_page != bitmap->page &&
@@ -2063,6 +2071,13 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
   safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
 
   bitmap_page= page - page % bitmap->pages_covered;
+  if (page == bitmap_page ||
+      page + page_count >= bitmap_page + bitmap->pages_covered)
+  {
+    DBUG_ASSERT(0);                             /* Wrong in data */
+    DBUG_RETURN(1);
+  }
+
   if (bitmap_page != bitmap->page &&
       _ma_change_bitmap_page(info, bitmap, bitmap_page))
     DBUG_RETURN(1);
@@ -2142,12 +2157,12 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     DBUG_VOID_RETURN;
 
   bitmap= &share->bitmap;
+  pthread_mutex_lock(&bitmap->bitmap_lock);
+
   if (non_flushable_inc == -1)
   {
-    pthread_mutex_lock(&bitmap->bitmap_lock);
     DBUG_ASSERT((int) bitmap->non_flushable > 0);
     DBUG_ASSERT(info->non_flushable_state == 1);
-    info->non_flushable_state= 0;
     if (--bitmap->non_flushable == 0)
     {
       /*
@@ -2164,11 +2179,11 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     }
     DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
     pthread_mutex_unlock(&bitmap->bitmap_lock);
+    info->non_flushable_state= 0;
     DBUG_VOID_RETURN;
   }
   DBUG_ASSERT(non_flushable_inc == 1);
   DBUG_ASSERT(info->non_flushable_state == 0);
-  pthread_mutex_lock(&bitmap->bitmap_lock);
   while (unlikely(bitmap->flush_all_requested))
   {
     /*
@@ -2186,9 +2201,9 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
   }
   bitmap->non_flushable++;
-  info->non_flushable_state= 1;
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
   pthread_mutex_unlock(&bitmap->bitmap_lock);
+  info->non_flushable_state= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -2216,6 +2231,8 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
 
   Note that we may have 'filler blocks' that are used to split a block
   in half; These can be recognized by that they have page_count == 0.
+
+  This code also reverse the effect of ma_bitmap_flushable(.., 1);
 
   RETURN
     0  ok
@@ -2287,9 +2304,16 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
         The page has all bits set; The following test is an optimization
         to not set the bits to the same value as before.
       */
-      if (bits != current_bitmap_value &&
-          set_page_bits(info, bitmap, block->page, bits))
-        goto err;
+      if (bits != current_bitmap_value)
+      {
+        if (set_page_bits(info, bitmap, block->page, bits))
+          goto err;
+      }
+      else
+      {
+        DBUG_ASSERT(current_bitmap_value ==
+                    _ma_bitmap_get_page_bits(info, bitmap, block->page));
+      }
     }
     else if (!(block->used & BLOCKUSED_USED) &&
              _ma_bitmap_reset_full_page_bits(info, bitmap,
@@ -2393,6 +2417,8 @@ my_bool _ma_bitmap_set(MARIA_HA *info, pgcache_page_no_t page, my_bool head,
   uint bits;
   my_bool res;
   DBUG_ENTER("_ma_bitmap_set");
+  DBUG_PRINT("enter", ("page: %lu  head: %d  empty_space: %u",
+                       (ulong) page, head, empty_space));
 
   pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
   bits= (head ?

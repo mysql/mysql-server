@@ -63,6 +63,32 @@ DROP TABLE t1,t2,t3;
 
 --echo End of 5.0 tests.
 
+#
+# Fix for LP#612894
+# Some aggregate functions (such as MIN MAX) work incorrectly in subqueries
+# after getting NULL value
+#
+
+CREATE TABLE t1 (col_int_nokey int(11) NOT NULL, col_varchar_nokey varchar(1) NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (2,'s'),(0,'v'),(2,'s');
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+ `col_int_key` int(11) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_varchar_key` (`col_varchar_key`)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,10,'g'), (5,20,'v');
+
+SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
+
+SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) +1 FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
+
+DROP TABLE t1,t2;
+
+--echo End of 5.1 tests.
+
 --echo #
 --echo # BUG#46743 "Azalea processing correlated, aggregate SELECT
 --echo # subqueries incorrectly"

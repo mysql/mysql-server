@@ -11,4 +11,4 @@ extra-max-connections=1
 connect-timeout=   2
 
 [ENV]
-MASTER_EXTRA_PORT= @mysqld.1.extra-port
+MASTER_EXTRA_PORT= @mysqld.1.#extra-port

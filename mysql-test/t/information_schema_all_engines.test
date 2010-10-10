@@ -12,7 +12,7 @@ use INFORMATION_SCHEMA;
 show tables;
 
 #
-# Bug#18925: subqueries with MIN/MAX functions on INFORMARTION_SCHEMA 
+# Bug#18925: subqueries with MIN/MAX functions on INFORMATION_SCHEMA 
 #
 
 SELECT t.table_name, c1.column_name

@@ -160,7 +160,7 @@ int main(int argc, char* const argv[] )
   signal(SIGCHLD, handle_signal);
   signal(SIGABRT, handle_abort);
 
-  sprintf(safe_process_name, "safe_process[%d]", (int) own_pid);
+  sprintf(safe_process_name, "safe_process[%ld]", (long) own_pid);
 
   message("Started");
 

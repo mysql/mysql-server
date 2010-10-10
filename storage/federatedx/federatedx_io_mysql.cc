@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2007, Antony T Curtis
 All rights reserved.
 
@@ -51,6 +51,12 @@ typedef struct federatedx_savepoint
   uint  flags;
 } SAVEPT;
 
+struct mysql_position
+{
+  MYSQL_RES* result;
+  MYSQL_ROW_OFFSET offset;
+};
+
 
 class federatedx_io_mysql :public federatedx_io
 {
@@ -76,16 +82,16 @@ public:
 
   virtual int error_code();
   virtual const char *error_str();
-  
+
   void reset();
   int commit();
   int rollback();
-  
+
   int savepoint_set(ulong sp);
   ulong savepoint_release(ulong sp);
   ulong savepoint_rollback(ulong sp);
   void savepoint_restrict(ulong sp);
-  
+
   ulong last_savepoint() const;
   ulong actual_savepoint() const;
   bool is_autocommit() const;
@@ -94,7 +100,7 @@ public:
                       uint table_name_length, uint flag);
 
   /* resultset operations */
-  
+
   virtual void free_result(FEDERATEDX_IO_RESULT *io_result);
   virtual unsigned int get_num_fields(FEDERATEDX_IO_RESULT *io_result);
   virtual my_ulonglong get_num_rows(FEDERATEDX_IO_RESULT *io_result);
@@ -104,6 +110,12 @@ public:
                                       unsigned int column);
   virtual bool is_column_null(const FEDERATEDX_IO_ROW *row,
                               unsigned int column) const;
+
+  virtual size_t get_ref_length() const;
+  virtual void mark_position(FEDERATEDX_IO_RESULT *io_result,
+                             void *ref);
+  virtual int seek_position(FEDERATEDX_IO_RESULT **io_result,
+                            const void *ref);
 };
 
 
@@ -466,14 +478,13 @@ const char *federatedx_io_mysql::error_str()
   return mysql_error(&mysql);
 }
 
-
 FEDERATEDX_IO_RESULT *federatedx_io_mysql::store_result()
 {
   FEDERATEDX_IO_RESULT *result;
   DBUG_ENTER("federatedx_io_mysql::store_result");
-  
+
   result= (FEDERATEDX_IO_RESULT *) mysql_store_result(&mysql);
-  
+
   DBUG_RETURN(result);
 }
 
@@ -590,3 +601,45 @@ error:
   free_result(result);
   return 1;
 }
+
+
+
+size_t federatedx_io_mysql::get_ref_length() const
+{
+  return sizeof(mysql_position);
+}
+
+
+void federatedx_io_mysql::mark_position(FEDERATEDX_IO_RESULT *io_result,
+                                        void *ref)
+{
+  MYSQL_ROWS *tmp= 0;
+  mysql_position& pos= *reinterpret_cast<mysql_position*>(ref);
+  pos.result= (MYSQL_RES *) io_result;
+
+  if (pos.result && pos.result->data)
+  {
+    for (tmp= pos.result->data->data;
+         tmp && (tmp->next != pos.result->data_cursor);
+         tmp= tmp->next)
+    {}
+  }
+
+  pos.offset= tmp;
+}
+
+int federatedx_io_mysql::seek_position(FEDERATEDX_IO_RESULT **io_result,
+                                       const void *ref)
+{
+  const mysql_position& pos= *reinterpret_cast<const mysql_position*>(ref);
+
+  if (!pos.result || !pos.offset)
+    return HA_ERR_END_OF_FILE;
+
+  pos.result->current_row= 0;
+  pos.result->data_cursor= pos.offset;
+  *io_result= (FEDERATEDX_IO_RESULT*) pos.result;
+
+  return 0;
+}
+

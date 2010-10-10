@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -9,9 +9,9 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   You should have received a copy of the GNU General Public License along
+   with this program; if not, write to the Free Software Foundation, Inc.,
+   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Function with list databases, tables or fields */
@@ -31,6 +31,7 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
+#include "debug_sync.h"
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -510,8 +511,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       wild_length= strlen(wild);
   }
 
-
-
   bzero((char*) &table_list,sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
@@ -525,7 +524,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
-    char uname[NAME_LEN + 1];                   /* Unencoded name */
+    char uname[SAFE_NAME_LEN + 1];              /* Unencoded name */
     file=dirp->dir_entry+i;
     if (dir)
     {                                           /* Return databases */
@@ -553,9 +552,20 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         continue;
 
       file_name_len= filename_to_tablename(file->name, uname, sizeof(uname));
-      if (wild && wild_compare(uname, wild, 0))
-        continue;
-      if (!(file_name=
+      if (wild)
+      {
+	if (lower_case_table_names)
+	{
+          if (my_wildcmp(files_charset_info,
+                         uname, uname + file_name_len,
+                         wild, wild + wild_length,
+                         wild_prefix, wild_one, wild_many))
+            continue;
+	}
+	else if (wild_compare(uname, wild, 0))
+	  continue;
+      }
+      if (!(file_name= 
             thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
       {
         my_dirend(dirp);
@@ -1170,7 +1180,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
       if (field_type == MYSQL_TYPE_BIT)
       {
         longlong dec= field->val_int();
-        char *ptr= longlong2str(dec, tmp + 2, 2);
+        char *ptr= longlong2str(dec, tmp + 2, 2, 1);
         uint32 length= (uint32) (ptr - tmp);
         tmp[0]= 'b';
         tmp[1]= '\'';
@@ -1348,19 +1358,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
 
-    if (field->vcol_info)
-    {
-      packet->append(STRING_WITH_LEN(" AS ("));
-      packet->append(field->vcol_info->expr_str.str,
-                     field->vcol_info->expr_str.length,
-                     system_charset_info);
-      packet->append(STRING_WITH_LEN(")"));
-      if (field->stored_in_db)
-        packet->append(STRING_WITH_LEN(" PERSISTENT"));
-      else
-        packet->append(STRING_WITH_LEN(" VIRTUAL"));
-    }
-
     if (field->has_charset() &&
         !(thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)))
     {
@@ -1378,6 +1375,19 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 	packet->append(STRING_WITH_LEN(" COLLATE "));
 	packet->append(field->charset()->name);
       }
+    }
+
+    if (field->vcol_info)
+    {
+      packet->append(STRING_WITH_LEN(" AS ("));
+      packet->append(field->vcol_info->expr_str.str,
+                     field->vcol_info->expr_str.length,
+                     system_charset_info);
+      packet->append(STRING_WITH_LEN(")"));
+      if (field->stored_in_db)
+        packet->append(STRING_WITH_LEN(" PERSISTENT"));
+      else
+        packet->append(STRING_WITH_LEN(" VIRTUAL"));
     }
 
     if (flags & NOT_NULL_FLAG)
@@ -2318,8 +2328,8 @@ static bool show_status_array(THD *thd, const char *wild,
                               bool ucase_names,
                               COND *cond)
 {
-  MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
-  char * const buff= (char *) &buff_data;
+  my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE, MY_ALIGNOF(long)> buffer;
+  char * const buff= buffer.data;
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
@@ -3124,36 +3134,54 @@ bool get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
 {
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
+  bool rc= 0;
+
   bzero((char*) lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
   switch (lex->sql_command) {
   case SQLCOM_SHOW_DATABASES:
     if (wild)
     {
-      lookup_field_values->db_value.str= (char*) wild;
-      lookup_field_values->db_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->db_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_db_value= 1;
     }
-    return 0;
+    break;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_EVENTS:
-    lookup_field_values->db_value.str= lex->select_lex.db;
-    lookup_field_values->db_value.length=strlen(lex->select_lex.db);
+    thd->make_lex_string(&lookup_field_values->db_value, 
+                         lex->select_lex.db, strlen(lex->select_lex.db), 0);
     if (wild)
     {
-      lookup_field_values->table_value.str= (char*)wild;
-      lookup_field_values->table_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->table_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_table_value= 1;
     }
-    return 0;
+    break;
   default:
     /*
       The "default" is for queries over I_S.
       All previous cases handle SHOW commands.
     */
-    return calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    rc= calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    break;
   }
+
+  if (lower_case_table_names && !rc)
+  {
+    /* 
+      We can safely do in-place upgrades here since all of the above cases
+      are allocating a new memory buffer for these strings.
+    */  
+    if (lookup_field_values->db_value.str && lookup_field_values->db_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->db_value.str);
+    if (lookup_field_values->table_value.str && 
+        lookup_field_values->table_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->table_value.str);
+  }
+
+  return rc;
 }
 
 
@@ -3355,9 +3383,15 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   {
     if (with_i_schema)
     {
-      if (find_schema_table(thd, lookup_field_vals->table_value.str))
+      LEX_STRING *name;
+      ST_SCHEMA_TABLE *schema_table=
+        find_schema_table(thd, lookup_field_vals->table_value.str);
+      if (schema_table && !schema_table->hidden)
       {
-        if (table_names->push_back(&lookup_field_vals->table_value))
+        if (!(name= 
+              thd->make_lex_string(NULL, schema_table->table_name,
+                                   strlen(schema_table->table_name), TRUE)) ||
+            table_names->push_back(name))
           return 1;
       }
     }
@@ -3396,7 +3430,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
     */
     if (res == FIND_FILES_DIR)
     {
-      if (lex->sql_command != SQLCOM_SELECT)
+      if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
         return 1;
       thd->clear_error();
       return 2;
@@ -3432,8 +3466,7 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
   bool res;
   LEX_STRING tmp_lex_string, tmp_lex_string1, *db_name, *table_name;
   enum_sql_command save_sql_command= lex->sql_command;
-  TABLE_LIST *show_table_list= (TABLE_LIST*) tables->schema_select_lex->
-    table_list.first;
+  TABLE_LIST *show_table_list= tables->schema_select_lex->table_list.first;
   TABLE *table= tables->table;
   int error= 1;
   DBUG_ENTER("fill_schema_show");
@@ -3757,6 +3790,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     error= 0;
     goto err;
   }
+
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              STR_OR_NIL(lookup_field_vals.db_value.str),
                              STR_OR_NIL(lookup_field_vals.table_value.str)));
@@ -3879,12 +3913,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               goto err;
             if (make_table_list(thd, &sel, db_name, table_name))
               goto err;
-            TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
+            TABLE_LIST *show_table_list= sel.table_list.first;
             lex->all_selects_list= &sel;
             lex->derived_tables= 0;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
+            DEBUG_SYNC(thd, "before_open_in_get_all_tables");
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
             lex->sql_command= save_sql_command;
@@ -3981,9 +4016,9 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
 
   if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
     DBUG_RETURN(0);
-  DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
-                             lookup_field_vals.db_value.str,
-                             lookup_field_vals.table_value.str));
+  DBUG_PRINT("INDEX VALUES",("db_name: %s  table_name: %s",
+                             val_or_null(lookup_field_vals.db_value.str),
+                             val_or_null(lookup_field_vals.table_value.str)));
   if (make_db_list(thd, &db_names, &lookup_field_vals,
                    &with_i_schema))
     DBUG_RETURN(1);
@@ -4283,7 +4318,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     uint flags=field->flags;
     char tmp[MAX_FIELD_WIDTH];
     String type(tmp,sizeof(tmp), system_charset_info);
-    char *end;
     int decimals, field_length;
 
     if (wild && wild[0] &&
@@ -4304,7 +4338,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                                  field->field_name) & COL_ACLS;
     if (!tables->schema_table && !col_access)
       continue;
-    end= tmp;
+    char *end= tmp;
     for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
     {
       if (col_access & 1)
@@ -4380,9 +4414,12 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_INT24:
       field_length= field->max_display_length() - 1;
+      break;
+    case MYSQL_TYPE_LONGLONG:
+      field_length= field->max_display_length() - 
+        ((field->flags & UNSIGNED_FLAG) ? 0 : 1);
       break;
     case MYSQL_TYPE_BIT:
       field_length= field->max_display_length();
@@ -4427,7 +4464,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     table->field[15]->store((const char*) pos,
                             strlen((const char*) pos), cs);
 
-    end= tmp;
     if (field->unireg_check == Field::NEXT_NUMBER)
       table->field[16]->store(STRING_WITH_LEN("auto_increment"), cs);
     if (show_table->timestamp_field == field &&
@@ -4623,24 +4659,37 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
+static inline void copy_field_as_string(Field *to_field, Field *from_field)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String tmp_str(buff, sizeof(buff), system_charset_info);
+  from_field->val_str(&tmp_str);
+  to_field->store(tmp_str.ptr(), tmp_str.length(), system_charset_info);
+}
+
+
 bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                        const char *wild, bool full_access, const char *sp_user)
 {
-  String tmp_string;
-  String sp_db, sp_name, definer;
   MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
-  get_field(thd->mem_root, proc_table->field[0], &sp_db);
-  get_field(thd->mem_root, proc_table->field[1], &sp_name);
-  get_field(thd->mem_root, proc_table->field[11], &definer);
+  char sp_db_buff[SAFE_NAME_LEN + 1], sp_name_buff[SAFE_NAME_LEN + 1],
+    definer_buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 2];
+  String sp_db(sp_db_buff, sizeof(sp_db_buff), cs);
+  String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
+  String definer(definer_buff, sizeof(definer_buff), cs);
+
+  proc_table->field[0]->val_str(&sp_db);
+  proc_table->field[1]->val_str(&sp_name);
+  proc_table->field[11]->val_str(&definer);
+
   if (!full_access)
-    full_access= !strcmp(sp_user, definer.ptr());
-  if (!full_access && check_some_routine_access(thd, sp_db.ptr(),
-                                                sp_name.ptr(),
-                                                proc_table->field[2]->
-                                                val_int() ==
-                                                TYPE_ENUM_PROCEDURE))
+    full_access= !strcmp(sp_user, definer.c_ptr_safe());
+  if (!full_access &&
+      check_some_routine_access(thd, sp_db.c_ptr_safe(), sp_name.c_ptr_safe(),
+                                proc_table->field[2]->val_int() ==
+                                TYPE_ENUM_PROCEDURE))
     return 0;
 
   if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
@@ -4650,55 +4699,42 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
-    if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
+    if (!wild || !wild[0] || !wild_compare(sp_name.c_ptr_safe(), wild, 0))
     {
       int enum_idx= (int) proc_table->field[5]->val_int();
       table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
-      get_field(thd->mem_root, proc_table->field[3], &tmp_string);
-      table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[0], proc_table->field[3]);
       table->field[2]->store(sp_db.ptr(), sp_db.length(), cs);
-      get_field(thd->mem_root, proc_table->field[2], &tmp_string);
-      table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[4], proc_table->field[2]);
       if (proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION)
       {
-        get_field(thd->mem_root, proc_table->field[9], &tmp_string);
-        table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        copy_field_as_string(table->field[5], proc_table->field[9]);
         table->field[5]->set_notnull();
       }
       if (full_access)
       {
-        get_field(thd->mem_root, proc_table->field[19], &tmp_string);
-        table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        copy_field_as_string(table->field[7], proc_table->field[19]);
         table->field[7]->set_notnull();
       }
       table->field[6]->store(STRING_WITH_LEN("SQL"), cs);
       table->field[10]->store(STRING_WITH_LEN("SQL"), cs);
-      get_field(thd->mem_root, proc_table->field[6], &tmp_string);
-      table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      table->field[12]->store(sp_data_access_name[enum_idx].str,
+      copy_field_as_string(table->field[11], proc_table->field[6]);
+      table->field[12]->store(sp_data_access_name[enum_idx].str, 
                               sp_data_access_name[enum_idx].length , cs);
-      get_field(thd->mem_root, proc_table->field[7], &tmp_string);
-      table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[14], proc_table->field[7]);
+
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[12])->get_time(&time);
       table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[13])->get_time(&time);
       table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
-      get_field(thd->mem_root, proc_table->field[14], &tmp_string);
-      table->field[17]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      get_field(thd->mem_root, proc_table->field[15], &tmp_string);
-      table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[17], proc_table->field[14]);
+      copy_field_as_string(table->field[18], proc_table->field[15]);
       table->field[19]->store(definer.ptr(), definer.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[16], &tmp_string);
-      table->field[20]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[17], &tmp_string);
-      table->field[21]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[18], &tmp_string);
-      table->field[22]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[20], proc_table->field[16]);
+      copy_field_as_string(table->field[21], proc_table->field[17]);
+      copy_field_as_string(table->field[22], proc_table->field[18]);
 
       return schema_table_store_record(thd, table);
     }
@@ -5993,56 +6029,56 @@ struct schema_table_ref
 ST_FIELD_INFO user_stats_fields_info[]=
 {
   {"USER", USERNAME_LENGTH, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
-  {"TOTAL_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Total_connections",SKIP_OPEN_TABLE},
-  {"CONCURRENT_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Concurrent_connections",SKIP_OPEN_TABLE},
-  {"CONNECTED_TIME", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Connected_time",SKIP_OPEN_TABLE},
+  {"TOTAL_CONNECTIONS", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Total_connections",SKIP_OPEN_TABLE},
+  {"CONCURRENT_CONNECTIONS", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Concurrent_connections",SKIP_OPEN_TABLE},
+  {"CONNECTED_TIME", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Connected_time",SKIP_OPEN_TABLE},
   {"BUSY_TIME", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_DOUBLE, 0, 0, "Busy_time",SKIP_OPEN_TABLE},
   {"CPU_TIME", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_DOUBLE, 0, 0, "Cpu_time",SKIP_OPEN_TABLE},
-  {"BYTES_RECEIVED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Bytes_received",SKIP_OPEN_TABLE},
-  {"BYTES_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Bytes_sent",SKIP_OPEN_TABLE},
-  {"BINLOG_BYTES_WRITTEN", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Binlog_bytes_written",SKIP_OPEN_TABLE},
-  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_read",SKIP_OPEN_TABLE},
-  {"ROWS_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_sent",SKIP_OPEN_TABLE},
-  {"ROWS_DELETED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_deleted",SKIP_OPEN_TABLE},
-  {"ROWS_INSERTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_inserted",SKIP_OPEN_TABLE},
-  {"ROWS_UPDATED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_updated",SKIP_OPEN_TABLE},
-  {"SELECT_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Select_commands",SKIP_OPEN_TABLE},
-  {"UPDATE_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Update_commands",SKIP_OPEN_TABLE},
-  {"OTHER_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Other_commands",SKIP_OPEN_TABLE},
-  {"COMMIT_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Commit_transactions",SKIP_OPEN_TABLE},
-  {"ROLLBACK_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rollback_transactions",SKIP_OPEN_TABLE},
-  {"DENIED_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Denied_connections",SKIP_OPEN_TABLE},
-  {"LOST_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Lost_connections",SKIP_OPEN_TABLE},
-  {"ACCESS_DENIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Access_denied",SKIP_OPEN_TABLE},
-  {"EMPTY_QUERIES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Empty_queries",SKIP_OPEN_TABLE},
+  {"BYTES_RECEIVED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Bytes_received",SKIP_OPEN_TABLE},
+  {"BYTES_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Bytes_sent",SKIP_OPEN_TABLE},
+  {"BINLOG_BYTES_WRITTEN", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Binlog_bytes_written",SKIP_OPEN_TABLE},
+  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_read",SKIP_OPEN_TABLE},
+  {"ROWS_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_sent",SKIP_OPEN_TABLE},
+  {"ROWS_DELETED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_deleted",SKIP_OPEN_TABLE},
+  {"ROWS_INSERTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_inserted",SKIP_OPEN_TABLE},
+  {"ROWS_UPDATED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_updated",SKIP_OPEN_TABLE},
+  {"SELECT_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Select_commands",SKIP_OPEN_TABLE},
+  {"UPDATE_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Update_commands",SKIP_OPEN_TABLE},
+  {"OTHER_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Other_commands",SKIP_OPEN_TABLE},
+  {"COMMIT_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Commit_transactions",SKIP_OPEN_TABLE},
+  {"ROLLBACK_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rollback_transactions",SKIP_OPEN_TABLE},
+  {"DENIED_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Denied_connections",SKIP_OPEN_TABLE},
+  {"LOST_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Lost_connections",SKIP_OPEN_TABLE},
+  {"ACCESS_DENIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Access_denied",SKIP_OPEN_TABLE},
+  {"EMPTY_QUERIES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Empty_queries",SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };
 
 ST_FIELD_INFO client_stats_fields_info[]=
 {
   {"CLIENT", LIST_PROCESS_HOST_LEN, MYSQL_TYPE_STRING, 0, 0, "Client",SKIP_OPEN_TABLE},
-  {"TOTAL_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Total_connections",SKIP_OPEN_TABLE},
-  {"CONCURRENT_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Concurrent_connections",SKIP_OPEN_TABLE},
-  {"CONNECTED_TIME", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Connected_time",SKIP_OPEN_TABLE},
+  {"TOTAL_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Total_connections",SKIP_OPEN_TABLE},
+  {"CONCURRENT_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Concurrent_connections",SKIP_OPEN_TABLE},
+  {"CONNECTED_TIME", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Connected_time",SKIP_OPEN_TABLE},
   {"BUSY_TIME", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_DOUBLE, 0, 0, "Busy_time",SKIP_OPEN_TABLE},
   {"CPU_TIME", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_DOUBLE, 0, 0, "Cpu_time",SKIP_OPEN_TABLE},
-  {"BYTES_RECEIVED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Bytes_received",SKIP_OPEN_TABLE},
-  {"BYTES_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Bytes_sent",SKIP_OPEN_TABLE},
-  {"BINLOG_BYTES_WRITTEN", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Binlog_bytes_written",SKIP_OPEN_TABLE},
-  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_read",SKIP_OPEN_TABLE},
-  {"ROWS_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_sent",SKIP_OPEN_TABLE},
-  {"ROWS_DELETED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_deleted",SKIP_OPEN_TABLE},
-  {"ROWS_INSERTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_inserted",SKIP_OPEN_TABLE},
-  {"ROWS_UPDATED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_updated",SKIP_OPEN_TABLE},
-  {"SELECT_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Select_commands",SKIP_OPEN_TABLE},
-  {"UPDATE_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Update_commands",SKIP_OPEN_TABLE},
-  {"OTHER_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Other_commands",SKIP_OPEN_TABLE},
-  {"COMMIT_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Commit_transactions",SKIP_OPEN_TABLE},
-  {"ROLLBACK_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rollback_transactions",SKIP_OPEN_TABLE},
-  {"DENIED_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Denied_connections",SKIP_OPEN_TABLE},
-  {"LOST_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Lost_connections",SKIP_OPEN_TABLE},
-  {"ACCESS_DENIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Access_denied",SKIP_OPEN_TABLE},
-  {"EMPTY_QUERIES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Empty_queries",SKIP_OPEN_TABLE},
+  {"BYTES_RECEIVED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Bytes_received",SKIP_OPEN_TABLE},
+  {"BYTES_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Bytes_sent",SKIP_OPEN_TABLE},
+  {"BINLOG_BYTES_WRITTEN", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Binlog_bytes_written",SKIP_OPEN_TABLE},
+  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_read",SKIP_OPEN_TABLE},
+  {"ROWS_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_sent",SKIP_OPEN_TABLE},
+  {"ROWS_DELETED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_deleted",SKIP_OPEN_TABLE},
+  {"ROWS_INSERTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_inserted",SKIP_OPEN_TABLE},
+  {"ROWS_UPDATED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_updated",SKIP_OPEN_TABLE},
+  {"SELECT_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Select_commands",SKIP_OPEN_TABLE},
+  {"UPDATE_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Update_commands",SKIP_OPEN_TABLE},
+  {"OTHER_COMMANDS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Other_commands",SKIP_OPEN_TABLE},
+  {"COMMIT_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Commit_transactions",SKIP_OPEN_TABLE},
+  {"ROLLBACK_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rollback_transactions",SKIP_OPEN_TABLE},
+  {"DENIED_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Denied_connections",SKIP_OPEN_TABLE},
+  {"LOST_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Lost_connections",SKIP_OPEN_TABLE},
+  {"ACCESS_DENIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Access_denied",SKIP_OPEN_TABLE},
+  {"EMPTY_QUERIES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Empty_queries",SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };
 
@@ -6051,9 +6087,9 @@ ST_FIELD_INFO table_stats_fields_info[]=
 {
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_schema",SKIP_OPEN_TABLE},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_name",SKIP_OPEN_TABLE},
-  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_read",SKIP_OPEN_TABLE},
-  {"ROWS_CHANGED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_changed",SKIP_OPEN_TABLE},
-  {"ROWS_CHANGED_X_INDEXES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_changed_x_#indexes",SKIP_OPEN_TABLE},
+  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_read",SKIP_OPEN_TABLE},
+  {"ROWS_CHANGED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_changed",SKIP_OPEN_TABLE},
+  {"ROWS_CHANGED_X_INDEXES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_changed_x_#indexes",SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };
 
@@ -6062,7 +6098,7 @@ ST_FIELD_INFO index_stats_fields_info[]=
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_schema",SKIP_OPEN_TABLE},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_name",SKIP_OPEN_TABLE},
   {"INDEX_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Index_name",SKIP_OPEN_TABLE},
-  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, "Rows_read",SKIP_OPEN_TABLE},
+  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, "Rows_read",SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0,0}
 };
 
@@ -6907,7 +6943,7 @@ ST_FIELD_INFO engines_fields_info[]=
 {
   {"ENGINE", 64, MYSQL_TYPE_STRING, 0, 0, "Engine", SKIP_OPEN_TABLE},
   {"SUPPORT", 8, MYSQL_TYPE_STRING, 0, 0, "Support", SKIP_OPEN_TABLE},
-  {"COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment", SKIP_OPEN_TABLE},
+  {"COMMENT", 160, MYSQL_TYPE_STRING, 0, 0, "Comment", SKIP_OPEN_TABLE},
   {"TRANSACTIONS", 3, MYSQL_TYPE_STRING, 0, 1, "Transactions", SKIP_OPEN_TABLE},
   {"XA", 3, MYSQL_TYPE_STRING, 0, 1, "XA", SKIP_OPEN_TABLE},
   {"SAVEPOINTS", 3 ,MYSQL_TYPE_STRING, 0, 1, "Savepoints", SKIP_OPEN_TABLE},
@@ -7132,8 +7168,8 @@ ST_FIELD_INFO table_names_fields_info[]=
 {
   {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"TABLE_SCHEMA",NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Tables_in_",
-   SKIP_OPEN_TABLE},
+  {"TABLE_NAME", NAME_CHAR_LEN + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
+   MYSQL_TYPE_STRING, 0, 0, "Tables_in_", SKIP_OPEN_TABLE},
   {"TABLE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_type",
    OPEN_FRM_ONLY},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}

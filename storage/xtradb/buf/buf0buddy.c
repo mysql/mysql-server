@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -430,6 +430,8 @@ buf_buddy_relocate_block(
 	}
 	mutex_exit(&flush_list_mutex);
 
+	UNIV_MEM_INVALID(bpage, sizeof *bpage);
+
 	mutex_exit(&buf_pool_zip_mutex);
 	mutex_exit(&zip_free_mutex);
 	return(TRUE);
@@ -450,6 +452,8 @@ buf_buddy_relocate(
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
 	ullint		usec	= ut_time_us(NULL);
+	ulint		space;
+	ulint		page_no;
 
 	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(&zip_free_mutex));
@@ -488,11 +492,15 @@ buf_buddy_relocate(
 		pool), so there is nothing wrong about this.  The
 		mach_read_from_4() calls here will only trigger bogus
 		Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
-		bpage = buf_page_hash_get(
-			mach_read_from_4((const byte*) src
-					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
-			mach_read_from_4((const byte*) src
-					 + FIL_PAGE_OFFSET));
+		space	= mach_read_from_4(
+			(const byte*) src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		page_no	= mach_read_from_4(
+			(const byte*) src + FIL_PAGE_OFFSET);
+		/* Suppress Valgrind warnings about conditional jump
+		on uninitialized value. */
+		UNIV_MEM_VALID(&space, sizeof space);
+		UNIV_MEM_VALID(&page_no, sizeof page_no);
+		bpage = buf_page_hash_get(space, page_no);
 
 		if (!bpage || bpage->zip.data != src) {
 			/* The block has probably been freshly
@@ -567,7 +575,12 @@ success:
 		}
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
+#if UNIV_WORD_SIZE == 4
+		/* On 32-bit systems, there is no padding in
+		buf_page_t.  On other systems, Valgrind could complain
+		about uninitialized pad bytes. */
 		UNIV_MEM_ASSERT_RW(src, size);
+#endif
 
 		mutex_exit(&zip_free_mutex);
 

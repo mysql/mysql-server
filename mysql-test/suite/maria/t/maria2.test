@@ -6,13 +6,13 @@ drop table if exists t1,t2;
 --enable_warnings
 
 # Test for BUG#36319
-# "Maria: table is not empty but DELETE and SELECT find no rows"
+# "Aria: table is not empty but DELETE and SELECT find no rows"
 
 CREATE TABLE t1 (
   line BLOB,
   kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
   name VARCHAR(32)
-) transactional=0 row_format=page engine=maria;
+) transactional=0 row_format=page engine=aria;
 
 let $query=   INSERT INTO t1 (name, kind, line) VALUES 
   ("Aadaouane", "pp", GeomFromText("POINT(32.816667 35.983333)")),
@@ -74,8 +74,8 @@ drop table t1;
 # Testing of ALTER TABLE under lock tables
 #
 
-create table t1 (i int) engine=maria;
-create table t2 (j int) engine=maria;
+create table t1 (i int) engine=aria;
+create table t2 (j int) engine=aria;
 lock table t1 write, t2 read;
 alter table t1 modify i int default 1;
 insert into t1 values (2);
@@ -89,7 +89,7 @@ drop table t1,t2;
 # test INSERT ON DUPLICATE KEY UPDATE
 #
 
-create table t1(id int, s char(1), unique(s)) engine=maria;
+create table t1(id int, s char(1), unique(s)) engine=aria;
 insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
 insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
 insert into t1 select 1,"a" on duplicate key update t1.id=t1.id+1;
@@ -101,7 +101,7 @@ select * from t1;
 drop table t1;
 
 # test LOAD DATA INFILE REPLACE
-create table t1 (pk int primary key, apk int unique, data int) engine=maria;
+create table t1 (pk int primary key, apk int unique, data int) engine=aria;
 insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
 load data concurrent infile '../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
 select * from t1 order by pk;

@@ -500,7 +500,7 @@ public:
   enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
   void reset_field() {} // not used
   void update_field() {} // not used
-  virtual void no_rows_in_result() {}
+  void no_rows_in_result() {}
   void fix_length_and_dec();
   enum Item_result result_type () const { return val.traits->type(); }
   virtual void calculate_val_and_count();
@@ -857,6 +857,7 @@ protected:
   enum_field_types hybrid_field_type;
   int cmp_sign;
   bool was_values;  // Set if we have found at least one row (for max/min only)
+  bool was_null_value;
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
@@ -888,6 +889,7 @@ protected:
   void cleanup();
   bool any_value() { return was_values; }
   void no_rows_in_result();
+  void restore_to_before_no_rows_in_result();
   Field *create_tmp_field(bool group, TABLE *table,
 			  uint convert_blob_length);
 };
@@ -1248,7 +1250,7 @@ class Item_func_group_concat : public Item_sum
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
                          bool is_distinct, List<Item> *is_select,
-                         SQL_LIST *is_order, String *is_separator);
+                         SQL_I_List<ORDER> *is_order, String *is_separator);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat();

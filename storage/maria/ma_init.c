@@ -40,6 +40,11 @@ void history_state_free(MARIA_STATE_HISTORY_CLOSED *closed_history)
 }
 
 
+static int dummy_maria_create_trn_hook(MARIA_HA *info __attribute__((unused)))
+{
+  return 0;
+}
+
 /*
   Initialize maria
 
@@ -64,6 +69,7 @@ int maria_init(void)
     pthread_mutex_init(&THR_LOCK_maria,MY_MUTEX_INIT_SLOW);
     _ma_init_block_record_data();
     trnman_end_trans_hook= _ma_trnman_end_trans_hook;
+    maria_create_trn_hook= dummy_maria_create_trn_hook;
     my_handler_error_register();
   }
   hash_init(&maria_stored_state, &my_charset_bin, 32,
@@ -106,4 +112,73 @@ void maria_end(void)
     pthread_mutex_destroy(&THR_LOCK_maria);
     hash_free(&maria_stored_state);
   }
+}
+
+/**
+   Upgrade from older Aria versions:
+
+  - In MariaDB 5.1, the name of the control file and log files had the
+    'maria' prefix, now they have the 'aria' prefix.
+
+  @return: 0 ok
+           1 error
+
+*/
+
+my_bool maria_upgrade()
+{
+  char name[FN_REFLEN], new_name[FN_REFLEN];
+  DBUG_ENTER("maria_upgrade");
+
+  fn_format(name, "maria_log_control", maria_data_root, "", MYF(MY_WME));
+
+  if (!my_access(name,F_OK))
+  {
+    /*
+      Old style control file found; Rename the control file and the log files.
+      We start by renaming all log files, so that if we get a crash
+      we will continue from where we left.
+    */
+    uint i;
+    MY_DIR *dir= my_dir(maria_data_root, MYF(MY_WME));
+    if (!dir)
+      DBUG_RETURN(1);
+
+    my_message(HA_ERR_INITIALIZATION,
+               "Found old style Maria log files; "
+               "Converting them to Aria names",
+               MYF(ME_JUST_INFO));
+
+    for (i= 0; i < dir->number_off_files; i++)
+    {
+      const char *file= dir->dir_entry[i].name;
+      if (strncmp(file, "maria_log.", 10) == 0 &&
+          file[10] >= '0' && file[10] <= '9' &&
+        file[11] >= '0' && file[11] <= '9' &&
+        file[12] >= '0' && file[12] <= '9' &&
+        file[13] >= '0' && file[13] <= '9' &&
+        file[14] >= '0' && file[14] <= '9' &&
+        file[15] >= '0' && file[15] <= '9' &&
+        file[16] >= '0' && file[16] <= '9' &&
+        file[17] >= '0' && file[17] <= '9' &&
+        file[18] == '\0')
+      {
+        /* Remove the 'm' in 'maria' */
+        char old_logname[FN_REFLEN], new_logname[FN_REFLEN];
+        fn_format(old_logname, file, maria_data_root, "", MYF(0));
+        fn_format(new_logname, file+1, maria_data_root, "", MYF(0));
+        if (my_rename(old_logname, new_logname, MYF(MY_WME)))
+        {
+          my_dirend(dir);
+          DBUG_RETURN(1);
+        }
+      }
+    }
+    my_dirend(dir);
+    
+    fn_format(new_name, CONTROL_FILE_BASE_NAME, maria_data_root, "", MYF(0));
+    if (my_rename(name, new_name, MYF(MY_WME)))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
 }

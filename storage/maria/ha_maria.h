@@ -59,7 +59,7 @@ public:
   ~ha_maria() {}
   handler *clone(MEM_ROOT *mem_root);
   const char *table_type() const
-  { return "MARIA"; }
+  { return "Aria"; }
   const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulonglong table_flags() const
@@ -131,7 +131,7 @@ public:
   int enable_indexes(uint mode);
   int indexes_are_disabled(void);
   void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert(bool abort);
+  int end_bulk_insert();
   ha_rows records_in_range(uint inx, key_range * min_key, key_range * max_key);
   void update_create_info(HA_CREATE_INFO * create_info);
   int create(const char *name, TABLE * form, HA_CREATE_INFO * create_info);
@@ -143,19 +143,21 @@ public:
                                   ulonglong *nb_reserved_values);
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
+  void drop_table(const char *name);
   int check(THD * thd, HA_CHECK_OPT * check_opt);
   int analyze(THD * thd, HA_CHECK_OPT * check_opt);
   int repair(THD * thd, HA_CHECK_OPT * check_opt);
   bool check_and_repair(THD * thd);
   bool is_crashed() const;
   bool is_changed() const;
-  bool auto_repair() const { return 1; }
+  bool auto_repair() const { return maria_recover_options != HA_RECOVER_NONE; }
   int optimize(THD * thd, HA_CHECK_OPT * check_opt);
   int restore(THD * thd, HA_CHECK_OPT * check_opt);
   int backup(THD * thd, HA_CHECK_OPT * check_opt);
   int assign_to_keycache(THD * thd, HA_CHECK_OPT * check_opt);
   int preload_keys(THD * thd, HA_CHECK_OPT * check_opt);
   bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
+  bool check_if_supported_virtual_columns(void) { return TRUE;}
 #ifdef HAVE_REPLICATION
   int dump(THD * thd, int fd);
   int net_read_dump(NET * net);

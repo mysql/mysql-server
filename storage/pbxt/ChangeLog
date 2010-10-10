@@ -1,7 +1,49 @@
 PBXT Release Notes
 ==================
 
-+------- 1.0.11 Pre-GA - 2010-05-11
+------- 1.0.11-7 Pre-GA - 2010-09-09
+
+RN336: Compiled and tested with MySQL 5.1.50.
+
+RN335: Fixed bug #523994: Deleting all records does not update table statistics. 
+
+RN334: Made a change to reduce the time that only temporary tables exist during the ALTER TABLE and REPAIR TABLE statements. This increases the chance of recovery if a crash occurs during these operations.
+
+RN333: Log name of table when PBXT recovers an index on startup. If an error occurs during index recovery, the index is set to "repair pending".
+
+RN332: Fixed an inifinite loop when a record in a row is corrupt. Added logging and set the table to "repair pending" in this case.
+
+RN331: Fixed bug #626890: Crash on truncate table operation.
+
+RN330: Added additional checks for corruption of the index free list.
+
+------- 1.0.11-6 Pre-GA - 2010-07-08
+
+RN329: Fixed bug #601245: make fails. PBXT did not compile if the partition engine was disabled in the MySQL build.
+
+------- 1.0.11-5 Pre-GA - 2010-06-18
+
+RN328: Fixed bug #595478: Compile fails (1.0.11-4).
+
+------- 1.0.11-4 Pre-GA - 2010-06-15
+
+RN327: Fixed a bug that caused a crash during delete on the index. The crash occurred due to memory overwrite when a long key is promoted after a shorter key is deleted, and the difference causes a node size overflow.
+
+------- 1.0.11-3 Pre-GA - 2010-06-11
+
+RN326: Fixed bug #587740: pbxt-1.0.11-pre2-ga first time create partition table error. This was not a new bug. The problem was the PBXT system table's .frm files are corrupted when the first PBXT table created is a partition table.
+
+RN325: Fixed the "to-sweep" column output in xtstat.
+
+------- 1.0.11-2 Pre-GA - 2010-05-26
+
+RN324: Fixed bug #584070:pbxt-1.0.11-pre-ga does not work with mysql 5.1.47. This bug fix removes a hack which was done to avoid running into the LOCK_plugin lock.
+
+------- 1.0.11-1 Pre-GA - 2010-05-19
+
+RN323: Detect corruption of a key length in an index page. This bug fix avoids a possible crash due to index page corruption. 
+
+------- 1.0.11 Pre-GA - 2010-05-11
 
 RN322: Creating a table the references a non-existing table can now only be done if you set: foreign_key_checks = 0. Also fixed a failure when creating tables with recursive foreign key declarations.
 

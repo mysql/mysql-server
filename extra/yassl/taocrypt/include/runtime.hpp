@@ -35,10 +35,7 @@
 
 // Handler for pure virtual functions
 namespace __Crun {
-    static void pure_error(void)
-    {
-       assert("Pure virtual method called." == "Aborted");
-    }
+    void pure_error(void);
 } // namespace __Crun
 
 #endif // __sun
@@ -54,16 +51,7 @@ extern "C" {
 #else
     #include "kernelc.hpp"
 #endif
-
-/* Disallow inline __cxa_pure_virtual() */
-static int __cxa_pure_virtual() __attribute__((noinline, used));
-static int __cxa_pure_virtual()
-{
-    // oops, pure virtual called!
-    assert("Pure virtual method called." == "Aborted");
-    return 0;
-}
-
+    int __cxa_pure_virtual () __attribute__ ((weak));
 } // extern "C"
 
 #endif // __GNUC__ > 2

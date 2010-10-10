@@ -4232,7 +4232,7 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
 /**
   End of an insert.
 */
-int ha_ndbcluster::end_bulk_insert(bool abort)
+int ha_ndbcluster::end_bulk_insert()
 {
   int error= 0;
   DBUG_ENTER("end_bulk_insert");

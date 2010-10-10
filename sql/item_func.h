@@ -218,6 +218,21 @@ public:
   {
     return functype() == *(Functype *) arg;
   }
+
+  void no_rows_in_result()
+  {
+    bool_func_call_args info;
+    info.original_func_item= this;
+    info.bool_function= &Item::no_rows_in_result;
+    walk(&Item::call_bool_func_processor, FALSE, (uchar*) &info);
+  }
+  void restore_to_before_no_rows_in_result()
+  {
+    bool_func_call_args info;
+    info.original_func_item= this;
+    info.bool_function= &Item::restore_to_before_no_rows_in_result;
+    walk(&Item::call_bool_func_processor, FALSE, (uchar*) &info);
+  }
 };
 
 
@@ -1504,7 +1519,7 @@ class Item_func_get_system_var :public Item_func
   longlong cached_llval;
   double cached_dval;
   String cached_strval;
-  my_bool cached_null_value;
+  bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
 

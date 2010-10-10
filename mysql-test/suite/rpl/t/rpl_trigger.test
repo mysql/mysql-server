@@ -4,6 +4,11 @@
 # TODO: Remove statement include once 12574 is patched
 --source include/have_binlog_format_mixed_or_statement.inc 
 --source include/master-slave.inc
+--source include/have_innodb.inc
+connection slave;
+--source include/have_innodb.inc
+connection master;
+
 
 CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 
@@ -506,11 +511,9 @@ sync_slave_with_master;
 
 connection master;
 source include/master-slave-reset.inc;
-source include/have_innodb.inc;
 connection slave;
-source include/have_innodb.inc;
-
 connection master;
+
 create table t1 ( f int ) engine = innodb;
 create table log ( r int ) engine = myisam; 
 create trigger tr

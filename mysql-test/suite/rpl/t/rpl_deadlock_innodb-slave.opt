@@ -1,1 +1,1 @@
---innodb_lock_wait_timeout=4 --slave-transaction-retries=2 --max-relay-log-size=4096
+--loose-innodb-lock-wait-timeout=4 --slave-transaction-retries=2 --max-relay-log-size=4096

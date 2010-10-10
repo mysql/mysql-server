@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -383,6 +383,20 @@ mem_heap_create_block(
 	mem_block_set_free(block, MEM_BLOCK_HEADER_SIZE);
 	mem_block_set_start(block, MEM_BLOCK_HEADER_SIZE);
 
+	if (UNIV_UNLIKELY(heap == NULL)) {
+		/* This is the first block of the heap. The field
+		total_size should be initialized here */
+		block->total_size = len;
+	} else {
+		/* Not the first allocation for the heap. This block's
+		total_length field should be set to undefined. */
+		ut_d(block->total_size = ULINT_UNDEFINED);
+		UNIV_MEM_INVALID(&block->total_size,
+				 sizeof block->total_size);
+
+		heap->total_size += len;
+	}
+
 	ut_ad((ulint)MEM_BLOCK_HEADER_SIZE < len);
 
 	return(block);
@@ -471,6 +485,10 @@ mem_heap_block_free(
 
 	mem_pool_mutex_exit();
 #endif
+
+	ut_ad(heap->total_size >= block->len);
+	heap->total_size -= block->len;
+
 	type = heap->type;
 	len = block->len;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;

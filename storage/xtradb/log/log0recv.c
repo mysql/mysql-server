@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -138,7 +138,9 @@ UNIV_INTERN ulint	recv_max_parsed_page_no;
 /** This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
-log records to the database. */
+log records to the database.
+This is the default value. If the actual size of the buffer pool is
+larger than 10 MB we'll set this value to 512. */
 UNIV_INTERN ulint	recv_n_pool_free_frames;
 
 /** The maximum lsn we see for a page during the recovery process. If this
@@ -242,6 +244,7 @@ recv_sys_mem_free(void)
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Reset the state of the recovery system variables. */
 UNIV_INTERN
@@ -251,7 +254,7 @@ recv_sys_var_init(void)
 {
 	recv_lsn_checks_on = FALSE;
 
-	recv_n_pool_free_frames = 1024;
+	recv_n_pool_free_frames = 256;
 
 	recv_recovery_on = FALSE;
 
@@ -277,10 +280,11 @@ recv_sys_var_init(void)
 
 	recv_max_parsed_page_no	= 0;
 
-	recv_n_pool_free_frames	= 1024;
+	recv_n_pool_free_frames	= 256;
 
 	recv_max_page_lsn = 0;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Inits the recovery system for a recovery operation. */
@@ -295,20 +299,37 @@ recv_sys_init(
 		return;
 	}
 
+	/* Initialize red-black tree for fast insertions into the
+	flush_list during recovery process.
+	As this initialization is done while holding the buffer pool
+	mutex we perform it before acquiring recv_sys->mutex. */
+#ifndef UNIV_HOTBACKUP
+	buf_flush_init_flush_rbt();
+
 	mutex_enter(&(recv_sys->mutex));
 
-#ifndef UNIV_HOTBACKUP
 	recv_sys->heap = mem_heap_create_in_buffer(256);
 #else /* !UNIV_HOTBACKUP */
 	recv_sys->heap = mem_heap_create(256);
 	recv_is_from_backup = TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* Set appropriate value of recv_n_pool_free_frames. */
+	if (buf_pool_get_curr_size() >= (10 * 1024 * 1024)) {
+		/* Buffer pool of size greater than 10 MB. */
+		recv_n_pool_free_frames = 512;
+	}
+
+	if (buf_pool_get_curr_size() >= (32 * 1024 * 1024)) {
+		/* Buffer pool of size greater than 32 MB. */
+		recv_n_pool_free_frames = 1024;
+	}
+
 	recv_sys->buf = ut_malloc(RECV_PARSING_BUF_SIZE);
 	recv_sys->len = 0;
 	recv_sys->recovered_offset = 0;
 
-	recv_sys->addr_hash = hash_create(available_memory / 64);
+	recv_sys->addr_hash = hash_create(available_memory / 512);
 	recv_sys->n_addrs = 0;
 
 	recv_sys->apply_log_recs = FALSE;
@@ -348,7 +369,7 @@ recv_sys_empty_hash(void)
 	hash_table_free(recv_sys->addr_hash);
 	mem_heap_empty(recv_sys->heap);
 
-	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 256);
+	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 512);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -373,6 +394,9 @@ recv_sys_debug_free(void)
 	recv_sys->last_block_buf_start = NULL;
 
 	mutex_exit(&(recv_sys->mutex));
+
+	/* Free up the flush_rbt. */
+	buf_flush_free_flush_rbt();
 }
 # endif /* UNIV_LOG_DEBUG */
 
@@ -2117,15 +2141,6 @@ recv_parse_log_rec(
 	}
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	/* Check that page_no is sensible */
-
-	if (UNIV_UNLIKELY(*page_no > 0x8FFFFFFFUL)) {
-
-		recv_sys->found_corrupt_log = TRUE;
-
-		return(0);
-	}
-
 	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
 						   NULL, NULL);
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
@@ -2233,6 +2248,14 @@ recv_report_corrupt_log(
 			     - recv_previous_parsed_rec_offset);
 		putc('\n', stderr);
 	}
+
+#ifndef UNIV_HOTBACKUP
+	if (!srv_force_recovery) {
+		fputs("InnoDB: Set innodb_force_recovery"
+		      " to ignore this error.\n", stderr);
+		ut_error;
+	}
+#endif /* !UNIV_HOTBACKUP */
 
 	fputs("InnoDB: WARNING: the log file may have been corrupt and it\n"
 	      "InnoDB: is possible that the log scan did not proceed\n"
@@ -2623,7 +2646,7 @@ recv_scan_log_recs(
 
 	ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(len > 0);
+	ut_ad(len >= OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(store_to_hash <= TRUE);
 
 	finished = FALSE;
@@ -2747,6 +2770,16 @@ recv_scan_log_recs(
 					" Recovery may have failed!\n");
 
 				recv_sys->found_corrupt_log = TRUE;
+
+#ifndef UNIV_HOTBACKUP
+				if (!srv_force_recovery) {
+					fputs("InnoDB: Set"
+					      " innodb_force_recovery"
+					      " to ignore this error.\n",
+					      stderr);
+					ut_error;
+				}
+#endif /* !UNIV_HOTBACKUP */
 
 			} else if (!recv_sys->found_corrupt_log) {
 				more_data = recv_sys_add_to_parsing_buf(
@@ -2932,8 +2965,11 @@ recv_recovery_from_checkpoint_start_func(
 	ib_uint64_t	contiguous_lsn;
 	ib_uint64_t	archived_lsn;
 	byte*		buf;
-	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
+	byte*		log_hdr_buf;
+	byte		log_hdr_buf_base[LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE];
 	ulint		err;
+
+	log_hdr_buf = ut_align(log_hdr_buf_base, OS_FILE_LOG_BLOCK_SIZE);
 
 #ifdef UNIV_LOG_ARCHIVE
 	ut_ad(type != LOG_CHECKPOINT || limit_lsn == IB_ULONGLONG_MAX);
@@ -3277,8 +3313,6 @@ void
 recv_recovery_from_checkpoint_finish(void)
 /*======================================*/
 {
-	int		i;
-
 	/* Apply the hashed log records to the respective file pages */
 
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
@@ -3403,9 +3437,16 @@ recv_recovery_from_checkpoint_finish(void)
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
 	trx_rollback_or_clean_recovered(FALSE);
+}
 
-	/* Drop partially created indexes. */
-	row_merge_drop_temp_indexes();
+/********************************************************//**
+Initiates the rollback of active transactions. */
+UNIV_INTERN
+void
+recv_recovery_rollback_active(void)
+/*===============================*/
+{
+	int		i;
 
 #ifdef UNIV_SYNC_DEBUG
 	/* Wait for a while so that created threads have time to suspend
@@ -3415,6 +3456,11 @@ recv_recovery_from_checkpoint_finish(void)
 	/* Switch latching order checks on in sync0sync.c */
 	sync_order_checks_on = TRUE;
 #endif
+	/* Drop partially created indexes. */
+	row_merge_drop_temp_indexes();
+	/* Drop temporary tables. */
+	row_mysql_drop_temp_tables();
+
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
 		/* Rollback the uncommitted transactions which have no user
 		session */

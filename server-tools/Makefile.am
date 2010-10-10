@@ -15,6 +15,3 @@
 
 SUBDIRS = . instance-manager
 DIST_SUBDIRS = . instance-manager
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

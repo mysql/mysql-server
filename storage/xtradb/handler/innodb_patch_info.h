@@ -41,11 +41,12 @@ struct innodb_enhancement {
 {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
-{"innodb_relax_table_creation","Relax limitation of column size at table creation as builtin InnoDB.","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
+{"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_sys_tables_sys_indexes","Expose InnoDB SYS_TABLES and SYS_INDEXES schema tables","","http://www.percona.com/docs/wiki/percona-xtradb"},
+{"innodb_buffer_pool_shm","Put buffer pool contents to shared memory segment and reuse it at clean restart [experimental]","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {NULL, NULL, NULL, NULL}
 };

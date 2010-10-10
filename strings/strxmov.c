@@ -32,7 +32,6 @@
 
 #include <my_global.h>
 #include "m_string.h"
-#include <stdarg.h>
 
 char *strxmov(char *dst,const char *src, ...)
 {

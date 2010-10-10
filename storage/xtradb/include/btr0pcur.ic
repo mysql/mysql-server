@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -395,28 +395,11 @@ btr_pcur_move_to_next(
 }
 
 /**************************************************************//**
-Commits the pcur mtr and sets the pcur latch mode to BTR_NO_LATCHES,
+Commits the mtr and sets the pcur latch mode to BTR_NO_LATCHES,
 that is, the cursor becomes detached. If there have been modifications
 to the page where pcur is positioned, this can be used instead of
 btr_pcur_release_leaf. Function btr_pcur_store_position should be used
 before calling this, if restoration of cursor is wanted later. */
-UNIV_INLINE
-void
-btr_pcur_commit(
-/*============*/
-	btr_pcur_t*	pcur)	/*!< in: persistent cursor */
-{
-	ut_a(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
-
-	pcur->latch_mode = BTR_NO_LATCHES;
-
-	mtr_commit(pcur->mtr);
-
-	pcur->pos_state = BTR_PCUR_WAS_POSITIONED;
-}
-
-/**************************************************************//**
-Differs from btr_pcur_commit in that we can specify the mtr to commit. */
 UNIV_INLINE
 void
 btr_pcur_commit_specify_mtr(
@@ -483,8 +466,8 @@ Initializes and opens a persistent cursor to an index tree. It should be
 closed with btr_pcur_close. */
 UNIV_INLINE
 void
-btr_pcur_open(
-/*==========*/
+btr_pcur_open_func(
+/*===============*/
 	dict_index_t*	index,	/*!< in: index */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
 	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
@@ -495,6 +478,8 @@ btr_pcur_open(
 				record! */
 	ulint		latch_mode,/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_pcur_t*	cursor, /*!< in: memory buffer for persistent cursor */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	btr_cur_t*	btr_cursor;
@@ -511,7 +496,7 @@ btr_pcur_open(
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
 	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
-				    btr_cursor, 0, mtr);
+				    btr_cursor, 0, file, line, mtr);
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 	cursor->trx_if_known = NULL;
@@ -522,8 +507,8 @@ Opens an persistent cursor to an index tree without initializing the
 cursor. */
 UNIV_INLINE
 void
-btr_pcur_open_with_no_init(
-/*=======================*/
+btr_pcur_open_with_no_init_func(
+/*============================*/
 	dict_index_t*	index,	/*!< in: index */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
 	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
@@ -541,6 +526,8 @@ btr_pcur_open_with_no_init(
 	ulint		has_search_latch,/*!< in: latch mode the caller
 				currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	btr_cur_t*	btr_cursor;
@@ -553,7 +540,8 @@ btr_pcur_open_with_no_init(
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
 	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
-				    btr_cursor, has_search_latch, mtr);
+				    btr_cursor, has_search_latch,
+				    file, line, mtr);
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
@@ -600,11 +588,13 @@ btr_pcur_open_at_index_side(
 Positions a cursor at a randomly chosen position within a B-tree. */
 UNIV_INLINE
 void
-btr_pcur_open_at_rnd_pos(
-/*=====================*/
+btr_pcur_open_at_rnd_pos_func(
+/*==========================*/
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_pcur_t*	cursor,		/*!< in/out: B-tree pcur */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	/* Initialize the cursor */
@@ -614,8 +604,9 @@ btr_pcur_open_at_rnd_pos(
 
 	btr_pcur_init(cursor);
 
-	btr_cur_open_at_rnd_pos(index, latch_mode,
-				btr_pcur_get_btr_cur(cursor), mtr);
+	btr_cur_open_at_rnd_pos_func(index, latch_mode,
+				     btr_pcur_get_btr_cur(cursor),
+				     file, line, mtr);
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
 

@@ -2912,6 +2912,7 @@ insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C;
 analyze table t2;
 select 'In next EXPLAIN, B.rows must be exactly 10:' Z;
 
+--replace_column 9 #
 explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
           and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
 drop table t1, t2;

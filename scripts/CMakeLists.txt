@@ -75,3 +75,12 @@ CONFIGURE_FILE(mysqldumpslow.sh
 
 CONFIGURE_FILE(mysqlhotcopy.sh
                ${CMAKE_BINARY_DIR}/scripts/mysqlhotcopy.pl ESCAPE_QUOTES @ONLY)
+
+INSTALL(FILES mysqldumpslow.pl mysqlhotcopy.pl mysql_config.pl
+	mysql_convert_table_format.pl mysql_install_db.pl
+	mysql_secure_installation.pl mysqld_multi.pl
+	DESTINATION scripts COMPONENT scripts)
+
+INSTALL(FILES fill_help_tables.sql mysql_fix_privilege_tables.sql mysql_system_tables.sql
+	mysql_system_tables_data.sql mysql_system_tables_fix.sql mysql_test_data_timezone.sql
+	DESTINATION share COMPONENT scripts)

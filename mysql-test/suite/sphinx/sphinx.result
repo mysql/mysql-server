@@ -1,0 +1,39 @@
+create table ts ( id bigint unsigned not null, w int not null, q varchar(255) not null, index(q) ) engine=sphinx connection="sphinx://127.0.0.1:SPHINXSEARCH_PORT/*";
+select * from ts where q='test';
+id	w	q
+1	2	test
+2	2	test
+4	1	test
+drop table ts;
+create table ts ( id bigint unsigned not null, w int not null, q varchar(255) not null, index(q) ) engine=sphinx connection="sphinx://127.0.0.1:SPHINXSEARCH_PORT/*";
+select * from ts where q='test;filter=gid,1;mode=extended';
+id	w	q
+1	2421	test;filter=gid,1;mode=extended
+2	2421	test;filter=gid,1;mode=extended
+select * from ts where q='test|one;mode=extended';
+id	w	q
+1	3595	test|one;mode=extended
+2	2460	test|one;mode=extended
+4	1471	test|one;mode=extended
+select * from ts where q='test;offset=1;limit=1';
+id	w	q
+2	2	test;offset=1;limit=1
+alter table ts connection="sphinx://127.0.0.1:SPHINXSEARCH_PORT/test1";
+select id, w from ts where q='one';
+id	w
+1	2
+drop table ts;
+create table ts ( id bigint unsigned not null, w int not null, q varchar(255) not null, gid int not null, _sph_count int not null, index(q) ) engine=sphinx connection="sphinx://127.0.0.1:SPHINXSEARCH_PORT/test1";
+select * from ts;
+id	w	q	gid	_sph_count
+select * from ts where q='';
+id	w	q	gid	_sph_count
+1	1		1	0
+2	1		1	0
+3	1		2	0
+4	1		2	0
+select * from ts where q=';groupby=attr:gid';
+id	w	q	gid	_sph_count
+3	1	;groupby=attr:gid	2	2
+1	1	;groupby=attr:gid	1	2
+drop table ts;

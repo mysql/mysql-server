@@ -96,10 +96,9 @@ SELECT * FROM t2 ORDER BY a;
 --echo *** Start Slave ***
 connection slave;
 START SLAVE;
-source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $slave_sql_errno= 1535
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 RESET SLAVE;
 SELECT * FROM t2 ORDER BY a;
@@ -146,15 +145,13 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--let $slave_sql_errno= 1535
+--let $slave_skip_counter= 2
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t3  ***
 connection master;
@@ -191,15 +188,13 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
                         (30000.22,4,'QA TESTING');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--let $slave_sql_errno= 1535
+--let $slave_skip_counter= 2
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t4  ***
 connection master;
@@ -236,15 +231,13 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
                         (2,'JOE',300.01,0,'b2b2',1.0000009);
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--let $slave_sql_errno= 1535
+--let $slave_skip_counter= 2
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t5  ***
 connection master;
@@ -282,13 +275,12 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
                         (2,'JOE',300.01,0);
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $slave_sql_errno= 1535
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
 #START SLAVE;
 
@@ -387,12 +379,10 @@ INSERT INTO t8 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ### Uncomment once bug is fixed
 
 #connection slave;
-#wait_for_slave_to_stop;
-#--replace_result $MASTER_MYPORT MASTER_PORT
-#--replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
-#--query_vertical SHOW SLAVE STATUS
-#SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-#START SLAVE;
+#--let $slave_sql_errno= SOMETHING
+#--let $slave_skip_counter= 2
+#--let $show_slave_sql_error= 1
+#--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t8  ***
 connection master;
@@ -451,12 +441,10 @@ if (`SELECT $engine_type != 'NDB'`)
   # todo: fix Bug #43992 slave sql thread can't tune own sql_mode ...
   # and add/restore waiting for stop test
 
-  #--source include/wait_for_slave_sql_to_stop.inc
-  #--replace_result $MASTER_MYPORT MASTER_PORT
-  #--replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
-  #--query_vertical SHOW SLAVE STATUS
-  #SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-  #START SLAVE;
+  #--let $slave_sql_errno= SOMETHING
+  #--let $slave_skip_counter= 2
+  #--let $show_slave_sql_error= 1
+  #--source include/wait_for_slave_sql_error_and_skip.inc
 }
 
 #--echo *** Drop t9  ***
@@ -491,15 +479,13 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--let $slave_sql_errno= 1535
+--let $slave_skip_counter= 2
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t10  ***
 connection master;
@@ -535,15 +521,13 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--let $slave_sql_errno= 1535
+--let $slave_skip_counter= 2
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t11  ***
 connection master;
@@ -810,12 +794,10 @@ ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 --echo *** Expect slave to fail with Error 1060 ***
 --echo ********************************************
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE;
+--let $slave_sql_errno= 1060
+--let $slave_skip_counter= 1
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Try to insert in master ****
 connection master;
@@ -918,15 +900,13 @@ connection master;
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--let $slave_sql_errno= 1535
+--let $slave_skip_counter= 2
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo ** DROP table t17 ***
 connection master;

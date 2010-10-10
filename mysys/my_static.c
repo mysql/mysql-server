@@ -119,6 +119,7 @@ ulonglong query_performance_frequency, query_performance_offset;
 
 	/* How to disable options */
 my_bool NEAR my_disable_locking=0;
+my_bool NEAR my_disable_sync=0;
 my_bool NEAR my_disable_async_io=0;
 my_bool NEAR my_disable_flush_key_blocks=0;
 my_bool NEAR my_disable_symlinks=0;

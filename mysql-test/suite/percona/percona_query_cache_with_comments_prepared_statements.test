@@ -1,0 +1,208 @@
+-- source include/have_query_cache.inc
+
+set GLOBAL query_cache_size=1355776;
+
+# Reset query cache variables.
+flush query cache; # This crashed in some versions
+flush query cache; # This crashed in some versions
+reset query cache;
+flush status;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# First simple test
+#
+
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+
+set global query_cache_strip_comments=ON;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from '/* with comment */ select * from t1';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+execute stmt;
+execute stmt;
+execute stmt;
+execute stmt;
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * /*internal comment*/from t1';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * /*internal comment*/ from t1';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1 /* at the end */';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1 /* with "quote" */';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1 /* with \'quote\' */';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1 # 123
+';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1 # 123 with "quote"
+';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1 # 123 with \'quote\'
+';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1
+# 123
+';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from '#456
+select * from t1
+# 123
+';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1 -- 123
+';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select * from t1
+-- 123
+';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from '-- comment in first
+select * from t1
+# 123
+';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from '(#456(
+select * from t1
+# 123(
+)';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from '/*test*/(-- comment in first(
+select * from t1
+-- 123 asdasd
+/* test */)';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select "test",a from t1';
+execute stmt;
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select "test /* internal \'comment\' */",a from t1';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select "test #internal comment" ,a from t1';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+prepare stmt from 'select "test #internal comment" #external comment
+,a from t1';
+execute stmt;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+DROP TABLE t1;
+SET GLOBAL query_cache_size= default;
+set global query_cache_strip_comments=OFF;

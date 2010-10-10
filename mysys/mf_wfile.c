@@ -119,6 +119,6 @@ void wf_end(WF_PACK *buffer)
 {
   DBUG_ENTER("wf_end");
   if (buffer)
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer, MYF(0));
   DBUG_VOID_RETURN;
 } /* wf_end */

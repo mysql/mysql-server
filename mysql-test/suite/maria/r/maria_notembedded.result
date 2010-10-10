@@ -1,4 +1,4 @@
-set session storage_engine=maria;
+set session storage_engine=aria;
 create table t1 (a int) row_format=page;
 insert delayed into t1 values(1);
 ERROR HY000: DELAYED option not supported for table 't1'

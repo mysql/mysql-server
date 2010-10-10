@@ -1,5 +1,5 @@
 # Test to verify that auto-zerofilling happens when a table is
-# imported from a different Maria instance
+# imported from a different Aria instance
 
 # can't restart in embedded
 --source include/not_embedded.inc
@@ -20,16 +20,16 @@ connection default;
 use mysqltest;
 --enable_reconnect
 
-create table t1(a int) engine=maria;
+create table t1(a int) engine=aria;
 insert into t1 values(1);
 flush table t1;
 # Check that table is not zerofilled, not movable
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
 perl;
     use strict;
     use warnings;
-    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
     open(FILE, "<", $fname) or die;
     my @content= <FILE>;
     print grep(/Status:.*(zerofilled|movable)/, @content);
@@ -37,23 +37,23 @@ perl;
     close FILE;
 EOF
 
-# this will remove control file, so change the uuid of the Maria
+# this will remove control file, so change the uuid of the Aria
 # instance, thus t1 will appear as imported from elsewhere.
 
 -- source include/maria_empty_logs.inc
 
-disable_ps_protocol; # see maria-recover.test
+disable_ps_protocol; # see aria-recover.test
 replace_regex /Table.*t1/t1/ ;
 select * from t1;
 enable_ps_protocol;
 flush table t1;
 
 # Check that table is auto-zerofilled, movable
---exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
 perl;
     use strict;
     use warnings;
-    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
     open(FILE, "<", $fname) or die;
     my @content= <FILE>;
     print grep(/Status:.*zerofilled/, @content);
@@ -61,16 +61,16 @@ perl;
     close FILE;
 EOF
 
-# this will attach t1 to the current Maria instance
+# this will attach t1 to the current Aria instance
 insert into t1 values(2);
 flush table t1;
 
 # Check that table is not zerofilled, not movable
---exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
 perl;
     use strict;
     use warnings;
-    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
     open(FILE, "<", $fname) or die;
     my @content= <FILE>;
     print grep(/Status:.*(zerofilled|movable)/, @content);

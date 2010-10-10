@@ -234,7 +234,7 @@ static int lock_control_file(const char *name)
   {
     if (retry == 0)
       my_printf_error(HA_ERR_INITIALIZATION,
-                      "Can't lock maria control file '%s' for exclusive use, "
+                      "Can't lock aria control file '%s' for exclusive use, "
                       "error: %d. Will retry for %d seconds", 0,
                       name, my_errno, MARIA_MAX_CONTROL_FILE_LOCK_RETRY);
     if (retry++ > MARIA_MAX_CONTROL_FILE_LOCK_RETRY)
@@ -372,14 +372,14 @@ CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
              CF_MAGIC_STRING, CF_MAGIC_STRING_SIZE))
   {
     error= CONTROL_FILE_BAD_MAGIC_STRING;
-    errmsg= "Missing valid id at start of file. File is not a valid maria control file";
+    errmsg= "Missing valid id at start of file. File is not a valid aria control file";
     goto err;
   }
 
   if (buffer[CF_VERSION_OFFSET] > CONTROL_FILE_VERSION)
   {
     error= CONTROL_FILE_BAD_VERSION;
-    sprintf(errmsg_buff, "File is from a future maria system: %d. Current version is: %d",
+    sprintf(errmsg_buff, "File is from a future aria system: %d. Current version is: %d",
             (int) buffer[CF_VERSION_OFFSET], CONTROL_FILE_VERSION);
     errmsg= errmsg_buff;
     goto err;
@@ -398,15 +398,16 @@ CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
   }
 
   new_block_size= uint2korr(buffer + CF_BLOCKSIZE_OFFSET);
-  if (new_block_size != maria_block_size)
+  if (new_block_size != maria_block_size && maria_block_size)
   {
     error= CONTROL_FILE_WRONG_BLOCKSIZE;
     sprintf(errmsg_buff,
-            "Block size in control file (%u) is different than given maria_block_size: %u",
+            "Block size in control file (%u) is different than given aria_block_size: %u",
             new_block_size, (uint) maria_block_size);
     errmsg= errmsg_buff;
     goto err;
   }
+  maria_block_size= new_block_size;
 
   if (my_checksum(0, buffer, new_cf_create_time_size - CF_CHECKSUM_SIZE) !=
       uint4korr(buffer + new_cf_create_time_size - CF_CHECKSUM_SIZE))
@@ -444,7 +445,7 @@ ok:
 err:
   if (print_error)
     my_printf_error(HA_ERR_INITIALIZATION,
-                    "Got error '%s' when trying to use maria control file "
+                    "Got error '%s' when trying to use aria control file "
                     "'%s'", 0, errmsg, name);
   ma_control_file_end(); /* will unlock file if needed */
   DBUG_RETURN(error);

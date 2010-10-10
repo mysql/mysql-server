@@ -1,4 +1,5 @@
 /* Copyright (C) 2007 MySQL AB
+   Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,20 +20,20 @@
 
 #define LOG_FLAGS 0
 
-static const char *load_default_groups[]= { "maria_read_log",0 };
+static const char *load_default_groups[]= { "aria_read_log",0 };
 static void get_options(int *argc,char * * *argv);
 #ifndef DBUG_OFF
 #if defined(__WIN__)
-const char *default_dbug_option= "d:t:O,\\maria_read_log.trace";
+const char *default_dbug_option= "d:t:O,\\aria_read_log.trace";
 #else
-const char *default_dbug_option= "d:t:o,/tmp/maria_read_log.trace";
+const char *default_dbug_option= "d:t:o,/tmp/aria_read_log.trace";
 #endif
 #endif /* DBUG_OFF */
 static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent;
 static my_bool opt_check;
 static const char *opt_tmpdir;
 static ulong opt_page_buffer_size;
-static ulonglong opt_start_from_lsn;
+static ulonglong opt_start_from_lsn, opt_end_lsn, opt_start_from_checkpoint;
 static MY_TMPDIR maria_chk_tmpdir;
 
 
@@ -52,9 +53,10 @@ int main(int argc, char **argv)
 
   if (maria_init())
   {
-    fprintf(stderr, "Can't init Maria engine (%d)\n", errno);
+    fprintf(stderr, "Can't init Aria engine (%d)\n", errno);
     goto err;
   }
+  maria_block_size= 0;                          /* Use block size from file */
   /* we don't want to create a control file, it MUST exist */
   if (ma_control_file_open(FALSE, TRUE))
   {
@@ -67,7 +69,7 @@ int main(int argc, char **argv)
     goto err;
   }
   if (init_pagecache(maria_pagecache, opt_page_buffer_size, 0, 0,
-                     TRANSLOG_PAGE_SIZE, MY_WME) == 0)
+                     maria_block_size, MY_WME) == 0)
   {
     fprintf(stderr, "Got error in init_pagecache() (errno: %d)\n", errno);
     goto err;
@@ -92,7 +94,6 @@ int main(int argc, char **argv)
   if (opt_display_only)
     printf("You are using --display-only, NOTHING will be written to disk\n");
 
-  /* LSN could be also --start-from-lsn=# */
   lsn= translog_first_lsn_in_log();
   if (lsn == LSN_ERROR)
   {
@@ -103,8 +104,16 @@ int main(int argc, char **argv)
   {
      fprintf(stdout, "The transaction log is empty\n");
   }
-  fprintf(stdout, "The transaction log starts from lsn (%lu,0x%lx)\n",
-          LSN_IN_PARTS(lsn));
+  if (opt_start_from_checkpoint && !opt_start_from_lsn &&
+      last_checkpoint_lsn != LSN_IMPOSSIBLE)
+  {
+    lsn= LSN_IMPOSSIBLE;             /* LSN set in maria_apply_log() */
+    fprintf(stdout, "Starting from checkpoint (%lu,0x%lx)\n",
+            LSN_IN_PARTS(last_checkpoint_lsn));
+  }
+  else
+    fprintf(stdout, "The transaction log starts from lsn (%lu,0x%lx)\n",
+            LSN_IN_PARTS(lsn));
 
   if (opt_start_from_lsn)
   {
@@ -119,8 +128,14 @@ int main(int argc, char **argv)
             LSN_IN_PARTS(lsn));
   }
 
-  fprintf(stdout, "TRACE of the last maria_read_log\n");
-  if (maria_apply_log(lsn, opt_apply ?  MARIA_LOG_APPLY :
+  if (opt_end_lsn != LSN_IMPOSSIBLE)
+  {
+    /* We can't apply undo if we use end_lsn */
+    opt_apply_undo= 0;
+  }
+
+  fprintf(stdout, "TRACE of the last aria_read_log\n");
+  if (maria_apply_log(lsn, opt_end_lsn, opt_apply ?  MARIA_LOG_APPLY :
                       (opt_check ? MARIA_LOG_CHECK :
                        MARIA_LOG_DISPLAY_HEADER), opt_silent ? NULL : stdout,
                       opt_apply_undo, FALSE, FALSE, &warnings_count))
@@ -150,6 +165,9 @@ err:
 
 #include "ma_check_standalone.h"
 
+enum options_mc {
+  OPT_CHARSETS_DIR=256
+};
 
 static struct my_option my_long_options[] =
 {
@@ -158,6 +176,9 @@ static struct my_option my_long_options[] =
    " Displays a lot of information if not run with --silent",
    (uchar **) &opt_apply, (uchar **) &opt_apply, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.",
+   (char**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "if --display-only, check if record is fully readable (for debugging)",
    (uchar **) &opt_check, (uchar **) &opt_check, 0,
@@ -169,22 +190,31 @@ static struct my_option my_long_options[] =
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"display-only", 'd', "display brief info read from records' header",
-   (uchar **) &opt_display_only, (uchar **) &opt_display_only, 0, GET_BOOL,
+   &opt_display_only, &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
-  {"maria_log_dir_path", 'l',
+  {"aria-log-dir-path", 'l',
     "Path to the directory where to store transactional log",
     (uchar **) &maria_data_root, (uchar **) &maria_data_root, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "page_buffer_size", 'P', "",
-    (uchar**) &opt_page_buffer_size, (uchar**) &opt_page_buffer_size, 0,
+  { "page-buffer-size", 'P', "",
+    &opt_page_buffer_size, &opt_page_buffer_size, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
     (long) USE_BUFFER_INIT, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
     (long) IO_SIZE, 0},
-  { "start_from_lsn", 'o', "Start reading log from this lsn",
-    (uchar**) &opt_start_from_lsn, (uchar**) &opt_start_from_lsn,
+  { "start-from-lsn", 'o', "Start reading log from this lsn",
+    &opt_start_from_lsn, &opt_start_from_lsn,
+    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
+  {"start-from-checkpoint", 'C', "Start applying from last checkpoint",
+   &opt_start_from_checkpoint, &opt_start_from_checkpoint, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "end-lsn", 'e', "Stop applying at this lsn. If end-lsn is used, UNDO:s "
+    "will not be applied", &opt_end_lsn, &opt_end_lsn,
     0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"silent", 's', "Print less information during apply/undo phase",
-   (uchar **) &opt_silent, (uchar **) &opt_silent, 0,
+   &opt_silent, &opt_silent, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print more information during apply/undo phase",
+   &maria_recovery_verbose, &maria_recovery_verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Path for temporary files. Multiple paths can be specified, "
    "separated by "
@@ -193,7 +223,7 @@ static struct my_option my_long_options[] =
 #else
    "colon (:)"
 #endif
-   , (uchar**) &opt_tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   , (char**) &opt_tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"undo", 'u', "Apply UNDO records to tables. (disable with --disable-undo)",
    (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -206,7 +236,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  VOID(printf("%s Ver 1.2 for %s on %s\n",
+  VOID(printf("%s Ver 1.3 for %s on %s\n",
               my_progname_short, SYSTEM_TYPE, MACHINE_TYPE));
   NETWARE_SET_SCREEN_MODE(1);
 }
@@ -219,10 +249,10 @@ static void usage(void)
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
-  puts("Display and apply log records from a MARIA transaction log");
+  puts("Display and apply log records from a Aria transaction log");
   puts("found in the current directory (for now)");
 #ifndef IDENTICAL_PAGES_AFTER_RECOVERY
-  puts("\nNote: Maria is compiled without -DIDENTICAL_PAGES_AFTER_RECOVERY\n"
+  puts("\nNote: Aria is compiled without -DIDENTICAL_PAGES_AFTER_RECOVERY\n"
        "which means that the table files are not byte-to-byte identical to\n"
        "files created during normal execution. This should be ok, except for\n"
        "test scripts that tries to compare files before and after recovery.");

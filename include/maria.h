@@ -21,12 +21,9 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-#ifndef _my_base_h
 #include <my_base.h>
-#endif
-#ifndef _m_ctype_h
+#include <my_sys.h>
 #include <m_ctype.h>
-#endif
 #include "../storage/maria/ma_pagecache.h"
 #include "my_handler.h"
 #include "ft_global.h"
@@ -286,6 +283,7 @@ extern int (*maria_test_invalid_symlink)(const char *filename);
 
 extern int maria_init(void);
 extern void maria_end(void);
+extern my_bool maria_upgrade(void);
 extern int maria_close(MARIA_HA *file);
 extern int maria_delete(MARIA_HA *file, const uchar *buff);
 extern MARIA_HA *maria_open(const char *name, int mode,
@@ -333,6 +331,12 @@ extern int maria_commit(MARIA_HA *info);
 extern int maria_begin(MARIA_HA *info);
 extern void maria_disable_logging(MARIA_HA *info);
 extern void maria_enable_logging(MARIA_HA *info);
+
+#define HA_RECOVER_NONE         0       /* No automatic recover */
+#define HA_RECOVER_DEFAULT      1       /* Automatic recover active */
+#define HA_RECOVER_BACKUP       2       /* Make a backupfile on recover */
+#define HA_RECOVER_FORCE        4       /* Recover even if we loose rows */
+#define HA_RECOVER_QUICK        8       /* Don't check rows in data file */
 
 /* this is used to pass to mysql_mariachk_table */
 
@@ -452,7 +456,7 @@ my_bool maria_test_if_sort_rep(MARIA_HA *info, ha_rows rows, ulonglong key_map,
 
 int maria_init_bulk_insert(MARIA_HA *info, ulong cache_size, ha_rows rows);
 void maria_flush_bulk_insert(MARIA_HA *info, uint inx);
-void maria_end_bulk_insert(MARIA_HA *info, my_bool table_will_be_deleted);
+void maria_end_bulk_insert(MARIA_HA *info);
 int maria_assign_to_pagecache(MARIA_HA *info, ulonglong key_map,
 			      PAGECACHE *key_cache);
 void maria_change_pagecache(PAGECACHE *old_key_cache,

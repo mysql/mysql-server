@@ -1,4 +1,4 @@
-# Tests of Maria's recovery of the bitmap pages
+# Tests of Aria's recovery of the bitmap pages
 
 --source include/not_embedded.inc
 # Don't test this under valgrind, memory leaks will occur as we crash
@@ -25,14 +25,14 @@ use mysqltest;
 
 -- source include/maria_empty_logs.inc
 let $mms_tables=1;
-create table t1 (a varchar(10000)) engine=maria;
+create table t1 (a varchar(10000)) engine=aria;
 
 # we want recovery to use the tables as they were at time of crash
 let $mvr_restore_old_snapshot=0;
 # UNDO phase prevents physical comparison, normally,
 # so we'll only use checksums to compare.
 let $mms_compare_physically=0;
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
 
 --echo * TEST of over-allocated bitmap not flushed by checkpoint
 let $mvr_debug_option="+d,maria_crash";
@@ -45,7 +45,7 @@ insert into t1 values ("bbbbbbb");
 insert into t1 values ("bbbbbbb");
 delete from t1 limit 1;
 # Use a separate connection here. The reason is that we leave a dangling
-# --send on the connection during maria_verify_recovery.inc, which makes that
+# --send on the connection during aria_verify_recovery.inc, which makes that
 # script fail if it were to try to use that connection before --reap.
 connect (extra, localhost, root,,mysqltest,,);
 set session debug="+d,info,enter,exit,maria_over_alloc_bitmap";
@@ -59,7 +59,7 @@ sleep 5;
 # bitmap page; as REDO-UNDO was not written, bitmap and data page
 # would be inconsistent. Correct checkpoint will wait until UNDO is
 # written.
-set global maria_checkpoint_interval=1;
+set global aria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 connection default;
 

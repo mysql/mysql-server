@@ -6,8 +6,8 @@
 -- source include/have_log_bin.inc
 
 let $default=`select @@global.storage_engine`;
-set global storage_engine=maria;
-set session storage_engine=maria;
+set global storage_engine=aria;
+set session storage_engine=aria;
 
 # Initialise
 --disable_warnings
@@ -18,7 +18,7 @@ SET SQL_WARNINGS=1;
 #
 # UNIQUE key test
 #
-# as long as maria cannot rollback, binlog should contain both inserts
+# as long as aria cannot rollback, binlog should contain both inserts
 #
 RESET MASTER;
 set binlog_format=statement;
@@ -36,6 +36,6 @@ set binlog_format=default;
 --disable_result_log
 --disable_query_log
 eval set global storage_engine=$default;
-set global maria_log_file_size=default;
+set global aria_log_file_size=default;
 --enable_result_log
 --enable_query_log

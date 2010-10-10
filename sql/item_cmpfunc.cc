@@ -825,7 +825,6 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
   return cmp_type;
 }
 
-
 /*
   Retrieves correct TIME value from the given item.
 
@@ -876,7 +875,12 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
+    Query_arena backup;
+    Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
     Item_cache_int *cache= new Item_cache_int();
+    if (save_arena)
+      thd->set_query_arena(save_arena);
+
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store_longlong(item, value);
@@ -912,7 +916,12 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
         cache_converted_constant can't be used here because it can't
         correctly convert a DATETIME value from string to int representation.
       */
+      Query_arena backup;
+      Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
       Item_cache_int *cache= new Item_cache_int();
+      if (save_arena)
+        thd->set_query_arena(save_arena);
+
       /* Mark the cache as non-const to prevent re-caching. */
       cache->set_used_tables(1);
       if (!(*a)->is_datetime())
@@ -1142,7 +1151,12 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
+    Query_arena backup;
+    Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
     Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
+    if (save_arena)
+      thd->set_query_arena(save_arena);
+      
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store_longlong(item, value);
@@ -2884,6 +2898,8 @@ Item *Item_func_case::find_item(String *str)
     /* Compare every WHEN argument with it and return the first match */
     for (uint i=0 ; i < ncases ; i+=2)
     {
+      if (args[i]->real_item()->type() == NULL_ITEM)
+        continue;
       cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
@@ -4122,9 +4138,17 @@ longlong Item_func_in::val_int()
     return (longlong) (!null_value && tmp != negated);
   }
 
+  if ((null_value= args[0]->real_item()->type() == NULL_ITEM))
+    return 0;
+
   have_null= 0;
   for (uint i= 1 ; i < arg_count ; i++)
   {
+    if (args[i]->real_item()->type() == NULL_ITEM)
+    {
+      have_null= TRUE;
+      continue;
+    }
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
     in_item= cmp_items[(uint)cmp_type];
     DBUG_ASSERT(in_item);
@@ -4726,13 +4750,14 @@ Item_func::optimize_type Item_func_like::select_optimize() const
   if (args[1]->const_item())
   {
     String* res2= args[1]->val_str((String *)&cmp.value2);
+    const char *ptr2;
 
-    if (!res2)
+    if (!res2 || !(ptr2= res2->ptr()))
       return OPTIMIZE_NONE;
 
-    if (*res2->ptr() != wild_many)
+    if (*ptr2 != wild_many)
     {
-      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
 	return OPTIMIZE_OP;
     }
   }
@@ -4808,8 +4833,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       We could also do boyer-more for non-const items, but as we would have to
       recompute the tables for each row it's not worth it.
     */
-    if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
-       !(specialflag & SPECIAL_NO_NEW_FUNC))
+    if (args[1]->const_item() && !use_strnxfrm(collation.collation))
     {
       String* res2 = args[1]->val_str(&cmp.value2);
       if (!res2)
@@ -5646,7 +5670,7 @@ longlong Item_equal::val_int()
     return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item= const_item ? const_item : it++;
-  if ((null_value= item->null_value))
+  if ((null_value= item->is_null()))
     return 0;
   eval_item->store_value(item);
   while ((item_field= it++))
@@ -5654,7 +5678,7 @@ longlong Item_equal::val_int()
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table)
     {
-      if ((null_value= item_field->null_value) || eval_item->cmp(item_field))
+      if ((null_value= item_field->is_null()) || eval_item->cmp(item_field))
         return 0;
     }
   }

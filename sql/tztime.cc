@@ -1814,6 +1814,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   my_time_t ttime;
   char buff[MAX_FIELD_WIDTH];
   uchar keybuff[32];
+  Field *field;
   String abbr(buff, sizeof(buff), &my_charset_latin1);
   char *alloc_buff, *tz_name_buff;
   /*
@@ -1891,8 +1892,12 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->field[0]->store((longlong) tzid, TRUE);
-  table->field[0]->get_key_image(keybuff, table->field[0]->pack_length(), Field::itRAW);
+  field= table->field[0];
+  field->store((longlong) tzid, TRUE);
+  DBUG_ASSERT(field->key_length() <= sizeof(keybuff));
+  field->get_key_image(keybuff,
+                       min(field->key_length(), sizeof(keybuff)),
+                       Field::itRAW);
   (void)table->file->ha_index_init(0, 1);
 
   if (table->file->ha_index_read_map(table->record[0], keybuff,
@@ -1919,8 +1924,12 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->field[0]->store((longlong) tzid, TRUE);
-  table->field[0]->get_key_image(keybuff, sizeof(keybuff), Field::itRAW);
+  field= table->field[0];
+  field->store((longlong) tzid, TRUE);
+  DBUG_ASSERT(field->key_length() <= sizeof(keybuff));
+  field->get_key_image(keybuff,
+                       min(field->key_length(), sizeof(keybuff)),
+                       Field::itRAW);
   (void)table->file->ha_index_init(0, 1);
 
   res= table->file->ha_index_read_map(table->record[0], keybuff,

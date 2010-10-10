@@ -483,6 +483,7 @@ handle_new_error:
 	} else if (err == DB_ROW_IS_REFERENCED
 		   || err == DB_NO_REFERENCED_ROW
 		   || err == DB_CANNOT_ADD_CONSTRAINT
+		   || err == DB_INTERRUPTED
 		   || err == DB_TOO_MANY_CONCURRENT_TRXS) {
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
@@ -1454,22 +1455,20 @@ run_again:
 }
 
 /*************************************************************************
-This can only be used when srv_locks_unsafe_for_binlog is TRUE or
-this session is using a READ COMMITTED isolation level. Before
-calling this function we must use trx_reset_new_rec_lock_info() and
-trx_register_new_rec_lock() to store the information which new record locks
-really were set. This function removes a newly set lock under prebuilt->pcur,
-and also under prebuilt->clust_pcur. Currently, this is only used and tested
-in the case of an UPDATE or a DELETE statement, where the row lock is of the
-LOCK_X type.
-Thus, this implements a 'mini-rollback' that releases the latest record
-locks we set. */
+This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
+session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
+Before calling this function row_search_for_mysql() must have
+initialized prebuilt->new_rec_locks to store the information which new
+record locks really were set. This function removes a newly set
+clustered index record lock under prebuilt->pcur or
+prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
+releases the latest clustered index record lock we set. */
 
 int
 row_unlock_for_mysql(
 /*=================*/
 					/* out: error code or DB_SUCCESS */
-	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL
+	row_prebuilt_t*	prebuilt,	/* in/out: prebuilt struct in MySQL
 					handle */
 	ibool		has_latches_on_recs)/* TRUE if called so that we have
 					the latches on the records under pcur
@@ -2103,6 +2102,7 @@ row_table_add_foreign_constraints(
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
 					table2 can be written also with the
 					database name before it: test.table2 */
+	size_t		sql_length,	/* in: length of sql_string */
 	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
@@ -2124,8 +2124,8 @@ row_table_add_foreign_constraints(
 
 	trx->dict_operation = TRUE;
 
-	err = dict_create_foreign_constraints(trx, sql_string, name,
-					      reject_fks);
+	err = dict_create_foreign_constraints(trx, sql_string, sql_length,
+					      name, reject_fks);
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */

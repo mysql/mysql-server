@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -82,8 +82,8 @@ Initializes and opens a persistent cursor to an index tree. It should be
 closed with btr_pcur_close. */
 UNIV_INLINE
 void
-btr_pcur_open(
-/*==========*/
+btr_pcur_open_func(
+/*===============*/
 	dict_index_t*	index,	/*!< in: index */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
 	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
@@ -94,14 +94,18 @@ btr_pcur_open(
 				record! */
 	ulint		latch_mode,/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_pcur_t*	cursor, /*!< in: memory buffer for persistent cursor */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mtr */
+#define btr_pcur_open(i,t,md,l,c,m)				\
+	btr_pcur_open_func(i,t,md,l,c,__FILE__,__LINE__,m)
 /**************************************************************//**
 Opens an persistent cursor to an index tree without initializing the
 cursor. */
 UNIV_INLINE
 void
-btr_pcur_open_with_no_init(
-/*=======================*/
+btr_pcur_open_with_no_init_func(
+/*============================*/
 	dict_index_t*	index,	/*!< in: index */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
 	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
@@ -119,7 +123,12 @@ btr_pcur_open_with_no_init(
 	ulint		has_search_latch,/*!< in: latch mode the caller
 				currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mtr */
+#define btr_pcur_open_with_no_init(ix,t,md,l,cur,has,m)			\
+	btr_pcur_open_with_no_init_func(ix,t,md,l,cur,has,__FILE__,__LINE__,m)
+
 /*****************************************************************//**
 Opens a persistent cursor at either end of an index. */
 UNIV_INLINE
@@ -160,8 +169,8 @@ before first in tree. The latching mode must be BTR_SEARCH_LEAF or
 BTR_MODIFY_LEAF. */
 UNIV_INTERN
 void
-btr_pcur_open_on_user_rec(
-/*======================*/
+btr_pcur_open_on_user_rec_func(
+/*===========================*/
 	dict_index_t*	index,		/*!< in: index */
 	const dtuple_t*	tuple,		/*!< in: tuple on which search done */
 	ulint		mode,		/*!< in: PAGE_CUR_L, ... */
@@ -169,17 +178,25 @@ btr_pcur_open_on_user_rec(
 					BTR_MODIFY_LEAF */
 	btr_pcur_t*	cursor,		/*!< in: memory buffer for persistent
 					cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr);		/*!< in: mtr */
+#define btr_pcur_open_on_user_rec(i,t,md,l,c,m)				\
+	btr_pcur_open_on_user_rec_func(i,t,md,l,c,__FILE__,__LINE__,m)
 /**********************************************************************//**
 Positions a cursor at a randomly chosen position within a B-tree. */
 UNIV_INLINE
 void
-btr_pcur_open_at_rnd_pos(
-/*=====================*/
+btr_pcur_open_at_rnd_pos_func(
+/*==========================*/
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_pcur_t*	cursor,		/*!< in/out: B-tree pcur */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr);		/*!< in: mtr */
+#define btr_pcur_open_at_rnd_pos(i,l,c,m)				\
+	btr_pcur_open_at_rnd_pos_func(i,l,c,__FILE__,__LINE__,m)
 /**************************************************************//**
 Frees the possible old_rec_buf buffer of a persistent cursor and sets the
 latch mode of the persistent cursor to BTR_NO_LATCHES. */
@@ -218,11 +235,15 @@ record and it can be restored on a user record whose ordering fields
 are identical to the ones of the original user record */
 UNIV_INTERN
 ibool
-btr_pcur_restore_position(
-/*======================*/
+btr_pcur_restore_position_func(
+/*===========================*/
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_pcur_t*	cursor,		/*!< in: detached persistent cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr);		/*!< in: mtr */
+#define btr_pcur_restore_position(l,cur,mtr)				\
+	btr_pcur_restore_position_func(l,cur,__FILE__,__LINE__,mtr)
 /**************************************************************//**
 If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
 releases the page latch and bufferfix reserved by the cursor.
@@ -260,18 +281,11 @@ btr_pcur_get_mtr(
 /*=============*/
 	btr_pcur_t*	cursor);	/*!< in: persistent cursor */
 /**************************************************************//**
-Commits the pcur mtr and sets the pcur latch mode to BTR_NO_LATCHES,
+Commits the mtr and sets the pcur latch mode to BTR_NO_LATCHES,
 that is, the cursor becomes detached. If there have been modifications
 to the page where pcur is positioned, this can be used instead of
 btr_pcur_release_leaf. Function btr_pcur_store_position should be used
 before calling this, if restoration of cursor is wanted later. */
-UNIV_INLINE
-void
-btr_pcur_commit(
-/*============*/
-	btr_pcur_t*	pcur);	/*!< in: persistent cursor */
-/**************************************************************//**
-Differs from btr_pcur_commit in that we can specify the mtr to commit. */
 UNIV_INLINE
 void
 btr_pcur_commit_specify_mtr(

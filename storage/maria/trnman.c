@@ -145,6 +145,7 @@ static uchar *trn_get_hash_key(const uchar *trn, size_t *len,
 int trnman_init(TrID initial_trid)
 {
   DBUG_ENTER("trnman_init");
+  DBUG_PRINT("enter", ("initial_trid: %lu", (ulong) initial_trid));
 
   short_trid_to_active_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
                                      MYF(MY_WME|MY_ZEROFILL));
@@ -176,6 +177,8 @@ int trnman_init(TrID initial_trid)
   trnman_active_transactions= 0;
   trnman_committed_transactions= 0;
   trnman_allocated_transactions= 0;
+  /* This is needed for recovery and repair */
+  dummy_transaction_object.min_read_from= ~(TrID) 0;
 
   pool= 0;
   global_trid_generator= initial_trid;
@@ -361,6 +364,7 @@ TRN *trnman_new_trn(WT_THD *wt)
   trn->used_tables= 0;
 
   trn->locked_tables= 0;
+  trn->flags= 0;
 
   /*
     only after the following function TRN is considered initialized,

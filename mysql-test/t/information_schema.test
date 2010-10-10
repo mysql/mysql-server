@@ -531,6 +531,7 @@ drop table t1;
 grant select on test.* to mysqltest_4@localhost;
 connect (user10261,localhost,mysqltest_4,,);
 connection user10261;
+--sorted_result
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
 where COLUMN_NAME='TABLE_NAME';
 connection default;
@@ -1411,6 +1412,31 @@ disconnect nonpriv_con;
 DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
+
+--echo
+--echo Bug#54422 query with = 'variables'
+--echo
+
+CREATE TABLE variables(f1 INT);
+SELECT COLUMN_DEFAULT, TABLE_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE INFORMATION_SCHEMA.COLUMNS.TABLE_NAME = 'variables';
+DROP TABLE variables;
+
+--echo #
+--echo # Bug #53814: NUMERIC_PRECISION for unsigned bigint field is 19, 
+--echo # should be 20
+--echo #
+
+CREATE TABLE ubig (a BIGINT, b BIGINT UNSIGNED);
+
+SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION 
+  FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
+
+INSERT INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+SELECT length(CAST(b AS CHAR)) FROM ubig;
+
+DROP TABLE ubig;
 
 
 --echo End of 5.1 tests.

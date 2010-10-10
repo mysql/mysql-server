@@ -32,8 +32,8 @@ class Cached_item;
 
 class Item_subselect :public Item_result_field
 {
-  my_bool value_assigned; /* value already assigned to subselect */
-public:
+  bool value_assigned; 		/* value already assigned to subselect */
+protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
   /* 
@@ -204,6 +204,8 @@ public:
   friend void mark_select_range_as_dependent(THD*,
                                              st_select_lex*, st_select_lex*,
                                              Field*, Item*, Item_ident*);
+  friend bool convert_join_subqueries_to_semijoins(JOIN *join);
+
 };
 
 /* single value subselect */
@@ -564,9 +566,9 @@ protected:
 
 class subselect_single_select_engine: public subselect_engine
 {
-  my_bool prepared; /* simple subselect is prepared */
-  my_bool optimized; /* simple subselect is optimized */
-  my_bool executed; /* simple subselect is executed */
+  bool prepared; /* simple subselect is prepared */
+  bool optimized; /* simple subselect is optimized */
+  bool executed; /* simple subselect is executed */
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:

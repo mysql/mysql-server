@@ -160,6 +160,11 @@ inline void err_sys(const char* msg)
 }
 
 
+extern "C" {
+  static int PasswordCallBack(char*, int, int, void*);
+}
+
+
 static int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     strncpy(passwd, "12345678", sz);

@@ -1,11 +1,11 @@
-set global maria_page_checksum=1;
+set global aria_page_checksum=1;
 drop table if exists t1;
-create table t1 (i int) engine=maria;
+create table t1 (i int) engine=aria;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
 insert into t1 values (0);
 lock tables t1 write concurrent;
 insert into t1 values (1);
@@ -151,7 +151,7 @@ select count(*) from t1;
 count(*)
 8
 drop table t1;
-CREATE TABLE t1 (fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,    g GEOMETRY NOT NULL,   SPATIAL KEY(g) ) transactional=1 row_format=page engine=maria;
+CREATE TABLE t1 (fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,    g GEOMETRY NOT NULL,   SPATIAL KEY(g) ) transactional=1 row_format=page engine=aria;
 lock tables t1 write concurrent, t1 as t2 write concurrent;
 insert into t1 (fid,g) values (NULL,GeomFromText('LineString(0 0,1 1)'));
 select fid from t1 as t2;

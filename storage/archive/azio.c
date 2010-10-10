@@ -150,6 +150,17 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   }
   else
   {
+    /* Reset values in case of old version of archive file */
+    s->rows= 0;
+    s->forced_flushes= 0;
+    s->shortest_row= 0;
+    s->longest_row= 0;
+    s->auto_increment= 0;
+    s->check_point= 0;
+    s->comment_start_pos= 0;
+    s->comment_length= 0;
+    s->frm_start_pos= 0;
+    s->frm_length= 0;
     check_header(s); /* skip the .az header */
   }
 

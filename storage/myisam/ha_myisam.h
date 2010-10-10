@@ -115,7 +115,7 @@ class ha_myisam: public handler
   int enable_indexes(uint mode);
   int indexes_are_disabled(void);
   void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert(bool abort);
+  int end_bulk_insert();
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);

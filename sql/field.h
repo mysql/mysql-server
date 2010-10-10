@@ -64,29 +64,20 @@ private:
   */
   enum_field_types field_type;   /* Real field type*/
   /* Flag indicating  that the field is physically stored in the database */
-  my_bool stored_in_db;
+  bool stored_in_db;
   /* Flag indicating that the field used in a partitioning expression */
-  my_bool in_partitioning_expr;
+  bool in_partitioning_expr;
 
 public:
   /* The expression to compute the value of the virtual column */
   Item *expr_item;
   /* Text representation of the defining expression */
   LEX_STRING expr_str;
-  /*
-    The list of items created when the defining expression for the virtual
-    column is being parsed and validated. These items are freed in the closefrm
-    function when the table containing this virtual column is removed from
-    the TABLE cache.
-    TODO. Items for all different virtual columns of a table should be put into
-    one list attached to the TABLE structure.    
-  */
-  Item *item_free_list;
 
   Virtual_column_info()
   : field_type((enum enum_field_types)MYSQL_TYPE_VIRTUAL),
     stored_in_db(FALSE), in_partitioning_expr(FALSE), 
-    expr_item(NULL), item_free_list(NULL)
+    expr_item(NULL)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -226,7 +217,7 @@ public:
      This trickery is used to decrease a number of malloc calls.
   */
   virtual String *val_str(String*,String *)=0;
-  String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
+  String *val_int_as_str(String *val_buffer, bool unsigned_flag);
   /*
    str_needs_quotes() returns TRUE if the value returned by val_str() needs
    to be quoted when used in constructing an SQL query.
@@ -525,10 +516,10 @@ public:
   { return max_length;}
 
   virtual int pack_cmp(const uchar *a,const uchar *b, uint key_length_arg,
-                       my_bool insert_or_update)
+                       bool insert_or_update)
   { return cmp(a,b); }
   virtual int pack_cmp(const uchar *b, uint key_length_arg,
-                       my_bool insert_or_update)
+                       bool insert_or_update)
   { return cmp(ptr,b); }
   uint offset(uchar *record)
   {
@@ -794,7 +785,7 @@ public:
 /* base class for float and double and decimal (old one) */
 class Field_real :public Field_num {
 public:
-  my_bool not_fixed;
+  bool not_fixed;
 
   Field_real(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, utype unireg_check_arg,
@@ -1221,7 +1212,7 @@ public:
                 NONE, field_name_arg, dec_arg, 0, 0)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-	       uint8 dec_arg, my_bool not_fixed_arg)
+	       uint8 dec_arg, bool not_fixed_arg)
     :Field_real((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
                 NONE, field_name_arg, dec_arg, 0, 0)
     {not_fixed= not_fixed_arg; }
@@ -1312,7 +1303,7 @@ public:
       Field::set_default();
   }
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
-  inline long get_timestamp(my_bool *null_value)
+  inline long get_timestamp(bool *null_value)
   {
     if ((*null_value= is_null()))
       return 0;
@@ -1599,8 +1590,8 @@ public:
                             const Relay_log_info *rli, uint16 mflags);
   uint row_pack_length() { return (field_length + 1); }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
+               bool insert_or_update);
+  int pack_cmp(const uchar *b,uint key_length,bool insert_or_update);
   uint packed_col_length(const uchar *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
@@ -1682,8 +1673,8 @@ public:
   const uchar *unpack_key(uchar* to, const uchar *from,
                           uint max_length, bool low_byte_first);
   int pack_cmp(const uchar *a, const uchar *b, uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
+               bool insert_or_update);
+  int pack_cmp(const uchar *b, uint key_length,bool insert_or_update);
   int cmp_binary(const uchar *a,const uchar *b, uint32 max_length=~0L);
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
@@ -1868,8 +1859,8 @@ public:
   const uchar *unpack_key(uchar* to, const uchar *from,
                           uint max_length, bool low_byte_first);
   int pack_cmp(const uchar *a, const uchar *b, uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
+               bool insert_or_update);
+  int pack_cmp(const uchar *b, uint key_length,bool insert_or_update);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
   void free() { value.free(); }
@@ -2231,7 +2222,7 @@ class Copy_field :public Sql_alloc {
 public:
   uchar *from_ptr,*to_ptr;
   uchar *from_null_ptr,*to_null_ptr;
-  my_bool *null_row;
+  bool *null_row;
   uint	from_bit,to_bit;
   uint from_length,to_length;
   Field *from_field,*to_field;

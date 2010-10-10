@@ -1249,7 +1249,7 @@ xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID XT_NDEBUG_UNUSED(log_id), xtL
 	 */
 	dlb_data_log->dlf_log_eof += size;
 #ifdef DEBUG
-	if ((ulonglong) (log_offset + size) > (ulonglong) dlb_max_write_offset)
+	if (log_offset + (xtLogOffset) size > (xtLogOffset) dlb_max_write_offset)
 		dlb_max_write_offset = log_offset + size;
 #endif
 	dlb_flush_required = TRUE;
@@ -1291,7 +1291,7 @@ xtBool XTDataLogBuffer::dlb_append_log(xtLogID XT_NDEBUG_UNUSED(log_id), xtLogOf
 	if (!xt_pwrite_file(dlb_data_log->dlf_log_file, log_offset, size, data, &thread->st_statistics.st_data, thread))
 		return FAILED;
 #ifdef DEBUG
-	if ((ulonglong) (log_offset + size) > (ulonglong) dlb_max_write_offset)
+	if (log_offset + (xtLogOffset) size > (xtLogOffset) dlb_max_write_offset)
 		dlb_max_write_offset = log_offset + size;
 #endif
 	dlb_flush_required = TRUE;
@@ -1734,8 +1734,8 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 	xtLogOffset			src_log_offset;
 	xtLogID				curr_log_id;
 	xtLogOffset			curr_log_offset;
-	xtLogID				dest_log_id= 0;
-	xtLogOffset			dest_log_offset= 0;
+	xtLogID				dest_log_id = 0;
+	xtLogOffset			dest_log_offset = 0;
 	off_t				garbage_count = 0;
 
 	memset(&cs, 0, sizeof(XTCompactorStateRec));

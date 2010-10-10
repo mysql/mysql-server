@@ -2228,20 +2228,20 @@ sub environment_setup () {
                         "$glob_basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
-  # Setup env so childs can execute maria_pack and maria_chk
+  # Setup env so childs can execute aria_pack and aria_chk
   # ----------------------------------------------------
-  $ENV{'MARIA_CHK'}= mtr_native_path(mtr_exe_maybe_exists(
-                       vs_config_dirs('storage/maria', 'maria_chk'),
-                       vs_config_dirs('maria', 'maria_chk'),
-                       "$path_client_bindir/maria_chk",
-                       "$glob_basedir/storage/maria/maria_chk",
-                       "$glob_basedir/maria/maria_chk"));
-  $ENV{'MARIA_PACK'}= mtr_native_path(mtr_exe_maybe_exists(
-                        vs_config_dirs('storage/maria', 'maria_pack'),
-                        vs_config_dirs('maria', 'maria_pack'),
-                        "$path_client_bindir/maria_pack",
-                        "$glob_basedir/storage/maria/maria_pack",
-                        "$glob_basedir/maria/maria_pack"));
+  $ENV{'ARIA_CHK'}= mtr_native_path(mtr_exe_maybe_exists(
+                       vs_config_dirs('storage/maria', 'aria_chk'),
+                       vs_config_dirs('maria', 'aria_chk'),
+                       "$path_client_bindir/aria_chk",
+                       "$glob_basedir/storage/maria/aria_chk",
+                       "$glob_basedir/maria/aria_chk"));
+  $ENV{'ARIA_PACK'}= mtr_native_path(mtr_exe_maybe_exists(
+                        vs_config_dirs('storage/maria', 'aria_pack'),
+                        vs_config_dirs('maria', 'aria_pack'),
+                        "$path_client_bindir/aria_pack",
+                        "$glob_basedir/storage/maria/aria_pack",
+                        "$glob_basedir/maria/aria_pack"));
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings
@@ -2959,7 +2959,7 @@ sub run_benchmarks ($) {
 
   if ( ! $benchmark )
   {
-    mtr_add_arg($args, "--log");
+    mtr_add_arg($args, "--general-log");
     mtr_run("$glob_mysql_bench_dir/run-all-tests", $args, "", "", "", "");
     # FIXME check result code?!
   }
@@ -3192,7 +3192,7 @@ sub install_db ($$) {
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
-  mtr_add_arg($args, "--loose-skip-maria");
+  mtr_add_arg($args, "--loose-skip-aria");
   mtr_add_arg($args, "--disable-sync-frm");
   mtr_add_arg($args, "--loose-disable-debug");
   mtr_add_arg($args, "--tmpdir=.");
@@ -3202,7 +3202,7 @@ sub install_db ($$) {
   # Setup args for bootstrap.test
   #
   mtr_init_args(\$cmd_args);
-  mtr_add_arg($cmd_args, "--loose-skip-maria");
+  mtr_add_arg($cmd_args, "--loose-skip-aria");
 
   if ( $opt_debug )
   {
@@ -3970,7 +3970,7 @@ sub mysqld_arguments ($$$$) {
     }
   }
 
-  mtr_add_arg($args, "%s--character-set-server-set=latin1", $prefix);
+  mtr_add_arg($args, "%s--character-set-server=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 

@@ -425,11 +425,13 @@ INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca
 select count(*) from t1 where sca_code = 'PD';
 select count(*) from t1 where sca_code <= 'PD';
 select count(*) from t1 where sca_pic is null;
-alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
-alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where sca_pic >= 'n';
 select sca_pic from t1 where sca_pic is null;
@@ -1149,7 +1151,7 @@ show create table t2;
 create index id2 on t2 (id);
 show create table t2;
 drop index id2 on t2;
---error ER_DROP_INDEX_FK,ER_DROP_INDEX_FK
+--error ER_DROP_INDEX_FK
 drop index id on t2;
 show create table t2;
 drop table t2;

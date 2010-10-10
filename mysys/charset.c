@@ -406,9 +406,9 @@ static my_pthread_once_t charsets_template= MY_PTHREAD_ONCE_INIT;
 static void init_available_charsets(void)
 {
   char fname[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
-    struct charset_info_st **cs;
+  struct charset_info_st **cs;
 
-  bzero(&all_charsets,sizeof(all_charsets));
+  bzero((char*) &all_charsets,sizeof(all_charsets));
   init_compiled_charsets(MYF(0));
       
   /* Copy compiled charsets */

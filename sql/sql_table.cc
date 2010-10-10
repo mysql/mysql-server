@@ -48,6 +48,7 @@ static int mysql_prepare_create_table(THD *, HA_CREATE_INFO *, Alter_info *,
                               bool, uint *, handler *, KEY **, uint *, int);
 static bool mysql_prepare_alter_table(THD *, TABLE *, HA_CREATE_INFO *,
                                       Alter_info *);
+static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list);
 
 #ifndef DBUG_OFF
 
@@ -386,6 +387,25 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 
 /**
+  Check if given string begins with "#mysql50#" prefix
+  
+  @param   name          string to check cut 
+  
+  @retval
+    FALSE  no prefix found
+  @retval
+    TRUE   prefix found
+*/
+
+bool check_mysql50_prefix(const char *name)
+{
+  return (name[0] == '#' && 
+         !strncmp(name, MYSQL50_TABLE_NAME_PREFIX,
+                  MYSQL50_TABLE_NAME_PREFIX_LENGTH));
+}
+
+
+/**
   Check if given string begins with "#mysql50#" prefix, cut it if so.
   
   @param   from          string to check and cut 
@@ -400,9 +420,7 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length)
 {
-  if (from[0] == '#' && 
-      !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-               MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+  if (check_mysql50_prefix(from))
     return (uint) (strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
                            to_length - 1) - to);
   return 0;
@@ -2232,10 +2250,10 @@ static int sort_keys(KEY *a, KEY *b)
   {
     if (!(b_flags & HA_NOSAME))
       return -1;
-    if ((a_flags ^ b_flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
+    if ((a_flags ^ b_flags) & HA_NULL_PART_KEY)
     {
       /* Sort NOT NULL keys before other keys */
-      return (a_flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
+      return (a_flags & HA_NULL_PART_KEY) ? 1 : -1;
     }
     if (a->name == primary_key_name)
       return -1;
@@ -4202,7 +4220,7 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char from[FN_REFLEN + 1], to[FN_REFLEN + 1],
     lc_from[FN_REFLEN + 1], lc_to[FN_REFLEN + 1];
   char *from_base= from, *to_base= to;
-  char tmp_name[NAME_LEN+1];
+  char tmp_name[SAFE_NAME_LEN+1];
   handler *file;
   int error=0;
   DBUG_ENTER("mysql_rename_table");
@@ -4597,6 +4615,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   Protocol *protocol= thd->protocol;
   LEX *lex= thd->lex;
   int result_code;
+  bool need_repair_or_alter= 0;
   DBUG_ENTER("mysql_admin_table");
 
   if (end_active_trans(thd))
@@ -4617,7 +4636,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
   for (table= tables; table; table= table->next_local)
   {
-    char table_name[NAME_LEN*2+2];
+    char table_name[SAFE_NAME_LEN*2+2];
     char* db = table->db;
     bool fatal_error=0;
 
@@ -4633,7 +4652,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_global= 0;
       save_next_local= table->next_local;
       table->next_local= 0;
-      select->table_list.first= (uchar*)table;
+      select->table_list.first= table;
       /*
         Time zone tables and SP tables can be add to lex->query_tables list,
         so it have to be prepared.
@@ -4825,25 +4844,23 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (operator_func == &handler::ha_repair &&
         !(check_opt->sql_flags & TT_USEFRM))
     {
-      if ((table->table->file->check_old_types() == HA_ADMIN_NEEDS_ALTER) ||
-          (table->table->file->ha_check_for_upgrade(check_opt) ==
-           HA_ADMIN_NEEDS_ALTER))
+      handler *file= table->table->file;
+      int check_old_types=   file->check_old_types();
+      int check_for_upgrade= file->ha_check_for_upgrade(check_opt);
+
+      if (check_old_types == HA_ADMIN_NEEDS_ALTER ||
+          check_for_upgrade == HA_ADMIN_NEEDS_ALTER)
       {
-        DBUG_PRINT("admin", ("recreating table"));
-        ha_autocommit_or_rollback(thd, 1);
-        close_thread_tables(thd);
-        tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table);
-        reenable_binlog(thd);
-        /*
-          mysql_recreate_table() can push OK or ERROR.
-          Clear 'OK' status. If there is an error, keep it:
-          we will store the error message in a result set row 
-          and then clear.
-        */
-        if (thd->main_da.is_ok())
-          thd->main_da.reset_diagnostics_area();
+        /* We use extra_open_options to be able to open crashed tables */
+        thd->open_options|= extra_open_options;
+        result_code= admin_recreate_table(thd, table);
+        thd->open_options= ~extra_open_options;
         goto send_result;
+      }
+      if (check_old_types || check_for_upgrade)
+      {
+        /* If repair is not implemented for the engine, run ALTER TABLE */
+        need_repair_or_alter= 1;
       }
     }
 
@@ -4851,6 +4868,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     result_code = (table->table->file->*operator_func)(thd, check_opt);
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
 
+    if (result_code == HA_ADMIN_NOT_IMPLEMENTED && need_repair_or_alter)
+    {
+      /*
+        repair was not implemented and we need to upgrade the table
+        to a new version so we recreate the table with ALTER TABLE
+      */
+      result_code= admin_recreate_table(thd, table);
+    }
 send_result:
 
     lex->cleanup_after_one_table_open();
@@ -4950,23 +4975,13 @@ send_result_message:
                       system_charset_info);
       if (protocol->write())
         goto err;
-      ha_autocommit_or_rollback(thd, 0);
-      close_thread_tables(thd);
       DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
-      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      result_code= mysql_recreate_table(thd, table);
-      reenable_binlog(thd);
-      /*
-        mysql_recreate_table() can push OK or ERROR.
-        Clear 'OK' status. If there is an error, keep it:
-        we will store the error message in a result set row 
-        and then clear.
-      */
-      if (thd->main_da.is_ok())
-        thd->main_da.reset_diagnostics_area();
+
+      result_code= admin_recreate_table(thd, table);
+
       ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
@@ -5347,6 +5362,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
+    if (src_table->table->file->ht == partition_hton)
+    {
+      my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+      goto err;
+    }
     if (find_temporary_table(thd, db, table_name))
       goto table_exists;
     dst_path_length= build_tmptable_filename(thd, dst_path, sizeof(dst_path));
@@ -5411,14 +5431,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   /*
     For partitioned tables we need to copy the .par file as well since
     it is used in open_table_def to even be able to create a new handler.
-    There is no way to find out here if the original table is a
-    partitioned table so we copy the file and ignore any errors.
   */
-  fn_format(tmp_path, dst_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
-  strmov(dst_path, tmp_path);
-  fn_format(tmp_path, src_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
-  strmov(src_path, tmp_path);
-  my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
+  if (src_table->table->file->ht == partition_hton)
+  {
+    fn_format(tmp_path, dst_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
+    strmov(dst_path, tmp_path);
+    fn_format(tmp_path, src_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
+    strmov(src_path, tmp_path);
+    my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
+  }
 #endif
 
   DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
@@ -6604,6 +6625,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint *index_add_buffer= NULL;
   uint candidate_key_count= 0;
   bool no_pk;
+  ulong explicit_used_fields= 0;
   DBUG_ENTER("mysql_alter_table");
 
   /*
@@ -6874,6 +6896,7 @@ view_err:
       change the row format in update_create_info().
     */
     create_info->used_fields|= HA_CREATE_USED_ROW_FORMAT;
+    explicit_used_fields|= HA_CREATE_USED_ROW_FORMAT;
   }
 
   DBUG_PRINT("info", ("old type: %s  new type: %s",
@@ -6948,6 +6971,20 @@ view_err:
     if (!error && (new_name != table_name || new_db != db))
     {
       thd_proc_info(thd, "rename");
+
+      /*
+        Workaround InnoDB ending the transaction when the table instance
+        is unlocked/closed (close_cached_table below), otherwise the trx
+        state will differ between the server and storage engine layers.
+
+        We have to unlock LOCK_open here as otherwise we can get deadlock
+        in wait_if_global_readlock().  This is still safe as we have a
+        name lock on the table object.
+      */
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      ha_autocommit_or_rollback(thd, 0);
+      VOID(pthread_mutex_lock(&LOCK_open));
+
       /*
         Then do a 'simple' rename of the table. First we need to close all
         instances of 'source' table.
@@ -7034,6 +7071,9 @@ view_err:
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
   
+  /* Remove markers set for update_create_info */
+  create_info->used_fields&= ~explicit_used_fields;
+
   if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
     need_copy_table= alter_info->change_level;
 
@@ -7492,6 +7532,11 @@ view_err:
       mysql_unlock_tables(thd, thd->lock);
       thd->lock=0;
     }
+    /*
+      If LOCK TABLES list is not empty and contains this table,
+      unlock the table and remove the table from this list.
+    */
+    mysql_lock_remove(thd, thd->locked_tables, table, FALSE);
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd, table, 1, 1);
     /* Should pass the 'new_name' as we store table name in the cache */
@@ -7876,8 +7921,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  to->mark_virtual_columns_for_write();
-  init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
+  to->mark_virtual_columns_for_write(TRUE);
+  if (init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE))
+    goto err;
   errpos= 4;
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -7891,7 +7937,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       error= 1;
       break;
     }
-    update_virtual_fields(from);
+    update_virtual_fields(thd, from);
     thd->row_count++;
     /* Return error if source table isn't empty. */
     if (error_if_not_empty)
@@ -7912,7 +7958,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-    update_virtual_fields(to, TRUE);
+    update_virtual_fields(thd, to, TRUE);
     if (thd->is_error())
     {
       error= 1;
@@ -7958,7 +8004,7 @@ err:
 
   if (error > 0)
     to->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-  if (errpos >= 3 && to->file->ha_end_bulk_insert(error > 1) && error <= 0)
+  if (errpos >= 3 && to->file->ha_end_bulk_insert() && error <= 0)
   {
     to->file->print_error(my_errno,MYF(0));
     error= 1;
@@ -7987,6 +8033,30 @@ err:
   if (error < 0 && to->file->extra(HA_EXTRA_PREPARE_FOR_RENAME))
     error= 1;
   DBUG_RETURN(error > 0 ? -1 : 0);
+}
+
+
+/* Prepare, run and cleanup for mysql_recreate_table() */
+
+static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list)
+{
+  bool result_code;
+  DBUG_ENTER("admin_recreate_table");
+
+  ha_autocommit_or_rollback(thd, 1);
+  close_thread_tables(thd);
+  tmp_disable_binlog(thd); // binlogging is done by caller if wanted
+  result_code= mysql_recreate_table(thd, table_list);
+  reenable_binlog(thd);
+  /*
+    mysql_recreate_table() can push OK or ERROR.
+    Clear 'OK' status. If there is an error, keep it:
+    we will store the error message in a result set row 
+    and then clear.
+  */
+  if (thd->main_da.is_ok())
+    thd->main_da.reset_diagnostics_area();
+  DBUG_RETURN(result_code);
 }
 
 
@@ -8046,7 +8116,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   /* Open one table after the other to keep lock time as short as possible. */
   for (table= tables; table; table= table->next_local)
   {
-    char table_name[NAME_LEN*2+2];
+    char table_name[SAFE_NAME_LEN*2+2];
     TABLE *t;
 
     strxmov(table_name, table->db ,".", table->table_name, NullS);

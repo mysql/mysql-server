@@ -25,3 +25,5 @@ TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient_notls wsock32)
 
 ADD_EXECUTABLE(bug25714 bug25714.c)
 TARGET_LINK_LIBRARIES(bug25714 mysqlclient_notls wsock32)
+
+INSTALL(TARGETS mysql_client_test bug25714 DESTINATION bin COMPONENT runtime)

@@ -119,12 +119,76 @@ hash_create(
 	table->heaps = NULL;
 #endif /* !UNIV_HOTBACKUP */
 	table->heap = NULL;
-	table->magic_n = HASH_TABLE_MAGIC_N;
+	ut_d(table->magic_n = HASH_TABLE_MAGIC_N);
 
 	/* Initialize the cell array */
 	hash_table_clear(table);
 
 	return(table);
+}
+
+/*************************************************************//**
+*/
+UNIV_INTERN
+ulint
+hash_create_needed(
+/*===============*/
+	ulint	n)
+{
+	ulint	prime;
+	ulint	offset;
+
+	prime = ut_find_prime(n);
+
+	offset = (sizeof(hash_table_t) + 7) / 8;
+	offset *= 8;
+
+	return(offset + sizeof(hash_cell_t) * prime);
+}
+
+UNIV_INTERN
+void
+hash_create_init(
+/*=============*/
+	hash_table_t*	table,
+	ulint		n)
+{
+	ulint	prime;
+	ulint	offset;
+
+	prime = ut_find_prime(n);
+
+	offset = (sizeof(hash_table_t) + 7) / 8;
+	offset *= 8;
+
+	table->array = (hash_cell_t*)(((char*)table) + offset);
+	table->n_cells = prime;
+# if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	table->adaptive = FALSE;
+# endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+	table->n_mutexes = 0;
+	table->mutexes = NULL;
+	table->heaps = NULL;
+	table->heap = NULL;
+	ut_d(table->magic_n = HASH_TABLE_MAGIC_N);
+
+	/* Initialize the cell array */
+	hash_table_clear(table);
+}
+
+UNIV_INTERN
+void
+hash_create_reuse(
+/*==============*/
+	hash_table_t*	table)
+{
+	ulint	offset;
+
+	offset = (sizeof(hash_table_t) + 7) / 8;
+	offset *= 8;
+
+	table->array = (hash_cell_t*)(((char*)table) + offset);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 }
 
 /*************************************************************//**
@@ -135,6 +199,8 @@ hash_table_free(
 /*============*/
 	hash_table_t*	table)	/*!< in, own: hash table */
 {
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifndef UNIV_HOTBACKUP
 	ut_a(table->mutexes == NULL);
 #endif /* !UNIV_HOTBACKUP */
@@ -160,6 +226,8 @@ hash_create_mutexes_func(
 {
 	ulint	i;
 
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_a(n_mutexes > 0);
 	ut_a(ut_is_2pow(n_mutexes));
 

@@ -1,0 +1,1 @@
+--long_query_time=0 --log_slow_verbosity=innodb --log_slow_slave_statements

@@ -161,8 +161,8 @@ test-bt:
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
-	      @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --comment=ndb+rpl_ndb+ps --force --timer \
-	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb,rpl_ndb ; \
+	      @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --comment=ndb+ps --force --timer \
+	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --comment=ndb --force --timer \
 	          --with-ndbcluster-only ; \
@@ -325,7 +325,7 @@ abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
 do_abi_check:
 	set -ex; \
 	for file in $(abi_headers); do \
-	         @CC@ -E -nostdinc -dI \
+	         @CC@ -E -nostdinc -dI -DMYSQL_ABI_CHECK \
 	                  -I$(top_srcdir)/include \
 	                  -I$(top_srcdir)/include/mysql \
 	                  -I$(top_srcdir)/sql \
@@ -341,6 +341,3 @@ do_abi_check:
 	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

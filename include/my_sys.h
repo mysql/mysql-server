@@ -37,7 +37,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
-#define MY_INIT(name);		{ my_progname= name; my_init(); }
+#define MY_INIT(name)   { my_progname= name; my_init(); }
 
 #define MY_FILE_ERROR	((size_t) -1)
 
@@ -270,6 +270,7 @@ extern size_t sf_malloc_cur_memory, sf_malloc_max_memory;
 extern ulong	my_default_record_cache_size;
 extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
                NEAR my_disable_flush_key_blocks, NEAR my_disable_symlinks;
+extern my_bool my_disable_sync;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 /* from default.c */

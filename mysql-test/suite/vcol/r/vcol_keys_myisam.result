@@ -7,7 +7,7 @@ SET @@session.storage_engine = 'MyISAM';
 #            - CHECK (allowed but not used)
 # UNIQUE
 create table t1 (a int, b int as (a*2) unique);
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 create table t1 (a int, b int as (a*2) persistent unique);
 show create table t1;
 Table	Create Table
@@ -22,7 +22,7 @@ a	int(11)	YES		NULL
 b	int(11)	YES	UNI	NULL	VIRTUAL
 drop table t1;
 create table t1 (a int, b int as (a*2), unique key (b));
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 create table t1 (a int, b int as (a*2) persistent, unique (b));
 show create table t1;
 Table	Create Table
@@ -38,7 +38,7 @@ b	int(11)	YES	UNI	NULL	VIRTUAL
 drop table t1;
 create table t1 (a int, b int as (a*2));
 alter table t1 add unique key (b);
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 drop table t1;
 create table t1 (a int, b int as (a*2) persistent);
 alter table t1 add unique key (b);
@@ -50,9 +50,9 @@ drop table t1;
 # 
 # INDEX
 create table t1 (a int, b int as (a*2), index (b));
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 create table t1 (a int, b int as (a*2), index (a,b));
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 create table t1 (a int, b int as (a*2) persistent, index (b));
 show create table t1;
 Table	Create Table
@@ -81,9 +81,9 @@ b	int(11)	YES		NULL	VIRTUAL
 drop table t1;
 create table t1 (a int, b int as (a*2));
 alter table t1 add index (b);
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 alter table t1 add index (a,b);
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 drop table t1;
 create table t1 (a int, b int as (a*2) persistent);
 alter table t1 add index (b);
@@ -110,27 +110,27 @@ drop table t1;
 # Rejected FK options.
 create table t1 (a int, b int as (a+1) persistent,
 foreign key (b) references t2(a) on update set null);
-ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a computed column.
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a computed column
 create table t1 (a int, b int as (a+1) persistent,
 foreign key (b) references t2(a) on update cascade);
-ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a computed column.
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a computed column
 create table t1 (a int, b int as (a+1) persistent,
 foreign key (b) references t2(a) on delete set null);
-ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a computed column.
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a computed column
 create table t1 (a int, b int as (a+1) persistent);
 alter table t1 add foreign key (b) references t2(a) on update set null;
-ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a computed column.
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a computed column
 alter table t1 add foreign key (b) references t2(a) on update cascade;
-ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a computed column.
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a computed column
 alter table t1 add foreign key (b) references t2(a) on delete set null;
-ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a computed column.
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a computed column
 drop table t1;
 create table t1 (a int, b int as (a+1),
 foreign key (b) references t2(a));
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 create table t1 (a int, b int as (a+1));
 alter table t1 add foreign key (b) references t2(a);
-ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column
 drop table t1;
 # Allowed FK options.
 create table t2 (a int primary key, b char(5));

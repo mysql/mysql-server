@@ -20,7 +20,7 @@ $opt_number_of_tests= 0;
 $opt_run_tests=       undef();
 
 my $maria_path;       # path to "storage/maria"
-my $maria_exe_path;   # path to executables (ma_test1, maria_chk etc)
+my $maria_exe_path;   # path to executables (ma_test1, aria_chk etc)
 my $my_progname= $0;
 $my_progname=~ s/.*[\/]//;
 my $runtime_error= 0; # Return 1 if error(s) occur during run
@@ -146,7 +146,7 @@ sub run_tests
   # clean-up
   #
 
-  unlink <*.TMD maria_log*>;        # Delete temporary files
+  unlink <*.TMD aria_log*>;        # Delete temporary files
 
   #
   # Run tests
@@ -280,38 +280,38 @@ sub run_check_tests
 
   for ($i= 0; defined($ma_test1_opt[$i]); $i++)
   {
-    unlink <maria_log_control maria_log.*>;
+    unlink <aria_log_control aria_log.*>;
     ok("$maria_exe_path/ma_test1$suffix $silent $ma_test1_opt[$i][0] $row_type",
        $verbose, $i + 1);
-    ok("$maria_exe_path/maria_chk$suffix $ma_test1_opt[$i][1] test1",
+    ok("$maria_exe_path/aria_chk$suffix $ma_test1_opt[$i][1] test1",
        $verbose, $i + 1);
   }
   #
   # These tests are outside the loops. Make sure to include them in
   # nr_tests manually
   #
-  ok("$maria_exe_path/maria_pack$suffix --force -s test1", $verbose, 0);
-  ok("$maria_exe_path/maria_chk$suffix -ess test1", $verbose, 0);
+  ok("$maria_exe_path/aria_pack$suffix --force -s test1", $verbose, 0);
+  ok("$maria_exe_path/aria_chk$suffix -ess test1", $verbose, 0);
 
   for ($i= 0; defined($ma_test2_opt[$i]); $i++)
   {
-    unlink <maria_log_control maria_log.*>;
+    unlink <aria_log_control aria_log.*>;
     ok("$maria_exe_path/ma_test2$suffix $silent $ma_test2_opt[$i][0] $row_type",
        $verbose, $i + 1);
-    ok("$maria_exe_path/maria_chk$suffix $ma_test2_opt[$i][1] test2",
+    ok("$maria_exe_path/aria_chk$suffix $ma_test2_opt[$i][1] test2",
        $verbose, $i + 1);
   }
 
   for ($i= 0; defined($ma_rt_test_opt[$i]); $i++)
   {
-    unlink <maria_log_control maria_log.*>;
+    unlink <aria_log_control aria_log.*>;
     ok("$maria_exe_path/ma_rt_test$suffix $silent $ma_rt_test_opt[$i][0] $row_type",
        $verbose, $i + 1);
-    ok("$maria_exe_path/maria_chk$suffix $ma_rt_test_opt[$i][1] rt_test",
+    ok("$maria_exe_path/aria_chk$suffix $ma_rt_test_opt[$i][1] rt_test",
        $verbose, $i + 1);
   }
 
-  unlink <maria_log_control maria_log.*>;
+  unlink <aria_log_control aria_log.*>;
 
   return 0;
 }
@@ -327,34 +327,34 @@ sub run_repair_tests()
 
   my @t= ($NEW_TEST,
           "$maria_exe_path/ma_test1$suffix $silent --checksum $row_type",
-          "$maria_exe_path/maria_chk$suffix -se test1",
-          "$maria_exe_path/maria_chk$suffix --silent -re --transaction-log test1",
-          "$maria_exe_path/maria_chk$suffix -rs test1",
-          "$maria_exe_path/maria_chk$suffix -se test1",
-          "$maria_exe_path/maria_chk$suffix -rqs test1",
-          "$maria_exe_path/maria_chk$suffix -se test1",
-          "$maria_exe_path/maria_chk$suffix -rs --correct-checksum test1",
-          "$maria_exe_path/maria_chk$suffix -se test1",
-          "$maria_exe_path/maria_chk$suffix -rqs --correct-checksum test1",
-          "$maria_exe_path/maria_chk$suffix -se test1",
-          "$maria_exe_path/maria_chk$suffix -ros --correct-checksum test1",
-          "$maria_exe_path/maria_chk$suffix -se test1",
-          "$maria_exe_path/maria_chk$suffix -rqos --correct-checksum test1",
-          "$maria_exe_path/maria_chk$suffix -se test1",
-          "$maria_exe_path/maria_chk$suffix -sz test1",
-          "$maria_exe_path/maria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix --silent -re --transaction-log test1",
+          "$maria_exe_path/aria_chk$suffix -rs test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -rqs test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -rs --correct-checksum test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -rqs --correct-checksum test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -ros --correct-checksum test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -rqos --correct-checksum test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -sz test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
           "$maria_exe_path/ma_test2$suffix $silent -c -d1 $row_type",
-          "$maria_exe_path/maria_chk$suffix -s --parallel-recover test2",
-          "$maria_exe_path/maria_chk$suffix -se test2",
-          "$maria_exe_path/maria_chk$suffix -s --parallel-recover --quick test2",
-          "$maria_exe_path/maria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -s --parallel-recover test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -s --parallel-recover --quick test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
           "$maria_exe_path/ma_test2$suffix $silent -c $row_type",
-          "$maria_exe_path/maria_chk$suffix -se test2",
-          "$maria_exe_path/maria_chk$suffix -sr test2",
-          "$maria_exe_path/maria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -sr test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
           "$maria_exe_path/ma_test2$suffix $silent -c -t4 -b32768 $row_type",
-          "$maria_exe_path/maria_chk$suffix -s --zerofill test1",
-          "$maria_exe_path/maria_chk$suffix -se test1"
+          "$maria_exe_path/aria_chk$suffix -s --zerofill test1",
+          "$maria_exe_path/aria_chk$suffix -se test1"
          );
 
   return &count_tests(\@t) if ($count);
@@ -373,48 +373,48 @@ sub run_pack_tests()
 
   my @t= ($NEW_TEST,
           "$maria_exe_path/ma_test1$suffix $silent --checksum $row_type",
-          "$maria_exe_path/maria_pack$suffix --force -s test1",
-          "$maria_exe_path/maria_chk$suffix -ess test1",
-          "$maria_exe_path/maria_chk$suffix -rqs test1",
-          "$maria_exe_path/maria_chk$suffix -es test1",
-          "$maria_exe_path/maria_chk$suffix -rs test1",
-          "$maria_exe_path/maria_chk$suffix -es test1",
-          "$maria_exe_path/maria_chk$suffix -rus test1",
-          "$maria_exe_path/maria_chk$suffix -es test1",
+          "$maria_exe_path/aria_pack$suffix --force -s test1",
+          "$maria_exe_path/aria_chk$suffix -ess test1",
+          "$maria_exe_path/aria_chk$suffix -rqs test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          "$maria_exe_path/aria_chk$suffix -rs test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          "$maria_exe_path/aria_chk$suffix -rus test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
           $NEW_TEST,
           "$maria_exe_path/ma_test1$suffix $silent --checksum $row_type",
-          "$maria_exe_path/maria_pack$suffix --force -s test1",
-          "$maria_exe_path/maria_chk$suffix -rus --safe-recover test1",
-          "$maria_exe_path/maria_chk$suffix -es test1",
+          "$maria_exe_path/aria_pack$suffix --force -s test1",
+          "$maria_exe_path/aria_chk$suffix -rus --safe-recover test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
           $NEW_TEST,
           "$maria_exe_path/ma_test1$suffix $silent --checksum -S $row_type",
-          "$maria_exe_path/maria_chk$suffix -se test1",
-          "$maria_exe_path/maria_chk$suffix -ros test1",
-          "$maria_exe_path/maria_chk$suffix -rqs test1",
-          "$maria_exe_path/maria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -ros test1",
+          "$maria_exe_path/aria_chk$suffix -rqs test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
           $NEW_TEST,
-          "$maria_exe_path/maria_pack$suffix --force -s test1",
-          "$maria_exe_path/maria_chk$suffix -rqs test1",
-          "$maria_exe_path/maria_chk$suffix -es test1",
-          "$maria_exe_path/maria_chk$suffix -rus test1",
-          "$maria_exe_path/maria_chk$suffix -es test1",
+          "$maria_exe_path/aria_pack$suffix --force -s test1",
+          "$maria_exe_path/aria_chk$suffix -rqs test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          "$maria_exe_path/aria_chk$suffix -rus test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
           $NEW_TEST,
           "$maria_exe_path/ma_test2$suffix $silent -c -d1 $row_type",
-          "$maria_exe_path/maria_chk$suffix -s --parallel-recover test2",
-          "$maria_exe_path/maria_chk$suffix -se test2",
-          "$maria_exe_path/maria_chk$suffix -s --unpack --parallel-recover test2",
-          "$maria_exe_path/maria_chk$suffix -se test2",
-          "$maria_exe_path/maria_pack$suffix --force -s test1",
-          "$maria_exe_path/maria_chk$suffix -s --unpack --parallel-recover test2",
-          "$maria_exe_path/maria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -s --parallel-recover test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -s --unpack --parallel-recover test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/aria_pack$suffix --force -s test1",
+          "$maria_exe_path/aria_chk$suffix -s --unpack --parallel-recover test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
           $NEW_TEST,
           "$maria_exe_path/ma_test1$suffix $silent -c $row_type",
           "cp test1.MAD test2.MAD",
           "cp test1.MAI test2.MAI",
-          "$maria_exe_path/maria_pack$suffix --force -s --join=test3 test1 test2",
-          "$maria_exe_path/maria_chk -s test3",
-          "$maria_exe_path/maria_chk -s --safe-recover test3",
-          "$maria_exe_path/maria_chk -s test3"
+          "$maria_exe_path/aria_pack$suffix --force -s --join=test3 test1 test2",
+          "$maria_exe_path/aria_chk -s test3",
+          "$maria_exe_path/aria_chk -s --safe-recover test3",
+          "$maria_exe_path/aria_chk -s test3"
          );
 
   return &count_tests(\@t) if ($count);
@@ -435,7 +435,7 @@ sub run_tests_on_warnings_and_errors
 
   ok("$maria_exe_path/ma_test2$suffix $silent -L -K -W -P -S -R1 -m500",
      $verbose, 0);
-  ok("$maria_exe_path/maria_chk$suffix -sm test2", $verbose, 0);
+  ok("$maria_exe_path/aria_chk$suffix -sm test2", $verbose, 0);
   # ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135\n
   # In the following a failure is a success and success is a failure
   $com=  "$maria_exe_path/ma_test2$suffix $silent -L -K -R1 -m2000 ";
@@ -443,15 +443,15 @@ sub run_tests_on_warnings_and_errors
   ok($com, $verbose, 0, 1);
   ok("cat ma_test2_message.txt", $verbose, 0);
   ok("grep \"Error: 135\" ma_test2_message.txt > /dev/null", $verbose, 0);
-  # maria_exe_path/maria_chk$suffix -sm test2 will warn that
+  # maria_exe_path/aria_chk$suffix -sm test2 will warn that
   # Datafile is almost full
-  ok("$maria_exe_path/maria_chk$suffix -sm test2 >ma_test2_message.txt 2>&1",
+  ok("$maria_exe_path/aria_chk$suffix -sm test2 >ma_test2_message.txt 2>&1",
      $verbose, 0);
   ok("cat ma_test2_message.txt", $verbose, 0);
   ok("grep \"warning: Datafile is almost full\" ma_test2_message.txt>/dev/null",
      $verbose, 0);
   unlink <ma_test2_message.txt>;
-  ok("$maria_exe_path/maria_chk$suffix -ssm test2", $verbose, 0);
+  ok("$maria_exe_path/aria_chk$suffix -ssm test2", $verbose, 0);
 
   return 0;
 }
@@ -480,31 +480,31 @@ sub run_tests_on_clrs
 
   my @t= ($NEW_TEST,
           "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b -t2 -A1",
-          "cp maria_log_control tmp",
-          "$maria_exe_path/maria_read_log$suffix -a -s",
-          "$maria_exe_path/maria_chk$suffix -s -e test2",
-          "cp tmp/maria_log_control .",
+          "cp aria_log_control tmp",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -s -e test2",
+          "cp tmp/aria_log_control .",
           "rm test2.MA?",
-          "$maria_exe_path/maria_read_log$suffix -a -s",
-          "$maria_exe_path/maria_chk$suffix -s -e test2",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -s -e test2",
           "rm test2.MA?",
           $NEW_TEST,
           "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b -t2 -A1",
-          "$maria_exe_path/maria_read_log$suffix -a -s",
-          "$maria_exe_path/maria_chk$suffix -s -e test2",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -s -e test2",
           "rm test2.MA?",
-          "$maria_exe_path/maria_read_log$suffix -a -s",
-          "$maria_exe_path/maria_chk$suffix -e -s test2",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -e -s test2",
           "rm test2.MA?",
           $NEW_TEST,
           "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b32768 -t4 -A1",
-          "$maria_exe_path/maria_read_log$suffix -a -s",
-          "$maria_exe_path/maria_chk$suffix -es test2",
-          "$maria_exe_path/maria_read_log$suffix -a -s",
-          "$maria_exe_path/maria_chk$suffix -es test2",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -es test2",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -es test2",
           "rm test2.MA?",
-          "$maria_exe_path/maria_read_log$suffix -a -s",
-          "$maria_exe_path/maria_chk$suffix -es test2",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -es test2",
           "rm test2.MA?"
          );
 
@@ -666,7 +666,7 @@ sub run_test_bunch
   {
     if ($clear && @$t[$i] eq $NEW_TEST)
     {
-      unlink <maria_log.* maria_log_control>;
+      unlink <aria_log.* aria_log_control>;
     }
     if (@$t[$i] ne $NEW_TEST)
     {
@@ -686,7 +686,7 @@ $my_progname version $VER
 
 Description:
 
-Run various Maria related tests. Typically used via make test as a unittest.
+Run various Aria related tests. Typically used via make test as a unittest.
 
 Options
 --help             Show this help and exit.

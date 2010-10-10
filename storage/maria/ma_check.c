@@ -136,11 +136,13 @@ void maria_chk_init_for_check(HA_CHECK *param, MARIA_HA *info)
     Set up transaction handler so that we can see all rows. When rows is read
     we will check the found id against param->max_tried
   */
-  if (!ma_control_file_inited())
-    param->max_trid= 0;                 /* Give warning for first trid found */
-  else
-    param->max_trid= max_trid_in_system();
-
+  if (param->max_trid == 0)
+  {
+    if (!ma_control_file_inited())
+      param->max_trid= 0;      /* Give warning for first trid found */
+    else
+      param->max_trid= max_trid_in_system();
+  }
   maria_ignore_trids(info);
 }
 
@@ -154,6 +156,9 @@ int maria_chk_status(HA_CHECK *param, MARIA_HA *info)
   if (maria_is_crashed_on_repair(info))
     _ma_check_print_warning(param,
 			   "Table is marked as crashed and last repair failed");
+  else if (maria_in_repair(info))
+    _ma_check_print_warning(param,
+                            "Last repair was aborted before finishing");
   else if (maria_is_crashed(info))
     _ma_check_print_warning(param,
 			   "Table is marked as crashed");
@@ -864,7 +869,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                           llstr(anc_page->pos, llbuff));
   }
 
-  if (anc_page->size > (uint) keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE)
+  if (anc_page->size > share->max_index_block_size)
   {
     _ma_check_print_error(param,
                           "Page at %s has impossible (too big) pagelength",
@@ -1755,7 +1760,7 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
             _ma_check_print_error(param,
                                   "Page %9s:  Row: %3d has an extent with "
                                   "wrong information in bitmap:  "
-                                  "Page %9s  Page_type: %d  Bitmap: %d",
+                                  "Page: %9s  Page_type: %d  Bitmap: %d",
                                   llstr(page, llbuff), row,
                                   llstr(extent_page, llbuff2),
                                   page_type, bitmap_pattern);
@@ -1926,8 +1931,8 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       else
         _ma_check_print_error(param,
                               "Page %9s:  Wrong data in bitmap.  Page_type: "
-                              "%d  empty_space: %u  Bitmap-bits: %d",
-                              llstr(page, llbuff), page_type,
+                              "%d  full: %d  empty_space: %u  Bitmap-bits: %d",
+                              llstr(page, llbuff), page_type, full_dir,
                               empty_space, bitmap_pattern);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         goto err;
@@ -2242,7 +2247,7 @@ static my_bool protect_against_repair_crash(MARIA_HA *info,
     if ((param->testflag & T_NO_CREATE_RENAME_LSN) == 0)
     {
       /* this can be true only for a transactional table */
-      maria_mark_crashed_on_repair(info);
+      maria_mark_in_repair(info);
       if (_ma_state_info_write(share,
                                MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
                                MA_STATE_INFO_WRITE_LOCK))
@@ -2267,9 +2272,13 @@ static int initialize_variables_for_repair(HA_CHECK *param,
                                            MARIA_SORT_INFO *sort_info,
                                            MARIA_SORT_PARAM *sort_param,
                                            MARIA_HA *info,
-                                           my_bool rep_quick)
+                                           my_bool rep_quick,
+                                           MARIA_SHARE *org_share)
 {
   MARIA_SHARE *share= info->s;
+
+  /* Ro allow us to restore state and check how state changed */
+  memcpy(org_share, share, sizeof(*share));
 
   /* Repair code relies on share->state.state so we have to update it here */
   if (share->lock.update_status)
@@ -2318,16 +2327,35 @@ static int initialize_variables_for_repair(HA_CHECK *param,
   }
 
   /* Set up transaction handler so that we can see all rows */
-  if (!ma_control_file_inited())
-    param->max_trid= 0;                 /* Give warning for first trid found */
-  else
-    param->max_trid= max_trid_in_system();
-
+  if (param->max_trid == 0)
+  {
+    if (!ma_control_file_inited())
+      param->max_trid= 0;      /* Give warning for first trid found */
+    else
+      param->max_trid= max_trid_in_system();
+  }
   maria_ignore_trids(info);
   /* Don't write transid's during repair */
   maria_versioning(info, 0);
   return 0;
 }
+
+
+/*
+  During initialize_variables_for_repair and related functions we set some
+  variables to values that makes sence during repair.
+  This function restores these values to their original values so that we can
+  use the handler in MariaDB without having to close and open the table.
+*/
+
+static void restore_table_state_after_repair(MARIA_HA *info,
+                                             MARIA_SHARE *org_share)
+{
+  maria_versioning(info, info->s->have_versioning);
+  info->s->lock_key_trees= org_share->lock_key_trees;
+}
+
+
 
 
 /**
@@ -2478,11 +2506,11 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   char llbuff[22],llbuff2[22];
   MARIA_SORT_INFO sort_info;
   MARIA_SORT_PARAM sort_param;
-  my_bool block_record, scan_inited= 0,
-    reenable_logging= share->now_transactional;
+  my_bool block_record, scan_inited= 0, reenable_logging= 0;
   enum data_file_type org_data_file_type= share->data_file_type;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
+  MARIA_SHARE backup_share;
   DBUG_ENTER("maria_repair");
 
   got_error= 1;
@@ -2490,15 +2518,15 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   start_records= share->state.state.records;
   if (!(param->testflag & T_SILENT))
   {
-    printf("- recovering (with keycache) MARIA-table '%s'\n",name);
+    printf("- recovering (with keycache) Aria-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records, llbuff));
   }
 
   if (initialize_variables_for_repair(param, &sort_info, &sort_param, info,
-                                      rep_quick))
+                                      rep_quick, &backup_share))
     goto err;
 
-  if (reenable_logging)
+  if ((reenable_logging= share->now_transactional))
     _ma_tmp_disable_logging_for_table(info, 0);
 
   sort_param.current_filepos= sort_param.filepos= new_header_length=
@@ -2777,6 +2805,7 @@ err:
   /* If caller had disabled logging it's not up to us to re-enable it */
   if (reenable_logging)
     _ma_reenable_logging_for_table(info, FALSE);
+  restore_table_state_after_repair(info, &backup_share);
 
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
@@ -2974,7 +3003,7 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
       DBUG_RETURN(0);
 
   if (!(param->testflag & T_SILENT))
-    printf("- Sorting index for MARIA-table '%s'\n",name);
+    printf("- Sorting index for Aria-table '%s'\n",name);
 
   if (protect_against_repair_crash(info, param, FALSE))
     DBUG_RETURN(1);
@@ -3102,13 +3131,15 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   new_page_pos=param->new_file_pos;
   param->new_file_pos+=keyinfo->block_length;
   key.keyinfo= keyinfo;
-  key.data= info->lastkey_buff;
 
-  if (!(buff= (uchar*) my_alloca((uint) keyinfo->block_length)))
+  if (!(buff= (uchar*) my_alloca((uint) keyinfo->block_length +
+                                 keyinfo->maxlength)))
   {
     _ma_check_print_error(param,"Not enough memory for key block");
     DBUG_RETURN(-1);
   }
+  key.data= buff + keyinfo->block_length;
+
   if (_ma_fetch_keypage(&page, info, keyinfo, pagepos,
                         PAGECACHE_LOCK_LEFT_UNLOCKED,
                         DFLT_INIT_HITS, buff, 0))
@@ -3204,7 +3235,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
   DBUG_ENTER("maria_zerofill_index");
 
   if (!(param->testflag & T_SILENT))
-    printf("- Zerofilling index for MARIA-table '%s'\n",name);
+    printf("- Zerofilling index for Aria-table '%s'\n",name);
 
   /* Go through the index file */
   for (pos= share->base.keystart, page= (ulonglong) (pos / block_size);
@@ -3296,7 +3327,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
     DBUG_RETURN(0);
 
   if (!(param->testflag & T_SILENT))
-    printf("- Zerofilling data  for MARIA-table '%s'\n",name);
+    printf("- Zerofilling data  for Aria-table '%s'\n",name);
 
   /* Go through the record file */
   for (page= 1, pos= block_size;
@@ -3345,7 +3376,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
     case TAIL_PAGE:
     {
       uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
-      uint offset, dir_start;
+      uint offset, dir_start, empty_space;
       uchar *dir;
 
       if (zero_lsn)
@@ -3358,9 +3389,13 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
                                is_head_page ? ~(TrID) 0 : 0,
                                is_head_page ?
                                share->base.min_block_length : 0);
+
         /* compactation may have increased free space */
+        empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
+        if (!enough_free_entries_on_page(share, buff))
+          empty_space= 0;                         /* Page is full */
         if (_ma_bitmap_set(info, page, is_head_page,
-                           uint2korr(buff + EMPTY_SPACE_OFFSET)))
+                           empty_space))
           goto err;
 
         /* Zerofill the not used part */
@@ -3545,7 +3580,8 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   ulonglong key_map;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
-  my_bool scan_inited= 0;
+  my_bool scan_inited= 0, reenable_logging= 0;
+  MARIA_SHARE backup_share;
   DBUG_ENTER("maria_repair_by_sort");
   LINT_INIT(key_map);
 
@@ -3554,13 +3590,16 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   start_records= share->state.state.records;
   if (!(param->testflag & T_SILENT))
   {
-    printf("- recovering (with sort) MARIA-table '%s'\n",name);
+    printf("- recovering (with sort) Aria-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
 
   if (initialize_variables_for_repair(param, &sort_info, &sort_param, info,
-                                      rep_quick))
+                                      rep_quick, &backup_share))
     goto err;
+
+  if ((reenable_logging= share->now_transactional))
+    _ma_tmp_disable_logging_for_table(info, 0);
 
   org_header_length= share->pack.header_length;
   new_header_length= (param->testflag & T_UNPACK) ? 0 : org_header_length;
@@ -3967,6 +4006,11 @@ err:
     share->state.changed&= ~(STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_ZEROFILLED |
                              STATE_NOT_MOVABLE);
 
+  /* If caller had disabled logging it's not up to us to re-enable it */
+  if (reenable_logging)
+    _ma_reenable_logging_for_table(info, FALSE);
+  restore_table_state_after_repair(info, &backup_share);
+
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.key_block, MYF(MY_ALLOW_ZERO_PTR));
@@ -4037,10 +4081,12 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   IO_CACHE new_data_cache; /* For non-quick repair. */
   IO_CACHE_SHARE io_share;
   MARIA_SORT_INFO sort_info;
+  MARIA_SHARE backup_share;
   ulonglong key_map;
   pthread_attr_t thr_attr;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
+  my_bool reenable_logging= 0;
   DBUG_ENTER("maria_repair_parallel");
   LINT_INIT(key_map);
 
@@ -4049,13 +4095,16 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   start_records= share->state.state.records;
   if (!(param->testflag & T_SILENT))
   {
-    printf("- parallel recovering (with sort) MARIA-table '%s'\n",name);
+    printf("- parallel recovering (with sort) Aria-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records, llbuff));
   }
 
   if (initialize_variables_for_repair(param, &sort_info, &tmp_sort_param, info,
-                                      rep_quick))
+                                      rep_quick, &backup_share))
     goto err;
+
+  if ((reenable_logging= share->now_transactional))
+    _ma_tmp_disable_logging_for_table(info, 0);
 
   new_header_length= ((param->testflag & T_UNPACK) ? 0 :
                       share->pack.header_length);
@@ -4360,8 +4409,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
         goto err;
       }
     }
-    share->state.state.data_file_length= share->state.state.data_file_length=
-      sort_param->filepos;
+    share->state.state.data_file_length= sort_param->filepos;
     /* Only whole records */
     share->state.version= (ulong) time((time_t*) 0);
     /*
@@ -4483,6 +4531,11 @@ err:
 
   pthread_cond_destroy (&sort_info.cond);
   pthread_mutex_destroy(&sort_info.mutex);
+
+  /* If caller had disabled logging it's not up to us to re-enable it */
+  if (reenable_logging)
+    _ma_reenable_logging_for_table(info, FALSE);
+  restore_table_state_after_repair(info, &backup_share);
 
   my_free(sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
@@ -5563,7 +5616,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   a_length+=t_length;
   _ma_store_page_used(share, anc_buff, a_length);
   key_block->end_pos+=t_length;
-  if (a_length <= (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
+  if (a_length <= share->max_index_block_size)
   {
     MARIA_KEY tmp_key2;
     tmp_key2.data= key_block->lastkey;
@@ -5633,7 +5686,7 @@ static int sort_delete_record(MARIA_SORT_PARAM *sort_param)
     _ma_check_print_error(param,
                           "Recover aborted; Can't run standard recovery on "
                           "compressed tables with errors in data-file. "
-                          "Use 'maria_chk --safe-recover' to fix it");
+                          "Use 'aria_chk --safe-recover' to fix it");
     DBUG_RETURN(1);
   }
 
@@ -6075,7 +6128,7 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
   }
   if (!(param->testflag & T_SILENT) &&
       !(param->testflag & T_REP))
-    printf("Updating MARIA file: %s\n", param->isam_file_name);
+    printf("Updating Aria file: %s\n", param->isam_file_name);
   /*
     We have to use an allocated buffer instead of info->rec_buff as
     _ma_put_key_in_record() may use info->rec_buff
@@ -6716,7 +6769,7 @@ static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid)
     {
       _ma_check_print_warning(param,
                               "Found row with transaction id %s but no "
-                              "maria_control_file was specified.  "
+                              "aria_control_file was used or specified.  "
                               "The table may be corrupted",
                               llstr(used_trid, buff));
     }
@@ -6724,7 +6777,7 @@ static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid)
     {
       _ma_check_print_error(param,
                             "Found row with transaction id %s when max "
-                            "transaction id according to maria_control_file "
+                            "transaction id according to aria_control_file "
                             "is %s",
                             llstr(used_trid, buff),
                             llstr(param->max_trid, buff2));

@@ -20,9 +20,9 @@ INCLUDES         = @ZLIB_INCLUDES@ -I$(top_builddir)/include \
 EXTRA_DIST=	ma_test_all-t CMakeLists.txt \
 		ma_test_recovery.pl ma_test_recovery.expected
 # Only reason to link with libmyisam.a here is that it's where some fulltext
-# pieces are (but soon we'll remove fulltext dependencies from Maria).
+# pieces are (but soon we'll remove fulltext dependencies from Aria).
 LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \
-			$(top_builddir)/storage/maria/libmaria.a \
+			$(top_builddir)/storage/maria/libaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
@@ -108,8 +108,8 @@ ma_pagecache_rwconsist2_1k_t_CPPFLAGS = -DTEST_PAGE_SIZE=1024
 # the generic lock manager may not be used in the end and lockman1-t crashes,
 # and lockman2-t takes at least quarter an hour,
 # so we don't build lockman-t and lockman1-t and lockman2-t 
-CLEANFILES =		maria_log_control page_cache_test_file_1 \
-			maria_log.????????
+CLEANFILES =		aria_log_control page_cache_test_file_1 \
+			aria_log.????????
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

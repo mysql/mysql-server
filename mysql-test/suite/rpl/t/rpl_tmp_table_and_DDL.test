@@ -10,4 +10,3 @@ source include/have_binlog_format_row.inc;
 
 LET $ENGINE_TYPE= MyISAM;
 source extra/rpl_tests/rpl_tmp_table_and_DDL.test;
-

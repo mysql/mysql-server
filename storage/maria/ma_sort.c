@@ -154,7 +154,7 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
             keys < (uint) maxbuffer)
 	{
 	  _ma_check_print_error(info->sort_info->param,
-			       "maria_sort_buffer_size is too small");
+			       "aria_sort_buffer_size is too small");
 	  goto err;
 	}
       }
@@ -178,7 +178,7 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
   }
   if (memavl < MIN_SORT_MEMORY)
   {
-    _ma_check_print_error(info->sort_info->param, "Maria sort buffer"
+    _ma_check_print_error(info->sort_info->param, "Aria sort buffer"
                           " too small"); /* purecov: tested */
     goto err; /* purecov: tested */
   }
@@ -377,7 +377,7 @@ pthread_handler_t _ma_thr_find_all_keys(void *arg)
               keys < maxbuffer)
           {
             _ma_check_print_error(sort_param->sort_info->param,
-                                  "maria_sort_buffer_size is too small");
+                                  "aria_sort_buffer_size is too small");
             goto err;
           }
         }
@@ -405,7 +405,7 @@ pthread_handler_t _ma_thr_find_all_keys(void *arg)
     if (memavl < MIN_SORT_MEMORY)
     {
       _ma_check_print_error(sort_param->sort_info->param,
-                            "Maria sort buffer too small");
+                            "Aria sort buffer too small");
       goto err; /* purecov: tested */
     }
 

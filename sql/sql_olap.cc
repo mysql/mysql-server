@@ -146,14 +146,14 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
 
   lex->last_selects=select_lex;
 
-  for (ORDER *order=(ORDER *)select_lex->group_list.first ; order ; order=order->next)
+  for (ORDER *order= select_lex->group_list.first ; order ; order=order->next)
     item_list_copy.push_back(*(order->item));
 
   List<Item>	all_fields(select_lex->item_list);
 
 
   if (setup_tables(lex->thd, &select_lex->context, &select_lex->top_join_list,
-                   (TABLE_LIST *)select_lex->table_list.first
+                   select_lex->table_list.first
                    &select_lex->leaf_tables, FALSE) ||
       setup_fields(lex->thd, 0, select_lex->item_list, MARK_COLUMNS_READ,
                    &all_fields,1) ||

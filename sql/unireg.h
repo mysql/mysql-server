@@ -129,8 +129,8 @@
 #define SPECIAL_LOG_QUERIES_NOT_USING_INDEXES 4096 /* Obsolete */
 
 	/* Extern defines */
-#define store_record(A,B) bmove_align((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
-#define restore_record(A,B) bmove_align((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
+#define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
+#define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
 #define cmp_record(A,B) memcmp((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
 #define empty_record(A) { \
                           restore_record((A),s->default_values); \

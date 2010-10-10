@@ -539,6 +539,13 @@
    fun:_Unwind_ForcedUnwind
 }
 
+{
+   dlsym memory loss from plugin
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_signal_error
+}
+
 #
 # Reading wrong addresses on SuSe Linux 10.3 32 bit
 #
@@ -1043,4 +1050,10 @@
    Memcheck:Cond
    fun:__libc_res_nsend
    fun:__libc_res_nquery
+}
+
+{
+   buf_buddy_relocate peeking (space,page) in potentially free blocks
+   Memcheck:Addr1
+   fun:buf_buddy_relocate
 }

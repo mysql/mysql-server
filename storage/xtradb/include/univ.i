@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Sun Microsystems, Inc.
 
@@ -46,8 +46,8 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	6
-#define PERCONA_INNODB_VERSION	10
+#define INNODB_VERSION_BUGFIX	10
+#define PERCONA_INNODB_VERSION 12.0
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -118,7 +118,7 @@ if we are compiling on Windows. */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 # include <sys/stat.h>
-# if !defined(__NETWARE__) && !defined(__WIN__) 
+# if !defined(__NETWARE__) && !defined(__WIN__)
 #  include <sys/mman.h> /* mmap() for os0proc.c */
 # endif
 
@@ -168,6 +168,9 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
+#if defined(HAVE_valgrind)&& defined(HAVE_VALGRIND_MEMCHECK_H)
+# define UNIV_DEBUG_VALGRIND
+#endif
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
@@ -232,11 +235,6 @@ by one. */
 			/* the above option prevents forcing of log to disk
 			at a buffer page write: it should be tested with this
 			option off; also some ibuf tests are suppressed */
-/*
-#define UNIV_BASIC_LOG_DEBUG
-*/
-			/* the above option enables basic recovery debugging:
-			new allocated file pages are reset */
 
 /* Linkage specifier for non-static InnoDB symbols (variables and functions)
 that are only referenced from within InnoDB, not from MySQL */
@@ -299,6 +297,12 @@ management to ensure correct alignment for doubles etc. */
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
 
+/* The maximum length of a table name. This is the MySQL limit and is
+defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
+number does not include a terminating '\0'. InnoDB probably can handle
+longer names internally */
+#define MAX_TABLE_NAME_LEN	192
+
 /*
 			UNIVERSAL TYPE DEFINITIONS
 			==========================
@@ -326,10 +330,12 @@ macro ULINTPF. */
 typedef unsigned __int64	ulint;
 #define ULINTPF			"%I64u"
 typedef __int64			lint;
+#define MYSQL_SYSVAR_ULINT MYSQL_SYSVAR_ULONGLONG
 #else
 typedef unsigned long int	ulint;
 #define ULINTPF			"%lu"
 typedef long int		lint;
+#define MYSQL_SYSVAR_ULINT MYSQL_SYSVAR_ULONG
 #endif
 
 #ifdef __WIN__

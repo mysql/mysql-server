@@ -18,16 +18,16 @@ DEFS =                  @DEFS@
 noinst_HEADERS =	ha_federatedx.h federatedx_probes.h
 
 EXTRA_LTLIBRARIES =	ha_federatedx.la
-pkgplugin_LTLIBRARIES =	@plugin_federated_shared_target@
-ha_federatedx_la_LDFLAGS =	-module -rpath $(pkgplugindir)
-ha_federatedx_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_federatedx_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+pkgplugin_LTLIBRARIES =	@plugin_federatedx_shared_target@
+ha_federatedx_la_LDFLAGS =	-module -rpath $(pkgplugindir) \
+				-L$(top_builddir)/libservices -lmysqlservices
+ha_federatedx_la_CXXFLAGS=	-shared $(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_federatedx_la_CFLAGS =	-shared $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 
 
 EXTRA_LIBRARIES =	libfederatedx.a
-noinst_LIBRARIES =	@plugin_federated_static_target@
-libfederatedx_a_CXXFLAGS =	$(AM_CFLAGS)
-libfederatedx_a_CFLAGS =	$(AM_CFLAGS)
+noinst_LIBRARIES =	@plugin_federatedx_static_target@
+libfederatedx_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libfederatedx_a_SOURCES=	ha_federatedx.cc federatedx_txn.cc \
 			        federatedx_io.cc federatedx_io_null.cc \
 			        federatedx_io_mysql.cc

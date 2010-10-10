@@ -37,6 +37,18 @@ static TYPELIB global_plugin_typelib=
 char *opt_plugin_load= NULL;
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
+uint plugin_maturity;
+
+/*
+  not really needed now, this map will become essential when we add more
+  maturity levels. We cannot change existing maturity constants,
+  so the next value - even if it will be MariaDB_PLUGIN_MATURITY_VERY_BUGGY -
+  will inevitably be larger than MariaDB_PLUGIN_MATURITY_STABLE.
+  To be able to compare them we use this mapping array
+*/
+uint plugin_maturity_map[]=
+{ 0, 1, 2, 3, 4, 5, 6 };
+
 /*
   When you ad a new plugin type, add both a string and make sure that the
   init and deinit array are correctly updated.
@@ -460,32 +472,32 @@ static my_bool read_mysql_plugin_info(struct st_plugin_dl *plugin_dl,
          i++)
     {
 
-      cur->type= old->type;
-      cur->info= old->info;
-      cur->name= old->name;
-      cur->author= old->author;
-      cur->descr= old->descr;
-      cur->license= old->license;
-      cur->init= old->init;
-      cur->deinit= old->deinit;
-      cur->version= old->version;
-      cur->status_vars= old->status_vars;
-      cur->system_vars= old->system_vars;
+      cur[i].type= old->type;
+      cur[i].info= old->info;
+      cur[i].name= old->name;
+      cur[i].author= old->author;
+      cur[i].descr= old->descr;
+      cur[i].license= old->license;
+      cur[i].init= old->init;
+      cur[i].deinit= old->deinit;
+      cur[i].version= old->version;
+      cur[i].status_vars= old->status_vars;
+      cur[i].system_vars= old->system_vars;
       /*
         Something like this should be added to process
         new mysql plugin versions:
         if (plugin_dl->mysqlversion > 0x0101)
         {
-           cur->newfield= CONSTANT_MEANS_UNKNOWN;
+           cur[i].newfield= CONSTANT_MEANS_UNKNOWN;
         }
         else
         {
-           cur->newfield= old->newfield;
+           cur[i].newfield= old->newfield;
         }
       */
       /* Maria only fields */
-      cur->version_info= "Unknown";
-      cur->maturity= MariaDB_PLUGIN_MATURITY_UNKNOWN;
+      cur[i].version_info= "Unknown";
+      cur[i].maturity= MariaDB_PLUGIN_MATURITY_UNKNOWN;
     }
     plugin_dl->allocated= true;
     plugin_dl->plugins= (struct st_maria_plugin *)cur;
@@ -950,6 +962,17 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         strxnmov(buf, sizeof(buf) - 1, "API version for ",
                  plugin_type_names[plugin->type].str,
                  " plugin is too different", NullS);
+        report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
+        goto err;
+      }
+      if (plugin_maturity_map[plugin->maturity] < plugin_maturity)
+      {
+        char buf[256];
+        strxnmov(buf, sizeof(buf) - 1, "Loading of ",
+                 plugin_maturity_names[plugin->maturity],
+                 " plugins is prohibited by --plugin-maturity=",
+                 plugin_maturity_names[plugin_maturity],
+                 NullS);
         report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
         goto err;
       }
@@ -1598,7 +1621,12 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     goto end;
   }
   table= tables.table;
-  init_read_record(&read_record_info, new_thd, table, NULL, 1, 0, FALSE);
+  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 0, FALSE))
+  {
+    sql_print_error("Could not initialize init_read_record; Plugins not "
+                    "loaded");
+    goto end;
+  }
   table->use_all_columns();
   /*
     there're no other threads running yet, so we don't need a mutex.
@@ -2111,10 +2139,6 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_longlong_t, longlong);
 typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_uint_t, uint);
 typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_ulong_t, ulong);
 typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_ulonglong_t, ulonglong);
-
-#define SET_PLUGIN_VAR_RESOLVE(opt)\
-  *(mysql_sys_var_ptr_p*)&((opt)->resolve)= mysql_sys_var_ptr
-typedef uchar *(*mysql_sys_var_ptr_p)(void* a_thd, int offset);
 
 
 /****************************************************************************
@@ -2644,11 +2668,49 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   return (uchar*)thd->variables.dynamic_variables_ptr + offset;
 }
 
-static uchar *mysql_sys_var_ptr(void* a_thd, int offset)
+
+/**
+  For correctness and simplicity's sake, a pointer to a function
+  must be compatible with pointed-to type, that is, the return and
+  parameters types must be the same. Thus, a callback function is
+  defined for each scalar type. The functions are assigned in
+  construct_options to their respective types.
+*/
+
+static char *mysql_sys_var_char(THD* thd, int offset)
 {
-  return intern_sys_var_ptr((THD *)a_thd, offset, true);
+  return (char *) intern_sys_var_ptr(thd, offset, true);
 }
 
+static int *mysql_sys_var_int(THD* thd, int offset)
+{
+  return (int *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static long *mysql_sys_var_long(THD* thd, int offset)
+{
+  return (long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static unsigned long *mysql_sys_var_ulong(THD* thd, int offset)
+{
+  return (unsigned long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static long long *mysql_sys_var_longlong(THD* thd, int offset)
+{
+  return (long long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static unsigned long long *mysql_sys_var_ulonglong(THD* thd, int offset)
+{
+  return (unsigned long long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static char **mysql_sys_var_str(THD* thd, int offset)
+{
+  return (char **) intern_sys_var_ptr(thd, offset, true);
+}
 
 void plugin_thdvar_init(THD *thd)
 {
@@ -3219,25 +3281,25 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       continue;
     switch (opt->flags & PLUGIN_VAR_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_bool_t *) opt);
+      ((thdvar_bool_t *) opt)->resolve= mysql_sys_var_char;
       break;
     case PLUGIN_VAR_INT:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_int_t *) opt);
+      ((thdvar_int_t *) opt)->resolve= mysql_sys_var_int;
       break;
     case PLUGIN_VAR_LONG:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_long_t *) opt);
+      ((thdvar_long_t *) opt)->resolve= mysql_sys_var_long;
       break;
     case PLUGIN_VAR_LONGLONG:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_longlong_t *) opt);
+      ((thdvar_longlong_t *) opt)->resolve= mysql_sys_var_longlong;
       break;
     case PLUGIN_VAR_STR:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_str_t *) opt);
+      ((thdvar_str_t *) opt)->resolve= mysql_sys_var_str;
       break;
     case PLUGIN_VAR_ENUM:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_enum_t *) opt);
+      ((thdvar_enum_t *) opt)->resolve= mysql_sys_var_ulong;
       break;
     case PLUGIN_VAR_SET:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_set_t *) opt);
+      ((thdvar_set_t *) opt)->resolve= mysql_sys_var_ulonglong;
       break;
     default:
       sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",
@@ -3589,8 +3651,7 @@ void my_print_help_inc_plugins(my_option *main_options, uint size)
     {
       p= *dynamic_element(&plugin_array, idx, struct st_plugin_int **);
 
-      if (!p->plugin->system_vars ||
-          !(opt= construct_help_options(&mem_root, p)))
+      if (!(opt= construct_help_options(&mem_root, p)))
         continue;
 
       /* Only options with a non-NULL comment are displayed in help text */

@@ -44,7 +44,9 @@ extern "C" {
 #endif
 
 #ifndef _global_h				/* If not standard header */
+#ifndef MYSQL_ABI_CHECK
 #include <sys/types.h>
+#endif
 #ifdef __LCC__
 #include <winsock2.h>				/* For windows */
 #endif

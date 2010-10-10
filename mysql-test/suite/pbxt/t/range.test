@@ -380,10 +380,18 @@ select count(*) from t2;
 
 analyze table t1,t2;
 
-explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
-explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
-explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
-explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
+# This part doesn't make sense for pbxt as the result may vary becasue
+# records_in_range() gives same results for t1 and t2.
+# Added straight_join to get predictable results
+
+--replace_column 9 #
+explain select straight_join * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+--replace_column 9 #
+explain select straight_join * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
+--replace_column 9 #
+explain select straight_join * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+--replace_column 9 #
+explain select straight_join * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;

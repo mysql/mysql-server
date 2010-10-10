@@ -130,3 +130,11 @@ ADD_DEFINITIONS(-DHAVE_DLOPEN)
 IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
 ENDIF(EMBED_MANIFESTS)
+
+# TODO: Install mysqlclient_notls?
+# TODO: Which component should these be part of, development?
+INSTALL(TARGETS mysqlclient DESTINATION lib/opt COMPONENT runtime)
+INSTALL(TARGETS libmysql DESTINATION lib/opt COMPONENT runtime)
+
+# Also install libmysql.dll to the bin dir
+INSTALL(TARGETS libmysql DESTINATION bin COMPONENT runtime)

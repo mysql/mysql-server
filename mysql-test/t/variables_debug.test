@@ -1,5 +1,7 @@
 --source include/have_debug.inc
 
+SET @old_debug = @@GLOBAL.debug;
+
 #
 # Bug#34678 @@debug variable's incremental mode
 #
@@ -21,5 +23,6 @@ SELECT @@global.debug;
 SET GLOBAL debug='';
 SELECT @@global.debug;
 
+SET GLOBAL debug=@old_debug;
 
 --echo End of 5.1 tests

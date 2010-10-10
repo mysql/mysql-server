@@ -10,6 +10,8 @@ Created 5/24/1996 Heikki Tuuri
 #define db0err_h
 
 
+#define DB_SUCCESS_LOCKED_REC	9	/* like DB_SUCCESS, but a new
+					explicit record lock was created */
 #define DB_SUCCESS		10
 
 /* The following are error codes */
@@ -69,6 +71,9 @@ Created 5/24/1996 Heikki Tuuri
 					a feature that it can't recoginize or
 					work with e.g., FT indexes created by
 					a later version of the engine. */
+#define DB_INTERRUPTED		49	/* the query has been interrupted with
+					"KILL QUERY N;" */
+
 /* The following are partial failure codes */
 #define DB_FAIL			1000
 #define DB_OVERFLOW		1001

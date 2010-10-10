@@ -246,7 +246,7 @@ int simple_read_change_write_read_test()
 
 /*
   Prepare page, read page 0 (and pin) then write page 1 and page 0.
-  Flush the file (shold flush only page 1 and return 1 (page 0 is
+  Flush the file (should flush only page 1 and return 1 (page 0 is
   still pinned).
   Check file on the disk.
   Unpin and flush.
@@ -284,7 +284,7 @@ int simple_pin_test()
   bfill(buffw + TEST_PAGE_SIZE/2, TEST_PAGE_SIZE/2, ((unsigned char) 129));
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
-                  PAGECACHE_LOCK_WRITE_TO_READ,
+                  PAGECACHE_LOCK_LEFT_WRITELOCKED,
                   PAGECACHE_PIN_LEFT_PINNED,
                   PAGECACHE_WRITE_DELAY,
                   0, LSN_IMPOSSIBLE);
@@ -304,7 +304,7 @@ int simple_pin_test()
   pagecache_unlock(&pagecache,
                    &file1,
                    0,
-                   PAGECACHE_LOCK_READ_UNLOCK,
+                   PAGECACHE_LOCK_WRITE_UNLOCK,
                    PAGECACHE_UNPIN,
                    0, 0, 0);
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
@@ -316,6 +316,93 @@ int simple_pin_test()
   ok((res&= test(test_file(file1, file1_name, TEST_PAGE_SIZE*2, TEST_PAGE_SIZE,
                            simple_pin_test_file2))),
      "Simple pin page result file");
+  if (res)
+    reset_file(&file1, file1_name);
+err:
+  free(buffw);
+  DBUG_RETURN(res);
+}
+
+/*
+  Prepare page, read page 0 (and pin) then write page 1 and page 0.
+  Flush the file (should flush only page 1 and return 1 (page 0 is
+  still pinned).
+  Check file on the disk.
+  Unpin and flush.
+  Check file on the disk.
+*/
+int simple_pin_test2()
+{
+  unsigned char *buffw= malloc(TEST_PAGE_SIZE);
+  int res;
+  DBUG_ENTER("simple_pin_test2");
+  /* prepare the file */
+  bfill(buffw, TEST_PAGE_SIZE, '\1');
+  pagecache_write(&pagecache, &file1, 0, 3, buffw,
+                  PAGECACHE_PLAIN_PAGE,
+                  PAGECACHE_LOCK_LEFT_UNLOCKED,
+                  PAGECACHE_PIN_LEFT_UNPINNED,
+                  PAGECACHE_WRITE_DELAY,
+                  0, LSN_IMPOSSIBLE);
+  /* test */
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error during flushing pagecache\n");
+    exit(1);
+  }
+  pagecache_read(&pagecache, &file1, 0, 3, buffw,
+                 PAGECACHE_PLAIN_PAGE,
+                 PAGECACHE_LOCK_WRITE,
+                 0);
+  pagecache_write(&pagecache, &file1, 1, 3, buffw,
+                  PAGECACHE_PLAIN_PAGE,
+                  PAGECACHE_LOCK_LEFT_UNLOCKED,
+                  PAGECACHE_PIN_LEFT_UNPINNED,
+                  PAGECACHE_WRITE_DELAY,
+                  0, LSN_IMPOSSIBLE);
+  bfill(buffw + TEST_PAGE_SIZE/2, TEST_PAGE_SIZE/2, ((unsigned char) 129));
+  pagecache_write(&pagecache, &file1, 0, 3, buffw,
+                  PAGECACHE_PLAIN_PAGE,
+                  PAGECACHE_LOCK_WRITE_TO_READ,
+                  PAGECACHE_PIN_LEFT_PINNED,
+                  PAGECACHE_WRITE_DELAY,
+                  0, LSN_IMPOSSIBLE);
+  /*
+    We have to get error because one page of the file is pinned,
+    other page should be flushed
+  */
+  if (!flush_pagecache_blocks(&pagecache, &file1, FLUSH_KEEP_LAZY))
+  {
+    diag("Did not get error in flush_pagecache_blocks 2\n");
+    res= 0;
+    goto err;
+  }
+  ok((res= test(test_file(file1, file1_name, TEST_PAGE_SIZE*2, TEST_PAGE_SIZE*2,
+                           simple_pin_test_file1))),
+     "Simple pin page file with pin 2");
+
+  /* Test that a normal flush goes through */
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error in flush_pagecache_blocks 3\n");
+    res= 0;
+    goto err;
+  }
+  pagecache_unlock(&pagecache,
+                   &file1,
+                   0,
+                   PAGECACHE_LOCK_READ_UNLOCK,
+                   PAGECACHE_UNPIN,
+                   0, 0, 0);
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error in flush_pagecache_blocks 4\n");
+    res= 0;
+    goto err;
+  }
+  ok((res&= test(test_file(file1, file1_name, TEST_PAGE_SIZE*2, TEST_PAGE_SIZE,
+                           simple_pin_test_file2))),
+     "Simple pin page result file 2");
   if (res)
     reset_file(&file1, file1_name);
 err:
@@ -357,7 +444,7 @@ int simple_pin_no_lock_test()
     We have to get error because one page of the file is pinned,
     other page should be flushed
   */
-  if (!flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  if (!flush_pagecache_blocks(&pagecache, &file1, FLUSH_KEEP_LAZY))
   {
     diag("Did not get error in flush_pagecache_blocks 2\n");
     res= 0;
@@ -392,7 +479,7 @@ int simple_pin_no_lock_test()
   pagecache_unlock_by_link(&pagecache, link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_PIN_LEFT_PINNED, 0, 0, 1, FALSE);
-  if (!flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  if (!flush_pagecache_blocks(&pagecache, &file1, FLUSH_KEEP_LAZY))
   {
     diag("Did not get error in flush_pagecache_blocks 3\n");
     res= 0;
@@ -609,6 +696,7 @@ static void *test_thread(void *arg)
   if (!simple_read_write_test() ||
       !simple_read_change_write_read_test() ||
       !simple_pin_test() ||
+      !simple_pin_test2() ||
       !simple_pin_no_lock_test() ||
       !simple_delete_forget_test() ||
       !simple_delete_flush_test())
@@ -657,8 +745,8 @@ int main(int argc __attribute__((unused)),
   DBUG_ENTER("main");
   DBUG_PRINT("info", ("Main thread: %s\n", my_thread_name()));
 
-  plan(16);
-  SKIP_BIG_TESTS(16)
+  plan(18);
+  SKIP_BIG_TESTS(18)
   {
 
   if ((tmp_file= my_open(file2_name, O_CREAT | O_TRUNC | O_RDWR,

@@ -1,0 +1,1 @@
+--slow-query-log-file=percona_slow_query_log-microseconds_in_slow_query_log.log --long-query-time=1

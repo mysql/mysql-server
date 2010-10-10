@@ -1,4 +1,5 @@
-disable_query_log;
---require r/true.require
-select (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` from information_schema.engines where engine = 'innodb';
-enable_query_log;
+if (!`SELECT count(*) FROM information_schema.engines WHERE
+      (support = 'YES' OR support = 'DEFAULT') AND
+      engine = 'innodb'`){
+  skip Needs innodb engine;
+}

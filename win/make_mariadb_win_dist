@@ -7,6 +7,55 @@
 
 set -e
 
+usage()
+{
+cat <<EOF 
+Usage: $0 [-h] [-64] [-nobuild]
+  -h, --help              Show this help message.
+  -64                     Build a 64 bit distribution.
+  -nobuild                Don't run cmake and devenv, only do the packaging.
+
+The default is to the builds and create 32 bit packages.
+EOF
+}
+
+# The default settings
+CMAKE_GENERATOR="Visual Studio 9 2008"
+ARCH="win32"
+RUNBUILD="yes"
+
+parse_options()
+{
+  while test $# -gt 0
+  do
+    case "$1" in
+    -64)
+      CMAKE_GENERATOR="Visual Studio 9 2008 Win64"
+      ARCH="win64"
+      ;;
+    -nobuild)
+      RUNBUILD="no"
+      ;;
+    -h | --help)
+      usage
+      exit 0;;
+    *)
+      echo "Unknown option '$1'"
+      usage
+      exit 1;;
+    esac
+    shift
+  done
+}
+
+########################################################################
+
+if test ! -f sql/mysqld.cc
+then
+  echo "You must run this script from the MySQL top-level directory"
+  exit 1
+fi
+
 if [ ! -d win/data ] ; then
   echo This doesnt seem to be source tarball. 
   echo This script should be run from the top directory of the source tarball 
@@ -14,12 +63,14 @@ if [ ! -d win/data ] ; then
   exit 1;
 fi
 
+parse_options "$@"
+
 set -x
 
-if [ "x_$1" != "x_-nobuild" ]; then
+if [ "$RUNBUILD" == "yes" ]; then
   sh win/configure-mariadb.sh
 
-  cmake -G "Visual Studio 9 2008"
+  cmake -G "$CMAKE_GENERATOR"
 
   devenv.com MySQL.sln /build RelWithDebInfo
   devenv.com MySQL.sln /build Debug
@@ -35,12 +86,12 @@ VER_NO_MARIA=${VER/-MariaDB/}
 
 # We want the final zip to be named like this:
 #  mariadb-noinstall-5.1.38-win32.zip
-ZIPNAME=mariadb-noinstall-$VER_NO_MARIA-win32
+ZIPNAME=mariadb-noinstall-$VER_NO_MARIA-$ARCH
 ZIPFILE=$ZIPNAME.zip
 
 # The top directory inside the zip should be called like this:
-#  mariadb-5.1-38-win32
-ZIPCONTENT=mariadb-$VER_NO_MARIA-win32
+#  mariadb-5.1-38-$ARCH
+ZIPCONTENT=mariadb-$VER_NO_MARIA-$ARCH
 
 # This will make $ZIPCONTENT.zip
 sh -x scripts/make_win_bin_dist $ZIPCONTENT

@@ -201,6 +201,3 @@ install-exec-hook:
 	test ! -x mysqld-debug$(EXEEXT) || $(INSTALL_PROGRAM) mysqld-debug$(EXEEXT) $(DESTDIR)$(libexecdir)
 	test ! -f mysqld-debug.sym.gz   || $(INSTALL_DATA)    mysqld-debug.sym.gz   $(DESTDIR)$(pkglibdir)
 	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
