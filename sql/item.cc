@@ -28,7 +28,7 @@
 
 const String my_null_string("NULL", 4, default_charset_info);
 
-static int save_field_in_field(Field *from, my_bool *null_value,
+static int save_field_in_field(Field *from, bool *null_value,
                                Field *to, bool no_conversions);
 
 /****************************************************************************/
@@ -5192,7 +5192,7 @@ void Item_field::make_field(Send_field *tmp_field)
 
 */
 
-static int save_field_in_field(Field *from, my_bool *null_value,
+static int save_field_in_field(Field *from, bool *null_value,
                                Field *to, bool no_conversions)
 {
   int res;

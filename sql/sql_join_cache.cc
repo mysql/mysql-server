@@ -1800,7 +1800,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     int err= 0;
 
      if (rc == NESTED_LOOP_OK)
-       update_virtual_fields(join_tab->table);
+       update_virtual_fields(join->thd, join_tab->table);
  
     /* 
       Do not look for matches if the last read record of the joined table
@@ -2321,7 +2321,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
         (!check_only_first_match || !get_match_flag_by_pos(rec_ptr)))
     {
       get_record_by_pos(rec_ptr);
-      update_virtual_fields(join_tab->table);
+      update_virtual_fields(join->thd, join_tab->table);
       rc= generate_full_extensions(rec_ptr);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
 	goto finish;   
@@ -3209,7 +3209,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
           (!check_only_first_match || !get_match_flag_by_pos(rec_ptr)))
       {
         get_record_by_pos(rec_ptr);
-        update_virtual_fields(join_tab->table);
+        update_virtual_fields(join->thd, join_tab->table);
         rc= generate_full_extensions(rec_ptr);
         if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
 	  goto finish;   

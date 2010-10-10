@@ -245,8 +245,7 @@ walk_up_n_right:
 
     if (!(cur->min_key_flag & ~NULL_RANGE) && !cur->max_key_flag &&
         (uint)key_tree->part+1 == seq->param->table->key_info[seq->real_keyno].key_parts &&
-        (seq->param->table->key_info[seq->real_keyno].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
-        HA_NOSAME &&
+        (seq->param->table->key_info[seq->real_keyno].flags & HA_NOSAME) &&
         range->start_key.length == range->end_key.length &&
         !memcmp(seq->param->min_key,seq->param->max_key,range->start_key.length))
       range->range_flag= UNIQUE_RANGE | (cur->min_key_flag & NULL_RANGE);
@@ -323,24 +322,8 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     return 1; /* no more ranges */
 
   QUICK_RANGE *cur= *(ctx->cur);
-  key_range *start_key= &range->start_key;
-  key_range *end_key=   &range->end_key;
-
-  start_key->key=    cur->min_key;
-  start_key->length= cur->min_length;
-  start_key->keypart_map= cur->min_keypart_map;
-  start_key->flag=   ((cur->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
-                      (cur->flag & EQ_RANGE) ?
-                      HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
-  end_key->key=      cur->max_key;
-  end_key->length=   cur->max_length;
-  end_key->keypart_map= cur->max_keypart_map;
-  /*
-    We use HA_READ_AFTER_KEY here because if we are reading on a key
-    prefix. We want to find all keys with this prefix.
-  */
-  end_key->flag=     (cur->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
-                      HA_READ_AFTER_KEY);
+  cur->make_min_endpoint(&range->start_key);
+  cur->make_max_endpoint(&range->end_key);
   range->range_flag= cur->flag;
   ctx->cur++;
   return 0;

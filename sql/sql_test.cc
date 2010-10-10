@@ -238,7 +238,7 @@ void print_keyuse(KEYUSE *keyuse)
     fieldname= "FT_KEYPART";
   else
     fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
-  longlong2str(keyuse->used_tables, buf2, 16); 
+  longlong2str(keyuse->used_tables, buf2, 16, 0); 
   DBUG_LOCK_FILE;
   fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize= %d used_tables=%s "
           "ref_table_rows= %lu keypart_map= %0lx\n",

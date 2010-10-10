@@ -30,7 +30,7 @@
 #include "procedure.h"
 #include <myisam.h>
 
-#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
 #include "../storage/maria/ha_maria.h"
 #define TMP_ENGINE_HTON maria_hton
 #else

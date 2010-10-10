@@ -1335,7 +1335,7 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
       key= keyuse->key;
       KEY *keyinfo= table->key_info + key;
       key_part_map bound_parts= 0;
-      if ((keyinfo->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME)
+      if (keyinfo->flags & HA_NOSAME)
       {
         do  /* For all equalities on all key parts */
         {
