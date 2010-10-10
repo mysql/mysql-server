@@ -6052,7 +6052,6 @@ get_best_combination(JOIN *join)
     TABLE *form;
     *j= *join->best_positions[tablenr].table;
     form=join->table[tablenr]=j->table;
- //psergey-merge: or is the above:   form=join->all_tables[tablenr]=j->table;
     used_tables|= form->map;
     form->reginfo.join_tab=j;
     if (!*j->on_expr_ref)
@@ -10114,16 +10113,10 @@ static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
     if ((nested_join= table->nested_join))
     {
       nested_join->counter= 0;
-      //nested_join->n_tables= my_count_bits(nested_join->used_tables & 
-      //                                     ~join->eliminated_tables);
       nested_join->n_tables= reset_nj_counters(join, &nested_join->join_list);
       if (!nested_join->n_tables)
         is_eliminated_nest= TRUE;
     }
-    //if (!table->table || (table->table->map & ~join->eliminated_tables))
-    //psergey-merge10^
-    //if (!table->table && (table->table->map & ~join->eliminated_tables))
-    //psergey-merge11^
     if ((!table->table && !is_eliminated_nest) || 
         (table->table && (table->table->map & ~join->eliminated_tables)))
       n++;

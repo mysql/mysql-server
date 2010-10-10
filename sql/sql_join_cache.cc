@@ -1812,10 +1812,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
       if (err < 0)
         return NESTED_LOOP_ERROR;
       rc= NESTED_LOOP_OK;
-      //psergey3-merge: todo: check if all other places in this file
-      //  should have the 
-      //     skip_record(...) <0  -->  return error
-      //  code.
 
       /* Prepare to read records from the join buffer */
       reset(FALSE);
