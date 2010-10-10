@@ -516,6 +516,8 @@ bool st_select_lex_unit::optimize()
           sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
 
 	saved_error= sl->join->optimize();
+        /* Save estimated number of rows. */
+        result->estimated_records+= sl->join->best_rowcount;
       }
 
       if (saved_error)
@@ -922,8 +924,6 @@ bool st_select_lex::cleanup()
   }
   non_agg_fields.empty();
   inner_refs_list.empty();
-  for (TABLE_LIST *tl= leaf_tables; tl; tl= tl->next_leaf)
-    tl->cleanup();
   DBUG_RETURN(error);
 }
 

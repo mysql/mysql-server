@@ -5677,7 +5677,6 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   sp_remove_not_own_routines(thd->lex);
   for (tmp= *tables; tmp; tmp= tmp->next_global)
   {
-    tmp->cleanup();
     tmp->table= 0;
     tmp->mdl_request.ticket= NULL;
     /* We have to cleanup translation tables of views. */
