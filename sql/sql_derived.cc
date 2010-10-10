@@ -174,10 +174,8 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
 
     /* Initialize derived table. */
     if (!derived->view)
-    {
       derived->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;
-      derived->derived_keymap_list.empty();
-    }
+
     /*
       Temp table is created so that it hounours if UNION without ALL is to be 
       processed
@@ -195,7 +193,7 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
 
     table= derived_result->table;
     unit->derived= derived;
-    derived->filled= FALSE;
+    derived->materialized= FALSE;
 exit:
     /* Hide "Unknown column" or "Unknown function" error */
     if (derived->view)
@@ -288,11 +286,14 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
     if ((res= first_select->join->optimize()))
       goto err;
     lex->current_select= save_current_select;
+    /* Save estimated number of rows. */
+    unit->result->estimated_records= first_select->join->best_rowcount;
+    unit->optimized= 1;
   }
   if (unit->result->estimated_records <= 1)
   {
     res= (mysql_derived_create(thd, lex, derived) ||
-          mysql_derived_filling(thd, lex, derived));
+          mysql_derived_materialize(thd, lex, derived));
   }
 err:
   return res;
@@ -320,6 +321,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
   TABLE *table= derived->table;
   SELECT_LEX_UNIT *unit= derived->derived;
+  bool res= FALSE;
 
   /*check that table creation pass without problem and it is derived table */
   if (table && unit)
@@ -329,6 +331,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
     {
       TABLE *table= derived->table;
       select_union *result= (select_union*)unit->result;
+
       if (table->s->db_type() == myisam_hton)
       {
         if (create_myisam_tmp_table(table, table->key_info,
@@ -339,16 +342,19 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
                                        thd->variables.option_bits |
                                        TMP_TABLE_ALL_COLUMNS),
                                        thd->variables.big_tables))
-          return(TRUE);
+          res= TRUE;
       }
-      if (open_tmp_table(table))
-        return TRUE;
-      table->file->extra(HA_EXTRA_WRITE_CACHE);
-      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-      table->created= TRUE;
+      if (!res && open_tmp_table(table))
+        res= TRUE;
+      else
+      {
+        table->file->extra(HA_EXTRA_WRITE_CACHE);
+        table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+        table->created= TRUE;
+      }
     }
   }
-  return FALSE;
+  return res;
 }
 
 
@@ -375,14 +381,14 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
     TRUE   Error
 */
 
-bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *derived)
+bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
   TABLE *table= derived->table;
   SELECT_LEX_UNIT *unit= derived->derived;
   bool res= FALSE;
 
   /*check that table creation pass without problem and it is derived table */
-  if (table && unit && !derived->filled)
+  if (table && unit && !derived->materialized)
   {
     SELECT_LEX *first_select= unit->first_select();
     select_union *derived_result= derived->derived_result;
@@ -432,7 +438,7 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *derived)
     else
       unit->cleanup();
     lex->current_select= save_current_select;
-    derived->filled= TRUE;
+    derived->materialized= TRUE;
   }
   return res;
 }

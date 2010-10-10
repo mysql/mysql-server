@@ -26,7 +26,7 @@ bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
 bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *t);
-bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *t);
 bool
 mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived,
                             bool (*processor)(THD*, LEX*, TABLE_LIST*));

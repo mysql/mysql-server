@@ -1091,8 +1091,8 @@ public:
   */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
-  bool alloc_keys();
-  int add_tmp_key(ulonglong key_parts, char *key_name, bool covering);
+  bool alloc_keys(uint key_count);
+  int add_tmp_key(ulonglong key_parts, char *key_name);
   void use_index(int key_to_save);
 
   inline void set_keyread(bool flag)
@@ -1304,11 +1304,11 @@ enum enum_open_type
   See also the comment for the TABLE_LIST::update_derived_keys function.
 */
 
-struct st_derived_table_key_map {
+struct st_derived_table_key {
   table_map referenced_by;
   key_map used_fields;
 };
-typedef st_derived_table_key_map DERIVED_KEY_MAP;
+typedef st_derived_table_key Derived_key;
 
 
 /*
@@ -1662,7 +1662,7 @@ struct TABLE_LIST
   LEX_STRING view_body_utf8;
 
    /* End of view definition context. */
-  List<DERIVED_KEY_MAP> derived_keymap_list;
+  List<Derived_key> derived_key_list;
 
   /**
     Indicates what triggers we need to pre-load for this TABLE_LIST
@@ -1672,8 +1672,11 @@ struct TABLE_LIST
   uint8 trg_event_map;
   /* TRUE <=> this table is a const one and was optimized away. */
   bool optimized_away;
-  /* TRUE <=> already filled. Valid only for materialized derived tables/views.*/
-  bool filled;
+  /**
+    TRUE <=> already materialized. Valid only for materialized derived
+    tables/views.
+  */
+  bool materialized;
   uint i_s_requested_object;
   bool has_db_lookup_value;
   bool has_table_lookup_value;
@@ -1687,7 +1690,6 @@ struct TABLE_LIST
   int view_check_option(THD *thd, bool ignore_failure);
   bool setup_underlying(THD *thd);
   void cleanup_items();
-  void cleanup();
   bool placeholder()
   {
     return derived || view || schema_table || !table;

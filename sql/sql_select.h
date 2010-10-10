@@ -341,6 +341,7 @@ public:
   nested_join_map cur_embedding_map;
 
   double   best_read;
+  ha_rows  best_rowcount;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   TABLE    *tmp_table;
