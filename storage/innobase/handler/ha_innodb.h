@@ -27,6 +27,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "dict0stats.h"
+
 /* Structure defines translation table between mysql index and innodb
 index structures */
 typedef struct innodb_idx_translate_struct {
@@ -109,6 +111,7 @@ class ha_innobase: public handler
 	ulint innobase_update_autoinc(ulonglong	auto_inc);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
+	int info_low(uint flag, dict_stats_upd_option_t stats_upd_option);
 
 	/* Init values for the class: */
  public:

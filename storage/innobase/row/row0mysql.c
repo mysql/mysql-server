@@ -41,6 +41,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0crea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
+#include "dict0stats.h"
 #include "trx0roll.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -923,7 +924,8 @@ row_update_statistics_if_needed(
 	if (counter > 2000000000
 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
-		dict_update_statistics(table);
+		ut_ad(!mutex_own(&dict_sys->mutex));
+		dict_stats_update(table, DICT_STATS_FETCH, FALSE);
 	}
 }
 
@@ -2971,13 +2973,17 @@ next_rec:
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
-	dict_update_statistics(table);
 
 	trx_commit_for_mysql(trx);
 
 funct_exit:
 
 	row_mysql_unlock_data_dictionary(trx);
+
+	/* We are supposed to recalc and save the stats only
+	on ANALYZE, but it also makes sense to do so on TRUNCATE */
+	dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT_SILENT,
+			  FALSE);
 
 	trx->op_info = "";
 

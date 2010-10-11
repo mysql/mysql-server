@@ -41,6 +41,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "dict0boot.h"
 #include "dict0mem.h"
 #include "dict0crea.h"
+#include "dict0stats.h"
 #include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
@@ -722,7 +723,8 @@ dict_table_get(
 			/* If table->ibd_file_missing == TRUE, this will
 			print an error message and return without doing
 			anything. */
-			dict_update_statistics(table);
+			ut_ad(!mutex_own(&dict_sys->mutex));
+			dict_stats_update(table, DICT_STATS_FETCH, FALSE);
 		}
 	}
 
@@ -1657,13 +1659,20 @@ undo_size_ok:
 		new_index->stat_n_diff_key_vals = mem_heap_alloc(
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(ib_int64_t));
+			* sizeof(*new_index->stat_n_diff_key_vals));
+
+		new_index->stat_n_sample_sizes = mem_heap_alloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(*new_index->stat_n_sample_sizes));
+
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
 		for (i = 0; i <= dict_index_get_n_unique(new_index); i++) {
 
 			new_index->stat_n_diff_key_vals[i] = 100;
+			new_index->stat_n_sample_sizes[i] = 0;
 		}
 	}
 
@@ -4196,118 +4205,6 @@ dict_index_calc_min_rec_len(
 	return(sum);
 }
 
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics_low(
-/*=======================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex __attribute__((unused)))
-					/*!< in: TRUE if the caller has the
-					dictionary mutex */
-{
-	dict_index_t*	index;
-	ulint		sum_of_index_sizes	= 0;
-
-	if (table->ibd_file_missing) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: cannot calculate statistics for table %s\n"
-			"InnoDB: because the .ibd file is missing.  For help,"
-			" please refer to\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-			table->name);
-
-		return;
-	}
-
-	/* Find out the sizes of the indexes and how many different values
-	for the key they approximately have */
-
-	index = dict_table_get_first_index(table);
-
-	if (index == NULL) {
-		/* Table definition is corrupt */
-
-		return;
-	}
-
-
-	do {
-		if (UNIV_LIKELY
-		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
-		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-			 && dict_index_is_clust(index)))) {
-			ulint	size;
-			size = btr_get_size(index, BTR_TOTAL_SIZE);
-
-			index->stat_index_size = size;
-
-			sum_of_index_sizes += size;
-
-			size = btr_get_size(index, BTR_N_LEAF_PAGES);
-
-			if (size == 0) {
-				/* The root node of the tree is a leaf */
-				size = 1;
-			}
-
-			index->stat_n_leaf_pages = size;
-
-			btr_estimate_number_of_different_key_vals(index);
-		} else {
-			/* If we have set a high innodb_force_recovery
-			level, do not calculate statistics, as a badly
-			corrupted index can cause a crash in it.
-			Initialize some bogus index cardinality
-			statistics, so that the data can be queried in
-			various means, also via secondary indexes. */
-			ulint	i;
-
-			sum_of_index_sizes++;
-			index->stat_index_size = index->stat_n_leaf_pages = 1;
-
-			for (i = dict_index_get_n_unique(index); i; ) {
-				index->stat_n_diff_key_vals[i--] = 1;
-			}
-		}
-
-		index = dict_table_get_next_index(index);
-	} while (index);
-
-	index = dict_table_get_first_index(table);
-
-	dict_index_stat_mutex_enter(index);
-
-	table->stat_n_rows = index->stat_n_diff_key_vals[
-		dict_index_get_n_unique(index)];
-
-	dict_index_stat_mutex_exit(index);
-
-	table->stat_clustered_index_size = index->stat_index_size;
-
-	table->stat_sum_of_other_index_sizes = sum_of_index_sizes
-		- index->stat_index_size;
-
-	table->stat_initialized = TRUE;
-
-	table->stat_modified_counter = 0;
-}
-
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics(
-/*===================*/
-	dict_table_t*	table)	/*!< in/out: table */
-{
-	dict_update_statistics_low(table, FALSE);
-}
-
 /**********************************************************************//**
 Prints info of a foreign key constraint. */
 static
@@ -4385,7 +4282,7 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table, TRUE);
+	dict_stats_update(table, DICT_STATS_FETCH, TRUE);
 
 	fprintf(stderr,
 		"--------------------------------------\n"
@@ -4907,6 +4804,157 @@ dict_table_check_for_dup_indexes(
 	} while (index1);
 }
 #endif /* UNIV_DEBUG */
+
+/*********************************************************************//**
+Checks whether a table exists and whether it has the given structure.
+The table must have the same number of columns with the same names and
+types. The order of the columns does not matter.
+The caller must own the dictionary mutex.
+dict_table_schema_check() @{
+@return DB_SUCCESS if the table exists and contains the necessary columns */
+UNIV_INTERN
+enum db_err
+dict_table_schema_check(
+/*====================*/
+	dict_table_schema_t*	req_schema,	/*!< in/out: required table
+						schema */
+	char*			errstr,		/*!< out: human readable error
+						message if != DB_SUCCESS and
+						!= DB_TABLE_NOT_FOUND is
+						returned */
+	size_t			errstr_sz)	/*!< in: errstr size */
+{
+	dict_table_t*	table;
+	ulint		i;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	table = dict_table_get_low(req_schema->table_name);
+
+	if (table == NULL || table->ibd_file_missing) {
+		/* no such table or missing tablespace */
+
+		return(DB_TABLE_NOT_FOUND);
+	}
+
+	if (table->n_def - DATA_N_SYS_COLS != req_schema->n_cols) {
+		/* the table has a different number of columns than
+		required */
+
+		ut_snprintf(errstr, errstr_sz,
+			    "%s has %d columns but should have %lu.",
+			    req_schema->table_name,
+			    table->n_def - DATA_N_SYS_COLS,
+			    req_schema->n_cols);
+
+		return(DB_ERROR);
+	}
+
+	/* For each column from req_schema->columns[] search
+	whether it is present in table->cols[].
+	The following algorithm is O(n_cols^2), but is optimized to
+	be O(n_cols) if the columns are in the same order in both arrays. */
+
+	for (i = 0; i < req_schema->n_cols; i++) {
+		ulint	j;
+
+		char	req_type[64];
+		char	actual_type[64];
+
+		/* check if i'th column is the same in both arrays */
+		if (innobase_strcasecmp(req_schema->columns[i].name,
+			       dict_table_get_col_name(table, i)) == 0) {
+
+			/* we found the column in table->cols[] quickly */
+			j = i;
+		} else {
+
+			/* columns in both arrays are not in the same order,
+			do a full scan of the second array */
+			for (j = 0; j < table->n_def; j++) {
+				const char*	name;
+
+				name = dict_table_get_col_name(table, j);
+
+				if (innobase_strcasecmp(name,
+					req_schema->columns[i].name) == 0) {
+
+					/* found the column on j'th
+					position */
+					break;
+				}
+			}
+
+			if (j == table->n_def) {
+
+				ut_snprintf(errstr, errstr_sz,
+					    "required column %s.%s not found.",
+					    req_schema->table_name,
+					    req_schema->columns[i].name);
+
+				return(DB_ERROR);
+			}
+		}
+
+		/* we found a column with the same name on j'th position,
+		compare column types and flags */
+
+		dtype_sql_name(req_schema->columns[i].mtype,
+			       req_schema->columns[i].prtype_mask,
+			       req_schema->columns[i].len,
+			       req_type, sizeof(req_type));
+
+		dtype_sql_name(table->cols[j].mtype,
+			       table->cols[j].prtype,
+			       table->cols[j].len,
+			       actual_type, sizeof(actual_type));
+
+		/* check length for exact match */
+		if (req_schema->columns[i].len != table->cols[j].len) {
+
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(length mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
+
+			return(DB_ERROR);
+		}
+
+		/* check mtype for exact match */
+		if (req_schema->columns[i].mtype != table->cols[j].mtype) {
+
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(type mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
+
+			return(DB_ERROR);
+		}
+
+		/* check whether required prtype mask is set */
+		if (req_schema->columns[i].prtype_mask != 0
+		    && (table->cols[j].prtype
+			& req_schema->columns[i].prtype_mask)
+		       != req_schema->columns[i].prtype_mask) {
+
+			ut_snprintf(errstr, errstr_sz,
+				    "Column %s.%s is %s but should be %s "
+				    "(flags mismatch).",
+				    req_schema->table_name,
+				    req_schema->columns[i].name,
+				    actual_type, req_type);
+
+			return(DB_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+/* @} */
 
 /**************************************************************************
 Closes the data dictionary module. */

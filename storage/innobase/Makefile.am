@@ -66,6 +66,7 @@ noinst_HEADERS=		\
 			include/dict0load.ic	\
 			include/dict0mem.h	\
 			include/dict0mem.ic	\
+			include/dict0stats.h	\
 			include/dict0types.h	\
 			include/dyn0dyn.h	\
 			include/dyn0dyn.ic	\
@@ -247,6 +248,7 @@ libinnobase_a_SOURCES=	\
 			dict/dict0dict.c		\
 			dict/dict0load.c		\
 			dict/dict0mem.c			\
+			dict/dict0stats.c		\
 			dyn/dyn0dyn.c			\
 			eval/eval0eval.c		\
 			eval/eval0proc.c		\

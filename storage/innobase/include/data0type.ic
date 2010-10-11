@@ -23,6 +23,8 @@ Data types
 Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
+#include <string.h> /* strlen() */
+
 #include "mach0data.h"
 #ifndef UNIV_HOTBACKUP
 # include "ha_prototypes.h"
@@ -412,6 +414,99 @@ dtype_new_read_for_order_and_null_size(
 	}
 	dtype_set_mblen(type);
 }
+
+/*********************************************************************//**
+Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len
+@return the SQL type name */
+UNIV_INTERN
+char*
+dtype_sql_name(
+/*===========*/
+	unsigned	mtype,	/*!< in: mtype */
+	unsigned	prtype,	/*!< in: prtype */
+	unsigned	len,	/*!< in: len */
+	char*		name,	/*!< out: SQL name */
+	unsigned	name_sz)/*!< in: size of the name buffer */
+{
+
+#define APPEND_UNSIGNED()					\
+	do {							\
+		if (prtype & DATA_UNSIGNED) {			\
+			ut_snprintf(name + strlen(name),	\
+				    name_sz - strlen(name),	\
+				    " UNSIGNED");		\
+		}						\
+	} while (0)
+
+	ut_snprintf(name, name_sz, "UNKNOWN");
+
+	switch (mtype) {
+	case DATA_INT:
+		switch (len) {
+		case 1:
+			ut_snprintf(name, name_sz, "TINYINT");
+			break;
+		case 2:
+			ut_snprintf(name, name_sz, "SMALLINT");
+			break;
+		case 3:
+			ut_snprintf(name, name_sz, "MEDIUMINT");
+			break;
+		case 4:
+			ut_snprintf(name, name_sz, "INT");
+			break;
+		case 8:
+			ut_snprintf(name, name_sz, "BIGINT");
+			break;
+		}
+		APPEND_UNSIGNED();
+		break;
+	case DATA_FLOAT:
+		ut_snprintf(name, name_sz, "FLOAT");
+		APPEND_UNSIGNED();
+		break;
+	case DATA_DOUBLE:
+		ut_snprintf(name, name_sz, "DOUBLE");
+		APPEND_UNSIGNED();
+		break;
+	case DATA_FIXBINARY:
+		ut_snprintf(name, name_sz, "BINARY(%u)", len);
+		break;
+	case DATA_CHAR:
+		ut_snprintf(name, name_sz, "CHAR(%u)", len);
+		break;
+	case DATA_VARCHAR:
+		ut_snprintf(name, name_sz, "VARCHAR(%u)", len);
+		break;
+	case DATA_BINARY:
+		ut_snprintf(name, name_sz, "VARBINARY(%u)", len);
+		break;
+	case DATA_BLOB:
+		switch (len) {
+		case 9:
+			ut_snprintf(name, name_sz, "TINYBLOB");
+			break;
+		case 10:
+			ut_snprintf(name, name_sz, "BLOB");
+			break;
+		case 11:
+			ut_snprintf(name, name_sz, "MEDIUMBLOB");
+			break;
+		case 12:
+			ut_snprintf(name, name_sz, "LONGBLOB");
+			break;
+		}
+	}
+
+	if (prtype & DATA_NOT_NULL) {
+		ut_snprintf(name + strlen(name),
+			    name_sz - strlen(name),
+			    " NOT NULL");
+	}
+
+	return(name);
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************//**
