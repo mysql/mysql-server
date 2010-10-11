@@ -57,6 +57,7 @@ BEGIN
 
   declare tabname varchar(255);
   declare indextype varchar(32);
+  declare _unique varchar(16);
   declare done integer default 0;
   declare cnt integer default 0;
   declare c cursor for 
@@ -85,39 +86,122 @@ BEGIN
        EXECUTE stmt;
 
        set cnt = cnt+1;
-       if ((cnt%2) = 0) then
-         set indextype = 'USING HASH';
-       else
-         set indextype = '';
+
+       set _unique = '';
+       set indextype = '';
+       ## Create a mix if 'CREATE INDEX' | 'CREATE UNIQUE INDEX [USING HASH] '
+
+       if ((cnt%3) <> 0) then
+         set _unique = ' UNIQUE';
+
+         if ((cnt%2) = 0) then
+           set indextype = ' USING HASH';
+         else
+           set indextype = '';
+         end if;
        end if;
 
-       ## Add some composite unique indexes
-       if tabname > 'O' then
-          set @ddl = CONCAT('CREATE UNIQUE INDEX ix1 ', indextype,
+       ## Add some composite, possibly unique, indexes
+       if tabname > 'T' then
+          set @ddl = CONCAT('DROP INDEX col_varchar_10_unique ON ', dstdb, '.', tabname);
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+
+          set @ddl = CONCAT('CREATE', _unique, ' INDEX ix1 ', indextype,
+                            ' ON ', dstdb, '.', tabname, 
+                            '(col_char_16,col_char_16_unique)');
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+          set @ddl = CONCAT('CREATE', _unique, ' INDEX ix2 ', indextype,
+                            ' ON ', dstdb, '.', tabname, 
+                            '(col_varchar_256,col_varchar_10_unique)');
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+
+       elseif tabname > 'O' then
+          set @ddl = CONCAT('CREATE', _unique, ' INDEX ix1 ', indextype,
                             ' ON ', dstdb, '.', tabname, 
                             '(col_int,col_int_unique)');
           PREPARE stmt from @ddl;
           EXECUTE stmt;
-          set @ddl = CONCAT('CREATE UNIQUE INDEX ix2 ', indextype,
+          set @ddl = CONCAT('CREATE', _unique, ' INDEX ix2 ', indextype,
                             ' ON ', dstdb, '.', tabname, 
                             '(col_int_key,col_int_unique)');
           PREPARE stmt from @ddl;
           EXECUTE stmt;
 
        elseif tabname > 'H' then
-          set @ddl = CONCAT('CREATE UNIQUE INDEX ix3 ', indextype,
+          set @ddl = CONCAT('CREATE', _unique, ' INDEX ix3 ', indextype,
                             ' ON ', dstdb, '.', tabname, 
                             '(col_int,col_int_key,col_int_unique)');
           PREPARE stmt from @ddl;
           EXECUTE stmt;
 
        else
-          set @ddl = CONCAT('CREATE UNIQUE INDEX col_int_unique ', indextype,
+          set @ddl = CONCAT('CREATE', _unique, ' INDEX ix1', indextype,
                             ' ON ', dstdb, '.', tabname, 
                             '(col_int_unique)');
           PREPARE stmt from @ddl;
           EXECUTE stmt;
        end if;
+
+       ## Modify primary key & partition for some tables
+       if ((cnt%3) = 0) then
+          set @ddl = CONCAT('UPDATE ', srcdb, '.', tabname, ' SET col_int=0 WHERE col_int IS NULL');
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+           set @ddl = CONCAT('ALTER TABLE ', dstdb, '.', tabname,
+                               '  CHANGE COLUMN pk pk INT(11) NOT NULL',
+                               ', DROP PRIMARY KEY',
+                               ', ADD PRIMARY KEY ', '(col_int,pk)');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+           set @ddl = CONCAT('ALTER TABLE ', dstdb, '.', tabname, ' PARTITION BY KEY(col_int)');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+
+        elseif ((cnt%5) = 0) then
+           set @ddl = CONCAT('UPDATE ', srcdb, '.', tabname, ' SET col_int=0 WHERE col_int IS NULL');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+           set @ddl = CONCAT('ALTER TABLE ', dstdb, '.', tabname,
+                               '  CHANGE COLUMN pk pk INT(11) NOT NULL',
+                               ', DROP PRIMARY KEY',
+                               ', ADD PRIMARY KEY', indextype, '(col_int,pk)');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+           set @ddl = CONCAT('ALTER TABLE ', dstdb, '.', tabname, ' PARTITION BY KEY(pk)');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+
+        elseif ((cnt%7) = 0) then
+           set @ddl = CONCAT('DELETE FROM ', srcdb, '.', tabname, ' WHERE col_char_16 IS NULL');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+           set @ddl = CONCAT('ALTER TABLE ', dstdb, '.', tabname,
+                               '  CHANGE COLUMN pk pk INT(11) NOT NULL',
+                               ', DROP PRIMARY KEY',
+                               ', ADD PRIMARY KEY', indextype, '(col_char_16,pk)');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+           set @ddl = CONCAT('ALTER TABLE ', dstdb, '.', tabname, ' PARTITION BY KEY(col_char_16)');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+
+        elseif ((cnt%11) = 0) then
+           set @ddl = CONCAT('DELETE FROM ', srcdb, '.', tabname, ' WHERE col_varchar_10 IS NULL');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+           set @ddl = CONCAT('ALTER TABLE ', dstdb, '.', tabname,
+                               '  CHANGE COLUMN pk pk INT(11) NOT NULL',
+                               ', DROP PRIMARY KEY',
+                               ', ADD PRIMARY KEY', indextype, '(pk,col_varchar_256)');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+           set @ddl = CONCAT('ALTER TABLE ', dstdb, '.', tabname, ' PARTITION BY KEY(col_varchar_256)');
+           PREPARE stmt from @ddl;
+           EXECUTE stmt;
+        end if;
 
        set @ddl = CONCAT('INSERT INTO ', dstdb, '.', tabname, 
                          ' SELECT * FROM ', srcdb, '.', tabname);
@@ -181,7 +265,7 @@ check_query(){
 $ecp
 --echo kalle
 --sorted_result
---error 0,1048,1054,1242
+--error 0,233,1242,4006
 $sql
 --exit
 EOF
@@ -281,7 +365,7 @@ do
 	echo "--eval set ndb_join_pushdown='\$NDB_JOIN_PUSHDOWN';"
 	echo "$ecp"
 	${gensql} --seed=$us --queries=$queries --dsn=$dsn --grammar=$grammar|
-	awk '{ print "--sorted_result"; print "--error 0,1242"; print; }'
+        awk '{ print "--sorted_result"; print "--error 0,233,1242,4006"; print; }'
 	echo "--exit"
     ) > ${opre}_test.sql
 

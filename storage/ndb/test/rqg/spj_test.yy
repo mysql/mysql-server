@@ -312,10 +312,22 @@ int_multi_conditions:
    int_condition AND int_condition
  ;
 
-
 char_condition:
    existing_left_table.char_field_name = existing_right_table.char_field_name   # General rule
  | existing_left_table.char_indexed = existing_right_table.char_indexed         # Want more joins on indexed field
+ | char_multi_conditions
+ ;
+
+char_multi_conditions:
+   # ix1(col_char_16,col_char_16_unique)
+   existing_left_table.col_char_16 = existing_right_table.col_char_16 AND
+   existing_left_table.col_char_16_unique = existing_right_table.col_char_16_unique
+ |
+   # ix2(col_varchar_256,col_char_16_unique)
+   existing_left_table.col_varchar_256 = existing_right_table.col_varchar_256 AND
+   existing_left_table.col_varchar_10_unique = existing_right_table.col_varchar_10_unique
+ |
+   char_condition AND char_condition
  ;
 
 existing_left_table:
