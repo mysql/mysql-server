@@ -17,8 +17,6 @@
 */
 
 #include <ndb_global.h>
-#include <my_pthread.h>
-#include <my_sys.h>
 
 #include "ndb_cluster_connection_impl.hpp"
 #include <mgmapi_configuration.hpp>
@@ -103,7 +101,9 @@ const char *Ndb_cluster_connection::get_connectstring(char *buf,
   return 0;
 }
 
-pthread_handler_t run_ndb_cluster_connection_connect_thread(void *me)
+extern "C"
+void *
+run_ndb_cluster_connection_connect_thread(void *me)
 {
   Ndb_cluster_connection_impl* connection= (Ndb_cluster_connection_impl*) me;
   connection->m_run_connect_thread= 1;

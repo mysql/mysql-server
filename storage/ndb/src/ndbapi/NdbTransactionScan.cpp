@@ -119,7 +119,7 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
       if (tOp && tOp->checkMagicNumber())
       {
         // Check if this is a linked operation.
-        if(tOp->getType()==NdbReceiver::NDB_QUERY_OPERATION)
+        if (tOp->getType()==NdbReceiver::NDB_QUERY_OPERATION)
         {
           NdbQueryOperationImpl* queryOp = tOp->m_query_operation_impl;
           assert (&queryOp->getQuery() == m_scanningQuery);

@@ -1107,7 +1107,8 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
     ndbout_c("NdbEventHandle: NdbCondition_Create() failed");
     exit(-1);
   }
-  m_mutex= ndb->theImpl->theWaiter.m_mutex;
+  m_mutex = 0; // Set in Ndb::init()
+
   // ToDo set event buffer size
   // pre allocate event data array
   m_sz= 0;

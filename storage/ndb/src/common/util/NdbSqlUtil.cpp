@@ -17,7 +17,6 @@
 */
 
 #include <NdbSqlUtil.hpp>
-#include <my_sys.h>
 #include <ndb_version.h>
 
 /*

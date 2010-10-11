@@ -68,7 +68,7 @@ class NdbConstOperandImpl;
 class NdbLinkedOperandImpl;
 
 // For debuggging.
-#define TRACE_SERIALIZATION
+//#define TRACE_SERIALIZATION
 
 /** A buffer for holding serialized data.
  *
