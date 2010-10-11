@@ -1,3 +1,8 @@
+2010-10-11	The InnoDB Team
+	* row/row0sel.c
+	Fix Bug #57345 btr_pcur_store_position abort for load with
+	concurrent lock/unlock tables
+
 2010-09-27	The InnoDB Team
 
 	* row/row0sel.c, innodb_bug56716.result, innodb_bug56716.test:
