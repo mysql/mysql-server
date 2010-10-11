@@ -1,0 +1,9 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
+-- source include/rpl_chained_3_hosts.inc
+
+-- connection mysqld_a
+
+-- let $engine=NDB
+-- source extra/rpl_tests/rpl_row_empty_imgs.test
+
