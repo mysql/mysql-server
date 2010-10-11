@@ -225,18 +225,6 @@ void table_events_waits_common::make_row(bool thread_own_wait,
     and sanitizes all the data before returning a row.
   */
 
-  m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
-  m_row.m_event_id= wait->m_event_id;
-#ifdef HAVE_NESTED_EVENTS
-  m_row.m_nesting_event_id= wait->m_nesting_event_id;
-#endif
-
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
-                      & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
-
-  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
-
   /*
     PFS_events_waits::m_class needs to be sanitized,
     for race conditions when this code:
@@ -295,8 +283,22 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   default:
     return;
   }
+
   if (unlikely(safe_class == NULL))
     return;
+
+  m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
+  m_row.m_event_id= wait->m_event_id;
+#ifdef HAVE_NESTED_EVENTS
+  m_row.m_nesting_event_id= wait->m_nesting_event_id;
+#endif
+
+  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+  normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
+                      & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
+
+  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
+
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
 
