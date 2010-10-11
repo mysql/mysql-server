@@ -54,4 +54,6 @@ INSERT INTO t1 VALUES (LAST_INSERT_ID());
 --let $diff_table_2= slave:test.t1
 --source include/diff_tables.inc
 
+--connection master
 DROP TABLE t1;
+--sync_slave_with_master
