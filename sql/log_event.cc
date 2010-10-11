@@ -9864,7 +9864,7 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
   read_str(&ptr, str_end, &str, &len);
   if (!(m_rows_query= (char*) my_malloc(len+1, MYF(MY_WME))))
     return;
-  my_snprintf(m_rows_query, len+1, "%s", str);
+  strmake(m_rows_query, str, len);
   DBUG_PRINT("info", ("m_rows_query: %s", m_rows_query));
   DBUG_VOID_RETURN;
 }

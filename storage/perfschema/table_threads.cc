@@ -187,12 +187,25 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_thread_id= pfs->m_thread_id;
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
-  memcpy(m_row.m_username, pfs->m_username, pfs->m_username_length);
+
   m_row.m_username_length= pfs->m_username_length;
-  memcpy(m_row.m_hostname, pfs->m_hostname, pfs->m_hostname_length);
+  if (unlikely(m_row.m_username_length > sizeof(m_row.m_username)))
+    return;
+  if (m_row.m_username_length != 0)
+    memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
+
   m_row.m_hostname_length= pfs->m_hostname_length;
-  memcpy(m_row.m_dbname, pfs->m_dbname, pfs->m_dbname_length);
+  if (unlikely(m_row.m_hostname_length > sizeof(m_row.m_hostname)))
+    return;
+  if (m_row.m_hostname_length != 0)
+    memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
+
   m_row.m_dbname_length= pfs->m_dbname_length;
+  if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname)))
+    return;
+  if (m_row.m_dbname_length != 0)
+    memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
+
   m_row.m_command= pfs->m_command;
   m_row.m_start_time= pfs->m_start_time;
   /* FIXME: need to copy it ? */
