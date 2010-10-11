@@ -174,12 +174,23 @@ void table_setup_actors::make_row(PFS_setup_actor *pfs)
 
   pfs->m_lock.begin_optimistic_lock(&lock);
 
-  memcpy(m_row.m_hostname, pfs->m_hostname, pfs->m_hostname_length);
   m_row.m_hostname_length= pfs->m_hostname_length;
-  memcpy(m_row.m_username, pfs->m_username, pfs->m_username_length);
+  if (unlikely((m_row.m_hostname_length == 0) ||
+               (m_row.m_hostname_length > sizeof(m_row.m_hostname))))
+    return;
+  memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
+
   m_row.m_username_length= pfs->m_username_length;
-  memcpy(m_row.m_rolename, pfs->m_rolename, pfs->m_rolename_length);
+  if (unlikely((m_row.m_username_length == 0) ||
+               (m_row.m_username_length > sizeof(m_row.m_username))))
+    return;
+  memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
+
   m_row.m_rolename_length= pfs->m_rolename_length;
+  if (unlikely((m_row.m_rolename_length == 0) ||
+               (m_row.m_rolename_length > sizeof(m_row.m_rolename))))
+    return;
+  memcpy(m_row.m_rolename, pfs->m_rolename, m_row.m_rolename_length);
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;
