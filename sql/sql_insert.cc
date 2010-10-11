@@ -1851,8 +1851,8 @@ public:
   delayed_row(LEX_STRING const query_arg, enum_duplicates dup_arg,
               bool ignore_arg, bool log_query_arg)
     : record(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg),
-      forced_insert_id(0), query(query_arg), time_zone(0),
-      binlog_rows_query_log_events(FALSE)
+      binlog_rows_query_log_events(FALSE),
+      forced_insert_id(0), query(query_arg), time_zone(0)
     {}
   ~delayed_row()
   {

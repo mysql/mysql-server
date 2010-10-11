@@ -171,6 +171,7 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_explain_protocol;
 
 our $opt_debug;
 our @opt_cases;                  # The test cases names in argv
@@ -852,6 +853,7 @@ sub command_line_setup {
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
+             'explain-protocol'         => \$opt_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
@@ -5039,6 +5041,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--sp-protocol");
   }
 
+  if ( $opt_explain_protocol )
+  {
+    mtr_add_arg($args, "--explain-protocol");
+  }
+
   if ( $opt_view_protocol )
   {
     mtr_add_arg($args, "--view-protocol");
@@ -5465,6 +5472,7 @@ Options to control what engine/variation to run
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
+  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
