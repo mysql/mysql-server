@@ -3489,7 +3489,9 @@ btr_estimate_n_rows_in_range(
 /*******************************************************************//**
 Estimates the number of different key values in a given index, for
 each n-column prefix of the index where n <= dict_index_get_n_unique(index).
-The estimates are stored in the array index->stat_n_diff_key_vals. */
+The estimates are stored in the array index->stat_n_diff_key_vals[] and
+the number of pages that were sampled is saved in
+index->stat_n_sample_sizes[]. */
 UNIV_INTERN
 void
 btr_estimate_number_of_different_key_vals(
@@ -3524,14 +3526,14 @@ btr_estimate_number_of_different_key_vals(
 
 	/* It makes no sense to test more pages than are contained
 	in the index, thus we lower the number if it is too high */
-	if (srv_stats_sample_pages > index->stat_index_size) {
+	if (srv_stats_transient_sample_pages > index->stat_index_size) {
 		if (index->stat_index_size > 0) {
 			n_sample_pages = index->stat_index_size;
 		} else {
 			n_sample_pages = 1;
 		}
 	} else {
-		n_sample_pages = srv_stats_sample_pages;
+		n_sample_pages = srv_stats_transient_sample_pages;
 	}
 
 	/* We sample some pages in the index to get an estimate */
@@ -3661,6 +3663,8 @@ btr_estimate_number_of_different_key_vals(
 		}
 
 		index->stat_n_diff_key_vals[j] += add_on;
+
+		index->stat_n_sample_sizes[j] = n_sample_pages;
 	}
 
 	dict_index_stat_mutex_exit(index);

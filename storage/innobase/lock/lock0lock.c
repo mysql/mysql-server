@@ -38,6 +38,11 @@ Created 5/7/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "dict0mem.h"
 #include "trx0sys.h"
+#include "pars0pars.h" /* pars_complete_graph_for_exec() */
+#include "que0que.h" /* que_node_get_parent() */
+#include "row0mysql.h" /* row_mysql_handle_errors() */
+#include "row0sel.h" /* sel_node_create(), sel_node_struct */
+#include "row0types.h" /* sel_node_t */
 #include "srv0mon.h"
 
 /* Restricts the length of search we will do in the waits-for
