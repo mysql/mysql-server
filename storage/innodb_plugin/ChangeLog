@@ -1,5 +1,11 @@
 2010-10-11	The InnoDB Team
 
+	* row/row0sel.c
+	Fix Bug #57345 btr_pcur_store_position abort for load with
+	concurrent lock/unlock tables
+
+2010-10-11	The InnoDB Team
+
 	* row/row0mysql.c, innodb_bug56947.result, innodb_bug56947.test:
 	Fix Bug #56947 InnoDB leaks memory when failing to create a table
 

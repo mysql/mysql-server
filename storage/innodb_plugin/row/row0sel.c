@@ -3356,6 +3356,7 @@ row_search_for_mysql(
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+	ibool		table_lock_waited		= FALSE;
 
 	rec_offs_init(offsets_);
 
@@ -3742,13 +3743,15 @@ release_search_latch_if_needed:
 		trx_assign_read_view(trx);
 		prebuilt->sql_stat_start = FALSE;
 	} else {
+wait_table_again:
 		err = lock_table(0, index->table,
 				 prebuilt->select_lock_type == LOCK_S
 				 ? LOCK_IS : LOCK_IX, thr);
 
 		if (err != DB_SUCCESS) {
 
-			goto lock_wait_or_error;
+			table_lock_waited = TRUE;
+			goto lock_table_wait;
 		}
 		prebuilt->sql_stat_start = FALSE;
 	}
@@ -4559,6 +4562,7 @@ lock_wait_or_error:
 
 	btr_pcur_store_position(pcur, &mtr);
 
+lock_table_wait:
 	mtr_commit(&mtr);
 	mtr_has_extra_clust_latch = FALSE;
 
@@ -4575,6 +4579,14 @@ lock_wait_or_error:
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		mtr_start(&mtr);
+
+		/* Table lock waited, go try to obtain table lock
+		again */
+		if (table_lock_waited) {
+			table_lock_waited = FALSE;
+
+			goto wait_table_again;
+		}
 
 		sel_restore_position_for_mysql(&same_user_rec,
 					       BTR_SEARCH_LEAF, pcur,
