@@ -1810,11 +1810,9 @@ public:
     m_pos(0),
     m_finished(false)
  {
-    if (size > 0) {
-      m_seq = buffer.alloc(1 + size/2);
-      assert (size <= 0xFFFF);
-      m_seq[0] = size;
-    }
+    m_seq = buffer.alloc(1 + size/2);
+    assert (size <= 0xFFFF);
+    m_seq[0] = size;
   }
 
   ~Uint16Sequence()
