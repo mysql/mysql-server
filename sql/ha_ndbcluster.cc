@@ -7364,6 +7364,39 @@ err:
   DBUG_VOID_RETURN;
 }
 
+/*
+  Create a table in NDB Cluster
+ */
+static uint get_no_fragments(ulonglong max_rows)
+{
+  ulonglong acc_row_size= 25 + /*safety margin*/ 2;
+  ulonglong acc_fragment_size= 512*1024*1024;
+  return uint((max_rows*acc_row_size)/acc_fragment_size)+1;
+}
+
+
+/*
+  Routine to adjust default number of partitions to always be a multiple
+  of number of nodes and never more than 4 times the number of nodes.
+
+*/
+static bool adjusted_frag_count(uint no_fragments, 
+                                uint no_nodes,
+                                uint &reported_frags)
+{
+  uint i= 0;
+
+  // Should really depend on #replicas
+  uint max_per_node = no_nodes == 1 ? 8 : 4;
+
+  reported_frags= no_nodes;
+  while (reported_frags < no_fragments && ++i < max_per_node &&
+         (reported_frags + no_nodes) < MAX_PARTITIONS) 
+    reported_frags+= no_nodes;
+  return (reported_frags < no_fragments);
+}
+
+
 /**
   Create a table in NDB Cluster
 */
@@ -7675,6 +7708,49 @@ int ha_ndbcluster::create(const char *name,
   part_info= form->part_info;
   if ((my_errno= set_up_partition_info(part_info, form, (void*)&tab)))
     goto abort;
+
+  if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
+      tab.getDefaultNoPartitionsFlag() &&
+      (create_info->max_rows != 0 || create_info->min_rows != 0))
+  {
+    ulonglong rows= create_info->max_rows >= create_info->min_rows ? 
+      create_info->max_rows : 
+      create_info->min_rows;
+    uint no_fragments= get_no_fragments(rows);
+
+    uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
+    {
+      /**
+       * Use SYSTAB_0 to guess #threads per node
+       */
+      ndb->setDatabaseName("sys");
+      Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
+      if (ndbtab_g.get_table())
+      {
+        Uint32 frags= ndbtab_g.get_table()->getFragmentCount();
+        if (frags > no_nodes)
+        {
+          /**
+           * And use this as argument adjusted_frag_count...
+           */
+          no_nodes= frags;
+        }
+      }
+      ndb->setDatabaseName(m_dbname);
+    }
+
+    uint reported_frags= no_fragments;
+    if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
+    {
+      push_warning(current_thd,
+                   MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                   "Ndb might have problems storing the max amount "
+                   "of rows specified");
+    }
+    tab.setFragmentCount(reported_frags);
+    tab.setDefaultNoPartitionsFlag(false);
+    tab.setFragmentData(0, 0);
+  }
 
   // Check for HashMap
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
@@ -12574,47 +12650,6 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
   DBUG_RETURN(FALSE);
 }
 
-
-/*
-  Create a table in NDB Cluster
- */
-static uint get_no_fragments(ulonglong max_rows)
-{
-#if MYSQL_VERSION_ID >= 50000
-  uint acc_row_size= 25 + /*safety margin*/ 2;
-#else
-  uint acc_row_size= pk_length*4;
-  /* add acc overhead */
-  if (pk_length <= 8)  /* main page will set the limit */
-    acc_row_size+= 25 + /*safety margin*/ 2;
-  else                /* overflow page will set the limit */
-    acc_row_size+= 4 + /*safety margin*/ 4;
-#endif
-  ulonglong acc_fragment_size= 512*1024*1024;
-#if MYSQL_VERSION_ID >= 50100
-  return uint((max_rows*acc_row_size)/acc_fragment_size)+1;
-#else
-  return ((max_rows*acc_row_size)/acc_fragment_size+1
-	  +1/*correct rounding*/)/2;
-#endif
-}
-
-
-/*
-  Routine to adjust default number of partitions to always be a multiple
-  of number of nodes and never more than 4 times the number of nodes.
-
-*/
-static bool adjusted_frag_count(uint no_fragments, uint no_nodes,
-                                uint &reported_frags)
-{
-  uint i= 0;
-  reported_frags= no_nodes;
-  while (reported_frags < no_fragments && ++i < 4 &&
-         (reported_frags + no_nodes) < MAX_PARTITIONS) 
-    reported_frags+= no_nodes;
-  return (reported_frags < no_fragments);
-}
 
 int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
 {
