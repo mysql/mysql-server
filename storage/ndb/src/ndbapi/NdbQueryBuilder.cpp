@@ -2102,10 +2102,12 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
 
       for (unsigned i = 0; i < indexRecord->distkey_index_length; i++)
       {
-        unsigned keyNo = indexRecord->distkey_indexes[i];
-        assert(keyNo<distKeys);
-        assert(indexRecord->columns[keyNo].flags & NdbRecord::IsDistributionKey);
-        const NdbQueryOperandImpl* key = m_bound.low[keyNo];
+        const unsigned keyNo = indexRecord->distkey_indexes[i];
+        assert(keyNo<indexRecord->noOfColumns);
+        const NdbRecord::Attr& indexAttr = indexRecord->columns[keyNo];
+        assert(indexAttr.flags & NdbRecord::IsDistributionKey);
+        assert(indexAttr.index_attrId<m_bound.lowKeys);
+        const NdbQueryOperandImpl* key = m_bound.low[indexAttr.index_attrId];
 
         switch(key->getKind())
         {

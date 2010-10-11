@@ -2771,6 +2771,18 @@ select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 
+##########
+# Test pruned scan using an index:
+# Declaring PK as 'using hash' will prevent that PK is used as index
+# Declare PK / ix1 with mismatching column order will test correct
+# usage of NdbRecord::distkey_indexes[]
+##########
+alter table t1 drop primary key, add primary key using hash (d,b,a,c);
+alter table t1 partition by key (b);
+create index ix1 on t1(b,d,a);
+
+explain
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 # Verify pruned execution by comparing the NDB$INFO counters
 --disable_query_log
