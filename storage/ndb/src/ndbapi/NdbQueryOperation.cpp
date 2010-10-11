@@ -1744,19 +1744,19 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
 
     Ndb* const ndb = m_transaction.getNdb();
     Uint32 timeout = ndb->theImpl->get_waitfor_timeout();
-    TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
 
     while (likely(m_error.code==0))
     {
       {
         /* This part needs to be done under mutex due to synchronization with 
-         * receiver thread. */
-        PollGuard poll_guard(facade,
-                             &ndb->theImpl->theWaiter,
-                             ndb->theNdbBlockNumber);
+         * receiver thread.
+         */
+        PollGuard poll_guard(*ndb->theImpl);
+
         /* m_fullFrags contains any fragments that are complete (for this batch)
          * but have not yet been moved (under mutex protection) to 
-         * m_applFrags.*/
+         * m_applFrags.
+         */
         if (m_fullFrags.size()==0) {
           if (m_pendingFrags == 0)
           {
@@ -2544,10 +2544,9 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
   TransporterFacade* const facade = ndb.theImpl->m_transporter_facade;
 
   /* This part needs to be done under mutex due to synchronization with 
-   * receiver thread. */
-  PollGuard poll_guard(facade,
-                       &ndb.theImpl->theWaiter,
-                       ndb.theNdbBlockNumber);
+   * receiver thread.
+   */
+  PollGuard poll_guard(*ndb.theImpl);
   const int res = 
     facade->sendSignal(&tSignal, 
                        getNdbTransaction().getConnectedNodeId(), 
@@ -2579,14 +2578,11 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
 
   Ndb* const ndb = m_transaction.getNdb();
   Uint32 timeout = ndb->theImpl->get_waitfor_timeout();
-  TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
 
   /* This part needs to be done under mutex due to synchronization with 
    * receiver thread.
    */
-  PollGuard poll_guard(facade,
-                       &ndb->theImpl->theWaiter,
-                       ndb->theNdbBlockNumber);
+  PollGuard poll_guard(*ndb->theImpl);
 
   /* Wait for outstanding scan results from current batch fetch */
   while (m_error.code==0 && !isBatchComplete())

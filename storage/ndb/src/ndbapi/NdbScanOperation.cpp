@@ -1837,8 +1837,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
     The rest needs to be done under mutex due to synchronization with receiver
     thread.
   */
-  PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
-                       theNdb->theNdbBlockNumber);
+  PollGuard poll_guard(* theNdb->theImpl);
 
   const Uint32 seq= theNdbCon->theNodeSequence;
 
@@ -2037,8 +2036,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
       in all places where the object is out of context due to a return,
       break, continue or simply end of statement block
     */
-    PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
-                         theNdb->theNdbBlockNumber);
+    PollGuard poll_guard(* theNdb->theImpl);
     close_impl(tp, forceSend, &poll_guard);
   }
 
@@ -3693,8 +3691,7 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
   Uint32 timeout= theNdb->theImpl->get_waitfor_timeout();
   TransporterFacade* tp= theNdb->theImpl->m_transporter_facade;
 
-  PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
-                       theNdb->theNdbBlockNumber);
+  PollGuard poll_guard(* theNdb->theImpl);
   if(theError.code)
     return -1;
 

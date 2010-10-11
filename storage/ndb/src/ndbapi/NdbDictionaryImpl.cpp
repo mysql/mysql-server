@@ -1985,25 +1985,12 @@ NdbDictionaryImpl::getBlobTable(uint tab_id, uint col_no)
   DBUG_RETURN(bt);
 }
 
-#if 0
-bool
-NdbDictionaryImpl::setTransporter(class TransporterFacade * tf)
-{
-  if(tf != 0){
-    m_globalHash = tf->m_globalDictCache;
-    return m_receiver.setTransporter(tf);
-  }
-  
-  return false;
-}
-#endif
-
 bool
 NdbDictionaryImpl::setTransporter(class Ndb* ndb, 
 				  class TransporterFacade * tf)
 {
   m_globalHash = tf->m_globalDictCache;
-  if(m_receiver.setTransporter(ndb, tf)){
+  if(m_receiver.setTransporter(ndb)){
     return true;
   }
   return false;
@@ -2030,46 +2017,19 @@ NdbDictionaryImpl::getIndexTable(NdbIndexImpl * index,
   return index_table;
 }
 
-#if 0
 bool
-NdbDictInterface::setTransporter(class TransporterFacade * tf)
-{
-  if(tf == 0)
-    return false;
-  
-  Guard g(tf->theMutexPtr);
-  
-  m_blockNumber = tf->open(this,
-			   execSignal,
-			   execNodeStatus);
-  
-  if ( m_blockNumber == -1 ) {
-    m_error.code= 4105;
-    return false; // no more free blocknumbers
-  }//if
-  Uint32 theNode = tf->ownId();
-  m_reference = numberToRef(m_blockNumber, theNode);
-  m_transporter = tf;
-  m_waiter.m_mutex = tf->theMutexPtr;
-
-  return true;
-}
-#endif
-
-bool
-NdbDictInterface::setTransporter(class Ndb* ndb, class TransporterFacade * tf)
+NdbDictInterface::setTransporter(class Ndb* ndb)
 {
   m_reference = ndb->getReference();
-  m_transporter = tf;
-  m_waiter.m_mutex = tf->theMutexPtr;
+  m_impl = ndb->theImpl;
   
   return true;
 }
 
 TransporterFacade *
-NdbDictInterface::getTransporter()
+NdbDictInterface::getTransporter() const
 {
-  return m_transporter;
+  return m_impl->m_transporter_facade;
 }
 
 NdbDictInterface::~NdbDictInterface()
@@ -2212,7 +2172,7 @@ NdbDictInterface::execNodeStatus(void* dictImpl, Uint32 aNode, Uint32 ns_event)
   
   switch(event){
   case NS_NODE_FAILED:
-    tmp->m_waiter.nodeFail(aNode);
+    tmp->m_impl->theWaiter.nodeFail(aNode);
     break;
   default:
     break;
@@ -2261,15 +2221,15 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       in all places where the object is out of context due to a return,
       break, continue or simply end of statement block
     */
-    PollGuard poll_guard(m_transporter, &m_waiter, refToBlock(m_reference));
+    PollGuard poll_guard(* m_impl);
     Uint32 node;
     switch(node_specification){
     case 0:
-      node = (m_transporter->get_node_alive(m_masterNodeId) ? m_masterNodeId :
-	      (m_masterNodeId = m_transporter->get_an_alive_node()));
+      node = (getTransporter()->get_node_alive(m_masterNodeId) ? m_masterNodeId :
+	      (m_masterNodeId = getTransporter()->get_an_alive_node()));
       break;
     case -1:
-      node = m_transporter->get_an_alive_node();
+      node = getTransporter()->get_an_alive_node();
       break;
     default:
       node = node_specification;
@@ -2280,8 +2240,8 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       DBUG_RETURN(-1);
     }
     int res = (ptr ? 
-	       m_transporter->sendFragmentedSignal(sig, node, ptr, secs):
-	       m_transporter->sendSignal(sig, node));
+	       getTransporter()->sendFragmentedSignal(sig, node, ptr, secs):
+	       getTransporter()->sendSignal(sig, node));
     if(res != 0){
       DBUG_PRINT("info", ("dictSignal failed to send signal"));
       m_error.code = 4007;
@@ -2305,7 +2265,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       m_error.code = 4013;
       continue;
     }
-    if(m_waiter.m_state == WST_WAIT_TIMEOUT)
+    if(m_impl->theWaiter.get_state() == WST_WAIT_TIMEOUT)
     {
       DBUG_PRINT("info", ("dictSignal caught time-out"));
       m_error.code = 4008;
@@ -2497,7 +2457,7 @@ end:
     return;
   }  
   
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -2518,7 +2478,7 @@ NdbDictInterface::execGET_TABINFO_REF(const NdbApiSignal * signal,
     m_error.code = (*(signal->getDataPtr() + 
                       GetTabInfoRef::OriginalErrorOffset));
   }
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 /*****************************************************************
@@ -3676,7 +3636,7 @@ NdbDictInterface::execCREATE_TABLE_CONF(const NdbApiSignal * signal,
   Uint32* data = (Uint32*)m_buffer.get_data();
   data[0] = conf->tableId;
   data[1] = conf->tableVersion;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -3686,14 +3646,14 @@ NdbDictInterface::execCREATE_TABLE_REF(const NdbApiSignal * sig,
   const CreateTableRef* ref = CAST_CONSTPTR(CreateTableRef, sig->getDataPtr());
   m_error.code= ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
 NdbDictInterface::execALTER_TABLE_CONF(const NdbApiSignal * signal,
                                        const LinearSectionPtr ptr[3])
 {
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -3703,7 +3663,7 @@ NdbDictInterface::execALTER_TABLE_REF(const NdbApiSignal * sig,
   const AlterTableRef * ref = CAST_CONSTPTR(AlterTableRef, sig->getDataPtr());
   m_error.code= ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 /*****************************************************************
@@ -3899,7 +3859,7 @@ NdbDictInterface::execDROP_TABLE_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execDROP_TABLE_CONF");
   //DropTableConf* const conf = CAST_CONSTPTR(DropTableConf, signal->getDataPtr());
 
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -3911,7 +3871,7 @@ NdbDictInterface::execDROP_TABLE_REF(const NdbApiSignal * signal,
   const DropTableRef* ref = CAST_CONSTPTR(DropTableRef, signal->getDataPtr());
   m_error.code= ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -4157,7 +4117,7 @@ void
 NdbDictInterface::execCREATE_INDX_CONF(const NdbApiSignal * signal,
 				       const LinearSectionPtr ptr[3])
 {
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -4168,7 +4128,7 @@ NdbDictInterface::execCREATE_INDX_REF(const NdbApiSignal * sig,
   m_error.code = ref->errorCode;
   if (m_error.code == ref->NotMaster)
     m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 /*****************************************************************
@@ -4293,7 +4253,7 @@ void
 NdbDictInterface::execDROP_INDX_CONF(const NdbApiSignal * signal,
 				       const LinearSectionPtr ptr[3])
 {
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -4304,7 +4264,7 @@ NdbDictInterface::execDROP_INDX_REF(const NdbApiSignal * signal,
   m_error.code = ref->errorCode;
   if (m_error.code == ref->NotMaster)
     m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 /*****************************************************************
@@ -4811,7 +4771,7 @@ NdbDictInterface::execCREATE_EVNT_CONF(const NdbApiSignal * signal,
   DBUG_PRINT("info",("nodeid=%d,subscriptionId=%d,subscriptionKey=%d",
 		     refToNode(signal->theSendersBlockRef),
 		     subscriptionId,subscriptionKey));
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -4828,7 +4788,7 @@ NdbDictInterface::execCREATE_EVNT_REF(const NdbApiSignal * signal,
 		      ref->getErrorLine(),ref->getErrorNode()));
   if (m_error.code == CreateEvntRef::NotMaster)
     m_masterNodeId = ref->getMasterNode();
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -4860,7 +4820,7 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   data[0] = gci_hi;
   data[1] = gci_lo;
 
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -4884,7 +4844,7 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   {
     m_masterNodeId = subStopRef->m_masterNodeId;
   }
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -4933,7 +4893,7 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
   }
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subscriptionId,subscriptionKey,subscriberData));
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -4947,7 +4907,7 @@ NdbDictInterface::execSUB_START_REF(const NdbApiSignal * signal,
   m_error.code= subStartRef->errorCode;
   if (m_error.code == SubStartRef::NotMaster)
     m_masterNodeId = subStartRef->m_masterNodeId;
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -5083,7 +5043,7 @@ NdbDictInterface::execDROP_EVNT_CONF(const NdbApiSignal * signal,
 				     const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_EVNT_CONF");
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -5100,7 +5060,7 @@ NdbDictInterface::execDROP_EVNT_REF(const NdbApiSignal * signal,
 	     ref->getErrorCode(), ref->getErrorLine(), ref->getErrorNode()));
   if (m_error.code == DropEvntRef::NotMaster)
     m_masterNodeId = ref->getMasterNode();
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
 
@@ -5633,13 +5593,13 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
       in all places where the object is out of context due to a return,
       break, continue or simply end of statement block
     */
-    PollGuard poll_guard(m_transporter, &m_waiter, refToBlock(m_reference));
-    Uint16 aNodeId = m_transporter->get_an_alive_node();
+    PollGuard poll_guard(* m_impl);
+    Uint16 aNodeId = getTransporter()->get_an_alive_node();
     if (aNodeId == 0) {
       m_error.code= 4009;
       return -1;
     }
-    NodeInfo info = m_transporter->theClusterMgr->getNodeInfo(aNodeId).m_info;
+    NodeInfo info = getTransporter()->theClusterMgr->getNodeInfo(aNodeId).m_info;
     if (ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
     {
       /*
@@ -5657,7 +5617,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
       return -1;
     }
 
-    if (m_transporter->sendSignal(signal, aNodeId) != 0) {
+    if (getTransporter()->sendSignal(signal, aNodeId) != 0) {
       continue;
     }
     m_error.code= 0;
@@ -5679,7 +5639,7 @@ NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
                                        const LinearSectionPtr ptr[3])
 {
   Uint16 nodeId = refToNode(signal->theSendersBlockRef);
-  NodeInfo info = m_transporter->theClusterMgr->getNodeInfo(nodeId).m_info;
+  NodeInfo info = getTransporter()->theClusterMgr->getNodeInfo(nodeId).m_info;
   if (!ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
   {
     /*
@@ -5748,7 +5708,7 @@ NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
     return;
   }
 
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 
@@ -5764,7 +5724,7 @@ NdbDictInterface::execOLD_LIST_TABLES_CONF(const NdbApiSignal* signal,
   }
   if (signal->getLength() < OldListTablesConf::SignalLength) {
     // last signal has less than full length
-    m_waiter.signal(NO_WAIT);
+    m_impl->theWaiter.signal(NO_WAIT);
   }
 }
 
@@ -5794,24 +5754,27 @@ NdbDictInterface::forceGCPWait(int type)
     const Uint32 RETRIES = 100;
     for (Uint32 i = 0; i < RETRIES; i++)
     {
-      m_transporter->lock_mutex();
-      Uint16 aNodeId = m_transporter->get_an_alive_node();
+      PollGuard pg(* m_impl);
+      Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
         m_error.code= 4009;
-        m_transporter->unlock_mutex();
         return -1;
       }
-      if (m_transporter->sendSignal(&tSignal, aNodeId) != 0) {
-        m_transporter->unlock_mutex();
+      if (getTransporter()->sendSignal(&tSignal, aNodeId) != 0)
+      {
         continue;
       }
 
       m_error.code= 0;
-      m_waiter.m_node = aNodeId;
-      m_waiter.m_state = WAIT_LIST_TABLES_CONF;
-      m_waiter.wait(DICT_WAITFOR_TIMEOUT);
-      m_transporter->unlock_mutex();
-      return m_error.code == 0 ? 0 : -1;
+      
+      int ret_val= pg.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
+                                    aNodeId, WAIT_LIST_TABLES_CONF);
+      // end protected
+      if (ret_val == 0 && m_error.code == 0)
+        return 0;
+      if (ret_val == -2) //WAIT_NODE_FAILURE
+        continue;
+      return -1;
     }
     return -1;
   }
@@ -5825,20 +5788,20 @@ NdbDictInterface::forceGCPWait(int type)
     const Uint32 RETRIES = 100;
     for (Uint32 i = 0; i < RETRIES; i++)
     {
-      m_transporter->lock_mutex();
-      Uint16 aNodeId = m_transporter->get_an_alive_node();
+      getTransporter()->lock_mutex();
+      Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
         m_error.code= 4009;
-        m_transporter->unlock_mutex();
+        getTransporter()->unlock_mutex();
         return -1;
       }
-      if (m_transporter->sendSignal(&tSignal, aNodeId) != 0) {
-        m_transporter->unlock_mutex();
+      if (getTransporter()->sendSignal(&tSignal, aNodeId) != 0) {
+        getTransporter()->unlock_mutex();
         continue;
       }
 
-      m_transporter->forceSend(refToBlock(m_reference));
-      m_transporter->unlock_mutex();
+      getTransporter()->forceSend(refToBlock(m_reference));
+      getTransporter()->unlock_mutex();
     }
     return m_error.code == 0 ? 0 : -1;
   }
@@ -5868,7 +5831,7 @@ NdbDictInterface::execWAIT_GCP_CONF(const NdbApiSignal* signal,
 
   m_data.m_wait_gcp_conf.gci_lo = conf->gci_lo;
   m_data.m_wait_gcp_conf.gci_hi = conf->gci_hi;
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -5878,7 +5841,7 @@ NdbDictInterface::execWAIT_GCP_REF(const NdbApiSignal* signal,
   const WaitGCPRef* ref = CAST_CONSTPTR(WaitGCPRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
 
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 NdbFilegroupImpl::NdbFilegroupImpl(NdbDictionary::Object::Type t)
@@ -7276,7 +7239,7 @@ NdbDictInterface::execCREATE_FILE_CONF(const NdbApiSignal * signal,
   data[1] = conf->fileVersion;
   data[2] = conf->warningFlags;
   
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -7287,7 +7250,7 @@ NdbDictInterface::execCREATE_FILE_REF(const NdbApiSignal * signal,
     CAST_CONSTPTR(CreateFileRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 int
@@ -7321,7 +7284,7 @@ void
 NdbDictInterface::execDROP_FILE_CONF(const NdbApiSignal * signal,
 					    const LinearSectionPtr ptr[3])
 {
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -7332,7 +7295,7 @@ NdbDictInterface::execDROP_FILE_REF(const NdbApiSignal * signal,
     CAST_CONSTPTR(DropFileRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 int
@@ -7444,7 +7407,7 @@ NdbDictInterface::execCREATE_FILEGROUP_CONF(const NdbApiSignal * signal,
   data[0] = conf->filegroupId;
   data[1] = conf->filegroupVersion;
   data[2] = conf->warningFlags;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);  
 }
 
 void
@@ -7455,7 +7418,7 @@ NdbDictInterface::execCREATE_FILEGROUP_REF(const NdbApiSignal * signal,
     CAST_CONSTPTR(CreateFilegroupRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 int
@@ -7489,7 +7452,7 @@ void
 NdbDictInterface::execDROP_FILEGROUP_CONF(const NdbApiSignal * signal,
 					    const LinearSectionPtr ptr[3])
 {
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -7500,7 +7463,7 @@ NdbDictInterface::execDROP_FILEGROUP_REF(const NdbApiSignal * signal,
     CAST_CONSTPTR(DropFilegroupRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 
@@ -8024,7 +7987,7 @@ NdbDictInterface::execCREATE_HASH_MAP_REF(const NdbApiSignal * signal,
     CAST_CONSTPTR(CreateHashMapRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 
@@ -8039,7 +8002,7 @@ NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal,
   data[0] = conf->objectId;
   data[1] = conf->objectVersion;
 
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 
@@ -8153,9 +8116,9 @@ NdbDictInterface::checkAllNodeVersionsMin(Uint32 minNdbVersion) const
 {
   for (Uint32 nodeId = 1; nodeId < MAX_NODES; nodeId++)
   {
-    if (m_transporter->getIsDbNode(nodeId) &&
-        m_transporter->getIsNodeSendable(nodeId) &&
-        (m_transporter->getNodeNdbVersion(nodeId) <
+    if (getTransporter()->getIsDbNode(nodeId) &&
+        getTransporter()->getIsNodeSendable(nodeId) &&
+        (getTransporter()->getNodeNdbVersion(nodeId) <
          minNdbVersion))
     {
       /* At least 1 sendable data node has lower-than-min
@@ -8248,7 +8211,7 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal * signal,
     CAST_CONSTPTR(SchemaTransBeginConf, signal->getDataPtr());
   assert(m_tx.m_transId == conf->transId);
   m_tx.m_transKey = conf->transKey;
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -8259,7 +8222,7 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal * signal,
     CAST_CONSTPTR(SchemaTransBeginRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -8269,7 +8232,7 @@ NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal * signal,
   const SchemaTransEndConf* conf=
     CAST_CONSTPTR(SchemaTransEndConf, signal->getDataPtr());
   assert(m_tx.m_transId == conf->transId);
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -8281,7 +8244,7 @@ NdbDictInterface::execSCHEMA_TRANS_END_REF(const NdbApiSignal * signal,
   m_error.code = ref->errorCode;
   m_tx.m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 void
@@ -8296,7 +8259,7 @@ NdbDictInterface::execSCHEMA_TRANS_END_REP(const NdbApiSignal * signal,
     m_tx.m_state = Tx::Aborted;
   m_tx.m_error.code = rep->errorCode;
   m_masterNodeId = rep->masterNodeId;
-  m_waiter.signal(NO_WAIT);
+  m_impl->theWaiter.signal(NO_WAIT);
 }
 
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;

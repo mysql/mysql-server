@@ -20,7 +20,6 @@
 #include <ndb_opts.h>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
-#include <my_sys.h>
 #include <ndb_version.h>
 
 #include <ndb_rand.h>

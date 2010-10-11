@@ -408,7 +408,7 @@ MgmtSrvr::start_transporter(const Config* config)
     Register ourself at TransporterFacade to be able to receive signals
     and to be notified when a database process has died.
   */
-  if ((_blockNumber= theFacade->open(this)) == -1)
+  if ((_blockNumber= open(theFacade)) == -1)
   {
     g_eventLogger->error("Failed to open block in TransporterFacade");
     theFacade->stop_instance();

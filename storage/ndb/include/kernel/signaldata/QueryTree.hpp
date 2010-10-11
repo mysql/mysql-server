@@ -235,7 +235,7 @@ struct QN_ScanIndexNode
     // Do pattern contain parameters
     SI_PRUNE_PARAMS = 0x20000,
 
-    // Is prune pattern dependant on parent key (or only on parameters)
+    // Is prune pattern dependant on parent key (or only on parameters / constants)
     SI_PRUNE_LINKED = 0x40000,
 
     // Should it be parallel scan (can also be set as in parameters)

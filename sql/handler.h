@@ -296,7 +296,7 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 #define HA_BLOCK_LOCK		256	/* unlock when reading some records */
 #define HA_OPEN_TEMPORARY	512
 
-/* Some key definitions */
+	/* Some key definitions */
 #define HA_KEY_NULL_LENGTH	1
 #define HA_KEY_BLOB_LENGTH	2
 
@@ -1337,7 +1337,7 @@ public:
   int ha_external_lock(THD *thd, int lock_type);
   int ha_write_row(uchar * buf);
   int ha_update_row(const uchar * old_data, uchar * new_data);
-  int ha_delete_row(const uchar * buf, bool will_batch= FALSE);
+  int ha_delete_row(const uchar * buf);
   void ha_release_auto_increment();
 
   int check_collation_compatibility();
@@ -2141,22 +2141,6 @@ private:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
-  /*
-    This method is similar to delete_row, however the handler doesn't need
-    to execute the delete at this point in time. The handler can be certain
-    that another call to bulk_delete_row will occur OR a call to
-    end_bulk_delete before the set of deletes in this query is concluded.
-
-    @param    record       Record to delete
-
-    @retval  0   Success
-    @retval !=0  Error code
-  */
-  virtual int bulk_delete_row(const uchar *record)
-  {
-    DBUG_ASSERT(FALSE);
-    return HA_ERR_WRONG_COMMAND;
-  }
   /**
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
@@ -2212,6 +2196,9 @@ private:
   { return HA_ERR_WRONG_COMMAND; }
 };
 
+
+	/* Some extern variables used with handlers */
+
 extern const char *ha_row_type[];
 extern MYSQL_PLUGIN_IMPORT const char *tx_isolation_names[];
 extern MYSQL_PLUGIN_IMPORT const char *binlog_format_names[];
@@ -2219,7 +2206,7 @@ extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;
 
-/* Wrapper functions */
+       /* Wrapper functions */
 #define ha_commit(thd) (ha_commit_trans((thd), TRUE))
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
