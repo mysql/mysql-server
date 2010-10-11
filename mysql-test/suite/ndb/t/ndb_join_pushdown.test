@@ -2708,8 +2708,8 @@ drop table t1;
 # Test pruned index scan:
 create table t1(
        d int not null,
-       e int not null,
-       f int not null,
+       e int     null,
+       f int     null,
        a int not null,
        b int not null,
        c int not null,
@@ -2782,6 +2782,17 @@ alter table t1 partition by key (b);
 create index ix1 on t1(b,d,a);
 
 explain
+select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+###########
+# Partition keys may evaluate to NULL-values:
+###########
+insert into t1(a,b,c,d,e,f) values
+ (8, 9, 0, 1,  NULL, 3),
+ (9, 9, 0, 1,  2,    NULL);
+
+alter table t1 partition by key (b);
+--sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 # Verify pruned execution by comparing the NDB$INFO counters

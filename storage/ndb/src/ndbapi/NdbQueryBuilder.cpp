@@ -2511,9 +2511,6 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   serializedDef.alloc(QN_ScanFragNode::NodeSize);
   Uint32 requestInfo = 0;
 
-  // Optional prefix part0: Pattern to creating a prune key for range scan
-  requestInfo |= appendPrunePattern(serializedDef);
-
   // Optional part1: Make list of parent nodes.
   requestInfo |= appendParentList (serializedDef);
 
@@ -2522,6 +2519,9 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
 
   // Part3: Columns required by SPJ to instantiate descendant child operations.
   requestInfo |= appendChildProjection(serializedDef);
+
+  // Part4: Pattern to creating a prune key for range scan
+  requestInfo |= appendPrunePattern(serializedDef);
 
   const Uint32 length = serializedDef.getSize() - startPos;
   if (unlikely(length > 0xFFFF))
