@@ -3189,7 +3189,7 @@ Dbspj::lookup_parent_row(Signal* signal,
           {
             releaseSection(ptrI);
           }
-          return;  // Bailout, KEYREQ would have returned KEYREF(626)
+          return;  // Bailout, KEYREQ would have returned KEYREF(626) anyway
         }
         else  // isLookup()
         {
@@ -3204,7 +3204,8 @@ Dbspj::lookup_parent_row(Signal* signal,
            */
           jam();
         }
-      }
+      } // keyIsNull
+
       /**
        * NOTE:
        *    The logic below contradicts 'keyIsNull' logic above and should
@@ -4319,6 +4320,11 @@ Dbspj::parseScanIndex(Build_context& ctx,
     data.m_frags_outstanding = 0;
     data.m_frags_not_complete = 0;
 
+    err = parseDA(ctx, requestPtr, treeNodePtr,
+                   tree, treeBits, param, paramBits);
+    if (unlikely(err != 0))
+      break;
+
     if (treeBits & Node::SI_PRUNE_PATTERN)
     {
       Uint32 len_cnt = * tree.ptr ++;
@@ -4332,6 +4338,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
       if (treeBits & Node::SI_PRUNE_LINKED)
       {
         jam();
+        DEBUG("LINKED-PRUNE PATTERN w/ " << cnt << " PARAM values");
 
         data.m_prunePattern.init();
         Local_pattern_store pattern(pool, data.m_prunePattern);
@@ -4340,12 +4347,17 @@ Dbspj::parseScanIndex(Build_context& ctx,
          * Expand pattern into a new pattern (with linked values)
          */
         err = expand(pattern, treeNodePtr, tree, len, param, cnt);
+        if (unlikely(err != 0))
+          break;
+
         treeNodePtr.p->m_bits |= TreeNode::T_PRUNE_PATTERN;
         c_Counters.incr_counter(CI_PRUNED_RANGE_SCANS_RECEIVED, 1);
       }
       else
       {
         jam();
+        DEBUG("FIXED-PRUNE w/ " << cnt << " PARAM values");
+
         /**
          * Expand pattern directly into 
          *   This means a "fixed" pruning from here on
@@ -4354,9 +4366,20 @@ Dbspj::parseScanIndex(Build_context& ctx,
         Uint32 prunePtrI = RNIL;
         bool hasNull;
         err = expand(prunePtrI, tree, len, param, cnt, hasNull);
-        data.m_constPrunePtrI = prunePtrI;
+        if (unlikely(err != 0))
+          break;
 
-//      ndbrequire(!hasNull);  /* todo: can we take advantage of NULLs in range scan? */
+        if (unlikely(hasNull))
+        {
+          /* API should have elliminated requests w/ const-NULL keys */
+          jam();
+          DEBUG("BEWARE: T_CONST_PRUNE-key contain NULL values");
+//        treeNodePtr.p->m_bits |= TreeNode::T_NULL_PRUNE;
+//        break;
+          ndbrequire(false);
+        }
+        ndbrequire(prunePtrI != RNIL);  /* todo: can we allow / take advantage of NULLs in range scan? */
+        data.m_constPrunePtrI = prunePtrI;
 
         /**
          * We may not compute the partition for the hash-key here
@@ -4365,7 +4388,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
         treeNodePtr.p->m_bits |= TreeNode::T_CONST_PRUNE;
         c_Counters.incr_counter(CI_CONST_PRUNED_RANGE_SCANS_RECEIVED, 1);
       }
-    }
+    } //SI_PRUNE_PATTERN
 
     if ((treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE) == 0 &&
         ((treeBits & Node::SI_PARALLEL) || 
@@ -4375,8 +4398,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
       treeNodePtr.p->m_bits |= TreeNode::T_SCAN_PARALLEL;
     }
 
-    return parseDA(ctx, requestPtr, treeNodePtr, 
-                   tree, treeBits, param, paramBits);
+    return 0;
   } while(0);
   
   DEBUG_CRASH();
@@ -4659,7 +4681,19 @@ Dbspj::scanIndex_parent_row(Signal* signal,
         DEBUG_CRASH();
         break;
       }
-//    ndbrequire(!hasNull);
+
+      if (unlikely(hasNull))
+      {
+        jam();
+        DEBUG("T_PRUNE_PATTERN-key contain NULL values");
+
+        // Ignore this request as 'NULL == <column>' will never give a match
+        if (pruneKeyPtrI != RNIL)
+        {
+          releaseSection(pruneKeyPtrI);
+        }
+        return;  // Bailout, SCANREQ would have returned 0 rows anyway
+      }
 
       // TODO we need a different variant of computeHash here,
       // since pruneKeyPtrI does not contain full primary key
@@ -4741,7 +4775,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       // Fixed key...fix later...
       ndbrequire(false);
     }
-//  ndbrequire(!hasNull);
+//  ndbrequire(!hasNull);  // FIXME, can't ignore request as we already added it to keyPattern
     fragPtr.p->m_rangePtrI = ptrI;
     scanIndex_fixupBound(fragPtr, ptrI, rowRef.m_src_correlation);
 
@@ -6296,8 +6330,8 @@ Uint32
 Dbspj::parseDA(Build_context& ctx,
                Ptr<Request> requestPtr,
                Ptr<TreeNode> treeNodePtr,
-               DABuffer tree, Uint32 treeBits,
-               DABuffer param, Uint32 paramBits)
+               DABuffer& tree, Uint32 treeBits,
+               DABuffer& param, Uint32 paramBits)
 {
   Uint32 err;
   Uint32 attrInfoPtrI = RNIL;
@@ -6417,7 +6451,15 @@ Dbspj::parseDA(Build_context& ctx,
         bool hasNull;
         Uint32 keyInfoPtrI = RNIL;
         err = expand(keyInfoPtrI, tree, len, param, cnt, hasNull);
-//      ndbrequire(!hasNull);
+        if (unlikely(hasNull))
+        {
+          /* API should have elliminated requests w/ const-NULL keys */
+          jam();
+          DEBUG("BEWARE: FIXED-key contain NULL values");
+//        treeNodePtr.p->m_bits |= TreeNode::T_NULL_PRUNE;
+//        break;
+          ndbrequire(false);  
+        }
         treeNodePtr.p->m_send.m_keyInfoPtrI = keyInfoPtrI;
       }
 
@@ -6529,7 +6571,11 @@ Dbspj::parseDA(Build_context& ctx,
                                     m_dependency_map_pool);
             Local_pattern_store pattern(pool,treeNodePtr.p->m_attrParamPattern);
             err = expand(pattern, treeNodePtr, tree, len_pattern, param, cnt);
-            
+            if (unlikely(err))
+            {
+              DEBUG_CRASH();
+              break;
+            }
             /**
              * This node constructs a new attr-info for each send
              */
@@ -6544,6 +6590,11 @@ Dbspj::parseDA(Build_context& ctx,
              */
             bool hasNull;
             err = expand(attrParamPtrI, tree, len_pattern, param, cnt, hasNull);
+            if (unlikely(err))
+            {
+              DEBUG_CRASH();
+              break;
+            }
 //          ndbrequire(!hasNull);
           }
         }

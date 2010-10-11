@@ -1067,8 +1067,8 @@ private:
                 DABuffer & pattern, Uint32 len,
                 DABuffer & param, Uint32 cnt);
   Uint32 parseDA(Build_context&, Ptr<Request>, Ptr<TreeNode>,
-                 DABuffer tree, Uint32 treeBits,
-                 DABuffer param, Uint32 paramBits);
+                 DABuffer & tree, Uint32 treeBits,
+                 DABuffer & param, Uint32 paramBits);
 
   Uint32 createEmptySection(Uint32 & ptrI);
 
