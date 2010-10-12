@@ -746,6 +746,31 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#55656: mysqldump can be slower after bug #39653 fix
+--echo #
+
+CREATE TABLE t1 (a INT , b INT, c INT, d INT,
+  KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c,d);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP TABLE t1;
+
+--echo #
+
 
 --echo End of 5.1 tests
 

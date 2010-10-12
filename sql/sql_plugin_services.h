@@ -36,9 +36,23 @@ static struct thd_alloc_service_st thd_alloc_handler= {
   thd_make_lex_string
 };
 
+static struct thd_wait_service_st thd_wait_handler= {
+  thd_wait_begin,
+  thd_wait_end
+};
+
+static struct my_thread_scheduler_service my_thread_scheduler_handler= {
+  my_thread_scheduler_set,
+  my_thread_scheduler_reset,
+};
+
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
-  { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler }
+  { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler },
+  { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
+  { "my_thread_scheduler_service",
+    VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
 };
 

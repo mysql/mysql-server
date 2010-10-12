@@ -432,8 +432,5 @@ Bug #47147: mysql client option --skip-column-names does not apply to vertical o
 
 *************************** 1. row ***************************
 1
-Bug #54466 client 5.5 built from source lacks "pager" support
-a
-1
 
 End of tests

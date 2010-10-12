@@ -94,6 +94,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Arjen Lentz", "Brisbane, Australia",
     "Documentation (2001-2004), Dutch error messages, LOG2()" },
   { "Marc Liyanage", "", "Created Mac OS X packages" },
+  { "Kelly Long", "Denver, CO, USA", "Pool Of Threads" },
   { "Zarko Mocnik", "", "Sorting for Slovenian language" },
   { "Per-Erik Martin", "Uppsala, Sweden", "Stored Procedures (5.0)" },
   { "Alexis Mikhailov", "", "User-defined functions" },

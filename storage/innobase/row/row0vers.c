@@ -68,7 +68,6 @@ row_vers_impl_x_locked(
 	dtuple_t*	row;
 	trx_t*		trx;
 	ulint		rec_del;
-	ulint		err;
 	mtr_t		mtr;
 	ulint		comp;
 	ibool		corrupt;
@@ -155,6 +154,7 @@ row_vers_impl_x_locked(
 
 	for (version = clust_rec; version != NULL; version = prev_version) {
 
+		ulint		err;
 		row_ext_t*	ext;
 		dtuple_t*	entry;
 		ulint		vers_del;
@@ -182,7 +182,7 @@ row_vers_impl_x_locked(
 		       	be a fresh insert, because no previous version was
 		       	found. */
 
-			ut_ad(err == DB_SUCCESS);
+			ut_a(err == DB_SUCCESS);
 
 			/* The caller should check the tranasction status. */
 			active_trx_id = trx_id;
@@ -235,7 +235,7 @@ row_vers_impl_x_locked(
 		accessible, because the transaction is still active
 		and clust_rec was not a fresh insert. */
 
-		ut_ad(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */

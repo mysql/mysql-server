@@ -563,15 +563,6 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
     */
     DBUG_RETURN(TRUE);
 
-  /*
-    If a lock was acquired above, we should release it after delayed_get_table()
-    has cloned the ticket for the handler thread. Note that acquire_lock() can
-    succeed because of a lock already held by the connection. In this case we
-    should not release it here.
-  */
-  MDL_ticket *table_ticket = mdl_savepoint == thd->mdl_context.mdl_savepoint() ?
-    NULL: thd->mdl_context.mdl_savepoint();
-
   bool error= FALSE;
   if (delayed_get_table(thd, table_list))
     error= TRUE;
@@ -597,12 +588,18 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
     }
   }
 
-  if (table_ticket)
-    thd->mdl_context.release_lock(table_ticket);
   /*
-    Clone_ticket() in delayed_get_table() causes TABLE_LIST::MDL_REQUEST::ticket
-    to be overwritten with the cloned ticket. Reset the ticket here in case
-    we end up having to use normal insert.
+    If a lock was acquired above, we should release it after
+    handle_delayed_insert() has cloned the ticket. Note that acquire_lock() can
+    succeed because the connection already has the lock. In this case the ticket
+    will be before the mdl_savepoint and we should not release it here.
+  */
+  if (!thd->mdl_context.has_lock(mdl_savepoint, table_list->mdl_request.ticket))
+    thd->mdl_context.release_lock(table_list->mdl_request.ticket);
+
+  /*
+    Reset the ticket in case we end up having to use normal insert and
+    therefore will reopen the table and reacquire the metadata lock.
   */
   table_list->mdl_request.ticket= NULL;
 
@@ -620,6 +617,32 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
   */
   table_list->lock_type= TL_WRITE;
   DBUG_RETURN(open_and_lock_tables(thd, table_list, TRUE, 0));
+}
+
+
+/**
+  Create a new query string for removing DELAYED keyword for
+  multi INSERT DEALAYED statement.
+
+  @param[in] thd                 Thread handler
+  @param[in] buf                 Query string
+
+  @return
+             0           ok
+             1           error
+*/
+static int
+create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
+{
+  /* Append the part of thd->query before "DELAYED" keyword */
+  if (buf->append(thd->query(),
+                  thd->lex->keyword_delayed_begin - thd->query()))
+    return 1;
+  /* Append the part of thd->query after "DELAYED" keyword */
+  if (buf->append(thd->lex->keyword_delayed_begin + 7))
+    return 1;
+
+  return 0;
 }
 
 
@@ -1002,13 +1025,28 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	such case the flag is ignored for constructing binlog event.
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			      thd->query(), thd->query_length(),
-			      transactional_table, FALSE, FALSE,
-                              errcode))
+        if (was_insert_delayed && table_list->lock_type ==  TL_WRITE)
         {
+          /* Binlog multi INSERT DELAYED as INSERT without DELAYED. */
+          String log_query;
+          if (create_insert_stmt_from_insert_delayed(thd, &log_query))
+          {
+            sql_print_error("Event Error: An error occurred while creating query string"
+                            "for INSERT DELAYED stmt, before writing it into binary log.");
+
+            error= 1;
+          }
+          else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                                     log_query.c_ptr(), log_query.length(),
+                                     transactional_table, FALSE, FALSE,
+                                     errcode))
+            error= 1;
+        }
+        else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+			           thd->query(), thd->query_length(),
+			           transactional_table, FALSE, FALSE,
+                                   errcode))
 	  error= 1;
-	}
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
@@ -1839,14 +1877,25 @@ public:
   mysql_cond_t cond, cond_client;
   volatile uint tables_in_use,stacked_inserts;
   volatile bool status;
+  /*
+    When the handler thread starts, it clones a metadata lock ticket
+    for the table to be inserted. This is done to allow the deadlock
+    detector to detect deadlocks resulting from this lock.
+    Before this is done, the connection thread cannot safely exit
+    without causing problems for clone_ticket().
+    Once handler_thread_initialized has been set, it is safe for the
+    connection thread to exit.
+    Access to handler_thread_initialized is protected by di->mutex.
+  */
+  bool handler_thread_initialized;
   COPY_INFO info;
   I_List<delayed_row> rows;
   ulong group_count;
   TABLE_LIST table_list;			// Argument
 
   Delayed_insert()
-    :locks_in_memory(0),
-     table(0),tables_in_use(0),stacked_inserts(0), status(0), group_count(0)
+    :locks_in_memory(0), table(0),tables_in_use(0),stacked_inserts(0),
+     status(0), handler_thread_initialized(FALSE), group_count(0)
   {
     DBUG_ENTER("Delayed_insert constructor");
     thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
@@ -2063,19 +2112,9 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       /* Replace volatile strings with local copies */
       di->table_list.alias= di->table_list.table_name= di->thd.query();
       di->table_list.db= di->thd.db;
-
-      /*
-        Clone the ticket representing the lock on the target table for
-        the insert and add it to the list of granted metadata locks held by
-        the handler thread. This is safe since the handler thread is
-        not holding nor waiting on any metadata locks.
-      */
-      if (di->thd.mdl_context.clone_ticket(&table_list->mdl_request))
-      {
-        delete di;
-        my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-        goto end_create;
-      }
+      /* We need the ticket so that it can be cloned in handle_delayed_insert */
+      init_mdl_requests(&di->table_list);
+      di->table_list.mdl_request.ticket= table_list->mdl_request.ticket;
 
       di->lock();
       mysql_mutex_lock(&di->mutex);
@@ -2088,15 +2127,20 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
 		    error));
         mysql_mutex_unlock(&di->mutex);
 	di->unlock();
-        di->thd.mdl_context.release_lock(table_list->mdl_request.ticket);
 	delete di;
 	my_error(ER_CANT_CREATE_THREAD, MYF(ME_FATALERROR), error);
         goto end_create;
       }
 
-      /* Wait until table is open */
+      /*
+        Wait until table is open unless the handler thread or the connection
+        thread has been killed. Note that we in all cases must wait until the
+        handler thread has been properly initialized before exiting. Otherwise
+        we risk doing clone_ticket() on a ticket that is no longer valid.
+      */
       thd_proc_info(thd, "waiting for handler open");
-      while (!di->thd.killed && !di->table && !thd->killed)
+      while (!di->handler_thread_initialized ||
+             (!di->thd.killed && !di->table && !thd->killed))
       {
         mysql_cond_wait(&di->cond_client, &di->mutex);
       }
@@ -2524,6 +2568,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
     /* Can't use my_error since store_globals has not yet been called */
     thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
                                    ER(ER_OUT_OF_RESOURCES), NULL);
+    di->handler_thread_initialized= TRUE;
   }
   else
   {
@@ -2534,6 +2579,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
       /* Can't use my_error since store_globals has perhaps failed */
       thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
                                      ER(ER_OUT_OF_RESOURCES), NULL);
+      di->handler_thread_initialized= TRUE;
       thd->fatal_error();
       goto err;
     }
@@ -2546,7 +2592,24 @@ pthread_handler_t handle_delayed_insert(void *arg)
     thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
     thd->set_current_stmt_binlog_format_row_if_mixed();
 
-    init_mdl_requests(&di->table_list);
+    /*
+      Clone the ticket representing the lock on the target table for
+      the insert and add it to the list of granted metadata locks held by
+      the handler thread. This is safe since the handler thread is
+      not holding nor waiting on any metadata locks.
+    */
+    if (thd->mdl_context.clone_ticket(&di->table_list.mdl_request))
+    {
+      di->handler_thread_initialized= TRUE;
+      goto err;
+    }
+
+    /*
+      Now that the ticket has been cloned, it is safe for the connection
+      thread to exit.
+    */
+    di->handler_thread_initialized= TRUE;
+    di->table_list.mdl_request.ticket= NULL;
 
     if (di->open_and_lock_table())
       goto err;

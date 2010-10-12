@@ -1284,7 +1284,7 @@ innobase_mysql_tmpfile(void)
 
 #ifdef _WIN32
 		/* Note that on Windows, the integer returned by mysql_tmpfile
-		has no relation to C runtime file descriptor. Here, we need 
+		has no relation to C runtime file descriptor. Here, we need
 		to call my_get_osfhandle to get the HANDLE and then convert it 
 		to C runtime filedescriptor. */
 		{
@@ -2587,7 +2587,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD*	thd)	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 {
@@ -2633,7 +2633,7 @@ static
 int
 innobase_commit(
 /*============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD* 	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	bool	all)	/*!< in:	TRUE - commit transaction
@@ -7225,7 +7225,6 @@ innobase_drop_database(
 	ulint	len		= 0;
 	trx_t*	trx;
 	char*	ptr;
-	int	error;
 	char*	namebuf;
 	THD*	thd		= current_thd;
 
@@ -7268,7 +7267,7 @@ innobase_drop_database(
 #else
 	trx = innobase_trx_allocate(thd);
 #endif
-	error = row_drop_database_for_mysql(namebuf, trx);
+	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -9061,12 +9060,9 @@ innodb_show_status(
 
 	mutex_exit(&srv_monitor_file_mutex);
 
-	bool result = FALSE;
+	stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
+		   STRING_WITH_LEN(""), str, flen);
 
-	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
-			STRING_WITH_LEN(""), str, flen)) {
-		result= TRUE;
-	}
 	my_free(str);
 
 	DBUG_RETURN(FALSE);
@@ -9584,7 +9580,7 @@ ha_innobase::innobase_get_autoinc(
 }
 
 /*******************************************************************//**
-This function reads the global auto-inc counter. It doesn't use the 
+This function reads the global auto-inc counter. It doesn't use the
 AUTOINC lock even if the lock mode is set to TRADITIONAL.
 @return	the autoinc value */
 UNIV_INTERN
@@ -10768,11 +10764,35 @@ innodb_monitor_valid_byname(
 	const char*		name)	/*!< in: incoming monitor name */
 {
 	if (name) {
-		ulint	use;
+		ulint		use;
+		monitor_info_t*	monitor_info;
 
 		for (use = 0; use < NUM_MONITOR; use++) {
 			if (!innobase_strcasecmp(
 				name, srv_mon_get_name((monitor_id_t)use))) {
+				monitor_info = srv_mon_get_info(
+					(monitor_id_t)use);
+
+				/* If the monitor counter is marked with
+				MONITOR_GROUP_MODULE flag, then this counter
+				cannot be turned on/off individually, instead
+				it shall be turned on/off as a group using
+				its module name */
+				if ((monitor_info->monitor_type
+				     & MONITOR_GROUP_MODULE)
+				    && (!(monitor_info->monitor_type
+					  & MONITOR_MODULE))) {
+					sql_print_warning(
+						"Monitor counter '%s' cannot"
+						" be turned on/off individually"
+						" . Please use its module name"
+						" to turn on/off the counters"
+						" in the module as a group.\n",
+						name);
+
+					return(1);
+				}
+
 				*(ulint*) save = use;
 				return(0);
 			}
@@ -10872,6 +10892,11 @@ innodb_monitor_update(
 			err_monitor = srv_mon_set_module_control(monitor_id,
 								 set_option);
 		} else {
+			/* If module is marked with MONITOR_GROUP_MODULE
+			status, it cannot be turned on/off individually */
+			ut_a(!(monitor_info->monitor_type &
+			       MONITOR_GROUP_MODULE));
+
 			switch (set_option) {
 			case MONITOR_TURN_ON:
 				MONITOR_ON(monitor_id);
@@ -11480,13 +11505,6 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
-i_s_innodb_sys_tables,
-i_s_innodb_sys_tablestats,
-i_s_innodb_sys_indexes,
-i_s_innodb_sys_columns,
-i_s_innodb_sys_fields,
-i_s_innodb_sys_foreign,
-i_s_innodb_sys_foreign_cols,
 i_s_innodb_metrics
 
 mysql_declare_plugin_end;

@@ -51,6 +51,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "dict0dict.h"
 #include "log0recv.h"
 #include "page0zip.h"
+#include "srv0mon.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -303,6 +304,13 @@ struct buf_chunk_struct{
 	buf_block_t*	blocks;		/*!< array of buffer control blocks */
 };
 #endif /* !UNIV_HOTBACKUP */
+
+/** Macro to determine whether the read of write counter is used depending
+on the io_type */
+#define MONITOR_RW_COUNTER(io_type, counter)		\
+	((io_type == BUF_IO_READ)			\
+	 ? (counter##_READ)				\
+	 : (counter##_WRITTEN))
 
 /********************************************************************//**
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
@@ -4067,6 +4075,112 @@ buf_page_create(
 }
 
 /********************************************************************//**
+Monitor the buffer page read/write activity, and increment corresponding
+counter value if MONITOR_MODULE_BUF_PAGE (module_buf_page) module is
+enabled. */
+static
+void
+buf_page_monitor(
+/*=============*/
+	const buf_page_t*	bpage,	/*!< in: pointer to the block */
+	enum buf_io_fix		io_type)/*!< in: io_fix types */
+{
+	const byte*	frame;
+	monitor_id_t	counter;
+
+	/* If the counter module is not turned on, just return */
+	if (!MONITOR_IS_ON(MONITOR_MODULE_BUF_PAGE)) {
+		return;
+	}
+
+	ut_a(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
+
+	frame = bpage->zip.data
+		? bpage->zip.data
+		: buf_block_get_frame((buf_block_t*) bpage);
+
+	switch(fil_page_get_type(frame)) {
+		ulint	level;
+
+	case FIL_PAGE_INDEX:
+		level = btr_page_get_level_low(frame);
+
+		/* Check if it is an index page for insert buffer */
+		if (btr_page_get_index_id(frame)
+		    == (index_id_t)(DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
+			if (level == 0) {
+				counter = MONITOR_RW_COUNTER(
+					io_type, MONITOR_INDEX_IBUF_LEAF_PAGE);
+			} else {
+				counter = MONITOR_RW_COUNTER(
+					io_type,
+					MONITOR_INDEX_IBUF_NON_LEAF_PAGE);
+			}
+		} else {
+			if (level == 0) {
+				counter = MONITOR_RW_COUNTER(
+					io_type, MONITOR_INDEX_LEAF_PAGE);
+			} else {
+				counter = MONITOR_RW_COUNTER(
+					io_type, MONITOR_INDEX_NON_LEAF_PAGE);
+			}
+		}
+		break;
+
+        case FIL_PAGE_UNDO_LOG:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_UNDO_LOG_PAGE);
+		break;
+
+        case FIL_PAGE_INODE:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_INODE_PAGE);
+		break;
+
+        case FIL_PAGE_IBUF_FREE_LIST:
+		counter = MONITOR_RW_COUNTER(io_type,
+					     MONITOR_IBUF_FREELIST_PAGE);
+		break;
+
+        case FIL_PAGE_IBUF_BITMAP:
+		counter = MONITOR_RW_COUNTER(io_type,
+					     MONITOR_IBUF_BITMAP_PAGE);
+		break;
+
+        case FIL_PAGE_TYPE_SYS:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_SYSTEM_PAGE);
+		break;
+
+        case FIL_PAGE_TYPE_TRX_SYS:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_TRX_SYSTEM_PAGE);
+		break;
+
+        case FIL_PAGE_TYPE_FSP_HDR:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_FSP_HDR_PAGE);
+		break;
+
+        case FIL_PAGE_TYPE_XDES:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_XDES_PAGE);
+		break;
+
+        case FIL_PAGE_TYPE_BLOB:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_BLOB_PAGE);
+		break;
+
+        case FIL_PAGE_TYPE_ZBLOB:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_ZBLOB_PAGE);
+		break;
+
+        case FIL_PAGE_TYPE_ZBLOB2:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_ZBLOB2_PAGE);
+		break;
+
+	default:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_OTHER_PAGE);
+	}
+
+	MONITOR_INC_NOCHECK(counter);
+}
+
+/********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
 the buffer pool. */
 UNIV_INTERN
@@ -4265,6 +4379,8 @@ corrupt:
 	default:
 		ut_error;
 	}
+
+	buf_page_monitor(bpage, io_type);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
@@ -5137,42 +5253,40 @@ buf_all_freed(void)
 		if (!buf_all_freed_instance(buf_pool)) {
 			return(FALSE);
 		}
- 	}
+	}
 
 	return(TRUE);
 }
-  
+
 /*********************************************************************//**
 Checks that there currently are no pending i/o-operations for the buffer
 pool.
-@return	TRUE if there is no pending i/o */
+@return	number of pending i/o */
 UNIV_INTERN
-ibool
+ulint
 buf_pool_check_no_pending_io(void)
 /*==============================*/
 {
 	ulint		i;
-	ibool		ret = TRUE;
+	ulint		pending_io = 0;
 
 	buf_pool_mutex_enter_all();
 
-	for (i = 0; i < srv_buf_pool_instances && ret; i++) {
+	for (i = 0; i < srv_buf_pool_instances; i++) {
 		const buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
 
-		if (buf_pool->n_pend_reads
-		    + buf_pool->n_flush[BUF_FLUSH_LRU]
-		    + buf_pool->n_flush[BUF_FLUSH_LIST]
-		    + buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]) {
+		pending_io += buf_pool->n_pend_reads
+			      + buf_pool->n_flush[BUF_FLUSH_LRU]
+			      + buf_pool->n_flush[BUF_FLUSH_LIST]
+			      + buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE];
 
-			ret = FALSE;
-		}
 	}
 
 	buf_pool_mutex_exit_all();
 
-	return(ret);
+	return(pending_io);
 }
 
 #if 0

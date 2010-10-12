@@ -50,7 +50,6 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "../sql/ha_ndbcluster_tables.h"
 
 /* Exit codes */
 

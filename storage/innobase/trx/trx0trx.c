@@ -927,7 +927,6 @@ trx_commit_or_rollback_prepare(
 {
 	if (trx->lock.conc_state == TRX_NOT_STARTED) {
 
-		/* This function will relase the mutex */
 		trx_start_low(trx);
 	}
 
@@ -1102,13 +1101,9 @@ trx_mark_sql_stat_end(
 {
 	ut_a(trx);
 
-	//trx_mutex_enter(trx);
-
 	if (trx->lock.conc_state == TRX_NOT_STARTED) {
 		trx->undo_no = 0;
 	}
-
-	//trx_mutex_exit(trx);
 
 	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
 }
@@ -1279,7 +1274,6 @@ trx_prepare(
 /*========*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	page_t*		update_hdr_page;
 	trx_rseg_t*	rseg;
 	ib_uint64_t	lsn		= 0;
 	mtr_t		mtr;
@@ -1310,7 +1304,7 @@ trx_prepare(
 		}
 
 		if (trx->update_undo) {
-			update_hdr_page = trx_undo_set_state_at_prepare(
+			trx_undo_set_state_at_prepare(
 				trx, trx->update_undo, &mtr);
 		}
 

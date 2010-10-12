@@ -253,18 +253,17 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     pos=old;
     if (keyseg->flag & HA_SPACE_PACK)
     {
-      uchar *end=pos+length;
       if (type == HA_KEYTYPE_NUM)
       {
-	while (pos < end && pos[0] == ' ')
-	  pos++;
+        uchar *end= pos + length;
+        while (pos < end && pos[0] == ' ')
+          pos++;
+        length= (uint) (end - pos);
       }
       else if (type != HA_KEYTYPE_BINARY)
       {
-	while (end > pos && end[-1] == ' ')
-	  end--;
+        length= cs->cset->lengthsp(cs, (char*) pos, length);
       }
-      length=(uint) (end-pos);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       memcpy((uchar*) key,pos,(size_t) char_length);

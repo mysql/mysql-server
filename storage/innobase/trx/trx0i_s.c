@@ -444,6 +444,7 @@ fill_trx_row(
 	const char*	s;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(trx_sys_mutex_own());
 
 	row->trx_id = trx->id;
 	row->trx_started = (ib_time_t) trx->start_time;
@@ -1239,6 +1240,7 @@ fetch_data_into_cache(
 	i_s_locks_row_t*	requested_lock_row;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(trx_sys_mutex_own());
 
 	trx_i_s_cache_clear(cache);
 
@@ -1247,17 +1249,18 @@ fetch_data_into_cache(
 	to each transaction into innodb_locks' and innodb_lock_waits'
 	caches. */
 
-	trx_sys_mutex_enter();
-
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+		trx_mutex_enter(trx);
 
 		if (!add_trx_relevant_locks_to_cache(cache, trx,
 						     &requested_lock_row)) {
 
 			cache->is_truncated = TRUE;
-			goto func_exit;
+			trx_mutex_exit(trx);
+			return;
 		}
 
 		trx_row = (i_s_trx_row_t*)
@@ -1268,7 +1271,8 @@ fetch_data_into_cache(
 		if (trx_row == NULL) {
 
 			cache->is_truncated = TRUE;
-			goto func_exit;
+			trx_mutex_exit(trx);
+			return;
 		}
 
 		if (!fill_trx_row(trx_row, trx, requested_lock_row, cache)) {
@@ -1276,14 +1280,14 @@ fetch_data_into_cache(
 			/* memory could not be allocated */
 			cache->innodb_trx.rows_used--;
 			cache->is_truncated = TRUE;
-			goto func_exit;
+			trx_mutex_exit(trx);
+			return;
 		}
+
+		trx_mutex_exit(trx);
 	}
 
 	cache->is_truncated = FALSE;
-
-func_exit:
-	trx_sys_mutex_exit();
 }
 
 /*******************************************************************//**
@@ -1305,7 +1309,11 @@ trx_i_s_possibly_fetch_data_into_cache(
 
 	lock_mutex_enter();
 
+	trx_sys_mutex_enter();
+
 	fetch_data_into_cache(cache);
+
+	trx_sys_mutex_exit();
 
 	lock_mutex_exit();
 
