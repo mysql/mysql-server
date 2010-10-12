@@ -1650,9 +1650,9 @@ int ha_archive::end_bulk_insert()
   This is done for security reasons. In a later version we will enable this by 
   allowing the user to select a different row format.
 */
-int ha_archive::delete_all_rows()
+int ha_archive::truncate()
 {
-  DBUG_ENTER("ha_archive::delete_all_rows");
+  DBUG_ENTER("ha_archive::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
