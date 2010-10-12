@@ -39,5 +39,49 @@ a
 2
 DROP TABLE t1;
 #
+# Bug#42064: low memory crash when importing hex strings, in Item_hex_string::Item_hex_string
+#
+CREATE TABLE t1(a BLOB);
+SET SESSION debug="+d,bug42064_simulate_oom";
+INSERT INTO t1 VALUES("");
+Got one of the listed errors
+SET SESSION debug=DEFAULT;
+DROP TABLE t1;
+#
+# Bug#41660: Sort-index_merge for non-first join table may require 
+# O(#scans) memory
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+CREATE TABLE t2 (a INT, b INT, filler CHAR(100), KEY(a), KEY(b));
+INSERT INTO t2 SELECT 1000, 1000, 'filler' FROM t1 A, t1 B, t1 C;
+INSERT INTO t2 VALUES (1, 1, 'data');
+# the example query uses LEFT JOIN only for the sake of being able to
+# demonstrate the issue with a very small dataset. (left outer join 
+# disables the use of join buffering, so we get the second table 
+# re-scanned for every record in the outer table. if we used inner join,
+# we would need to have thousands of records and/or more columns in both
+# tables so that the join buffer is filled and re-scans are triggered).
+SET SESSION debug = '+d,only_one_Unique_may_be_created';
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	
+x	x	x	x	x	x	x	x	x	Using sort_union(a,b); Using where
+SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
+a	a	b	filler
+0	1	1	data
+1	1	1	data
+2	1	1	data
+3	1	1	data
+4	1	1	data
+5	1	1	data
+6	1	1	data
+7	1	1	data
+8	1	1	data
+9	1	1	data
+SET SESSION debug = DEFAULT;
+DROP TABLE t1, t2;
+#
 # End of 5.1 tests
 #

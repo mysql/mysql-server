@@ -52,7 +52,9 @@ const char * NEAR globerrs[GLOBERRS]=
   "Can't sync file '%s' to disk (Errcode: %d)",
   "Collation '%s' is not a compiled collation and is not specified in the '%s' file",
   "File '%s' not found (Errcode: %d)",
-  "File '%s' (fileno: %d) was not closed"
+  "File '%s' (fileno: %d) was not closed",
+  "Can't change ownership of the file '%s' (Errcode: %d)",
+  "Can't change permissions of the file '%s' (Errcode: %d)",
 };
 
 void init_glob_errs(void)
@@ -93,6 +95,8 @@ void init_glob_errs()
   EE(EE_UNKNOWN_COLLATION)= "Collation '%s' is not a compiled collation and is not specified in the %s file";
   EE(EE_FILENOTFOUND)	= "File '%s' not found (Errcode: %d)";
   EE(EE_FILE_NOT_CLOSED) = "File '%s' (fileno: %d) was not closed";
+  EE(EE_CHANGE_OWNERSHIP)   = "Can't change ownership of the file '%s' (Errcode: %d)";
+  EE(EE_CHANGE_PERMISSIONS) = "Can't change permissions of the file '%s' (Errcode: %d)";
 }
 #endif
 

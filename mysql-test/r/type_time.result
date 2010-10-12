@@ -138,3 +138,13 @@ CAST(c AS TIME)
 00:00:00
 DROP TABLE t1;
 End of 5.0 tests
+#
+# Bug#53942 valgrind warnings with timestamp() function and incomplete datetime values
+#
+CREATE TABLE t1(f1 TIME);
+INSERT INTO t1 VALUES ('23:38:57');
+SELECT TIMESTAMP(f1,'1') FROM t1;
+TIMESTAMP(f1,'1')
+NULL
+DROP TABLE t1;
+End of 5.1 tests

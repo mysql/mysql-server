@@ -181,14 +181,17 @@ check_cpu () {
     cc=$CC
   fi
 
-  cc_ver=`$cc --version | sed 1q`
-  cc_verno=`echo $cc_ver | sed -e 's/^.*(GCC)//g; s/[^0-9. ]//g;	 s/^ *//g; s/ .*//g'`
-  set -- `echo $cc_verno | tr '.' ' '`
-  cc_major=$1
-  cc_minor=$2
-  cc_patch=$3
-  cc_comp=`expr $cc_major '*' 100 '+' $cc_minor`
-  
+  # check if compiler is gcc and dump its version
+  cc_verno=`$cc -dumpversion 2>/dev/null`
+  if test "x$?" = "x0" ; then
+    set -- `echo $cc_verno | tr '.' ' '`
+    cc_ver="GCC"
+    cc_major=$1
+    cc_minor=$2
+    cc_patch=$3
+    cc_comp=`expr $cc_major '*' 100 '+' $cc_minor`
+  fi
+
   case "$cc_ver--$cc_verno" in
     *GCC*)
         # different gcc backends (and versions) have different CPU flags
@@ -229,7 +232,7 @@ check_cpu () {
   fi
   while [ "$cpu_arg" ] ; do
     printf "testing $cpu_arg ... " >&2
-          
+
     # compile check
     eval "$cc -c $check_cpu_cflags __test.c" 2>/dev/null
     if test "x$?" = "x0" ; then
@@ -243,5 +246,5 @@ check_cpu () {
   done
   rm __test.*
 }
- 
+
 check_cpu

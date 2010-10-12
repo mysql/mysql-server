@@ -40,7 +40,6 @@ OF SUCH DAMAGE.
 #include "db2i_global.h"
 #include "db2i_ileBridge.h"
 #include "db2i_validatedPointer.h"
-#include "my_atomic.h"
 #include "db2i_iconv.h"
 #include "db2i_charsetSupport.h"
 
