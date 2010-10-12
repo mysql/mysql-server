@@ -188,6 +188,8 @@ sub new {
 
   while (  my $line= <$F> ) {
     chomp($line);
+    # Remove any trailing CR from Windows edited files
+    $line=~ s/\cM$//;
 
     # [group]
     if ( $line =~ /^\[(.*)\]/ ) {

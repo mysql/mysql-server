@@ -214,7 +214,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 
 # execute
  --error ER_DUP_ENTRY
- UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+ UPDATE t3,t4 SET t3.a = t4.a + bug27417(1) where t3.a = 1;
 
 # check
  select count(*) from t1 /* must be 1 */;
