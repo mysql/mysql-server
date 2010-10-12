@@ -478,7 +478,7 @@ trx_rollback_active(
 	ut_a(thr == que_fork_start_command(fork));
 
 	// FIXME: Document this
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	trx_roll_crash_recv_trx	= trx;
 
@@ -488,7 +488,7 @@ trx_rollback_active(
 
 	rows_to_undo = trx_roll_max_undo_no;
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	if (rows_to_undo > 1000000000) {
 		rows_to_undo = rows_to_undo / 1000000;
@@ -564,8 +564,8 @@ trx_rollback_active(
 
 /*******************************************************************//**
 Rollback or clean up any resurrected incomplete transactions. It assumes
-that the caller holds the trx_sys_mutex() and it will release the
-trx sys mutex if it does a clean up or rollback. 
+that the caller holds the trx_sys_t::lock in S mode and it will release the
+lock if it does a clean up or rollback. 
 @return TRUE if the transaction was cleaned up or rolled back.  */
 static
 ibool
@@ -577,13 +577,13 @@ trx_rollback_resurrected(
 {
 	ibool	cleaned_or_rolledback;
 
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	if (!trx->is_recovered) {
 		cleaned_or_rolledback = FALSE;
 	} else if (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY) {
 
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		fprintf(stderr,
 			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
@@ -596,7 +596,7 @@ trx_rollback_resurrected(
 		   && (all
 		       || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE)) {
 
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		trx_rollback_active(trx);
 
@@ -642,7 +642,7 @@ trx_rollback_or_clean_recovered(
 	recovered transactions to clean up or recover. */
 
 	do {
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 
 		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 		     trx != NULL;
@@ -654,13 +654,13 @@ trx_rollback_or_clean_recovered(
 
 			if (trx_rollback_resurrected(trx, all)) {
 
-				trx_sys_mutex_enter();
+				rw_lock_s_lock(&trx_sys->lock);
 
 				break;
 			}
 		}
 
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 	} while (trx != NULL);
 

@@ -113,11 +113,11 @@ row_vers_impl_x_locked(
 
 	mtr_s_lock(&purge_sys->latch, &mtr);
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	trx = trx_is_active_low(trx_id, &corrupt);
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	if (trx == NULL) {
 

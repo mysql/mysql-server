@@ -444,7 +444,6 @@ fill_trx_row(
 	const char*	s;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys_mutex_own());
 
 	row->trx_id = trx->id;
 	row->trx_started = (ib_time_t) trx->start_time;
@@ -1240,7 +1239,6 @@ fetch_data_into_cache(
 	i_s_locks_row_t*	requested_lock_row;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys_mutex_own());
 
 	trx_i_s_cache_clear(cache);
 
@@ -1309,11 +1307,11 @@ trx_i_s_possibly_fetch_data_into_cache(
 
 	lock_mutex_enter();
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	fetch_data_into_cache(cache);
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	lock_mutex_exit();
 

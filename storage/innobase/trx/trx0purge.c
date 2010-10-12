@@ -167,11 +167,7 @@ trx_purge_sys_create(
 	purge_sys->query = trx_purge_graph_build(
 		purge_sys->trx, n_purge_threads);
 
-	trx_sys_mutex_enter();
-
 	purge_sys->view = read_view_purge_open(purge_sys->heap);
-
-	trx_sys_mutex_exit();
 }
 
 /************************************************************************
@@ -192,11 +188,7 @@ trx_purge_sys_close(void)
 	purge_sys->sess = NULL;
 
 	if (purge_sys->view != NULL) {
-		trx_sys_mutex_enter();
-
 		read_view_remove(purge_sys->view);
-
-		trx_sys_mutex_exit();
 
 		purge_sys->view = NULL;
 	}
@@ -295,12 +287,12 @@ trx_purge_add_update_undo_to_history(
 		rseg_queue.rseg = rseg;
 		rseg_queue.trx_no = rseg->last_trx_no;
 
-		trx_sys_mutex_enter();
+		rw_lock_x_lock(&trx_sys->lock);
 
 		ptr = ib_bh_push(trx_sys->ib_bh, &rseg_queue);
 		ut_a(ptr);
 
-		trx_sys_mutex_exit();
+		rw_lock_x_unlock(&trx_sys->lock);
 	}
 }
 
@@ -590,7 +582,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 
 		/* Add debug code to track history list corruption reported
 		on the MySQL mailing list on Nov 9, 2004. The fut0lst.c
@@ -612,7 +604,7 @@ trx_purge_rseg_get_next_history_log(
 				(ulong) trx_sys->rseg_history_len);
 		}
 
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		return;
 	}
@@ -645,12 +637,12 @@ trx_purge_rseg_get_next_history_log(
 
 	mutex_exit(&(rseg->mutex));
 
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	ptr = ib_bh_push(trx_sys->ib_bh, &rseg_queue);
 	ut_a(ptr != NULL);
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 }
 
 /***********************************************************************//**
@@ -666,7 +658,7 @@ trx_purge_get_rseg_with_min_trx_id(
 	ulint		zip_size = 0;
 	trx_id_t	last_trx_no = IB_ULONGLONG_MAX;
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	if (!ib_bh_is_empty(trx_sys->ib_bh)) {
 		rseg_queue_t*	rseg_queue;
@@ -682,7 +674,7 @@ trx_purge_get_rseg_with_min_trx_id(
 		purge_sys->rseg = NULL;
 	}
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	if (purge_sys->rseg != NULL) {
 		trx_rseg_t*	rseg = purge_sys->rseg;
@@ -1063,11 +1055,10 @@ trx_purge_dml_delay(void)
 	thread. */
 	ulint	delay = 0; /* in microseconds; default: no delay */
 
-	ut_ad(trx_sys_mutex_own());
-
 	/* If we cannot advance the 'purge view' because of an old
 	'consistent read view', then the DML statements cannot be delayed.
-	Also, srv_max_purge_lag <= 0 means 'infinity'. */
+	Also, srv_max_purge_lag <= 0 means 'infinity'. Note: we do a dirty
+	read of the trx_sys_t data structure here. */
 	if (srv_max_purge_lag > 0
 	    && !UT_LIST_GET_LAST(trx_sys->view_list)) {
 		float	ratio = (float) trx_sys->rseg_history_len
@@ -1146,16 +1137,14 @@ trx_purge(
 {
 	que_thr_t*	thr = NULL;
 
+	srv_dml_needed_delay = trx_purge_dml_delay();
+
 	mutex_enter(&purge_sys->mutex);
 
 	/* The number of tasks submitted should be completed. */
 	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
 	rw_lock_x_lock(&purge_sys->latch);
-
-	trx_sys_mutex_enter();
-
-	srv_dml_needed_delay = trx_purge_dml_delay();
 
 	read_view_remove(purge_sys->view);
 
@@ -1164,8 +1153,6 @@ trx_purge(
 	mem_heap_empty(purge_sys->heap);
 
 	purge_sys->view = read_view_purge_open(purge_sys->heap);
-
-	trx_sys_mutex_exit();
 
 	rw_lock_x_unlock(&purge_sys->latch);
 

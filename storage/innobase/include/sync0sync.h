@@ -117,7 +117,8 @@ extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
 extern mysql_pfs_key_t	lock_sys_mutex_key;
 extern mysql_pfs_key_t	lock_sys_wait_mutex_key;
-extern mysql_pfs_key_t	trx_sys_mutex_key;
+extern mysql_pfs_key_t	trx_sys_rw_lock_key;
+extern mysql_pfs_key_t	read_view_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
@@ -680,8 +681,9 @@ or row lock! */
 #define SYNC_LOCK_SYS		299
 #define SYNC_TRX_SYS		298
 #define SYNC_TRX		297
-#define SYNC_THREADS		296
-#define SYNC_REC_LOCK		295
+#define SYNC_READ_VIEW		296
+#define SYNC_THREADS		295
+#define SYNC_REC_LOCK		294
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
