@@ -712,7 +712,7 @@ struct srv_sys_struct{
 						activity */
 };
 
-/* mutex protecting the server, trx structs, query threads, and lock table */
+/*!< Mutex protecting the server global variables. */
 UNIV_INTERN mutex_t	server_mutex;
 
 static srv_sys_t*	srv_sys	= NULL;
