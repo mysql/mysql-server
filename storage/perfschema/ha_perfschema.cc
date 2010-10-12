@@ -20,6 +20,7 @@
 
 #include "my_global.h"
 #include "my_pthread.h"
+#include "my_atomic.h"
 #include "sql_plugin.h"
 #include "mysql/plugin.h"
 #include "ha_perfschema.h"
@@ -27,6 +28,17 @@
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+
+#ifdef MY_ATOMIC_MODE_DUMMY
+/*
+  The performance schema can can not function with MY_ATOMIC_MODE_DUMMY,
+  a fully functional implementation of MY_ATOMIC should be used instead.
+  If the build fails with this error message:
+  - either use a different ./configure --with-atomic-ops option
+  - or do not build with the performance schema.
+*/
+#error "The performance schema needs a functional MY_ATOMIC implementation."
+#endif
 
 handlerton *pfs_hton= NULL;
 

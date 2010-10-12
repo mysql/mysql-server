@@ -1144,8 +1144,6 @@ que_run_threads_low(
 {
 	trx_t*		trx;
 	que_thr_t*	next_thr;
-	ulint		cumul_resource;
-	ulint		loop_count;
 
 	ut_ad(thr->state == QUE_THR_RUNNING);
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
@@ -1153,9 +1151,6 @@ que_run_threads_low(
 
 	/* cumul_resource counts how much resources the OS thread (NOT the
 	query thread) has spent in this function */
-
-	loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
-	cumul_resource = 0;
 
 	trx = thr_get_trx(thr);
 
@@ -1174,8 +1169,6 @@ que_run_threads_low(
 		next_thr = que_thr_step(thr);
 		/*-------------------------*/
 
-		++loop_count;
-
 		trx_mutex_enter(trx);
 
 		ut_a(next_thr == NULL || trx->error_state == DB_SUCCESS);
@@ -1189,8 +1182,6 @@ que_run_threads_low(
 			que_thr_dec_refer_count(thr, &next_thr);
 
 			if (next_thr != NULL) {
-
-				loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
 
 				thr = next_thr;
 			}

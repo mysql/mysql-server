@@ -251,7 +251,9 @@ trx_sys_create_doublewrite_buf(void)
 {
 	buf_block_t*	block;
 	buf_block_t*	block2;
+#ifdef UNIV_SYNC_DEBUG
 	buf_block_t*	new_block;
+#endif /* UNIV_SYNC_DEBUG */
 	byte*	doublewrite;
 	byte*	fseg_header;
 	ulint	page_no;
@@ -354,8 +356,11 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-			new_block = buf_page_get(TRX_SYS_SPACE, 0, page_no,
-						 RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+			new_block =
+#endif /* UNIV_SYNC_DEBUG */
+			buf_page_get(TRX_SYS_SPACE, 0, page_no,
+				     RW_X_LATCH, &mtr);
 			buf_block_dbg_add_level(new_block,
 						SYNC_NO_ORDER_CHECK);
 
@@ -1681,25 +1686,21 @@ trx_sys_close(void)
 #endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
-Check if there are any active transactions. */
+Check if there are any active transactions.
+@return total number of active transactions or 0 if none */
 UNIV_INTERN
-ibool
+ulint
 trx_sys_any_active_transactions(void)
 /*=================================*/
 {
-	ibool	active;
+	ulint	total_trx = 0;
 
 	trx_sys_mutex_enter();
 
-	if (trx_n_mysql_transactions > 0
-	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-
-		active = TRUE;
-	} else {
-		active = FALSE;
-	}
+	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
+	       	  + trx_n_mysql_transactions;
 
 	trx_sys_mutex_exit();
 
-	return(active);
+	return(total_trx);
 }

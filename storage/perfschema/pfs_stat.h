@@ -83,6 +83,22 @@ inline void aggregate_single_stat_chain(PFS_single_stat_chain *stat,
   while (stat);
 }
 
+/**
+  Increment the value counts in a statistic chain.
+  Used for instruments that are 'ENABLED' but not 'TIMED'.
+  @param stat                         the aggregated statistic chain
+*/
+inline void increment_single_stat_chain(PFS_single_stat_chain *stat)
+{
+  do
+  {
+    if (*stat->m_control_flag)
+      stat->m_count++;
+    stat= stat->m_parent;
+  }
+  while (stat);
+}
+
 /** Statistics for COND usage. */
 struct PFS_cond_stat
 {

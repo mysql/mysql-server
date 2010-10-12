@@ -188,7 +188,8 @@ lock_wait_table_reserve_slot(
 		++lock_sys->last_slot;
 	}
 
-	ut_ad(lock_sys->last_slot <= lock_sys->waiting_threads+ OS_THREAD_MAX_N);
+	ut_ad(lock_sys->last_slot
+	      <= lock_sys->waiting_threads+ OS_THREAD_MAX_N);
 
 	return(slot);
 }

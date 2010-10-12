@@ -806,7 +806,7 @@ row_purge_step(
 
 	node = thr->run_node;
 
-	// FIXME: DEBUG code , in general we don't really need to
+	// FIXME: DEBUG code, in general we don't really need to
 	// waste CPU cycles initing these.
 	memset(&node->roll_ptr, 0xf, sizeof(node->roll_ptr));
 	memset(&node->undo_no, 0xf, sizeof(node->undo_no));

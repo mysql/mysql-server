@@ -57,6 +57,7 @@
 #include "transaction.h"
 #include "debug_sync.h"
 #include "sql_parse.h"                          // is_update_query
+#include "sql_callback.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -1075,6 +1076,7 @@ THD::~THD()
   DBUG_ENTER("~THD()");
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
+  mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_unlock(&LOCK_thd_data);
   add_to_status(&global_status_var, &status_var);
 
@@ -1100,7 +1102,6 @@ THD::~THD()
   my_free(db);
   db= NULL;
   free_root(&transaction.mem_root,MYF(0));
-  mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
@@ -1189,7 +1190,7 @@ void THD::awake(THD::killed_state state_to_set)
   {
     thr_alarm_kill(thread_id);
     if (!slave_thread)
-      thread_scheduler.post_kill_notification(this);
+      MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (this));
 #ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
     {
@@ -1258,6 +1259,15 @@ bool THD::store_globals()
   if (my_pthread_setspecific_ptr(THR_THD,  this) ||
       my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
     return 1;
+  /*
+    mysys_var is concurrently readable by a killer thread.
+    It is protected by LOCK_thd_data, it is not needed to lock while the
+    pointer is changing from NULL not non-NULL. If the kill thread reads
+    NULL it doesn't refer to anything, but if it is non-NULL we need to
+    ensure that the thread doesn't proceed to assign another thread to
+    have the mysys_var reference (which in fact refers to the worker
+    threads local storage with key THR_KEY_mysys. 
+  */
   mysys_var=my_thread_var;
   /*
     Let mysqld define the thread id (not mysys)
@@ -3187,6 +3197,60 @@ extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
 {
   return sqlcom_can_generate_row_events(thd);
 }
+
+#ifndef EMBEDDED_LIBRARY
+extern "C" void thd_pool_wait_begin(MYSQL_THD thd, int wait_type);
+extern "C" void thd_pool_wait_end(MYSQL_THD thd);
+
+/*
+  Interface for MySQL Server, plugins and storage engines to report
+  when they are going to sleep/stall.
+  
+  SYNOPSIS
+  thd_wait_begin()
+  thd                     Thread object
+  wait_type               Type of wait
+                          1 -- short wait (e.g. for mutex)
+                          2 -- medium wait (e.g. for disk io)
+                          3 -- large wait (e.g. for locked row/table)
+  NOTES
+    This is used by the threadpool to have better knowledge of which
+    threads that currently are actively running on CPUs. When a thread
+    reports that it's going to sleep/stall, the threadpool scheduler is
+    free to start another thread in the pool most likely. The expected wait
+    time is simply an indication of how long the wait is expected to
+    become, the real wait time could be very different.
+
+  thd_wait_end MUST be called immediately after waking up again.
+*/
+extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+{
+  MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
+}
+
+/**
+  Interface for MySQL Server, plugins and storage engines to report
+  when they waking up from a sleep/stall.
+
+  @param  thd   Thread handle
+*/
+extern "C" void thd_wait_end(MYSQL_THD thd)
+{
+  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
+}
+#else
+extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+{
+  /* do NOTHING for the embedded library */
+  return;
+}
+
+extern "C" void thd_wait_end(MYSQL_THD thd)
+{
+  /* do NOTHING for the embedded library */
+  return;
+}
+#endif
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
@@ -3370,6 +3434,13 @@ void THD::set_query_id(query_id_t new_query_id)
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 
+/** Assign a new value to thd->mysys_var.  */
+void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
+{
+  mysql_mutex_lock(&LOCK_thd_data);
+  mysys_var= new_mysys_var;
+  mysql_mutex_unlock(&LOCK_thd_data);
+}
 
 /**
   Leave explicit LOCK TABLES or prelocked mode and restore value of

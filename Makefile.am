@@ -265,7 +265,8 @@ test-full-qa:
 # Headers which need to be checked for abi/api compatibility.
 #
 
-API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
+API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin_audit.h \
+			$(top_srcdir)/include/mysql/plugin_ftparser.h \
 			$(top_srcdir)/include/mysql.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h

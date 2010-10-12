@@ -479,9 +479,10 @@ trx_sys_get_n_trx(void);
 /*===================*/
 
 /*********************************************************************
-Check if there are any active transactions. */
+Check if there are any active transactions.
+@return total number of active transactions or 0 if none */
 UNIV_INTERN
-ibool
+ulint
 trx_sys_any_active_transactions(void);
 /*=================================*/
 

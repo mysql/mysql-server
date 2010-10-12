@@ -394,6 +394,10 @@ DROP TABLE t1;
 --echo # Bug#54332 Deadlock with two connections doing LOCK TABLE+INSERT DELAYED
 --echo #
 
+--echo # This test is not supposed to work under --ps-protocol since
+--echo # INSERT DELAYED doesn't work under LOCK TABLES with this protocol.
+--disable_ps_protocol
+
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
@@ -547,3 +551,4 @@ disconnect con1;
 --echo # Connection default
 connection default;
 DROP TABLE t1, t2, t3;
+--enable_ps_protocol
