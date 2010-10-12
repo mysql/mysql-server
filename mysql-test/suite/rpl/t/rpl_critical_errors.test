@@ -53,15 +53,13 @@ KILL QUERY 2;
 connection slave;
 
 # Here the slave will only stop if the query above actually started
-# inserting some rows into t2. Otherwise, it will hang forever.
---source include/wait_for_slave_to_stop.inc
+# inserting some rows into t2. Otherwise, it will hang forever.  ... and there
+# the error code should be 1317 (ER_QUERY_INTERRUPTED)
+--let $slave_sql_errno= 1317
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 
 # The following should be 0
 SELECT COUNT(*) FROM t2;
-
-# ... and there the error code should be 1317 (ER_QUERY_INTERRUPTED)
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 20 # 22 # 23 # 33 #
-query_vertical SHOW SLAVE STATUS;
 
 enable_parsing;

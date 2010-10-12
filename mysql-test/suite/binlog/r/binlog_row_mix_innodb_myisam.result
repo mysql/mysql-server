@@ -879,11 +879,11 @@ delete from t4;
 insert into t3 values (1,1),(2,2);
 insert into t4 values (1,1),(2,2);
 reset master;
-UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+UPDATE t3,t4 SET t3.a = t4.a + bug27417(1) where t3.a = 1;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 select count(*) from t1 /* must be 1 */;
 count(*)
-2
+1
 drop table t4;
 delete from t1;
 delete from t2;
