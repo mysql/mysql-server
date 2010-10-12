@@ -327,6 +327,16 @@ public:
    */
   int setParallelism(Uint32 parallelism);
 
+  /** Set the batch size (max rows per batch) for this operation. This
+   * only applies to scan operations, as lookup operations always will
+   * have the same batch size as its parent operation, or 1 if it is the
+   * root operation.
+   * @param batchSize Batch size (in number of rows). A value of 0 means
+   * use the default batch size.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setBatchSize(Uint32 batchSize);
+
   /**
    * Set the NdbInterpretedCode needed for defining a scan filter for 
    * this operation. 
