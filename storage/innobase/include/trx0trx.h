@@ -361,8 +361,8 @@ struct trx_lock_struct {
 					checking algorithm. This is only
 					covered by the lock_sys_t::mutex */
 	ibool		was_chosen_as_deadlock_victim;
-					/* when the transaction decides to wait
-					for a lock, it sets this to FALSE;
+					/*!< when the transaction decides to
+				       	wait for a lock, it sets this to FALSE;
 					if another transaction chooses this
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE */
@@ -391,20 +391,20 @@ rolling back after a database recovery */
 struct trx_struct{
 	ulint		magic_n;
 
-	mutex_t		mutex;		/* Mutex  protecting the trx_lock_t
+	mutex_t		mutex;		/*!< Mutex  protecting the trx_lock_t
 				       	fields see below: */
 
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the
 					current operation, or an empty
 					string */
-	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
-	ulint		check_foreigns;	/* normally TRUE, but if the user
+	ulint		isolation_level;/*!< TRX_ISO_REPEATABLE_READ, ... */
+	ulint		check_foreigns;	/*!< normally TRUE, but if the user
 					wants to suppress foreign key checks,
 					(in table imports, for example) we
 					set this FALSE */
 	ulint		check_unique_secondary;
-					/* normally TRUE, but if the user
+					/*!< normally TRUE, but if the user
 					wants to speed up inserts by
 					suppressing unique key checks
 					for secondary indexes when we decide
@@ -421,7 +421,7 @@ struct trx_struct{
 					defer flush of the logs to disk
 					until after we release the
 					mutex. */
-	ulint		must_flush_log_later;/* this flag is set to TRUE in
+	ulint		must_flush_log_later;/*!< this flag is set to TRUE in
 					trx_commit() if flush_log_later was
 				       	TRUE, and there were modifications by
 				       	the transaction; in that case we must
@@ -432,13 +432,13 @@ struct trx_struct{
 					is active. 2 - if prepare_commit_mutex
 					was taken */
 	ulint		has_search_latch;
-					/* TRUE if this trx has latched the
+					/*!< TRUE if this trx has latched the
 					search system latch in S-mode */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op */
 
 	/* Fields protected by the srv_conc_mutex. */
 	ulint		declared_to_be_inside_innodb;
-					/* this is TRUE if we have declared
+					/*!< this is TRUE if we have declared
 					this transaction in
 					srv_conc_enter_innodb to be inside the
 					InnoDB engine */
@@ -471,28 +471,28 @@ struct trx_struct{
 	void*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */
 	const char*	mysql_log_file_name;
-					/* if MySQL binlog is used, this field
+					/*!< if MySQL binlog is used, this field
 					contains a pointer to the latest file
 					name; this is NULL if binlog is not
 					used */
-	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
-					contains the end offset of the binlog
-					entry */
-	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
+	ib_int64_t	mysql_log_offset;/*!< if MySQL binlog is used, this
+					 field contains the end offset of the
+					 binlog entry */
+	os_thread_id_t	mysql_thread_id;/*!< id of the MySQL thread associated
 					with this transaction object */
-	ulint		mysql_process_no;/* since in Linux, 'top' reports
+	ulint		mysql_process_no;/*!< since in Linux, 'top' reports
 					process id's and not thread id's, we
 					store the process number too */
 	/*------------------------------*/
-	ulint		n_mysql_tables_in_use; /* number of Innobase tables
+	ulint		n_mysql_tables_in_use; /*!< number of Innobase tables
 					used in the processing of the current
 					SQL statement in MySQL */
 	ulint		mysql_n_tables_locked;
-					/* how many tables the current SQL
+					/*!< how many tables the current SQL
 					statement uses, except those
 					in consistent read */
 	ulint		search_latch_timeout;
-					/* If we notice that someone is
+					/*!< If we notice that someone is
 					waiting for our S-lock on the search
 					latch to be released, we wait in
 					row0sel.c for BTR_SEA_TIMEOUT new
@@ -503,7 +503,7 @@ struct trx_struct{
 					latch */
 	/*------------------------------*/
 	ulint		n_tickets_to_enter_innodb;
-					/* this can be > 0 only when
+					/*!< this can be > 0 only when
 					declared_to_... is TRUE; when we come
 					to srv_conc_innodb_enter, if the value
 					here is > 0, we decrement this by 1 */
@@ -533,19 +533,19 @@ struct trx_struct{
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
 	que_t*		graph_before_signal_handling;
-					/* value of graph when signal handling
+					/*!< value of graph when signal handling
 					for this trx started: this is used to
 					return control to the original query
 					graph for error processing */
 	/*------------------------------*/
-	trx_lock_t	lock;		/* Information about the transaction
+	trx_lock_t	lock;		/*!< Information about the transaction
 					locks and state. */
 	/*------------------------------*/
 	mem_heap_t*	global_read_view_heap;
-					/* memory heap for the global read
+					/*!< memory heap for the global read
 					view */
 	read_view_t*	global_read_view;
-					/* consistent read view associated
+					/*!< consistent read view associated
 					to a transaction or NULL */
 	read_view_t*	read_view;	/*!< consistent read view used in the
 					transaction or NULL, this read view
@@ -572,7 +572,7 @@ struct trx_struct{
 					the number of modified/inserted
 					rows in a transaction */
 	trx_savept_t	last_sql_stat_start;
-					/* undo_no when the last sql statement
+					/*!< undo_no when the last sql statement
 					was started: in case of an error, trx
 					is rolled back down to this undo
 					number; see note at undo_mutex! */
