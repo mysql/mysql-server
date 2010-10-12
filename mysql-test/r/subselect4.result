@@ -59,7 +59,29 @@ FROM t3 WHERE 1 = 0 GROUP BY 1;
 (SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
 DROP TABLE t1,t2,t3;
 End of 5.0 tests.
-<<<<<<< TREE
+CREATE TABLE t1 (col_int_nokey int(11) NOT NULL, col_varchar_nokey varchar(1) NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (2,'s'),(0,'v'),(2,'s');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+`col_int_key` int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY `col_int_key` (`col_int_key`),
+KEY `col_varchar_key` (`col_varchar_key`)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,10,'g'), (5,20,'v');
+SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
+col_int_nokey	sub
+2	10
+0	NULL
+2	10
+SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) +1 FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
+col_int_nokey	sub
+2	11
+0	NULL
+2	11
+DROP TABLE t1,t2;
+End of 5.1 tests.
 #
 # BUG#46743 "Azalea processing correlated, aggregate SELECT
 # subqueries incorrectly"
@@ -330,12 +352,7 @@ i3 INT,
 KEY i1_index (i1_key)
 );
 INSERT INTO t1 VALUES (9,1,2), (9,2,1);
-=======
-CREATE TABLE t1 (col_int_nokey int(11) NOT NULL, col_varchar_nokey varchar(1) NOT NULL) engine=myisam;
-INSERT INTO t1 VALUES (2,'s'),(0,'v'),(2,'s');
->>>>>>> MERGE-SOURCE
 CREATE TABLE t2 (
-<<<<<<< TREE
 pk INT NOT NULL,
 i1 INT,
 PRIMARY KEY (pk)
@@ -359,28 +376,4 @@ pk
 9
 # Restore old value for Index condition pushdown
 SET SESSION engine_condition_pushdown=@old_icp;
-=======
-pk int(11) NOT NULL AUTO_INCREMENT,
-`col_int_key` int(11) NOT NULL,
-col_varchar_key varchar(1) NOT NULL,
-PRIMARY KEY (pk),
-KEY `col_int_key` (`col_int_key`),
-KEY `col_varchar_key` (`col_varchar_key`)
-) ENGINE=MyISAM;
-INSERT INTO t2 VALUES (4,10,'g'), (5,20,'v');
-SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
-col_int_nokey	sub
-2	10
-0	NULL
-2	10
-SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) +1 FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
-col_int_nokey	sub
-2	11
-0	NULL
-2	11
->>>>>>> MERGE-SOURCE
 DROP TABLE t1,t2;
-<<<<<<< TREE
-=======
-End of 5.1 tests.
->>>>>>> MERGE-SOURCE
