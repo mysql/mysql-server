@@ -1519,9 +1519,9 @@ row_upd_sec_index_entry(
 		rec_print(stderr, rec, index);
 		putc('\n', stderr);
 
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"

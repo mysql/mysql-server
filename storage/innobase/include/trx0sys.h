@@ -649,10 +649,11 @@ struct trx_doublewrite_struct{
 
 /** The transaction system central memory data structure. */
 struct trx_sys_struct{
-	mutex_t		mutex;		/*!< mutex protecting all the fields
-					in this structure except rseg_list.
-					That is protected by the purge_sys
-					mutex */
+
+	rw_lock_t	lock;		/*!< read-write lock protecting all
+				       	the fields in this structure except
+				       	rseg_list. That is protected by the
+				       	purge_sys mutex */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
@@ -673,8 +674,9 @@ struct trx_sys_struct{
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
-	ib_bh_t*	ib_bh;		/* Binary min-heap, ordered on
+	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
 					rseg_queue_t::trx_no */
+	mutex_t		read_view_mutex;/*!< Protects the view_list */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/*!< List of read views sorted
 					on trx no, biggest first */
@@ -685,19 +687,6 @@ two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 #define TRX_SYS_TRX_ID_WRITE_MARGIN	256
 #endif /* !UNIV_HOTBACKUP */
-
-/** Test if trx_sys->mutex mutex is owned. */
-#define trx_sys_mutex_own() mutex_own(&trx_sys->mutex)
-
-/** Acquire the trx_sys->mutex. */
-#define trx_sys_mutex_enter() do {		\
-	mutex_enter(&trx_sys->mutex);		\
-} while (0)
-
-/** Release the trx_sys->mutex. */
-#define trx_sys_mutex_exit() do {		\
-	mutex_exit(&trx_sys->mutex);		\
-} while (0)
 
 #ifndef UNIV_NONINL
 #include "trx0sys.ic"

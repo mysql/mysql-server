@@ -273,7 +273,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&trx_doublewrite_mutex_key, "trx_doublewrite_mutex", 0},
 	{&thr_local_mutex_key, "thr_local_mutex", 0},
 	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
-	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
 	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
 	{&lock_sys_mutex_key, "lock_mutex", 0},
 	{&lock_sys_wait_mutex_key, "lock_wait_mutex", 0},
@@ -302,7 +301,9 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&checkpoint_lock_key, "checkpoint_lock", 0},
 	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
-	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0}
+	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
+	{&trx_sys_rw_lock_key, "trx_sys_lock", 0},
+	{&read_view_mutex_key, "read_view_mutex", 0}
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -1736,9 +1737,9 @@ innobase_query_caching_of_table_permitted(
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
 
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 1024);
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 	}
 
 	innobase_release_stat_resources(trx);

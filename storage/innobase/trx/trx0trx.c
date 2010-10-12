@@ -174,11 +174,11 @@ trx_allocate_for_mysql(void)
 
 	os_atomic_inc_ulint(&trx_sys->mutex, &trx_n_mysql_transactions, 1);
 
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	trx->mysql_thread_id = os_thread_get_curr_id();
 
@@ -215,9 +215,9 @@ trx_free(
 		fputs("  InnoDB: Error: Freeing a trx which is declared"
 		      " to be processing\n"
 		      "InnoDB: inside InnoDB.\n", stderr);
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 		putc('\n', stderr);
 
 		/* This is an error but not a fatal error. We must keep
@@ -236,9 +236,9 @@ trx_free(
 			(ulong)trx->n_mysql_tables_in_use,
 			(ulong)trx->mysql_n_tables_locked);
 
-		trx_sys_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		trx_sys_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
@@ -312,11 +312,11 @@ trx_free_for_mysql(
 /*===============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	os_atomic_dec_ulint(&trx_sys->mutex, &trx_n_mysql_transactions, 1);
 
@@ -603,11 +603,11 @@ trx_assign_rseg(void)
 
 	} while (rseg == NULL);
 
-	trx_sys_mutex_enter();
+	rw_lock_x_lock(&trx_sys->lock);
 
 	trx_sys->latest_rseg = i % TRX_SYS_N_RSEGS;
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	return(rseg);
 }
@@ -632,8 +632,6 @@ trx_start_low(
 
 	rseg = trx_assign_rseg();
 
-	trx_sys_mutex_enter();
-
 	trx->no = IB_ULONGLONG_MAX;
 
 	trx->start_time = ut_time();
@@ -643,11 +641,13 @@ trx_start_low(
 	ut_a(trx->rseg == NULL);
 	trx->rseg = rseg;
 
+	rw_lock_x_lock(&trx_sys->lock);
+
 	trx->id = trx_sys_get_new_trx_id();
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
 
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
@@ -685,11 +685,11 @@ trx_commit(
 
 		if (trx->update_undo != NULL) {
 
-			trx_sys_mutex_enter();
+			rw_lock_x_lock(&trx_sys->lock);
 
 			trx->no = trx_sys_get_new_trx_id();
 
-			trx_sys_mutex_exit();
+			rw_lock_x_unlock(&trx_sys->lock);
 
 			/* It is not necessary to obtain trx->undo_mutex here
 			because only a single OS thread is allowed to do the
@@ -749,17 +749,16 @@ trx_commit(
 
 	lock_trx_release_locks(trx);
 
-	trx_sys_mutex_enter();
-
 	if (trx->global_read_view != NULL) {
 		read_view_remove(trx->global_read_view);
+
 		mem_heap_empty(trx->global_read_view_heap);
+
 		trx->global_read_view = NULL;
 	}
 
 	trx->read_view = NULL;
 
-	trx_sys_mutex_exit();
 
 	if (lsn) {
 		if (trx->insert_undo != NULL) {
@@ -824,12 +823,8 @@ trx_commit(
 		trx->commit_lsn = lsn;
 	}
 
-	trx_sys_mutex_enter();
-
 	/* Free all savepoints */
 	trx_roll_free_all_savepoints(trx);
-
-	trx_mutex_enter(trx);
 
 	trx->rseg = NULL;
 	trx->undo_no = 0;
@@ -840,7 +835,9 @@ trx_commit(
 
 	trx->lock.conc_state = TRX_NOT_STARTED;
 
-	/* TODO: We should remove the transaction from the active
+	rw_lock_x_lock(&trx_sys->lock);
+
+	/* FIXME: We should remove the transaction from the active
 	list earlier rather than here. This should simplify rules
 	about the transaction's state. One we enter this function
 	there is no going back and I don't see why need to wait
@@ -848,9 +845,7 @@ trx_commit(
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 
-	trx_mutex_exit(trx);
-
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 }
 
 /****************************************************************//**
@@ -872,17 +867,13 @@ trx_cleanup_at_db_startup(
 	trx->undo_no = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
 
-	trx_sys_mutex_enter();
-
-	trx_mutex_enter(trx);
+	rw_lock_x_lock(&trx_sys->lock);
 
 	trx->lock.conc_state = TRX_NOT_STARTED;
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 
-	trx_mutex_exit(trx);
-
-	trx_sys_mutex_exit();
+	rw_lock_x_unlock(&trx_sys->lock);
 }
 
 /********************************************************************//**
@@ -902,8 +893,6 @@ trx_assign_read_view(
 		return(trx->read_view);
 	}
 
-	trx_sys_mutex_enter();
-
 	if (!trx->read_view) {
 
 		trx->read_view = read_view_open_now(
@@ -911,8 +900,6 @@ trx_assign_read_view(
 
 		trx->global_read_view = trx->read_view;
 	}
-
-	trx_sys_mutex_exit();
 
 	return(trx->read_view);
 }
@@ -1121,7 +1108,7 @@ trx_print(
 {
 	ibool	newline;
 
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, (ullint) trx->id);
 
@@ -1406,8 +1393,8 @@ trx_recover_for_mysql(
 	XID*	xid_list,	/*!< in/out: prepared transactions */
 	ulint	len)		/*!< in: number of slots in xid_list */
 {
-	trx_t*	trx;
-	ulint	count = 0;
+	const trx_t*	trx;
+	ulint		count = 0;
 
 	ut_ad(xid_list);
 	ut_ad(len);
@@ -1415,7 +1402,7 @@ trx_recover_for_mysql(
 	/* We should set those transactions which are in the prepared state
 	to the xid_list */
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
@@ -1451,7 +1438,7 @@ trx_recover_for_mysql(
 		}
 	}
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	if (count > 0){
 		ut_print_timestamp(stderr);
@@ -1481,7 +1468,7 @@ trx_get_trx_by_xid(
 		return (NULL);
 	}
 
-	trx_sys_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
@@ -1505,7 +1492,7 @@ trx_get_trx_by_xid(
 		trx = NULL;
 	}
 
-	trx_sys_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(trx);
 }
