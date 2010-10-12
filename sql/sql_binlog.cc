@@ -17,7 +17,8 @@
 #include "sql_binlog.h"
 #include "sql_parse.h"
 #include "sql_acl.h"
-#include "rpl_rli.h"
+#include "rpl_info.h"
+#include "rpl_info_factory.h"
 #include "base64.h"
 #include "rpl_slave.h"                              // apply_event_and_update_pos
 #include "log_event.h"                          // Format_description_log_event,
@@ -146,12 +147,17 @@ void mysql_client_binlog_statement(THD* thd)
   /*
     Allocation
   */
-
   int err= 0;
-  Relay_log_info *rli;
-  rli= thd->rli_fake;
-  if (!rli && (rli= thd->rli_fake= new Relay_log_info(FALSE)))
-    rli->sql_thd= thd;
+  Relay_log_info *rli= thd->rli_fake;
+  if (!rli)
+  {
+    Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE, &rli);
+    if (rli)
+    {
+      thd->rli_fake= rli;
+      rli->info_thd= thd;
+    }
+  }
 
   const char *error= 0;
   char *buf= (char *) my_malloc(decoded_len, MYF(MY_WME));
