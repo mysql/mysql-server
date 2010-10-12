@@ -1228,12 +1228,13 @@ sp_head::execute(THD *thd)
     parsing and loading of another stored procedure into the cache
     (@sa db_load_routine() and Bug#10100).
     At the time of measuring, a recursive SP invocation required
-    3232 bytes of stack on 32 bit Linux and 6016 bytes on 64 bit Mac.
+    3232 bytes of stack on 32 bit Linux, 6016 bytes on 64 bit Mac
+    and 11152 on 64 bit Solaris sparc.
     The same with db_load_routine() required circa 7k bytes and
     14k bytes accordingly. Hence, here we book the stack with some
     reasonable margin.
   */
-  if (check_stack_overrun(thd, 2 * STACK_MIN_SIZE, (uchar*)&old_packet))
+  if (check_stack_overrun(thd, 4 * STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
