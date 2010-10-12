@@ -1,4 +1,3 @@
-#include <sys/types.h>
 typedef char my_bool;
 typedef int my_socket;
 #include "mysql_version.h"
