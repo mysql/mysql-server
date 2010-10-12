@@ -458,12 +458,10 @@ class Sys_var_proxy_user: public sys_var
 public:
   Sys_var_proxy_user(const char *name_arg,
           const char *comment, enum charset_enum is_os_charset_arg)
-    : sys_var(&all_sys_vars, name_arg, comment, 
+    : sys_var(&all_sys_vars, name_arg, comment,
               sys_var::READONLY+sys_var::ONLY_SESSION, 0, -1,
-              NO_ARG, SHOW_CHAR, (intptr)NULL,
-              0, VARIABLE_NOT_IN_BINLOG,
-              0, 0,
-              0, 0, PARSE_NORMAL)
+              NO_ARG, SHOW_CHAR, 0, NULL, VARIABLE_NOT_IN_BINLOG,
+              NULL, NULL, 0, NULL, PARSE_NORMAL)
   {
     is_os_charset= is_os_charset_arg == IN_FS_CHARSET;
     option.var_type= GET_STR;
