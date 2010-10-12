@@ -418,7 +418,7 @@ dtype_new_read_for_order_and_null_size(
 /*********************************************************************//**
 Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len
 @return the SQL type name */
-UNIV_INTERN
+UNIV_INLINE
 char*
 dtype_sql_name(
 /*===========*/
