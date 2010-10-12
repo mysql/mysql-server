@@ -28,9 +28,7 @@ STOP SLAVE;
 
 SELECT COUNT(*) FROM t1;
 
---replace_column 2 # 5 #
---replace_regex /Server ver: .+/Server ver: #/ /table_id: [0-9]+/table_id: #/ /COMMIT.+xid=[0-9]+.+/#/ /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /'.+'/FILENAME/
-SHOW BINLOG EVENTS;
+source include/show_binlog_events.inc;
 
 --save_master_pos
 

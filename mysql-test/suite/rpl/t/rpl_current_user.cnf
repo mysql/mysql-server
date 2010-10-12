@@ -1,0 +1,9 @@
+!include ../my.cnf
+
+[mysqld.3]
+server-id=3
+log-bin=slave-bin
+
+[ENV]
+SLAVE_MYPORT1=		@mysqld.3.port
+SLAVE_MYSOCK1=		@mysqld.3.socket

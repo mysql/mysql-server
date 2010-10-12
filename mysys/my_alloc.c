@@ -157,6 +157,14 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
 
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
+  DBUG_EXECUTE_IF("simulate_out_of_memory",
+                  {
+                    if (mem_root->error_handler)
+                      (*mem_root->error_handler)();
+                    DBUG_SET("-d,simulate_out_of_memory");
+                    DBUG_RETURN((void*) 0); /* purecov: inspected */
+                  });
+
   length+=ALIGN_SIZE(sizeof(USED_MEM));
   if (!(next = (USED_MEM*) my_malloc(length,MYF(MY_WME))))
   {
@@ -179,6 +187,14 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
+  DBUG_EXECUTE_IF("simulate_out_of_memory",
+                  {
+                    /* Avoid reusing an already allocated block */
+                    if (mem_root->error_handler)
+                      (*mem_root->error_handler)();
+                    DBUG_SET("-d,simulate_out_of_memory");
+                    DBUG_RETURN((void*) 0); /* purecov: inspected */
+                  });
   length= ALIGN_SIZE(length);
   if ((*(prev= &mem_root->free)) != NULL)
   {
