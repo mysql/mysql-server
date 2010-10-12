@@ -2140,7 +2140,7 @@ dict_stats_update(
 					/*!< in: TRUE if the caller
 					owns dict_sys->mutex */
 {
-	enum db_err	ret;
+	enum db_err	ret = DB_ERROR;
 
 	/* check whether caller_has_dict_sys_mutex is set correctly;
 	note that mutex_own() is not implemented in non-debug code so
