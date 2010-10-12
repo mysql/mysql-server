@@ -1,0 +1,264 @@
+--source include/have_innodb_plugin.inc
+
+--echo #
+--echo # Bug #40113: Embedded SELECT inside UPDATE or DELETE can timeout 
+--echo #  without error
+--echo #
+
+CREATE TABLE t1 (a int, b int, PRIMARY KEY  (a,b)) ENGINE=InnoDB;
+
+INSERT INTO t1 (a,b) VALUES (1070109,99);
+
+CREATE TABLE t2 (b int, a int, PRIMARY KEY (b)) ENGINE=InnoDB;
+
+INSERT INTO t2 (b,a) VALUES (7,1070109);
+
+SELECT * FROM t1;
+
+BEGIN;
+
+SELECT b FROM t2 WHERE b=7 FOR UPDATE;
+
+CONNECT (addconroot, localhost, root,,);
+CONNECTION addconroot;
+
+BEGIN;
+
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT b FROM t2 WHERE b=7 FOR UPDATE;
+
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 (a) VALUES ((SELECT a FROM t2 WHERE b=7));
+
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET a='7000000' WHERE a=(SELECT a FROM t2 WHERE b=7);
+
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t1 WHERE a=(SELECT a FROM t2 WHERE b=7);
+
+SELECT * FROM t1;
+
+CONNECTION default;
+DISCONNECT addconroot;
+
+DROP TABLE t2, t1;
+
+--echo # End of 5.0 tests
+
+--echo #
+--echo # Bug#46539 Various crashes on INSERT IGNORE SELECT + SELECT
+--echo #           FOR UPDATE
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int primary key auto_increment,
+                 b int, index(b)) engine=innodb;
+insert into t1 (b) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+set autocommit=0;
+begin;
+select * from t1 where b=5 for update;
+connect (con1, localhost, root,,);
+connection con1;
+--error ER_LOCK_WAIT_TIMEOUT
+insert ignore into t1 (b) select a as b from t1;
+connection default;
+--echo # Cleanup
+--echo #
+disconnect con1;
+commit;
+set autocommit=default;
+drop table t1;
+
+--echo #
+--echo # Bug #37183 insert ignore into .. select ... hangs 
+--echo #            after deadlock was encountered
+--echo #
+connect (con1,localhost,root,,);
+create table t1(id int primary key,v int)engine=innodb;
+insert into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7);
+create table t2 like t1;
+
+--connection con1
+begin;
+update t1 set v=id*2 where id=1;
+
+--connection default
+begin;
+update t1 set v=id*2 where id=2;
+
+--connection con1
+--error 1205
+update t1 set v=id*2 where id=2;
+
+--connection default
+--error 1205
+insert ignore into t2 select * from t1 where id=1; 
+rollback;
+
+--connection con1
+rollback;
+
+--connection default
+disconnect con1;
+drop table t1, t2;
+
+
+--echo #
+--echo # Bug#41756 Strange error messages about locks from InnoDB
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+--echo # In the default transaction isolation mode, and/or with
+--echo # innodb_locks_unsafe_for_binlog=OFF, handler::unlock_row()
+--echo # in InnoDB does nothing.
+--echo # Thus in order to reproduce the condition that led to the
+--echo # warning, one needs to relax isolation by either
+--echo # setting a weaker tx_isolation value, or by turning on
+--echo # the unsafe replication switch.
+--echo # For testing purposes, choose to tweak the isolation level,
+--echo # since it's settable at runtime, unlike
+--echo # innodb_locks_unsafe_for_binlog, which is
+--echo # only a command-line switch.
+--echo #
+set @@session.tx_isolation="read-committed";
+
+--echo # Prepare data. We need a table with a unique index,
+--echo # for join_read_key to be used. The other column
+--echo # allows to control what passes WHERE clause filter.
+create table t1 (a int primary key, b int) engine=innodb;
+--echo # Let's make sure t1 has sufficient amount of rows
+--echo # to exclude JT_ALL access method when reading it,
+--echo # i.e. make sure that JT_EQ_REF(a) is always preferred.
+insert into t1 values (1,1), (2,null), (3,1), (4,1),
+                      (5,1), (6,1), (7,1), (8,1), (9,1), (10,1),
+                      (11,1), (12,1), (13,1), (14,1), (15,1),
+                      (16,1), (17,1), (18,1), (19,1), (20,1);
+--echo #
+--echo # Demonstrate that for the SELECT statement
+--echo # used later in the test JT_EQ_REF access method is used.
+--echo #
+--vertical_results
+explain
+select 1 from t1 natural join (select 2 as a, 1 as b union all
+                               select 2 as a, 2 as b) as t2 for update;
+--horizontal_results
+--echo #
+--echo # Demonstrate that the reported SELECT statement
+--echo # no longer produces warnings.
+--echo #
+select 1 from t1 natural join (select 2 as a, 1 as b union all
+                               select 2 as a, 2 as b) as t2 for update;
+commit;
+--echo # 
+--echo # Demonstrate that due to lack of inter-sweep "reset" function,
+--echo # we keep some non-matching records locked, even though we know
+--echo # we could unlock them.
+--echo # To do that, show that if there is only one distinct value
+--echo # for a in t2 (a=2), we will keep record (2,null) in t1 locked.
+--echo # But if we add another value for "a" to t2, say 6,
+--echo # join_read_key cache will be pruned at least once, 
+--echo # and thus record (2, null) in t1 will get unlocked.
+--echo #
+begin;
+select 1 from t1 natural join (select 2 as a, 1 as b union all
+                               select 2 as a, 2 as b) as t2 for update;
+connect (con1,localhost,root,,);
+--echo #
+--echo # Switching to connection con1
+connection con1;
+--echo # We should be able to delete all records from t1 except (2, null),
+--echo # since they were not locked.
+begin;
+--echo # Delete in series of 3 records so that full scan
+--echo # is not used and we're not blocked on record (2,null)
+delete from t1 where a in (1,3,4);
+delete from t1 where a in (5,6,7);
+delete from t1 where a in (8,9,10);
+delete from t1 where a in (11,12,13);
+delete from t1 where a in (14,15,16);
+delete from t1 where a in (17,18);
+delete from t1 where a in (19,20);
+--echo # 
+--echo # Record (2, null) is locked. This is actually unnecessary, 
+--echo # because the previous select returned no rows. 
+--echo # Just demonstrate the effect.
+--echo #
+--error ER_LOCK_WAIT_TIMEOUT
+delete from t1;
+rollback;
+--echo #
+--echo # Switching to connection default
+connection default;
+--echo #
+--echo # Show that the original contents of t1 is intact:
+select * from t1;
+commit;
+--echo #
+--echo # Have a one more record in t2 to show that 
+--echo # if join_read_key cache is purned, the current
+--echo # row under the cursor is unlocked (provided, this row didn't 
+--echo # match the partial WHERE clause, of course).
+--echo # Sic: the result of this test dependent on the order of retrieval
+--echo # of records --echo # from the derived table, if !
+--echo # We use DELETE to disable the JOIN CACHE. This DELETE modifies no
+--echo # records. It also should leave no InnoDB row locks.
+--echo #
+begin;
+delete t1.* from t1 natural join (select 2 as a, 2 as b union all
+                                  select 0 as a, 0 as b) as t2;
+--echo # Demonstrate that nothing was deleted form t1
+select * from t1;
+--echo #
+--echo # Switching to connection con1
+connection con1;
+begin;
+--echo # Since there is another distinct record in the derived table
+--echo # the previous matching record in t1 -- (2,null) -- was unlocked.
+delete from t1;
+--echo # We will need the contents of the table again.
+rollback;
+select * from t1;
+commit;
+--echo #
+--echo # Switching to connection default
+connection default;
+rollback;
+begin;
+--echo #
+--echo # Before this patch, we could wrongly unlock a record
+--echo # that was cached and later used in a join. Demonstrate that
+--echo # this is no longer the case.
+--echo # Sic: this test is also order-dependent (i.e. the
+--echo # the bug would show up only if the first record in the union
+--echo # is retreived and processed first.
+--echo #
+--echo # Verify that JT_EQ_REF is used.
+--vertical_results
+explain
+select 1 from t1 natural join (select 3 as a, 2 as b union all
+                               select 3 as a, 1 as b) as t2 for update;
+--horizontal_results
+--echo # Lock the record.
+select 1 from t1 natural join (select 3 as a, 2 as b union all
+                               select 3 as a, 1 as b) as t2 for update;
+--echo # Switching to connection con1
+connection con1;
+--echo #
+--echo # We should not be able to delete record (3,1) from t1,
+--echo # (previously it was possible).
+--echo #
+--error ER_LOCK_WAIT_TIMEOUT
+delete from t1 where a=3;
+--echo # Switching to connection default
+connection default;
+commit;
+
+disconnect con1;
+set @@session.tx_isolation=default;
+drop table t1;
+
+--echo #
+--echo # End of 5.1 tests
+--echo #

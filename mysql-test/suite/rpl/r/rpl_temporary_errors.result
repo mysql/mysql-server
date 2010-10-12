@@ -40,48 +40,64 @@ a	b
 2	2
 3	3
 4	4
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_PORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	Yes
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-Master_Bind	0.0.0.0
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Checking that both slave threads are running.
 DROP TABLE t1;
 **** On Master ****
+SET SQL_LOG_BIN= 0;
 DROP TABLE t1;
+SET SQL_LOG_BIN= 1;
+SET SESSION BINLOG_FORMAT=MIXED;
+CREATE TABLE t_myisam (id INT, PRIMARY KEY (id)) engine= MyIsam;
+INSERT INTO t_myisam (id) VALUES(1);
+CREATE TABLE t_innodb (id INT) engine= Innodb;
+INSERT INTO t_innodb (id) VALUES(1);
+BEGIN;
+INSERT INTO t_innodb(id) VALUES(2);
+INSERT INTO t_myisam(id) VALUES(3);
+CREATE TEMPORARY TABLE x (id INT);
+INSERT INTO t_myisam(id) VALUES(4),(1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO t_innodb(id) VALUES(5);
+COMMIT;
+SELECT * FROM t_innodb;
+id
+1
+2
+5
+SELECT * FROM t_myisam;
+id
+1
+3
+4
+SELECT * FROM t_innodb;
+id
+1
+2
+5
+SELECT * FROM t_myisam;
+id
+1
+3
+4
+BEGIN;
+CREATE TEMPORARY TABLE tmp2 SELECT * FROM t_innodb;
+INSERT INTO t_innodb(id) VALUES(1);
+INSERT INTO t_innodb(id) VALUES(1);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb(id) VALUES(2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_myisam(id) VALUES(3)
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE x (id INT)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_myisam(id) VALUES(4),(1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb(id) VALUES(5)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tmp2 SELECT * FROM t_innodb
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb(id) VALUES(1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb(id) VALUES(1)
+master-bin.000001	#	Query	#	#	ROLLBACK
+DROP TABLE t_myisam, t_innodb;

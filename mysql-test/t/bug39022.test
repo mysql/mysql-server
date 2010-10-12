@@ -24,7 +24,7 @@ START TRANSACTION;
 connection thread2;
 --echo # in thread2
 REPLACE INTO t2 VALUES (-17);
-SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d);
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE;
 
 connection thread1;
 --echo # in thread1
@@ -37,14 +37,14 @@ START TRANSACTION;
 REPLACE INTO t1(a,b) VALUES (65,-50);
 REPLACE INTO t2 VALUES (-91);
 send;
-SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d); #waits
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE; #waits
 
 connection thread1;
 --echo # in thread1
 
 --echo # should not crash
 --error ER_LOCK_DEADLOCK
-SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d); #crashes
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE; #crashes
 
 connection thread2;
 --echo # in thread2

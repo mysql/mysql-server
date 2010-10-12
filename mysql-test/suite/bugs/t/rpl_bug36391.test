@@ -21,8 +21,10 @@ create table t1(id int);
 
 show tables;
 
-show master status;
+--source include/show_master_status.inc
 
 flush logs;
 
 --exec $MYSQL_BINLOG $MYSQL_TEST_DIR/var/log/master-bin.000001 | $MYSQL test
+
+drop table t1;
