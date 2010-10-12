@@ -1176,6 +1176,7 @@ sync_thread_add_level(
 	case SYNC_SEARCH_SYS:
 	case SYNC_SEARCH_SYS_CONF:
 	case SYNC_THREADS:
+	case SYNC_READ_VIEW:
 	case SYNC_LOCK_SYS:
 	case SYNC_LOCK_WAIT_SYS:
 	case SYNC_TRX_SYS:
