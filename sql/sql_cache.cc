@@ -412,7 +412,8 @@ struct Query_cache_wait_state
 
   Query_cache_wait_state(THD *thd, const char *func,
                          const char *file, unsigned int line)
-  : m_thd(thd)
+  : m_thd(thd),
+    m_proc_info(NULL)
   {
     if (m_thd)
       m_proc_info= set_thd_proc_info(m_thd,
