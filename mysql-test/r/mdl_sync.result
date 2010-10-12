@@ -2632,7 +2632,8 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2),(3);
 # Connection: con1
-SET debug_sync='lock_table_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
+LOCK TABLES t1 WRITE;
+SET debug_sync='upgrade_lock_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
 TRUNCATE TABLE t1;
 # Connection: default
 SET debug_sync='now WAIT_FOR parked_truncate';
@@ -2647,10 +2648,11 @@ FLUSH TABLES t1;
 # Connection: default
 SET debug_sync='now WAIT_FOR parked_flush';
 SET debug_sync='now SIGNAL go_truncate';
-# Connection: con1
-# Reaping...
-# Connection: default
+# Ensure that truncate waits for a exclusive lock
 SET debug_sync= 'now SIGNAL go_show';
+# Connection: con1 (TRUNCATE)
+# Reaping...
+UNLOCK TABLES;
 # Connection: con2 (SHOW FIELDS FROM t1)
 # Reaping...
 Field	Type	Null	Key	Default	Extra
