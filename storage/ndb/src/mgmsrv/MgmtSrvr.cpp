@@ -3282,7 +3282,12 @@ MgmtSrvr::abortBackup(Uint32 backupId)
   SimpleSignal ssig;
 
   AbortBackupOrd* ord = CAST_PTR(AbortBackupOrd, ssig.getDataPtrSend());
-  ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_ABORT_BACKUP_ORD, 
+  /*
+   * Single-threaded backup.  Set instance key 1.  In the kernel
+   * this maps to main instance 0 or worker instance 1 (if MT LQH).
+   */
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, 1);
+  ssig.set(ss, TestOrd::TraceAPI, backupBlockNo, GSN_ABORT_BACKUP_ORD, 
 	   AbortBackupOrd::SignalLength);
   
   ord->requestType = AbortBackupOrd::ClientAbort;
