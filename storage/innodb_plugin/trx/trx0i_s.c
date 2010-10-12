@@ -429,6 +429,9 @@ fill_trx_row(
 						which to copy volatile
 						strings */
 {
+	const char*	stmt;
+	size_t		stmt_len;
+
 	row->trx_id = trx_get_id(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
@@ -449,37 +452,32 @@ fill_trx_row(
 
 	row->trx_weight = (ullint) ut_conv_dulint_to_longlong(TRX_WEIGHT(trx));
 
-	if (trx->mysql_thd != NULL) {
-		row->trx_mysql_thread_id
-			= thd_get_thread_id(trx->mysql_thd);
-	} else {
+	if (trx->mysql_thd == NULL) {
 		/* For internal transactions e.g., purge and transactions
 		being recovered at startup there is no associated MySQL
 		thread data structure. */
 		row->trx_mysql_thread_id = 0;
+		row->trx_query = NULL;
+		return(TRUE);
 	}
 
-	if (trx->mysql_query_str != NULL && *trx->mysql_query_str != NULL) {
+	row->trx_mysql_thread_id = thd_get_thread_id(trx->mysql_thd);
+	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 
-		if (strlen(*trx->mysql_query_str)
-		    > TRX_I_S_TRX_QUERY_MAX_LEN) {
+	if (stmt != NULL) {
 
-			char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
+		char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
 
-			memcpy(query, *trx->mysql_query_str,
-			       TRX_I_S_TRX_QUERY_MAX_LEN);
-			query[TRX_I_S_TRX_QUERY_MAX_LEN] = '\0';
-
-			row->trx_query = ha_storage_put_memlim(
-				cache->storage, query,
-				TRX_I_S_TRX_QUERY_MAX_LEN + 1,
-				MAX_ALLOWED_FOR_STORAGE(cache));
-		} else {
-
-			row->trx_query = ha_storage_put_str_memlim(
-				cache->storage, *trx->mysql_query_str,
-				MAX_ALLOWED_FOR_STORAGE(cache));
+		if (stmt_len > TRX_I_S_TRX_QUERY_MAX_LEN) {
+			stmt_len = TRX_I_S_TRX_QUERY_MAX_LEN;
 		}
+
+		memcpy(query, stmt, stmt_len);
+		query[stmt_len] = '\0';
+
+		row->trx_query = ha_storage_put_memlim(
+			cache->storage, stmt, stmt_len + 1,
+			MAX_ALLOWED_FOR_STORAGE(cache));
 
 		if (row->trx_query == NULL) {
 
