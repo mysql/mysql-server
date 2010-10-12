@@ -3135,6 +3135,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   if ((null_value= (args[0]->null_value || n > (ulonglong) LL(4294967295))))
     return 0;					// Null value
 
+  str->set_charset(collation.collation);
   str->length(0);
   int4store(buf,n);
 
