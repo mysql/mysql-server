@@ -21,6 +21,8 @@ static void test_flat (void) {
     r = toku_open_brt(fname, 1, &t, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db);   assert(r==0);
     u_int64_t i;
     // permute the numbers from 0 (inclusive) to limit (exclusive)
+    time_t now;
+    now = time(0); fprintf(stderr, "%.24s permute\n", ctime(&now));
     permute[0]=0;
     for (i=1; i<limit; i++) {
 	permute[i]=i;
@@ -28,6 +30,7 @@ static void test_flat (void) {
 	permute[i]=permute[ra];
 	permute[ra]=i;
     }
+    now = time(0); fprintf(stderr, "%.24s insert\n", ctime(&now));
     for (i=0; i<limit; i++) {
         if (verbose) printf("%s:%d %"PRIu64"\n", __FUNCTION__, __LINE__, i);
 	char key[100],val[100];
@@ -41,6 +44,7 @@ static void test_flat (void) {
     // Don't flatten it.
     // search for the items that are there and those that aren't.
     // 
+    now = time(0); fprintf(stderr, "%.24s keyrange\n", ctime(&now));
     u_int64_t prevless=0;
     u_int64_t prevgreater=limit;
     for (i=0; i<2*limit+1; i++) {
@@ -56,13 +60,48 @@ static void test_flat (void) {
 	assert(less>=prevless);	      prevless    = less;
 	assert(greater<=prevgreater); prevgreater = greater;
     }
+    now = time(0); fprintf(stderr, "%.24s done\n", ctime(&now));
     r = toku_close_brt(t, 0);          assert(r==0);
     r = toku_cachetable_close(&ct);    assert(r==0);
 }
 
 int
 test_main (int argc , const char *argv[]) {
+#define DO_AFFINITY 0
+#if DO_AFFINITY == 0
     default_parse_args(argc, argv);
+#else
+#include <sched.h>
+    int ncpus = 0;
+    for (int i = 1; i < argc; i++) {
+        const char *arg = argv[i];
+        if (strcmp(arg, "-v") == 0) {
+            verbose++;
+            continue;
+        }
+        if (strcmp(arg, "--ncpus") == 0 && i+1 < argc) {
+            ncpus = atoi(argv[++i]);
+            continue;
+        }
+        break;
+    }
+
+    if (ncpus > 0) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        for (int i = 0; i < ncpus; i++)
+            CPU_SET(i, &cpuset);
+        int r;
+        r = sched_setaffinity(toku_os_getpid(), sizeof cpuset, &cpuset);
+        assert(r == 0);
+        
+        cpu_set_t use_cpuset;
+        CPU_ZERO(&use_cpuset);
+        r = sched_getaffinity(toku_os_getpid(), sizeof use_cpuset, &use_cpuset);
+        assert(r == 0);
+        assert(memcmp(&cpuset, &use_cpuset, sizeof cpuset) == 0);
+    }
+#endif
 
     test_flat();
     
