@@ -1,0 +1,21 @@
+CREATE TABLE t1(a INT, b INT NOT NULL, PRIMARY KEY (a)) ENGINE=innodb
+DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7);
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=3 LIMIT 1 FOR UPDATE;
+a	b
+3	3
+START TRANSACTION;
+UPDATE t1 SET b=b+12 WHERE a > 2 ORDER BY a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=3 LIMIT 1 FOR UPDATE;
+a	b
+3	3
+START TRANSACTION;
+UPDATE t1 SET b=10 WHERE a > 1 ORDER BY a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1 WHERE b = 10;
+a	b
+DROP TABLE t1;

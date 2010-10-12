@@ -1824,11 +1824,8 @@ Note	1050	Table 'v1' already exists
 set @id=last_insert_id();
 select * from t1;
 id	operation
-1	CREATE TABLE ... SELECT, inserting a new key
 select * from t1_op_log;
 operation
-Before INSERT, new=CREATE TABLE ... SELECT, inserting a new key
-After INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 truncate t1_op_log;
 create table if not exists v1 replace
 select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
@@ -1836,13 +1833,8 @@ Warnings:
 Note	1050	Table 'v1' already exists
 select * from t1;
 id	operation
-1	CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
 select * from t1_op_log;
 operation
-Before INSERT, new=CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
-Before DELETE, old=CREATE TABLE ... SELECT, inserting a new key
-After DELETE, old=CREATE TABLE ... SELECT, inserting a new key
-After INSERT, new=CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
 truncate t1;
 truncate t1_op_log;
 insert into v1 (id, operation)
