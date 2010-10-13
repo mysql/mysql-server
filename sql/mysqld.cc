@@ -3503,8 +3503,20 @@ You should consider changing lower_case_table_names to 1 or 2",
 
   /* Reset table_alias_charset, now that lower_case_table_names is set. */
   table_alias_charset= (lower_case_table_names ?
-			files_charset_info :
+			&my_charset_utf8_tolower_ci :
 			&my_charset_bin);
+
+  /*
+    Build do_table and ignore_table rules to hush
+    after the resetting of table_alias_charset
+  */
+  if (rpl_filter->build_do_table_hash() ||
+      rpl_filter->build_ignore_table_hash())
+  {
+    sql_print_error("An error occurred while building do_table"
+                    "and ignore_table rules to hush.");
+    return 1;
+  }
 
   return 0;
 }
@@ -7135,7 +7147,7 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_DO_TABLE:
   {
-    if (rpl_filter->add_do_table(argument))
+    if (rpl_filter->add_do_table_array(argument))
     {
       sql_print_error("Could not add do table rule '%s'!\n", argument);
       return 1;
@@ -7162,7 +7174,7 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
   {
-    if (rpl_filter->add_ignore_table(argument))
+    if (rpl_filter->add_ignore_table_array(argument))
     {
       sql_print_error("Could not add ignore table rule '%s'!\n", argument);
       return 1;
