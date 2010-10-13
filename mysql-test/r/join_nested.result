@@ -851,7 +851,7 @@ ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer
-1	SIMPLE	t2	ref	idx_b	idx_b	5	test.t3.b	2	100.00	Using where
+1	SIMPLE	t2	ref	idx_b	idx_b	5	test.t3.b	2	100.00	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t3` join `test`.`t4` left join (`test`.`t1` join `test`.`t2`) on(((`test`.`t3`.`a` = 1) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`b`)))) where 1
@@ -1464,7 +1464,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	X	
 1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	
 1	SIMPLE	t5	ref	a	a	5	test.t3.b	X	
-1	SIMPLE	t4	ref	a	a	5	test.t5.a	X	
+1	SIMPLE	t4	ref	a	a	5	test.t5.a	X	Using where
 1	SIMPLE	t6	ref	a	a	5	test.t4.b	X	
 drop table t0, t1, t2, t3, t4, t5, t6, t7;
 create table t1 (a int);
