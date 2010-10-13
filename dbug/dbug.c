@@ -982,7 +982,7 @@ void _db_pop_()
       } while (0)
 #define str_to_buf(S)    do {                   \
         char_to_buf(',');                       \
-        buf=strnmov(buf, (S), len+1);           \
+        buf=strnmov(buf, (S), (uint) (end-buf)); \
         if (buf >= end) goto overflow;          \
       } while (0)
 #define list_to_buf(l, f)  do {                 \

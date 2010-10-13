@@ -790,7 +790,7 @@ bool mysqld_embedded=1;
 static my_bool plugins_are_initialized= FALSE;
 
 #ifndef DBUG_OFF
-static const char* default_dbug_option;
+static const char* default_dbug_option, *current_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
 const char *libwrapName= NULL;
@@ -6122,8 +6122,8 @@ struct my_option my_long_options[] =
    &max_system_variables.wt_timeout_long,
    0, GET_ULONG, REQUIRED_ARG, 50000000, 0, ULONG_MAX, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug", '#', "Debug log.", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Debug log.", &current_dbug_option,
+   &current_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-crc-break", OPT_DEBUG_CRC,
    "Call my_debug_put_break_here() if crc matches this number (for debug).",
    &opt_my_crc_dbug_check, &opt_my_crc_dbug_check,
@@ -6451,7 +6451,7 @@ each time the SQL thread starts.",
    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"myisam-recover", OPT_MYISAM_RECOVER,
-   "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
+   "Syntax: myisam-recover=OFF or myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    &myisam_recover_options_str, &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -8260,6 +8260,7 @@ static int mysql_init_variables(void)
 #ifndef DBUG_OFF
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
 			     "d:t:i:o,/tmp/mysqld.trace");
+  current_dbug_option= default_dbug_option;
 #endif
   opt_error_log= IF_WIN(1,0);
 #ifdef COMMUNITY_SERVER

@@ -167,7 +167,8 @@ enum en_key_op
   KEY_OP_SET_PAGEFLAG,  /* Set pageflag from next byte */
   KEY_OP_COMPACT_PAGE,	/* Compact key page */
   KEY_OP_MAX_PAGELENGTH, /* Set page to max page length */
-  KEY_OP_DEBUG		/* Entry for storing what triggered redo_index */
+  KEY_OP_DEBUG,		/* Entry for storing what triggered redo_index */
+  KEY_OP_DEBUG_2	/* Entry for pagelengths */
 };
 
 enum en_key_debug

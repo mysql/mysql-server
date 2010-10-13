@@ -1246,7 +1246,8 @@ static int _ma_balance_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                             father_key_pos+father_keylength);
     left_page=  curr_page;
     right_page= &next_page;
-    DBUG_PRINT("info", ("use right page: %lu", (ulong) next_page.pos));
+    DBUG_PRINT("info", ("use right page: %lu",
+                        (ulong) (next_page.pos / keyinfo->block_length)));
   }
   else
   {
@@ -1255,7 +1256,8 @@ static int _ma_balance_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     next_page.pos= _ma_kpos(share->base.key_reflength,father_key_pos);
     left_page=  &next_page;
     right_page= curr_page;
-    DBUG_PRINT("info", ("use left page: %lu", (ulong) next_page.pos));
+    DBUG_PRINT("info", ("use left page: %lu",
+                        (ulong) (next_page.pos / keyinfo->block_length)));
   }					/* father_key_pos ptr to parting key */
 
   if (_ma_fetch_keypage(&next_page, info, keyinfo, next_page.pos,
@@ -1871,14 +1873,13 @@ my_bool _ma_log_new(MARIA_PAGE *ma_page, my_bool root_page)
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
   MARIA_HA *info= ma_page->info;
   MARIA_SHARE *share= info->s;
-  my_off_t page;
+  my_off_t page= ma_page->pos / share->block_size;
   DBUG_ENTER("_ma_log_new");
-  DBUG_PRINT("enter", ("page: %lu", (ulong) ma_page->pos));
+  DBUG_PRINT("enter", ("page: %lu", (ulong) page));
 
   DBUG_ASSERT(share->now_transactional);
 
   /* Store address of new root page */
-  page= ma_page->pos / share->block_size;
   page_store(log_data + FILEID_STORE_SIZE, page);
 
   /* Store link to next unused page */
@@ -1927,10 +1928,10 @@ my_bool _ma_log_change(MARIA_PAGE *ma_page, const uchar *key_pos, uint length,
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 6 + 7], *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
   uint offset= (uint) (key_pos - ma_page->buff), translog_parts;
-  my_off_t page;
   MARIA_HA *info= ma_page->info;
+  my_off_t page= ma_page->pos / info->s->block_size;
   DBUG_ENTER("_ma_log_change");
-  DBUG_PRINT("enter", ("page: %lu length: %u", (ulong) ma_page->pos, length));
+  DBUG_PRINT("enter", ("page: %lu  length: %u", (ulong) page, length));
 
   DBUG_ASSERT(info->s->now_transactional);
   DBUG_ASSERT(offset + length <= ma_page->size);
@@ -2013,16 +2014,17 @@ static my_bool _ma_log_split(MARIA_PAGE *ma_page,
   uint offset= (uint) (key_pos - ma_page->buff);
   uint translog_parts, extra_length;
   MARIA_HA *info= ma_page->info; 
-  my_off_t page;
+  my_off_t page= ma_page->pos / info->s->block_size;
   DBUG_ENTER("_ma_log_split");
   DBUG_PRINT("enter", ("page: %lu  org_length: %u  new_length: %u",
-                       (ulong) ma_page->pos, org_length, new_length));
+                       (ulong) page, org_length, new_length));
 
   DBUG_ASSERT(changed_length >= data_length);
   DBUG_ASSERT(org_length <= info->s->max_index_block_size);
+  DBUG_ASSERT(new_length == ma_page->size);
+  DBUG_ASSERT(org_length == ma_page->org_size);
 
   log_pos= log_data + FILEID_STORE_SIZE;
-  page= ma_page->pos / info->s->block_size;
   page_store(log_pos, page);
   log_pos+= PAGE_STORE_SIZE;
 
@@ -2177,16 +2179,16 @@ static my_bool _ma_log_del_prefix(MARIA_PAGE *ma_page,
   uint diff_length= org_length + move_length - new_length;
   uint translog_parts, extra_length;
   MARIA_HA *info= ma_page->info;
-  my_off_t page;
+  my_off_t page= ma_page->pos / info->s->block_size;
   DBUG_ENTER("_ma_log_del_prefix");
   DBUG_PRINT("enter", ("page: %lu  org_length: %u  new_length: %u",
-                       (ulong) ma_page->pos, org_length, new_length));
+                       (ulong) page, org_length, new_length));
 
   DBUG_ASSERT((int) diff_length > 0);
+  DBUG_ASSERT(ma_page->org_size == org_length);
   DBUG_ASSERT(ma_page->size == new_length);
 
   log_pos= log_data + FILEID_STORE_SIZE;
-  page= ma_page->pos / info->s->block_size;
   page_store(log_pos, page);
   log_pos+= PAGE_STORE_SIZE;
 
@@ -2285,10 +2287,10 @@ static my_bool _ma_log_key_middle(MARIA_PAGE *ma_page,
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 6];
   uint key_offset;
   uint translog_parts, extra_length;
-  my_off_t page;
   MARIA_HA *info= ma_page->info;
+  my_off_t page= ma_page->pos / info->s->block_size;
   DBUG_ENTER("_ma_log_key_middle");
-  DBUG_PRINT("enter", ("page: %lu", (ulong) ma_page->pos));
+  DBUG_PRINT("enter", ("page: %lu", (ulong) page));
 
   DBUG_ASSERT(ma_page->size == new_length);
 
@@ -2311,8 +2313,6 @@ static my_bool _ma_log_key_middle(MARIA_PAGE *ma_page,
     */
     data_deleted_last+= move_length;
   }
-
-  page= ma_page->pos / info->s->block_size;
 
   /* First log changes to page */
   log_pos= log_data + FILEID_STORE_SIZE;
@@ -2408,15 +2408,13 @@ static my_bool _ma_log_middle(MARIA_PAGE *ma_page,
   LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3 + 5 + 7], *log_pos;
   MARIA_HA *info= ma_page->info;
-  my_off_t page;
+  my_off_t page= ma_page->page / info->s->block_size;
   uint translog_parts, extra_length;
   DBUG_ENTER("_ma_log_middle");
   DBUG_PRINT("enter", ("page: %lu", (ulong) page));
 
   DBUG_ASSERT(ma_page->org_size + data_added_first - data_deleted_last ==
               ma_page->size);
-
-  page= ma_page->page / info->s->block_size;
 
   log_pos= log_data + FILEID_STORE_SIZE;
   page_store(log_pos, page);

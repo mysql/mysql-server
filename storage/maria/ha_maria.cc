@@ -3291,6 +3291,8 @@ static int ha_maria_init(void *p)
   /*  We can only test for sub paths if my_symlink.c is using realpath */
   maria_test_invalid_symlink= test_if_data_home_dir;
 #endif
+  if (res)
+    maria_hton= 0;
   return res ? HA_ERR_INITIALIZATION : 0;
 }
 
