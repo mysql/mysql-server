@@ -452,7 +452,11 @@ struct trx_struct{
 					this transaction in
 					srv_conc_enter_innodb to be inside the
 					InnoDB engine */
-
+	ulint		n_tickets_to_enter_innodb;
+					/*!< this can be > 0 only when
+					declared_to_... is TRUE; when we come
+					to srv_conc_innodb_enter, if the value
+					here is > 0, we decrement this by 1 */
 	/* Fields protected by dict_operation_lock. The very latch
 	it is used to track. */
 	ulint		dict_operation_lock_mode;
@@ -501,12 +505,6 @@ struct trx_struct{
 					/*!< how many tables the current SQL
 					statement uses, except those
 					in consistent read */
-	/*------------------------------*/
-	ulint		n_tickets_to_enter_innodb;
-					/*!< this can be > 0 only when
-					declared_to_... is TRUE; when we come
-					to srv_conc_innodb_enter, if the value
-					here is > 0, we decrement this by 1 */
 	/*------------------------------*/
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/*!< list of transactions */
