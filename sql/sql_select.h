@@ -161,8 +161,6 @@ typedef struct st_join_table {
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
   COND          *select_cond;
-  COND          *on_precond;    /**< part of on condition to check before
-				     accessing the first inner table           */  
   QUICK_SELECT_I *quick;
   /* 
     The value of select_cond before we've attempted to do Index Condition

@@ -1487,7 +1487,7 @@ on (t1.a = t2.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	
 1	SIMPLE	t2	ref	a	a	5	test.t1.a	1	
-1	SIMPLE	t3	ref	a	a	5	test.t1.a	1	
+1	SIMPLE	t3	ref	a	a	5	test.t1.a	1	Using where
 drop table t1, t2, t3;
 CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, type varchar(10));
 CREATE TABLE t2 (pid int NOT NULL PRIMARY KEY, type varchar(10));

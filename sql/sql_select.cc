@@ -7021,9 +7021,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           if (tmp_cond)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
-            Item **sel_cond_ref= tab < first_inner_tab ?
-                                   &first_inner_tab->on_precond :
-                                   &tab->select_cond;
             /*
               First add the guards for match variables of
               all embedding outer join operations.
@@ -7046,15 +7043,15 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
               tmp_cond->quick_fix_field();
 	    /* Add the predicate to other pushed down predicates */
             DBUG_PRINT("info", ("Item_cond_and"));
-            *sel_cond_ref= !(*sel_cond_ref) ? 
-                             tmp_cond :
-                             new Item_cond_and(*sel_cond_ref, tmp_cond);
+            cond_tab->select_cond= !cond_tab->select_cond ? tmp_cond :
+	                          new Item_cond_and(cond_tab->select_cond,
+                                                    tmp_cond);
             DBUG_PRINT("info", ("Item_cond_and 0x%lx",
-                                (ulong)(*sel_cond_ref)));
-            if (!(*sel_cond_ref))
-              DBUG_RETURN(1);
-            (*sel_cond_ref)->update_used_tables();
-            (*sel_cond_ref)->quick_fix_field();
+                                (ulong)cond_tab->select_cond));
+            if (!cond_tab->select_cond)
+	      DBUG_RETURN(1);
+            cond_tab->select_cond->quick_fix_field();
+            cond_tab->select_cond->update_used_tables();
             if (cond_tab->select)
               cond_tab->select->cond= cond_tab->select_cond;
           }              
@@ -13094,7 +13091,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     DBUG_RETURN(nls);
   }
   int error;
-  enum_nested_loop_state rc= NESTED_LOOP_OK;
+  enum_nested_loop_state rc;
   READ_RECORD *info= &join_tab->read_record;
 
   if (join_tab->flush_weedout_table)
@@ -13127,23 +13124,18 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
       /* Set first_unmatched for the last inner table of this group */
       join_tab->last_inner->first_unmatched= join_tab;
-      if (join_tab->on_precond && !join_tab->on_precond->val_int())
-        rc= NESTED_LOOP_NO_MORE_ROWS;
     }
     join->thd->row_count= 0;
     
     if (join_tab->loosescan_match_tab)
       join_tab->loosescan_match_tab->found_match= FALSE;
-    if (rc != NESTED_LOOP_NO_MORE_ROWS)
-    {
 
-      error= (*join_tab->read_first_record)(join_tab);
+    error= (*join_tab->read_first_record)(join_tab);
 
     if (join_tab->keep_current_rowid)
       join_tab->table->file->position(join_tab->table->record[0]);
-    
-      rc= evaluate_join_record(join, join_tab, error);
-    }
+  
+    rc= evaluate_join_record(join, join_tab, error);
   }
   
   /* 
