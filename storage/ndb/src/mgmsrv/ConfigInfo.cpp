@@ -466,7 +466,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "Id",
     DB_TOKEN,
-    0, // No new parameter to use instead of deprecated
+    "NodeId", // Name of new parameter to use instead of deprecated
     ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
@@ -1906,7 +1906,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "Id",
     API_TOKEN,
-    0,  // No new parameter to use instead of deprecated
+    "NodeId", // Name of new parameter to use instead of deprecated
     ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
@@ -2111,7 +2111,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "Id",
     MGM_TOKEN,
-    0, // No new parameter to use instead of deprecated
+    "NodeId", // Name of new parameter to use instead of deprecated
     ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
