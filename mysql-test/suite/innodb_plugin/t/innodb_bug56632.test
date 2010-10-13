@@ -54,14 +54,14 @@
 #    Result; CREATE succeeds, warns that KEY_BLOCK_SIZE=3 is ignored.
 #            ALTER succeeds, quietly converts ROW_FORMAT to compressed.
 
--- source include/have_innodb.inc
+-- source include/have_innodb_plugin.inc
 
 SET storage_engine=InnoDB;
 
 --disable_query_log
 # These values can change during the test
 LET $innodb_file_format_orig=`select @@innodb_file_format`;
-LET $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
+LET $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 --enable_query_log
@@ -209,8 +209,8 @@ DROP TABLE IF EXISTS bug56632;
 
 --disable_query_log
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-EVAL SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;
 EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+EVAL SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;
 EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 --enable_query_log
 
