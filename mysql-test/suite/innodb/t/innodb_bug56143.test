@@ -1,0 +1,29 @@
+#
+# Bug#56143 too many foreign keys causes output of show create table to become invalid
+# http://bugs.mysql.com/56143
+#
+
+-- source include/have_innodb.inc
+
+-- disable_query_log
+-- disable_result_log
+
+SET foreign_key_checks=0;
+DROP TABLE IF EXISTS bug56143;
+CREATE TABLE bug56143 (a INT, b INT, c INT, KEY(a), KEY(b), KEY(c)) ENGINE=INNODB;
+
+let $i = 550;
+while ($i)
+{
+	eval ALTER TABLE `bug56143` ADD CONSTRAINT `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$i` FOREIGN KEY (`b`) REFERENCES `bug56143`(`b`) ON UPDATE SET NULL;
+	dec $i;
+}
+
+-- enable_query_log
+-- enable_result_log
+
+SHOW CREATE TABLE bug56143;
+
+-- disable_query_log
+-- disable_result_log
+DROP TABLE bug56143;
