@@ -21,6 +21,7 @@
 #include <ndb_global.h>
 #include <NdbCondition.h>
 
+struct trp_node;
 class NdbApiSignal;
 struct LinearSectionPtr;
 
@@ -45,6 +46,7 @@ public:
 
   void forceSend(int val = 1);
 
+  const trp_node & getNodeInfo(Uint32 i) const;
 private:
   Uint32 m_blockNo;
   TransporterFacade * m_facade;

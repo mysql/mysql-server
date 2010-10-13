@@ -119,11 +119,6 @@ SignalSender::getOwnRef() const {
   return numberToRef(m_blockNo, theFacade->ownId());
 }
 
-const ClusterMgr::Node & 
-SignalSender::getNodeInfo(Uint16 nodeId) const {
-  return theFacade->theClusterMgr->getNodeInfo(nodeId);
-}
-
 Uint32
 SignalSender::getNoOfConnectedNodes() const {
   return theFacade->theClusterMgr->getNoOfConnectedNodes();
@@ -297,7 +292,7 @@ ok:
     NdbNodeBitmask::clear(rep->theNodes);
 
     // Mark ndb nodes as failed in bitmask
-    const ClusterMgr::Node node= getNodeInfo(nodeId);
+    const trp_node node= getNodeInfo(nodeId);
     if (node.m_info.getType() ==  NodeInfo::DB)
       NdbNodeBitmask::set(rep->theNodes, nodeId);
   }
@@ -328,7 +323,7 @@ SignalSender::find_node(const NodeBitmask& mask, T & t)
 
 class FindConfirmedNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.is_confirmed();
   }
 };
@@ -344,7 +339,7 @@ SignalSender::find_confirmed_node(const NodeBitmask& mask)
 
 class FindConnectedNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.is_connected();
   }
 };
@@ -360,7 +355,7 @@ SignalSender::find_connected_node(const NodeBitmask& mask)
 
 class FindAliveNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.m_alive;
   }
 };

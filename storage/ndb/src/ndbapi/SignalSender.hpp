@@ -95,7 +95,6 @@ public:
   int unlock();
 
   Uint32 getOwnRef() const;
-  const ClusterMgr::Node &getNodeInfo(Uint16 nodeId) const;
   Uint32 getNoOfConnectedNodes() const;
 
   NodeId find_confirmed_node(const NodeBitmask& mask);
