@@ -3347,10 +3347,13 @@ NdbIndexScanOperation::insert_open_bound(const NdbRecord* key_record)
    * MRR.  Really the application should realise that all rows are
    * being processed and only fetch them once.
    */
-  const NdbRecord::Attr *column= &key_record->columns[0];
-  
-  /* Create NULL attribute header. */
-  AttributeHeader ah(column->index_attrId, 0);
+
+  /*
+   * bug#57396 wrong attr id inserted.
+   * First index attr id is 0, key_record not used.
+   * Create NULL attribute header.
+   */
+  AttributeHeader ah(0, 0);
   
   Uint32 buf[2] = { NdbIndexScanOperation::BoundLE, ah.m_value };
   insertBOUNDS(buf, 2);
