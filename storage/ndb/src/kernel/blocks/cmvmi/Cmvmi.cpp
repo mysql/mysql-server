@@ -457,7 +457,7 @@ SavedEventBuffer::save(const Uint32 * theData, Uint32 len)
   SavedEvent s;
   s.m_len = len; // size of SavedEvent
   s.m_seq = m_sequence++;
-  s.m_time = time(0);
+  s.m_time = (Uint32)time(0);
   const Uint32 * src = (const Uint32*)&s;
   Uint32 * dst = m_data + m_write_pos;
 
