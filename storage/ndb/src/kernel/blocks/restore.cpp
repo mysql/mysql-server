@@ -362,6 +362,11 @@ Restore::release_file(FilePtr file_ptr)
 void
 Restore::open_file(Signal* signal, FilePtr file_ptr)
 {
+  signal->theData[0] = NDB_LE_StartReadLCP;
+  signal->theData[1] = file_ptr.p->m_table_id;
+  signal->theData[2] = file_ptr.p->m_fragment_id;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+
   FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_GZ;
@@ -1251,6 +1256,14 @@ Restore::restore_lcp_conf(Signal* signal, FilePtr file_ptr)
                GSN_RESTORE_LCP_CONF, signal, 
                RestoreLcpConf::SignalLength, JBB);
   }
+
+  signal->theData[0] = NDB_LE_ReadLCPComplete;
+  signal->theData[1] = file_ptr.p->m_table_id;
+  signal->theData[2] = file_ptr.p->m_fragment_id;
+  signal->theData[3] = Uint32(file_ptr.p->m_rows_restored >> 32);
+  signal->theData[4] = Uint32(file_ptr.p->m_rows_restored);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
+
   release_file(file_ptr);
 }
 

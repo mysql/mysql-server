@@ -1839,6 +1839,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)  /* Max */
   },
 
+  {
+    CFG_DB_EVENTLOG_BUFFER_SIZE,
+    "EventLogBufferSize",
+    DB_TOKEN,
+    "Size of circular buffer of ndb_logevent (inside datanodes)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "4096",                  /* Default */
+    "0",                     /* Min */
+    "64k"                    /* Max : There is no flow control...so set limit*/
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/

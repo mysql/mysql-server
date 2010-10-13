@@ -494,7 +494,7 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     or timeout expired. The MGM server will continusly
     send <PING>'s that should be ignored.
   */
-  char buf[256];
+  char buf[1024];
   NDB_TICKS start = NdbTick_CurrentMillisecond();
   while(1)
   {
@@ -588,16 +588,38 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
   {
     if ( ndb_logevent_body[i].type != dst->type )
       continue;
-    if ( p.get(ndb_logevent_body[i].token, &val) == 0 )
+  }
+
+  if (ndb_logevent_body[i].token)
+  {
+    do {
+
+      if ( p.get(ndb_logevent_body[i].token, &val) == 0 )
+      {
+        h->m_error= NDB_LEH_UNKNOWN_EVENT_VARIABLE;
+        return -1;
+      }
+      if ( memcpy_atoi((char *)dst+ndb_logevent_body[i].offset, val,
+                       ndb_logevent_body[i].size) )
+      {
+        h->m_error= NDB_LEH_INTERNAL_ERROR;
+        return -1;
+      }
+    } while (ndb_logevent_body[++i].type == dst->type);
+  }
+  else
+  {
+    if (!p.get("data", &val))
     {
       h->m_error= NDB_LEH_UNKNOWN_EVENT_VARIABLE;
       return -1;
     }
-    if ( memcpy_atoi((char *)dst+ndb_logevent_body[i].offset, val,
-		     ndb_logevent_body[i].size) )
+    BaseString tmp(val);
+    Vector<BaseString> list;
+    tmp.split(list);
+    for (size_t j = 0; j<list.size(); j++)
     {
-      h->m_error= NDB_LEH_INTERNAL_ERROR;
-      return -1;
+      dst->Data[j] = atoi(list[j].c_str());
     }
   }
   return 1;

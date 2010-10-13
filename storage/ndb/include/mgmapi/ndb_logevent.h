@@ -205,6 +205,14 @@ extern "C" {
     NDB_LE_LogFileInitCompStatus = 72
 
     ,NDB_LE_RedoStatus = 73
+    ,NDB_LE_CreateSchemaObject = 74
+    ,NDB_LE_AlterSchemaObject = 75
+    ,NDB_LE_DropSchemaObject = 76
+    ,NDB_LE_StartReadLCP = 77
+    ,NDB_LE_ReadLCPComplete = 78
+    ,NDB_LE_RunRedo = 79
+    ,NDB_LE_RebuildIndex = 80
+    ,NDB_LE_SavedEvent = 81
   };
 
   /**
@@ -292,6 +300,9 @@ extern "C" {
      * Uncategorized log events (severity warning or higher)
      */
     NDB_MGM_EVENT_CATEGORY_ERROR = CFG_LOGLEVEL_ERROR,
+
+    NDB_MGM_EVENT_CATEGORY_SCHEMA = CFG_LOGLEVEL_SCHEMA,
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     NDB_MGM_MIN_EVENT_CATEGORY = CFG_MIN_LOGLEVEL,
     NDB_MGM_MAX_EVENT_CATEGORY = CFG_MAX_LOGLEVEL
@@ -687,6 +698,65 @@ extern "C" {
     unsigned priob_size;
   };
 
+  struct ndb_logevent_CreateSchemaObject {
+    unsigned objectid;
+    unsigned version;
+    unsigned type;
+    unsigned node; // Node create object
+  };
+
+  struct ndb_logevent_AlterSchemaObject {
+    unsigned objectid;
+    unsigned version;
+    unsigned type;
+    unsigned node; // Node create object
+  };
+
+  struct ndb_logevent_DropSchemaObject {
+    unsigned objectid;
+    unsigned version;
+    unsigned type;
+    unsigned node; // Node create object
+  };
+
+  struct ndb_logevent_StartReadLCP {
+    unsigned tableid;
+    unsigned fragmentid;
+  };
+
+  struct ndb_logevent_ReadLCPComplete {
+    unsigned tableid;
+    unsigned fragmentid;
+    unsigned rows_hi;
+    unsigned rows_lo;
+  };
+
+  struct ndb_logevent_RunRedo {
+    unsigned logpart;
+    unsigned phase;
+    unsigned startgci;
+    unsigned currgci;
+    unsigned stopgci;
+    unsigned startfile;
+    unsigned startmb;
+    unsigned currfile;
+    unsigned currmb;
+    unsigned stopfile;
+    unsigned stopmb;
+  };
+
+  struct ndb_logevent_RebuildIndex {
+    unsigned instance;
+    unsigned indexid;
+  };
+
+  struct ndb_logevent_SavedEvent {
+    unsigned len;
+    unsigned seq;
+    unsigned time;
+    unsigned data[1];
+  };
+
   /**
    * Structure to store and retrieve log event information.
    * @see @ref secSLogEvents
@@ -786,6 +856,7 @@ extern "C" {
       struct ndb_logevent_CreateLogBytes CreateLogBytes;
       struct ndb_logevent_InfoEvent InfoEvent;
       struct ndb_logevent_EventBufferStatus EventBufferStatus;
+      struct ndb_logevent_SavedEvent SavedEvent;
 
       /** Log event data for @ref NDB_LE_BackupStarted */
       struct ndb_logevent_BackupStarted BackupStarted;
@@ -819,6 +890,17 @@ extern "C" {
       struct ndb_logevent_SubscriptionStatus SubscriptionStatus;
       /** Log event data @ref NDB_LE_RedoStatus */
       struct ndb_logevent_RedoStatus RedoStatus;
+
+      struct ndb_logevent_CreateSchemaObject CreateSchemaObject;
+      struct ndb_logevent_AlterSchemaObject AlterSchemaObject;
+      struct ndb_logevent_DropSchemaObject DropSchemaObject;
+      struct ndb_logevent_StartReadLCP StartReadLCP;
+      struct ndb_logevent_ReadLCPComplete ReadLCPComplete;
+      struct ndb_logevent_RunRedo RunRedo;
+      struct ndb_logevent_RebuildIndex RebuildIndex;
+
+      /** Raw data */
+      unsigned Data[29];
 #ifndef DOXYGEN_FIX
     };
 #else
