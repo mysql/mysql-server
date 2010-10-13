@@ -604,12 +604,6 @@ struct trx_struct{
 					error, or empty. */
 };
 
-#define TRX_MAX_N_THREADS	32	/* maximum number of
-					concurrent threads running a
-					single operation of a
-					transaction, e.g., a parallel
-					query */
-
 /* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED	0	/* dirty read: non-locking
 						SELECTs are performed so that
