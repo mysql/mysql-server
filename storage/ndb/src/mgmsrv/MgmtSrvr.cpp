@@ -3850,7 +3850,7 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
                          Uint32 dump_type,
                          Vector<SimpleSignal>& events)
 {
-  Uint32 nodes_counter[MAX_NDB_NODES];
+  int nodes_counter[MAX_NDB_NODES];
   SignalSender ss(theFacade);
   ss.lock();
 
@@ -3880,7 +3880,7 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
     if (ss.sendSignal(i, ssig, CMVMI, GSN_DUMP_STATE_ORD, 2) == SEND_OK)
     {
       nodes.set(i);
-      nodes_counter[i] = 0;
+      nodes_counter[i] = (int)reports_per_node;
     }
   }
 
@@ -3897,7 +3897,6 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
       const NodeId nodeid = refToNode(signal->header.theSendersBlockRef);
       const EventReport * const event =
         (const EventReport*)signal->getDataPtr();
-      (void)event; // kill warning
 
       if (!nodes.get(nodeid))
       {
@@ -3906,12 +3905,20 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
         return false;
       }
 
-      // Save signal
-      events.push_back(SimpleSignal(*signal));
+      if (event->getEventType() == NDB_LE_SavedEvent &&
+          signal->getDataPtr()[1] == 0)
+      {
+        nodes_counter[nodeid] = 1;
+      }
+      else
+      {
+        // Save signal
+        events.push_back(SimpleSignal(*signal));
+      }
 
       // Check if node is done
-      nodes_counter[nodeid]++;
-      if (nodes_counter[nodeid] == reports_per_node)
+      nodes_counter[nodeid]--;
+      if (nodes_counter[nodeid] == 0)
         nodes.clear(nodeid);
 
       break;

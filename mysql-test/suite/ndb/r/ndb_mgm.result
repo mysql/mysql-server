@@ -75,6 +75,7 @@ REPORT  Displays a report of type <report-type> for the specified data
   <report-type> =
     BackupStatus	- Report backup status of respective node
     MemoryUsage	- Report memory usage of respective node
+    EventLog	- Report events in datanodes circular event log buffer
 Missing dump arg
 ERROR: Expected argument!
 ERROR: Expected argument!
@@ -110,3 +111,5 @@ Sending dump signal with data:
 more than max DUMP args
 ERROR: Too many arguments, max 25 allowed
 
+test all report eventlog
+note: test within quotes...

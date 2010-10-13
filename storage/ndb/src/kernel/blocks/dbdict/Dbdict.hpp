@@ -3501,7 +3501,8 @@ private:
   /* ------------------------------------------------------------ */
   // Receive Table Handling
   /* ------------------------------------------------------------ */
-  void handleTabInfoInit(SimpleProperties::Reader &, 
+  void handleTabInfoInit(Signal*, SchemaTransPtr&,
+                         SimpleProperties::Reader &,
 			 ParseDictTabInfoRecord *,
 			 bool checkExist = true);
   void handleTabInfo(SimpleProperties::Reader & it, ParseDictTabInfoRecord *,
@@ -3823,6 +3824,12 @@ public:
   void wait_substartstop(Signal* signal, Uint32 opPtrI);
 
   void upgrade_seizeTrigger(Ptr<TableRecord> tabPtr, Uint32, Uint32, Uint32);
+
+  void send_event(Signal*, SchemaTransPtr&,
+                  Uint32 ev,
+                  Uint32 id,
+                  Uint32 version,
+                  Uint32 type);
 
 protected:
   virtual bool getParam(const char * param, Uint32 * retVal);

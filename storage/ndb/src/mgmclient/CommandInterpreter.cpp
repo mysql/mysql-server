@@ -2502,26 +2502,91 @@ report_backupstatus(const ndb_logevent& event)
              event.source_nodeid);
 }
 
+static
+void
+report_events(const ndb_logevent& event)
+{
+  Uint32 threshold = 0;
+  Logger::LoggerLevel severity = Logger::LL_WARNING;
+  LogLevel::EventCategory cat= LogLevel::llInvalid;
+  EventLogger::EventTextFunction textF;
+
+  const EventReport * real_event = (const EventReport*)event.SavedEvent.data;
+  Uint32 type = real_event->getEventType();
+
+  if (EventLoggerBase::event_lookup(type,cat,threshold,severity,textF))
+    return;
+
+  char out[1024];
+  Uint32 pos = 0;
+  if (event.source_nodeid != 0)
+  {
+    BaseString::snprintf(out, sizeof(out), "Node %u: ", event.source_nodeid);
+    pos= strlen(out);
+  }
+  textF(out+pos, sizeof(out)-pos, event.SavedEvent.data, event.SavedEvent.len);
+
+  time_t t = event.SavedEvent.time;
+  struct tm * tm_now = localtime(&t);
+  ndbout_c("%d-%.2d-%.2d %.2d:%.2d:%.2d %s",
+           tm_now->tm_year + 1900,
+           tm_now->tm_mon + 1, //month is [0,11]. +1 -> [1,12]
+           tm_now->tm_mday,
+           tm_now->tm_hour,
+           tm_now->tm_min,
+           tm_now->tm_sec,
+           out);
+}
+
+static int
+sort_log(const void *_a, const void *_b)
+{
+  const ndb_logevent * a = (const ndb_logevent*)_a;
+  const ndb_logevent * b = (const ndb_logevent*)_b;
+
+  if (a->source_nodeid == b->source_nodeid)
+  {
+    return a->SavedEvent.seq - b->SavedEvent.seq;
+  }
+
+  if (a->SavedEvent.time < b->SavedEvent.time)
+    return -1;
+  if (a->SavedEvent.time > b->SavedEvent.time)
+    return 1;
+
+  if (a->SavedEvent.seq < b->SavedEvent.seq)
+    return -1;
+  if (a->SavedEvent.seq > b->SavedEvent.seq)
+    return 1;
+
+  return (a->source_nodeid - b->source_nodeid);
+}
 
 static const
 struct st_report_cmd {
   const char *name;
   const char *help;
-   Ndb_logevent_type type;
+  Ndb_logevent_type type;
   void (*print_event_fn)(const ndb_logevent&);
+  int (* sort_fn)(const void *_a, const void *_b);
 } report_cmds[] = {
 
   { "BackupStatus",
     "Report backup status of respective node",
     NDB_LE_BackupStatus,
-    report_backupstatus },
+    report_backupstatus, 0 },
 
   { "MemoryUsage",
     "Report memory usage of respective node",
     NDB_LE_MemoryUsage,
-    report_memoryusage },
+    report_memoryusage, 0 },
 
-  { 0, 0, NDB_LE_ILLEGAL_TYPE, 0 }
+  { "EventLog",
+    "Report events in datanodes circular event log buffer",
+    NDB_LE_SavedEvent,
+    report_events, sort_log },
+
+  { 0, 0, NDB_LE_ILLEGAL_TYPE, 0, 0 }
 };
 
 
@@ -2576,6 +2641,11 @@ CommandInterpreter::executeReport(int nodeid, const char* parameters,
     return -1;
   }
 
+  if (report_cmd->sort_fn)
+  {
+    qsort(events->events, events->no_of_events,
+          sizeof(events->events[0]), report_cmd->sort_fn);
+  }
 
   for (int i = 0; i < events->no_of_events; i++)
   {

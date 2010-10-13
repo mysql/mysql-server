@@ -1378,31 +1378,47 @@ operator<<(NdbOut& out, const LogLevel & ll)
 
 static void
 logevent2str(BaseString& str, int eventType,
-             const Uint32* theData, NodeId nodeId,
+             const Uint32* theData,
+             Uint32 len,
+             NodeId nodeId, Uint32 timeval,
              char* pretty_text, size_t pretty_text_size)
 {
   str.assign("log event reply\n");
   str.appfmt("type=%d\n", eventType);
-  str.appfmt("time=%d\n", 0);
+  str.appfmt("time=%d\n", timeval);
   str.appfmt("source_nodeid=%d\n", nodeId);
-  for (unsigned i= 0; ndb_logevent_body[i].token; i++)
+  unsigned i;
+  for (i = 0; ndb_logevent_body[i].token; i++)
   {
-    if ( ndb_logevent_body[i].type != eventType)
-      continue;
-    int val= theData[ndb_logevent_body[i].index];
-    if (ndb_logevent_body[i].index_fn)
-      val= (*(ndb_logevent_body[i].index_fn))(val);
-    str.appfmt("%s=%d\n",ndb_logevent_body[i].token, val);
-    if(strcmp(ndb_logevent_body[i].token,"error") == 0)
-    {
-      int pretty_text_len= strlen(pretty_text);
-      if(pretty_text_size-pretty_text_len-3 > 0)
+    if ( ndb_logevent_body[i].type == eventType)
+      break;
+  }
+
+  if (ndb_logevent_body[i].token)
+  {
+    do {
+      int val= theData[ndb_logevent_body[i].index];
+      if (ndb_logevent_body[i].index_fn)
+        val= (*(ndb_logevent_body[i].index_fn))(val);
+      str.appfmt("%s=%d\n",ndb_logevent_body[i].token, val);
+      if(strcmp(ndb_logevent_body[i].token,"error") == 0)
       {
-        BaseString::snprintf(pretty_text+pretty_text_len, 4 , " - ");
-        ndb_error_string(val, pretty_text+(pretty_text_len+3),
-                         pretty_text_size-pretty_text_len-3);
+        int pretty_text_len= strlen(pretty_text);
+        if(pretty_text_size-pretty_text_len-3 > 0)
+        {
+          BaseString::snprintf(pretty_text+pretty_text_len, 4 , " - ");
+          ndb_error_string(val, pretty_text+(pretty_text_len+3),
+                           pretty_text_size-pretty_text_len-3);
+        }
       }
-    }
+    } while (ndb_logevent_body[++i].type == eventType);
+  }
+  else
+  {
+    str.append("data=");
+    for (i = 1; i<len; i++)
+      str.appfmt("%u ", theData[i]);
+    str.append("\n");
   }
 }
 
@@ -1431,7 +1447,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   // and if there is a field named "error" append the ndb_error_string
   // for that error number to the end of the pretty format message
   BaseString str;
-  logevent2str(str, eventType, theData, nodeId,
+  logevent2str(str, eventType, theData, len, nodeId, 0,
                pretty_text, sizeof(pretty_text));
 
   Vector<NDB_SOCKET_TYPE> copy;
@@ -2202,6 +2218,10 @@ struct dump_request {
     DumpStateOrd::DumpPageMemory,
     2},
 
+  { NDB_LE_SavedEvent,
+    DumpStateOrd::DumpEventLog,
+    0},
+
   { NDB_LE_ILLEGAL_TYPE, (DumpStateOrd::DumpStateType)0, 0 }
 };
 
@@ -2268,15 +2288,32 @@ MgmApiSession::dump_events(Parser_t::Context &,
     const NodeId nodeid = refToNode(events[i].header.theSendersBlockRef);
 
     // Check correct EVENT_REP type returned
-    assert((Ndb_logevent_type)event->eventType == request->type);
+    assert(event->getEventType() == request->type);
 
     BaseString str;
     char pretty_text[512];
-    logevent2str(str, event->eventType, events[i].getDataPtrSend(), nodeid,
+    Uint32 tmpData[256];
+    const Uint32 * dataPtr = events[i].getDataPtr();
+    Uint32 dataLen = events[i].getLength();
+    if (events[i].header.m_noOfSections == 1)
+    {
+      if (dataLen + events[i].ptr[0].sz > NDB_ARRAY_SIZE(tmpData))
+      {
+        events[i].ptr[0].sz = NDB_ARRAY_SIZE(tmpData) - dataLen;
+      }
+      memcpy(tmpData, dataPtr, 4 * dataLen);
+      memcpy(tmpData + dataLen, events[i].ptr[0].p, 4*events[i].ptr[0].sz);
+      dataPtr = tmpData;
+      dataLen += events[i].ptr[0].sz;
+    }
+    logevent2str(str,
+                 event->getEventType(),
+                 dataPtr,
+                 dataLen,
+                 nodeid, 0,
                  pretty_text, sizeof(pretty_text));
 
     m_output->println("%s", str.c_str());
-
   }
 }
 

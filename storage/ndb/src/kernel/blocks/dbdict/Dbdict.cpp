@@ -4732,7 +4732,8 @@ Dbdict::decrease_ref_count(Uint32 obj_ptr_i)
   ptr->m_ref_count--;  
 }
 
-void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
+void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
+                               SimpleProperties::Reader & it,
 			       ParseDictTabInfoRecord * parseP,
 			       bool checkExist) 
 {
@@ -4861,6 +4862,11 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
                           c_tableDesc.TableName, 
                           tablePtr.i, tablePtr.p->m_obj_ptr_i);
     }
+    send_event(signal, trans_ptr,
+               NDB_LE_CreateSchemaObject,
+               tablePtr.i,
+               tablePtr.p->tableVersion,
+               c_tableDesc.TableType);
   }
   parseP->tablePtr = tablePtr;
   
@@ -5743,7 +5749,7 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     }
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
 
-    handleTabInfoInit(r, &parseRecord);
+    handleTabInfoInit(signal, trans_ptr, r, &parseRecord);
     releaseSections(handle);
 
     if (parseRecord.errorCode == 0)
@@ -5885,7 +5891,7 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     SimplePropertiesSectionReader r(tabInfoPtr, getSectionSegmentPool());
 
     bool checkExist = true;
-    handleTabInfoInit(r, &parseRecord, checkExist);
+    handleTabInfoInit(signal, trans_ptr, r, &parseRecord, checkExist);
 
     if (parseRecord.errorCode != 0)
     {
@@ -7417,6 +7423,12 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
                         tablePtr.p->m_obj_ptr_i);
   }
 
+  send_event(signal, trans_ptr,
+             NDB_LE_DropSchemaObject,
+             tablePtr.i,
+             tablePtr.p->tableVersion,
+             tablePtr.p->tableType);
+
   if (DictTabInfo::isIndex(tablePtr.p->tableType))
   {
     Ptr<TableRecord> basePtr;
@@ -7948,7 +7960,8 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     ndbrequire(ok);
     SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
 
-    handleTabInfoInit(r, &parseRecord, false); // Will not save info
+    handleTabInfoInit(signal,
+                      trans_ptr, r, &parseRecord, false); // Will not save info
 
     if (parseRecord.errorCode != 0) {
       jam();
@@ -19895,6 +19908,12 @@ Dbdict::createFile_parse(Signal* signal, bool master,
                         createFilePtr.p->m_warningFlags);
   }
   
+  send_event(signal, trans_ptr,
+             NDB_LE_CreateSchemaObject,
+             impl_req->file_id,
+             impl_req->file_version,
+             f.FileType);
+
   return;
 error:
   if (!filePtr.isNull())
@@ -28174,3 +28193,33 @@ Dbdict::check_consistency_object(DictObjectPtr obj_ptr)
 }
 
 #endif
+
+void
+Dbdict::send_event(Signal* signal,
+                   SchemaTransPtr& trans_ptr,
+                   Uint32 ev,
+                   Uint32 id,
+                   Uint32 version,
+                   Uint32 type)
+{
+  if (!trans_ptr.p->m_isMaster)
+  {
+    return;
+  }
+
+  switch(ev){
+  case NDB_LE_CreateSchemaObject:
+  case NDB_LE_AlterSchemaObject:
+  case NDB_LE_DropSchemaObject:
+    break;
+  default:
+    ndbassert(false);
+    return;
+  }
+  signal->theData[0] = ev;
+  signal->theData[1] = id;
+  signal->theData[2] = version;
+  signal->theData[3] = type;
+  signal->theData[4] = refToNode(trans_ptr.p->m_clientRef);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
+}

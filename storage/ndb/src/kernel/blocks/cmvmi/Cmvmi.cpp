@@ -366,6 +366,148 @@ void Cmvmi::execSET_LOGLEVELORD(Signal* signal)
   }
 }//execSET_LOGLEVELORD()
 
+struct SavedEvent
+{
+  Uint32 m_len;
+  Uint32 m_seq;
+  Uint32 m_time;
+  Uint32 m_data[25];
+
+  STATIC_CONST( HeaderLength = 3 );
+};
+
+static
+struct SavedEventBuffer
+{
+  SavedEventBuffer() {
+    m_read_pos = m_write_pos = 0;
+    m_sequence = 0;
+    m_buffer_len = 0;
+    m_data = 0;
+  }
+
+  void init(Uint32 bytes) {
+    if (bytes < 128)
+    {
+      return; // min size...unless set to 0
+    }
+    Uint32 words = bytes / 4;
+    m_data = new Uint32[words];
+    if (m_data)
+    {
+      m_buffer_len = words;
+    }
+  }
+
+  Uint32 m_sequence;
+  Uint16 m_write_pos;
+  Uint16 m_read_pos;
+  Uint32 m_buffer_len;
+  Uint32 * m_data;
+
+  void alloc(Uint32 len);
+  void purge();
+  void save(const Uint32 * theData, Uint32 len);
+
+  Uint32 free() const;
+
+  Uint32 m_scan_pos;
+  void startScan();
+  int scan(SavedEvent * dst, Uint32 filter[]);
+} m_saved_event_buffer;
+
+void
+SavedEventBuffer::alloc(Uint32 len)
+{
+  assert(m_buffer_len > 0);
+
+  while (free() <= len)
+    purge();
+}
+
+Uint32
+SavedEventBuffer::free() const
+{
+  if (m_write_pos == m_read_pos)
+    return m_buffer_len;
+  else if (m_write_pos > m_read_pos)
+    return (m_buffer_len - m_write_pos) + m_read_pos;
+  else
+    return m_read_pos - m_write_pos;
+}
+
+void
+SavedEventBuffer::purge()
+{
+  const Uint32 * ptr = m_data + m_read_pos;
+  const SavedEvent * header = (SavedEvent*)ptr;
+  Uint32 len = SavedEvent::HeaderLength + header->m_len;
+  m_read_pos = (m_read_pos + len) % m_buffer_len;
+}
+
+void
+SavedEventBuffer::save(const Uint32 * theData, Uint32 len)
+{
+  if (m_buffer_len == 0)
+    return;
+
+  Uint32 total = len + SavedEvent::HeaderLength;
+  alloc(total);
+
+  SavedEvent s;
+  s.m_len = len; // size of SavedEvent
+  s.m_seq = m_sequence++;
+  s.m_time = time(0);
+  const Uint32 * src = (const Uint32*)&s;
+  Uint32 * dst = m_data + m_write_pos;
+
+  Uint32 remain = m_buffer_len - m_write_pos;
+  if (remain >= total)
+  {
+    memcpy(dst, src, 4 * SavedEvent::HeaderLength);
+    memcpy(dst+SavedEvent::HeaderLength, theData, 4*len);
+  }
+  else
+  {
+    memcpy(s.m_data, theData, 4 * len);
+    memcpy(dst, src, 4 * remain);
+    memcpy(m_data, src + remain, 4 * (total - remain));
+  }
+  m_write_pos = (m_write_pos + total) % m_buffer_len;
+}
+
+void
+SavedEventBuffer::startScan()
+{
+  m_scan_pos = m_read_pos;
+}
+
+int
+SavedEventBuffer::scan(SavedEvent* _dst, Uint32 filter[])
+{
+  Uint32 * dst = (Uint32*)_dst;
+  while (m_scan_pos != m_write_pos)
+  {
+    const Uint32 * ptr = m_data + m_scan_pos;
+    SavedEvent * s = (SavedEvent*)ptr;
+    assert(s->m_len <= 25);
+    Uint32 total = s->m_len + SavedEvent::HeaderLength;
+    if (m_scan_pos + total <= m_buffer_len)
+    {
+      memcpy(dst, s, 4 * total);
+    }
+    else
+    {
+      Uint32 remain = m_buffer_len - m_scan_pos;
+      memcpy(dst, s, 4 * remain);
+      memcpy(dst + remain, m_data, 4 * (total - remain));
+    }
+    m_scan_pos = (m_scan_pos + total) % m_buffer_len;
+    return 1;
+  }
+  return 0;
+}
+
 void Cmvmi::execEVENT_REP(Signal* signal) 
 {
   //-----------------------------------------------------------------------
@@ -413,7 +555,9 @@ void Cmvmi::execEVENT_REP(Signal* signal)
     
     sendSignal(ptr.p->blockRef, GSN_EVENT_REP, signal, signal->length(), JBB);
   }
-  
+
+  m_saved_event_buffer.save(signal->theData, signal->getLength());
+
   if(clogLevel.getLogLevel(eventCategory) < threshold){
     return;
   }
@@ -540,6 +684,10 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   f_accpages = compute_acc_32kpages(p);
+
+  Uint32 eventlog = 4096;
+  ndb_mgm_get_int_parameter(p, CFG_DB_EVENTLOG_BUFFER_SIZE, &eventlog);
+  m_saved_event_buffer.init(eventlog);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -1312,6 +1460,7 @@ recurse(char * buf, int loops, int arg){
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 {
+  jamEntry();
   Uint32 val = signal->theData[0];
   if (val >= DumpStateOrd::OneBlockOnly)
   {
@@ -1329,24 +1478,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
-  sendSignal(QMGR_REF, GSN_DUMP_STATE_ORD,    signal, signal->length(), JBB);
-  sendSignal(NDBCNTR_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
-  sendSignal(DBTC_REF, GSN_DUMP_STATE_ORD,    signal, signal->length(), JBB);
-  sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(DBDICT_REF, GSN_DUMP_STATE_ORD,  signal, signal->length(), JBB);
-  sendSignal(DBLQH_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(DBTUP_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(DBACC_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(NDBFS_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD,  signal, signal->length(), JBB);
-  sendSignal(DBUTIL_REF, GSN_DUMP_STATE_ORD,  signal, signal->length(), JBB);
-  sendSignal(SUMA_REF, GSN_DUMP_STATE_ORD,    signal, signal->length(), JBB);
-  sendSignal(TRIX_REF, GSN_DUMP_STATE_ORD,    signal, signal->length(), JBB);
-  sendSignal(DBTUX_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(TSMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(PGMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  sendSignal(DBINFO_REF,GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
+  for (Uint32 i = 0; blocks[i] != 0; i++)
+  {
+    sendSignal(blocks[i], GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
+  }
 
   /**
    *
@@ -1538,6 +1673,42 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     ptr[1].p = sec1;
     ptr[1].sz = len1;
     sendSignal(reference(), GSN_TESTSIG, signal, 8, JBB, ptr, 2);
+  }
+
+  if (arg == DumpStateOrd::DumpEventLog)
+  {
+    Uint32 result_ref = signal->theData[1];
+    m_saved_event_buffer.startScan();
+    SavedEvent s;
+    Uint32 cnt = 0;
+    EventReport * rep = CAST_PTR(EventReport, signal->getDataPtrSend());
+    rep->setEventType(NDB_LE_SavedEvent);
+    rep->setNodeId(getOwnNodeId());
+    while (m_saved_event_buffer.scan(&s, 0))
+    {
+      jam();
+      cnt++;
+      signal->theData[1] = s.m_len;
+      signal->theData[2] = s.m_seq;
+      signal->theData[3] = s.m_time;
+      if (s.m_len <= 21)
+      {
+        jam();
+        memcpy(signal->theData+4, s.m_data, 4*s.m_len);
+        sendSignal(result_ref, GSN_EVENT_REP, signal, 4 + s.m_len, JBB);
+      }
+      else
+      {
+        jam();
+        LinearSectionPtr ptr[3];
+        ptr[0].p = s.m_data;
+        ptr[0].sz = s.m_len;
+        sendSignal(result_ref, GSN_EVENT_REP, signal, 4, JBB, ptr, 1);
+      }
+    }
+    signal->theData[1] = 0; // end of stream
+    sendSignal(result_ref, GSN_EVENT_REP, signal, 2, JBB);
+    return;
   }
 
   if (arg == DumpStateOrd::CmvmiTestLongSig)
