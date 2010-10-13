@@ -3518,11 +3518,6 @@ lock_deadlock_recursive(
 
 				fputs("\n*** (1) TRANSACTION:\n", ef);
 
-				if (wait_lock->trx != trx
-				    && wait_lock->trx != start) {
-					trx_mutex_enter(wait_lock->trx);
-				}
-
 				rw_lock_s_lock(&trx_sys->lock);
 				trx_print(ef, wait_lock->trx, 3000);
 				rw_lock_s_unlock(&trx_sys->lock);
