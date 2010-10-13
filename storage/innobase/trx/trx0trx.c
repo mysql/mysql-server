@@ -743,8 +743,6 @@ trx_commit(
 		lsn = mtr.end_lsn;
 	}
 
-	trx->is_recovered = FALSE;
-
 	trx->must_flush_log_later = FALSE;
 
 	lock_trx_release_locks(trx);
@@ -758,7 +756,6 @@ trx_commit(
 	}
 
 	trx->read_view = NULL;
-
 
 	if (lsn) {
 		if (trx->insert_undo != NULL) {

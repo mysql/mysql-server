@@ -579,9 +579,21 @@ trx_rollback_resurrected(
 
 	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
+	/* The trx_t::is_recovered flag and the trx_t::lock::conc_state
+       	are set atomically under the protection of the trx_t::mutex in
+	lock_trx_release_locks(). We don't want to accidentally cleanup
+	a non-recovered transaction here. */
+
+	trx_mutex_enter(trx);
+
 	if (!trx->is_recovered) {
+
+		trx_mutex_enter(trx);
+
 		cleaned_or_rolledback = FALSE;
 	} else if (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY) {
+
+		trx_mutex_exit(trx);
 
 		rw_lock_s_unlock(&trx_sys->lock);
 
@@ -596,12 +608,17 @@ trx_rollback_resurrected(
 		   && (all
 		       || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE)) {
 
+		trx_mutex_exit(trx);
+
 		rw_lock_s_unlock(&trx_sys->lock);
 
 		trx_rollback_active(trx);
 
 		cleaned_or_rolledback  = TRUE;
 	} else {
+
+		trx_mutex_enter(trx);
+
 		cleaned_or_rolledback  = FALSE;
 	}
 
