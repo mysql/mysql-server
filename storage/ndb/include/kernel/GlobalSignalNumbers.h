@@ -820,10 +820,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_SYNC_THREAD_REQ             608
 #define GSN_SYNC_THREAD_CONF            609
-#define GSN_610
-#define GSN_611
 
-#define GSN_612
+#define GSN_SYNC_REQ                    610
+#define GSN_SYNC_REF                    611
+#define GSN_SYNC_CONF                   612
+
 #define GSN_613
 #define GSN_614
 #define GSN_615

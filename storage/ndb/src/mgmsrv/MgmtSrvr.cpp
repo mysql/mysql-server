@@ -44,6 +44,7 @@
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/Sync.hpp>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include <EventLogger.hpp>
@@ -3798,13 +3799,11 @@ MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
    *
    */
   SimpleSignal ssig;
-  EventSubscribeReq* req = CAST_PTR(EventSubscribeReq, ssig.getDataPtrSend());
-
-  req->blockRef = ss.getOwnRef();
-  req->noOfEntries = 1;
-  req->theData[0] = 0;
-  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ, 
-           EventSubscribeReq::SignalLength);
+  SyncReq* req = CAST_PTR(SyncReq, ssig.getDataPtrSend());
+  req->senderRef = ss.getOwnRef();
+  req->senderData = 12;
+  req->prio = 1; // prio b
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_SYNC_REQ, SyncReq::SignalLength);
   
   if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
   {
@@ -3817,48 +3816,8 @@ MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
     
     int gsn = signal->readSignalNumber();
     switch (gsn) {
-    case GSN_EVENT_SUBSCRIBE_CONF:
-      goto release;
-      
-    case GSN_NF_COMPLETEREP:{
-      const NFCompleteRep * const rep =
-        CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
-      if (rep->failedNodeId == nodeId)
-        return;
-      break;
-    }
-      
-    case GSN_NODE_FAILREP:{
-      const NodeFailRep * const rep =
-	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (NdbNodeBitmask::get(rep->theNodes,nodeId))
-	return;
-      break;
-    }
-      
-    case GSN_API_REGCONF:
-    case GSN_TAKE_OVERTCCONF:
-      break;
-    default:
-      return;
-    }
-  }
-
-release:
-  req->noOfEntries = 0;
-
-  if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
-  {
-    return;
-  }
-
-  while (true)
-  {
-    SimpleSignal *signal = ss.waitFor();
-    
-    int gsn = signal->readSignalNumber();
-    switch (gsn) {
-    case GSN_EVENT_SUBSCRIBE_CONF:
+    case GSN_SYNC_REF:
+    case GSN_SYNC_CONF:
       return;
       
     case GSN_NF_COMPLETEREP:{
