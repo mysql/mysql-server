@@ -102,20 +102,19 @@ if [ "x$warning_mode" != "xpedantic" ]; then
   warnings="$warnings -Wunused-value -Wunused-variable"
 
   # Make "printf like format specifier warnings" into error
-  #warnings="$warnings -Werror=format"
+  #warnings="-Wall -Wextra -Wunused -Wwrite-strings"
 
 # For more warnings, uncomment the following line
-# warnings="$global_warnings -Wshadow"
+# warnings="$warnings -Wshadow"
 
 # C warnings
   c_warnings="$warnings -Wunused-parameter -Wno-format-zero-length"
 # C++ warnings
-  cxx_warnings="$warnings"
+  cxx_warnings="$warnings -Wno-unused-parameter"
 # cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"
-  cxx_warnings="$cxx_warnings -Wreorder"
   cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
 # Added unless --with-debug=full
-  debug_extra_cflags="-O0 -g3 -gdwarf-2" #1 -Wuninitialized"
+  debug_extra_cflags="-O0 -g3 -gdwarf-2"
 else
   warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
   c_warnings="$warnings"
@@ -129,8 +128,12 @@ fi
 
 # Set flags for various build configurations.
 # Used in -valgrind builds
+# Override -DFORCE_INIT_OF_VARS from debug_cflags. It enables the macro
+# LINT_INIT(), which is only useful for silencing spurious warnings
+# of static analysis tools. We want LINT_INIT() to be a no-op in Valgrind.
 valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify "
 valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
+valgrind_configs="--with-valgrind"
 #
 # Used in -debug builds
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "

@@ -267,11 +267,11 @@ sub collect_one_suite($)
     }
     else
     {
-      $suitedir= my_find_dir($::basedir,
-			     ["mysql-test/suite",
-			      "mysql-test",
+      $suitedir= my_find_dir($suitedir,
+			     ["suite",
+			      ".",
 			      # Look in storage engine specific suite dirs
-			      "storage/*/mysql-test-suites"
+			      "../storage/*/mysql-test-suites"
 			     ],
 			     [$suite]);
     }
@@ -585,7 +585,7 @@ sub optimize_cases {
     # Check that engine selected by
     # --default-storage-engine=<engine> is supported
     # =======================================================
-    my %builtin_engines = ('myisam' => 1, 'memory' => 1);
+    my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=
@@ -769,11 +769,13 @@ sub collect_one_test_case {
   # Check for disabled tests
   # ----------------------------------------------------------------------
   my $marked_as_disabled= 0;
-  if ( $disabled->{$tname} )
+  if ( $disabled->{$tname} or $disabled->{"$suitename.$tname"} )
   {
     # Test was marked as disabled in suites disabled.def file
     $marked_as_disabled= 1;
-    $tinfo->{'comment'}= $disabled->{$tname};
+    # Test name may have been disabled with or without suite name part
+    $tinfo->{'comment'}= $disabled->{$tname} || 
+                         $disabled->{"$suitename.$tname"};
   }
 
   my $disabled_file= "$testdir/$tname.disabled";

@@ -294,8 +294,9 @@ static int myisammrg_parent_open_callback(void *callback_param,
     }
   }
 
-  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", child_l->db_length, child_l->db,
-                      child_l->table_name_length, child_l->table_name));
+  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", (int) child_l->db_length,
+                      child_l->db, (int) child_l->table_name_length,
+                      child_l->table_name));
 
   /* Convert to lowercase if required. */
   if (lower_case_table_names && child_l->table_name_length)
@@ -342,7 +343,7 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   TABLE         *parent;
   TABLE         *child;
   TABLE_LIST    *child_l;
-  MI_INFO       *myisam;
+  MI_INFO       *UNINIT_VAR(myisam);
   DBUG_ENTER("myisammrg_attach_children_callback");
 
   my_errno= 0;
@@ -1131,8 +1132,8 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 	goto err;
 
       create_info->merge_list.elements++;
-      (*create_info->merge_list.next) = (uchar*) ptr;
-      create_info->merge_list.next= (uchar**) &ptr->next_local;
+      (*create_info->merge_list.next) = ptr;
+      create_info->merge_list.next= &ptr->next_local;
     }
     *create_info->merge_list.next=0;
   }
@@ -1154,7 +1155,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 {
   char buff[FN_REFLEN];
   const char **table_names, **pos;
-  TABLE_LIST *tables= (TABLE_LIST*) create_info->merge_list.first;
+  TABLE_LIST *tables= create_info->merge_list.first;
   THD *thd= current_thd;
   size_t dirlgt= dirname_length(name);
   DBUG_ENTER("ha_myisammrg::create");

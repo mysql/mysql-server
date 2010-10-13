@@ -352,6 +352,7 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
+	size_t		sql_length,	/*!< in: length of sql_string */
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */
@@ -679,6 +680,22 @@ ulint
 dict_table_zip_size(
 /*================*/
 	const dict_table_t*	table);	/*!< in: table */
+/*********************************************************************//**
+Obtain exclusive locks on all index trees of the table. This is to prevent
+accessing index trees while InnoDB is updating internal metadata for
+operations such as truncate tables. */
+UNIV_INLINE
+void
+dict_table_x_lock_indexes(
+/*======================*/
+	dict_table_t*	table);	/*!< in: table */
+/*********************************************************************//**
+Release the exclusive locks on all index tree. */
+UNIV_INLINE
+void
+dict_table_x_unlock_indexes(
+/*========================*/
+	dict_table_t*	table);	/*!< in: table */
 /********************************************************************//**
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns.

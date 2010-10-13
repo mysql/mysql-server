@@ -229,11 +229,6 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
-    if (!ev->cache_stmt)
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      ev_thd->options|= OPTION_KEEP_LOG;
-    }
   }
 
   /*
@@ -342,12 +337,29 @@ static bool record_compare(TABLE *table)
   if (table->s->null_bytes > 0)
   {
     for (int i = 0 ; i < 2 ; ++i)
-    {
-      saved_x[i]= table->record[i][0];
-      saved_filler[i]= table->record[i][table->s->null_bytes - 1];
-      table->record[i][0]|= 1U;
-      table->record[i][table->s->null_bytes - 1]|=
-        256U - (1U << table->s->last_null_bit_pos);
+    { 
+      /* 
+        If we have an X bit then we need to take care of it.
+      */
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+      {
+        saved_x[i]= table->record[i][0];
+        table->record[i][0]|= 1U;
+      }
+      
+      /*
+         If (last_null_bit_pos == 0 && null_bytes > 1), then:
+
+         X bit (if any) + N nullable fields + M Field_bit fields = 8 bits 
+
+         Ie, the entire byte is used.
+      */
+      if (table->s->last_null_bit_pos > 0)
+      {
+        saved_filler[i]= table->record[i][table->s->null_bytes - 1];
+        table->record[i][table->s->null_bytes - 1]|=
+          256U - (1U << table->s->last_null_bit_pos);
+      }
     }
   }
 
@@ -387,8 +399,11 @@ record_compare_exit:
   {
     for (int i = 0 ; i < 2 ; ++i)
     {
-      table->record[i][0]= saved_x[i];
-      table->record[i][table->s->null_bytes - 1]= saved_filler[i];
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+        table->record[i][0]= saved_x[i];
+
+      if (table->s->last_null_bit_pos > 0)
+        table->record[i][table->s->null_bytes - 1]= saved_filler[i];
     }
   }
 
@@ -426,7 +441,7 @@ copy_extra_record_fields(TABLE *table,
 
  DBUG_ASSERT(master_reclength <= table->s->reclength);
   if (master_reclength < table->s->reclength)
-    bmove_align(table->record[0] + master_reclength,
+    memcpy(table->record[0] + master_reclength,
                 table->record[1] + master_reclength,
                 table->s->reclength - master_reclength);
     
@@ -705,7 +720,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       rnd_pos() returns the record in table->record[0], so we have to
       move it to table->record[1].
      */
-    bmove_align(table->record[1], table->record[0], table->s->reclength);
+    memcpy(table->record[1], table->record[0], table->s->reclength);
     DBUG_RETURN(error);
   }
 
@@ -1198,7 +1213,7 @@ int Update_rows_log_event_old::do_exec_row(TABLE *table)
     overwriting the default values that where put there by the
     unpack_row() function.
   */
-  bmove_align(table->record[0], m_after_image, table->s->reclength);
+  memcpy(table->record[0], m_after_image, table->s->reclength);
   copy_extra_record_fields(table, m_master_reclength, m_width);
 
   /*
@@ -1755,11 +1770,6 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(rli, error);
-    if (!cache_stmt)
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->options|= OPTION_KEEP_LOG;
-    }
   } // if (table)
 
   /*
@@ -2408,8 +2418,35 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     */
     if (table->key_info->flags & HA_NOSAME)
     {
-      table->file->ha_index_end();
-      DBUG_RETURN(0);
+      /* Unique does not have non nullable part */
+      if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
+      {
+        table->file->ha_index_end();
+        DBUG_RETURN(0);
+      }
+      else
+      {
+        KEY *keyinfo= table->key_info;
+        /*
+          Unique has nullable part. We need to check if there is any field in the
+          BI image that is null and part of UNNI.
+        */
+        bool null_found= FALSE;
+        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
+        {
+          uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
+          Field **f= table->field+fieldnr;
+          null_found= (*f)->is_null();
+        }
+
+        if (!null_found)
+        {
+          table->file->ha_index_end();
+          DBUG_RETURN(0);
+        }
+
+        /* else fall through to index scan */
+      }
     }
 
     /*

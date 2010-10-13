@@ -35,7 +35,7 @@
 if (`SELECT STRCMP('$status_type', '') * STRCMP(UPPER('$status_type'), 'SESSION') * STRCMP(UPPER('$status_type'), 'GLOBAL')`)
 {
   --echo **** ERROR: Unknown type of variable status_type: allowed values are: SESSION or GLOBAL ****
-  exit;
+  die;
 }
 
 let $_status_timeout_counter= $status_timeout;
@@ -60,7 +60,7 @@ while (`SELECT NOT('$_show_status_value' $_status_var_comparsion '$status_var_va
     --echo **** Showing STATUS, PROCESSLIST ****
     eval SHOW $status_type STATUS LIKE '$status_var';
     SHOW PROCESSLIST;
-    exit;
+    die;
   }
   dec $_status_timeout_counter;
   sleep 0.1;

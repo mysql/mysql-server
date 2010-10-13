@@ -259,10 +259,7 @@ DELETE FROM t1;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 sync_slave_with_master;
 set @@global.slave_exec_mode= default;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+source include/check_slave_is_running.inc;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 
 # BUG#37076: TIMESTAMP/DATETIME values are not replicated correctly
@@ -376,11 +373,10 @@ INSERT INTO t3 VALUES (1, "", 1);
 INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
 
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
+--let $slave_sql_errno= 1535 
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 connection master;
 RESET MASTER;
 connection slave;
@@ -405,11 +401,10 @@ INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
+--let $slave_sql_errno= 1535 
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 connection master;
 RESET MASTER;
 connection slave;
@@ -424,11 +419,10 @@ INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
+--let $slave_sql_errno= 1535 
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 connection master;
 RESET MASTER;
 connection slave;

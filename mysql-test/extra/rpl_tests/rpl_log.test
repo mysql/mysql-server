@@ -11,11 +11,9 @@
 # (otherwise RESET MASTER may come too early).
 sync_slave_with_master;
 source include/stop_slave.inc;
---source include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
-start slave;
---source include/wait_for_slave_to_start.inc
+source include/start_slave.inc;
 
 let $VERSION=`select version()`;
 
@@ -31,19 +29,17 @@ eval create table t1 (word char(20) not null)ENGINE=$engine_type;
 --replace_result $LOAD_FILE LOAD_FILE
 eval load data infile '$LOAD_FILE' into table t1 ignore 1 lines;
 select count(*) from t1;
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events;
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 106 limit 1;
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 106 limit 2;
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 106 limit 2,1;
+source include/show_binlog_events.inc;
+
+let $binlog_limit= 1;
+source include/show_binlog_events.inc;
+
+let $binlog_limit= 2;
+source include/show_binlog_events.inc;
+
+let $binlog_limit= 2,1;
+source include/show_binlog_events.inc;
+let $binlog_limit=;
 flush logs;
 
 # We need an extra update before doing save_master_pos.
@@ -84,27 +80,24 @@ connection master;
 eval create table t2 (n int)ENGINE=$engine_type;
 insert into t2 values (1);
 source include/show_binlog_events.inc;
---replace_result $VERSION VERSION
---replace_regex /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /infile '.+'/infile 'words.dat'/
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events in 'master-bin.000002';
+
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+source include/show_binlog_events.inc;
+
 --replace_column 2 #
 show binary logs;
 sync_slave_with_master;
---source include/wait_for_slave_to_start.inc
 --replace_column 2 #
 show binary logs;
---replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
---replace_column 2 # 5 #
---replace_regex /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /INFILE '.+'/INFILE 'words.dat'/
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events in 'slave-bin.000001' from 4;
---replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events in 'slave-bin.000002' from 4;
-source include/show_slave_status.inc;
+
+let $binlog_file=;
+source include/show_binlog_events.inc;
+
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+source include/show_binlog_events.inc;
+let $binlog_file=;
+
+source include/check_slave_is_running.inc;
 
 # Need to recode the following
 
