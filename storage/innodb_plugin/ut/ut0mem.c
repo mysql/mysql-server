@@ -290,7 +290,8 @@ ut_test_malloc(
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
-Frees a memory block allocated with ut_malloc. */
+Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
+a nop. */
 UNIV_INTERN
 void
 ut_free(
@@ -300,7 +301,9 @@ ut_free(
 #ifndef UNIV_HOTBACKUP
 	ut_mem_block_t* block;
 
-	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+	if (ptr == NULL) {
+		return;
+	} else if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		free(ptr);
 		return;
 	}

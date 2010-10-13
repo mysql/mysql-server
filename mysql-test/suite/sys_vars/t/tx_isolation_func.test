@@ -134,12 +134,9 @@ START TRANSACTION;
 
 SELECT * FROM t1;
 
---error ER_LOCK_WAIT_TIMEOUT
 INSERT INTO t1 VALUES(23, 23);
 
---error ER_LOCK_WAIT_TIMEOUT
 INSERT INTO t1 VALUES(25, 25);
---echo Bug: Only even rows are being locked, error 1205 should'nt have occured
 
 SELECT * FROM t1;
 

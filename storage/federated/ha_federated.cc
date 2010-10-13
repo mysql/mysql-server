@@ -561,7 +561,6 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
 int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
 {
   int error_num= ER_FOREIGN_SERVER_DOESNT_EXIST;
-  char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   FOREIGN_SERVER *server, server_buffer;
   DBUG_ENTER("ha_federated::get_connection");
 
@@ -613,10 +612,8 @@ int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
   DBUG_RETURN(0);
 
 error:
-  my_sprintf(error_buffer,
-             (error_buffer, "server name: '%s' doesn't exist!",
-              share->connection_string));
-  my_error(error_num, MYF(0), error_buffer);
+  my_printf_error(error_num, "server name: '%s' doesn't exist!",
+                  MYF(0), share->connection_string);
   DBUG_RETURN(error_num);
 }
 
@@ -2405,8 +2402,8 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
 
   if (real_query(sql_query.ptr(), sql_query.length()))
   {
-    my_sprintf(error_buffer, (error_buffer, "error: %d '%s'",
-                              mysql_errno(mysql), mysql_error(mysql)));
+    sprintf(error_buffer, "error: %d '%s'",
+            mysql_errno(mysql), mysql_error(mysql));
     retval= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
     goto error;
   }
@@ -2775,7 +2772,6 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos)
 
 int ha_federated::info(uint flag)
 {
-  char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char status_buf[FEDERATED_QUERY_BUFFER_SIZE];
   int error;
   uint error_code;
@@ -2859,9 +2855,8 @@ error:
   mysql_free_result(result);
   if (mysql)
   {
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
+    my_printf_error(error_code, ": %d : %s", MYF(0),
+                    mysql_errno(mysql), mysql_error(mysql));
   }
   else
   if (remote_error_number != -1 /* error already reported */)

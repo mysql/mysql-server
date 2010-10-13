@@ -1656,7 +1656,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
-  thd->main_da.disable_status();
+  if (!thd->main_da.is_set())
+    thd->main_da.disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
   DBUG_RETURN(1);				// Result sent to client

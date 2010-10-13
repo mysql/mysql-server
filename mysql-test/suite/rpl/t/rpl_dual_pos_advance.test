@@ -21,52 +21,51 @@ connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root";
 
-start slave;
+source include/start_slave.inc;
 
 # now we test it
 
 connection slave;
 
 create table t1 (n int);
+let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos_1= `SELECT $master_log_pos_1 + 3`;
 
-save_master_pos;
-connection master;
-sync_with_master;
+sync_slave_with_master master;
 
 #
 # BUG#13861 - START SLAVE UNTIL may stop 1 evnt too late if
 #             log-slave-updates and circul repl
 #
-stop slave;
+source include/stop_slave.inc;
 
 create table t2 (n int); # create one ignored event
 
-save_master_pos;
-connection slave;
-sync_with_master;
-
-connection slave;
+sync_slave_with_master;
 
 show tables;
 
-save_master_pos;
-
 create table t3 (n int) engine=innodb;
+let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos_2= `SELECT $master_log_pos_2 + 5`;
 set @a=1;
 insert into t3 values(@a);
+let $master_log_pos_3= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos_3= `SELECT $master_log_pos_3 + 5`;
 begin;
 insert into t3 values(2);
 insert into t3 values(3);
 commit;
 insert into t3 values(4);
 
-
 connection master;
 
 # bug is that START SLAVE UNTIL may stop too late, we test that by
 # asking it to stop before creation of t3.
 
-start slave until master_log_file="slave-bin.000001",master_log_pos=195;
+--replace_result $master_log_file MASTER_LOG_FILE $master_log_pos_1 MASTER_LOG_POS
+eval start slave until master_log_file="$master_log_file",master_log_pos=$master_log_pos_1;
 --source include/wait_for_slave_sql_to_stop.inc
 
 # then BUG#13861 causes t3 to show up below (because stopped too
@@ -75,16 +74,18 @@ start slave until master_log_file="slave-bin.000001",master_log_pos=195;
 show tables;
 
 # ensure that we do not break set @a=1; insert into t3 values(@a);
-start slave until master_log_file="slave-bin.000001",master_log_pos=438;
+--replace_result $master_log_file MASTER_LOG_FILE $master_log_pos_2 MASTER_LOG_POS
+eval start slave until master_log_file="$master_log_file",master_log_pos=$master_log_pos_2;
 --source include/wait_for_slave_sql_to_stop.inc
 select * from t3;
 
 # ensure that we do not break transaction
-start slave until master_log_file="slave-bin.000001",master_log_pos=663;
+--replace_result $master_log_file MASTER_LOG_FILE $master_log_pos_3 MASTER_LOG_POS
+eval start slave until master_log_file="$master_log_file",master_log_pos=$master_log_pos_3;
 --source include/wait_for_slave_sql_to_stop.inc
 select * from t3;
 
-start slave;
+source include/start_slave.inc;
 
 # BUG#13023 is that Exec_master_log_pos may stay too low "forever":
 
@@ -94,31 +95,20 @@ create table t4 (n int); # create 3 ignored events
 create table t5 (n int);
 create table t6 (n int);
 
-save_master_pos;
-connection slave;
-sync_with_master;
-
-connection slave;
-
-save_master_pos;
-
-connection master;
+sync_slave_with_master;
+sync_slave_with_master master;
 
 # then BUG#13023 caused hang below ("master" looks behind, while it's
 # not in terms of updates done).
-
-sync_with_master;
 
 show tables;
 
 # cleanup
 
-stop slave;
+source include/stop_slave.inc;
 reset slave;
 drop table t1,t2,t3,t4,t5,t6;
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # End of 4.1 tests

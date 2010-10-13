@@ -442,11 +442,15 @@ buf_buddy_relocate(
 		pool), so there is nothing wrong about this.  The
 		mach_read_from_4() calls here will only trigger bogus
 		Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
-		bpage = buf_page_hash_get(
-			mach_read_from_4((const byte*) src
-					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
-			mach_read_from_4((const byte*) src
-					 + FIL_PAGE_OFFSET));
+		ulint		space	= mach_read_from_4(
+			(const byte*) src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		ulint		page_no	= mach_read_from_4(
+			(const byte*) src + FIL_PAGE_OFFSET);
+		/* Suppress Valgrind warnings about conditional jump
+		on uninitialized value. */
+		UNIV_MEM_VALID(&space, sizeof space);
+		UNIV_MEM_VALID(&page_no, sizeof page_no);
+		bpage = buf_page_hash_get(space, page_no);
 
 		if (!bpage || bpage->zip.data != src) {
 			/* The block has probably been freshly
@@ -495,7 +499,12 @@ success:
 		mutex_exit(mutex);
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
+#if UNIV_WORD_SIZE == 4
+		/* On 32-bit systems, there is no padding in
+		buf_page_t.  On other systems, Valgrind could complain
+		about uninitialized pad bytes. */
 		UNIV_MEM_ASSERT_RW(src, size);
+#endif
 		if (buf_buddy_relocate_block(src, dst)) {
 
 			goto success;

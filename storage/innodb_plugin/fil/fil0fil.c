@@ -279,6 +279,10 @@ struct fil_system_struct {
 					request */
 	UT_LIST_BASE_NODE_T(fil_space_t) space_list;
 					/*!< list of all file spaces */
+	ibool		space_id_reuse_warned;
+					/* !< TRUE if fil_space_create()
+					has issued a warning about
+					potential space_id reuse */
 };
 
 /** The tablespace memory cache. This variable is NULL before the module is
@@ -1193,7 +1197,19 @@ try_again:
 	space->tablespace_version = fil_system->tablespace_version;
 	space->mark = FALSE;
 
-	if (purpose == FIL_TABLESPACE && id > fil_system->max_assigned_id) {
+	if (UNIV_LIKELY(purpose == FIL_TABLESPACE && !recv_recovery_on)
+	    && UNIV_UNLIKELY(id > fil_system->max_assigned_id)) {
+		if (!fil_system->space_id_reuse_warned) {
+			fil_system->space_id_reuse_warned = TRUE;
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Warning: allocated tablespace %lu,"
+				" old maximum was %lu\n",
+				(ulong) id,
+				(ulong) fil_system->max_assigned_id);
+		}
+
 		fil_system->max_assigned_id = id;
 	}
 
@@ -1231,19 +1247,25 @@ try_again:
 Assigns a new space id for a new single-table tablespace. This works simply by
 incrementing the global counter. If 4 billion id's is not enough, we may need
 to recycle id's.
-@return	new tablespace id; ULINT_UNDEFINED if could not assign an id */
-static
-ulint
-fil_assign_new_space_id(void)
-/*=========================*/
+@return	TRUE if assigned, FALSE if not */
+UNIV_INTERN
+ibool
+fil_assign_new_space_id(
+/*====================*/
+	ulint*	space_id)	/*!< in/out: space id */
 {
-	ulint		id;
+	ulint	id;
+	ibool	success;
 
 	mutex_enter(&fil_system->mutex);
 
-	fil_system->max_assigned_id++;
+	id = *space_id;
 
-	id = fil_system->max_assigned_id;
+	if (id < fil_system->max_assigned_id) {
+		id = fil_system->max_assigned_id;
+	}
+
+	id++;
 
 	if (id > (SRV_LOG_SPACE_FIRST_ID / 2) && (id % 1000000UL == 0)) {
 		ut_print_timestamp(stderr);
@@ -1259,7 +1281,11 @@ fil_assign_new_space_id(void)
 			(ulong) SRV_LOG_SPACE_FIRST_ID);
 	}
 
-	if (id >= SRV_LOG_SPACE_FIRST_ID) {
+	success = (id < SRV_LOG_SPACE_FIRST_ID);
+
+	if (success) {
+		*space_id = fil_system->max_assigned_id = id;
+	} else {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"InnoDB: You have run out of single-table"
@@ -1269,14 +1295,12 @@ fil_assign_new_space_id(void)
 			" have to dump all your tables and\n"
 			"InnoDB: recreate the whole InnoDB installation.\n",
 			(ulong) id);
-		fil_system->max_assigned_id--;
-
-		id = ULINT_UNDEFINED;
+		*space_id = ULINT_UNDEFINED;
 	}
 
 	mutex_exit(&fil_system->mutex);
 
-	return(id);
+	return(success);
 }
 
 /*******************************************************************//**
@@ -1512,7 +1536,7 @@ fil_init(
 	ut_a(hash_size > 0);
 	ut_a(max_n_open > 0);
 
-	fil_system = mem_alloc(sizeof(fil_system_t));
+	fil_system = mem_zalloc(sizeof(fil_system_t));
 
 	mutex_create(&fil_system->mutex, SYNC_ANY_LATCH);
 
@@ -1521,16 +1545,7 @@ fil_init(
 
 	UT_LIST_INIT(fil_system->LRU);
 
-	fil_system->n_open = 0;
 	fil_system->max_n_open = max_n_open;
-
-	fil_system->modification_counter = 0;
-	fil_system->max_assigned_id = 0;
-
-	fil_system->tablespace_version = 0;
-
-	UT_LIST_INIT(fil_system->unflushed_spaces);
-	UT_LIST_INIT(fil_system->space_list);
 }
 
 /*******************************************************************//**
@@ -2115,7 +2130,7 @@ fil_op_log_parse_or_replay(
 			fil_create_directory_for_tablename(name);
 
 			if (fil_create_new_single_table_tablespace(
-				    &space_id, name, FALSE, flags,
+				    space_id, name, FALSE, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_error;
 			}
@@ -2562,9 +2577,7 @@ UNIV_INTERN
 ulint
 fil_create_new_single_table_tablespace(
 /*===================================*/
-	ulint*		space_id,	/*!< in/out: space id; if this is != 0,
-					then this is an input parameter,
-					otherwise output */
+	ulint		space_id,	/*!< in: space id */
 	const char*	tablename,	/*!< in: the table name in the usual
 					databasename/tablename format
 					of InnoDB, or a dir path to a temp
@@ -2584,6 +2597,8 @@ fil_create_new_single_table_tablespace(
 	ibool		success;
 	char*		path;
 
+	ut_a(space_id > 0);
+	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
 	ROW_FORMAT=COMPACT
@@ -2640,37 +2655,20 @@ fil_create_new_single_table_tablespace(
 		return(DB_ERROR);
 	}
 
-	buf2 = ut_malloc(3 * UNIV_PAGE_SIZE);
-	/* Align the memory for file i/o if we might have O_DIRECT set */
-	page = ut_align(buf2, UNIV_PAGE_SIZE);
-
 	ret = os_file_set_size(path, file, size * UNIV_PAGE_SIZE, 0);
 
 	if (!ret) {
-		ut_free(buf2);
-		os_file_close(file);
-		os_file_delete(path);
-
-		mem_free(path);
-		return(DB_OUT_OF_FILE_SPACE);
-	}
-
-	if (*space_id == 0) {
-		*space_id = fil_assign_new_space_id();
-	}
-
-	/* printf("Creating tablespace %s id %lu\n", path, *space_id); */
-
-	if (*space_id == ULINT_UNDEFINED) {
-		ut_free(buf2);
+		err = DB_OUT_OF_FILE_SPACE;
 error_exit:
 		os_file_close(file);
 error_exit2:
 		os_file_delete(path);
 
 		mem_free(path);
-		return(DB_ERROR);
+		return(err);
 	}
+
+	/* printf("Creating tablespace %s id %lu\n", path, space_id); */
 
 	/* We have to write the space id to the file immediately and flush the
 	file to disk. This is because in crash recovery we must be aware what
@@ -2681,10 +2679,14 @@ error_exit2:
 	with zeros from the call of os_file_set_size(), until a buffer pool
 	flush would write to it. */
 
+	buf2 = ut_malloc(3 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
+
 	memset(page, '\0', UNIV_PAGE_SIZE);
 
-	fsp_header_init_fields(page, *space_id, flags);
-	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, *space_id);
+	fsp_header_init_fields(page, space_id, flags);
+	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
 	if (!(flags & DICT_TF_ZSSIZE_MASK)) {
 		buf_flush_init_for_writing(page, NULL, 0);
@@ -2715,6 +2717,7 @@ error_exit2:
 		      " to tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		putc('\n', stderr);
+		err = DB_ERROR;
 		goto error_exit;
 	}
 
@@ -2724,22 +2727,20 @@ error_exit2:
 		fputs("InnoDB: Error: file flush of tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		fputs(" failed\n", stderr);
+		err = DB_ERROR;
 		goto error_exit;
 	}
 
 	os_file_close(file);
 
-	if (*space_id == ULINT_UNDEFINED) {
-		goto error_exit2;
-	}
-
-	success = fil_space_create(path, *space_id, flags, FIL_TABLESPACE);
+	success = fil_space_create(path, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
+		err = DB_ERROR;
 		goto error_exit2;
 	}
 
-	fil_node_create(path, size, *space_id, FALSE);
+	fil_node_create(path, size, space_id, FALSE);
 
 #ifndef UNIV_HOTBACKUP
 	{
@@ -2750,7 +2751,7 @@ error_exit2:
 		fil_op_write_log(flags
 				 ? MLOG_FILE_CREATE2
 				 : MLOG_FILE_CREATE,
-				 *space_id,
+				 space_id,
 				 is_temp ? MLOG_FILE_FLAG_TEMP : 0,
 				 flags,
 				 tablename, NULL, &mtr);
@@ -3539,39 +3540,6 @@ next_datadir_item:
 	}
 
 	return(err);
-}
-
-/********************************************************************//**
-If we need crash recovery, and we have called
-fil_load_single_table_tablespaces() and dict_load_single_table_tablespaces(),
-we can call this function to print an error message of orphaned .ibd files
-for which there is not a data dictionary entry with a matching table name
-and space id. */
-UNIV_INTERN
-void
-fil_print_orphaned_tablespaces(void)
-/*================================*/
-{
-	fil_space_t*	space;
-
-	mutex_enter(&fil_system->mutex);
-
-	space = UT_LIST_GET_FIRST(fil_system->space_list);
-
-	while (space) {
-		if (space->purpose == FIL_TABLESPACE && space->id != 0
-		    && !space->mark) {
-			fputs("InnoDB: Warning: tablespace ", stderr);
-			ut_print_filename(stderr, space->name);
-			fprintf(stderr, " of id %lu has no matching table in\n"
-				"InnoDB: the InnoDB data dictionary.\n",
-				(ulong) space->id);
-		}
-
-		space = UT_LIST_GET_NEXT(space_list, space);
-	}
-
-	mutex_exit(&fil_system->mutex);
 }
 
 /*******************************************************************//**
