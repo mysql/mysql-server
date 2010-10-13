@@ -2522,7 +2522,7 @@ report_events(const ndb_logevent& event)
   if (event.source_nodeid != 0)
   {
     BaseString::snprintf(out, sizeof(out), "Node %u: ", event.source_nodeid);
-    pos= strlen(out);
+    pos= (Uint32)strlen(out);
   }
   textF(out+pos, sizeof(out)-pos, event.SavedEvent.data, event.SavedEvent.len);
 
