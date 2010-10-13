@@ -229,7 +229,7 @@ ClusterMgr::forceHB()
     waitForHBFromNodes.clear();
     for(Uint32 i = 1; i < MAX_NDB_NODES; i++)
     {
-      const Node &node= getNodeInfo(i);
+      const trp_node &node= getNodeInfo(i);
       if(!node.defined)
         continue;
       if(node.m_info.getType() == NodeInfo::DB)
@@ -477,13 +477,8 @@ ClusterMgr::trp_node_status(Uint32 nodeId, Uint32 event)
 }
 
 ClusterMgr::Node::Node()
-  : m_state(NodeState::SL_NOTHING),
-    hbFrequency(0), hbCounter(0)
- {
-  compatible = nfCompleteRep = true;
-  m_connected = defined = m_alive = m_api_reg_conf = false;
-  m_state.m_connected_nodes.clear();
-  minDbVersion = 0;
+  : hbFrequency(0), hbCounter(0)
+{
 }
 
 /**
@@ -850,7 +845,7 @@ ClusterMgr::print_nodes(const char* where, NdbOut& out)
   out << where << " >>" << endl;
   for (NodeId n = 1; n < MAX_NODES ; n++)
   {
-    const Node node = getNodeInfo(n);
+    const trp_node node = getNodeInfo(n);
     if (!node.defined)
       continue;
     out << "node: " << n << endl;

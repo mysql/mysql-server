@@ -869,7 +869,7 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, Uint32& mysql_version,
   }
   else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
   {
-    ClusterMgr::Node node= theFacade->theClusterMgr->getNodeInfo(nodeId);
+    trp_node node = theFacade->theClusterMgr->getNodeInfo(nodeId);
     if(node.is_connected())
     {
       version= node.m_info.m_version;
@@ -1093,7 +1093,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   for (Uint32 i = 0; i<node_ids.size(); i++)
   {
     Uint32 nodeId = node_ids[i];
-    ClusterMgr::Node node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    trp_node node = ss.getNodeInfo(nodeId);
     if (node.m_state.startLevel != NodeState::SL_STARTED)
       notstarted.set(nodeId);
   }
@@ -1405,7 +1405,7 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
 int MgmtSrvr::check_nodes_stopping()
 {
   NodeId nodeId = 0;
-  ClusterMgr::Node node;
+  trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
@@ -1421,7 +1421,7 @@ int MgmtSrvr::check_nodes_stopping()
 int MgmtSrvr::check_nodes_starting()
 {
   NodeId nodeId = 0;
-  ClusterMgr::Node node;
+  trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
@@ -1434,7 +1434,7 @@ int MgmtSrvr::check_nodes_starting()
 int MgmtSrvr::check_nodes_single_user()
 {
   NodeId nodeId = 0;
-  ClusterMgr::Node node;
+  trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
@@ -1672,7 +1672,7 @@ MgmtSrvr::status(int nodeId,
     *address= get_connect_address(nodeId);
   }
 
-  const ClusterMgr::Node node = 
+  const trp_node node =
     theFacade->theClusterMgr->getNodeInfo(nodeId);
 
   if(!node.is_connected()){
@@ -2541,7 +2541,7 @@ const char *MgmtSrvr::get_connect_address(Uint32 node_id)
       theFacade->theClusterMgr &&
       getNodeType(node_id) == NDB_MGM_NODE_TYPE_NDB) 
   {
-    const ClusterMgr::Node &node=
+    const trp_node &node=
       theFacade->theClusterMgr->getNodeInfo(node_id);
     if (node.is_connected())
     {
@@ -2561,7 +2561,7 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
     {
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
       {
-	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	const trp_node &node= theFacade->theClusterMgr->getNodeInfo(i);
 	connected_nodes.bitOR(node.m_state.m_connected_nodes);
       }
     }
@@ -3904,7 +3904,7 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
       continue;
 
     // Only request from confirmed DB nodes
-    const ClusterMgr::Node node = ss.getNodeInfo(i);
+    const trp_node node = ss.getNodeInfo(i);
     if (node.m_info.getType() != NodeInfo::DB ||
         !node.is_confirmed())
     {

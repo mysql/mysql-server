@@ -25,9 +25,8 @@
 #include <NdbCondition.h>
 #include <signaldata/ArbitSignalData.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
-#include <NodeInfo.hpp>
-#include <NodeState.hpp>
 #include "trp_client.hpp"
+#include "trp_node.hpp"
 
 extern "C" void* runClusterMgr_C(void * me);
 
@@ -70,55 +69,18 @@ public:
     CS_waiting_for_first_connect,
     CS_connected
   };
-  struct Node {
+  struct Node : public trp_node
+  {
     Node();
-    bool defined;
-    bool compatible;    // Version is compatible
-    bool nfCompleteRep; // NF Complete Rep has arrived
-    bool m_alive;       // Node is alive
-    
-    NodeInfo  m_info;
-    NodeState m_state;
 
     /**
      * Heartbeat stuff
      */
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
-
-    /**
-     * Min db version reported by this node
-     */
-    Uint32 minDbVersion; // Minimum Db version known to node at API_REGCONF
-
-    void set_connected(bool connected) {
-      assert(defined);
-      m_connected = connected;
-    }
-    bool is_connected(void) const {
-      const bool connected = m_connected;
-      // Must be defined if connected
-      assert(!connected ||
-             (connected && defined));
-      return connected;
-    }
-
-    void set_confirmed(bool confirmed) {
-      assert(is_connected()); // Must be connected to change confirmed
-      m_api_reg_conf = confirmed;
-    }
-    bool is_confirmed(void) const {
-      const bool confirmed = m_api_reg_conf;
-      assert(!confirmed ||
-             (confirmed && is_connected()));
-      return confirmed;
-    }
-private:
-    bool m_connected;     // Transporter connected
-    bool m_api_reg_conf;// API_REGCONF has arrived
   };
   
-  const Node &  getNodeInfo(NodeId) const;
+  const trp_node & getNodeInfo(NodeId) const;
   Uint32        getNoOfConnectedNodes() const;
   void          hb_received(NodeId);
 
@@ -186,7 +148,7 @@ public:
 };
 
 inline
-const ClusterMgr::Node &
+const trp_node &
 ClusterMgr::getNodeInfo(NodeId nodeId) const {
   // Check array bounds
   assert(nodeId < MAX_NODES);
