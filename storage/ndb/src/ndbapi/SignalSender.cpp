@@ -30,12 +30,42 @@ SimpleSignal::SimpleSignal(bool dealloc){
   deallocSections = dealloc;
 }
 
+SimpleSignal::SimpleSignal(const SimpleSignal& src)
+{
+  this->operator=(src);
+}
+
+SimpleSignal&
+SimpleSignal::operator=(const SimpleSignal& src)
+{
+  deallocSections = true;
+  header = src.header;
+  memcpy(theData, src.theData, sizeof(theData));
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    ptr[i].p = 0;
+    if (src.ptr[i].p != 0)
+    {
+      ptr[i].p = new Uint32[src.ptr[i].sz];
+      ptr[i].sz = src.ptr[i].sz;
+      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
+    }
+  }
+  return * this;
+}
+
 SimpleSignal::~SimpleSignal(){
   if(!deallocSections)
     return;
-  if(ptr[0].p != 0) delete []ptr[0].p;
-  if(ptr[1].p != 0) delete []ptr[1].p;
-  if(ptr[2].p != 0) delete []ptr[2].p;
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    if (ptr[i].p != 0)
+    {
+      delete [] ptr[i].p;
+    }
+  }
 }
 
 void 
