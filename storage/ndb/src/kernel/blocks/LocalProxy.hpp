@@ -29,6 +29,7 @@
 #include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/Sync.hpp>
 
 /*
  * Proxy blocks for MT LQH.
@@ -567,6 +568,25 @@ protected:
   bool find_next(Ndbinfo::ScanCursor* cursor) const;
   void execDBINFO_SCANREQ(Signal*);
   void execDBINFO_SCANCONF(Signal*);
+
+  // GSN_SYNC_REQ
+  void execSYNC_REQ(Signal*);
+  void execSYNC_REF(Signal*);
+  void execSYNC_CONF(Signal*);
+  void sendSYNC_REQ(Signal*, Uint32 ssId, SectionHandle*);
+  void sendSYNC_CONF(Signal*, Uint32 ssId);
+  struct Ss_SYNC_REQ : SsParallel {
+    SyncReq m_req;
+    Ss_SYNC_REQ() {
+      m_sendREQ = &LocalProxy::sendSYNC_REQ;
+      m_sendCONF = &LocalProxy::sendSYNC_CONF;
+    }
+    enum { poolSize = 4 };
+    static SsPool<Ss_SYNC_REQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_SYNC_REQ;
+    }
+  };
+  SsPool<Ss_SYNC_REQ> c_ss_SYNC_REQ;
 };
 
 #endif
