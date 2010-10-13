@@ -96,7 +96,7 @@ public:
   Uint32 getNoOfSections() const;
 
   /**
-   * Old depricated methods...
+   * Old deprecated methods...
    */
   Uint32 length() const { return getLength();}
   BlockReference senderBlockRef() const { return getSendersBlockRef();}

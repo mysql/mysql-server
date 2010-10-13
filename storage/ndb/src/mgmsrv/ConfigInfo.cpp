@@ -97,7 +97,7 @@ static bool checkTCPConstraints(InitConfigFileParser::Context &, const char *);
 static bool fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
-static bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
+static bool fixDeprecated(InitConfigFileParser::Context & ctx, const char *);
 static bool fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data);
@@ -152,7 +152,7 @@ ConfigInfo::m_SectionRules[] = {
   { "SCI",  fixPortNumber, 0 }, // has to come after fixHostName
 
   { "*",    applyDefaultValues, "user" },
-  { "*",    fixDepricated, 0 },
+  { "*",    fixDeprecated, 0 },
   { "*",    applyDefaultValues, "system" },
 
   { "SHM",  fixShmKey, 0 }, // has to come after apply default values
@@ -223,7 +223,7 @@ ConfigInfo::m_ConfigRules[] = {
   { 0, 0 }
 };
 	  
-struct DepricationTransform {
+struct DeprecationTransform {
   const char * m_section;
   const char * m_oldName;
   const char * m_newName;
@@ -232,7 +232,7 @@ struct DepricationTransform {
 };
 
 static
-const DepricationTransform f_deprication[] = {
+const DeprecationTransform f_deprecation[] = {
   { DB_TOKEN, "Discless", "Diskless", 0, 1 },
   { DB_TOKEN, "Id", "NodeId", 0, 1 },
   { API_TOKEN, "Id", "NodeId", 0, 1 },
@@ -316,8 +316,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "ByteOrder",
     "COMPUTER",
-    0,
-    ConfigInfo::CI_DEPRICATED,
+    0, // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_STRING,
     0,
@@ -466,8 +466,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "Id",
     DB_TOKEN,
-    "",
-    ConfigInfo::CI_DEPRICATED,
+    0, // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -562,8 +562,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_INDEXES,
     "MaxNoOfIndexes",
     DB_TOKEN,
-    "Total number of indexes that can be defined in the system",
-    ConfigInfo::CI_DEPRICATED,
+    // The name of new parameter to use instead of deprecated
+    "MaxNoOfOrderedIndexes or MaxNoOfUniqueHashIndexes",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "128",
@@ -1169,8 +1170,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_LCP_DISC_PAGES_TUP_SR,
     "NoOfDiskPagesToDiskDuringRestartTUP",
     DB_TOKEN,
-    "DiskCheckpointSpeedSr",
-    ConfigInfo::CI_DEPRICATED,
+    "DiskCheckpointSpeedSr", // The new parameter name to use
+    ConfigInfo::CI_DEPRECATED,
     0,
     ConfigInfo::CI_INT,
     "40",
@@ -1181,8 +1182,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_LCP_DISC_PAGES_TUP,
     "NoOfDiskPagesToDiskAfterRestartTUP",
     DB_TOKEN,
-    "DiskCheckpointSpeed",
-    ConfigInfo::CI_DEPRICATED,
+    "DiskCheckpointSpeed", // The new parameter name to use
+    ConfigInfo::CI_DEPRECATED,
     0,
     ConfigInfo::CI_INT,
     "40",
@@ -1193,8 +1194,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_LCP_DISC_PAGES_ACC_SR,
     "NoOfDiskPagesToDiskDuringRestartACC",
     DB_TOKEN,
-    "DiskCheckpointSpeedSr",
-    ConfigInfo::CI_DEPRICATED,
+    "DiskCheckpointSpeedSr", // The new parameter name to use
+    ConfigInfo::CI_DEPRECATED,
     0,
     ConfigInfo::CI_INT,
     "20",
@@ -1206,7 +1207,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NoOfDiskPagesToDiskAfterRestartACC",
     DB_TOKEN,
     "DiskCheckpointSpeed",
-    ConfigInfo::CI_DEPRICATED,
+    ConfigInfo::CI_DEPRECATED, // The new parameter name to use
     0,
     ConfigInfo::CI_INT,
     "20",
@@ -1230,8 +1231,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "Discless",
     DB_TOKEN,
-    "Diskless",
-    ConfigInfo::CI_DEPRICATED,
+    "Diskless", // The new parameter name to use
+    ConfigInfo::CI_DEPRECATED,
     CI_RESTART_INITIAL | CI_RESTART_SYSTEM,
     ConfigInfo::CI_BOOL,
     "false",
@@ -1892,8 +1893,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "Id",
     API_TOKEN,
-    "",
-    ConfigInfo::CI_DEPRICATED,
+    0,  // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2097,8 +2098,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "Id",
     MGM_TOKEN,
-    "",
-    ConfigInfo::CI_DEPRICATED,
+    0, // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2333,8 +2334,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "TCP",
-    "Port used for this transporter",
-    ConfigInfo::CI_DEPRICATED,
+    0, // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2502,8 +2503,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "SHM",
-    "Port used for this transporter",
-    ConfigInfo::CI_DEPRICATED,
+    0, // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2736,8 +2737,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "SCI",
-    "Port used for this transporter",
-    ConfigInfo::CI_DEPRICATED,
+    0, // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2945,7 +2946,7 @@ ConfigInfo::ConfigInfo()
     const Status status = param._status;
     require(status == CI_USED ||
             status == CI_EXPERIMENTAL ||
-            status == CI_DEPRICATED ||
+            status == CI_DEPRECATED ||
             status == CI_NOTIMPLEMENTED ||
             status == CI_INTERNAL);
     pinfo.put("Status", status);
@@ -3662,7 +3663,7 @@ void ConfigInfo::print_impl(const char* section_filter,
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       // Skip entries with different F- and P-names
       if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
-      if (getStatus(sec, n) == ConfigInfo::CI_DEPRICATED) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_DEPRECATED) continue;
       if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
       printer.parameter(s, sec, n, *this);
     }
@@ -3682,7 +3683,7 @@ void ConfigInfo::print_impl(const char* section_filter,
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       // Skip entries with different F- and P-names
       if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
-      if (getStatus(sec, n) == ConfigInfo::CI_DEPRICATED) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_DEPRECATED) continue;
       if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
       printer.parameter(s, sec, n, *this);
     }
@@ -4556,7 +4557,7 @@ transform(InitConfigFileParser::Context & ctx,
   if(!((oldType == PropertiesType_Uint32 || oldType == PropertiesType_Uint64) 
        && (newType == ConfigInfo::CI_INT || newType == ConfigInfo::CI_INT64 || newType == ConfigInfo::CI_BOOL))){
     ndbout << "oldType: " << (int)oldType << ", newType: " << (int)newType << endl;
-    ctx.reportError("Unable to handle type conversion w.r.t deprication %s %s"
+    ctx.reportError("Unable to handle type conversion w.r.t deprecation %s %s"
 		    "- [%s] starting at line: %d",
 		    oldName, newName,
 		    ctx.fname, ctx.m_sectionLineno);
@@ -4567,7 +4568,7 @@ transform(InitConfigFileParser::Context & ctx,
 
   Uint64 newVal = (Uint64)((Int64)oldVal * mul + add);
   if(!ctx.m_info->verify(ctx.m_currentInfo, newName, newVal)){
-    ctx.reportError("Unable to handle deprication, new value not within bounds"
+    ctx.reportError("Unable to handle deprecation, new value not within bounds"
 		    "%s %s - [%s] starting at line: %d",
 		    oldName, newName,
 		    ctx.fname, ctx.m_sectionLineno);
@@ -4583,7 +4584,7 @@ transform(InitConfigFileParser::Context & ctx,
 }
 
 static bool
-fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
+fixDeprecated(InitConfigFileParser::Context & ctx, const char * data){
   const char * name;
   /**
    * Transform old values to new values
@@ -4592,7 +4593,7 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
   Properties tmp(true);
   Properties::Iterator it(ctx.m_currentSection);
   for (name = it.first(); name != NULL; name = it.next()) {
-    const DepricationTransform * p = &f_deprication[0];
+    const DeprecationTransform * p = &f_deprecation[0];
     while(p->m_section != 0){
       if(strcmp(p->m_section, ctx.fname) == 0){
 	double mul = p->m_mul;
