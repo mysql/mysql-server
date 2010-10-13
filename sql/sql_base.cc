@@ -5319,7 +5319,10 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
 
 end:
   if (table == NULL)
+  {
+    trans_rollback_stmt(thd);
     close_thread_tables(thd);
+  }
   thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }
