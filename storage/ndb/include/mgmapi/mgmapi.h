@@ -490,7 +490,7 @@ extern "C" {
   const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
-   * DEPRICATED: use ndb_mgm_set_timeout instead.
+   * DEPRECATED: use ndb_mgm_set_timeout instead.
    *
    * @param handle  NdbMgmHandle
    * @param seconds number of seconds

@@ -290,13 +290,13 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   if (status == ConfigInfo::CI_NOTIMPLEMENTED) {
     ctx.reportWarning("[%s] %s not yet implemented", ctx.fname, fname);
   }
-  if (status == ConfigInfo::CI_DEPRICATED) {
+  if (status == ConfigInfo::CI_DEPRECATED) {
     const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
     if(desc && desc[0]){
-      ctx.reportWarning("[%s] %s is depricated, use %s instead",
+      ctx.reportWarning("[%s] %s is deprecated, use %s instead",
 			ctx.fname, fname, desc);
     } else if (desc == 0){
-      ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
+      ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
     }
   }
 

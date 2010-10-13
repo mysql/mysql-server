@@ -81,7 +81,7 @@ struct ListTablesData
 };
 
 /**
- * DEPRICATED
+ * DEPRECATED
  * It is convenient to pack request/response data per table in one
  * 32-bit word...
  *
