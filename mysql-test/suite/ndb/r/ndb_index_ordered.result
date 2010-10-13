@@ -877,3 +877,10 @@ select * from t1 where b = 'a';
 a	b
 1	a
 drop table t1;
+# bug#57396
+create table t1 (a int not null, b int not null, primary key (b,a)) engine=ndb;
+insert into t1(a,b) values(0,0);
+select * from t1 where b < 8 or b >= 8;
+a	b
+0	0
+drop table t1;
