@@ -1390,8 +1390,8 @@ logevent2str(BaseString& str, int eventType,
   unsigned i;
   for (i = 0; ndb_logevent_body[i].token; i++)
   {
-    if ( ndb_logevent_body[i].type != eventType)
-      continue;
+    if ( ndb_logevent_body[i].type == eventType)
+      break;
   }
 
   if (ndb_logevent_body[i].token)

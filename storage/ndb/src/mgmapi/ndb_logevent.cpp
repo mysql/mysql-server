@@ -586,8 +586,8 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
   /* fill in header info from p */
   for (i= 0; ndb_logevent_body[i].token; i++)
   {
-    if ( ndb_logevent_body[i].type != dst->type )
-      continue;
+    if ( ndb_logevent_body[i].type == dst->type )
+      break;
   }
 
   if (ndb_logevent_body[i].token)
