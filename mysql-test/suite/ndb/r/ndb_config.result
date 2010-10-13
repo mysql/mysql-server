@@ -30,8 +30,8 @@ tcp,3,4,55,3 tcp,3,5,55,3 tcp,3,6,55,3 tcp,4,5,55,4 tcp,4,6,55,4 tcp,5,6,55,5 tc
 == 16 == bug44689
 192.168.0.1 192.168.0.1 192.168.0.1 192.168.0.2 192.168.0.3 192.168.0.4
 == 17 == bug49400
- WARNING  -- at line 5: [MGM] Id is deprecated
- WARNING  -- at line 9: [DB] Id is deprecated
+ WARNING  -- at line 5: [MGM] Id is deprecated, use NodeId instead
+ WARNING  -- at line 9: [DB] Id is deprecated, use NodeId instead
  ERROR    -- at line 25: TCP connection is a duplicate of the existing TCP link from line 14
  ERROR    -- at line 25: Could not store section of configuration file.
 == 18 == bug56185
