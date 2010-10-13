@@ -217,6 +217,7 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_SYNC_THREAD_REQ] = &SimulatedBlock::execSYNC_THREAD_REQ;
   a[GSN_SYNC_THREAD_CONF] = &SimulatedBlock::execSYNC_THREAD_CONF;
   a[GSN_LOCAL_ROUTE_ORD] = &SimulatedBlock::execLOCAL_ROUTE_ORD;
+  a[GSN_SYNC_REQ] = &SimulatedBlock::execSYNC_REQ;
 }
 
 void
@@ -4129,6 +4130,16 @@ SimulatedBlock::execSYNC_THREAD_CONF(Signal* signal)
     return;
   }
   ptr.p->m_cnt --;
+}
+
+void
+SimulatedBlock::execSYNC_REQ(Signal* signal)
+{
+  ljamEntry();
+  Uint32 ref = signal->theData[0];
+  Uint32 prio = signal->theData[2];
+  sendSignal(ref, GSN_SYNC_CONF, signal, signal->getLength(),
+             JobBufferLevel(prio));
 }
 
 bool

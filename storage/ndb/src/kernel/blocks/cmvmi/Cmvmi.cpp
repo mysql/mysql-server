@@ -42,6 +42,7 @@
 #include <signaldata/EnableCom.hpp>
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/Sync.hpp>
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -114,9 +115,14 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_CONTINUEB, &Cmvmi::execCONTINUEB);
   addRecSignal(GSN_ROUTE_ORD, &Cmvmi::execROUTE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Cmvmi::execDBINFO_SCANREQ);
-  
+
+  addRecSignal(GSN_SYNC_REQ, &Cmvmi::execSYNC_REQ, true);
+  addRecSignal(GSN_SYNC_REF, &Cmvmi::execSYNC_REF);
+  addRecSignal(GSN_SYNC_CONF, &Cmvmi::execSYNC_CONF);
+
   subscriberPool.setSize(5);
-  
+  c_syncReqPool.setSize(5);
+
   const ndb_mgm_configuration_iterator * db = m_ctx.m_config.getOwnConfigIterator();
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 logLevel;
@@ -214,6 +220,136 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   }
 #endif
 }//execNDB_TAMPER()
+
+static Uint32 blocks[] =
+{
+  QMGR_REF,
+  NDBCNTR_REF,
+  DBTC_REF,
+  DBDIH_REF,
+  DBDICT_REF,
+  DBLQH_REF,
+  DBTUP_REF,
+  DBACC_REF,
+  NDBFS_REF,
+  BACKUP_REF,
+  DBUTIL_REF,
+  SUMA_REF,
+  TRIX_REF,
+  DBTUX_REF,
+  LGMAN_REF,
+  TSMAN_REF,
+  PGMAN_REF,
+  DBINFO_REF,
+  0
+};
+
+void
+Cmvmi::execSYNC_REQ(Signal* signal)
+{
+  jamEntry();
+  SyncReq req = * CAST_CONSTPTR(SyncReq, signal->getDataPtr());
+  Ptr<SyncRecord> ptr;
+  if (!c_syncReqPool.seize(ptr))
+  {
+    jam();
+    SyncRecord tmp;
+    ptr.p = &tmp;
+    tmp.m_senderRef = req.senderRef;
+    tmp.m_senderData = req.senderData;
+    tmp.m_prio = req.prio;
+    tmp.m_error = SyncRef::SR_OUT_OF_MEMORY;
+    sendSYNC_REP(signal, ptr);
+    return;
+  }
+
+  ptr.p->m_senderRef = req.senderRef;
+  ptr.p->m_senderData = req.senderData;
+  ptr.p->m_prio = req.prio;
+  ptr.p->m_error = 0;
+
+  SyncReq* out = CAST_PTR(SyncReq, signal->getDataPtrSend());
+  out->senderRef = reference();
+  out->senderData = ptr.i;
+  out->prio = ptr.p->m_prio;
+  Uint32 i = 0;
+  for (i = 0; blocks[i] != 0; i++)
+  {
+    sendSignal(blocks[i], GSN_SYNC_REQ, signal, SyncReq::SignalLength,
+               JobBufferLevel(ptr.p->m_prio));
+  }
+  ptr.p->m_cnt = i;
+}
+
+void
+Cmvmi::execSYNC_CONF(Signal* signal)
+{
+  jamEntry();
+  SyncConf conf = * CAST_CONSTPTR(SyncConf, signal->getDataPtr());
+
+  Ptr<SyncRecord> ptr;
+  c_syncReqPool.getPtr(ptr, conf.senderData);
+  ndbrequire(ptr.p->m_cnt > 0);
+  ptr.p->m_cnt--;
+  if (ptr.p->m_cnt == 0)
+  {
+    jam();
+
+    sendSYNC_REP(signal, ptr);
+    c_syncReqPool.release(ptr);
+  }
+}
+
+void
+Cmvmi::execSYNC_REF(Signal* signal)
+{
+  jamEntry();
+  SyncRef ref = * CAST_CONSTPTR(SyncRef, signal->getDataPtr());
+
+  Ptr<SyncRecord> ptr;
+  c_syncReqPool.getPtr(ptr, ref.senderData);
+  ndbrequire(ptr.p->m_cnt > 0);
+  ptr.p->m_cnt--;
+
+  if (ptr.p->m_error == 0)
+  {
+    jam();
+    ptr.p->m_error = ref.errorCode;
+  }
+
+  if (ptr.p->m_cnt == 0)
+  {
+    jam();
+
+    sendSYNC_REP(signal, ptr);
+    c_syncReqPool.release(ptr);
+  }
+}
+
+void
+Cmvmi::sendSYNC_REP(Signal * signal, Ptr<SyncRecord> ptr)
+{
+  if (ptr.p->m_error == 0)
+  {
+    jam();
+    SyncConf* conf = CAST_PTR(SyncConf, signal->getDataPtrSend());
+    conf->senderRef = reference();
+    conf->senderData = ptr.p->m_senderData;
+    sendSignal(ptr.p->m_senderRef, GSN_SYNC_CONF, signal,
+               SyncConf::SignalLength,
+               JobBufferLevel(ptr.p->m_prio));
+  }
+  else
+  {
+    jam();
+    SyncRef* ref = CAST_PTR(SyncRef, signal->getDataPtrSend());
+    ref->senderRef = reference();
+    ref->senderData = ptr.p->m_senderData;
+    ref->errorCode = ptr.p->m_error;
+    sendSignal(ptr.p->m_senderRef, GSN_SYNC_REF, signal, SyncRef::SignalLength,
+               JobBufferLevel(ptr.p->m_prio));
+  }
+}
 
 void Cmvmi::execSET_LOGLEVELORD(Signal* signal) 
 {
@@ -955,12 +1091,188 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   // to be able to indicate if we really introduced an error.
 #ifdef ERROR_INSERT
   TamperOrd* const tamperOrd = (TamperOrd*)&signal->theData[0];
-  signal->theData[2] = 0;
-  signal->theData[1] = tamperOrd->errorNo;
-  signal->theData[0] = 5;
-  sendSignal(DBDIH_REF, GSN_DIHNDBTAMPER, signal, 3,JBB);
-#endif
+  Uint32 errNo = tamperOrd->errorNo;
 
+  if (errNo == 0)
+  {
+    jam();
+    signal->theData[0] = 0;
+    sendSignal(QMGR_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(NDBCNTR_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(NDBFS_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(DBACC_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(DBTUP_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(DBLQH_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(DBDICT_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(DBDIH_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(DBTC_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(CMVMI_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
+  Uint32 tuserblockref = 0;
+  if (errNo < 1000)
+  {
+    /*--------------------------------------------------------------------*/
+    // Insert errors into QMGR.
+    /*--------------------------------------------------------------------*/
+    jam();
+    tuserblockref = QMGR_REF;
+  }
+  else if (errNo < 2000)
+  {
+    /*--------------------------------------------------------------------*/
+    // Insert errors into NDBCNTR.
+    /*--------------------------------------------------------------------*/
+    jam();
+    tuserblockref = NDBCNTR_REF;
+  }
+  else if (errNo < 3000)
+  {
+    /*--------------------------------------------------------------------*/
+    // Insert errors into NDBFS.
+    /*--------------------------------------------------------------------*/
+    jam();
+    tuserblockref = NDBFS_REF;
+  }
+  else if (errNo < 4000)
+  {
+    /*--------------------------------------------------------------------*/
+    // Insert errors into DBACC.
+    /*--------------------------------------------------------------------*/
+    jam();
+    tuserblockref = DBACC_REF;
+  }
+  else if (errNo < 5000)
+  {
+    /*--------------------------------------------------------------------*/
+    // Insert errors into DBTUP.
+    /*--------------------------------------------------------------------*/
+    jam();
+    tuserblockref = DBTUP_REF;
+  }
+  else if (errNo < 6000)
+  {
+    /*---------------------------------------------------------------------*/
+    // Insert errors into DBLQH.
+    /*---------------------------------------------------------------------*/
+    jam();
+    tuserblockref = DBLQH_REF;
+  }
+  else if (errNo < 7000)
+  {
+    /*---------------------------------------------------------------------*/
+    // Insert errors into DBDICT.
+    /*---------------------------------------------------------------------*/
+    jam();
+    tuserblockref = DBDICT_REF;
+  }
+  else if (errNo < 8000)
+  {
+    /*---------------------------------------------------------------------*/
+    // Insert errors into DBDIH.
+    /*--------------------------------------------------------------------*/
+    jam();
+    tuserblockref = DBDIH_REF;
+  }
+  else if (errNo < 9000)
+  {
+    /*--------------------------------------------------------------------*/
+    // Insert errors into DBTC.
+    /*--------------------------------------------------------------------*/
+    jam();
+    tuserblockref = DBTC_REF;
+  }
+  else if (errNo < 10000)
+  {
+    /*--------------------------------------------------------------------*/
+    // Insert errors into CMVMI.
+    /*--------------------------------------------------------------------*/
+    jam();
+    tuserblockref = CMVMI_REF;
+  }
+  else if (errNo < 11000)
+  {
+    jam();
+    tuserblockref = BACKUP_REF;
+  }
+  else if (errNo < 12000)
+  {
+    // DBUTIL_REF ?
+    jam();
+  }
+  else if (errNo < 13000)
+  {
+    jam();
+    tuserblockref = DBTUX_REF;
+  }
+  else if (errNo < 14000)
+  {
+    jam();
+    tuserblockref = SUMA_REF;
+  }
+  else if (errNo < 15000)
+  {
+    jam();
+    tuserblockref = DBDICT_REF;
+  }
+  else if (errNo < 16000)
+  {
+    jam();
+    tuserblockref = LGMAN_REF;
+  }
+  else if (errNo < 17000)
+  {
+    jam();
+    tuserblockref = TSMAN_REF;
+  }
+  else if (errNo < 30000)
+  {
+    /*--------------------------------------------------------------------*/
+    // Ignore errors in the 20000-range.
+    /*--------------------------------------------------------------------*/
+    jam();
+    return;
+  }
+  else if (errNo < 40000)
+  {
+    jam();
+    /*--------------------------------------------------------------------*/
+    // Redirect errors to master DIH in the 30000-range.
+    /*--------------------------------------------------------------------*/
+
+    /**
+     * since CMVMI doesnt keep track of master,
+     * send to local DIH
+     */
+    signal->theData[0] = 5;
+    signal->theData[1] = errNo;
+    signal->theData[2] = 0;
+    sendSignal(DBDIH_REF, GSN_DIHNDBTAMPER, signal, 3, JBB);
+    return;
+  }
+  else if (errNo < 50000)
+  {
+    jam();
+
+    /**
+     * since CMVMI doesnt keep track of master,
+     * send to local DIH
+     */
+    signal->theData[0] = 5;
+    signal->theData[1] = errNo;
+    signal->theData[2] = 0;
+    sendSignal(DBDIH_REF, GSN_DIHNDBTAMPER, signal, 3, JBB);
+    return;
+  }
+
+  ndbassert(tuserblockref != 0); // mapping missing ??
+  if (tuserblockref != 0)
+  {
+    signal->theData[0] = errNo;
+    sendSignal(tuserblockref, GSN_NDB_TAMPER, signal, 1, JBB);
+  }
+#endif
 }//execTAMPER_ORD()
 
 #ifdef VM_TRACE
