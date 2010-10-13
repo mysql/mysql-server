@@ -1279,9 +1279,7 @@ private:
       errorKey = 0;
       errorObjectName[0] = 0;
     }
-#ifdef VM_TRACE
     void print(NdbOut&) const;
-#endif
   private:
     ErrorInfo& operator=(const ErrorInfo&);
   };
@@ -3767,9 +3765,9 @@ public:
   
   int checkSingleUserMode(Uint32 senderRef);
 
+  friend NdbOut& operator<<(NdbOut& out, const ErrorInfo&);
 #ifdef VM_TRACE
   friend NdbOut& operator<<(NdbOut& out, const DictObject&);
-  friend NdbOut& operator<<(NdbOut& out, const ErrorInfo&);
   friend NdbOut& operator<<(NdbOut& out, const SchemaOp&);
   friend NdbOut& operator<<(NdbOut& out, const SchemaTrans&);
   friend NdbOut& operator<<(NdbOut& out, const TxHandle&);
