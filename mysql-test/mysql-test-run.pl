@@ -195,6 +195,7 @@ sub using_extern { return (keys %opts_extern > 0);};
 our $opt_fast= 0;
 our $opt_force;
 our $opt_mem= $ENV{'MTR_MEM'};
+our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
 our $opt_gcov_exe= "gcov";
@@ -475,6 +476,8 @@ sub main {
   }
 
   mtr_report_stats("Completed", $completed);
+
+  remove_vardir_subs() if $opt_clean_vardir;
 
   exit(0);
 }
@@ -946,6 +949,7 @@ sub command_line_setup {
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
              'mem'                      => \$opt_mem,
+	     'clean-vardir'             => \$opt_clean_vardir,
              'client-bindir=s'          => \$path_client_bindir,
              'client-libdir=s'          => \$path_client_libdir,
 
@@ -2202,6 +2206,12 @@ sub environment_setup {
 }
 
 
+sub remove_vardir_subs() {
+  foreach my $sdir ( glob("$opt_vardir/*") ) {
+    mtr_verbose("Removing subdir $sdir");
+    rmtree($sdir);
+  }
+}
 
 #
 # Remove var and any directories in var/ created by previous
@@ -2246,11 +2256,7 @@ sub remove_stale_vardir () {
 	mtr_error("The destination for symlink $opt_vardir does not exist")
 	  if ! -d readlink($opt_vardir);
 
-	foreach my $bin ( glob("$opt_vardir/*") )
-	{
-	  mtr_verbose("Removing bin $bin");
-	  rmtree($bin);
-	}
+	remove_vardir_subs();
       }
     }
     else
@@ -5502,6 +5508,8 @@ Options to control directories to use
                         for tmpfs (/dev/shm)
                         The option can also be set using environment
                         variable MTR_MEM=[DIR]
+  clean-vardir          Clean vardir if tests were successful and if
+                        running in "memory". Otherwise this option is ignored
   client-bindir=PATH    Path to the directory where client binaries are located
   client-libdir=PATH    Path to the directory where client libraries are located
 
