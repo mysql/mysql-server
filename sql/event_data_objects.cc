@@ -837,8 +837,9 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   }
   else
   {
-    long diff_months= (long) (local_now.year - local_start.year)*12 +
-                      (local_now.month - local_start.month);
+    long diff_months= ((long) local_now.year - (long) local_start.year)*12 +
+                      ((long) local_now.month - (long) local_start.month);
+
     /*
       Unlike for seconds above, the formula below returns the interval
       that, when added to the local_start, will give the time in the
@@ -1436,7 +1437,10 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
   {
-    Parser_state parser_state(thd, thd->query(), thd->query_length());
+    Parser_state parser_state;
+    if (parser_state.init(thd, thd->query(), thd->query_length()))
+      goto end;
+
     lex_start(thd);
 
     if (parse_sql(thd, & parser_state, creation_ctx))

@@ -707,10 +707,7 @@ numgeometries(b) IS NULL, numinteriorrings(b) IS NULL, numpoints(b) IS NULL,
 area(b) IS NULL, glength(b) IS NULL, srid(b) IS NULL, x(b) IS NULL, 
 y(b) IS NULL
 from t1;
-geometryfromtext(b) IS NULL	geometryfromwkb(b) IS NULL	astext(b) IS NULL	aswkb(b) IS NULL	geometrytype(b) IS NULL	centroid(b) IS NULL	envelope(b) IS NULL	startpoint(b) IS NULL	endpoint(b) IS NULL	exteriorring(b) IS NULL	pointn(b, 1) IS NULL	geometryn(b, 1) IS NULL	interiorringn(b, 1) IS NULL	multipoint(b) IS NULL	isempty(b) IS NULL	issimple(b) IS NULL	isclosed(b) IS NULL	dimension(b) IS NULL	numgeometries(b) IS NULL	numinteriorrings(b) IS NULL	numpoints(b) IS NULL	area(b) IS NULL	glength(b) IS NULL	srid(b) IS NULL	x(b) IS NULL	y(b) IS NULL
-1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+ERROR 22007: Illegal non geometric '`test`.`t1`.`b`' value found during parsing
 select 
 within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL, 
 equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL, 
@@ -725,10 +722,7 @@ point(b, b) IS NULL, linestring(b) IS NULL, polygon(b) IS NULL, multipoint(b) IS
 multilinestring(b) IS NULL, multipolygon(b) IS NULL, 
 geometrycollection(b) IS NULL
 from t1;
-point(b, b) IS NULL	linestring(b) IS NULL	polygon(b) IS NULL	multipoint(b) IS NULL	multilinestring(b) IS NULL	multipolygon(b) IS NULL	geometrycollection(b) IS NULL
-0	1	1	1	1	1	1
-1	1	1	1	1	1	1
-0	1	1	1	1	1	1
+ERROR 22007: Illegal non geometric '`test`.`t1`.`b`' value found during parsing
 drop table t1;
 CREATE TABLE t1(a POINT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (NULL);
@@ -1010,51 +1004,14 @@ f5	datetime	YES		NULL
 drop view v1;
 drop table t1;
 SELECT MultiPoint(12345,'');
-MultiPoint(12345,'')
-NULL
-SELECT MultiPoint(123451,'');
-MultiPoint(123451,'')
-NULL
-SELECT MultiPoint(1234512,'');
-MultiPoint(1234512,'')
-NULL
-SELECT MultiPoint(12345123,'');
-MultiPoint(12345123,'')
-NULL
-SELECT MultiLineString(12345,'');
-MultiLineString(12345,'')
-NULL
-SELECT MultiLineString(123451,'');
-MultiLineString(123451,'')
-NULL
-SELECT MultiLineString(1234512,'');
-MultiLineString(1234512,'')
-NULL
-SELECT MultiLineString(12345123,'');
-MultiLineString(12345123,'')
-NULL
-SELECT LineString(12345,'');
-LineString(12345,'')
-NULL
-SELECT LineString(123451,'');
-LineString(123451,'')
-NULL
-SELECT LineString(1234512,'');
-LineString(1234512,'')
-NULL
-SELECT LineString(12345123,'');
-LineString(12345123,'')
-NULL
-SELECT Polygon(12345,'');
-Polygon(12345,'')
-NULL
-SELECT Polygon(123451,'');
-Polygon(123451,'')
-NULL
-SELECT Polygon(1234512,'');
-Polygon(1234512,'')
-NULL
-SELECT Polygon(12345123,'');
-Polygon(12345123,'')
-NULL
+ERROR 22007: Illegal non geometric '12345' value found during parsing
+SELECT 1 FROM (SELECT GREATEST(1,GEOMETRYCOLLECTION('00000','00000')) b FROM DUAL) AS d WHERE (LINESTRING(d.b));
+ERROR 22007: Illegal non geometric ''00000'' value found during parsing
+#
+# BUG#51875: crash when loading data into geometry function polyfromwkb
+#
+SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
+SET @a=POLYFROMWKB(@a);
+SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
+SET @a=POLYFROMWKB(@a);
 End of 5.1 tests

@@ -1688,7 +1688,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 100; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -1727,7 +1727,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (o_tiny_data= 0; o_tiny_data < 100; o_tiny_data++)
   {
-    len= my_sprintf(data, (data, "MySQL%d", o_int_data));
+    len= sprintf(data, "MySQL%d", o_int_data);
 
     rc= mysql_stmt_fetch(stmt);
     check_execute(stmt, rc);
@@ -3093,7 +3093,7 @@ static void test_simple_update()
   my_bind[0].buffer= szData;                /* string data */
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "updated-data"));
+  length[0]= sprintf(szData, "updated-data");
 
   my_bind[1].buffer= (void *) &nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -3289,7 +3289,7 @@ static void test_long_data_str()
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
-  my_sprintf(data, (data, "%d", i*5));
+  sprintf(data, "%d", i*5);
   verify_col_data("test_long_data_str", "LENGTH(longstr)", data);
   data[0]= '\0';
   while (i--)
@@ -3347,7 +3347,7 @@ static void test_long_data_str1()
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
-  length= my_sprintf(data, (data, "MySQL AB"));
+  length= sprintf(data, "MySQL AB");
 
   /* supply data in pieces */
   for (i= 0; i < 3; i++)
@@ -3387,10 +3387,10 @@ static void test_long_data_str1()
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
-  my_sprintf(data, (data, "%ld", (long)i*length));
+  sprintf(data, "%ld", (long)i*length);
   verify_col_data("test_long_data_str", "length(longstr)", data);
 
-  my_sprintf(data, (data, "%d", i*2));
+  sprintf(data, "%d", i*2);
   verify_col_data("test_long_data_str", "length(blb)", data);
 
   /* Test length of field->max_length */
@@ -3662,7 +3662,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "inserted-data"));
+  length[0]= sprintf(szData, "inserted-data");
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -3691,7 +3691,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "updated-data"));
+  length[0]= sprintf(szData, "updated-data");
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4260,7 +4260,7 @@ static void bind_fetch(int row_count)
     /* CHAR */
     {
       char buff[20];
-      long len= my_sprintf(buff, (buff, "%d", rc));
+      long len= sprintf(buff, "%d", rc);
       DIE_UNLESS(strcmp(s_data, buff) == 0);
       DIE_UNLESS(length[6] == (ulong) len);
     }
@@ -4853,7 +4853,7 @@ static void test_insert()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 3; tiny_data++)
   {
-    length= my_sprintf(str_data, (str_data, "MySQL%d", tiny_data));
+    length= sprintf(str_data, "MySQL%d", tiny_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
   }
@@ -13249,36 +13249,51 @@ static void test_bug15518()
 }
 
 
-static void disable_general_log()
+static void disable_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=off");
   myquery(rc);
+  rc= mysql_query(mysql, "set @@global.slow_query_log=off");
+  myquery(rc);
 }
 
 
-static void enable_general_log(int truncate)
+static void enable_query_logs(int truncate)
 {
   int rc;
 
   rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
   myquery(rc);
 
+  rc= mysql_query(mysql, "set @save_global_slow_query_log=@@global.slow_query_log");
+  myquery(rc);
+
   rc= mysql_query(mysql, "set @@global.general_log=on");
   myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=on");
+  myquery(rc);
+
 
   if (truncate)
   {
     rc= mysql_query(mysql, "truncate mysql.general_log");
     myquery(rc);
+
+    rc= mysql_query(mysql, "truncate mysql.slow_log");
+    myquery(rc);
   }
 }
 
 
-static void restore_general_log()
+static void restore_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=@save_global_slow_query_log");
   myquery(rc);
 }
 
@@ -15450,7 +15465,7 @@ static void test_bug17667()
     return;
   }
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
        statement_cursor++)
@@ -15530,7 +15545,7 @@ static void test_bug17667()
              statement_cursor->buffer);
   }
 
-  restore_general_log();
+  restore_query_logs();
 
   if (!opt_silent)
     printf("success.  All queries found intact in the log.\n");
@@ -17393,7 +17408,7 @@ static void test_bug28386()
   }
   mysql_free_result(result);
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   stmt= mysql_simple_prepare(mysql, "SELECT ?");
   check_stmt(stmt);
@@ -17432,7 +17447,7 @@ static void test_bug28386()
 
   mysql_free_result(result);
 
-  restore_general_log();
+  restore_query_logs();
 
   DBUG_VOID_RETURN;
 }
@@ -17515,7 +17530,7 @@ static void test_wl4166_1()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 10; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -17538,7 +17553,7 @@ static void test_wl4166_1()
 
   for (tiny_data= 50; tiny_data < 60; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -18096,6 +18111,195 @@ static void test_bug53371()
 }
 
 
+static void test_bug53907()
+{
+  int rc;
+  uchar buf[] = "\x4test\x14../client_test_db/t1";
+
+  myheader("test_bug53907");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP DATABASE IF EXISTS bug53907");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP USER 'testbug'@localhost");
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE DATABASE bug53907");
+  myquery(rc);
+  rc= mysql_query(mysql, "GRANT SELECT ON bug53907.* to 'testbug'@localhost");
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, "testbug", NULL, "bug53907");
+  myquery(rc);
+
+  rc= simple_command(mysql, COM_TABLE_DUMP, buf, sizeof(buf), 0);
+  fprintf(stderr, ">>>>>>>>> %d\n", mysql_errno(mysql));
+  DIE_UNLESS(mysql_errno(mysql) == 1103); /* ER_WRONG_TABLE_NAME */
+
+  rc= mysql_change_user(mysql, opt_user, opt_password, current_db);
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP DATABASE bug53907");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP USER 'testbug'@localhost");
+  myquery(rc);
+}
+
+
+/**
+  Bug#42373: libmysql can mess a connection at connect
+*/
+static void test_bug42373()
+{
+  int rc;
+  MYSQL con;
+  MYSQL_STMT *stmt;
+
+  DBUG_ENTER("test_bug42373");
+  myheader("test_42373");
+
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE PROCEDURE p1()"
+                         "  BEGIN"
+                         "  SELECT 1;"
+                         "  INSERT INTO t1 VALUES (2);"
+                         "END;");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
+  myquery(rc);
+
+  /* Try with a stored procedure. */
+  DIE_UNLESS(mysql_client_init(&con));
+
+  mysql_options(&con, MYSQL_INIT_COMMAND, "CALL p1()");
+
+  DIE_UNLESS(mysql_real_connect(&con, opt_host, opt_user, opt_password,
+                                current_db, opt_port, opt_unix_socket,
+                                CLIENT_MULTI_STATEMENTS|CLIENT_MULTI_RESULTS));
+
+  stmt= mysql_simple_prepare(&con, "SELECT a FROM t1");
+  check_stmt(stmt);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= my_process_stmt_result(stmt);
+  DIE_UNLESS(rc == 1);
+
+  mysql_stmt_close(stmt);
+
+  /* Now try with a multi-statement. */
+  DIE_UNLESS(mysql_client_init(&con));
+
+  mysql_options(&con, MYSQL_INIT_COMMAND,
+                "SELECT 3; INSERT INTO t1 VALUES (4)");
+
+  DIE_UNLESS(mysql_real_connect(&con, opt_host, opt_user, opt_password,
+                                current_db, opt_port, opt_unix_socket,
+                                CLIENT_MULTI_STATEMENTS|CLIENT_MULTI_RESULTS));
+
+  stmt= mysql_simple_prepare(&con, "SELECT a FROM t1");
+  check_stmt(stmt);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= my_process_stmt_result(stmt);
+  DIE_UNLESS(rc == 2);
+
+  mysql_stmt_close(stmt);
+  mysql_close(&con);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP PROCEDURE p1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041_impl()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind;
+
+  DBUG_ENTER("test_bug54041");
+  myheader("test_bug54041");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "SELECT a FROM t1 WHERE a > ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  memset(&bind, 0, sizeof(bind));
+
+  /* Any type that does not support long data handling. */
+  bind.buffer_type= MYSQL_TYPE_LONG;
+
+  rc= mysql_stmt_bind_param(stmt, &bind);
+  check_execute(stmt, rc);
+
+  /*
+    Trick the client API into sending a long data packet for
+    the parameter. Long data is only supported for string and
+    binary types.
+  */
+  stmt->params[0].buffer_type= MYSQL_TYPE_STRING;
+
+  rc= mysql_stmt_send_long_data(stmt, 0, "data", 5);
+  check_execute(stmt, rc);
+
+  /* Undo API violation. */
+  stmt->params[0].buffer_type= MYSQL_TYPE_LONG;
+
+  rc= mysql_stmt_execute(stmt);
+  /* Incorrect arguments. */
+  check_execute_r(stmt, rc);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041()
+{
+  enable_query_logs(0);
+  test_bug54041_impl();
+  disable_query_logs();
+  test_bug54041_impl();
+  restore_query_logs();
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -18105,17 +18309,17 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
-  {"basedir", 'b', "Basedir for tests.", (uchar**) &opt_basedir,
-   (uchar**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 't', "Number of times test to be executed", (uchar **) &opt_count,
-   (uchar **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use", (uchar **) &opt_db, (uchar **) &opt_db,
+  {"basedir", 'b', "Basedir for tests.", &opt_basedir,
+   &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 't', "Number of times test to be executed", &opt_count,
+   &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"database", 'D', "Database to use", &opt_db, &opt_db,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
-   (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", &default_dbug_option,
+   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host", (uchar **) &opt_host, (uchar **) &opt_host,
+  {"host", 'h', "Connect to host", &opt_host, &opt_host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
@@ -18126,8 +18330,7 @@ static struct my_option client_test_long_options[] =
    "/etc/services, "
 #endif
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-   (uchar **) &opt_port,
-   (uchar **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_port, &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-arg", 'A', "Send embedded server this as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
@@ -18136,23 +18339,23 @@ static struct my_option client_test_long_options[] =
    0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", 'm', "Base name of shared memory.", 
-  (uchar**) &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
+  &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"socket", 'S', "Socket file to use for connection",
-   (uchar **) &opt_unix_socket, (uchar **) &opt_unix_socket, 0, GET_STR,
+   &opt_unix_socket, &opt_unix_socket, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"testcase", 'c',
    "May disable some code when runs as mysql-test-run testcase.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user", (uchar **) &opt_user,
-   (uchar **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user", &opt_user,
+   &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"vardir", 'v', "Data dir for tests.", (uchar**) &opt_vardir,
-   (uchar**) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"vardir", 'v', "Data dir for tests.", &opt_vardir,
+   &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
-   (uchar **) &opt_getopt_ll_test, (uchar **) &opt_getopt_ll_test, 0,
+   &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -18177,7 +18380,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 
 static struct my_tests_st my_tests[]= {
-  { "disable_general_log", disable_general_log },
+  { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},
@@ -18406,6 +18609,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20023", test_bug20023 },
   { "test_bug45010", test_bug45010 },
   { "test_bug53371", test_bug53371 },
+  { "test_bug53907", test_bug53907 },
   { "test_bug31418", test_bug31418 },
   { "test_bug31669", test_bug31669 },
   { "test_bug28386", test_bug28386 },
@@ -18419,6 +18623,8 @@ static struct my_tests_st my_tests[]= {
 #endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
+  { "test_bug42373", test_bug42373 },
+  { "test_bug54041", test_bug54041 },
   { 0, 0 }
 };
 

@@ -444,6 +444,8 @@ struct trx_struct{
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd
 					which contains the pointer to the
 					current SQL query string */
+	size_t*		mysql_query_len;/* pointer to the length of the
+					current SQL query string */
 	const char*	mysql_log_file_name;
 					/* if MySQL binlog is used, this field
 					contains a pointer to the latest file
