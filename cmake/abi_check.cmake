@@ -27,12 +27,14 @@ IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
   ELSE()
     SET(COMPILER ${CMAKE_C_COMPILER})
   ENDIF()
-  SET(API_PREPROCESSOR_HEADER 
+  SET(API_PREPROCESSOR_HEADER
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin_audit.h
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin_ftparser.h
     ${CMAKE_SOURCE_DIR}/include/mysql.h
-    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v1.h 
+    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v1.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v2.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/client_plugin.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/plugin_auth.h
   )
 
   ADD_CUSTOM_TARGET(abi_check ALL
