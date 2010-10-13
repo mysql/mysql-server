@@ -1230,7 +1230,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
 #ifdef HAVE_REPLICATION
     case SLAVE_EVENT: /* can never happen (unused event) */
-      ev = new Slave_log_event(buf, event_len);
+      ev = new Slave_log_event(buf, event_len, description_event);
       break;
 #endif /* HAVE_REPLICATION */
     case CREATE_FILE_EVENT:
@@ -1318,8 +1318,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     (because constructor is "void") ; so instead we leave the pointer we
     wanted to allocate (e.g. 'query') to 0 and we test it in is_valid().
     Same for Format_description_log_event, member 'post_header_len'.
+
+    SLAVE_EVENT is never used, so it should not be read ever.
   */
-  if (!ev || !ev->is_valid())
+  if (!ev || !ev->is_valid() || (event_type == SLAVE_EVENT))
   {
     DBUG_PRINT("error",("Found invalid event in binary log"));
 
@@ -5983,8 +5985,12 @@ void Slave_log_event::init_from_mem_pool(int data_size)
 
 
 /** This code is not used, so has not been updated to be format-tolerant. */
-Slave_log_event::Slave_log_event(const char* buf, uint event_len)
-  :Log_event(buf,0) /*unused event*/ ,mem_pool(0),master_host(0)
+/* We are using description_event so that slave does not crash on Log_event
+  constructor */
+Slave_log_event::Slave_log_event(const char* buf, 
+                                 uint event_len,
+                                 const Format_description_log_event* description_event)
+  :Log_event(buf,description_event),mem_pool(0),master_host(0)
 {
   if (event_len < LOG_EVENT_HEADER_LEN)
     return;
