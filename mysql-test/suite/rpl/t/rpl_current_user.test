@@ -1,0 +1,238 @@
+##############################################################################
+# BUG#48321 CURRENT_USER() incorrectly replicated for DROP/RENAME USER,
+# REVOKE, GRANT, ALTER EVENT
+#
+# Calling CURRENT_USER() results into inconsistency between slave and master,
+# as the slave SQL thread has different user with common users.
+#
+# After the patch for bug#48321, session's user will be written into query log
+# event if CURRENT_USER() is called in 'DROP/RENAME USER', 'REVOKE', 'GRANT',
+# 'ALTER EVENT'.
+#
+##############################################################################
+source include/master-slave.inc;
+source include/have_binlog_format_statement.inc;
+
+--echo
+--echo # On slave2
+connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
+connection slave2;
+
+--echo # Connect slave2 to slave
+--replace_result $SLAVE_MYPORT SLAVE_MYPORT;
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT,
+     MASTER_LOG_FILE='slave-bin.000001', MASTER_USER='root';
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+
+--echo
+--echo # [On master]
+connection master;
+--disable_warnings
+DROP VIEW IF EXISTS v_user;
+DROP VIEW IF EXISTS v_tables_priv;
+DROP VIEW IF EXISTS v_procs_priv;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS my_grant;
+DROP PROCEDURE IF EXISTS my_revoke;
+DROP FUNCTION IF EXISTS my_user;
+DROP EVENT IF EXISTS e1;
+--enable_warnings
+CREATE TABLE t1(c1 char(100));
+CREATE VIEW test.v_user AS SELECT * FROM mysql.user WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_tables_priv AS SELECT * FROM mysql.tables_priv WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_procs_priv AS SELECT * FROM mysql.procs_priv WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_event AS SELECT definer FROM mysql.event WHERE name = 'e1';
+CREATE PROCEDURE p1() SELECT 1;
+--echo # bug48321_1-01234 has the max length(16) of user.
+GRANT ALL PRIVILEGES ON *.* TO 'bug48321_1-01234'@'localhost' WITH GRANT OPTION; 
+
+--echo
+--echo # Make sure the max lengths of user and host
+--echo # the user name is too lengh
+--error 1470
+GRANT CREATE USER ON *.* TO '01234567890123456'@'fakehost';
+--echo # the host name is too lengh
+--error 1470
+GRANT CREATE USER ON *.* TO 'fakename'@'0123456789012345678901234567890123456789012345678901234567890';
+
+--echo
+--echo # User 'bug48321_1-01234' connects to master by conn1
+connect (conn1, 127.0.0.1, 'bug48321_1-01234'@'localhost',,);
+connection conn1;
+--echo # [On conn1]
+--echo # Verify 'REVOKE ALL' statement
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM CURRENT_USER();
+let $diff_table= test.v_user;
+let $diff_server_list= master, slave, slave2;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'GRANT ... ON TABLE ...' statement
+connection conn1;
+GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
+let $diff_table= test.v_tables_priv;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'GRANT ... ON PROCEDURE...' statement
+connection conn1;
+GRANT ALTER ROUTINE, EXECUTE ON PROCEDURE p1 TO CURRENT_USER();
+let $diff_table= test.v_procs_priv;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'GRANT ... ON *.* ...' statement
+connection conn1;
+GRANT ALL PRIVILEGES ON *.* TO CURRENT_USER() WITH GRANT OPTION;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'REVOKE ... ON TABLE ...' statement
+connection conn1;
+REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
+let $diff_table= test.v_tables_priv;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'REVOKE ... ON PROCEDURE...' statement
+connection conn1;
+REVOKE ALTER ROUTINE, EXECUTE ON PROCEDURE p1 FROM CURRENT_USER();
+let $diff_table= test.v_procs_priv;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'REVOKE ... ON *.* ...' statement
+connection conn1;
+REVOKE ALL PRIVILEGES ON *.* FROM CURRENT_USER();
+let $diff_table= test.v_user;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'GRANT ...' statement in the procedure
+connection conn1;
+CREATE PROCEDURE my_grant()
+  GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
+call my_grant;
+let $diff_table= test.v_tables_priv;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'REVOKE ... ON TABLE ...' statement in the procedure
+connection conn1;
+CREATE PROCEDURE my_revoke()
+  REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
+call my_revoke;
+let $diff_table= test.v_tables_priv;
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'RENAME USER ...' statement
+connection conn1;
+RENAME USER CURRENT_USER TO 'bug48321_2'@'localhost';
+let $diff_table= test.v_user;
+source include/rpl_diff_tables.inc;
+
+disconnect conn1;
+
+--echo 
+--echo # Verify 'DROP USER ...' statement
+connection master;
+GRANT CREATE USER ON *.* TO 'bug48321_2'@'localhost';
+connect (conn1, 127.0.0.1, 'bug48321_2'@'localhost',,);
+connection conn1;
+DROP USER CURRENT_USER();
+source include/rpl_diff_tables.inc;
+
+--echo 
+--echo # Verify 'ALTER EVENT...' statement
+connection master;
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT * FROM t1;
+
+--echo # Explicitly assign CURRENT_USER() to definer
+ALTER DEFINER=CURRENT_USER() EVENT e1 ENABLE;
+let $diff_table= test.v_event;
+source include/rpl_diff_tables.inc;
+
+connection master;
+--echo
+--echo # Session user will be set as definer, if the statement does not assign
+--echo # a definer
+ALTER EVENT e1 ENABLE;
+sync_slave_with_master;
+source include/rpl_diff_tables.inc;
+
+--echo
+--echo # Verify that this patch does not affect the calling of CURRENT_USER() 
+--echo # in the other statements
+connection master;
+--echo # [On master]
+INSERT INTO t1 VALUES(CURRENT_USER()), ('1234');
+SELECT * FROM t1;
+sync_slave_with_master;
+--echo # [On slave]
+SELECT * FROM t1;
+--echo # [On slave2]
+sync_slave_with_master slave2;
+SELECT * FROM t1;
+
+connection master;
+--echo # [On master]
+UPDATE t1 SET c1=CURRENT_USER() WHERE c1='1234';
+SELECT * FROM t1;
+sync_slave_with_master;
+--echo # [On slave]
+SELECT * FROM t1;
+sync_slave_with_master slave2;
+--echo # [On slave2]
+SELECT * FROM t1;
+
+connection master;
+--echo # [On master]
+DELETE FROM t1 WHERE c1=CURRENT_USER();
+SELECT * FROM t1;
+sync_slave_with_master;
+--echo # [On slave]
+SELECT * FROM t1;
+sync_slave_with_master slave2;
+--echo # [On slave2]
+SELECT * FROM t1;
+
+connection master;
+--echo # [On master]
+CREATE TABLE t2(c1 char(100));
+
+DELIMITER |;
+CREATE FUNCTION my_user() RETURNS VARCHAR(64) 
+  SQL SECURITY INVOKER 
+BEGIN
+  INSERT INTO t2 VALUES(CURRENT_USER());
+  RETURN CURRENT_USER();
+END |
+DELIMITER ;|
+
+INSERT INTO t1 VALUES(my_user());
+SELECT * FROM t1;
+SELECT * FROM t2;
+sync_slave_with_master;
+--echo # [On slave]
+SELECT * FROM t1;
+SELECT * FROM t2;
+sync_slave_with_master slave2;
+--echo # [On slave2]
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo
+--echo # END
+connection master;
+DROP TABLE t1, t2;
+DROP VIEW v_user, v_tables_priv, v_procs_priv, v_event; 
+DROP PROCEDURE p1;
+DROP PROCEDURE my_grant;
+DROP PROCEDURE my_revoke;
+DROP FUNCTION my_user;
+DROP EVENT e1;
+sync_slave_with_master;
+sync_slave_with_master slave2;
+source include/master-slave-end.inc;

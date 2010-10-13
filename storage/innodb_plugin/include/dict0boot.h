@@ -46,13 +46,14 @@ dict_hdr_get(
 /*=========*/
 	mtr_t*	mtr);	/*!< in: mtr */
 /**********************************************************************//**
-Returns a new row, table, index, or tree id.
-@return	the new id */
+Returns a new table, index, or space id. */
 UNIV_INTERN
-dulint
+void
 dict_hdr_get_new_id(
 /*================*/
-	ulint	type);	/*!< in: DICT_HDR_ROW_ID, ... */
+	dulint*	table_id,	/*!< out: table id (not assigned if NULL) */
+	dulint*	index_id,	/*!< out: index id (not assigned if NULL) */
+	ulint*	space_id);	/*!< out: space id (not assigned if NULL) */
 /**********************************************************************//**
 Returns a new row id.
 @return	the new id */
@@ -119,7 +120,8 @@ dict_create(void);
 #define DICT_HDR_ROW_ID		0	/* The latest assigned row id */
 #define	DICT_HDR_TABLE_ID	8	/* The latest assigned table id */
 #define	DICT_HDR_INDEX_ID	16	/* The latest assigned index id */
-#define	DICT_HDR_MIX_ID		24	/* Obsolete, always 0. */
+#define DICT_HDR_MAX_SPACE_ID	24	/* The latest assigned space id, or 0*/
+#define	DICT_HDR_MIX_ID_LOW	28	/* Obsolete,always DICT_HDR_FIRST_ID */
 #define	DICT_HDR_TABLES		32	/* Root of the table index tree */
 #define	DICT_HDR_TABLE_IDS	36	/* Root of the table index tree */
 #define	DICT_HDR_COLUMNS	40	/* Root of the column index tree */

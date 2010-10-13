@@ -395,6 +395,25 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 
 /**
+  Check if given string begins with "#mysql50#" prefix
+  
+  @param   name          string to check cut 
+  
+  @retval
+    FALSE  no prefix found
+  @retval
+    TRUE   prefix found
+*/
+
+bool check_mysql50_prefix(const char *name)
+{
+  return (name[0] == '#' && 
+         !strncmp(name, MYSQL50_TABLE_NAME_PREFIX,
+                  MYSQL50_TABLE_NAME_PREFIX_LENGTH));
+}
+
+
+/**
   Check if given string begins with "#mysql50#" prefix, cut it if so.
   
   @param   from          string to check and cut 
@@ -409,9 +428,7 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length)
 {
-  if (from[0] == '#' && 
-      !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-               MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+  if (check_mysql50_prefix(from))
     return (uint) (strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
                            to_length - 1) - to);
   return 0;
@@ -4591,7 +4608,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_global= 0;
       save_next_local= table->next_local;
       table->next_local= 0;
-      select->table_list.first= (uchar*)table;
+      select->table_list.first= table;
       /*
         Time zone tables and SP tables can be add to lex->query_tables list,
         so it have to be prepared.
@@ -5294,6 +5311,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
+    if (src_table->table->file->ht == partition_hton)
+    {
+      my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+      goto err;
+    }
     if (find_temporary_table(thd, db, table_name))
       goto table_exists;
     dst_path_length= build_tmptable_filename(thd, dst_path, sizeof(dst_path));
@@ -5358,14 +5380,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   /*
     For partitioned tables we need to copy the .par file as well since
     it is used in open_table_def to even be able to create a new handler.
-    There is no way to find out here if the original table is a
-    partitioned table so we copy the file and ignore any errors.
   */
-  fn_format(tmp_path, dst_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
-  strmov(dst_path, tmp_path);
-  fn_format(tmp_path, src_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
-  strmov(src_path, tmp_path);
-  my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
+  if (src_table->table->file->ht == partition_hton)
+  {
+    fn_format(tmp_path, dst_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
+    strmov(dst_path, tmp_path);
+    fn_format(tmp_path, src_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
+    strmov(src_path, tmp_path);
+    my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
+  }
 #endif
 
   DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
@@ -7315,6 +7338,14 @@ view_err:
     if (!error && (new_name != table_name || new_db != db))
     {
       thd_proc_info(thd, "rename");
+
+      /*
+        Workaround InnoDB ending the transaction when the table instance
+        is unlocked/closed (close_cached_table below), otherwise the trx
+        state will differ between the server and storage engine layers.
+      */
+      ha_autocommit_or_rollback(thd, 0);
+
       /*
         Then do a 'simple' rename of the table. First we need to close all
         instances of 'source' table.
@@ -7648,6 +7679,11 @@ view_err:
       mysql_unlock_tables(thd, thd->lock);
       thd->lock=0;
     }
+    /*
+      If LOCK TABLES list is not empty and contains this table,
+      unlock the table and remove the table from this list.
+    */
+    mysql_lock_remove(thd, thd->locked_tables, table, FALSE);
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd, table, 1, 1);
     /* Should pass the 'new_name' as we store table name in the cache */

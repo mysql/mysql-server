@@ -616,15 +616,12 @@ dict_table_get_on_id(
 {
 	dict_table_t*	table;
 
-	if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0
-	    || trx->dict_operation_lock_mode == RW_X_LATCH) {
-		/* It is a system table which will always exist in the table
-		cache: we avoid acquiring the dictionary mutex, because
-		if we are doing a rollback to handle an error in TABLE
-		CREATE, for example, we already have the mutex! */
+	if (trx->dict_operation_lock_mode == RW_X_LATCH) {
 
-		ut_ad(mutex_own(&(dict_sys->mutex))
-		      || trx->dict_operation_lock_mode == RW_X_LATCH);
+		/* Note: An X latch implies that the transaction
+		already owns the dictionary mutex. */
+
+		ut_ad(mutex_own(&dict_sys->mutex));
 
 		return(dict_table_get_on_id_low(table_id));
 	}
@@ -2142,7 +2139,7 @@ dict_foreign_add_to_cache(
 				mem_heap_free(foreign->heap);
 			}
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			return(DB_FOREIGN_NO_INDEX);
 		}
 
 		for_in_cache->referenced_table = ref_table;
@@ -2186,7 +2183,7 @@ dict_foreign_add_to_cache(
 				mem_heap_free(foreign->heap);
 			}
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			return(DB_REFERENCING_NO_INDEX);
 		}
 
 		for_in_cache->foreign_table = for_table;
@@ -2586,25 +2583,28 @@ dict_strip_comments(
 					/* out, own: SQL string stripped from
 					comments; the caller must free this
 					with mem_free()! */
-	const char*	sql_string)	/* in: SQL string */
+	const char*	sql_string,	/* in: SQL string */
+	size_t		sql_length)	/* in: length of sql_string */
 {
 	char*		str;
 	const char*	sptr;
+	const char*	eptr	= sql_string + sql_length;
 	char*		ptr;
 	/* unclosed quote character (0 if none) */
 	char		quote	= 0;
 
-	str = mem_alloc(strlen(sql_string) + 1);
+	str = mem_alloc(sql_length + 1);
 
 	sptr = sql_string;
 	ptr = str;
 
 	for (;;) {
 scan_more:
-		if (*sptr == '\0') {
+		if (sptr >= eptr || *sptr == '\0') {
+end_of_string:
 			*ptr = '\0';
 
-			ut_a(ptr <= str + strlen(sql_string));
+			ut_a(ptr <= str + sql_length);
 
 			return(str);
 		}
@@ -2623,30 +2623,35 @@ scan_more:
 			   || (sptr[0] == '-' && sptr[1] == '-'
 			       && sptr[2] == ' ')) {
 			for (;;) {
+				if (++sptr >= eptr) {
+					goto end_of_string;
+				}
+
 				/* In Unix a newline is 0x0A while in Windows
 				it is 0x0D followed by 0x0A */
 
-				if (*sptr == (char)0x0A
-				    || *sptr == (char)0x0D
-				    || *sptr == '\0') {
-
+				switch (*sptr) {
+				case (char) 0X0A:
+				case (char) 0x0D:
+				case '\0':
 					goto scan_more;
 				}
-
-				sptr++;
 			}
 		} else if (!quote && *sptr == '/' && *(sptr + 1) == '*') {
+			sptr += 2;
 			for (;;) {
-				if (*sptr == '*' && *(sptr + 1) == '/') {
-
-					sptr += 2;
-
-					goto scan_more;
+				if (sptr >= eptr) {
+					goto end_of_string;
 				}
 
-				if (*sptr == '\0') {
-
+				switch (*sptr) {
+				case '\0':
 					goto scan_more;
+				case '*':
+					if (sptr[1] == '/') {
+						sptr += 2;
+						goto scan_more;
+					}
 				}
 
 				sptr++;
@@ -3348,6 +3353,7 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
+	size_t		sql_length,	/* in: length of sql_string */
 	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
@@ -3362,7 +3368,7 @@ dict_create_foreign_constraints(
 	ut_a(trx);
 	ut_a(trx->mysql_thd);
 
-	str = dict_strip_comments(sql_string);
+	str = dict_strip_comments(sql_string, sql_length);
 	heap = mem_heap_create(10000);
 
 	err = dict_create_foreign_constraints_low(
@@ -3411,7 +3417,8 @@ dict_foreign_parse_drop_constraints(
 
 	*constraints_to_drop = mem_heap_alloc(heap, 1000 * sizeof(char*));
 
-	str = dict_strip_comments(*(trx->mysql_query_str));
+	str = dict_strip_comments(*trx->mysql_query_str,
+				  *trx->mysql_query_len);
 	ptr = str;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -3746,7 +3753,6 @@ dict_update_statistics_low(
 					dictionary mutex */
 {
 	dict_index_t*	index;
-	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
 
 	if (table->ibd_file_missing) {
@@ -3762,14 +3768,6 @@ dict_update_statistics_low(
 		return;
 	}
 
-	/* If we have set a high innodb_force_recovery level, do not calculate
-	statistics, as a badly corrupted index can cause a crash in it. */
-
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
-
-		return;
-	}
-
 	/* Find out the sizes of the indexes and how many different values
 	for the key they approximately have */
 
@@ -3781,26 +3779,48 @@ dict_update_statistics_low(
 		return;
 	}
 
-	while (index) {
-		size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-		index->stat_index_size = size;
+	do {
+		if (UNIV_LIKELY
+		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
+		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+			 && (index->type & DICT_CLUSTERED)))) {
+			ulint	size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-		sum_of_index_sizes += size;
+			index->stat_index_size = size;
 
-		size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			sum_of_index_sizes += size;
 
-		if (size == 0) {
-			/* The root node of the tree is a leaf */
-			size = 1;
+			size = btr_get_size(index, BTR_N_LEAF_PAGES);
+
+			if (size == 0) {
+				/* The root node of the tree is a leaf */
+				size = 1;
+			}
+
+			index->stat_n_leaf_pages = size;
+
+			btr_estimate_number_of_different_key_vals(index);
+		} else {
+			/* If we have set a high innodb_force_recovery
+			level, do not calculate statistics, as a badly
+			corrupted index can cause a crash in it.
+			Initialize some bogus index cardinality
+			statistics, so that the data can be queried in
+			various means, also via secondary indexes. */
+			ulint	i;
+
+			sum_of_index_sizes++;
+			index->stat_index_size = index->stat_n_leaf_pages = 1;
+
+			for (i = dict_index_get_n_unique(index); i; ) {
+				index->stat_n_diff_key_vals[i--] = 1;
+			}
 		}
 
-		index->stat_n_leaf_pages = size;
-
-		btr_estimate_number_of_different_key_vals(index);
-
 		index = dict_table_get_next_index(index);
-	}
+	} while (index);
 
 	index = dict_table_get_first_index(table);
 

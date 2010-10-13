@@ -483,3 +483,23 @@ UPDATE IGNORE v1 SET a = 1;
 SET SESSION sql_safe_updates = DEFAULT;
 DROP TABLE t1;
 DROP VIEW v1;
+
+--echo #
+--echo # Bug#54734 assert in Diagnostics_area::set_ok_status
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, not_exists;
+DROP FUNCTION IF EXISTS f1;
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE TABLE t1 (PRIMARY KEY(pk)) AS SELECT 1 AS pk;
+CREATE FUNCTION f1() RETURNS INTEGER RETURN (SELECT 1 FROM not_exists);
+CREATE VIEW v1 AS SELECT pk FROM t1 WHERE f1() = 13;
+--error ER_VIEW_INVALID
+UPDATE v1 SET pk = 7 WHERE pk > 0;
+
+DROP VIEW v1;
+DROP FUNCTION f1;
+DROP TABLE t1;
