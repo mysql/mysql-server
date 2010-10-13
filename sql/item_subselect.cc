@@ -3214,7 +3214,7 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
                                     use that information instead.
                                  */
                                  cur_ref_buff + null_count,
-                                 null_count ? tab->ref.key_buff : 0,
+                                 null_count ? cur_ref_buff : 0,
                                  cur_key_part->length, tab->ref.items[i]);
     cur_ref_buff+= cur_key_part->store_length;
   }

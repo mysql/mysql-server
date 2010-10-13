@@ -3326,3 +3326,48 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#52329 - Wrong result: subquery materialization, IN, 
+--echo #             non-null field followed by nullable
+--echo #
+
+CREATE TABLE t1 (a1 CHAR(8) NOT NULL, a2 char(8) NOT NULL);
+
+CREATE TABLE t2a (b1 char(8), b2 char(8));
+CREATE TABLE t2b (b1 CHAR(8), b2 char(8) NOT NULL);
+CREATE TABLE t2c (b1 CHAR(8) NOT NULL, b2 char(8));
+
+INSERT INTO t1 VALUES ('1 - 12', '2 - 22');
+
+INSERT INTO t2a VALUES ('1 - 11', '2 - 21'),
+                       ('1 - 11', '2 - 21'),
+                       ('1 - 12', '2 - 22'),
+                       ('1 - 12', '2 - 22'),
+                       ('1 - 13', '2 - 23');
+
+INSERT INTO t2b SELECT * FROM t2a;
+INSERT INTO t2c SELECT * FROM t2a;
+
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+      SELECT b1, b2 FROM t2c WHERE b1 > '0' GROUP BY b1, b2);
+
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+      SELECT b1, b2 FROM t2a WHERE b1 > '0');
+
+
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+      SELECT b1, b2 FROM t2b WHERE b1 > '0');
+
+
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+      SELECT b1, b2 FROM t2c WHERE b1 > '0');
+
+
+DROP TABLE t1,t2a,t2b,t2c;
+
+--echo # End BUG#52329
