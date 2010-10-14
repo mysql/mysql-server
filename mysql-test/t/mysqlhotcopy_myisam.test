@@ -1,0 +1,7 @@
+# Test of mysqlhotcopy (perl script)
+# Author: Horst Hunger
+# Created: 2010-05-10
+
+let $engine= MyISAM;
+--source include/mysqlhotcopy.inc
+--exit

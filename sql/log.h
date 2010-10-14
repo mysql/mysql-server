@@ -23,6 +23,11 @@ class Relay_log_info;
 
 class Format_description_log_event;
 
+bool ending_trans(const THD* thd, const bool all);
+bool trans_has_updated_non_trans_table(const THD* thd);
+bool trans_has_no_stmt_committed(const THD* thd, const bool all);
+bool stmt_has_updated_non_trans_table(const THD* thd);
+
 /*
   Transaction Coordinator log - a base abstract class
   for two different implementations
@@ -275,8 +280,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   bool no_auto_events;
 
-  ulonglong m_table_map_version;
-
   int write_to_file(IO_CACHE *cache);
   /*
     This is used to start writing to a new log file. The difference from
@@ -317,14 +320,6 @@ public:
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
-  bool is_table_mapped(TABLE *table) const
-  {
-    return table->s->table_map_version == table_map_version();
-  }
-
-  ulonglong table_map_version() const { return m_table_map_version; }
-  void update_table_map_version() { ++m_table_map_version; }
-
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
   int remove_pending_rows_event(THD *thd);
 
@@ -364,10 +359,11 @@ public:
   /* Use this to start writing a new log file */
   void new_file();
 
+  void reset_gathered_updates(THD *thd);
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-  bool write_incident(THD *thd, bool lock);
 
+  bool write_incident(THD *thd, bool lock);
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
   void set_write_error(THD *thd);
   bool check_write_error(THD *thd);

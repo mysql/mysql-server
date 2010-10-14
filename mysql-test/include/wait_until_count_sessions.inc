@@ -122,5 +122,6 @@ if (!$success)
    --echo # Timeout in wait_until_count_sessions.inc
    --echo # Number of sessions   expected: <= $count_sessions   found: $current_sessions
    SHOW PROCESSLIST;
+   --die Timeout in wait_until_count_sessions.inc
 }
 

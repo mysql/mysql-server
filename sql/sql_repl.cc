@@ -221,8 +221,7 @@ bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       pthread_mutex_lock(&linfo->lock);
-      result = !bcmp((uchar*) log_name, (uchar*) linfo->log_file_name,
-                     log_name_len);
+      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
       pthread_mutex_unlock(&linfo->lock);
       if (result)
 	break;
@@ -360,6 +359,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
+  int old_max_allowed_packet= thd->variables.max_allowed_packet;
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
@@ -765,6 +765,7 @@ end:
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_VOID_RETURN;
 
 err:
@@ -782,6 +783,7 @@ err:
   pthread_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     (void) my_close(file, MYF(MY_WME));
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
 
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
@@ -1174,12 +1176,9 @@ bool change_master(THD* thd, Master_info* mi)
   /*
     Before processing the command, save the previous state.
   */
-  char *pos;
-  pos= strmake(saved_host, mi->host, HOSTNAME_LENGTH);
-  pos= '\0';
+  strmake(saved_host, mi->host, HOSTNAME_LENGTH);
   saved_port= mi->port;
-  pos= strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
-  pos= '\0';
+  strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
   saved_log_pos= mi->master_log_pos;
 
   /*
@@ -1314,7 +1313,7 @@ bool change_master(THD* thd, Master_info* mi)
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
   */
-  if (flush_master_info(mi, 0))
+  if (flush_master_info(mi, FALSE, FALSE))
   {
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
     ret= TRUE;
@@ -1457,6 +1456,7 @@ bool mysql_show_binlog_events(THD* thd)
   bool ret = TRUE;
   IO_CACHE log;
   File file = -1;
+  int old_max_allowed_packet= thd->variables.max_allowed_packet;
   DBUG_ENTER("mysql_show_binlog_events");
 
   Log_event::init_show_field_list(&field_list);
@@ -1595,6 +1595,7 @@ err:
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_RETURN(ret);
 }
 

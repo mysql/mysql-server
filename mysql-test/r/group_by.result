@@ -1790,4 +1790,59 @@ aa	b	COUNT(         b)
 1	10	1
 DROP TABLE t1, t2;
 #
+# Bug#52051: Aggregate functions incorrectly returns NULL from outer
+# join query
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+MIN(t2.a)
+1
+EXPLAIN SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+MAX(t2.a)
+2
+DROP TABLE t1, t2;
+#
+# Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
+#
+CREATE TABLE t1 (a text, b varchar(10));
+INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
+EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+id	1
+select_type	SIMPLE
+table	t1
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	2
+Extra	Using filesort
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+SUBSTRING(a,1,10)	LENGTH(a)	GROUP_CONCAT(b)
+1111111111	1300	one,two
+EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+id	1
+select_type	SIMPLE
+table	t1
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	2
+Extra	Using temporary; Using filesort
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+SUBSTRING(a,1,10)	LENGTH(a)
+1111111111	1300
+DROP TABLE t1;
 # End of 5.1 tests
