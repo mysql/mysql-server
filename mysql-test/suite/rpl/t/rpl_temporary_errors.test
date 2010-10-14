@@ -1,4 +1,5 @@
 source include/master-slave.inc;
+source include/have_innodb.inc;
 
 call mtr.add_suppression("Deadlock found");
 
@@ -25,9 +26,48 @@ sync_slave_with_master;
 set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 SELECT * FROM t1;
-source include/show_slave_status2.inc;
+source include/check_slave_is_running.inc;
 DROP TABLE t1;
 
 --echo **** On Master ****
 connection master;
+SET SQL_LOG_BIN= 0;
 DROP TABLE t1;
+SET SQL_LOG_BIN= 1;
+
+# BUG#Bug #53259 Unsafe statement binlogged in statement format w/MyIsam temp tables
+#
+SET SESSION BINLOG_FORMAT=MIXED;
+CREATE TABLE t_myisam (id INT, PRIMARY KEY (id)) engine= MyIsam;
+INSERT INTO t_myisam (id) VALUES(1);
+CREATE TABLE t_innodb (id INT) engine= Innodb;
+INSERT INTO t_innodb (id) VALUES(1);
+
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+INSERT INTO t_innodb(id) VALUES(2);
+INSERT INTO t_myisam(id) VALUES(3);
+CREATE TEMPORARY TABLE x (id INT);
+--error 1062
+INSERT INTO t_myisam(id) VALUES(4),(1);
+INSERT INTO t_innodb(id) VALUES(5);
+COMMIT;
+
+SELECT * FROM t_innodb;
+SELECT * FROM t_myisam;
+
+--sync_slave_with_master
+
+SELECT * FROM t_innodb;
+SELECT * FROM t_myisam;
+
+--connection master
+
+BEGIN;
+CREATE TEMPORARY TABLE tmp2 SELECT * FROM t_innodb;
+INSERT INTO t_innodb(id) VALUES(1);
+INSERT INTO t_innodb(id) VALUES(1);
+ROLLBACK;
+source include/show_binlog_events.inc;
+
+DROP TABLE t_myisam, t_innodb;

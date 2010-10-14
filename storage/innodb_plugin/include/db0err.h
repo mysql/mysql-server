@@ -28,6 +28,8 @@ Created 5/24/1996 Heikki Tuuri
 
 
 enum db_err {
+	DB_SUCCESS_LOCKED_REC = 9,	/*!< like DB_SUCCESS, but a new
+					explicit record lock was created */
 	DB_SUCCESS = 10,
 
 	/* The following are error codes */
@@ -92,6 +94,9 @@ enum db_err {
 
 	DB_PRIMARY_KEY_IS_NULL,		/* a column in the PRIMARY KEY
 					was found to be NULL */
+	DB_FOREIGN_EXCEED_MAX_CASCADE,	/* Foreign key constraint related
+					cascading delete/update exceeds
+					maximum allowed depth */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

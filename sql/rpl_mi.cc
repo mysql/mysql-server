@@ -34,10 +34,9 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
 Master_info::Master_info()
   :Slave_reporting_capability("I/O"),
-   ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0),
+   ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), inited(0),
    heartbeat_period(0), received_heartbeats(0),
-   inited(0), abort_slave(0), slave_running(0), slave_run_id(0),
-   master_id(0)
+   master_id(0), abort_slave(0), slave_running(0), slave_run_id(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
@@ -396,7 +395,7 @@ file '%s')", fname);
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE, 0L, 0, 1);
-  if ((error=test(flush_master_info(mi, 1))))
+  if ((error=test(flush_master_info(mi, TRUE, TRUE))))
     sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
@@ -422,10 +421,13 @@ err:
      1 - flush master info failed
      0 - all ok
 */
-int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
+int flush_master_info(Master_info* mi, 
+                      bool flush_relay_log_cache, 
+                      bool need_lock_relay_log)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
+  int err= 0;
 
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
@@ -442,10 +444,7 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
     When we come to this place in code, relay log may or not be initialized;
     the caller is responsible for setting 'flush_relay_log_cache' accordingly.
   */
-  if (flush_relay_log_cache &&
-      flush_io_cache(mi->rli.relay_log.get_log_file()))
-    DBUG_RETURN(2);
-  
+
   /*
     produce a line listing the total number and all the ignored server_id:s
   */
@@ -456,18 +455,34 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
                          (1 + mi->ignore_server_ids.elements), MYF(MY_WME));
     if (!ignore_server_ids_buf)
       DBUG_RETURN(1);
-    for (ulong i= 0, cur_len= my_sprintf(ignore_server_ids_buf,
-                                         (ignore_server_ids_buf, "%u",
-                                          mi->ignore_server_ids.elements));
+    for (ulong i= 0, cur_len= sprintf(ignore_server_ids_buf,
+                                      "%u", mi->ignore_server_ids.elements);
          i < mi->ignore_server_ids.elements; i++)
     {
       ulong s_id;
       get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
-      cur_len +=my_sprintf(ignore_server_ids_buf + cur_len,
-                           (ignore_server_ids_buf + cur_len,
-                            " %lu", s_id));
+      cur_len +=sprintf(ignore_server_ids_buf + cur_len, " %lu", s_id);
     }
   }
+
+  if (flush_relay_log_cache)
+  {
+    pthread_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
+    IO_CACHE *log_file= mi->rli.relay_log.get_log_file();
+
+    if (need_lock_relay_log)
+      pthread_mutex_lock(log_lock);
+
+    safe_mutex_assert_owner(log_lock);
+    err= flush_io_cache(log_file);
+
+    if (need_lock_relay_log)
+      pthread_mutex_unlock(log_lock);
+
+    if (err)
+      DBUG_RETURN(2);
+  }
+
   /*
     We flushed the relay log BEFORE the master.info file, because if we crash
     now, we will get a duplicate event in the relay log at restart. If we
@@ -485,7 +500,7 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
      of file we don't care about this garbage.
   */
   char heartbeat_buf[sizeof(mi->heartbeat_period) * 4]; // buffer to suffice always
-  my_sprintf(heartbeat_buf, (heartbeat_buf, "%.3f", mi->heartbeat_period));
+  sprintf(heartbeat_buf, "%.3f", mi->heartbeat_period);
   my_b_seek(file, 0L);
   my_b_printf(file,
               "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n",
