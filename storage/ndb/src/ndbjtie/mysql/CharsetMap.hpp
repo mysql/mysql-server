@@ -69,7 +69,7 @@ public:
      * be recognized and usable by Java (e.g. java.nio, java.io, and java.lang).
      * However it may return "binary" if a column is BLOB / BINARY / VARBINARY,
      * or it may return the name of an obscure MySQL character set such as
-     * "keybcs2" or "dec8".
+     * "keybcs2" or "dec8". 
      */
     const char * getName(int cs_number) const;
 
@@ -103,6 +103,12 @@ public:
         RECODE_BAD_SRC ,
         RECODE_BUFF_TOO_SMALL
     };
+    
+    /**
+     * Returns true if this charset number refers to a multibyte charset;
+     * otherwise false.
+     */
+  bool isMultibyte(int cs_number) const;
 
     /**
      * Recodes the content of a source buffer into destination buffer.
