@@ -801,7 +801,7 @@ srv_get_n_threads(void)
 
 	srv_sys_mutex_enter();
 
-	for (i = SRV_COM; i < SRV_MASTER + 1; i++) {
+	for (i = SRV_WORKER; i < SRV_MASTER + 1; i++) {
 
 		n_threads += srv_sys->n_threads[i];
 	}
@@ -2029,19 +2029,19 @@ srv_inc_activity_count(void)
 /**********************************************************************//**
 Check whether any background thread is active. If so return the thread
 type.
-@return ULINT_UNDEFINED if all are suspended or have exited, thread
+@return SRV_NONE if all are suspended or have exited, thread
 type if any are still active. */
 UNIV_INTERN
-ulint
+enum srv_thread_type
 srv_get_active_thread_type(void)
 /*============================*/
 {
 	ulint	i;
-	ulint	ret = ULINT_UNDEFINED;
+	enum srv_thread_type ret = SRV_NONE;
 
 	srv_sys_mutex_enter();
 
-	for (i = SRV_COM; i <= SRV_MASTER; ++i) {
+	for (i = SRV_WORKER; i <= SRV_MASTER; ++i) {
 		if (srv_sys->n_threads_active[i] != 0) {
 			ret = i;
 			break;

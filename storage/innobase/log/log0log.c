@@ -3111,12 +3111,12 @@ void
 logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
 {
-	ib_uint64_t	lsn;
-	ulint		arch_log_no;
-	ulint		count = 0;
-	ulint		total_trx;
-	ulint		pending_io;
-	ulint		active_thd;
+	ib_uint64_t		lsn;
+	ulint			arch_log_no;
+	ulint			count = 0;
+	ulint			total_trx;
+	ulint			pending_io;
+	enum srv_thread_type	active_thd;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3208,7 +3208,8 @@ loop:
 	/* Check that the background threads are suspended */
 
 	active_thd = srv_get_active_thread_type();
-	if (active_thd != ULINT_UNDEFINED) {
+
+	if (active_thd != SRV_NONE) {
 
 		/* The srv_lock_timeout_thread, srv_error_monitor_thread
 		and srv_monitor_thread should already exit by now. The
@@ -3219,20 +3220,17 @@ loop:
 			const char*	thread_type;
 
 			switch (active_thd) {
-			case SRV_COM:
-				thread_type = "communication thread";
-				break;
-			case SRV_CONSOLE:
-				thread_type = "console thread";
-				break;
+			case SRV_NONE:
+				ut_error;
 			case SRV_WORKER:
 				thread_type = "worker threads";
 				break;
 			case SRV_MASTER:
 				thread_type = "master threads";
 				break;
-			default:
-				ut_error;
+			case SRV_PURGE:
+				thread_type = "purge thread";
+				break;
 			}
 
 			ut_print_timestamp(stderr);
