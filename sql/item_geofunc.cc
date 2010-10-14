@@ -951,7 +951,6 @@ longlong Item_func_spatial_rel::val_int()
       func.add_operation(Gcalc_function::op_intersection, 2);
       break;
     case SP_OVERLAPS_FUNC:
-      mask= 1;
       func.add_operation(Gcalc_function::op_backdifference, 2);
       break;
     case SP_CROSSES_FUNC:
@@ -1463,20 +1462,50 @@ longlong Item_func_isempty::val_int()
 }
 
 
-/**
-  @todo
-    Ramil or Holyfoot, add real IsSimple calculation
-*/
 longlong Item_func_issimple::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
-  String tmp;
   String *swkb= args[0]->val_str(&tmp);
   Geometry_buffer buffer;
+  Gcalc_operation_transporter trn(&func, &collector);
+  Geometry *g;
+  int result= 1;
+
+  DBUG_ENTER("Item_func_issimple::val_int");
+  DBUG_ASSERT(fixed == 1);
   
-  null_value= args[0]->null_value ||
-              !(Geometry::construct(&buffer, swkb->ptr(), swkb->length()));
-  /* TODO: Ramil or Holyfoot, add real IsSimple calculation */
+  if ((null_value= args[0]->null_value) ||
+      !(g= Geometry::construct(&buffer, swkb->ptr(), swkb->length())))
+    DBUG_RETURN(0);
+
+
+  if (g->get_class_info()->m_type_id == Geometry::wkb_point)
+    DBUG_RETURN(1);
+
+  if (g->store_shapes(&trn))
+    goto mem_error;
+
+  collector.prepare_operation();
+  scan_it.init(&collector);
+
+  while (scan_it.more_points())
+  {
+    if (scan_it.step())
+      goto mem_error;
+
+    if (scan_it.step() == scev_intersection)
+    {
+      result= 0;
+      break;
+    }
+  }
+
+  collector.reset();
+  func.reset();
+  scan_it.reset();
+  DBUG_RETURN(result);
+mem_error:
+  null_value= 1;
+  DBUG_RETURN(0);
   return 0;
 }
 
