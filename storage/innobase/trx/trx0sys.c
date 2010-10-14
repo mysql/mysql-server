@@ -1682,6 +1682,8 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
+	mutex_free(&trx_sys->read_view_mutex);
+
 	rw_lock_x_unlock(&trx_sys->lock);
 
 	mem_free(trx_sys);
