@@ -194,7 +194,7 @@ date("1997-12-31 23:59:59.000001") as f8,
 time("1997-12-31 23:59:59.000001") as f9;
 describe t1;
 Field	Type	Null	Key	Default	Extra
-f1	date	NO		0000-00-00	
+f1	date	YES		NULL	
 f2	datetime	YES		NULL	
 f3	time	YES		NULL	
 f4	time	YES		NULL	

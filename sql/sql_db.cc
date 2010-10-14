@@ -647,6 +647,17 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
 
   global_schema_lock_guard.lock();
+  /*
+    Close and mark for re-open all HANDLER tables which are marked for flush
+    or which there are pending conflicing locks against. This is needed to
+    prevent deadlocks.
+  */
+  if (thd->handler_tables_hash.records)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    mysql_ha_flush(thd);
+    pthread_mutex_unlock(&LOCK_open);
+  }
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -796,6 +807,17 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     goto exit2;
 
   global_schema_lock_guard.lock();
+  /*
+    Close and mark for re-open all HANDLER tables which are marked for flush
+    or which there are pending conflicing locks against. This is needed to
+    prevent deadlocks.
+  */
+  if (thd->handler_tables_hash.records)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    mysql_ha_flush(thd);
+    pthread_mutex_unlock(&LOCK_open);
+  }
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -897,6 +919,17 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
 
   global_schema_lock_guard.lock();
+  /*
+    Close and mark for re-open all HANDLER tables which are marked for flush
+    or which there are pending conflicing locks against. This is needed to
+    prevent deadlocks.
+  */
+  if (thd->handler_tables_hash.records)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    mysql_ha_flush(thd);
+    pthread_mutex_unlock(&LOCK_open);
+  }
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 

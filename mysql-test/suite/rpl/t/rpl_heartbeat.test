@@ -122,6 +122,7 @@ create table t1 (f1 int);
 
 #connection slave;
 sync_slave_with_master;
+let $status_items= Master_Log_File, Relay_Master_Log_File;
 source include/show_slave_status.inc;
 
 # there is an explicit sleep lasting longer than slave_net_timeout
@@ -132,6 +133,7 @@ source include/show_slave_status.inc;
 real_sleep 15;
 
 # check (compare with the previous show's results) that no rotation happened
+let $status_items= Master_Log_File, Relay_Master_Log_File;
 source include/show_slave_status.inc;
 
 ###

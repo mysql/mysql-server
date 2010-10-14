@@ -38,9 +38,7 @@ eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$SLAVE_MYPORT,MASTER_U
 START SLAVE;
 
 connection slave;
-save_master_pos;
-connection master;
-sync_with_master;
+sync_slave_with_master master;
 
 # The statement is disabled since it cannot reliably show the same
 # info all the time.  Use it for debug purposes.
@@ -51,9 +49,7 @@ sync_with_master;
 --source include/wait_for_slave_to_start.inc
 
 # Check that there is no error in replication
---replace_result $SLAVE_MYPORT SLAVE_PORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
-query_vertical SHOW SLAVE STATUS;
+source include/check_slave_is_running.inc;
 
 # Check that we have the data on the master
 SELECT * FROM t1 ORDER BY a;
@@ -81,9 +77,7 @@ SELECT * FROM t1 ORDER BY a;
 --source include/wait_for_slave_to_start.inc
 
 # Check that there is no error in replication
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
-query_vertical SHOW SLAVE STATUS;
+source include/check_slave_is_running.inc;
 
 -- connection master
 DROP TABLE t1;

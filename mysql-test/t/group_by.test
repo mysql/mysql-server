@@ -1205,6 +1205,35 @@ SELECT (SELECT t2.a FROM t2 WHERE t2.a = t1.a) aa, b, COUNT(         b)
 
 DROP TABLE t1, t2;
 
+
 --echo #
+--echo # Bug#52051: Aggregate functions incorrectly returns NULL from outer
+--echo # join query
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+EXPLAIN SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
+--echo #
+
+CREATE TABLE t1 (a text, b varchar(10));
+INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
+
+query_vertical EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+query_vertical EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+DROP TABLE t1;
+
 
 --echo # End of 5.1 tests
