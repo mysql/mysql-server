@@ -2863,10 +2863,10 @@ srv_purge_coordinator_thread(
 	srv_sys_mutex_exit();
 
 	for (;;) {
-		ulint	last_time = ut_time();
-		ulint	count = srv_sys->activity_count;
-		ulint	batch_size = srv_purge_batch_size;
-		ulint	sleep_ms = ut_rnd_gen_ulint() % 10000;
+		ib_time_t	last_time = ut_time();
+		ulint		count = srv_sys->activity_count;
+		ulint		batch_size = srv_purge_batch_size;
+		ulint		sleep_ms = ut_rnd_gen_ulint() % 10000;
 
 		if (srv_shutdown_state != 0 && srv_fast_shutdown != 0) {
 			break;
