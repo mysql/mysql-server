@@ -101,10 +101,10 @@ ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('PO
 0
 select ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 4, 4 4, 4 10, 10 10))'));
 ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 4, 4 4, 4 10, 10 10))'))
-0
+1
 select ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((1 1, 1 4, 4 4, 4 1, 1 1))'));
 ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((1 1, 1 4, 4 4, 4 1, 1 1))'))
-1
+0
 select ST_DISTANCE(geomfromtext('polygon((0 0, 1 2, 2 1, 0 0))'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'));
 ST_DISTANCE(geomfromtext('polygon((0 0, 1 2, 2 1, 0 0))'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'))
 0.7071067811865475
