@@ -1,0 +1,44 @@
+--source include/have_innodb.inc
+--source include/have_partition.inc
+--source include/have_debug_sync.inc
+
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+
+--echo #
+--echo # Bug#50561: ALTER PARTITIONS does not have adequate lock, breaks with
+--echo #            concurrent I_S query
+create table t1 (a int)
+engine = innodb
+partition by range (a)
+(partition p0 values less than MAXVALUE);
+insert into t1 values (1), (11), (21), (33);
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+--list_files $MYSQLD_DATADIR/test
+
+SET DEBUG_SYNC='before_open_in_get_all_tables SIGNAL parked WAIT_FOR open';
+SET DEBUG_SYNC='partition_open_error SIGNAL alter WAIT_FOR finish';
+send
+SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC = 'now WAIT_FOR parked';
+--echo # When waiting for the name lock in get_all_tables in sql_show.cc
+--echo # this will not be concurrent any more, thus the TIMEOUT
+SET DEBUG_SYNC = 'before_rename_partitions SIGNAL open WAIT_FOR alter TIMEOUT 1';
+--echo # Needs to be executed twice, since first is this 'SET DEBUG_SYNC ...'
+SET DEBUG_SYNC = 'before_close_thread_tables SIGNAL finish EXECUTE 2';
+--error 0,ER_TABLE_EXISTS_ERROR
+ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(PARTITION p0 VALUES LESS THAN (10),
+ PARTITION p10 VALUES LESS THAN MAXVALUE);
+
+disconnect con1;
+connection default;
+--reap
+--list_files $MYSQLD_DATADIR/test
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+drop table t1;
+--list_files $MYSQLD_DATADIR/test
+SET DEBUG_SYNC = 'RESET';

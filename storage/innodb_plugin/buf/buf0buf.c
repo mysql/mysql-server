@@ -2236,7 +2236,7 @@ wait_until_unfixed:
 
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
-		rw_lock_x_lock(&block->lock);
+		rw_lock_x_lock_func(&block->lock, 0, file, line);
 
 		UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
@@ -2280,7 +2280,12 @@ wait_until_unfixed:
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	mutex_enter(&block->mutex);
+#if UNIV_WORD_SIZE == 4
+	/* On 32-bit systems, there is no padding in buf_page_t.  On
+	other systems, Valgrind could complain about uninitialized pad
+	bytes. */
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
+#endif
 
 	buf_block_buf_fix_inc(block, file, line);
 

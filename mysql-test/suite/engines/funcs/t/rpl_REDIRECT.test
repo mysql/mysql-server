@@ -7,15 +7,11 @@ source include/master-slave.inc;
 --disable_ps_protocol
 
 #first, make sure the slave has had enough time to register
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 #discover slaves
 connection master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-SHOW SLAVE STATUS;
+--query_vertical SHOW SLAVE STATUS;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 SHOW SLAVE HOSTS;
 rpl_probe;
@@ -25,9 +21,7 @@ enable_rpl_parse;
 create table t1 ( n int);
 insert into t1 values (1),(2),(3),(4);
 disable_rpl_parse;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 insert into t1 values(5);
 connection master;
 enable_rpl_parse;
