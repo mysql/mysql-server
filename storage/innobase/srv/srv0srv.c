@@ -717,20 +717,6 @@ UNIV_INTERN mutex_t	server_mutex;
 
 static srv_sys_t*	srv_sys	= NULL;
 
-#if 0
-/* The following three values measure the urgency of the jobs of
-buffer, version, and insert threads. They may vary from 0 - 1000.
-The server mutex protects all these variables. The low-water values
-tell that the server can acquiesce the utility when the value
-drops below this low-water mark. */
-
-static ulint	srv_meter[SRV_MASTER + 1];
-static ulint	srv_meter_low_water[SRV_MASTER + 1];
-static ulint	srv_meter_high_water[SRV_MASTER + 1];
-static ulint	srv_meter_high_water2[SRV_MASTER + 1];
-static ulint	srv_meter_foreground[SRV_MASTER + 1];
-#endif
-
 /*********************************************************************//**
 Asynchronous purge thread.
 @return	a dummy parameter */
