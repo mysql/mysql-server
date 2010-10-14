@@ -72,6 +72,9 @@ UNIV_INTERN ulint	os_event_count		= 0;
 UNIV_INTERN ulint	os_mutex_count		= 0;
 UNIV_INTERN ulint	os_fast_mutex_count	= 0;
 
+/* The number of microsecnds in a second. */
+static const ulint MICROSECS_IN_A_SECOND = 1000000;
+
 /* Because a mutex is embedded inside an event and there is an
 event embedded inside a mutex, on free, this generates a recursive call.
 This version of the free event function doesn't acquire the global lock */
@@ -121,6 +124,47 @@ os_cond_init(
 #endif
 }
 
+/*********************************************************//**
+Do a timed wait on condition variable.
+@return TRUE if timed out, FALSE otherwise */
+UNIV_INLINE
+ibool
+os_cond_wait_timed(
+/*===============*/
+	os_cond_t*		cond,		/*!< in: condition variable. */
+	os_fast_mutex_t*	mutex,		/*!< in: fast mutex */
+#ifndef __WIN__
+	const struct timespec*	abstime		/*!< in: timeout */
+#else
+	ulint			time_in_ms	/*!< in: timeout in
+						milliseconds */
+#endif /* !__WIN__ */
+)
+{
+#ifdef __WIN__
+	BOOL			ret;
+
+	ut_a(sleep_condition_variable != NULL);
+
+	ret = sleep_condition_variable(cond, mutex, time_in_ms);
+
+	if (!ret && GetLastError() == WAIT_TIMEOUT) {
+		return(TRUE);
+	}
+
+	ut_a(ret);
+
+	return(FALSE);
+#else
+	int	ret;
+
+	ret = pthread_cond_timedwait(cond, mutex, abstime);
+
+	ut_a(ret == 0 || ret == ETIMEDOUT);
+
+	return(ret == ETIMEDOUT);
+#endif
+}
 /*********************************************************//**
 Wait on condition variable */
 UNIV_INLINE
@@ -570,6 +614,113 @@ os_event_wait_low(
 		have to check if the event really has been signaled after
 		we came here to wait */
 	}
+}
+
+/**********************************************************//**
+Waits for an event object until it is in the signaled state or
+a timeout is exceeded.
+@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+UNIV_INTERN
+ulint
+os_event_wait_time_low(
+/*===================*/
+	os_event_t	event,			/*!< in: event to wait */
+	ulint		time_in_usec,		/*!< in: timeout in
+						microseconds, or
+						OS_SYNC_INFINITE_TIME */
+	ib_int64_t	reset_sig_count)	/*!< in: zero or the value
+						returned by previous call of
+						os_event_reset(). */
+
+{
+	ibool		timed_out;
+	ib_int64_t	old_signal_count;
+
+#ifdef __WIN__
+	DWORD		time_in_ms = time_in_usec / 1000;
+
+	if (!srv_use_native_conditions) {
+		DWORD	err;
+
+		ut_a(event);
+
+		if (time_in_ms != OS_SYNC_INFINITE_TIME) {
+			err = WaitForSingleObject(event->handle, time_in_ms);
+		} else {
+			err = WaitForSingleObject(event->handle, INFINITE);
+		}
+
+		if (err == WAIT_OBJECT_0) {
+			return(0);
+		} else if (err == WAIT_TIMEOUT) {
+			return(OS_SYNC_TIME_EXCEEDED);
+		}
+
+		ut_error;
+		/* Dummy value to eliminate compiler warning. */
+		return(42);
+	} else {
+		ut_a(sleep_condition_variable != NULL);
+	}
+#else
+	struct timeval	tv;
+	ulint		sec;
+	ulint		usec;
+	int		ret;
+	struct timespec	abstime;
+
+	ret = ut_usectime(&sec, &usec);
+	ut_a(ret == 0);
+
+	tv.tv_sec = sec;
+	tv.tv_usec = usec;
+
+	tv.tv_usec += time_in_usec;
+
+	if ((ulint) tv.tv_usec > MICROSECS_IN_A_SECOND) {
+		tv.tv_sec += time_in_usec / MICROSECS_IN_A_SECOND;
+		tv.tv_usec %= MICROSECS_IN_A_SECOND;
+	}
+
+	/* Convert to nano seconds. We ignore overflow. */
+	abstime.tv_sec  = tv.tv_sec;
+	abstime.tv_nsec = tv.tv_usec * 1000;
+#endif /* __WIN__ */
+
+	os_fast_mutex_lock(&event->os_mutex);
+
+	if (reset_sig_count) {
+		old_signal_count = reset_sig_count;
+	} else {
+		old_signal_count = event->signal_count;
+	}
+
+	do {
+		if (event->is_set == TRUE
+		    || event->signal_count != old_signal_count) {
+
+			break;
+		}
+
+		timed_out = os_cond_wait_timed(
+			&event->cond_var, &event->os_mutex,
+#ifndef __WIN__
+			&abstime
+#else
+			time_in_ms
+#endif /* !__WIN__ */
+		);
+
+	} while (!timed_out);
+
+	os_fast_mutex_unlock(&event->os_mutex);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+
+		os_thread_exit(NULL);
+	}
+
+	return(timed_out ? OS_SYNC_TIME_EXCEEDED : 0);
 }
 
 /*********************************************************//**
