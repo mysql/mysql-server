@@ -258,11 +258,10 @@ my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 {
   String *res;
-  char *end_ptr;
-  if (!(res= val_str(&str_value)))
-    return 0;                                   // NULL or EOM
 
-  end_ptr= (char*) res->ptr()+ res->length();
+  if (!(res= val_str(&str_value)))
+    return NULL;
+
   if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)
@@ -3844,7 +3843,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 {
   Item **group_by_ref= NULL;
   Item **select_ref= NULL;
-  ORDER *group_list= (ORDER*) select->group_list.first;
+  ORDER *group_list= select->group_list.first;
   bool ambiguous_fields= FALSE;
   uint counter;
   enum_resolution_type resolution;
@@ -4133,8 +4132,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                            context->first_name_resolution_table,
                            context->last_name_resolution_table,
                            reference, REPORT_ALL_ERRORS,
-                           !any_privileges &&
-                           TRUE, TRUE);
+                           !any_privileges, TRUE);
     }
     return -1;
   }

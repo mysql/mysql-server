@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,10 +88,9 @@ extern int skip_big_tests;
 /**
    Set number of tests that is planned to execute.
 
-   The function also accepts the predefined constant
-   <code>NO_PLAN</code>.  If the function is not called, it is as if
-   it was called with <code>NO_PLAN</code>, i.e., the test plan will
-   be printed after all the test lines.
+   The function also accepts the predefined constant <code>NO_PLAN</code>.
+   If invoked with this constant -- or not invoked at all --
+   the test plan will be printed after all the test lines.
 
    The plan() function will install signal handlers for all signals
    that generate a core, so if you want to override these signals, do

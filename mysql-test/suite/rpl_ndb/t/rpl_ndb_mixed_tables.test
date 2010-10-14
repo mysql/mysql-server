@@ -1,0 +1,349 @@
+# ==== Purpose ====
+#
+# Test replication of transactions on tables which have different
+# engines on master and slave.  This tests all combinations of innodb,
+# myisam, and ndb.
+#
+# ==== Method ====
+#
+# Set up six tables, each being innodb, myisam, or innodb on master,
+# and another of innodb, myisam, or innodb on slave.  For each table,
+# do the following:
+#
+#  - committed and rollback'ed transactions, with autocommit on and
+#    off
+#  - non-transactions with autocommit on
+#  - non-transactions with autocommit off, where the master table is
+#    myisam.
+#
+# Note: we are running the slave with
+# --replicate-ignore-table=mysql.ndb_apply_status .  See BUG#34557 for
+# explanation.
+#
+# ==== Related bugs ====
+#
+# BUG#26395: if crash during autocommit update to transactional table on master, slave fails
+# BUG#29288: myisam transactions replicated to a transactional slave leaves slave unstable
+# BUG#34557: Row-based replication from ndb to non-ndb gives error on slave
+# BUG#34600: Rolled-back punch transactions not replicated correctly
+#
+# ==== Todo ====
+#
+# We should eventually try transactions touching two tables which are
+# of different engines on the same server (so that we try, e.g. punch
+# transactions; cf BUG#34600).  However, that will make the test much
+# bigger (9 master-slave engine combinations [myisam->myisam,
+# myisam->ndb, etc].  To try all combinations of one or more such
+# tables means 2^9-1=511 transactions.  We need to multiplied by 5
+# since we want to test committed/rollback'ed transactions
+# with/without AUTOCOMMIT, as well as non-transactions with
+# autocommit).  We'd have to write a script to produce the test case.
+
+
+--echo ==== Initialization ====
+
+--source include/have_ndb.inc
+--source include/have_innodb.inc
+--source include/ndb_master-slave.inc
+
+--echo ---- setup master ----
+
+CREATE TABLE myisam_innodb (a INT) ENGINE=MYISAM;
+CREATE TABLE innodb_myisam (a INT) ENGINE=INNODB;
+CREATE TABLE myisam_ndb    (a INT) ENGINE=MYISAM;
+CREATE TABLE ndb_myisam    (a INT) ENGINE=NDB;
+CREATE TABLE innodb_ndb    (a INT) ENGINE=INNODB;
+CREATE TABLE ndb_innodb    (a INT) ENGINE=NDB;
+
+SHOW CREATE TABLE myisam_innodb;
+SHOW CREATE TABLE innodb_myisam;
+SHOW CREATE TABLE myisam_ndb;
+SHOW CREATE TABLE ndb_myisam;
+SHOW CREATE TABLE innodb_ndb;
+SHOW CREATE TABLE ndb_innodb;
+
+--echo ---- setup slave with different engines ----
+
+sync_slave_with_master;
+
+DROP TABLE myisam_innodb, innodb_myisam;
+DROP TABLE myisam_ndb, ndb_myisam;
+DROP TABLE innodb_ndb, ndb_innodb;
+
+CREATE TABLE myisam_innodb (a INT) ENGINE=INNODB;
+CREATE TABLE innodb_myisam (a INT) ENGINE=MYISAM;
+CREATE TABLE myisam_ndb    (a INT) ENGINE=NDB;
+CREATE TABLE ndb_myisam    (a INT) ENGINE=MYISAM;
+CREATE TABLE innodb_ndb    (a INT) ENGINE=NDB;
+CREATE TABLE ndb_innodb    (a INT) ENGINE=INNODB;
+
+SHOW CREATE TABLE myisam_innodb;
+SHOW CREATE TABLE innodb_myisam;
+SHOW CREATE TABLE myisam_ndb;
+SHOW CREATE TABLE ndb_myisam;
+SHOW CREATE TABLE innodb_ndb;
+SHOW CREATE TABLE ndb_innodb;
+
+connection master;
+
+
+--echo ==== AUTOCOMMIT=0, transactions ====
+
+--echo ---- COMMIT ----
+
+SET AUTOCOMMIT = 0;
+
+BEGIN;
+INSERT INTO myisam_innodb VALUES (1);
+INSERT INTO myisam_innodb VALUES (2);
+COMMIT;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO innodb_myisam VALUES (3);
+INSERT INTO innodb_myisam VALUES (4);
+COMMIT;
+sync_slave_with_master;
+connection master;
+
+BEGIN;
+INSERT INTO myisam_ndb VALUES (5);
+INSERT INTO myisam_ndb VALUES (6);
+COMMIT;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO ndb_myisam VALUES (7);
+INSERT INTO ndb_myisam VALUES (8);
+COMMIT;
+sync_slave_with_master;
+connection master;
+
+BEGIN;
+INSERT INTO ndb_innodb VALUES (9);
+INSERT INTO ndb_innodb VALUES (10);
+COMMIT;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO innodb_ndb VALUES (11);
+INSERT INTO innodb_ndb VALUES (12);
+COMMIT;
+sync_slave_with_master;
+connection master;
+
+--echo ---- ROLLBACK ----
+
+BEGIN;
+INSERT INTO myisam_innodb VALUES (13);
+INSERT INTO myisam_innodb VALUES (14);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO innodb_myisam VALUES (15);
+INSERT INTO innodb_myisam VALUES (16);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+
+BEGIN;
+INSERT INTO myisam_ndb VALUES (17);
+INSERT INTO myisam_ndb VALUES (18);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO ndb_myisam VALUES (19);
+INSERT INTO ndb_myisam VALUES (20);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+
+BEGIN;
+INSERT INTO ndb_innodb VALUES (21);
+INSERT INTO ndb_innodb VALUES (22);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO innodb_ndb VALUES (23);
+INSERT INTO innodb_ndb VALUES (24);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+
+
+--echo ==== AUTOCOMMIT=1, transactions ====
+
+--echo ---- COMMIT ----
+
+SET AUTOCOMMIT = 1;
+
+BEGIN;
+INSERT INTO myisam_innodb VALUES (25);
+INSERT INTO myisam_innodb VALUES (26);
+COMMIT;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO innodb_myisam VALUES (27);
+INSERT INTO innodb_myisam VALUES (28);
+COMMIT;
+sync_slave_with_master;
+connection master;
+
+BEGIN;
+INSERT INTO myisam_ndb VALUES (29);
+INSERT INTO myisam_ndb VALUES (30);
+COMMIT;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO ndb_myisam VALUES (31);
+INSERT INTO ndb_myisam VALUES (32);
+COMMIT;
+sync_slave_with_master;
+connection master;
+
+BEGIN;
+INSERT INTO ndb_innodb VALUES (33);
+INSERT INTO ndb_innodb VALUES (34);
+COMMIT;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO innodb_ndb VALUES (35);
+INSERT INTO innodb_ndb VALUES (36);
+COMMIT;
+sync_slave_with_master;
+connection master;
+
+--echo ---- ROLLBACK ----
+
+BEGIN;
+INSERT INTO myisam_innodb VALUES (37);
+INSERT INTO myisam_innodb VALUES (38);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO innodb_myisam VALUES (39);
+INSERT INTO innodb_myisam VALUES (40);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+
+BEGIN;
+INSERT INTO myisam_ndb VALUES (41);
+INSERT INTO myisam_ndb VALUES (42);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO ndb_myisam VALUES (43);
+INSERT INTO ndb_myisam VALUES (44);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+
+BEGIN;
+INSERT INTO ndb_innodb VALUES (45);
+INSERT INTO ndb_innodb VALUES (46);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+BEGIN;
+INSERT INTO innodb_ndb VALUES (47);
+INSERT INTO innodb_ndb VALUES (48);
+ROLLBACK;
+sync_slave_with_master;
+connection master;
+
+
+--echo ==== AUTOCOMMIT=1, single statements ====
+
+INSERT INTO myisam_innodb VALUES (49);
+INSERT INTO myisam_innodb VALUES (50);
+sync_slave_with_master;
+connection master;
+INSERT INTO innodb_myisam VALUES (51);
+INSERT INTO innodb_myisam VALUES (52);
+sync_slave_with_master;
+connection master;
+
+INSERT INTO myisam_ndb VALUES (53);
+INSERT INTO myisam_ndb VALUES (54);
+sync_slave_with_master;
+connection master;
+INSERT INTO ndb_myisam VALUES (55);
+INSERT INTO ndb_myisam VALUES (56);
+sync_slave_with_master;
+connection master;
+
+INSERT INTO ndb_innodb VALUES (57);
+INSERT INTO ndb_innodb VALUES (58);
+sync_slave_with_master;
+connection master;
+INSERT INTO innodb_ndb VALUES (59);
+INSERT INTO innodb_ndb VALUES (60);
+sync_slave_with_master;
+connection master;
+
+
+--echo ==== AUTOCOMMIT=0, single statements, myisam on master ====
+
+SET AUTOCOMMIT = 0;
+
+# This tests BUG#29288.
+INSERT INTO myisam_innodb VALUES (61);
+INSERT INTO myisam_innodb VALUES (62);
+sync_slave_with_master;
+connection master;
+
+INSERT INTO myisam_ndb VALUES (63);
+INSERT INTO myisam_ndb VALUES (64);
+sync_slave_with_master;
+connection master;
+
+
+--echo ==== Show results ====
+
+SELECT * FROM myisam_innodb ORDER BY a;
+SELECT * FROM innodb_myisam ORDER BY a;
+SELECT * FROM myisam_ndb    ORDER BY a;
+SELECT * FROM ndb_myisam    ORDER BY a;
+SELECT * FROM innodb_ndb    ORDER BY a;
+SELECT * FROM ndb_innodb    ORDER BY a;
+
+let $diff_table_1=master:test.myisam_innodb;
+let $diff_table_2=slave:test.myisam_innodb;
+source include/diff_tables.inc;
+
+let $diff_table_1=master:test.innodb_myisam;
+let $diff_table_2=slave:test.innodb_myisam;
+source include/diff_tables.inc;
+
+let $diff_table_1=master:test.myisam_ndb;
+let $diff_table_2=slave:test.myisam_ndb;
+source include/diff_tables.inc;
+
+let $diff_table_1=master:test.ndb_myisam;
+let $diff_table_2=slave:test.ndb_myisam;
+source include/diff_tables.inc;
+
+let $diff_table_1=master:test.innodb_ndb;
+let $diff_table_2=slave:test.innodb_ndb;
+source include/diff_tables.inc;
+
+let $diff_table_1=master:test.ndb_innodb;
+let $diff_table_2=slave:test.ndb_innodb;
+source include/diff_tables.inc;
+
+
+--echo ==== Clean up ====
+
+drop table myisam_innodb, innodb_myisam;
+drop table myisam_ndb, ndb_myisam;
+drop table innodb_ndb, ndb_innodb;
+sync_slave_with_master;

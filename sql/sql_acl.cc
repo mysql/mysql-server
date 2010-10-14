@@ -197,6 +197,7 @@ static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
+static inline void get_grantor(THD *thd, char* grantor);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -1655,12 +1656,10 @@ bool change_password(THD *thd, const char *host, const char *user,
   result= 0;
   if (mysql_bin_log.is_open())
   {
-    query_length=
-      my_sprintf(buff,
-                 (buff,"SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
-                  acl_user->user ? acl_user->user : "",
-                  acl_user->host.hostname ? acl_user->host.hostname : "",
-                  new_password));
+    query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
+                          acl_user->user ? acl_user->user : "",
+                          acl_user->host.hostname ? acl_user->host.hostname : "",
+                          new_password);
     thd->clear_error();
     result= thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
                               FALSE, FALSE, 0);
@@ -2766,6 +2765,20 @@ end:
   DBUG_RETURN(result);
 }
 
+static inline void get_grantor(THD *thd, char *grantor)
+{
+  const char *user= thd->security_ctx->user;
+  const char *host= thd->security_ctx->host_or_ip;
+
+#if defined(HAVE_REPLICATION)
+  if (thd->slave_thread && thd->has_invoker())
+  {
+    user= thd->get_invoker_user().str;
+    host= thd->get_invoker_host().str;
+  }
+#endif
+  strxmov(grantor, user, "@", host, NullS);
+}
 
 static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       TABLE *table, const LEX_USER &combo,
@@ -2780,9 +2793,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   uchar user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_table_table");
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     The following should always succeed as new users are created before
     this function is called!
@@ -2912,9 +2923,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     DBUG_RETURN(-1);
   }
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     New users are created before this function is called.
 
@@ -5754,7 +5763,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  ulong sql_mode;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
@@ -5801,7 +5809,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     }
 
     some_users_created= TRUE;
-    sql_mode= thd->variables.sql_mode;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
       append_user(&wrong_users, user_name);

@@ -5,8 +5,7 @@ create table t1 (a int, b int) engine=innodb;
 begin;
 insert into t1 values (1,2);
 commit;
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-show binlog events;
+source include/show_binlog_events.inc;
 drop table t1;
 
 # This is a wrapper for binlog.test so that the same test case can be used 
