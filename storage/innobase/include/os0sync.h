@@ -419,10 +419,10 @@ Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
 
 # define os_atomic_decrement_lint(ptr, amount) \
-	(win_xchg_and_add(ptr, -amount) - amount)
+	(win_xchg_and_dec(ptr, amount) - amount)
 
 # define os_atomic_decrement_ulint(ptr, amount) \
-	((ulint) (win_xchg_and_add(ptr, -amount) - amount))
+	((ulint) (win_xchg_and_dec(ptr, amount) - amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.
