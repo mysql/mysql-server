@@ -813,3 +813,8 @@
    fun:pthread_create*
 }
 
+{
+   buf_buddy_relocate peeking (space,page) in potentially free blocks
+   Memcheck:Addr1
+   fun:buf_buddy_relocate
+}

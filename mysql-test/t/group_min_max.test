@@ -1085,4 +1085,19 @@ INSERT INTO t1 VALUES (1), (2), (3);
 --source include/min_null_cond.inc
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#53859: Valgrind: opt_sum_query(TABLE_LIST*, List<Item>&, Item*) at
+--echo # opt_sum.cc:305
+--echo #
+CREATE TABLE t1 ( a INT, KEY (a) );
+INSERT INTO t1 VALUES (1), (2), (3); 
+
+SELECT MIN( a ) AS min_a
+FROM t1
+WHERE a > 1 AND a IS NULL
+ORDER BY min_a;
+
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests

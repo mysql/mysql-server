@@ -270,10 +270,7 @@ DELETE FROM t1;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 sync_slave_with_master;
 set @@global.slave_exec_mode= default;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+source include/check_slave_is_running.inc;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 
 # BUG#37076: TIMESTAMP/DATETIME values are not replicated correctly
@@ -385,9 +382,15 @@ let $diff_table_1=master:test.t2;
 let $diff_table_2=slave:test.t2;
 source include/diff_tables.inc;
 
-connection slave;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+--echo [expecting slave to stop]
+connection master;
+INSERT INTO t3 VALUES (1, "", 1);
+INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
 
+# 1642 = ER_SLAVE_CONVERSION_FAILED
+--let $slave_sql_errno= 1642
+--let $show_slave_sql_error= 1
+#--source include/wait_for_slave_sql_error.inc
 connection master;
 RESET MASTER;
 connection slave;
@@ -412,11 +415,10 @@ INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1642 = ER_SLAVE_CONVERSION_FAILED
+--let $slave_sql_errno= 1642 
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 connection master;
 RESET MASTER;
 connection slave;
@@ -431,11 +433,10 @@ INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1642 = ER_SLAVE_CONVERSION_FAILED
+--let $slave_sql_errno= 1642 
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 connection master;
 RESET MASTER;
 connection slave;
@@ -478,6 +479,9 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 sync_slave_with_master;
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+
 
 # Test case moved to separate file as there is problem for ndb.
 # file extra/rpl_tests/rpl_row_basic_no_pk.test as not to have 

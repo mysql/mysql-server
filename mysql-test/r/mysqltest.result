@@ -325,6 +325,7 @@ outer=2 ifval=0
 outer=1 ifval=1
 here is the sourced script
 ERROR 42S02: Table 'test.nowhere' doesn't exist
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'else' at line 1
 
 In loop
 here is the sourced script
@@ -392,6 +393,9 @@ true-inner again
 true-outer
 Counter is greater than 0, (counter=10)
 Counter is not 0, (counter=0)
+Counter is true, (counter=alpha)
+Beta is true
+while with string, only once
 1
 Testing while with not
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": At line 64: Nesting too deeply
@@ -446,7 +450,6 @@ OK
 mysqltest: The test didn't produce any output
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
-connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);
 show tables;
 ERROR 3D000: No database selected
 Output from mysqltest-x.inc
@@ -572,7 +575,7 @@ if things work as expected
 Some data
 for cat_file command
 of mysqltest
-mysqltest: At line 1: Failed to open file 'non_existing_file'
+mysqltest: At line 1: command "cat_file" failed with error 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'

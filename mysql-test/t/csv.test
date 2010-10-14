@@ -1553,26 +1553,25 @@ drop table t1;
 # whole alter table code is being tested all around the test suite already.
 #
 
-create table t1 (v varchar(32) not null);
+create table t1 (v varchar(32) not null) engine=csv;
 insert into t1 values ('def'),('abc'),('hij'),('3r4f');
 select * from t1;
 # Fast alter, no copy performed
-alter table t1 change v v2 varchar(32);
+alter table t1 change v v2 varchar(32) not null;
 select * from t1;
 # Fast alter, no copy performed
-alter table t1 change v2 v varchar(64);
+alter table t1 change v2 v varchar(64) not null;
 select * from t1;
 update t1 set v = 'lmn' where v = 'hij';
 select * from t1;
 # Regular alter table
-alter table t1 add i int auto_increment not null primary key first;
+alter table t1 add i int not null first;
 select * from t1;
-update t1 set i=5 where i=3;
+update t1 set i=3 where v = 'abc';
 select * from t1;
-alter table t1 change i i bigint;
+alter table t1 change i i bigint not null;
 select * from t1;
-alter table t1 add unique key (i, v);
-select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
+select * from t1 where i between 2 and 4 and v in ('def','3r4f','abc');
 drop table t1;
 
 #

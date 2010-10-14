@@ -169,3 +169,45 @@ DROP PROCEDURE testproc;
 WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (latin1). Please verify if necessary.
 WARNING: NULL values of the 'collation_connection' column ('mysql.proc' table) have been updated with a default value (latin1_swedish_ci). Please verify if necessary.
 WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been updated with default values. Please verify if necessary.
+#
+# Bug #53613: mysql_upgrade incorrectly revokes 
+#   TRIGGER privilege on given table
+#
+GRANT USAGE ON *.* TO 'user3'@'%';
+GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
+Run mysql_upgrade with all privileges on a user
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log
+Error    : You can't use locks with log tables.
+status   : OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.servers                                      OK
+mysql.slow_log
+Error    : You can't use locks with log tables.
+status   : OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+SHOW GRANTS FOR 'user3'@'%';
+Grants for user3@%
+GRANT USAGE ON *.* TO 'user3'@'%'
+GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%'
+DROP USER 'user3'@'%';
+End of 5.1 tests

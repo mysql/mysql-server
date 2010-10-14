@@ -91,3 +91,14 @@ iONkSBcBAAAAKwAAAMQBAAAQABAAAAAAAAEAA//4AQAAAAMAMTIzAQAAAA==
 ';
 ERROR HY000: master may suffer from http://bugs.mysql.com/bug.php?id=37426 so slave stops; check error log on slave for more info
 drop table t1, char63_utf8, char128_utf8;
+#
+# Bug #54393: crash and/or valgrind errors in 
+# mysql_client_binlog_statement
+#
+BINLOG '';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+BINLOG '123';
+BINLOG '-2079193929';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+BINLOG 'xç↓%~∙D╒ƒ╡';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
