@@ -1,0 +1,375 @@
+#
+# Bug #40113: Embedded SELECT inside UPDATE or DELETE can timeout 
+#  without error
+#
+CREATE TABLE t1 (a int, b int, PRIMARY KEY  (a,b)) ENGINE=InnoDB;
+INSERT INTO t1 (a,b) VALUES (1070109,99);
+CREATE TABLE t2 (b int, a int, PRIMARY KEY (b)) ENGINE=InnoDB;
+INSERT INTO t2 (b,a) VALUES (7,1070109);
+SELECT * FROM t1;
+a	b
+1070109	99
+BEGIN;
+SELECT b FROM t2 WHERE b=7 FOR UPDATE;
+b
+7
+BEGIN;
+SELECT b FROM t2 WHERE b=7 FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 (a) VALUES ((SELECT a FROM t2 WHERE b=7));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE t1 SET a='7000000' WHERE a=(SELECT a FROM t2 WHERE b=7);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t1 WHERE a=(SELECT a FROM t2 WHERE b=7);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+a	b
+1070109	99
+DROP TABLE t2, t1;
+# End of 5.0 tests
+#
+# Bug#46539 Various crashes on INSERT IGNORE SELECT + SELECT
+#           FOR UPDATE
+#
+drop table if exists t1;
+create table t1 (a int primary key auto_increment,
+b int, index(b)) engine=innodb;
+insert into t1 (b) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+set autocommit=0;
+begin;
+select * from t1 where b=5 for update;
+a	b
+5	5
+insert ignore into t1 (b) select a as b from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Cleanup
+#
+commit;
+set autocommit=default;
+drop table t1;
+#
+# Bug #37183 insert ignore into .. select ... hangs 
+#            after deadlock was encountered
+#
+create table t1(id int primary key,v int)engine=innodb;
+insert into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7);
+create table t2 like t1;
+begin;
+update t1 set v=id*2 where id=1;
+begin;
+update t1 set v=id*2 where id=2;
+update t1 set v=id*2 where id=2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+insert ignore into t2 select * from t1 where id=1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+rollback;
+drop table t1, t2;
+#
+# Bug#41756 Strange error messages about locks from InnoDB
+#
+drop table if exists t1;
+# In the default transaction isolation mode, and/or with
+# innodb_locks_unsafe_for_binlog=OFF, handler::unlock_row()
+# in InnoDB does nothing.
+# Thus in order to reproduce the condition that led to the
+# warning, one needs to relax isolation by either
+# setting a weaker tx_isolation value, or by turning on
+# the unsafe replication switch.
+# For testing purposes, choose to tweak the isolation level,
+# since it's settable at runtime, unlike
+# innodb_locks_unsafe_for_binlog, which is
+# only a command-line switch.
+#
+set @@session.tx_isolation="read-committed";
+# Prepare data. We need a table with a unique index,
+# for join_read_key to be used. The other column
+# allows to control what passes WHERE clause filter.
+create table t1 (a int primary key, b int) engine=innodb;
+# Let's make sure t1 has sufficient amount of rows
+# to exclude JT_ALL access method when reading it,
+# i.e. make sure that JT_EQ_REF(a) is always preferred.
+insert into t1 values (1,1), (2,null), (3,1), (4,1),
+(5,1), (6,1), (7,1), (8,1), (9,1), (10,1),
+(11,1), (12,1), (13,1), (14,1), (15,1),
+(16,1), (17,1), (18,1), (19,1), (20,1);
+#
+# Demonstrate that for the SELECT statement
+# used later in the test JT_EQ_REF access method is used.
+#
+explain
+select 1 from t1 natural join (select 2 as a, 1 as b union all
+select 2 as a, 2 as b) as t2 for update;
+id	1
+select_type	PRIMARY
+table	<derived2>
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	2
+Extra	
+id	1
+select_type	PRIMARY
+table	t1
+type	eq_ref
+possible_keys	PRIMARY
+key	PRIMARY
+key_len	4
+ref	t2.a
+rows	1
+Extra	Using where
+id	2
+select_type	DERIVED
+table	NULL
+type	NULL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+Extra	No tables used
+id	3
+select_type	UNION
+table	NULL
+type	NULL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+Extra	No tables used
+id	NULL
+select_type	UNION RESULT
+table	<union2,3>
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+Extra	
+#
+# Demonstrate that the reported SELECT statement
+# no longer produces warnings.
+#
+select 1 from t1 natural join (select 2 as a, 1 as b union all
+select 2 as a, 2 as b) as t2 for update;
+1
+commit;
+# 
+# Demonstrate that due to lack of inter-sweep "reset" function,
+# we keep some non-matching records locked, even though we know
+# we could unlock them.
+# To do that, show that if there is only one distinct value
+# for a in t2 (a=2), we will keep record (2,null) in t1 locked.
+# But if we add another value for "a" to t2, say 6,
+# join_read_key cache will be pruned at least once, 
+# and thus record (2, null) in t1 will get unlocked.
+#
+begin;
+select 1 from t1 natural join (select 2 as a, 1 as b union all
+select 2 as a, 2 as b) as t2 for update;
+1
+#
+# Switching to connection con1
+# We should be able to delete all records from t1 except (2, null),
+# since they were not locked.
+begin;
+# Delete in series of 3 records so that full scan
+# is not used and we're not blocked on record (2,null)
+delete from t1 where a in (1,3,4);
+delete from t1 where a in (5,6,7);
+delete from t1 where a in (8,9,10);
+delete from t1 where a in (11,12,13);
+delete from t1 where a in (14,15,16);
+delete from t1 where a in (17,18);
+delete from t1 where a in (19,20);
+# 
+# Record (2, null) is locked. This is actually unnecessary, 
+# because the previous select returned no rows. 
+# Just demonstrate the effect.
+#
+delete from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+#
+# Switching to connection default
+#
+# Show that the original contents of t1 is intact:
+select * from t1;
+a	b
+1	1
+2	NULL
+3	1
+4	1
+5	1
+6	1
+7	1
+8	1
+9	1
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+16	1
+17	1
+18	1
+19	1
+20	1
+commit;
+#
+# Have a one more record in t2 to show that 
+# if join_read_key cache is purned, the current
+# row under the cursor is unlocked (provided, this row didn't 
+# match the partial WHERE clause, of course).
+# Sic: the result of this test dependent on the order of retrieval
+# of records --echo # from the derived table, if !
+# We use DELETE to disable the JOIN CACHE. This DELETE modifies no
+# records. It also should leave no InnoDB row locks.
+#
+begin;
+delete t1.* from t1 natural join (select 2 as a, 2 as b union all
+select 0 as a, 0 as b) as t2;
+# Demonstrate that nothing was deleted form t1
+select * from t1;
+a	b
+1	1
+2	NULL
+3	1
+4	1
+5	1
+6	1
+7	1
+8	1
+9	1
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+16	1
+17	1
+18	1
+19	1
+20	1
+#
+# Switching to connection con1
+begin;
+# Since there is another distinct record in the derived table
+# the previous matching record in t1 -- (2,null) -- was unlocked.
+delete from t1;
+# We will need the contents of the table again.
+rollback;
+select * from t1;
+a	b
+1	1
+2	NULL
+3	1
+4	1
+5	1
+6	1
+7	1
+8	1
+9	1
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+16	1
+17	1
+18	1
+19	1
+20	1
+commit;
+#
+# Switching to connection default
+rollback;
+begin;
+#
+# Before this patch, we could wrongly unlock a record
+# that was cached and later used in a join. Demonstrate that
+# this is no longer the case.
+# Sic: this test is also order-dependent (i.e. the
+# the bug would show up only if the first record in the union
+# is retreived and processed first.
+#
+# Verify that JT_EQ_REF is used.
+explain
+select 1 from t1 natural join (select 3 as a, 2 as b union all
+select 3 as a, 1 as b) as t2 for update;
+id	1
+select_type	PRIMARY
+table	<derived2>
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	2
+Extra	
+id	1
+select_type	PRIMARY
+table	t1
+type	eq_ref
+possible_keys	PRIMARY
+key	PRIMARY
+key_len	4
+ref	t2.a
+rows	1
+Extra	Using where
+id	2
+select_type	DERIVED
+table	NULL
+type	NULL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+Extra	No tables used
+id	3
+select_type	UNION
+table	NULL
+type	NULL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+Extra	No tables used
+id	NULL
+select_type	UNION RESULT
+table	<union2,3>
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+Extra	
+# Lock the record.
+select 1 from t1 natural join (select 3 as a, 2 as b union all
+select 3 as a, 1 as b) as t2 for update;
+1
+1
+# Switching to connection con1
+#
+# We should not be able to delete record (3,1) from t1,
+# (previously it was possible).
+#
+delete from t1 where a=3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Switching to connection default
+commit;
+set @@session.tx_isolation=default;
+drop table t1;
+#
+# End of 5.1 tests
+#

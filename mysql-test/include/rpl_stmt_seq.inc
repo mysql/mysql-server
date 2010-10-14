@@ -80,9 +80,8 @@ eval INSERT INTO t1 SET f1= $MAX + 1;
 SELECT MAX(f1) FROM t1;
 if ($show_binlog)
 {
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
-eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+  --let $binlog_file= master-bin.$_log_num_s
+  --source include/show_binlog_events.inc
 }
 sync_slave_with_master;
 
@@ -93,9 +92,8 @@ connection slave;
 SELECT MAX(f1) FROM t1;
 if ($show_binlog)
 {
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
-eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+  --let $binlog_file= slave-bin.$_log_num_s
+  --source include/show_binlog_events.inc
 }
 
 ###############################################################
@@ -111,9 +109,8 @@ let $my_stmt= ERROR: YOU FORGOT TO FILL IN THE STATEMENT;
 SELECT MAX(f1) FROM t1;
 if ($show_binlog)
 {
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
-eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+  --let $binlog_file= master-bin.$_log_num_s
+  --source include/show_binlog_events.inc
 }
 sync_slave_with_master;
 
@@ -124,9 +121,8 @@ connection slave;
 SELECT MAX(f1) FROM t1;
 if ($show_binlog)
 {
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
-eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+  --let $binlog_file= slave-bin.$_log_num_s
+  --source include/show_binlog_events.inc
 }
 
 ###############################################################
@@ -150,9 +146,8 @@ eval SELECT CONCAT(CONCAT('TEST-INFO: MASTER: The INSERT is ',
 --enable_query_log
 if ($show_binlog)
 {
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
-eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+  --let $binlog_file= master-bin.$_log_num_s
+  --source include/show_binlog_events.inc
 }
 sync_slave_with_master;
 
@@ -171,9 +166,8 @@ eval SELECT CONCAT(CONCAT('TEST-INFO: SLAVE:  The INSERT is ',
 --enable_query_log
 if ($show_binlog)
 {
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
-eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+  --let $binlog_file= slave-bin.$_log_num_s
+  --source include/show_binlog_events.inc
 }
 
 ###############################################################

@@ -401,7 +401,7 @@ or row lock! */
 					locked; see e.g.
 					ibuf_bitmap_get_map_page(). */
 #define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
-					this in X-mode, implicit or backround
+					this in X-mode; implicit or backround
 					operations purge, rollback, foreign
 					key checks reserve this in S-mode */
 #define SYNC_DICT		1000
