@@ -105,14 +105,11 @@ trx_create(
 
 	trx->magic_n = TRX_MAGIC_N;
 
-	trx->op_info = "";
-
 	trx->lock.conc_state = TRX_NOT_STARTED;
 	trx->start_time = ut_time();
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	trx->id = 0;
 	trx->no = IB_ULONGLONG_MAX;
 
 	trx->support_xa = TRUE;
@@ -125,7 +122,6 @@ trx_create(
 	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->error_state = DB_SUCCESS;
-	trx->detailed_error[0] = '\0';
 
 	trx->sess = sess;
 
@@ -138,8 +134,6 @@ trx_create(
 
 	trx->global_read_view_heap = mem_heap_create(256);
 
-	/* Set X/Open XA transaction identification to NULL */
-	memset(&trx->xid, 0, sizeof(trx->xid));
 	trx->xid.formatID = -1;
 
 	/* Remember to free the vector explicitly. */
