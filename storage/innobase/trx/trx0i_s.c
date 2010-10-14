@@ -1239,6 +1239,7 @@ fetch_data_into_cache(
 	i_s_locks_row_t*	requested_lock_row;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	trx_i_s_cache_clear(cache);
 
