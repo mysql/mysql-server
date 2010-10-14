@@ -95,6 +95,12 @@ int CharsetMap::getCharsetNumber(const char *name) const
     return get_charset_number(name, MY_CS_AVAILABLE);
 }
 
+bool CharsetMap::isMultibyte(int cs_number) const
+{
+  CHARSET_INFO * cset = get_charset(cs_number, MYF(0));
+  return use_mb(cset);
+}
+
 
 CharsetMap::RecodeStatus CharsetMap::recode(int32_t *lengths, int From, int To, 
                                             const void *void_src, 
