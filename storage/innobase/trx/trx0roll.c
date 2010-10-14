@@ -477,7 +477,6 @@ trx_rollback_active(
 
 	ut_a(thr == que_fork_start_command(fork));
 
-	// FIXME: Document this
 	rw_lock_s_lock(&trx_sys->lock);
 
 	trx_roll_crash_recv_trx	= trx;
@@ -729,14 +728,15 @@ trx_undo_arr_create(
 {
 	trx_undo_arr_t*	arr;
 	mem_heap_t*	heap;
+	ulint		sz = sizeof(*arr) + sizeof(*arr->infos) * n_cells;
 
-	heap = mem_heap_create(1024);
+	heap = mem_heap_create(sz);
 
-	arr = mem_heap_zalloc(heap, sizeof(trx_undo_arr_t));
-
-	arr->infos = mem_heap_zalloc(heap, sizeof(*arr->infos) * n_cells);
+	arr = mem_heap_zalloc(heap, sz);
 
 	arr->n_cells = n_cells;
+
+	arr->infos = (trx_undo_inf_t*) (arr + 1);
 
 	arr->heap = heap;
 
@@ -764,19 +764,18 @@ trx_undo_arr_store_info(
 	trx_t*		trx,	/*!< in: transaction */
 	undo_no_t	undo_no)/*!< in: undo number */
 {
-	trx_undo_inf_t*	cell;
-	trx_undo_inf_t*	stored_here;
-	trx_undo_arr_t*	arr;
-	ulint		n_used;
-	ulint		n;
 	ulint		i;
+	trx_undo_arr_t*	arr;
+	ulint		n = 0;
+	ulint		n_used;
+	trx_undo_inf_t*	stored_here = NULL;
 
-	n = 0;
 	arr = trx->undo_no_arr;
 	n_used = arr->n_used;
-	stored_here = NULL;
 
-	for (i = 0;; i++) {
+	for (i = 0; i < arr->n_cells; i++) {
+		trx_undo_inf_t*	cell;
+
 		cell = trx_undo_arr_get_nth_info(arr, i);
 
 		if (!cell->in_use) {
@@ -813,6 +812,10 @@ trx_undo_arr_store_info(
 			return(TRUE);
 		}
 	}
+
+	ut_error;
+
+	return(FALSE);
 }
 
 /*******************************************************************//**
@@ -824,22 +827,19 @@ trx_undo_arr_remove_info(
 	trx_undo_arr_t*	arr,	/*!< in: undo number array */
 	undo_no_t	undo_no)/*!< in: undo number */
 {
-	trx_undo_inf_t*	cell;
 	ulint		i;
 
-	for (i = 0;; i++) {
+	for (i = 0; i < arr->n_cells; i++) {
+
+		trx_undo_inf_t*	cell;
+
 		cell = trx_undo_arr_get_nth_info(arr, i);
 
-		if (cell->in_use
-		    && cell->undo_no == undo_no) {
-
+		if (cell->in_use && cell->undo_no == undo_no) {
 			cell->in_use = FALSE;
-
 			ut_ad(arr->n_used > 0);
-
-			arr->n_used--;
-
-			return;
+			--arr->n_used;
+			break;
 		}
 	}
 }
@@ -851,33 +851,28 @@ static
 undo_no_t
 trx_undo_arr_get_biggest(
 /*=====================*/
-	trx_undo_arr_t*	arr)	/*!< in: undo number array */
+	const trx_undo_arr_t*	arr)	/*!< in: undo number array */
 {
-	trx_undo_inf_t*	cell;
-	ulint		n_used;
-	undo_no_t	biggest;
-	ulint		n;
 	ulint		i;
+	undo_no_t	biggest = 0;
+	ulint		n_checked = 0;
 
-	n = 0;
-	n_used = arr->n_used;
-	biggest = 0;
+	for (i = 0; i < arr->n_cells && n_checked < arr->n_used; ++i) {
 
-	for (i = 0;; i++) {
-		cell = trx_undo_arr_get_nth_info(arr, i);
+		const trx_undo_inf_t*	cell = &arr->infos[i];
 
 		if (cell->in_use) {
-			n++;
+
+			++n_checked;
+
 			if (cell->undo_no > biggest) {
 
 				biggest = cell->undo_no;
 			}
 		}
-
-		if (n == n_used) {
-			return(biggest);
-		}
 	}
+
+	return(biggest);
 }
 
 /***********************************************************************//**
@@ -888,9 +883,8 @@ trx_roll_try_truncate(
 /*==================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	trx_undo_arr_t*	arr;
-	undo_no_t	limit;
-	undo_no_t	biggest;
+	undo_no_t		limit;
+	const trx_undo_arr_t*	arr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&((trx->rseg)->mutex)));
@@ -902,6 +896,8 @@ trx_roll_try_truncate(
 	limit = trx->undo_no;
 
 	if (arr->n_used > 0) {
+		undo_no_t	biggest;
+
 		biggest = trx_undo_arr_get_biggest(arr);
 
 		if (biggest >= limit) {
@@ -936,19 +932,20 @@ trx_roll_pop_top_rec(
 	trx_undo_rec_t*	prev_rec;
 	page_t*		prev_rec_page;
 
-	ut_ad(mutex_own(&(trx->undo_mutex)));
+	ut_ad(mutex_own(&trx->undo_mutex));
 
-	undo_page = trx_undo_page_get_s_latched(undo->space, undo->zip_size,
-						undo->top_page_no, mtr);
+	undo_page = trx_undo_page_get_s_latched(
+		undo->space, undo->zip_size, undo->top_page_no, mtr);
+
 	offset = undo->top_offset;
 
 	/*	fprintf(stderr, "Thread %lu undoing trx " TRX_ID_FMT
 			" undo record " TRX_ID_FMT "\n",
 	os_thread_get_curr_id(), trx->id, undo->top_undo_no); */
 
-	prev_rec = trx_undo_get_prev_rec(undo_page + offset,
-					 undo->hdr_page_no, undo->hdr_offset,
-					 mtr);
+	prev_rec = trx_undo_get_prev_rec(
+		undo_page + offset, undo->hdr_page_no, undo->hdr_offset, mtr);
+
 	if (prev_rec == NULL) {
 
 		undo->empty = TRUE;
@@ -1001,11 +998,11 @@ try_again:
 	mutex_enter(&(trx->undo_mutex));
 
 	if (trx->pages_undone >= TRX_ROLL_TRUNC_THRESHOLD) {
-		mutex_enter(&(rseg->mutex));
+		mutex_enter(&rseg->mutex);
 
 		trx_roll_try_truncate(trx);
 
-		mutex_exit(&(rseg->mutex));
+		mutex_exit(&rseg->mutex);
 	}
 
 	ins_undo = trx->insert_undo;
@@ -1021,8 +1018,7 @@ try_again:
 		undo = ins_undo;
 	}
 
-	if (!undo || undo->empty
-	    || limit > undo->top_undo_no) {
+	if (!undo || undo->empty || limit > undo->top_undo_no) {
 
 		if ((trx->undo_no_arr)->n_used == 0) {
 			/* Rollback is ending */
@@ -1039,15 +1035,12 @@ try_again:
 		return(NULL);
 	}
 
-	if (undo == ins_undo) {
-		is_insert = TRUE;
-	} else {
-		is_insert = FALSE;
-	}
+	is_insert = (undo == ins_undo);
 
-	*roll_ptr = trx_undo_build_roll_ptr(is_insert, (undo->rseg)->id,
-					    undo->top_page_no,
-					    undo->top_offset);
+	*roll_ptr = trx_undo_build_roll_ptr(
+		is_insert, (undo->rseg)->id, undo->top_page_no,
+	       	undo->top_offset);
+
 	mtr_start(&mtr);
 
 	undo_rec = trx_roll_pop_top_rec(trx, undo, &mtr);
