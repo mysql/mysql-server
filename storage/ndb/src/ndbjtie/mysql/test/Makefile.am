@@ -22,8 +22,8 @@ include $(top_srcdir)/storage/ndb/config/common.mk.am
 EXTRA_DIST = mysql_utils_unit_tests-t
 
 ## automake flags (overridden by per-target flags, added before user flags)
-AM_CPPFLAGS = -I../include \
-		-I$(top_srcdir)/storage/ndb/ndbjtie/utils
+AM_CPPFLAGS = -I$(top_srcdir)/storage/ndb/include -I.. \
+		-I$(top_srcdir)/storage/ndb/src/ndbjtie/utils
 
 
 ## create the unit test scripts during build already
@@ -40,7 +40,7 @@ mysql_utils_test_SOURCES = mysql_utils_test.cpp
 #mysqlutils_test_CPPFLAGS = $(AM_CPPFLAGS)
 
 ## extra libtool objects (.lo) or libtool libraries (.la)
-mysql_utils_test_LDADD = ../src/libmysqlutils.la
+mysql_utils_test_LDADD = ../libmysqlutils.la ../../../libndbclient.la
 
 ## mode-specific libtool options (overrides AM_LDFLAGS)
 ##   using -no-install requires shared libraries to be installed

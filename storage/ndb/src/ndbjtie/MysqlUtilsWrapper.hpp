@@ -67,6 +67,13 @@ struct MysqlUtilsWrapper {
         return obj.getUTF16CharsetNumber();
     }
     
+    static bool 
+    CharsetMap__isMultibyte
+    ( const CharsetMap & obj, int p0 )
+    {
+       return obj.isMultibyte(p0);
+    }
+    
     static CharsetMap::RecodeStatus
     CharsetMap__recode
     ( const CharsetMap & obj, int32_t * p0, int p1, int p2, const void * p3, void * p4 )
