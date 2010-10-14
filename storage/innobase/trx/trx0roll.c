@@ -587,7 +587,7 @@ trx_rollback_resurrected(
 
 	if (!trx->is_recovered) {
 
-		trx_mutex_enter(trx);
+		trx_mutex_exit(trx);
 
 		cleaned_or_rolledback = FALSE;
 	} else if (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY) {
