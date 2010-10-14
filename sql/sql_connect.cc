@@ -474,6 +474,7 @@ check_user(THD *thd, enum enum_server_command command,
       }
       my_ok(thd);
       thd->password= test(passwd_len);          // remember for error messages 
+#ifndef EMBEDDED_LIBRARY
       /*
         Allow the network layer to skip big packets. Although a malicious
         authenticated session might use this to trick the server to read
@@ -481,6 +482,7 @@ check_user(THD *thd, enum enum_server_command command,
         that needs to be preserved as to not break backwards compatibility.
       */
       thd->net.skip_big_packet= TRUE;
+#endif
       /* Ready to handle queries */
       DBUG_RETURN(0);
     }

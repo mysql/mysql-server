@@ -2,6 +2,7 @@
 -- source include/not_embedded.inc
 
 SET @old_general_log= @@global.general_log;
+SET @old_slow_query_log= @@global.slow_query_log;
 
 # We run with different binaries for normal and --embedded-server
 #
@@ -17,3 +18,4 @@ SET @old_general_log= @@global.general_log;
 echo ok;
 
 SET @@global.general_log= @old_general_log;
+SET @@global.slow_query_log= @old_slow_query_log;

@@ -336,4 +336,19 @@ End of 5.0 tests
 select connection_id() > 0;
 connection_id() > 0
 1
+#
+# Bug #54461: crash with longblob and union or update with subquery
+#
+CREATE TABLE t1 (a INT, b LONGBLOB);
+INSERT INTO t1 VALUES (1, '2'), (2, '3'), (3, '2');
+SELECT DISTINCT LEAST(a, (SELECT b FROM t1 LIMIT 1)) FROM t1 UNION SELECT 1;
+LEAST(a, (SELECT b FROM t1 LIMIT 1))
+1
+2
+SELECT DISTINCT GREATEST(a, (SELECT b FROM t1 LIMIT 1)) FROM t1 UNION SELECT 1;
+GREATEST(a, (SELECT b FROM t1 LIMIT 1))
+2
+3
+1
+DROP TABLE t1;
 End of tests

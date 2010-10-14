@@ -515,8 +515,7 @@ set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
     Let us add this item to list of all Item_trigger_field
     objects in trigger.
   */
-  lex->trg_table_fields.link_in_list((uchar *) trg_fld,
-                                     (uchar **) &trg_fld->next_trg_field);
+  lex->trg_table_fields.link_in_list(trg_fld, &trg_fld->next_trg_field);
 
   return lex->sphead->add_instr(sp_fld);
 }
@@ -1306,6 +1305,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <table>
         table_ident table_ident_nodb references xid
+        table_ident_opt_wild
 
 %type <simple_string>
         remember_name remember_end opt_ident opt_db text_or_password
@@ -3916,17 +3916,26 @@ create2a:
           create3 {}
         |  opt_partitioning
            create_select ')'
-           { Select->set_braces(1);}
+           {
+             Select->set_braces(1);
+             Lex->create_select_start_with_brace= TRUE;
+           }
            union_opt {}
         ;
 
 create3:
           /* empty */ {}
         | opt_duplicate opt_as create_select
-          { Select->set_braces(0);}
+          {
+            Select->set_braces(0);
+            Lex->create_select_start_with_brace= FALSE;
+          }
           union_clause {}
         | opt_duplicate opt_as '(' create_select ')'
-          { Select->set_braces(1);}
+          {
+            Select->set_braces(1);
+            Lex->create_select_start_with_brace= TRUE;
+          }
           union_opt {}
         ;
 
@@ -4551,6 +4560,19 @@ create_select:
             lex->current_select->table_list.save_and_clear(&lex->save_list);
             mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
+
+            if (lex->sql_command == SQLCOM_CREATE_TABLE &&
+                (lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS))
+            {
+              Lex_input_stream *lip= YYLIP;
+
+              if (lex->spcont)
+                lex->create_select_pos= lip->get_tok_start() -
+                  lex->sphead->m_tmp_query;
+              else
+                lex->create_select_pos= lip->get_tok_start() - lip->get_buf();
+              lex->create_select_in_comment= (lip->in_comment == DISCARD_COMMENT);
+            }
           }
           select_options select_item_list
           {
@@ -4713,11 +4735,9 @@ create_table_option:
             TABLE_LIST *table_list= lex->select_lex.get_table_list();
             lex->create_info.merge_list= lex->select_lex.table_list;
             lex->create_info.merge_list.elements--;
-            lex->create_info.merge_list.first=
-              (uchar*) (table_list->next_local);
+            lex->create_info.merge_list.first= table_list->next_local;
             lex->select_lex.table_list.elements=1;
-            lex->select_lex.table_list.next=
-              (uchar**) &(table_list->next_local);
+            lex->select_lex.table_list.next= &(table_list->next_local);
             table_list->next_local= 0;
             lex->create_info.used_fields|= HA_CREATE_USED_UNION;
           }
@@ -5716,8 +5736,7 @@ alter:
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->select_lex.init_order();
-            lex->select_lex.db=
-              ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
+            lex->select_lex.db= (lex->select_lex.table_list.first)->db;
             bzero((char*) &lex->create_info,sizeof(lex->create_info));
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
@@ -8453,9 +8472,8 @@ opt_gorder_clause:
         | order_clause
           {
             SELECT_LEX *select= Select;
-            select->gorder_list=
-              (SQL_LIST*) sql_memdup((char*) &select->order_list,
-                                     sizeof(st_sql_list));
+            select->gorder_list= new (YYTHD->mem_root)
+                                   SQL_I_List<ORDER>(select->order_list);
             if (select->gorder_list == NULL)
               MYSQL_YYABORT;
             select->order_list.empty();
@@ -9399,7 +9417,7 @@ procedure_clause:
             }
             lex->proc_list.elements=0;
             lex->proc_list.first=0;
-            lex->proc_list.next= (uchar**) &lex->proc_list.first;
+            lex->proc_list.next= &lex->proc_list.first;
             Item_field *item= new (YYTHD->mem_root)
                                 Item_field(&lex->current_select->context,
                                            NULL, NULL, $2.str);
@@ -9711,7 +9729,7 @@ table_alias_ref_list:
         ;
 
 table_alias_ref:
-          table_ident
+          table_ident_opt_wild
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
@@ -11358,8 +11376,8 @@ simple_ident_q:
                 Let us add this item to list of all Item_trigger_field objects
                 in trigger.
               */
-              lex->trg_table_fields.link_in_list((uchar*) trg_fld,
-                                                 (uchar**) &trg_fld->next_trg_field);
+              lex->trg_table_fields.link_in_list(trg_fld,
+                                                 &trg_fld->next_trg_field);
 
               $$= trg_fld;
             }
@@ -11445,7 +11463,7 @@ field_ident:
           ident { $$=$1;}
         | ident '.' ident '.' ident
           {
-            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            TABLE_LIST *table= Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->db))
             {
               my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
@@ -11461,7 +11479,7 @@ field_ident:
           }
         | ident '.' ident
           {
-            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            TABLE_LIST *table= Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $1.str);
@@ -11489,6 +11507,21 @@ table_ident:
           {
             /* For Delphi */
             $$= new Table_ident($2);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        ;
+
+table_ident_opt_wild:
+          ident opt_wild
+          {
+            $$= new Table_ident($1);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | ident '.' ident opt_wild
+          {
+            $$= new Table_ident(YYTHD, $1,$3,0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }

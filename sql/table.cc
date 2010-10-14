@@ -48,6 +48,8 @@ static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
 inline bool is_system_table_name(const char *name, uint length);
 
+static ulong get_form_pos(File file, uchar *head);
+
 /**************************************************************************
   Object_creation_ctx implementation.
 **************************************************************************/
@@ -302,13 +304,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->tablespace=    NULL;
 
     /*
-      This constant is used to mark that no table map version has been
-      assigned.  No arithmetic is done on the value: it will be
-      overwritten with a value taken from MYSQL_BIN_LOG.
-    */
-    share->table_map_version= ~(ulonglong)0;
-
-    /*
       Since alloc_table_share() can be called without any locking (for
       example, ha_create_table... functions), we do not assign a table
       map id here.  Instead we assign a value that is not used
@@ -375,7 +370,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
     Temporary tables are not replicated, but we set up these fields
     anyway to be able to catch errors.
    */
-  share->table_map_version= ~(ulonglong)0;
   share->cached_row_logging_check= -1;
 
   /*
@@ -549,7 +543,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   int error, table_type;
   bool error_given;
   File file;
-  uchar head[288], *disk_buff;
+  uchar head[288];
   char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
@@ -558,7 +552,6 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   error= 1;
   error_given= 0;
-  disk_buff= NULL;
 
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
@@ -713,7 +706,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   disk_buff= 0;
 
   error= 3;
-  if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
+  /* Position of the form in the form file. */
+  if (!(pos= get_form_pos(file, head)))
     goto err;                                   /* purecov: inspected */
 
   share->frm_version= head[2];
@@ -2117,52 +2111,46 @@ void free_field_buffers_larger_than(TABLE *table, uint32 size)
   }
 }
 
-	/* Find where a form starts */
-	/* if formname is NullS then only formnames is read */
+/**
+  Find where a form starts.
 
-ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
+  @param head The start of the form file.
+
+  @remark If formname is NULL then only formnames is read.
+
+  @retval The form position.
+*/
+
+static ulong get_form_pos(File file, uchar *head)
 {
-  uint a_length,names,length;
-  uchar *pos,*buf;
+  uchar *pos, *buf;
+  uint names, length;
   ulong ret_value=0;
   DBUG_ENTER("get_form_pos");
 
-  names=uint2korr(head+8);
-  a_length=(names+2)*sizeof(char *);		/* Room for two extra */
+  names= uint2korr(head+8);
 
-  if (!save_names)
-    a_length=0;
-  else
-    save_names->type_names=0;			/* Clear if error */
+  if (!(names= uint2korr(head+8)))
+    DBUG_RETURN(0);
 
-  if (names)
+  length= uint2korr(head+4);
+
+  my_seek(file, 64L, MY_SEEK_SET, MYF(0));
+
+  if (!(buf= (uchar*) my_malloc(length+names*4, MYF(MY_WME))))
+    DBUG_RETURN(0);
+
+  if (my_read(file, buf, length+names*4, MYF(MY_NABP)))
   {
-    length=uint2korr(head+4);
-    VOID(my_seek(file,64L,MY_SEEK_SET,MYF(0)));
-    if (!(buf= (uchar*) my_malloc((size_t) length+a_length+names*4,
-				  MYF(MY_WME))) ||
-	my_read(file, buf+a_length, (size_t) (length+names*4),
-		MYF(MY_NABP)))
-    {						/* purecov: inspected */
-      x_free((uchar*) buf);			/* purecov: inspected */
-      DBUG_RETURN(0L);				/* purecov: inspected */
-    }
-    pos= buf+a_length+length;
-    ret_value=uint4korr(pos);
+    x_free(buf);
+    DBUG_RETURN(0);
   }
-  if (! save_names)
-  {
-    if (names)
-      my_free((uchar*) buf,MYF(0));
-  }
-  else if (!names)
-    bzero((char*) save_names,sizeof(save_names));
-  else
-  {
-    char *str;
-    str=(char *) (buf+a_length);
-    fix_type_pointers((const char ***) &buf,save_names,1,&str);
-  }
+
+  pos= buf+length;
+  ret_value= uint4korr(pos);
+
+  my_free(buf, MYF(0));
+
   DBUG_RETURN(ret_value);
 }
 
@@ -2761,43 +2749,29 @@ bool check_db_name(LEX_STRING *org_name)
 {
   char *name= org_name->str;
   uint name_length= org_name->length;
+  bool check_for_path_chars;
 
   if (!name_length || name_length > NAME_LEN)
     return 1;
 
+  if ((check_for_path_chars= check_mysql50_prefix(name)))
+  {
+    name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+    name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+  }
+
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-#if defined(USE_MB) && defined(USE_MB_IDENT)
-  if (use_mb(system_charset_info))
-  {
-    name_length= 0;
-    bool last_char_is_space= TRUE;
-    char *end= name + org_name->length;
-    while (name < end)
-    {
-      int len;
-      last_char_is_space= my_isspace(system_charset_info, *name);
-      len= my_ismbchar(system_charset_info, name, end);
-      if (!len)
-        len= 1;
-      name+= len;
-      name_length++;
-    }
-    return (last_char_is_space || name_length > NAME_CHAR_LEN);
-  }
-  else
-#endif
-    return ((org_name->str[org_name->length - 1] != ' ') ||
-            (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
+  return check_table_name(name, name_length, check_for_path_chars);
 }
+
 
 /*
   Allow anything as a table name, as long as it doesn't contain an
   ' ' at the end
   returns 1 on error
 */
-
 
 bool check_table_name(const char *name, uint length, bool check_for_path_chars)
 {
@@ -2826,10 +2800,10 @@ bool check_table_name(const char *name, uint length, bool check_for_path_chars)
         continue;
       }
     }
+#endif
     if (check_for_path_chars &&
         (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
       return 1;
-#endif
     name++;
     name_length++;
   }
@@ -4459,6 +4433,27 @@ void st_table::mark_columns_used_by_index(uint index)
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Add fields used by a specified index to the table's read_set.
+
+  NOTE:
+    The original state can be restored with
+    restore_column_maps_after_mark_index().
+*/
+
+void st_table::add_read_columns_used_by_index(uint index)
+{
+  MY_BITMAP *bitmap= &tmp_set;
+  DBUG_ENTER("st_table::add_read_columns_used_by_index");
+
+  set_keyread(TRUE);
+  bitmap_copy(bitmap, read_set);
+  mark_columns_used_by_index_no_reset(index, bitmap);
+  column_bitmaps_set(bitmap, write_set);
   DBUG_VOID_RETURN;
 }
 
