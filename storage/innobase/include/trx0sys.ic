@@ -257,6 +257,8 @@ trx_get_on_id_low(
 {
 	trx_t*	trx;
 
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL && trx_id != trx->id;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
