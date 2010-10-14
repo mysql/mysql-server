@@ -1,3 +1,7 @@
+2010-10-14	The InnoDB Team
+	* srv/srv0start.c
+	Fix Bug #57397 io_handler_thread() will never cleanup
+
 2010-10-11	The InnoDB Team
 	* row/row0sel.c
 	Fix Bug #57345 btr_pcur_store_position abort for load with
