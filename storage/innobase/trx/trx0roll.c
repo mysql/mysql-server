@@ -617,7 +617,7 @@ trx_rollback_resurrected(
 		cleaned_or_rolledback  = TRUE;
 	} else {
 
-		trx_mutex_enter(trx);
+		trx_mutex_exit(trx);
 
 		cleaned_or_rolledback  = FALSE;
 	}
