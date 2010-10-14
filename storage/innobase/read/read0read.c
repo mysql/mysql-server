@@ -158,6 +158,29 @@ read_view_validate(
 
 	return(TRUE);
 }
+
+/*********************************************************************//**
+Validates a read view list. */
+static
+ibool
+read_view_list_validate(void)
+/*=========================*/
+{
+	const read_view_t*	view;
+	const read_view_t*	prev_view = NULL;
+
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+
+	for (view = UT_LIST_GET_FIRST(trx_sys->view_list);
+	     view != NULL;
+	     prev_view = view, view = UT_LIST_GET_NEXT(view_list, prev_view)) {
+
+		ut_a(prev_view == NULL
+		     || prev_view->low_limit_no >= view->low_limit_no);
+	}
+
+	return(TRUE);
+}
 #endif
 
 /*********************************************************************//**
@@ -258,6 +281,8 @@ read_view_open_now_low(
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 
 	mutex_exit(&trx_sys->read_view_mutex);
+
+	ut_ad(read_view_list_validate());
 
 	return(view);
 }
@@ -373,6 +398,8 @@ read_view_purge_open(
 
 	mutex_exit(&trx_sys->read_view_mutex);
 
+	ut_ad(read_view_list_validate());
+
 	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(view);
@@ -383,7 +410,7 @@ Remove a read view from the trx_sys->view_list. */
 UNIV_INTERN
 void
 read_view_remove(
-/*============*/
+/*=============*/
 	read_view_t*	view)	/*!< in: read view */
 {
 	rw_lock_s_lock(&trx_sys->lock);
@@ -395,6 +422,8 @@ read_view_remove(
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
 
 	mutex_exit(&trx_sys->read_view_mutex);
+
+	ut_ad(read_view_list_validate());
 
 	rw_lock_s_unlock(&trx_sys->lock);
 }
@@ -550,6 +579,8 @@ read_cursor_view_create_for_mysql(
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 
 	mutex_exit(&trx_sys->read_view_mutex);
+
+	ut_ad(read_view_list_validate());
 
 	rw_lock_s_unlock(&trx_sys->lock);
 
