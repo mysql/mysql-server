@@ -136,6 +136,8 @@ trx_create(
 
 	trx->xid.formatID = -1;
 
+	trx->op_info = "";
+
 	/* Remember to free the vector explicitly. */
 	trx->autoinc_locks = ib_vector_create(
 		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
