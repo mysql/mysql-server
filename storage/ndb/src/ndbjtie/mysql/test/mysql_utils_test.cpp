@@ -174,5 +174,19 @@ int main()
     printf("Recode Test 5 - ill-formed source string: %d \n", rr5);
     assert(rr5 == CharsetMap::RECODE_BAD_SRC);
 
+  
+    printf("isMultibyte TEST: ");
+    bool result1, result2, result3;
+    result1 = csmap.isMultibyte(latin1_num);
+    result2 = csmap.isMultibyte(utf16_num);
+    result3 = csmap.isMultibyte(utf8_num);
+    printf("latin 1: %s      UTF16: %s       UTF8: %s\n",
+           result1 ? "Yes" : "No" , result2 ? "Yes" : "No" ,result3 ? "Yes" : "No");
+    assert(!result1);
+    assert(result2);
+    assert(result3);
+  
+  
+
     CharsetMap::unload();
 }
