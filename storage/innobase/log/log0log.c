@@ -3318,7 +3318,7 @@ loop:
 	mutex_exit(&(log_sys->mutex));
 
 	/* Check that the background threads stay suspended */
-	if (srv_get_active_thread_type() != ULINT_UNDEFINED) {
+	if (srv_get_active_thread_type() != SRV_NONE) {
 		fprintf(stderr,
 			"InnoDB: Warning: some background thread woke up"
 			" during shutdown\n");
@@ -3349,7 +3349,7 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
@@ -3371,7 +3371,7 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
