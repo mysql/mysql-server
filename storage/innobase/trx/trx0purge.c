@@ -264,7 +264,15 @@ trx_purge_add_update_undo_to_history(
 	flst_add_first(rseg_header + TRX_RSEG_HISTORY,
 		       undo_header + TRX_UNDO_HISTORY_NODE, mtr);
 
-	os_atomic_inc_ulint(&trx_sys->mutex, &trx_sys->rseg_history_len, 1);
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_atomic_increment_ulint(&trx_sys->rseg_history_len, 1);
+#else
+	rw_lock_x_lock(&trx_sys->lock);
+
+	++trx_sys->rseg_history_len;
+
+	rw_lock_x_unlock(&trx_sys->lock);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	/* Write the trx number to the undo log header */
 	mlog_write_ull(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
@@ -369,8 +377,15 @@ loop:
 	flst_cut_end(rseg_hdr + TRX_RSEG_HISTORY,
 		     log_hdr + TRX_UNDO_HISTORY_NODE, n_removed_logs, &mtr);
 
-	os_atomic_dec_ulint(
-		&trx_sys->mutex, &trx_sys->rseg_history_len, n_removed_logs);
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
+#else
+	rw_lock_x_lock(&trx_sys->lock);
+
+	trx_sys->rseg_history_len -= n_removed_logs;
+
+	rw_lock_x_unlock(&trx_sys->lock);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	do {
 		/* Here we assume that a file segment with just the header
@@ -451,9 +466,16 @@ loop:
 				hdr_addr.boffset, limit->undo_no);
 		}
 
-		os_atomic_dec_ulint(
-			&trx_sys->mutex, &trx_sys->rseg_history_len,
-		       	n_removed_logs);
+#ifdef HAVE_ATOMIC_BUILTINS
+		os_atomic_decrement_ulint(
+			&trx_sys->rseg_history_len, n_removed_logs);
+#else
+		rw_lock_x_lock(&trx_sys->lock);
+
+		trx_sys->rseg_history_len -= n_removed_logs;
+
+		rw_lock_x_unlock(&trx_sys->lock);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
 				  log_hdr + TRX_UNDO_HISTORY_NODE,
