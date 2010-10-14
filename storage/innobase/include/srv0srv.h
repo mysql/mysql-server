@@ -409,19 +409,13 @@ enum {
 #ifndef UNIV_HOTBACKUP
 /** Types of threads existing in the system. */
 enum srv_thread_type {
-	SRV_COM = 1,	/**< threads serving communication and queries */
-	SRV_CONSOLE,	/**< thread serving console */
-	SRV_WORKER,	/**< threads serving parallelized queries and
-			queries released from lock wait */
-	SRV_PURGE,	/**< Purge coordinator thread */
-#if 0
-	/* Utility threads */
-	SRV_BUFFER,	/**< thread flushing dirty buffer blocks */
-	SRV_RECOVERY,	/**< threads finishing a recovery */
-	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
-#endif
-	SRV_MASTER	/**< the master thread, (whose type number must
-			be biggest) */
+	SRV_NONE,			/*!< None */
+	SRV_WORKER,			/*!< threads serving parallelized
+				       	queries and queries released from
+				       	lock wait */
+	SRV_PURGE,			/*!< Purge coordinator thread */
+	SRV_MASTER			/*!< the master thread, (whose type
+				       	number must be biggest) */
 };
 
 /*********************************************************************//**
@@ -624,10 +618,10 @@ srv_que_task_enqueue_low(
 /**********************************************************************//**
 Check whether any background thread is active. If so, return the thread
 type.
-@return ULINT_UNDEFINED if all are are suspended or have exited, thread
+@return SRV_NONE if all are are suspended or have exited, thread
 type if any are still active. */
 UNIV_INTERN
-ulint
+enum srv_thread_type
 srv_get_active_thread_type(void);
 /*============================*/
 
