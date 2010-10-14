@@ -46,7 +46,7 @@ class Item_func_geometry_from_text: public Item_geometry_func
 public:
   Item_func_geometry_from_text(Item *a) :Item_geometry_func(a) {}
   Item_func_geometry_from_text(Item *a, Item *srid) :Item_geometry_func(a, srid) {}
-  const char *func_name() const { return "geometryfromtext"; }
+  const char *func_name() const { return "st_geometryfromtext"; }
   String *val_str(String *);
 };
 
@@ -55,7 +55,7 @@ class Item_func_geometry_from_wkb: public Item_geometry_func
 public:
   Item_func_geometry_from_wkb(Item *a): Item_geometry_func(a) {}
   Item_func_geometry_from_wkb(Item *a, Item *srid): Item_geometry_func(a, srid) {}
-  const char *func_name() const { return "geometryfromwkb"; }
+  const char *func_name() const { return "st_geometryfromwkb"; }
   String *val_str(String *);
 };
 
@@ -63,7 +63,7 @@ class Item_func_as_wkt: public Item_str_ascii_func
 {
 public:
   Item_func_as_wkt(Item *a): Item_str_ascii_func(a) {}
-  const char *func_name() const { return "astext"; }
+  const char *func_name() const { return "st_astext"; }
   String *val_str_ascii(String *);
   void fix_length_and_dec();
 };
@@ -72,7 +72,7 @@ class Item_func_as_wkb: public Item_geometry_func
 {
 public:
   Item_func_as_wkb(Item *a): Item_geometry_func(a) {}
-  const char *func_name() const { return "aswkb"; }
+  const char *func_name() const { return "st_aswkb"; }
   String *val_str(String *);
   enum_field_types field_type() const  { return MYSQL_TYPE_BLOB; }
 };
@@ -82,7 +82,7 @@ class Item_func_geometry_type: public Item_str_ascii_func
 public:
   Item_func_geometry_type(Item *a): Item_str_ascii_func(a) {}
   String *val_str_ascii(String *);
-  const char *func_name() const { return "geometrytype"; }
+  const char *func_name() const { return "st_geometrytype"; }
   void fix_length_and_dec() 
   {
      max_length=20; // "GeometryCollection" is the most long
@@ -94,7 +94,7 @@ class Item_func_centroid: public Item_geometry_func
 {
 public:
   Item_func_centroid(Item *a): Item_geometry_func(a) {}
-  const char *func_name() const { return "centroid"; }
+  const char *func_name() const { return "st_centroid"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
 };
@@ -103,7 +103,7 @@ class Item_func_envelope: public Item_geometry_func
 {
 public:
   Item_func_envelope(Item *a): Item_geometry_func(a) {}
-  const char *func_name() const { return "envelope"; }
+  const char *func_name() const { return "st_envelope"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
 };
@@ -113,7 +113,7 @@ class Item_func_point: public Item_geometry_func
 public:
   Item_func_point(Item *a, Item *b): Item_geometry_func(a, b) {}
   Item_func_point(Item *a, Item *b, Item *srid): Item_geometry_func(a, b, srid) {}
-  const char *func_name() const { return "point"; }
+  const char *func_name() const { return "st_point"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
 };
@@ -129,11 +129,11 @@ public:
     switch (decomp_func)
     {
       case SP_STARTPOINT:
-        return "startpoint";
+        return "st_startpoint";
       case SP_ENDPOINT:
-        return "endpoint";
+        return "st_endpoint";
       case SP_EXTERIORRING:
-        return "exteriorring";
+        return "st_exteriorring";
       default:
 	DBUG_ASSERT(0);  // Should never happened
         return "spatial_decomp_unknown"; 
@@ -153,11 +153,11 @@ public:
     switch (decomp_func_n)
     {
       case SP_POINTN:
-        return "pointn";
+        return "st_pointn";
       case SP_GEOMETRYN:
-        return "geometryn";
+        return "st_geometryn";
       case SP_INTERIORRINGN:
-        return "interiorringn";
+        return "st_interiorringn";
       default:
 	DBUG_ASSERT(0);  // Should never happened
         return "spatial_decomp_n_unknown"; 
@@ -180,7 +180,7 @@ public:
     item_type=it;
   }
   String *val_str(String *);
-  const char *func_name() const { return "multipoint"; }
+  const char *func_name() const { return "st_multipoint"; }
 };
 
 
@@ -306,7 +306,7 @@ protected:
 public:
   Item_func_buffer(Item *obj, Item *distance):
     Item_geometry_func(obj, distance) {}
-  const char *func_name() const { return "Buffer"; }
+  const char *func_name() const { return "st_buffer"; }
   String *val_str(String *);
 };
 
@@ -317,7 +317,7 @@ public:
   Item_func_isempty(Item *a): Item_bool_func(a) {}
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "isempty"; }
+  const char *func_name() const { return "st_isempty"; }
   void fix_length_and_dec() { maybe_null= 1; }
 };
 
@@ -331,7 +331,7 @@ public:
   Item_func_issimple(Item *a): Item_bool_func(a) {}
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "issimple"; }
+  const char *func_name() const { return "st_issimple"; }
   void fix_length_and_dec() { maybe_null= 1; }
 };
 
@@ -341,7 +341,7 @@ public:
   Item_func_isclosed(Item *a): Item_bool_func(a) {}
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "isclosed"; }
+  const char *func_name() const { return "st_isclosed"; }
   void fix_length_and_dec() { maybe_null= 1; }
 };
 
@@ -351,7 +351,7 @@ class Item_func_dimension: public Item_int_func
 public:
   Item_func_dimension(Item *a): Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "dimension"; }
+  const char *func_name() const { return "st_dimension"; }
   void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
@@ -361,7 +361,7 @@ class Item_func_x: public Item_real_func
 public:
   Item_func_x(Item *a): Item_real_func(a) {}
   double val_real();
-  const char *func_name() const { return "x"; }
+  const char *func_name() const { return "st_x"; }
   void fix_length_and_dec() 
   { 
     Item_real_func::fix_length_and_dec();
@@ -376,7 +376,7 @@ class Item_func_y: public Item_real_func
 public:
   Item_func_y(Item *a): Item_real_func(a) {}
   double val_real();
-  const char *func_name() const { return "y"; }
+  const char *func_name() const { return "st_y"; }
   void fix_length_and_dec() 
   { 
     Item_real_func::fix_length_and_dec();
@@ -391,7 +391,7 @@ class Item_func_numgeometries: public Item_int_func
 public:
   Item_func_numgeometries(Item *a): Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "numgeometries"; }
+  const char *func_name() const { return "st_numgeometries"; }
   void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
@@ -402,7 +402,7 @@ class Item_func_numinteriorring: public Item_int_func
 public:
   Item_func_numinteriorring(Item *a): Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "numinteriorrings"; }
+  const char *func_name() const { return "st_numinteriorrings"; }
   void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
@@ -413,7 +413,7 @@ class Item_func_numpoints: public Item_int_func
 public:
   Item_func_numpoints(Item *a): Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "numpoints"; }
+  const char *func_name() const { return "st_numpoints"; }
   void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
@@ -424,7 +424,7 @@ class Item_func_area: public Item_real_func
 public:
   Item_func_area(Item *a): Item_real_func(a) {}
   double val_real();
-  const char *func_name() const { return "area"; }
+  const char *func_name() const { return "st_area"; }
   void fix_length_and_dec() 
   { 
     Item_real_func::fix_length_and_dec();
@@ -439,7 +439,7 @@ class Item_func_glength: public Item_real_func
 public:
   Item_func_glength(Item *a): Item_real_func(a) {}
   double val_real();
-  const char *func_name() const { return "glength"; }
+  const char *func_name() const { return "st_length"; }
   void fix_length_and_dec() 
   { 
     Item_real_func::fix_length_and_dec();
@@ -469,7 +469,7 @@ class Item_func_distance: public Item_real_func
 public:
   Item_func_distance(Item *a, Item *b): Item_real_func(a, b) {}
   double val_real();
-  const char *func_name() const { return "distance"; }
+  const char *func_name() const { return "st_distance"; }
 };
 
 #define GEOM_NEW(thd, obj_constructor) new (thd->mem_root) obj_constructor
