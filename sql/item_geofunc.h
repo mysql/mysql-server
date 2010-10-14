@@ -323,6 +323,10 @@ public:
 
 class Item_func_issimple: public Item_bool_func
 {
+  Gcalc_heap collector;
+  Gcalc_function func;
+  Gcalc_scan_iterator scan_it;
+  String tmp;
 public:
   Item_func_issimple(Item *a): Item_bool_func(a) {}
   longlong val_int();

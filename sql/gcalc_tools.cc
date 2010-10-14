@@ -280,6 +280,7 @@ int Gcalc_result_receiver::start_shape(Gcalc_function::shape_type shape)
   shape_pos= buffer.length();
   buffer.length(shape_pos + ((shape == Gcalc_function::shape_point) ? 4:8));
   n_points= 0;
+  shape_area= 0.0;
 
   return 0;
 }
@@ -296,6 +297,8 @@ int Gcalc_result_receiver::add_point(double x, double y)
     prev_y= first_y= y;
     return 0;
   }
+
+  shape_area+= prev_x*y - prev_y*x;
 
   if (buffer.reserve(8*2, 512))
     return 1;
@@ -325,6 +328,16 @@ int Gcalc_result_receiver::complete_shape()
   else
   {
     DBUG_ASSERT(cur_shape != Gcalc_function::shape_point);
+    if (cur_shape == Gcalc_function::shape_hole)
+    {
+      shape_area+= prev_x*first_y - prev_y*first_x;
+      if (fabs(shape_area) < 1e-8)
+      {
+        buffer.length(shape_pos);
+        return 0;
+      }
+    }
+
     if ((cur_shape == Gcalc_function::shape_polygon ||
           cur_shape == Gcalc_function::shape_hole) &&
         prev_x == first_x && prev_y == first_y)

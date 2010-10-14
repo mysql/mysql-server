@@ -152,6 +152,7 @@ class Gcalc_result_receiver
   Gcalc_function::shape_type cur_shape;
   uint32 shape_pos;
   double first_x, first_y, prev_x, prev_y;
+  double shape_area;
 public:
   Gcalc_result_receiver() : collection_result(FALSE), n_shapes(0), n_holes(0)
     {}
