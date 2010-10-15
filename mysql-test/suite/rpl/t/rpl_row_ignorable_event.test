@@ -12,6 +12,8 @@ source include/master-slave.inc;
 source include/have_binlog_rows_query.inc;
 source include/have_innodb.inc;
 
+SET @old_debug= @@global.debug;
+SET GLOBAL debug="+d,waiting_for_delayed_insert_queue_is_empty";
 --echo # Test non-transaction
 let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
 let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
@@ -58,7 +60,11 @@ insert into t5(a, b) values(3,1);
 update t4,t5 set t4.a=4, t5.a=5 where t4.b=t5.b;
 
 --echo # Test insert delayed ...
+let $table=t3;
 insert delayed into t3(a,b) values(1,5),(1,6),(1,7);
+let $count=4;
+--source include/wait_until_rows_count.inc
+SET @@global.debug= @old_debug;
 
 --echo # Test load data infile
 create table t6(a VARCHAR(60)) engine= myisam;

@@ -2353,6 +2353,8 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
                        (ulong) query.length));
 
   thd_proc_info(thd, "waiting for handler insert");
+  DBUG_EXECUTE_IF("waiting_for_delayed_insert_queue_is_empty",
+                  while(di->stacked_inserts) sleep(1););
   mysql_mutex_lock(&di->mutex);
   while (di->stacked_inserts >= delayed_queue_size && !thd->killed)
     mysql_cond_wait(&di->cond_client, &di->mutex);
