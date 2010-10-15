@@ -32,6 +32,19 @@
 
 2010-08-03	The InnoDB Team
 
+	* include/dict0dict.h, include/dict0dict.ic, row/row0mysql.c:
+	Fix bug #54678, InnoDB, TRUNCATE, ALTER, I_S SELECT, crash or deadlock
+
+2010-08-03	The InnoDB Team
+
+	* dict/dict0load.c, handler/ha_innodb.cc, include/db0err.h,
+	include/dict0load.h, include/dict0mem.h, include/que0que.h,
+	row/row0merge.c, row/row0mysql.c:
+	Fix Bug#54582 stack overflow when opening many tables linked
+	with foreign keys at once
+
+2010-08-03	The InnoDB Team
+
 	* include/ut0mem.h, ut/ut0mem.c:
 	Fix Bug#55627 segv in ut_free pars_lexer_close innobase_shutdown
 	innodb-use-sys-malloc=0
@@ -41,6 +54,7 @@
 	* handler/ha_innodb.cc:
 	Fix Bug#55382 Assignment with SELECT expressions takes unexpected
 	S locks in READ COMMITTED
+>>>>>>> MERGE-SOURCE
 
 2010-07-27	The InnoDB Team
 

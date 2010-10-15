@@ -2451,6 +2451,21 @@ err1:
 /****************************************************************************
                 MODULE open/close object
 ****************************************************************************/
+
+
+/**
+  A destructor for partition-specific TABLE_SHARE data.
+*/
+
+void ha_data_partition_destroy(void *ha_data)
+{
+  if (ha_data)
+  {
+    HA_DATA_PARTITION *ha_part_data= (HA_DATA_PARTITION*) ha_data;
+    pthread_mutex_destroy(&ha_part_data->LOCK_auto_inc);
+  }
+}
+
 /*
   Open handler object
 
@@ -2607,6 +2622,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     }
     DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
     bzero(ha_data, sizeof(HA_DATA_PARTITION));
+    table_share->ha_data_destroy= ha_data_partition_destroy;
+    VOID(pthread_mutex_init(&ha_data->LOCK_auto_inc, MY_MUTEX_INIT_FAST));
   }
   if (is_not_tmp_table)
     pthread_mutex_unlock(&table_share->mutex);
@@ -5555,7 +5572,6 @@ int ha_partition::extra(enum ha_extra_function operation)
     DBUG_RETURN(prepare_for_rename());
     break;
   case HA_EXTRA_PREPARE_FOR_UPDATE:
-    DBUG_ASSERT(m_extra_cache);
     /*
       Needs to be run on the first partition in the range now, and 
       later in late_extra_cache, when switching to a new partition to scan.
@@ -5563,6 +5579,8 @@ int ha_partition::extra(enum ha_extra_function operation)
     m_extra_prepare_for_update= TRUE;
     if (m_part_spec.start_part != NO_CURRENT_PART_ID)
     {
+      if (!m_extra_cache)
+        m_extra_cache_part_id= m_part_spec.start_part;
       DBUG_ASSERT(m_extra_cache_part_id == m_part_spec.start_part);
       VOID(m_file[m_part_spec.start_part]->extra(HA_EXTRA_PREPARE_FOR_UPDATE));
     }
@@ -5825,19 +5843,22 @@ void ha_partition::late_extra_cache(uint partition_id)
 {
   handler *file;
   DBUG_ENTER("ha_partition::late_extra_cache");
-  DBUG_PRINT("info", ("extra_cache %u partid %u size %u", m_extra_cache,
+  DBUG_PRINT("info", ("extra_cache %u prepare %u partid %u size %u",
+                      m_extra_cache, m_extra_prepare_for_update,
                       partition_id, m_extra_cache_size));
 
   if (!m_extra_cache && !m_extra_prepare_for_update)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
-  if (m_extra_cache_size == 0)
-    VOID(file->extra(HA_EXTRA_CACHE));
-  else
-    VOID(file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size));
+  if (m_extra_cache)
+  {
+    if (m_extra_cache_size == 0)
+      VOID(file->extra(HA_EXTRA_CACHE));
+    else
+      VOID(file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size));
+  }
   if (m_extra_prepare_for_update)
   {
-    DBUG_ASSERT(m_extra_cache);
     VOID(file->extra(HA_EXTRA_PREPARE_FOR_UPDATE));
   }
   m_extra_cache_part_id= partition_id;
