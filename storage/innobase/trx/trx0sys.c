@@ -986,7 +986,7 @@ trx_sys_init_at_db_start(void)
 
 		for (;;) {
 
-			if (trx->state != TRX_PREPARED) {
+			if (trx->state != TRX_STATE_PREPARED) {
 				rows_to_undo += trx->undo_no;
 			}
 

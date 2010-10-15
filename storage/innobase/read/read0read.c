@@ -245,11 +245,11 @@ read_view_open_now_low(
 
 		/* Note: We are doing a dirty read of the trx_t::state
 		without the cover of the trx_t::mutex. The state change
-		to TRX_PREPARED is done using only the trx_t::mutex. */
+		to TRX_STATE_PREPARED is done using only the trx_t::mutex. */
 
 		if (trx->id != cr_trx_id
-		    && (trx->state == TRX_ACTIVE
-			|| trx->state == TRX_PREPARED)) {
+		    && (trx->state == TRX_STATE_ACTIVE
+			|| trx->state == TRX_STATE_PREPARED)) {
 
 			ut_ad(n_trx < view->n_trx_ids);
 
@@ -546,7 +546,7 @@ read_cursor_view_create_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		if (trx->state == TRX_ACTIVE || trx->state == TRX_PREPARED) {
+		if (trx->state == TRX_STATE_ACTIVE || trx->state == TRX_STATE_PREPARED) {
 
 			ut_a(n_trx < view->n_trx_ids);
 

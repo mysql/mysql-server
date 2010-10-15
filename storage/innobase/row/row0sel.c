@@ -3690,11 +3690,11 @@ release_search_latch_if_needed:
 		trx->has_search_latch = FALSE;
 	}
 
-	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_ACTIVE);
+	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
 
 	/* FIXME: These are now protected by the lock mutex, we can't
 	just add assertions will-nilly.  */
-	ut_ad(trx->state == TRX_NOT_STARTED || trx->state == TRX_ACTIVE);
+	ut_ad(trx->state == TRX_STATE_NOT_STARTED || trx->state == TRX_STATE_ACTIVE);
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE

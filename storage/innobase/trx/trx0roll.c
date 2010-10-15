@@ -117,7 +117,7 @@ trx_general_rollback_for_mysql_low(
 	mem_heap_free(heap);
 
 	MONITOR_INC(MONITOR_TRX_ABORT);
-	MONITOR_DEC(MONITOR_TRX_ACTIVE);
+	MONITOR_DEC(MONITOR_TRX_STATE_ACTIVE);
 }
 
 /*******************************************************************//**
@@ -161,7 +161,7 @@ trx_rollback_for_mysql(
 	trx_t*	trx)	/*!< in: transaction handle */
 {
 
-	if (trx->state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_STATE_NOT_STARTED) {
 
 		return(DB_SUCCESS);
 	}
@@ -197,7 +197,7 @@ trx_rollback_last_sql_stat_for_mysql(
 {
 	int	err;
 
-	if (trx->state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_STATE_NOT_STARTED) {
 
 		return(DB_SUCCESS);
 	}
@@ -300,7 +300,7 @@ trx_rollback_to_savepoint_for_mysql(
 		return(DB_NO_SAVEPOINT);
 	}
 
-	if (trx->state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_STATE_NOT_STARTED) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
 		ut_print_name(stderr, trx, FALSE, savep->name);
@@ -590,7 +590,7 @@ trx_rollback_resurrected(
 		trx_mutex_exit(trx);
 
 		cleaned_or_rolledback = FALSE;
-	} else if (trx->state == TRX_COMMITTED_IN_MEMORY) {
+	} else if (trx->state == TRX_STATE_COMMITTED_IN_MEMORY) {
 
 		trx_mutex_exit(trx);
 
@@ -603,7 +603,7 @@ trx_rollback_resurrected(
 		trx_cleanup_at_db_startup(trx);
 
 		cleaned_or_rolledback  = TRUE;
-	} else if (trx->state == TRX_ACTIVE
+	} else if (trx->state == TRX_STATE_ACTIVE
 		   && (all
 		       || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE)) {
 
@@ -650,7 +650,7 @@ trx_rollback_or_clean_recovered(
 	}
 
 	/* Note: For XA recovered transactions, we rely on MySQL to
-       	do rollback. They will be in TRX_PREPARED state. If the server
+       	do rollback. They will be in TRX_STATE_PREPARED state. If the server
        	is shutdown and they are still lingering in trx_sys_t::trx_list
        	then the shutdown will hang. */
 
