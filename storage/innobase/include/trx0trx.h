@@ -340,6 +340,23 @@ trx_get_que_state_str(
 
 typedef struct trx_lock_struct trx_lock_t;
 
+/* Latching protocol for trx_lock_t::que_state.  trx_lock_t::que_state captures the
+state of the query thread during the execution of a query. This is different from a
+transaction state. The query state of a transaction can be updated asynchronously by
+other threads.  The other threads can be system threads, like the timeout monitor
+thread or user threads executing other queries. Another thing to be mindful of is
+that there is a delay between when a query thread is put into LOCK_WAIT state and
+before it actually starts waiting.  Between these two events it is possible that
+the query thread is granted the lock it was waiting, which implies that the state
+can be changed asynchronously.
+
+All these operations take place within the context of locking. Therefore state changes
+within the locking code must acquire both the lock mutex and the trx_t::mutex when
+changing trx_lock_t::que_state to TRX_QUE_LOCK_WAIT but when the lock wait ends it
+is sufficient to only acquire the trx_t::mutex. To query the mutex either of the
+mutexes is sufficient within the locking code and no mutex is required when the query
+thread is no longer waiting. */
+
 /** Transactions locks and state, these variables are protected by
 the lock_sys->mutex and trx_mutex. */
 
