@@ -425,3 +425,16 @@ connection default;
 SELECT * FROM t1;
 COMMIT;
 DROP TABLE t1;
+
+#
+# Bug #55146    Assertion `m_part_spec.start_part == m_part_spec.end_part' in index_read_idx_map
+#
+
+CREATE TABLE t1 (i1 int NOT NULL primary key, f1 int) ENGINE = InnoDB
+    PARTITION BY HASH(i1) PARTITIONS 2;
+
+INSERT INTO t1 VALUES (1,1), (2,2);
+
+SELECT * FROM t1 WHERE i1 = ( SELECT i1 FROM t1 WHERE f1=0 LIMIT 1 );
+
+DROP TABLE t1;
