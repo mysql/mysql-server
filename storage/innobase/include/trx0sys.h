@@ -251,8 +251,7 @@ trx_read_trx_id(
 /*============*/
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
-Looks for the trx handle with the given id in trx_list. This function
-doesn't acquire the trx_sys_t::mutex.
+Looks for the trx handle with the given id in trx_list.
 @return	the trx handle or NULL if not found */
 UNIV_INLINE
 trx_t*
@@ -269,9 +268,9 @@ trx_get_on_id(
 	trx_id_t	trx_id);/*!< in: trx id to search for */
 /****************************************************************//**
 Returns the minumum trx id in trx list. This is the smallest id for which
-the trx can possibly be active. (But, you must look at the trx->lock.conc_state
+the trx can possibly be active. (But, you must look at the trx->lock.state
 to find out if the minimum trx id transaction itself is active, or already
-committed.). The caller must be holding the trx_sys_t::mutex.
+committed.). The caller must be holding the trx_sys_t::lock in shared mode.
 @return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
 UNIV_INLINE
 trx_id_t
@@ -279,7 +278,7 @@ trx_list_get_min_trx_id_low(void);
 /*=============================*/
 /****************************************************************//**
 Returns the minumum trx id in trx list. This is the smallest id for which
-the trx can possibly be active. (But, you must look at the trx->conc_state to
+the trx can possibly be active. (But, you must look at the trx->state to
 find out if the minimum trx id transaction itself is active, or already
 committed.)
 @return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
@@ -289,7 +288,7 @@ trx_list_get_min_trx_id(void);
 /*=========================*/
 /****************************************************************//**
 Checks if a transaction with the given id is active. Caller must hold
-the trx_sys_t::mutex.
+the trx_sys_t::lock in shared mode.
 @return	transaction instance if active or NULL */
 UNIV_INLINE
 trx_t*

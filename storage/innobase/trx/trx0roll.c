@@ -161,7 +161,7 @@ trx_rollback_for_mysql(
 	trx_t*	trx)	/*!< in: transaction handle */
 {
 
-	if (trx->lock.conc_state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_NOT_STARTED) {
 
 		return(DB_SUCCESS);
 	}
@@ -197,7 +197,7 @@ trx_rollback_last_sql_stat_for_mysql(
 {
 	int	err;
 
-	if (trx->lock.conc_state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_NOT_STARTED) {
 
 		return(DB_SUCCESS);
 	}
@@ -300,7 +300,7 @@ trx_rollback_to_savepoint_for_mysql(
 		return(DB_NO_SAVEPOINT);
 	}
 
-	if (trx->lock.conc_state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_NOT_STARTED) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
 		ut_print_name(stderr, trx, FALSE, savep->name);
@@ -578,7 +578,7 @@ trx_rollback_resurrected(
 
 	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
-	/* The trx_t::is_recovered flag and the trx_t::lock::conc_state
+	/* The trx_t::is_recovered flag and the trx_t::state
        	are set atomically under the protection of the trx_t::mutex in
 	lock_trx_release_locks(). We don't want to accidentally cleanup
 	a non-recovered transaction here. */
@@ -590,7 +590,7 @@ trx_rollback_resurrected(
 		trx_mutex_exit(trx);
 
 		cleaned_or_rolledback = FALSE;
-	} else if (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY) {
+	} else if (trx->state == TRX_COMMITTED_IN_MEMORY) {
 
 		trx_mutex_exit(trx);
 
@@ -603,7 +603,7 @@ trx_rollback_resurrected(
 		trx_cleanup_at_db_startup(trx);
 
 		cleaned_or_rolledback  = TRUE;
-	} else if (trx->lock.conc_state == TRX_ACTIVE
+	} else if (trx->state == TRX_ACTIVE
 		   && (all
 		       || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE)) {
 

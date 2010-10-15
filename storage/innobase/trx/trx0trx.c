@@ -105,7 +105,7 @@ trx_create(
 
 	trx->magic_n = TRX_MAGIC_N;
 
-	trx->lock.conc_state = TRX_NOT_STARTED;
+	trx->state = TRX_NOT_STARTED;
 	trx->start_time = ut_time();
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
@@ -246,7 +246,7 @@ trx_free(
 
 	trx->magic_n = 11112222;
 
-	ut_a(trx->lock.conc_state == TRX_NOT_STARTED);
+	ut_a(trx->state == TRX_NOT_STARTED);
 
 	mutex_free(&trx->undo_mutex);
 
@@ -382,6 +382,9 @@ trx_resurrect_insert(
 	trx->insert_undo = undo;
 	trx->is_recovered = TRUE;
 
+	/* This is startup code, we don't need to protection of the
+	trx_sys_t::lock or the trx_t::mutex here. */
+
 	if (undo->state != TRX_UNDO_ACTIVE) {
 
 		/* Prepared transactions are left in the prepared state
@@ -395,16 +398,16 @@ trx_resurrect_insert(
 
 			if (srv_force_recovery == 0) {
 
-				trx->lock.conc_state = TRX_PREPARED;
+				trx->state = TRX_PREPARED;
 			} else {
 				fprintf(stderr,
 					"InnoDB: Since innodb_force_recovery"
 					" > 0, we will rollback it anyway.\n");
 
-				trx->lock.conc_state = TRX_ACTIVE;
+				trx->state = TRX_ACTIVE;
 			}
 		} else {
-			trx->lock.conc_state = TRX_COMMITTED_IN_MEMORY;
+			trx->state = TRX_COMMITTED_IN_MEMORY;
 		}
 
 		/* We give a dummy value for the trx no; this should have no
@@ -415,7 +418,7 @@ trx_resurrect_insert(
 
 		trx->no = trx->id;
 	} else {
-		trx->lock.conc_state = TRX_ACTIVE;
+		trx->state = TRX_ACTIVE;
 
 		/* A running transaction always has the number
 		field inited to IB_ULONGLONG_MAX */
@@ -445,6 +448,9 @@ trx_resurrect_update_in_prepared_state(
 	trx_t*			trx,	/*!< in,out: transaction */
 	const trx_undo_t*	undo)	/*!< in: update UNDO record */
 {
+	/* This is startup code, we don't need to protection of the
+	trx_sys_t::lock or the trx_t::mutex here. */
+
 	if (undo->state == TRX_UNDO_PREPARED) {
 		fprintf(stderr,
 			"InnoDB: Transaction " TRX_ID_FMT 
@@ -452,16 +458,16 @@ trx_resurrect_update_in_prepared_state(
 
 		if (srv_force_recovery == 0) {
 
-			trx->lock.conc_state = TRX_PREPARED;
+			trx->state = TRX_PREPARED;
 		} else {
 			fprintf(stderr,
 				"InnoDB: Since innodb_force_recovery"
 				" > 0, we will rollback it anyway.\n");
 
-			trx->lock.conc_state = TRX_ACTIVE;
+			trx->state = TRX_ACTIVE;
 		}
 	} else {
-		trx->lock.conc_state = TRX_COMMITTED_IN_MEMORY;
+		trx->state = TRX_COMMITTED_IN_MEMORY;
 	}
 }
 
@@ -482,6 +488,9 @@ trx_resurrect_update(
 	trx->update_undo = undo;
 	trx->is_recovered = TRUE;
 
+	/* This is startup code, we don't need to protection of the
+	trx_sys_t::lock or the trx_t::mutex here. */
+
 	if (undo->state != TRX_UNDO_ACTIVE) {
 		trx_resurrect_update_in_prepared_state(trx, undo);
 
@@ -490,7 +499,7 @@ trx_resurrect_update(
 		trx->no = trx->id;
 
 	} else {
-		trx->lock.conc_state = TRX_ACTIVE;
+		trx->state = TRX_ACTIVE;
 
 		/* A running transaction always has the number field inited to
 		IB_ULONGLONG_MAX */
@@ -624,7 +633,7 @@ trx_start_low(
 
 	ut_ad(trx->rseg == NULL);
 
-	ut_ad(trx->lock.conc_state != TRX_ACTIVE);
+	ut_ad(trx->state != TRX_ACTIVE);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
 	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
@@ -636,7 +645,7 @@ trx_start_low(
 
 	trx->start_time = ut_time();
 
-	trx->lock.conc_state = TRX_ACTIVE;
+	trx->state = TRX_ACTIVE;
 
 	ut_a(trx->rseg == NULL);
 	trx->rseg = rseg;
@@ -832,7 +841,7 @@ trx_commit(
 	ut_ad(trx->lock.wait_thr == NULL);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-	trx->lock.conc_state = TRX_NOT_STARTED;
+	trx->state = TRX_NOT_STARTED;
 
 	rw_lock_x_lock(&trx_sys->lock);
 
@@ -870,7 +879,7 @@ trx_cleanup_at_db_startup(
 
 	rw_lock_x_lock(&trx_sys->lock);
 
-	trx->lock.conc_state = TRX_NOT_STARTED;
+	trx->state = TRX_NOT_STARTED;
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 
@@ -888,7 +897,7 @@ trx_assign_read_view(
 /*=================*/
 	trx_t*	trx)	/*!< in: active transaction */
 {
-	ut_ad(trx->lock.conc_state == TRX_ACTIVE);
+	ut_ad(trx->state == TRX_ACTIVE);
 
 	if (trx->read_view != NULL) {
 		return(trx->read_view);
@@ -913,7 +922,7 @@ trx_commit_or_rollback_prepare(
 /*===========================*/
 	trx_t*		trx)		/*!< in: transaction */
 {
-	if (trx->lock.conc_state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_NOT_STARTED) {
 
 		trx_start_low(trx);
 	}
@@ -1089,7 +1098,7 @@ trx_mark_sql_stat_end(
 {
 	ut_a(trx);
 
-	if (trx->lock.conc_state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_NOT_STARTED) {
 		trx->undo_no = 0;
 	}
 
@@ -1113,7 +1122,7 @@ trx_print(
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, (ullint) trx->id);
 
-	switch (trx->lock.conc_state) {
+	switch (trx->state) {
 	case TRX_NOT_STARTED:
 		fputs(", not started", f);
 		break;
@@ -1129,7 +1138,7 @@ trx_print(
 		fputs(", COMMITTED IN MEMORY", f);
 		break;
 	default:
-		fprintf(f, " state %lu", (ulong) trx->lock.conc_state);
+		fprintf(f, " state %lu", (ulong) trx->state);
 	}
 
 #ifdef UNIV_LINUX
@@ -1296,7 +1305,7 @@ trx_prepare(
 				trx, trx->update_undo, &mtr);
 		}
 
-		mutex_exit(&(rseg->mutex));
+		mutex_exit(&rseg->mutex);
 
 		/*--------------*/
 		mtr_commit(&mtr);	/* This mtr commit makes the
@@ -1310,8 +1319,11 @@ trx_prepare(
 
 	ut_ad(trx_mutex_own(trx));
 
+	/* Note: This state change is only covered by the trx_t::mutex and
+       	not the trx_sys_t::lock. */
+
 	/*--------------------------------------*/
-	trx->lock.conc_state = TRX_PREPARED;
+	trx->state = TRX_PREPARED;
 	/*--------------------------------------*/
 
 	if (lsn) {
@@ -1409,7 +1421,7 @@ trx_recover_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		if (trx->lock.conc_state == TRX_PREPARED) {
+		if (trx->state == TRX_PREPARED) {
 			xid_list[count] = trx->xid;
 
 			if (count == 0) {
@@ -1488,7 +1500,7 @@ trx_get_trx_by_xid(
 		}
 	}
 
-	if (trx != NULL && trx->lock.conc_state != TRX_PREPARED) {
+	if (trx != NULL && trx->state != TRX_PREPARED) {
 
 		trx = NULL;
 	}
@@ -1506,9 +1518,9 @@ trx_start_if_not_started_xa(
 /*========================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	ut_ad(trx->lock.conc_state != TRX_COMMITTED_IN_MEMORY);
+	ut_ad(trx->state != TRX_COMMITTED_IN_MEMORY);
 
-	if (trx->lock.conc_state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_NOT_STARTED) {
 
 		/* Update the info whether we should skip XA steps that eat
 	       	CPU time For the duration of the transaction trx->support_xa
@@ -1530,9 +1542,9 @@ trx_start_if_not_started(
 /*=====================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	ut_ad(trx->lock.conc_state != TRX_COMMITTED_IN_MEMORY);
+	ut_ad(trx->state != TRX_COMMITTED_IN_MEMORY);
 
-	if (trx->lock.conc_state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_NOT_STARTED) {
 
 		trx_start_low(trx);
 	}
