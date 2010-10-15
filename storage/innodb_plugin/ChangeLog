@@ -1,5 +1,11 @@
 2010-10-14	The InnoDB Team
 
+	* handler/ha_innodb.cc, innodb_bug56143.result, innodb_bug56143.test:
+	Fix Bug#56143 too many foreign keys causes output of show create
+	table to become invalid
+
+2010-10-14	The InnoDB Team
+
 	* srv/srv0start.c:
 	Fix Bug#57397 io_handler_thread() will never cleanup
 
