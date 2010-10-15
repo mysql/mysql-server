@@ -683,7 +683,8 @@ struct trx_sys_struct{
 					transactions), protected by
 					rseg->mutex */
 	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
-					rseg_queue_t::trx_no */
+					rseg_queue_t::trx_no. It is protected
+					by the purge mutex */
 	mutex_t		read_view_mutex;/*!< Protects the view_list */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/*!< List of read views sorted
