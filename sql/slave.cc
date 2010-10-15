@@ -2545,7 +2545,7 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f)
     memcpy(buf_act, buf, read_size);
     snd_size= my_b_gets(f, buf_act + read_size, max_size - read_size);
     if (snd_size == 0 ||
-        (snd_size + 1 == max_size - read_size) &&  buf[max_size - 2] != '\n')
+        ((snd_size + 1 == max_size - read_size) &&  buf[max_size - 2] != '\n'))
     {
       /*
         failure to make the 2nd read or short read again
@@ -3980,8 +3980,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
        /* everything is filtered out from non-master */
        (s_id != mi->master_id ||
         /* for the master meta information is necessary */
-        buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
-        buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT)))
+        (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+        buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT))))
   {
     /*
       Do not write it to the relay log.
@@ -4001,9 +4001,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       as well as rli->group_relay_log_pos.
     */
     if (!(s_id == ::server_id && !mi->rli.replicate_same_server_id) ||
-        buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+        (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
         buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&
-        buf[EVENT_TYPE_OFFSET] != STOP_EVENT)
+        buf[EVENT_TYPE_OFFSET] != STOP_EVENT))
     {
       mi->master_log_pos+= inc_pos;
       memcpy(rli->ign_master_log_name_end, mi->master_log_name, FN_REFLEN);
