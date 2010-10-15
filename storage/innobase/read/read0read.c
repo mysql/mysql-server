@@ -417,7 +417,10 @@ read_view_remove(
 /*=============*/
 	read_view_t*	view)	/*!< in: read view */
 {
-	rw_lock_s_lock(&trx_sys->lock);
+	/* A transaction can remove a view while purge is busy building its
+       	view using the last view. So we acquire an X lock. */
+
+	rw_lock_x_lock(&trx_sys->lock);
 
 	ut_ad(read_view_validate(view));
 
@@ -429,7 +432,7 @@ read_view_remove(
 
 	ut_ad(read_view_list_validate());
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	rw_lock_x_unlock(&trx_sys->lock);
 }
 
 /*********************************************************************//**
