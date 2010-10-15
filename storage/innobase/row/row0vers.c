@@ -662,9 +662,9 @@ row_vers_build_for_semi_consistent_read(
 		version_trx = trx_get_on_id(version_trx_id);
 
 		if (!version_trx
-		    || version_trx->state == TRX_NOT_STARTED
+		    || version_trx->state == TRX_STATE_NOT_STARTED
 		    || version_trx->state
-		    == TRX_COMMITTED_IN_MEMORY) {
+		    == TRX_STATE_COMMITTED_IN_MEMORY) {
 
 			/* We found a version that belongs to a
 			committed transaction: return it. */
@@ -676,7 +676,7 @@ row_vers_build_for_semi_consistent_read(
 			}
 
 			/* We assume that a rolled-back transaction stays in
-			TRX_ACTIVE state until all the changes have been
+			TRX_STATE_ACTIVE state until all the changes have been
 			rolled back and the transaction is removed from
 			the global list of transactions. */
 

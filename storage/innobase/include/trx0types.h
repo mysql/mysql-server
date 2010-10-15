@@ -35,7 +35,7 @@ Created 3/26/1996 Heikki Tuuri
 the terminating NUL character. */
 #define TRX_ID_MAX_LEN		17
 
-/** Transaction execution states when trx->state == TRX_ACTIVE */
+/** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
 enum trx_que_enum {
 	TRX_QUE_RUNNING,		/*!< transaction is running */
 	TRX_QUE_LOCK_WAIT,		/*!< transaction is waiting for
@@ -46,10 +46,10 @@ enum trx_que_enum {
 
 /** Transaction states (trx_t::state) */
 enum trx_state_enum {
-	TRX_NOT_STARTED,
-	TRX_ACTIVE,
-	TRX_PREPARED,			/* Support for 2PC/XA */
-	TRX_COMMITTED_IN_MEMORY
+	TRX_STATE_NOT_STARTED,
+	TRX_STATE_ACTIVE,
+	TRX_STATE_PREPARED,			/* Support for 2PC/XA */
+	TRX_STATE_COMMITTED_IN_MEMORY
 };
 
 /** Memory objects */

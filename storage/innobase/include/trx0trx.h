@@ -341,25 +341,13 @@ trx_get_que_state_str(
 typedef struct trx_lock_struct trx_lock_t;
 
 /** Transactions locks and state, these variables are protected by
-the lock_sys->mutex and trx_mutex.
+the lock_sys->mutex and trx_mutex. */
 
-When is it unsafe to read the trx_t::state without a covering mutex ?
-=====================================================================
-1. When a transaction is changing its state to TRX_COMMITTED_IN_MEMORY
-during COMMIT. This use case is only relevant during roll back of incomplete
-transactions during crash recovery. The reason is because the recovery code
-examines the state to determine whether such transactions need to be freed and
-does tht asynchronously to the trx_commit() code.
-
-This state transition is covered by both the lock mutex and trx mutex. It is
-coupled with trx_t::is_recovered flag. Both must be changed atomically under
-the protection of both the previously mentioned mutexes.
- */
 struct trx_lock_struct {
 	ulint		n_active_thrs;	/*!< number of active query threads */
 
 	trx_que_t	que_state;	/*!< valid when state
-					== TRX_ACTIVE: TRX_QUE_RUNNING,
+					== TRX_STATE_ACTIVE: TRX_QUE_RUNNING,
 					TRX_QUE_LOCK_WAIT, ... */
 
 	lock_t*		wait_lock;	/*!< if trx execution state is
@@ -393,7 +381,24 @@ struct trx_lock_struct {
 
 #define TRX_MAGIC_N	91118598
 
-/* The transaction handle; every session has a trx object which is freed only
+/* When is it unsafe to read the trx_t::state without a covering trx_t::mutex ?
+===============================================================================
+1. When a transaction is changing its state to TRX_STATE_COMMITTED_IN_MEMORY
+during COMMIT. This use case is only relevant during roll back of incomplete
+transactions during crash recovery. The reason is because the recovery code
+examines the state to determine whether such transactions need to be freed and
+does tht asynchronously to the trx_commit() code.
+
+This state transition is covered by both the lock mutex and trx mutex. It is
+coupled with trx_t::is_recovered flag. Both must be changed atomically under
+the protection of both the previously mentioned mutexes. Therefore the trx_t::mutex
+must be acquired by the recovery code to check that trx_t::state along with the
+trx_t::is_recovered flag.
+
+Changing the transaction state when a transaction is not waiting for a lock is
+safe without any mutex. */
+
+/** The transaction handle; every session has a trx object which is freed only
 when the session is freed; in addition there may be session-less transactions
 rolling back after a database recovery */
 
@@ -405,7 +410,7 @@ struct trx_struct{
 
 	trx_state_t	state;		/*!< state of the trx from the point
 					of view of concurrency control:
-					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
+					TRX_STATE_ACTIVE, TRX_STATE_COMMITTED_IN_MEMORY,
 					... */
 	trx_lock_t	lock;		/*!< Information about the transaction
 					locks and state. */
@@ -480,20 +485,21 @@ struct trx_struct{
 					the latch mode trx currently holds
 					on dict_operation_lock */
 
-	/* All the next fields are protected by the trx_t::mutex , except the
-	undo logs which are protected by undo_mutex */
 	ulint		is_recovered;	/*!< 0=normal transaction,
-					1=recovered, must be rolled back */
+					1=recovered, must be rolled back,
+					protected by the trx_t::mutex */
+	trx_id_t	no;		/*!< transaction serialization number ==
+					max trx id when the transaction is
+					moved to COMMITTED_IN_MEMORY state,
+					protected by trx_sys_t::lock */
+
 	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
-					TRX_ACTIVE */
+					TRX_STATE_ACTIVE */
 	trx_id_t	id;		/*!< transaction id */
 	XID		xid;		/*!< X/Open XA transaction
 					identification to identify a
 					transaction branch */
-	trx_id_t	no;		/*!< transaction serialization number ==
-					max trx id when the transaction is
-					moved to COMMITTED_IN_MEMORY state */
 	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
 					is TRUE, or 0. */

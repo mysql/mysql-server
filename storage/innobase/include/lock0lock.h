@@ -475,7 +475,7 @@ lock_rec_unlock(
 /*********************************************************************//**
 Releases a transaction's locks, and releases possible other transactions
 waiting because of these locks. Change the state of the transaction to
-TRX_COMMITTED_IN_MEMORY. */
+TRX_STATE_COMMITTED_IN_MEMORY. */
 UNIV_INTERN
 void
 lock_trx_release_locks(

@@ -4529,7 +4529,7 @@ lock_print_info_all_transactions(
 
 		trx_mutex_enter(trx);
 
-		if (trx->state == TRX_NOT_STARTED) {
+		if (trx->state == TRX_STATE_NOT_STARTED) {
 			fputs("---", file);
 			trx_print(file, trx, 600);
 		}
@@ -4707,10 +4707,10 @@ lock_table_queue_validate(
 
 		trx_mutex_enter(lock->trx);
 
-		ut_a((lock->trx->state == TRX_ACTIVE)
-		     || (lock->trx->state == TRX_PREPARED)
+		ut_a((lock->trx->state == TRX_STATE_ACTIVE)
+		     || (lock->trx->state == TRX_STATE_PREPARED)
 		     || (lock->trx->state
-			 == TRX_COMMITTED_IN_MEMORY));
+			 == TRX_STATE_COMMITTED_IN_MEMORY));
 
 		if (!lock_get_wait(lock)) {
 
@@ -4769,9 +4769,9 @@ lock_rec_queue_validate(
 			trx_mutex_enter(lock->trx);
 
 			switch(lock->trx->state) {
-			case TRX_ACTIVE:
-			case TRX_PREPARED:
-			case TRX_COMMITTED_IN_MEMORY:
+			case TRX_STATE_ACTIVE:
+			case TRX_STATE_PREPARED:
+			case TRX_STATE_COMMITTED_IN_MEMORY:
 				break;
 			default:
 				ut_error;
@@ -4872,9 +4872,9 @@ lock_rec_queue_validate(
 
 		trx_mutex_enter(lock->trx);
 
-		ut_a(lock->trx->state == TRX_ACTIVE
-		     || lock->trx->state == TRX_PREPARED
-		     || lock->trx->state == TRX_COMMITTED_IN_MEMORY);
+		ut_a(lock->trx->state == TRX_STATE_ACTIVE
+		     || lock->trx->state == TRX_STATE_PREPARED
+		     || lock->trx->state == TRX_STATE_COMMITTED_IN_MEMORY);
 		ut_a(trx_in_trx_list(lock->trx));
 
 		if (index) {
@@ -4981,9 +4981,9 @@ loop:
 
 	trx_mutex_enter(lock->trx);
 
-	ut_a(lock->trx->state == TRX_ACTIVE
-	     || lock->trx->state == TRX_PREPARED
-	     || lock->trx->state == TRX_COMMITTED_IN_MEMORY);
+	ut_a(lock->trx->state == TRX_STATE_ACTIVE
+	     || lock->trx->state == TRX_STATE_PREPARED
+	     || lock->trx->state == TRX_STATE_COMMITTED_IN_MEMORY);
 
 	trx_mutex_exit(lock->trx);
 
@@ -5972,7 +5972,7 @@ lock_unlock_table_autoinc(
 /*********************************************************************//**
 Releases a transaction's locks, and releases possible other transactions
 waiting because of these locks. Change the state of the transaction to
-TRX_COMMITTED_IN_MEMORY. */
+TRX_STATE_COMMITTED_IN_MEMORY. */
 UNIV_INTERN
 void
 lock_trx_release_locks(
@@ -5983,8 +5983,7 @@ lock_trx_release_locks(
 
 	trx_mutex_enter(trx);
 
-	ut_ad(trx->state == TRX_ACTIVE
-	      || trx->state == TRX_PREPARED);
+	ut_ad(trx->state == TRX_STATE_ACTIVE || trx->state == TRX_STATE_PREPARED);
 
 	/* The following assignment makes the transaction committed in memory
 	and makes its changes to data visible to other transactions.
@@ -6001,7 +6000,7 @@ lock_trx_release_locks(
 	committed. */
 
 	/*--------------------------------------*/
-	trx->state = TRX_COMMITTED_IN_MEMORY;
+	trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
 	/*--------------------------------------*/
 
 	/* If we release transaction mutex below and we are still doing
