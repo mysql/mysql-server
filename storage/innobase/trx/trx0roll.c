@@ -117,7 +117,7 @@ trx_general_rollback_for_mysql_low(
 	mem_heap_free(heap);
 
 	MONITOR_INC(MONITOR_TRX_ABORT);
-	MONITOR_DEC(MONITOR_TRX_STATE_ACTIVE);
+	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
 /*******************************************************************//**

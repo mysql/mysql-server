@@ -660,7 +660,7 @@ trx_start_low(
 
 	rw_lock_x_unlock(&trx_sys->lock);
 
-	MONITOR_INC(MONITOR_TRX_STATE_ACTIVE);
+	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
 
 /****************************************************************//**
@@ -1034,7 +1034,7 @@ trx_commit_for_mysql(
 
 	MONITOR_INC(MONITOR_TRX_COMMIT);
 
-	MONITOR_DEC(MONITOR_TRX_STATE_ACTIVE);
+	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 
 	trx->op_info = "";
 
