@@ -298,7 +298,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 0, MONITOR_TRX_ABORT},
 
 	{"trx_active_trx", "Transaction", "Number of active transactions",
-	 0, MONITOR_TRX_STATE_ACTIVE},
+	 0, MONITOR_TRX_ACTIVE},
 
 	{"trx_num_row_purged", "Transaction", "Number of rows purged",
 	 0, MONITOR_NUM_ROW_PURGE},
