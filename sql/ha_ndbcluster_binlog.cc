@@ -4857,7 +4857,8 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
     if (!dict->dropEvent(event_name.c_ptr()))
       continue;
 
-    if (dict->getNdbError().code != 4710)
+    if (dict->getNdbError().code != 4710 &&
+        dict->getNdbError().code != 1419)
     {
       /* drop event failed for some reason, issue a warning */
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
