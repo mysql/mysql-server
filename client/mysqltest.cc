@@ -2262,7 +2262,7 @@ do_result_format_version(struct st_command *command)
   long version;
   static DYNAMIC_STRING ds_version;
   const struct command_arg result_format_args[] = {
-    "version", ARG_STRING, TRUE, &ds_version, "Version to use",
+    "version", ARG_STRING, TRUE, &ds_version, "Version to use"
   };
 
   DBUG_ENTER("do_result_format_version");
