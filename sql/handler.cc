@@ -3209,6 +3209,21 @@ handler::ha_delete_all_rows()
 
 
 /**
+  Truncate table: public interface.
+
+  @sa handler::truncate()
+*/
+
+int
+handler::ha_truncate()
+{
+  mark_trx_read_write();
+
+  return truncate();
+}
+
+
+/**
   Reset auto increment: public interface.
 
   @sa handler::reset_auto_increment()

@@ -7082,33 +7082,21 @@ Deletes all rows of an InnoDB table.
 @return	error number */
 UNIV_INTERN
 int
-ha_innobase::delete_all_rows(void)
+ha_innobase::truncate(void)
 /*==============================*/
 {
 	int		error;
 
-	DBUG_ENTER("ha_innobase::delete_all_rows");
+	DBUG_ENTER("ha_innobase::truncate");
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created, and update prebuilt->trx */
 
 	update_thd(ha_thd());
 
-	if (thd_sql_command(user_thd) != SQLCOM_TRUNCATE) {
-	fallback:
-		/* We only handle TRUNCATE TABLE t as a special case.
-		DELETE FROM t will have to use ha_innobase::delete_row(),
-		because DELETE is transactional while TRUNCATE is not. */
-		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
-	}
-
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-	if (error == DB_ERROR) {
-		/* Cannot truncate; resort to ha_innobase::delete_row() */
-		goto fallback;
-	}
 
 	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
 					    NULL);
@@ -8314,136 +8302,199 @@ ha_innobase::get_foreign_key_create_info(void)
 }
 
 
+/***********************************************************************//**
+Maps a InnoDB foreign key constraint to a equivalent MySQL foreign key info.
+@return pointer to foreign key info */
+static
+FOREIGN_KEY_INFO*
+get_foreign_key_info(
+/*=================*/
+	THD*			thd,		/*!< in: user thread handle */
+	dict_foreign_t*		foreign)	/*!< in: foreign key constraint */
+{
+	FOREIGN_KEY_INFO	f_key_info;
+	FOREIGN_KEY_INFO*	pf_key_info;
+	uint			i = 0;
+	ulint			len;
+	char			tmp_buff[NAME_LEN+1];
+	char			name_buff[NAME_LEN+1];
+	const char*		ptr;
+	LEX_STRING*		referenced_key_name;
+	LEX_STRING*		name = NULL;
+
+	ptr = dict_remove_db_name(foreign->id);
+	f_key_info.foreign_id = thd_make_lex_string(thd, 0, ptr,
+						    (uint) strlen(ptr), 1);
+
+	/* Name format: database name, '/', table name, '\0' */
+
+	/* Referenced (parent) database name */
+	len = dict_get_db_name_len(foreign->referenced_table_name);
+	ut_a(len < sizeof(tmp_buff));
+	ut_memcpy(tmp_buff, foreign->referenced_table_name, len);
+	tmp_buff[len] = 0;
+
+	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
+	f_key_info.referenced_db = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Referenced (parent) table name */
+	ptr = dict_remove_db_name(foreign->referenced_table_name);
+	len = filename_to_tablename(ptr, name_buff, sizeof(name));
+	f_key_info.referenced_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Dependent (child) database name */
+	len = dict_get_db_name_len(foreign->foreign_table_name);
+	ut_a(len < sizeof(tmp_buff));
+	ut_memcpy(tmp_buff, foreign->foreign_table_name, len);
+	tmp_buff[len] = 0;
+
+	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
+	f_key_info.foreign_db = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Dependent (child) table name */
+	ptr = dict_remove_db_name(foreign->foreign_table_name);
+	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
+	f_key_info.foreign_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	do {
+		ptr = foreign->foreign_col_names[i];
+		name = thd_make_lex_string(thd, name, ptr,
+					   (uint) strlen(ptr), 1);
+		f_key_info.foreign_fields.push_back(name);
+		ptr = foreign->referenced_col_names[i];
+		name = thd_make_lex_string(thd, name, ptr,
+					   (uint) strlen(ptr), 1);
+		f_key_info.referenced_fields.push_back(name);
+	} while (++i < foreign->n_fields);
+
+	if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE) {
+		len = 7;
+		ptr = "CASCADE";
+	} else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL) {
+		len = 8;
+		ptr = "SET NULL";
+	} else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
+		len = 9;
+		ptr = "NO ACTION";
+	} else {
+		len = 8;
+		ptr = "RESTRICT";
+	}
+
+	f_key_info.delete_method = thd_make_lex_string(thd,
+						       f_key_info.delete_method,
+						       ptr, len, 1);
+
+	if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
+		len = 7;
+		ptr = "CASCADE";
+	} else if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL) {
+		len = 8;
+		ptr = "SET NULL";
+	} else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
+		len = 9;
+		ptr = "NO ACTION";
+	} else {
+		len = 8;
+		ptr = "RESTRICT";
+	}
+
+	f_key_info.update_method = thd_make_lex_string(thd,
+						       f_key_info.update_method,
+						       ptr, len, 1);
+
+	if (foreign->referenced_index && foreign->referenced_index->name) {
+		referenced_key_name = thd_make_lex_string(thd,
+					f_key_info.referenced_key_name,
+					foreign->referenced_index->name,
+					 (uint) strlen(foreign->referenced_index->name),
+					1);
+	} else {
+		referenced_key_name = NULL;
+	}
+
+	f_key_info.referenced_key_name = referenced_key_name;
+
+	pf_key_info = (FOREIGN_KEY_INFO *) thd_memdup(thd, &f_key_info,
+						      sizeof(FOREIGN_KEY_INFO));
+
+	return(pf_key_info);
+}
+
+/*******************************************************************//**
+Gets the list of foreign keys in this table.
+@return always 0, that is, always succeeds */
 UNIV_INTERN
 int
-ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+ha_innobase::get_foreign_key_list(
+/*==============================*/
+	THD*			thd,		/*!< in: user thread handle */
+	List<FOREIGN_KEY_INFO>*	f_key_list)	/*!< out: foreign key list */
 {
-  dict_foreign_t* foreign;
+	FOREIGN_KEY_INFO*	pf_key_info;
+	dict_foreign_t*		foreign;
 
-  DBUG_ENTER("get_foreign_key_list");
-  ut_a(prebuilt != NULL);
-  update_thd(ha_thd());
-  prebuilt->trx->op_info = (char*)"getting list of foreign keys";
-  trx_search_latch_release_if_reserved(prebuilt->trx);
-  mutex_enter(&(dict_sys->mutex));
-  foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	ut_a(prebuilt != NULL);
+	update_thd(ha_thd());
 
-  while (foreign != NULL) {
-	  uint i;
-	  FOREIGN_KEY_INFO f_key_info;
-	  LEX_STRING *name= 0;
-          uint ulen;
-          char uname[NAME_LEN+1];           /* Unencoded name */
-          char db_name[NAME_LEN+1];
-	  const char *tmp_buff;
+	prebuilt->trx->op_info = "getting list of foreign keys";
 
-	  tmp_buff= foreign->id;
-	  i= 0;
-	  while (tmp_buff[i] != '/')
-		  i++;
-	  tmp_buff+= i + 1;
-	  f_key_info.forein_id = thd_make_lex_string(thd, 0,
-		  tmp_buff, (uint) strlen(tmp_buff), 1);
-	  tmp_buff= foreign->referenced_table_name;
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-          /* Database name */
-	  i= 0;
-	  while (tmp_buff[i] != '/')
-          {
-            db_name[i]= tmp_buff[i];
-            i++;
-          }
-          db_name[i]= 0;
-          ulen= filename_to_tablename(db_name, uname, sizeof(uname));
-	  f_key_info.referenced_db = thd_make_lex_string(thd, 0,
-		  uname, ulen, 1);
+	mutex_enter(&(dict_sys->mutex));
 
-          /* Table name */
-	  tmp_buff+= i + 1;
-          ulen= filename_to_tablename(tmp_buff, uname, sizeof(uname));
-	  f_key_info.referenced_table = thd_make_lex_string(thd, 0,
-		  uname, ulen, 1);
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		pf_key_info = get_foreign_key_info(thd, foreign);
+		if (pf_key_info) {
+			f_key_list->push_back(pf_key_info);
+		}
+	}
 
-	  for (i= 0;;) {
-		  tmp_buff= foreign->foreign_col_names[i];
-		  name = thd_make_lex_string(thd, name,
-			  tmp_buff, (uint) strlen(tmp_buff), 1);
-		  f_key_info.foreign_fields.push_back(name);
-		  tmp_buff= foreign->referenced_col_names[i];
-		  name = thd_make_lex_string(thd, name,
-			tmp_buff, (uint) strlen(tmp_buff), 1);
-		  f_key_info.referenced_fields.push_back(name);
-		  if (++i >= foreign->n_fields)
-			  break;
-	  }
+	mutex_exit(&(dict_sys->mutex));
 
-          ulong length;
-          if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE)
-          {
-            length=7;
-            tmp_buff= "CASCADE";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
-          {
-            length=8;
-            tmp_buff= "SET NULL";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION)
-          {
-            length=9;
-            tmp_buff= "NO ACTION";
-          }
-          else
-          {
-            length=8;
-            tmp_buff= "RESTRICT";
-          }
-	  f_key_info.delete_method = thd_make_lex_string(
-		  thd, f_key_info.delete_method, tmp_buff, length, 1);
+	prebuilt->trx->op_info = "";
 
+	return(0);
+}
 
-          if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)
-          {
-            length=7;
-            tmp_buff= "CASCADE";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)
-          {
-            length=8;
-            tmp_buff= "SET NULL";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION)
-          {
-            length=9;
-            tmp_buff= "NO ACTION";
-          }
-          else
-          {
-            length=8;
-            tmp_buff= "RESTRICT";
-          }
-	  f_key_info.update_method = thd_make_lex_string(
-		  thd, f_key_info.update_method, tmp_buff, length, 1);
-          if (foreign->referenced_index &&
-              foreign->referenced_index->name)
-          {
-	    f_key_info.referenced_key_name = thd_make_lex_string(
-		    thd, f_key_info.referenced_key_name,
-		    foreign->referenced_index->name,
-		    (uint) strlen(foreign->referenced_index->name), 1);
-          }
-          else
-            f_key_info.referenced_key_name= 0;
+/*******************************************************************//**
+Gets the set of foreign keys where this table is the referenced table.
+@return always 0, that is, always succeeds */
+UNIV_INTERN
+int
+ha_innobase::get_parent_foreign_key_list(
+/*=====================================*/
+	THD*			thd,		/*!< in: user thread handle */
+	List<FOREIGN_KEY_INFO>*	f_key_list)	/*!< out: foreign key list */
+{
+	FOREIGN_KEY_INFO*	pf_key_info;
+	dict_foreign_t*		foreign;
 
-	  FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
-		  thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
-	  f_key_list->push_back(pf_key_info);
-	  foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
-  }
-  mutex_exit(&(dict_sys->mutex));
-  prebuilt->trx->op_info = (char*)"";
+	ut_a(prebuilt != NULL);
+	update_thd(ha_thd());
 
-  DBUG_RETURN(0);
+	prebuilt->trx->op_info = "getting list of referencing foreign keys";
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+
+	mutex_enter(&(dict_sys->mutex));
+
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		pf_key_info = get_foreign_key_info(thd, foreign);
+		if (pf_key_info) {
+			f_key_list->push_back(pf_key_info);
+		}
+	}
+
+	mutex_exit(&(dict_sys->mutex));
+
+	prebuilt->trx->op_info = "";
+
+	return(0);
 }
 
 /*****************************************************************//**

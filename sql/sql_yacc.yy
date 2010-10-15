@@ -1189,6 +1189,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PROCESSLIST_SYM
 %token  PROFILE_SYM
 %token  PROFILES_SYM
+%token  PROXY_SYM
 %token  PURGE
 %token  QUARTER_SYM
 %token  QUERY_SYM
@@ -1932,35 +1933,28 @@ master_def:
         | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
           {
             Lex->mi.heartbeat_period= (float) $3->val_real();
-           if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
-               Lex->mi.heartbeat_period < 0.0)
-           {
-             const char format[]= "%d seconds";
-             char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
-             sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
-             my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                      MYF(0), " is negative or exceeds the maximum ", buf);
-              MYSQL_YYABORT;
+            if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
+                Lex->mi.heartbeat_period < 0.0)
+            {
+               const char format[]= "%d";
+               char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
+               sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
+               my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE, MYF(0), buf);
+               MYSQL_YYABORT;
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
             {
               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE),
-                                  " exceeds the value of `slave_net_timeout' sec.",
-                                  " A sensible value for the period should be"
-                                  " less than the timeout.");
+                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
             if (Lex->mi.heartbeat_period < 0.001)
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
                 push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE),
-                                    " is less than 1 msec.",
-                                    " The period is reset to zero which means"
-                                    " no heartbeats will be sending");
+                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
+                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
               }
               Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
@@ -10769,7 +10763,7 @@ truncate:
             lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
             lex->select_lex.init_order();
             YYPS->m_lock_type= TL_WRITE;
-            YYPS->m_mdl_type= MDL_SHARED_NO_READ_WRITE;
+            YYPS->m_mdl_type= MDL_EXCLUSIVE;
           }
           table_name
           {
@@ -12316,6 +12310,9 @@ user:
             $$->user = $1;
             $$->host.str= (char *) "%";
             $$->host.length= 1;
+            $$->password= null_lex_str; 
+            $$->plugin= empty_lex_str;
+            $$->auth= empty_lex_str;
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -12328,12 +12325,21 @@ user:
             if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
             $$->user = $1; $$->host=$3;
+            $$->password= null_lex_str; 
+            $$->plugin= empty_lex_str;
+            $$->auth= empty_lex_str;
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
                                          system_charset_info, 0) ||
                 check_host_name(&$$->host))
               MYSQL_YYABORT;
+            /*
+              Convert hostname part of username to lowercase.
+              It's OK to use in-place lowercase as long as
+              the character set is utf8.
+            */
+            my_casedn_str(system_charset_info, $$->host.str);
           }
         | CURRENT_USER optional_braces
           {
@@ -12590,6 +12596,7 @@ keyword_sp:
         | PROCESSLIST_SYM          {}
         | PROFILE_SYM              {}
         | PROFILES_SYM             {}
+        | PROXY_SYM                {}
         | QUARTER_SYM              {}
         | QUERY_SYM                {}
         | QUICK                    {}
@@ -12976,7 +12983,7 @@ option_value:
             if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
               MYSQL_YYABORT;
             user->host=null_lex_str;
-            user->user.str=thd->security_ctx->priv_user;
+            user->user.str=thd->security_ctx->user;
             set_var_password *var= new set_var_password(user, $3);
             if (var == NULL)
               MYSQL_YYABORT;
@@ -13336,6 +13343,13 @@ revoke_command:
           {
             Lex->sql_command = SQLCOM_REVOKE_ALL;
           }
+        | PROXY_SYM ON user FROM grant_list
+          {
+            LEX *lex= Lex;
+            lex->users_list.push_front ($3);
+            lex->sql_command= SQLCOM_REVOKE;
+            lex->type= TYPE_ENUM_PROXY;
+          } 
         ;
 
 grant:
@@ -13375,6 +13389,13 @@ grant_command:
             lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
+        | PROXY_SYM ON user TO_SYM grant_list opt_grant_option
+          {
+            LEX *lex= Lex;
+            lex->users_list.push_front ($3);
+            lex->sql_command= SQLCOM_GRANT;
+            lex->type= TYPE_ENUM_PROXY;
+          } 
         ;
 
 opt_table:
@@ -13568,6 +13589,8 @@ grant_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
             $$=$1; $1->password=$4;
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
             if ($4.length)
             {
               if (YYTHD->variables.old_passwords)
@@ -13593,7 +13616,28 @@ grant_user:
             }
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
-          { $$= $1; $1->password= $5; }
+          { 
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
+            $$= $1; 
+            $1->password= $5; 
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text
+          {
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
+            $$= $1;
+            $1->plugin= $4;
+            $1->auth= empty_lex_str;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
+          {
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
+            $$= $1;
+            $1->plugin= $4;
+            $1->auth= $6;
+          }
         | user
           { $$= $1; $1->password= null_lex_str; }
         ;
@@ -13663,6 +13707,11 @@ require_clause:
 grant_options:
           /* empty */ {}
         | WITH grant_option_list
+        ;
+
+opt_grant_option:
+          /* empty */ {}
+        | WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
         ;
 
 grant_option_list:

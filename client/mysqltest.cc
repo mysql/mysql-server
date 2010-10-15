@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "client_priv.h"
 #include <mysql_version.h>
 #include <mysqld_error.h>
+#include <sql_common.h>
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -50,6 +51,8 @@
 #endif
 #include <signal.h>
 #include <my_stacktrace.h>
+
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #ifdef __WIN__
 #include <crtdbg.h>
@@ -190,6 +193,8 @@ static ulonglong timer_now(void);
 
 
 static ulong connection_retry_sleep= 100000; /* Microseconds */
+
+static char *opt_plugin_dir= 0;
 
 /* Precompiled re's */
 static my_regex_t ps_re;     /* the query can be run using PS protocol */
@@ -3897,13 +3902,15 @@ void do_change_user(struct st_command *command)
   }
 
   if (!ds_user.length)
+  {
     dynstr_set(&ds_user, mysql->user);
 
-  if (!ds_passwd.length)
-    dynstr_set(&ds_passwd, mysql->passwd);
+    if (!ds_passwd.length)
+      dynstr_set(&ds_passwd, mysql->passwd);
 
-  if (!ds_db.length)
-    dynstr_set(&ds_db, mysql->db);
+    if (!ds_db.length)
+      dynstr_set(&ds_db, mysql->db);
+  }
 
   DBUG_PRINT("info",("connection: '%s' user: '%s' password: '%s' database: '%s'",
                       cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
@@ -5272,6 +5279,7 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_port;
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
+  static DYNAMIC_STRING ds_default_auth;
 #ifdef HAVE_SMEM
   static DYNAMIC_STRING ds_shm;
 #endif
@@ -5283,7 +5291,8 @@ void do_connect(struct st_command *command)
     { "database", ARG_STRING, FALSE, &ds_database, "Database to select after connect" },
     { "port", ARG_STRING, FALSE, &ds_port, "Port to connect to" },
     { "socket", ARG_STRING, FALSE, &ds_sock, "Socket to connect with" },
-    { "options", ARG_STRING, FALSE, &ds_options, "Options to use while connecting" }
+    { "options", ARG_STRING, FALSE, &ds_options, "Options to use while connecting" },
+    { "default_auth", ARG_STRING, FALSE, &ds_default_auth, "Default authentication to use" }
   };
 
   DBUG_ENTER("do_connect");
@@ -5432,6 +5441,12 @@ void do_connect(struct st_command *command)
   /* Use default db name */
   if (ds_database.length == 0)
     dynstr_set(&ds_database, opt_db);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&con_slot->mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (ds_default_auth.length)
+    mysql_options(&con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
 
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
@@ -6231,6 +6246,9 @@ static struct my_option my_long_options[] =
    "Number of seconds before connection timeout.",
    &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
    120, 0, 3600 * 12, 0, 0, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -6244,8 +6262,7 @@ void print_version(void)
 void usage()
 {
   print_version();
-  printf("MySQL AB, by Sasha, Matt, Monty & Jani\n");
-  printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
