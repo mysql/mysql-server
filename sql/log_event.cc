@@ -143,6 +143,7 @@ void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli)
   {
     delete rli->rows_query_ev;
     rli->rows_query_ev= NULL;
+    rli->sql_thd->set_query(NULL, 0);
   }
 
   /* Record the Rows_query log event until all its rows event are applied */
