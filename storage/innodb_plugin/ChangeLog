@@ -54,7 +54,6 @@
 	* handler/ha_innodb.cc:
 	Fix Bug#55382 Assignment with SELECT expressions takes unexpected
 	S locks in READ COMMITTED
->>>>>>> MERGE-SOURCE
 
 2010-07-27	The InnoDB Team
 
