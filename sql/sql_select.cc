@@ -3548,16 +3548,20 @@ static TABLE_LIST *alloc_join_nest(THD *thd)
 }
 
 
-void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist)
+void fix_list_after_tbl_changes(st_select_lex *parent_select,
+                                st_select_lex *removed_select,
+                                List<TABLE_LIST> *tlist)
 {
   List_iterator<TABLE_LIST> it(*tlist);
   TABLE_LIST *table;
   while ((table= it++))
   {
     if (table->on_expr)
-      table->on_expr->fix_after_pullout(new_parent, &table->on_expr);
+      table->on_expr->fix_after_pullout(parent_select, removed_select,
+                                        &table->on_expr);
     if (table->nested_join)
-      fix_list_after_tbl_changes(new_parent, &table->nested_join->join_list);
+      fix_list_after_tbl_changes(parent_select, removed_select,
+                                 &table->nested_join->join_list);
   }
 }
 
@@ -3870,15 +3874,16 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     sj_nest->sj_on_expr->fix_fields(thd, &sj_nest->sj_on_expr);
   }
 
+  /* Unlink the child select_lex: */
+  subq_lex->master_unit()->exclude_level();
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
-  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, &sj_nest->sj_on_expr);
-  fix_list_after_tbl_changes(parent_lex, &nested_join->join_list);
-
-  /* Unlink the child select_lex so it doesn't show up in EXPLAIN: */
-  subq_lex->master_unit()->exclude_level();
+  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex,
+                                         &sj_nest->sj_on_expr);
+  fix_list_after_tbl_changes(parent_lex, subq_lex,
+                             &sj_nest->nested_join->join_list);
 
   //TODO fix QT_
   DBUG_EXECUTE("where",
