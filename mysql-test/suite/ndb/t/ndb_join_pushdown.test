@@ -2838,6 +2838,39 @@ select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 
 drop table t1;
 
+########
+# Test correct cleanup of MRR accesses being executed multiple times.
+# This used to be bug#57481, and this is a SPJ specific testcase in addition to
+# the specific testcase commited together with patch for this bug.
+#######
+create table t (pk int primary key, a int) engine=ndb;
+insert into t values 
+  (1,1), (2,1),
+  (4,3), (6,3),
+  (7,4), (8,4);
+
+explain
+SELECT DISTINCT STRAIGHT_JOIN table1.pk FROM 
+   t AS table1  JOIN
+    (t AS table2  JOIN  
+       (t AS table3  JOIN t AS table4 ON table3.pk = table4.a)
+     ON table2.pk =  table3.pk )
+   ON table1.a =  table4.pk
+   WHERE  table2.pk != 6;
+
+--sorted_result
+SELECT DISTINCT STRAIGHT_JOIN table1.pk FROM 
+   t AS table1  JOIN
+    (t AS table2  JOIN  
+       (t AS table3  JOIN t AS table4 ON table3.pk = table4.a)
+     ON table2.pk =  table3.pk )
+   ON table1.a =  table4.pk
+   WHERE  table2.pk != 6;
+
+drop table t;
+
+
+
 ########################################
 # Verify DBSPJ counters for entire test:
 
