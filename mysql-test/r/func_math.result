@@ -600,3 +600,10 @@ NULL
 SELECT -9223372036854775808 MOD -1;
 -9223372036854775808 MOD -1
 0
+#
+# Bug #57209 valgrind + Assertion failed: dst > buf 
+#
+SELECT floor(log10(format(concat_ws(5445796E25, 5306463, 30837), -358821)))
+as foo;
+foo
+2

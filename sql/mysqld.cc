@@ -58,6 +58,7 @@
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
+#include <sql_common.h>
 #include <my_stacktrace.h>
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
@@ -96,13 +97,6 @@
 #endif
 
 #define mysqld_charset &my_charset_latin1
-
-/* stack traces are only supported on linux intel */
-#if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
-#define	HAVE_STACK_TRACE_ON_SEGV
-#include "../pstack/pstack.h"
-char pstack_file_name[80];
-#endif /* __linux__ */
 
 /* We have HAVE_purify below as this speeds up the shutdown of MySQL */
 
@@ -270,6 +264,8 @@ extern "C" sig_handler handle_segfault(int sig);
 #endif
 
 /* Constants */
+
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
@@ -650,9 +646,6 @@ char *opt_logname, *opt_slow_logname;
 /* Static variables */
 
 static bool kill_in_progress, segfaulted;
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-static my_bool opt_do_pstack;
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
@@ -1491,6 +1484,7 @@ void clean_up(bool print_message)
     sql_print_information(ER_DEFAULT(ER_SHUTDOWN_COMPLETE),my_progname);
   cleanup_errmsgs();
   MYSQL_CALLBACK(thread_scheduler, end, ());
+  mysql_client_plugin_deinit();
   finish_client_errs();
   (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
@@ -2686,14 +2680,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   if (!opt_bootstrap)
     create_pid_file();
 
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  if (opt_do_pstack)
-  {
-    sprintf(pstack_file_name,"mysqld-%lu-%%d-%%d.backtrace", (ulong)getpid());
-    pstack_install_segv_action(pstack_file_name);
-  }
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
-
   /*
     signal to start_signal_handler that we are ready
     This works by waiting for start_signal_handler to free mutex,
@@ -3216,6 +3202,11 @@ static int init_common_variables()
     return 1;
   set_server_version();
 
+#ifndef EMBEDDED_LIBRARY
+  if (opt_help && !opt_verbose)
+    unireg_abort(0);
+#endif /*!EMBEDDED_LIBRARY*/
+
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
@@ -3253,12 +3244,11 @@ static int init_common_variables()
     desired page sizes.
   */
    int nelem;
-   int max_desired_page_size;
-   int max_page_size;
+   size_t max_desired_page_size;
    if (opt_super_large_pages)
-     max_page_size= SUPER_LARGE_PAGESIZE;
+     max_desired_page_size= SUPER_LARGE_PAGESIZE;
    else
-     max_page_size= LARGE_PAGESIZE;
+     max_desired_page_size= LARGE_PAGESIZE;
    nelem = getpagesizes(NULL, 0);
    if (nelem > 0)
    {
@@ -3351,6 +3341,7 @@ static int init_common_variables()
   if (init_errmessage())	/* Read error messages from file */
     return 1;
   init_client_errs();
+  mysql_client_plugin_init();
   lex_init();
   if (item_create_init())
     return 1;
@@ -5740,11 +5731,6 @@ struct my_option my_long_options[]=
    &disconnect_slave_event_count, &disconnect_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_REPLICATION */
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  {"enable-pstack", 0, "Print a symbolic stack trace on failure.",
-   &opt_do_pstack, &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
   {"exit-info", 'T', "Used for debugging. Use at your own risk.", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
 
@@ -6613,13 +6599,8 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts("\
-Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
-Copyright (C) 2008,2009 Sun Microsystems, Inc.\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n\n\
-Starts the MySQL database server.\n");
-
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+  puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
     puts("\nFor more help options (several pages), use mysqld --verbose --help.");

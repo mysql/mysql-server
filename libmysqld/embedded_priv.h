@@ -15,6 +15,8 @@
 
 /* Prototypes for the embedded version of MySQL */
 
+#include <sql_common.h>
+
 C_MODE_START
 void lib_connection_phase(NET *net, int phase);
 void init_embedded_mysql(MYSQL *mysql, int client_flag);
