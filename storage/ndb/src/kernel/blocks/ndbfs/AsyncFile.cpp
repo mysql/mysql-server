@@ -17,8 +17,6 @@
 */
 
 #include <ndb_global.h>
-#include <my_sys.h>
-#include <my_pthread.h>
 
 #include "AsyncFile.hpp"
 #include <ErrorHandlingMacros.hpp>

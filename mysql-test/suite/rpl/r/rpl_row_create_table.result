@@ -13,31 +13,12 @@ CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
 CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
 CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
-SHOW BINLOG EVENTS FROM 107;
-Log_name	#
-Pos	107
-Event_type	Query
-Server_id	#
-End_log_pos	200
-Info	use `test`; CREATE TABLE t1 (a INT, b INT)
-Log_name	#
-Pos	200
-Event_type	Query
-Server_id	#
-End_log_pos	306
-Info	use `test`; CREATE TABLE t2 (a INT, b INT) ENGINE=Merge
-Log_name	#
-Pos	306
-Event_type	Query
-Server_id	#
-End_log_pos	412
-Info	use `test`; CREATE TABLE t3 (a INT, b INT) CHARSET=utf8
-Log_name	#
-Pos	412
-Event_type	Query
-Server_id	#
-End_log_pos	531
-Info	use `test`; CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b INT)
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a INT, b INT) ENGINE=Merge
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t3 (a INT, b INT) CHARSET=utf8
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8
 **** On Master ****
 SHOW CREATE TABLE t1;
 Table	t1
@@ -137,7 +118,7 @@ RESET MASTER;
 include/start_slave.inc
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 ERROR 23000: Duplicate entry '2' for key 'b'
-SHOW BINLOG EVENTS FROM 107;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
@@ -147,13 +128,13 @@ a	b
 1	2
 2	4
 3	6
-SHOW BINLOG EVENTS FROM 107;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	207	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-#	207	Query	#	275	BEGIN
-#	275	Table_map	#	317	table_id: # (test.t7)
-#	317	Write_rows	#	373	table_id: # flags: STMT_END_F
-#	373	Query	#	444	ROLLBACK
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t7)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -171,12 +152,12 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-SHOW BINLOG EVENTS FROM 107;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	175	BEGIN
-#	175	Table_map	#	217	table_id: # (test.t7)
-#	217	Write_rows	#	273	table_id: # flags: STMT_END_F
-#	273	Query	#	342	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t7)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -216,10 +197,10 @@ Create Table	CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW BINLOG EVENTS FROM 107;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	193	use `test`; CREATE TABLE t8 LIKE t4
-#	193	Query	#	332	use `test`; CREATE TABLE `t9` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t8 LIKE t4
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 )
@@ -289,38 +270,38 @@ a
 1
 2
 3
-SHOW BINLOG EVENTS FROM 107;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	193	use `test`; CREATE TABLE t1 (a INT)
-#	193	Query	#	261	BEGIN
-#	261	Table_map	#	302	table_id: # (test.t1)
-#	302	Write_rows	#	346	table_id: # flags: STMT_END_F
-#	346	Query	#	415	COMMIT
-#	415	Query	#	483	BEGIN
-#	483	Query	#	608	use `test`; CREATE TABLE `t2` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	608	Table_map	#	649	table_id: # (test.t2)
-#	649	Write_rows	#	693	table_id: # flags: STMT_END_F
-#	693	Xid	#	720	COMMIT /* XID */
-#	720	Query	#	788	BEGIN
-#	788	Query	#	913	use `test`; CREATE TABLE `t3` (
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	913	Table_map	#	954	table_id: # (test.t3)
-#	954	Write_rows	#	998	table_id: # flags: STMT_END_F
-#	998	Xid	#	1025	COMMIT /* XID */
-#	1025	Query	#	1093	BEGIN
-#	1093	Query	#	1218	use `test`; CREATE TABLE `t4` (
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	1218	Table_map	#	1259	table_id: # (test.t4)
-#	1259	Write_rows	#	1303	table_id: # flags: STMT_END_F
-#	1303	Xid	#	1330	COMMIT /* XID */
-#	1330	Query	#	1398	BEGIN
-#	1398	Table_map	#	1439	table_id: # (test.t1)
-#	1439	Write_rows	#	1483	table_id: # flags: STMT_END_F
-#	1483	Query	#	1552	COMMIT
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 SHOW TABLES;
 Tables_in_test
 t1
@@ -374,20 +355,20 @@ a
 4
 6
 9
-SHOW BINLOG EVENTS FROM 107;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	193	use `test`; CREATE TABLE t1 (a INT)
-#	193	Query	#	261	BEGIN
-#	261	Table_map	#	302	table_id: # (test.t1)
-#	302	Write_rows	#	346	table_id: # flags: STMT_END_F
-#	346	Query	#	415	COMMIT
-#	415	Query	#	515	use `test`; CREATE TABLE t2 (a INT) ENGINE=INNODB
-#	515	Query	#	583	BEGIN
-#	583	Table_map	#	624	table_id: # (test.t2)
-#	624	Write_rows	#	668	table_id: # flags: STMT_END_F
-#	668	Table_map	#	709	table_id: # (test.t2)
-#	709	Write_rows	#	748	table_id: # flags: STMT_END_F
-#	748	Xid	#	775	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a INT) ENGINE=INNODB
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 SELECT * FROM t2 ORDER BY a;
 a
 1
@@ -413,14 +394,14 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT * FROM t2 ORDER BY a;
 a
-SHOW BINLOG EVENTS FROM 107;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	175	BEGIN
-#	175	Table_map	#	216	table_id: # (test.t2)
-#	216	Write_rows	#	260	table_id: # flags: STMT_END_F
-#	260	Table_map	#	301	table_id: # (test.t2)
-#	301	Write_rows	#	340	table_id: # flags: STMT_END_F
-#	340	Query	#	411	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;
@@ -486,4 +467,10 @@ DROP VIEW IF EXISTS bug48506_t1, bug48506_t2, bug48506_t3;
 DROP TEMPORARY TABLES t7;
 DROP TABLES t4, t5;
 DROP TABLES IF EXISTS bug48506_t4;
+CREATE TABLE t1 SELECT 1;
+CREATE TABLE IF NOT EXISTS t1 SELECT 1;
+Warnings:
+Note	1050	Table 't1' already exists
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE t1;
 end of the tests

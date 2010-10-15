@@ -307,7 +307,10 @@ public:
    */
   void external_IO(Uint32 timeOutMillis);
   
-  Uint32 pollReceive(Uint32 timeOutMillis);
+  inline Uint32 pollReceive(Uint32 timeOutMillis) {
+    return pollReceive(timeOutMillis, m_has_data_transporters);
+  }
+  Uint32 pollReceive(Uint32 timeOutMillis, NodeBitmask& mask);
   void performReceive();
   int performSend(NodeId nodeId);
   void performSend();
@@ -352,19 +355,15 @@ private:
   int nSCITransporters;
   int nSHMTransporters;
 
-#if defined(HAVE_EPOLL_CREATE)
-  typedef Bitmask<MAX_NTRANSPORTERS/32> TransporterMask;
-
-  int m_epoll_fd;
-  struct epoll_event *m_epoll_events;
-  bool change_epoll(TCP_Transporter *t, bool add);
-  void get_tcp_data(TCP_Transporter *t);
-
   /**
    * Bitmask of transporters that has data "carried over" since
    *   last performReceive
    */
-  TransporterMask m_has_data_transporters;
+  NodeBitmask m_has_data_transporters;
+#if defined(HAVE_EPOLL_CREATE)
+  int m_epoll_fd;
+  struct epoll_event *m_epoll_events;
+  bool change_epoll(TCP_Transporter *t, bool add);
 #endif
   /**
    * Arrays holding all transporters in the order they are created
@@ -426,9 +425,9 @@ private:
   int tcpReadSelectReply;
   ndb_socket_poller m_socket_poller;
 
-  Uint32 poll_TCP(Uint32 timeOutMillis);
-  Uint32 poll_SCI(Uint32 timeOutMillis);
-  Uint32 poll_SHM(Uint32 timeOutMillis);
+  Uint32 poll_TCP(Uint32 timeOutMillis, NodeBitmask&);
+  Uint32 poll_SCI(Uint32 timeOutMillis, NodeBitmask&);
+  Uint32 poll_SHM(Uint32 timeOutMillis, NodeBitmask&);
 
   int m_shm_own_pid;
   int m_transp_count;

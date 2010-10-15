@@ -10023,113 +10023,7 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
 #ifdef ERROR_INSERT
   case 5:
     jam();
-    if(tuserpointer == 0)
-    {
-      jam();
-      signal->theData[0] = 0;
-      sendSignal(QMGR_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(NDBCNTR_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(NDBFS_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBACC_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBTUP_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBLQH_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBDICT_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBDIH_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBTC_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(CMVMI_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      return;
-    }
-    /*----------------------------------------------------------------------*/
-    // Insert errors.
-    /*----------------------------------------------------------------------*/
-    if (tuserpointer < 1000) {
-      /*--------------------------------------------------------------------*/
-      // Insert errors into QMGR.
-      /*--------------------------------------------------------------------*/
-      jam();
-      tuserblockref = QMGR_REF;
-    } else if (tuserpointer < 2000) {
-      /*--------------------------------------------------------------------*/
-      // Insert errors into NDBCNTR.
-      /*--------------------------------------------------------------------*/
-      jam();
-      tuserblockref = NDBCNTR_REF;
-    } else if (tuserpointer < 3000) {
-      /*--------------------------------------------------------------------*/
-      // Insert errors into NDBFS.
-      /*--------------------------------------------------------------------*/
-      jam();
-      tuserblockref = NDBFS_REF;
-    } else if (tuserpointer < 4000) {
-      /*--------------------------------------------------------------------*/
-      // Insert errors into DBACC.
-      /*--------------------------------------------------------------------*/
-      jam();
-      tuserblockref = DBACC_REF;
-    } else if (tuserpointer < 5000) {
-      /*--------------------------------------------------------------------*/
-      // Insert errors into DBTUP.
-      /*--------------------------------------------------------------------*/
-      jam();
-      tuserblockref = DBTUP_REF;
-    } else if (tuserpointer < 6000) {
-      /*---------------------------------------------------------------------*/
-      // Insert errors into DBLQH.
-      /*---------------------------------------------------------------------*/
-      jam();
-      tuserblockref = DBLQH_REF;
-    } else if (tuserpointer < 7000) {
-      /*---------------------------------------------------------------------*/
-      // Insert errors into DBDICT.
-      /*---------------------------------------------------------------------*/
-      jam();
-      tuserblockref = DBDICT_REF;
-    } else if (tuserpointer < 8000) {
-      /*---------------------------------------------------------------------*/
-      // Insert errors into DBDIH.
-      /*--------------------------------------------------------------------*/
-      jam();
-      tuserblockref = DBDIH_REF;
-    } else if (tuserpointer < 9000) {
-      /*--------------------------------------------------------------------*/
-      // Insert errors into DBTC.
-      /*--------------------------------------------------------------------*/
-      jam();
-      tuserblockref = DBTC_REF;
-    } else if (tuserpointer < 10000) {
-      /*--------------------------------------------------------------------*/
-      // Insert errors into CMVMI.
-      /*--------------------------------------------------------------------*/
-      jam();
-      tuserblockref = CMVMI_REF;
-    } else if (tuserpointer < 11000) {
-      jam();
-      tuserblockref = BACKUP_REF;
-    } else if (tuserpointer < 12000) {
-      // DBUTIL_REF ?
-      jam();
-    } else if (tuserpointer < 13000) {
-      jam();
-      tuserblockref = DBTUX_REF;
-    } else if (tuserpointer < 14000) {
-      jam();
-      tuserblockref = SUMA_REF;
-    } else if (tuserpointer < 15000) {
-      jam();
-      tuserblockref = DBDICT_REF;
-    } else if (tuserpointer < 16000) {
-      jam();
-      tuserblockref = LGMAN_REF;
-    } else if (tuserpointer < 17000) {
-      jam();
-      tuserblockref = TSMAN_REF;
-    } else if (tuserpointer < 30000) {
-      /*--------------------------------------------------------------------*/
-      // Ignore errors in the 20000-range.
-      /*--------------------------------------------------------------------*/
-      jam();
-      return;
-    } else if (tuserpointer < 40000) {
+    if (tuserpointer >= 30000 && tuserpointer < 40000) {
       jam();
       /*--------------------------------------------------------------------*/
       // Redirect errors to master DIH in the 30000-range.
@@ -10141,7 +10035,7 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
       signal->theData[2] = tuserblockref;
       sendSignal(tuserblockref, GSN_DIHNDBTAMPER, signal, 3, JBB);
       return;
-    } else if (tuserpointer < 50000) {
+    } else if (tuserpointer >= 40000 && tuserpointer < 50000) {
       NodeRecordPtr localNodeptr;
       Uint32 Tfound = 0;
       jam();
@@ -10177,21 +10071,6 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
     } else {
       jam();
       return;
-    }//if
-    signal->theData[0] = tuserpointer;
-    if (tuserpointer != 0) {
-      sendSignal(tuserblockref, GSN_NDB_TAMPER, signal, 1, JBB);
-    } else {
-      sendSignal(QMGR_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(NDBCNTR_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(NDBFS_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBACC_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBTUP_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBLQH_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBDICT_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBDIH_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(DBTC_REF, GSN_NDB_TAMPER, signal, 1, JBB);
-      sendSignal(CMVMI_REF, GSN_NDB_TAMPER, signal, 1, JBB);
     }//if
     break;
 #endif

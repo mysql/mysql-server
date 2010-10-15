@@ -21,7 +21,6 @@
 #include <NdbApi.hpp>
 #include <NdbIndexStat.hpp>
 #include <NdbTest.hpp>
-#include <my_sys.h>
 #include <ndb_version.h>
 #include <math.h>
 

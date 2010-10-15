@@ -1383,9 +1383,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
 
     /* This part needs to be done under mutex due to synchronization with 
      * receiver thread. */
-    PollGuard poll_guard(facade,
-                         &ndb->theImpl->theWaiter,
-                         ndb->theNdbBlockNumber);
+    PollGuard poll_guard(*ndb->theImpl);
 
     while (likely(m_error.code==0))
     {
@@ -2303,9 +2301,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
   /* This part needs to be done under mutex due to synchronization with 
    * receiver thread.
    */
-  PollGuard poll_guard(facade,
-                       &ndb->theImpl->theWaiter,
-                       ndb->theNdbBlockNumber);
+  PollGuard poll_guard(*ndb->theImpl);
 
   /* Wait for outstanding scan results from current batch fetch */
   while (m_error.code==0 && !isBatchComplete())

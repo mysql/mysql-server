@@ -31,9 +31,9 @@
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
 #include <Ndb.hpp>
-#include "NdbWaiter.hpp"
 #include "DictCache.hpp"
 #include <signaldata/DictSignal.hpp>
+#include "NdbWaiter.hpp"
 
 class ListTablesReq;
 
@@ -601,13 +601,12 @@ public:
     m_tx(tx), m_error(err), m_warn(warn) {
     m_reference = 0;
     m_masterNodeId = 0;
-    m_transporter= NULL;
+    m_impl = 0;
   }
   ~NdbDictInterface();
   
-  bool setTransporter(class Ndb * ndb, class TransporterFacade * tf);
-  bool setTransporter(class TransporterFacade * tf);
-  class TransporterFacade *getTransporter();
+  bool setTransporter(class Ndb * ndb);
+  class TransporterFacade *getTransporter() const;
   
   // To abstract the stuff thats made in all create/drop/lists below
   int dictSignal(NdbApiSignal* signal, LinearSectionPtr ptr[3], int secs,
@@ -708,9 +707,8 @@ public:
 private:
   Uint32 m_reference;
   Uint32 m_masterNodeId;
-  
-  NdbWaiter m_waiter;
-  class TransporterFacade * m_transporter;
+
+  class NdbImpl * m_impl;
   
   friend class Ndb;
   friend class NdbImpl;

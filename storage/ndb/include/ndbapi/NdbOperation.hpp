@@ -230,7 +230,7 @@ public:
    * dirtyRead is a deprecated name for committedRead
    *
    * @return 0 if successful otherwise -1.
-   * @depricated
+   * @deprecated
    */
   virtual int			dirtyRead();
 

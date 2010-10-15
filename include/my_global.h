@@ -58,6 +58,10 @@
 #define USE_PRAGMA_INTERFACE
 #endif
 
+#if defined(__OpenBSD__) && (OpenBSD >= 200411)
+#define HAVE_ERRNO_AS_DEFINE
+#endif
+
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
@@ -548,8 +552,8 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #endif
 
 /* Does the system remember a signal handler after a signal ? */
-#ifndef HAVE_BSD_SIGNALS
-#define DONT_REMEMBER_SIGNAL
+#if !defined(HAVE_BSD_SIGNALS) && !defined(HAVE_SIGACTION)
+#define SIGNAL_HANDLER_RESET_ON_DELIVERY
 #endif
 
 /* Define void to stop lint from generating "null effekt" comments */
@@ -563,22 +567,30 @@ int	__void__;
 #endif
 #endif /* DONT_DEFINE_VOID */
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
-#define LINT_INIT(var)	var=0			/* No uninitialize-warning */
+/*
+  Deprecated workaround for false-positive uninitialized variables
+  warnings. Those should be silenced using tool-specific heuristics.
+
+  Enabled by default for g++ due to the bug referenced below.
+*/
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
+    (defined(__GNUC__) && defined(__cplusplus))
+#define LINT_INIT(var) var= 0
 #else
 #define LINT_INIT(var)
 #endif
 
-/* 
+/*
    Suppress uninitialized variable warning without generating code.
 
    The _cplusplus is a temporary workaround for C++ code pending a fix
-   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772). 
+   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772).
 */
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(__cplusplus) || \
-  !defined(__GNUC__)
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
+    defined(__cplusplus) || !defined(__GNUC__)
 #define UNINIT_VAR(x) x= 0
 #else
+/* GCC specific self-initialization which inhibits the warning. */
 #define UNINIT_VAR(x) x= x
 #endif
 
@@ -602,7 +614,6 @@ typedef unsigned short ushort;
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
-#define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 
 /* Define some general constants */
@@ -623,7 +634,7 @@ typedef unsigned short ushort;
 #define my_const_cast(A) (A)
 #endif
 
-#include <my_attribute.h>
+#include <my_compiler.h>
 
 /*
   Wen using the embedded library, users might run into link problems,
@@ -941,9 +952,6 @@ typedef long long	my_ptrdiff_t;
 #define ADD_TO_PTR(ptr,size,type) (type) ((uchar*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((uchar*) (A) - (uchar*) (B))
 
-#define MY_DIV_UP(A, B) (((A) + (B) - 1) / (B))
-#define MY_ALIGNED_BYTE_ARRAY(N, S, T) T N[MY_DIV_UP(S, sizeof(T))]
-
 /*
   Custom version of standard offsetof() macro which can be used to get
   offsets of members in class for non-POD types (according to the current
@@ -1098,7 +1106,6 @@ typedef off_t os_off_t;
 #define SOCKET_ETIMEDOUT SOCKET_EINTR
 #define SOCKET_EWOULDBLOCK EWOULDBLOCK
 #define SOCKET_EADDRINUSE EADDRINUSE
-#define SOCKET_ECONNREFUSED ECONNREFUSED
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #endif
@@ -1467,17 +1474,6 @@ do { doubleget_union _tmp; \
 #define longlongstore(T,V) memcpy_fixed((uchar*) (T),(uchar*) &V,sizeof(ulonglong))
 
 #endif /* WORDS_BIGENDIAN */
-
-/* sprintf does not always return the number of bytes :- */
-#ifdef SPRINTF_RETURNS_INT
-#define my_sprintf(buff,args) sprintf args
-#else
-#ifdef SPRINTF_RETURNS_PTR
-#define my_sprintf(buff,args) ((int)(sprintf args - buff))
-#else
-#define my_sprintf(buff,args) ((ulong) sprintf args, (ulong) strlen(buff))
-#endif
-#endif
 
 #ifndef THREAD
 #define thread_safe_increment(V,L) (V)++
