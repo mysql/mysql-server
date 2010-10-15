@@ -168,9 +168,9 @@ trx_allocate_for_mysql(void)
 
 	trx = trx_allocate_for_background();
 
-	os_atomic_inc_ulint(&trx_sys->mutex, &trx_n_mysql_transactions, 1);
-
 	rw_lock_x_lock(&trx_sys->lock);
+
+	++trx_n_mysql_transactions;
 
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
@@ -312,9 +312,11 @@ trx_free_for_mysql(
 
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
-	rw_lock_x_unlock(&trx_sys->lock);
+	ut_ad(trx_sys_validate_trx_list());
 
-	os_atomic_dec_ulint(&trx_sys->mutex, &trx_n_mysql_transactions, 1);
+	--trx_n_mysql_transactions;
+
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	trx_free_for_background(trx);
 }
@@ -603,6 +605,8 @@ trx_assign_rseg(void)
 
 	trx_sys->latest_rseg = i % TRX_SYS_N_RSEGS;
 
+	ut_ad(trx_sys_validate_trx_list());
+
 	rw_lock_x_unlock(&trx_sys->lock);
 
 	return(rseg);
@@ -642,6 +646,8 @@ trx_start_low(
 	trx->id = trx_sys_get_new_trx_id();
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
+
+	ut_ad(trx_sys_validate_trx_list());
 
 	rw_lock_x_unlock(&trx_sys->lock);
 
@@ -837,6 +843,8 @@ trx_commit(
 	till the end to remove it from the sys list. */
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	ut_ad(trx_sys_validate_trx_list());
 
 	rw_lock_x_unlock(&trx_sys->lock);
 }

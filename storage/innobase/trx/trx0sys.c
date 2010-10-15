@@ -1711,3 +1711,28 @@ trx_sys_any_active_transactions(void)
 
 	return(total_trx);
 }
+
+#ifdef UNIV_DEBUG
+/*************************************************************//**
+Validate the trx_sys_t::trx_list. */
+UNIV_INTERN
+ibool
+trx_sys_validate_trx_list(void)
+/*===========================*/
+{
+	const trx_t*	trx;
+	const trx_t*	prev_trx = NULL;
+
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX)
+	      || rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
+
+		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */

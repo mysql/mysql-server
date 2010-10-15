@@ -486,6 +486,15 @@ ulint
 trx_sys_any_active_transactions(void);
 /*=================================*/
 
+#ifdef UNIV_DEBUG
+/*************************************************************//**
+Validate the trx_sys_t::trx_list. */
+UNIV_INTERN
+ibool
+trx_sys_validate_trx_list(void);
+/*===========================*/
+#endif /* UNIV_DEBUG */
+
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
