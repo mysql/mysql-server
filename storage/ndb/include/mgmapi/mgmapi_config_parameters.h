@@ -173,6 +173,10 @@
 #define CFG_DB_MAX_START_FAIL         609 /* For StopOnError=0 */
 #define CFG_DB_START_FAIL_DELAY_SECS  610 /* For StopOnError=0 */
 
+/* 611 & 612 reserved */
+
+#define CFG_DB_EVENTLOG_BUFFER_SIZE   613
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 #define CFG_RESERVED_SEND_BUFFER_MEMORY 202
@@ -190,7 +194,8 @@
 #define CFG_LOGLEVEL_CONGESTION   259
 #define CFG_LOGLEVEL_DEBUG        260
 #define CFG_LOGLEVEL_BACKUP       261
-#define CFG_MAX_LOGLEVEL          261
+#define CFG_LOGLEVEL_SCHEMA       262
+#define CFG_MAX_LOGLEVEL          262
 
 #define CFG_MGM_PORT                  300
 

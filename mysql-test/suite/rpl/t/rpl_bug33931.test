@@ -37,9 +37,10 @@ connection slave;
 #
 source include/wait_for_slave_to_stop.inc;
 
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 19 # 23 # 33 # 37 #
-query_vertical show slave status;
+# 1593 = ER_SLAVE_FATAL_ERROR 
+--let $slave_sql_errno= 1593 
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 
 #
 # Cleanup

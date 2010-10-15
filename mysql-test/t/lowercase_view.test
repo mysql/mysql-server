@@ -160,4 +160,26 @@ SELECT * FROM v1;
 DROP VIEW v1;
 DROP TABLE t1;
 
+
 --echo End of 5.0 tests.
+
+
+--echo #
+--echo # Bug #53095: SELECT column_name FROM INFORMATION_SCHEMA.STATISTICS
+--echo #  returns nothing
+--echo #
+
+CREATE TABLE `ttt` (
+  `f1` char(3) NOT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=myisam DEFAULT CHARSET=latin1;
+
+SELECT count(COLUMN_NAME) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME =
+'TTT';
+SELECT count(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = 'TTT';
+
+DROP TABLE `ttt`;
+
+
+--echo End of 5.0 tests.
+

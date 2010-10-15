@@ -548,3 +548,12 @@ drop table ndb_show_tables_results;
 # Bug#51432
 #
 --exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 2 -m $MYSQL_TEST_DIR/std_data/ndb_backup_hashmap >> $NDB_TOOLS_OUTPUT
+
+#
+# Bug#56285
+#
+create table t1 (a int primary key) engine = ndb;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
+drop table t1;
+

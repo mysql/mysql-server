@@ -48,7 +48,7 @@ public:
   };
   enum Status      { CI_USED,            ///< Active
                      CI_EXPERIMENTAL,    ///< Active but experimental
-                     CI_DEPRICATED,      ///< Can be used, but shouldn't
+                     CI_DEPRECATED,      ///< Can be used, but shouldn't
                      CI_NOTIMPLEMENTED,  ///< Is ignored.
                      CI_INTERNAL         ///< Not configurable by the user
   };

@@ -489,10 +489,9 @@ void TransporterFacade::threadMainReceive(void)
     for(int i = 0; i<10; i++){
       NdbSleep_MilliSleep(10);
       NdbMutex_Lock(theMutexPtr);
-      if (m_poll_owner == NULL) {
-        const int res = theTransporterRegistry->pollReceive(0);
-        if(res > 0)
-          theTransporterRegistry->performReceive();
+      if (m_poll_owner == NULL)
+      {
+        external_poll(0);
       }
       NdbMutex_Unlock(theMutexPtr);
     }
@@ -511,9 +510,25 @@ void TransporterFacade::threadMainReceive(void)
 void TransporterFacade::external_poll(Uint32 wait_time)
 {
   NdbMutex_Unlock(theMutexPtr);
+
+#ifdef NDB_SHM_TRANSPORTER
+  /*
+    If shared memory transporters are used we need to set our sigmask
+    such that we wake up also on interrupts on the shared memory
+    interrupt signal.
+  */
+  NdbThread_set_shm_sigmask(FALSE);
+#endif
+
   const int res = theTransporterRegistry->pollReceive(wait_time);
+
+#ifdef NDB_SHM_TRANSPORTER
+  NdbThread_set_shm_sigmask(TRUE);
+#endif
+
   NdbMutex_Lock(theMutexPtr);
-  if (res > 0) {
+  if (res > 0)
+  {
     theTransporterRegistry->performReceive();
   }
 }
@@ -1580,28 +1595,10 @@ TransporterFacade::do_poll(trp_client* clnt, Uint32 wait_time)
       receiving data we will check if all data is received, if not we
       poll again.
     */
-#ifdef NDB_SHM_TRANSPORTER
-    /*
-      If shared memory transporters are used we need to set our sigmask
-      such that we wake up also on interrupts on the shared memory
-      interrupt signal.
-    */
-    NdbThread_set_shm_sigmask(FALSE);
-#endif
     assert(owner == clnt || clnt->m_poll.m_poll_owner == false);
     m_poll_owner = clnt;
     clnt->m_poll.m_poll_owner = true;
-    NdbMutex_Unlock(theMutexPtr);
-    const int res = theTransporterRegistry->pollReceive(wait_time);
-#ifdef NDB_SHM_TRANSPORTER
-    NdbThread_set_shm_sigmask(TRUE);
-#endif
-
-    NdbMutex_Lock(theMutexPtr);
-    if (res > 0)
-    {
-      theTransporterRegistry->performReceive();
-    }
+    external_poll(wait_time);
   }
 }
 
