@@ -13738,7 +13738,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
    * mrr access on this handler.
    * Close it now to free up resources for this NdbScanOperation.
    */ 
-  if (unlikely(error= close_scan()))
+  if (unlikely((error= close_scan())))
     DBUG_RETURN(error);
 
   thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
