@@ -446,7 +446,7 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
       NdbApiSignal tSignal(* sig);
       Uint32* send= tSignal.getDataPtrSend();
       memcpy(send, theData, tSignal.getLength() << 2);
-      ((SubGcpCompleteAck*)send)->rep.senderRef = ownRef;
+      CAST_PTR(SubGcpCompleteAck, send)->rep.senderRef = ownRef;
       Uint32 ref= sig->theSendersBlockRef;
       Uint32 aNodeId= refToNode(ref);
       tSignal.theReceiversBlockNumber= refToBlock(ref);

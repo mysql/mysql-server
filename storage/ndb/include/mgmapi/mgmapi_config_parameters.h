@@ -173,7 +173,9 @@
 #define CFG_DB_MAX_START_FAIL         609 /* For StopOnError=0 */
 #define CFG_DB_START_FAIL_DELAY_SECS  610 /* For StopOnError=0 */
 
-#define CFG_DB_EVENTLOG_BUFFER_SIZE   611
+/* 611 & 612 reserved */
+
+#define CFG_DB_EVENTLOG_BUFFER_SIZE   613
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
