@@ -319,6 +319,69 @@ bool Item_subselect::exec()
 }
 
 
+/**
+  Fix used tables information for a subquery after query transformations.
+  Common actions for all predicates involving subqueries.
+  Most actions here involve re-resolving information for conditions
+  and items belonging to the subquery.
+  Notice that the usage information from underlying expressions is not
+  propagated to the subquery predicate, as it belongs to inner layers
+  of the query operator structure.
+  However, when underlying expressions contain outer references into
+  a select_lex on this level, the relevant information must be updated
+  when these expressions are resolved.
+*/
+
+void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
+                                       st_select_lex *removed_select,
+                                       Item **ref)
+
+{
+  /* Clear usage information for this subquery predicate object */
+  used_tables_cache= 0;
+  const_item_cache= 1;
+
+  /*
+    Go through all query specification objects of the subquery and re-resolve
+    all relevant expressions belonging to them.
+  */
+  for (SELECT_LEX *sel= unit->first_select(); sel; sel= sel->next_select())
+  {
+    if (sel->where)
+      sel->where->fix_after_pullout(parent_select, removed_select,
+                                    &sel->where);
+
+    if (sel->having)
+      sel->having->fix_after_pullout(parent_select, removed_select,
+                                     &sel->having);
+
+    List_iterator<Item> li(sel->item_list);
+    Item *item;
+    while ((item=li++))
+      item->fix_after_pullout(parent_select, removed_select, li.ref());
+
+    /*
+      No need to call fix_after_pullout() for outer-join conditions, as these
+      cannot have outer references.
+    */
+
+    /* Re-resolve ORDER BY and GROUP BY fields */
+
+    for (ORDER *order= (ORDER*) sel->order_list.first;
+         order;
+         order= order->next)
+      (*order->item)->fix_after_pullout(parent_select, removed_select,
+                                        order->item);
+
+    for (ORDER *group= (ORDER*) sel->group_list.first;
+         group;
+         group= group->next)
+      (*group->item)->fix_after_pullout(parent_select, removed_select,
+                                        group->item);
+  }
+}
+
+
 /*
   Compute the IN predicate if the left operand's cache changed.
 */
@@ -1817,6 +1880,19 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
     result = left_expr->fix_fields(thd_arg, &left_expr);
 
   return result || Item_subselect::fix_fields(thd_arg, ref);
+}
+
+
+void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
+                                          st_select_lex *removed_select,
+                                          Item **ref)
+{
+  Item_subselect::fix_after_pullout(parent_select, removed_select, ref);
+
+  left_expr->fix_after_pullout(parent_select, removed_select, &left_expr);
+
+  used_tables_cache|= left_expr->used_tables();
+  const_item_cache&= left_expr->const_item();
 }
 
 
