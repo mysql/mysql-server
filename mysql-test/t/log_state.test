@@ -362,6 +362,42 @@ if(!$fixed_bug38124)
 }
 
 
+###########################################################################
+
+--echo #
+--echo # Bug #49756 Rows_examined is always 0 in the slow query log 
+--echo # for update statements
+--echo #
+
+SET @old_log_output = @@global.log_output;
+SET GLOBAL log_output = "TABLE";
+SET GLOBAL slow_query_log = ON;
+SET GLOBAL long_query_time = 0.001;
+
+# clear slow_log of any residual slow queries
+TRUNCATE TABLE mysql.slow_log;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, PRIMARY KEY (b));
+INSERT INTO t2 VALUES (3),(4);
+
+connect (con2,localhost,root,,);
+INSERT INTO t1 VALUES (1+sleep(.01)),(2);
+INSERT INTO t1 SELECT b+sleep(.01) from t2;
+UPDATE t1 SET a=a+sleep(.01) WHERE a>2;
+UPDATE t1 SET a=a+sleep(.01) ORDER BY a DESC;
+UPDATE t2 set b=b+sleep(.01) limit 1;
+UPDATE t1 SET a=a+sleep(.01) WHERE a in (SELECT b from t2);
+DELETE FROM t1 WHERE a=a+sleep(.01) ORDER BY a LIMIT 2;
+
+SELECT rows_examined,sql_text FROM mysql.slow_log;
+disconnect con2;
+connection default;
+DROP TABLE t1,t2;
+TRUNCATE TABLE mysql.slow_log;
+
+--echo # end of bug#49756
+
+
 --echo End of 5.1 tests
 
 --enable_ps_protocol
@@ -376,6 +412,8 @@ disconnect con1;
 connection default;
 
 # Reset global system variables to initial values if forgotten somewhere above.
+SET GLOBAL long_query_time = DEFAULT;
+SET GLOBAL log_output = @old_log_output;
 SET global general_log = @old_general_log;
 SET global general_log_file = @old_general_log_file;
 SET global slow_query_log = @old_slow_query_log;

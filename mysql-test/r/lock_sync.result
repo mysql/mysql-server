@@ -1,0 +1,631 @@
+#
+# Test how we handle locking in various cases when
+# we read data from MyISAM tables.
+#
+# In this test we mostly check that the SQL-layer correctly
+# determines the type of thr_lock.c lock for a table being
+# read.
+# I.e. that it disallows concurrent inserts when the statement
+# is going to be written to the binary log and therefore
+# should be serialized, and allows concurrent inserts when
+# such serialization is not necessary (e.g. when 
+# the statement is not written to binary log).
+#
+# Force concurrent inserts to be performed even if the table
+# has gaps. This allows to simplify clean up in scripts
+# used below (instead of backing up table being inserted
+# into and then restoring it from backup at the end of the
+# script we can simply delete rows which were inserted).
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 2;
+select @@global.concurrent_insert;
+@@global.concurrent_insert
+2
+# Prepare playground by creating tables, views,
+# routines and triggers used in tests.
+drop table if exists t0, t1, t2, t3, t4, t5, te;
+drop view if exists v1, v2;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
+drop function if exists f2;
+drop function if exists f3;
+drop function if exists f4;
+drop function if exists f5;
+drop function if exists f6;
+drop function if exists f7;
+drop function if exists f8;
+drop function if exists f9;
+drop function if exists f10;
+drop function if exists f11;
+drop function if exists f12;
+drop function if exists f13;
+drop function if exists f14;
+drop function if exists f15;
+create table t1 (i int primary key);
+insert into t1 values (1), (2), (3), (4), (5);
+create table t2 (j int primary key);
+insert into t2 values (1), (2), (3), (4), (5);
+create table t3 (k int primary key);
+insert into t3 values (1), (2), (3);
+create table t4 (l int primary key);
+insert into t4 values (1);
+create table t5 (l int primary key);
+insert into t5 values (1);
+create table te(e int primary key);
+insert into te values (1);
+create view v1 as select i from t1;
+create view v2 as select j from t2 where j in (select i from t1);
+create procedure p1(k int) insert into t2 values (k);
+create function f1() returns int
+begin
+declare j int;
+select i from t1 where i = 1 into j;
+return j;
+end|
+create function f2() returns int
+begin
+declare k int;
+select i from t1 where i = 1 into k;
+insert into t2 values (k + 5);
+return 0;
+end|
+create function f3() returns int
+begin
+return (select i from t1 where i = 3);
+end|
+create function f4() returns int
+begin
+if (select i from t1 where i = 3) then
+return 1;
+else
+return 0;
+end if;
+end|
+create function f5() returns int
+begin
+insert into t2 values ((select i from t1 where i = 1) + 5);
+return 0;
+end|
+create function f6() returns int
+begin
+declare k int;
+select i from v1 where i = 1 into k;
+return k;
+end|
+create function f7() returns int
+begin
+declare k int;
+select j from v2 where j = 1 into k;
+return k;
+end|
+create function f8() returns int
+begin
+declare k int;
+select i from v1 where i = 1 into k;
+insert into t2 values (k+5);
+return k;
+end|
+create function f9() returns int
+begin
+update v2 set j=j+10 where j=1;
+return 1;
+end|
+create function f10() returns int
+begin
+return f1();
+end|
+create function f11() returns int
+begin
+declare k int;
+set k= f1();
+insert into t2 values (k+5);
+return k;
+end|
+create function f12(p int) returns int
+begin
+insert into t2 values (p);
+return p;
+end|
+create function f13(p int) returns int
+begin
+return p;
+end|
+create procedure p2(inout p int)
+begin
+select i from t1 where i = 1 into p;
+end|
+create function f14() returns int
+begin
+declare k int;
+call p2(k);
+insert into t2 values (k+5);
+return k;
+end|
+create function f15() returns int
+begin
+declare k int;
+call p2(k);
+return k;
+end|
+create trigger t4_bi before insert on t4 for each row
+begin
+declare k int;
+select i from t1 where i=1 into k;
+set new.l= k+1;
+end|
+create trigger t4_bu before update on t4 for each row
+begin
+if (select i from t1 where i=1) then
+set new.l= 2;
+end if;
+end|
+# Trigger below uses insertion of duplicate key in 'te'
+# table as a way to abort delete operation.
+create trigger t4_bd before delete on t4 for each row
+begin
+if !(select i from v1 where i=1) then
+insert into te values (1);
+end if;
+end|
+create trigger t5_bi before insert on t5 for each row
+begin
+set new.l= f1()+1;
+end|
+create trigger t5_bu before update on t5 for each row
+begin
+declare j int;
+call p2(j);
+set new.l= j + 1;
+end|
+#
+# Set common variables to be used by the scripts
+# called below.
+#
+# Switch to connection 'con1'.
+# Cache all functions used in the tests below so statements
+# calling them won't need to open and lock mysql.proc table
+# and we can assume that each statement locks its tables
+# once during its execution.
+show create procedure p1;
+show create procedure p2;
+show create function f1;
+show create function f2;
+show create function f3;
+show create function f4;
+show create function f5;
+show create function f6;
+show create function f7;
+show create function f8;
+show create function f9;
+show create function f10;
+show create function f11;
+show create function f12;
+show create function f13;
+show create function f14;
+show create function f15;
+# Switch back to connection 'default'.
+#
+# 1. Statements that read tables and do not use subqueries.
+#
+#
+# 1.1 Simple SELECT statement.
+#
+# No locks are necessary as this statement won't be written
+# to the binary log and thanks to how MyISAM works SELECT
+# will see version of the table prior to concurrent insert.
+Success: 'select * from t1' allows concurrent inserts into 't1'.
+#
+# 1.2 Multi-UPDATE statement.
+#
+# Has to take shared locks on rows in the table being read as this
+# statement will be written to the binary log and therefore should
+# be serialized with concurrent statements.
+Success: 'update t2, t1 set j= j - 1 where i = j' doesn't allow concurrent inserts into 't1'.
+#
+# 1.3 Multi-DELETE statement.
+#
+# The above is true for this statement as well.
+Success: 'delete t2 from t1, t2 where i = j' doesn't allow concurrent inserts into 't1'.
+#
+# 1.4 DESCRIBE statement.
+#
+# This statement does not really read data from the
+# target table and thus does not take any lock on it.
+# We check this for completeness of coverage.
+lock table t1 write;
+# Switching to connection 'con1'.
+# This statement should not be blocked.
+describe t1;
+# Switching to connection 'default'.
+unlock tables;
+#
+# 1.5 SHOW statements.
+# 
+# The above is true for SHOW statements as well.
+lock table t1 write;
+# Switching to connection 'con1'.
+# These statements should not be blocked.
+show keys from t1;
+# Switching to connection 'default'.
+unlock tables;
+#
+# 2. Statements which read tables through subqueries.
+#
+#
+# 2.1 CALL with a subquery.
+# 
+# In theory strong lock is not necessary as this statement
+# is not written to the binary log as a whole (it is written
+# statement-by-statement). But in practice in 5.1 for
+# almost everything except SELECT we take strong lock.
+Success: 'call p1((select i + 5 from t1 where i = 1))' doesn't allow concurrent inserts into 't1'.
+#
+# 2.2 CREATE TABLE with a subquery.
+#
+# Has to take a strong lock on the table being read as
+# this statement is written to the binary log and therefore
+# should be serialized with concurrent statements.
+Success: 'create table t0 select * from t1' doesn't allow concurrent inserts into 't1'.
+drop table t0;
+Success: 'create table t0 select j from t2 where j in (select i from t1)' doesn't allow concurrent inserts into 't1'.
+drop table t0;
+#
+# 2.3 DELETE with a subquery.
+#
+# The above is true for this statement as well.
+Success: 'delete from t2 where j in (select i from t1)' doesn't allow concurrent inserts into 't1'.
+#
+# 2.4 MULTI-DELETE with a subquery.
+#
+# Same is true for this statement as well.
+Success: 'delete t2 from t3, t2 where k = j and j in (select i from t1)' doesn't allow concurrent inserts into 't1'.
+#
+# 2.5 DO with a subquery.
+#
+# In theory strong lock is not necessary as it is not logged.
+# But in practice in 5.1 for almost everything except SELECT
+# we take strong lock.
+Success: 'do (select i from t1 where i = 1)' doesn't allow concurrent inserts into 't1'.
+#
+# 2.6 INSERT with a subquery.
+#
+# Has to take a strong lock on the table being read as
+# this statement is written to the binary log and therefore
+# should be serialized with concurrent inserts.
+Success: 'insert into t2 select i+5 from t1' doesn't allow concurrent inserts into 't1'.
+Success: 'insert into t2 values ((select i+5 from t1 where i = 4))' doesn't allow concurrent inserts into 't1'.
+#
+# 2.7 LOAD DATA with a subquery.
+# 
+# The above is true for this statement as well.
+Success: 'load data infile '../../std_data/rpl_loaddata.dat' into table t2 (@a, @b) set j= @b + (select i from t1 where i = 1)' doesn't allow concurrent inserts into 't1'.
+#
+# 2.8 REPLACE with a subquery.
+# 
+# Same is true for this statement as well.
+Success: 'replace into t2 select i+5 from t1' doesn't allow concurrent inserts into 't1'.
+Success: 'replace into t2 values ((select i+5 from t1 where i = 4))' doesn't allow concurrent inserts into 't1'.
+#
+# 2.9 SELECT with a subquery.
+#
+# Strong locks are not necessary as this statement is not written
+# to the binary log and thanks to how MyISAM works this statement
+# sees a version of the table prior to the concurrent insert.
+Success: 'select * from t2 where j in (select i from t1)' allows concurrent inserts into 't1'.
+#
+# 2.10 SET with a subquery.
+#
+# In theory the same is true for this statement as well.
+# But in practice in 5.1 we acquire strong lock in this
+# case as well.
+Success: 'set @a:= (select i from t1 where i = 1)' doesn't allow concurrent inserts into 't1'.
+#
+# 2.11 SHOW with a subquery.
+# 
+# The same is true for this statement too.
+Success: 'show tables from test where Tables_in_test = 't2' and (select i from t1 where i = 1)' doesn't allow concurrent inserts into 't1'.
+Success: 'show columns from t2 where (select i from t1 where i = 1)' doesn't allow concurrent inserts into 't1'.
+#
+# 2.12 UPDATE with a subquery.
+#
+# Has to take a strong lock on the table being read as
+# this statement is written to the binary log and therefore
+# should be serialized with concurrent inserts.
+Success: 'update t2 set j= j-10 where j in (select i from t1)' doesn't allow concurrent inserts into 't1'.
+#
+# 2.13 MULTI-UPDATE with a subquery.
+#
+# Same is true for this statement as well.
+Success: 'update t2, t3 set j= j -10 where j=k and j in (select i from t1)' doesn't allow concurrent inserts into 't1'.
+#
+# 3. Statements which read tables through a view.
+#
+#
+# 3.1 SELECT statement which uses some table through a view.
+#
+# Since this statement is not written to the binary log and
+# an old version of the table is accessible thanks to how MyISAM
+# handles concurrent insert, no locking is necessary.
+Success: 'select * from v1' allows concurrent inserts into 't1'.
+Success: 'select * from v2' allows concurrent inserts into 't1'.
+Success: 'select * from t2 where j in (select i from v1)' allows concurrent inserts into 't1'.
+Success: 'select * from t3 where k in (select j from v2)' allows concurrent inserts into 't1'.
+#
+# 3.2 Statements which modify a table and use views.
+#
+# Since such statements are going to be written to the binary
+# log they need to be serialized against concurrent statements
+# and therefore should take strong locks on the data read.
+Success: 'update t2 set j= j-10 where j in (select i from v1)' doesn't allow concurrent inserts into 't1'.
+Success: 'update t3 set k= k-10 where k in (select j from v2)' doesn't allow concurrent inserts into 't1'.
+Success: 'update t2, v1 set j= j-10 where j = i' doesn't allow concurrent inserts into 't1'.
+Success: 'update v2 set j= j-10 where j = 3' doesn't allow concurrent inserts into 't1'.
+#
+# 4. Statements which read tables through stored functions.
+#
+#
+# 4.1 SELECT/SET with a stored function which does not 
+#     modify data and uses SELECT in its turn.
+#
+# Calls to such functions won't get into the binary log and
+# thus don't need to acquire strong locks.
+# In 5.5 due to fix for bug #53921 "Wrong locks for SELECTs
+# used stored functions may lead to broken SBR" strong locks
+# are taken (we accepted it as a trade-off for this fix).
+Success: 'select f1()' allows concurrent inserts into 't1'.
+Success: 'set @a:= f1()' allows concurrent inserts into 't1'.
+#
+# 4.2 INSERT (or other statement which modifies data) with
+#     a stored function which does not modify data and uses
+#     SELECT.
+#
+# Since such statement is written to the binary log it should
+# be serialized with concurrent statements affecting the data
+# it uses. Therefore it should take strong lock on the data
+# it reads.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'insert into t2 values (f1() + 5)' allows concurrent inserts into 't1'.
+#
+# 4.3 SELECT/SET with a stored function which
+#     reads and modifies data.
+#
+# Since a call to such function is written to the binary log,
+# it should be serialized with concurrent statements affecting
+# the data it uses. Hence, a strong lock on the data read
+# should be taken.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'select f2()' allows concurrent inserts into 't1'.
+Success: 'set @a:= f2()' allows concurrent inserts into 't1'.
+#
+# 4.4. SELECT/SET with a stored function which does not
+#      modify data and reads a table through subselect
+#      in a control construct.
+#
+# Again, in theory a call to this function won't get to the
+# binary log and thus no strong lock is needed. But in practice
+# we don't detect this fact early enough (get_lock_type_for_table())
+# to avoid taking a strong lock.
+Success: 'select f3()' doesn't allow concurrent inserts into 't1'.
+Success: 'set @a:= f3()' doesn't allow concurrent inserts into 't1'.
+Success: 'select f4()' doesn't allow concurrent inserts into 't1'.
+Success: 'set @a:= f4()' doesn't allow concurrent inserts into 't1'.
+#
+# 4.5. INSERT (or other statement which modifies data) with
+#      a stored function which does not modify data and reads
+#      the table through a subselect in one of its control
+#      constructs.
+#
+# Since such statement is written to the binary log it should
+# be serialized with concurrent statements affecting data it
+# uses. Therefore it should take a strong lock on the data
+# it reads.
+Success: 'insert into t2 values (f3() + 5)' doesn't allow concurrent inserts into 't1'.
+Success: 'insert into t2 values (f4() + 6)' doesn't allow concurrent inserts into 't1'.
+#
+# 4.6 SELECT/SET which uses a stored function with
+#      DML which reads a table via a subquery.
+#
+# Since call to such function is written to the binary log
+# it should be serialized with concurrent statements.
+# Hence reads should take a strong lock.
+Success: 'select f5()' doesn't allow concurrent inserts into 't1'.
+Success: 'set @a:= f5()' doesn't allow concurrent inserts into 't1'.
+#
+# 4.7 SELECT/SET which uses a stored function which
+#     doesn't modify data and reads tables through
+#     a view.
+#
+# Once again, in theory, calls to such functions won't
+# get into the binary log and thus don't need strong
+# locks. In practice this fact is discovered
+# too late to have any effect.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken
+# in case when simple SELECT is used.
+Success: 'select f6()' allows concurrent inserts into 't1'.
+Success: 'set @a:= f6()' allows concurrent inserts into 't1'.
+Success: 'select f7()' doesn't allow concurrent inserts into 't1'.
+Success: 'set @a:= f7()' doesn't allow concurrent inserts into 't1'.
+#
+# 4.8 INSERT which uses stored function which
+#     doesn't modify data and reads a table
+#     through a view.
+#
+# Since such statement is written to the binary log and
+# should be serialized with concurrent statements affecting
+# the data it uses. Therefore it should take a strong lock on
+# the table it reads.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken
+# in case when simple SELECT is used.
+Success: 'insert into t3 values (f6() + 5)' allows concurrent inserts into 't1'.
+Success: 'insert into t3 values (f7() + 5)' doesn't allow concurrent inserts into 't1'.
+#
+# 4.9 SELECT which uses a stored function which
+#     modifies data and reads tables through a view.
+#
+# Since a call to such function is written to the binary log
+# it should be serialized with concurrent statements.
+# Hence, reads should take strong locks.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken
+# in case when simple SELECT is used.
+Success: 'select f8()' allows concurrent inserts into 't1'.
+Success: 'select f9()' doesn't allow concurrent inserts into 't1'.
+#
+# 4.10 SELECT which uses a stored function which doesn't modify
+#      data and reads a table indirectly, by calling another
+#      function.
+#
+# Calls to such functions won't get into the binary log and
+# thus don't need to acquire strong locks.
+# In 5.5 due to fix for bug #53921 "Wrong locks for SELECTs
+# used stored functions may lead to broken SBR" strong locks
+# are taken (we accepted it as a trade-off for this fix).
+Success: 'select f10()' allows concurrent inserts into 't1'.
+#
+# 4.11 INSERT which uses a stored function which doesn't modify
+#      data and reads a table indirectly, by calling another
+#      function. 
+#
+# Since such statement is written to the binary log, it should
+# be serialized with concurrent statements affecting the data it
+# uses. Therefore it should take strong locks on data it reads.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'insert into t2 values (f10() + 5)' allows concurrent inserts into 't1'.
+#
+# 4.12 SELECT which uses a stored function which modifies
+#      data and reads a table indirectly, by calling another
+#      function. 
+#
+# Since a call to such function is written to the binary log
+# it should be serialized from concurrent statements.
+# Hence, read should take a strong lock.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'select f11()' allows concurrent inserts into 't1'.
+#
+# 4.13 SELECT that reads a table through a subquery passed
+#      as a parameter to a stored function which modifies
+#      data.
+#
+# Even though a call to this function is written to the
+# binary log, values of its parameters are written as literals.
+# So there is no need to acquire strong locks for tables used in
+# the subquery.
+Success: 'select f12((select i+10 from t1 where i=1))' allows concurrent inserts into 't1'.
+#
+# 4.14 INSERT that reads a table via a subquery passed
+#      as a parameter to a stored function which doesn't
+#      modify data.
+#
+# Since this statement is written to the binary log it should
+# be serialized with concurrent statements affecting the data it
+# uses. Therefore it should take strong locks on the data it reads.
+Success: 'insert into t2 values (f13((select i+10 from t1 where i=1)))' doesn't allow concurrent inserts into 't1'.
+#
+# 5. Statements that read tables through stored procedures.
+#
+#
+# 5.1 CALL statement which reads a table via SELECT.
+#
+# Since neither this statement nor its components are
+# written to the binary log, there is no need to take
+# strong locks on the data it reads.
+Success: 'call p2(@a)' allows concurrent inserts into 't1'.
+#
+# 5.2 Function that modifies data and uses CALL, 
+#     which reads a table through SELECT.
+#
+# Since a call to such function is written to the binary
+# log, it should be serialized with concurrent statements.
+# Hence, in this case reads should take strong locks on data.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'select f14()' allows concurrent inserts into 't1'.
+#
+# 5.3 SELECT that calls a function that doesn't modify data and
+#     uses a CALL statement that reads a table via SELECT.
+#
+# Calls to such functions won't get into the binary log and
+# thus don't need to acquire strong locks.
+# In 5.5 due to fix for bug #53921 "Wrong locks for SELECTs
+# used stored functions may lead to broken SBR" strong locks
+# are taken (we accepted it as a trade-off for this fix).
+Success: 'select f15()' allows concurrent inserts into 't1'.
+#
+# 5.4 INSERT which calls function which doesn't modify data and
+#     uses CALL statement which reads table through SELECT.
+#
+# Since such statement is written to the binary log it should
+# be serialized with concurrent statements affecting data it
+# uses. Therefore it should take strong locks on data it reads.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'insert into t2 values (f15()+5)' allows concurrent inserts into 't1'.
+#
+# 6. Statements that use triggers.
+#
+#
+# 6.1 Statement invoking a trigger that reads table via SELECT.
+#
+# Since this statement is written to the binary log it should
+# be serialized with concurrent statements affecting the data
+# it uses. Therefore, it should take strong locks on the data
+# it reads.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'insert into t4 values (2)' allows concurrent inserts into 't1'.
+#
+# 6.2 Statement invoking a trigger that reads table through
+#     a subquery in a control construct.
+#
+# The above is true for this statement as well.
+Success: 'update t4 set l= 2 where l = 1' doesn't allow concurrent inserts into 't1'.
+#
+# 6.3 Statement invoking a trigger that reads a table through
+#     a view.
+#
+# And for this statement.
+Success: 'delete from t4 where l = 1' doesn't allow concurrent inserts into 't1'.
+#
+# 6.4 Statement invoking a trigger that reads a table through
+#     a stored function.
+#
+# And for this statement.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'insert into t5 values (2)' allows concurrent inserts into 't1'.
+#
+# 6.5 Statement invoking a trigger that reads a table through
+#     stored procedure.
+#
+# And for this statement.
+# But due to bug #53921 "Wrong locks for SELECTs used stored
+# functions may lead to broken SBR" weak locks are taken.
+Success: 'update t5 set l= 2 where l = 1' allows concurrent inserts into 't1'.
+# Clean-up.
+drop function f1;
+drop function f2;
+drop function f3;
+drop function f4;
+drop function f5;
+drop function f6;
+drop function f7;
+drop function f8;
+drop function f9;
+drop function f10;
+drop function f11;
+drop function f12;
+drop function f13;
+drop function f14;
+drop function f15;
+drop view v1, v2;
+drop procedure p1;
+drop procedure p2;
+drop table t1, t2, t3, t4, t5, te;
+set @@global.concurrent_insert= @old_concurrent_insert;

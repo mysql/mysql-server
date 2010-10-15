@@ -39,6 +39,7 @@
 struct SimpleSignal {
 public:
   SimpleSignal(bool dealloc = false);
+  SimpleSignal(const SimpleSignal& src);
   ~SimpleSignal();
   
   void set(class SignalSender&,
@@ -65,6 +66,7 @@ public:
   int readSignalNumber() const {return header.theVerId_signalNumber; }
   Uint32 *getDataPtrSend() { return theData; }
   const Uint32 *getDataPtr() const { return theData; }
+  Uint32 getLength() const { return header.theLength; }
 
   /**
    * Fragmentation
@@ -81,6 +83,7 @@ public:
   }
 
   void print(FILE * out = stdout) const;
+  SimpleSignal& operator=(const SimpleSignal&);
 private:
   bool deallocSections;
 };
@@ -95,7 +98,6 @@ public:
   int unlock();
 
   Uint32 getOwnRef() const;
-  const ClusterMgr::Node &getNodeInfo(Uint16 nodeId) const;
   Uint32 getNoOfConnectedNodes() const;
 
   NodeId find_confirmed_node(const NodeBitmask& mask);

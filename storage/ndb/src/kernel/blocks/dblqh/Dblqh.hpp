@@ -3189,6 +3189,8 @@ public:
 
   void suspendFile(Signal* signal, Uint32 filePtrI, Uint32 millis);
   void suspendFile(Signal* signal, Ptr<LogFileRecord> logFile, Uint32 millis);
+
+  void send_runredo_event(Signal*, LogPartRecord *, Uint32 currgci);
 };
 
 inline

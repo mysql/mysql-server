@@ -504,3 +504,11 @@ insert into t1 values (1,'a'),(2,'y'),(3,'z');
 select * from t1 where b = 'b';
 select * from t1 where b = 'a';
 drop table t1;
+
+# bug#57396 MRR empty range sets wrong index attr id
+
+--echo # bug#57396
+create table t1 (a int not null, b int not null, primary key (b,a)) engine=ndb;
+insert into t1(a,b) values(0,0);
+select * from t1 where b < 8 or b >= 8;
+drop table t1;

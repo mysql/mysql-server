@@ -418,26 +418,6 @@ void Item_sum::mark_as_sum_func()
 }
 
 
-void Item_sum::make_field(Send_field *tmp_field)
-{
-  if (args[0]->type() == Item::FIELD_ITEM && keep_field_type())
-  {
-    ((Item_field*) args[0])->field->make_field(tmp_field);
-    /* For expressions only col_name should be non-empty string. */
-    char *empty_string= (char*)"";
-    tmp_field->db_name= empty_string;
-    tmp_field->org_table_name= empty_string;
-    tmp_field->table_name= empty_string;
-    tmp_field->org_col_name= empty_string;
-    tmp_field->col_name= name;
-    if (maybe_null)
-      tmp_field->flags&= ~NOT_NULL_FLAG;
-  }
-  else
-    init_make_field(tmp_field, field_type());
-}
-
-
 void Item_sum::print(String *str, enum_query_type query_type)
 {
   /* orig_args is not filled with valid values until fix_fields() */
@@ -2557,7 +2537,8 @@ bool Item_sum_count_distinct::add()
   if (always_null)
     return 0;
   copy_fields(tmp_table_param);
-  copy_funcs(tmp_table_param->items_to_copy);
+  if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
+    return TRUE;
 
   for (Field **field=table->field ; *field ; field++)
     if ((*field)->is_real_null(0))
@@ -2970,7 +2951,7 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_LIST *order_list, String *separator_arg)
+                       SQL_I_List<ORDER> *order_list, String *separator_arg)
   :tmp_table_param(0), warning(0),
    separator(separator_arg), tree(0), unique_filter(NULL), table(0),
    order(0), context(context_arg),
@@ -3014,7 +2995,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= (ORDER*) order_list->first;
+    for (ORDER *order_item= order_list->first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3035,7 +3016,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree(item->tree),
   unique_filter(item->unique_filter),
   table(item->table),
-  order(item->order),
   context(item->context),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
@@ -3048,6 +3028,24 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
 {
   quick_group= item->quick_group;
   result.set_charset(collation.collation);
+
+  /*
+    Since the ORDER structures pointed to by the elements of the 'order' array
+    may be modified in find_order_in_list() called from
+    Item_func_group_concat::setup(), create a copy of those structures so that
+    such modifications done in this object would not have any effect on the
+    object being copied.
+  */
+  ORDER *tmp;
+  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+                                     sizeof(ORDER) * arg_count_order)))
+    return;
+  tmp= (ORDER *)(order + arg_count_order);
+  for (uint i= 0; i < arg_count_order; i++, tmp++)
+  {
+    memcpy(tmp, item->order[i], sizeof(ORDER));
+    order[i]= tmp;
+  }
 }
 
 
@@ -3129,7 +3127,8 @@ bool Item_func_group_concat::add()
   if (always_null)
     return 0;
   copy_fields(tmp_table_param);
-  copy_funcs(tmp_table_param->items_to_copy);
+  if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
+    return TRUE;
 
   for (uint i= 0; i < arg_count_field; i++)
   {

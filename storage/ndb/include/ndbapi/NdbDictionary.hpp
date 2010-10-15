@@ -1134,7 +1134,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Get the number of columns in the index
-     * Depricated, use getNoOfColumns instead.
+     * Deprecated, use getNoOfColumns instead.
      */
     int getNoOfIndexColumns() const;
 #endif
@@ -1147,7 +1147,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Get a specific column name in the index
-     * Depricated, use getColumn instead.
+     * Deprecated, use getColumn instead.
      */
     const char * getIndexColumn(int no) const ;
 #endif
@@ -1247,7 +1247,7 @@ public:
      * Add a column name to the index definition
      * Note that the order of indexes will be in
      * the order they are added (only matters for ordered indexes).
-     * Depricated, use addColumnName instead.
+     * Deprecated, use addColumnName instead.
      */
     int addIndexColumn(const char * name);
 #endif
@@ -1264,7 +1264,7 @@ public:
      * Add several column names to the index definition
      * Note that the order of indexes will be in
      * the order they are added (only matters for ordered indexes).
-     * Depricated, use addColumnNames instead.
+     * Deprecated, use addColumnNames instead.
      */
     int addIndexColumns(int noOfNames, const char ** names);
 #endif

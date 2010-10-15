@@ -30,12 +30,42 @@ SimpleSignal::SimpleSignal(bool dealloc){
   deallocSections = dealloc;
 }
 
+SimpleSignal::SimpleSignal(const SimpleSignal& src)
+{
+  this->operator=(src);
+}
+
+SimpleSignal&
+SimpleSignal::operator=(const SimpleSignal& src)
+{
+  deallocSections = true;
+  header = src.header;
+  memcpy(theData, src.theData, sizeof(theData));
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    ptr[i].p = 0;
+    if (src.ptr[i].p != 0)
+    {
+      ptr[i].p = new Uint32[src.ptr[i].sz];
+      ptr[i].sz = src.ptr[i].sz;
+      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
+    }
+  }
+  return * this;
+}
+
 SimpleSignal::~SimpleSignal(){
   if(!deallocSections)
     return;
-  if(ptr[0].p != 0) delete []ptr[0].p;
-  if(ptr[1].p != 0) delete []ptr[1].p;
-  if(ptr[2].p != 0) delete []ptr[2].p;
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    if (ptr[i].p != 0)
+    {
+      delete [] ptr[i].p;
+    }
+  }
 }
 
 void 
@@ -117,11 +147,6 @@ int SignalSender::unlock()
 Uint32
 SignalSender::getOwnRef() const {
   return numberToRef(m_blockNo, theFacade->ownId());
-}
-
-const ClusterMgr::Node & 
-SignalSender::getNodeInfo(Uint16 nodeId) const {
-  return theFacade->theClusterMgr->getNodeInfo(nodeId);
 }
 
 Uint32
@@ -297,7 +322,7 @@ ok:
     NdbNodeBitmask::clear(rep->theNodes);
 
     // Mark ndb nodes as failed in bitmask
-    const ClusterMgr::Node node= getNodeInfo(nodeId);
+    const trp_node node= getNodeInfo(nodeId);
     if (node.m_info.getType() ==  NodeInfo::DB)
       NdbNodeBitmask::set(rep->theNodes, nodeId);
   }
@@ -328,7 +353,7 @@ SignalSender::find_node(const NodeBitmask& mask, T & t)
 
 class FindConfirmedNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.is_confirmed();
   }
 };
@@ -344,7 +369,7 @@ SignalSender::find_confirmed_node(const NodeBitmask& mask)
 
 class FindConnectedNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.is_connected();
   }
 };
@@ -360,7 +385,7 @@ SignalSender::find_connected_node(const NodeBitmask& mask)
 
 class FindAliveNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.m_alive;
   }
 };

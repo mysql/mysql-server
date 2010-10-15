@@ -326,10 +326,7 @@ DROP VIEW v2;
 --echo
 --echo
 --echo ******************** SHOW BINLOG EVENTS ********************
---replace_column 2 # 5 #
---replace_regex /Server ver: .+/Server ver: #/ /table_id: [0-9]+/table_id: #/ /COMMIT.+xid=[0-9]+.+/#/ /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-show binlog events from 1;
+--source include/show_binlog_events.inc
 sync_slave_with_master;
 # as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test_rpl > $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql

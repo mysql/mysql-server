@@ -12149,7 +12149,6 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 extern int(*ndb_wait_setup_func)(ulong);
 
 extern int ndb_dictionary_is_mysqld;
-extern pthread_mutex_t LOCK_plugin;
 
 static int ndbcluster_init(void *p)
 {

@@ -132,6 +132,22 @@ private:
                      BlockReference ref = CMVMI_REF);
 
   NDB_TICKS m_start_time;
+
+  struct SyncRecord
+  {
+    Uint32 m_senderRef;
+    Uint32 m_senderData;
+    Uint32 m_prio;
+    Uint32 m_cnt;
+    Uint32 m_error;
+    Uint32 nextPool;
+  };
+  ArrayPool<SyncRecord> c_syncReqPool;
+
+  void execSYNC_REQ(Signal*);
+  void execSYNC_REF(Signal*);
+  void execSYNC_CONF(Signal*);
+  void sendSYNC_REP(Signal * signal, Ptr<SyncRecord> ptr);
 };
 
 #endif

@@ -3387,9 +3387,12 @@ NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
   if (firstWordOfBound == NULL)
     firstWordOfBound= theKEYINFOptr - 1;
   
-  /* Create NULL attribute header. */
-  const NdbRecord::Attr *column= &key_record->columns[0];
-  AttributeHeader ah(column->index_attrId, 0);
+  /*
+   * bug#57396 wrong attr id inserted.
+   * First index attr id is 0, key_record not used.
+   * Create NULL attribute header.
+   */
+  AttributeHeader ah(0, 0);
 
   if (unlikely(insertKEYINFO_NdbRecord((const char*) &ah.m_value,
                                        sizeof(Uint32))))

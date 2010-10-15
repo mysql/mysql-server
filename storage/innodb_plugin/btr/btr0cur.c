@@ -1959,9 +1959,8 @@ any_extern:
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
 					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
-err_exit:
-		mem_heap_free(heap);
-		return(err);
+
+		goto err_exit;
 	}
 
 	/* Ok, we may do the replacement. Store on the page infimum the
@@ -2007,9 +2006,10 @@ err_exit:
 
 	page_cur_move_to_next(page_cursor);
 
+	err = DB_SUCCESS;
+err_exit:
 	mem_heap_free(heap);
-
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*************************************************************//**
@@ -3484,9 +3484,10 @@ btr_cur_set_ownership_of_extern_field(
 Marks not updated extern fields as not-owned by this record. The ownership
 is transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field. */
+to free the field.
+@return TRUE if BLOB ownership was transferred */
 UNIV_INTERN
-void
+ibool
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
@@ -3500,13 +3501,14 @@ btr_cur_mark_extern_inherited_fields(
 	ulint	n;
 	ulint	j;
 	ulint	i;
+	ibool	change_ownership = FALSE;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
 
 	if (!rec_offs_any_extern(offsets)) {
 
-		return;
+		return(FALSE);
 	}
 
 	n = rec_offs_n_fields(offsets);
@@ -3529,10 +3531,14 @@ btr_cur_mark_extern_inherited_fields(
 
 			btr_cur_set_ownership_of_extern_field(
 				page_zip, rec, index, offsets, i, FALSE, mtr);
+
+			change_ownership = TRUE;
 updated:
 			;
 		}
 	}
+
+	return(change_ownership);
 }
 
 /*******************************************************************//**
@@ -3871,6 +3877,8 @@ btr_store_big_rec_extern_fields(
 			field_ref += local_len;
 		}
 		extern_len = big_rec_vec->fields[i].len;
+		UNIV_MEM_ASSERT_RW(big_rec_vec->fields[i].data,
+				   extern_len);
 
 		ut_a(extern_len > 0);
 
@@ -4507,6 +4515,7 @@ btr_copy_blob_prefix(
 		mtr_commit(&mtr);
 
 		if (page_no == FIL_NULL || copy_len != part_len) {
+			UNIV_MEM_ASSERT_RW(buf, copied_len);
 			return(copied_len);
 		}
 
@@ -4690,6 +4699,7 @@ btr_copy_externally_stored_field_prefix_low(
 				      space_id, page_no, offset);
 		inflateEnd(&d_stream);
 		mem_heap_free(heap);
+		UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
 		return(d_stream.total_out);
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,
@@ -4810,7 +4820,7 @@ btr_copy_externally_stored_field(
 
 /*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
-@return	the field copied to heap */
+@return	the field copied to heap, or NULL if the field is incomplete */
 UNIV_INTERN
 byte*
 btr_rec_copy_externally_stored_field(
@@ -4839,6 +4849,18 @@ btr_rec_copy_externally_stored_field(
 	the extern bit is available in those two bytes. */
 
 	data = rec_get_nth_field(rec, offsets, no, &local_len);
+
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	if (UNIV_UNLIKELY
+	    (!memcmp(data + local_len - BTR_EXTERN_FIELD_REF_SIZE,
+		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* The externally stored field was not written yet.
+		This record should only be seen by
+		recv_recovery_rollback_active() or any
+		TRX_ISO_READ_UNCOMMITTED transactions. */
+		return(NULL);
+	}
 
 	return(btr_copy_externally_stored_field(len, data,
 						zip_size, local_len, heap));
