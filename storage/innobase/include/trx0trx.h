@@ -340,22 +340,24 @@ trx_get_que_state_str(
 
 typedef struct trx_lock_struct trx_lock_t;
 
-/* Latching protocol for trx_lock_t::que_state.  trx_lock_t::que_state captures the
-state of the query thread during the execution of a query. This is different from a
-transaction state. The query state of a transaction can be updated asynchronously by
-other threads.  The other threads can be system threads, like the timeout monitor
-thread or user threads executing other queries. Another thing to be mindful of is
-that there is a delay between when a query thread is put into LOCK_WAIT state and
-before it actually starts waiting.  Between these two events it is possible that
-the query thread is granted the lock it was waiting, which implies that the state
-can be changed asynchronously.
+/*******************************************************************//**
+Latching protocol for trx_lock_t::que_state.  trx_lock_t::que_state
+captures the state of the query thread during the execution of a query.
+This is different from a transaction state. The query state of a transaction
+can be updated asynchronously by other threads.  The other threads can be
+system threads, like the timeout monitor thread or user threads executing
+other queries. Another thing to be mindful of is that there is a delay between
+when a query thread is put into LOCK_WAIT state and before it actually starts
+waiting.  Between these two events it is possible that the query thread is
+granted the lock it was waiting, which implies that the state can be changed
+asynchronously.
 
-All these operations take place within the context of locking. Therefore state changes
-within the locking code must acquire both the lock mutex and the trx_t::mutex when
-changing trx_lock_t::que_state to TRX_QUE_LOCK_WAIT but when the lock wait ends it
-is sufficient to only acquire the trx_t::mutex. To query the mutex either of the
-mutexes is sufficient within the locking code and no mutex is required when the query
-thread is no longer waiting. */
+All these operations take place within the context of locking. Therefore state
+changes within the locking code must acquire both the lock mutex and the
+trx_t::mutex when changing trx_lock_t::que_state to TRX_QUE_LOCK_WAIT but
+when the lock wait ends it is sufficient to only acquire the trx_t::mutex.
+To query the mutex either of the mutexes is sufficient within the locking
+code and no mutex is required when the query thread is no longer waiting. */
 
 /** Transactions locks and state, these variables are protected by
 the lock_sys->mutex and trx_mutex. */
@@ -408,12 +410,9 @@ does tht asynchronously to the trx_commit() code.
 
 This state transition is covered by both the lock mutex and trx mutex. It is
 coupled with trx_t::is_recovered flag. Both must be changed atomically under
-the protection of both the previously mentioned mutexes. Therefore the trx_t::mutex
-must be acquired by the recovery code to check that trx_t::state along with the
-trx_t::is_recovered flag.
-
-Changing the transaction state when a transaction is not waiting for a lock is
-safe without any mutex. */
+the protection of both the previously mentioned mutexes. Therefore the
+trx_t::mutex must be acquired by the recovery code to check that trx_t::state
+along with the trx_t::is_recovered flag. */
 
 /** The transaction handle; every session has a trx object which is freed only
 when the session is freed; in addition there may be session-less transactions
@@ -427,8 +426,8 @@ struct trx_struct{
 
 	trx_state_t	state;		/*!< state of the trx from the point
 					of view of concurrency control:
-					TRX_STATE_ACTIVE, TRX_STATE_COMMITTED_IN_MEMORY,
-					... */
+					TRX_STATE_ACTIVE,
+				       	TRX_STATE_COMMITTED_IN_MEMORY, ... */
 	trx_lock_t	lock;		/*!< Information about the transaction
 					locks and state. */
 
