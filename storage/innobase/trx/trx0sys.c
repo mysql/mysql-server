@@ -1652,6 +1652,7 @@ trx_sys_close(void)
 	trx_doublewrite = NULL;
 
 	rw_lock_x_lock(&trx_sys->lock);
+	mutex_free(&trx_sys->read_view_mutex);
 
 	/* There can't be any active transactions. */
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
@@ -1682,9 +1683,9 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
-	mutex_free(&trx_sys->read_view_mutex);
-
 	rw_lock_x_unlock(&trx_sys->lock);
+
+	rw_lock_free(&trx_sys->lock);
 
 	mem_free(trx_sys);
 
