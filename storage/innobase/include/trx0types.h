@@ -35,7 +35,7 @@ Created 3/26/1996 Heikki Tuuri
 the terminating NUL character. */
 #define TRX_ID_MAX_LEN		17
 
-/** Transaction execution states when trx->conc_state == TRX_ACTIVE */
+/** Transaction execution states when trx->state == TRX_ACTIVE */
 enum trx_que_enum {
 	TRX_QUE_RUNNING,		/*!< transaction is running */
 	TRX_QUE_LOCK_WAIT,		/*!< transaction is waiting for
@@ -44,12 +44,12 @@ enum trx_que_enum {
 	TRX_QUE_COMMITTING		/*!< transaction is committing */
 };
 
-/** Transaction concurrency states (trx->conc_state) */
-enum trx_conc_enum {
+/** Transaction states (trx_t::state) */
+enum trx_state_enum {
 	TRX_NOT_STARTED,
 	TRX_ACTIVE,
-	TRX_COMMITTED_IN_MEMORY,
-	TRX_PREPARED			/* Support for 2PC/XA */
+	TRX_PREPARED,			/* Support for 2PC/XA */
+	TRX_COMMITTED_IN_MEMORY
 };
 
 /** Memory objects */
@@ -79,7 +79,7 @@ typedef struct commit_node_struct commit_node_t;
 /** SAVEPOINT command node in a query graph */
 typedef struct trx_named_savept_struct trx_named_savept_t;
 /** Transaction concurrency state */
-typedef enum trx_conc_enum trx_conc_t;
+typedef enum trx_state_enum trx_state_t;
 /** Transaction query thread state */
 typedef enum trx_que_enum trx_que_t;
 /* @} */

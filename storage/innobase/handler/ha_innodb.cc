@@ -32,7 +32,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /* TODO list for the InnoDB handler in 5.0:
-  - Remove the flag trx->active_trans and look at trx->conc_state
+  - Remove the flag trx->active_trans and look at trx->state
   - fix savepoint functions to use savepoint storage area
   - Find out what kind of problems the OS X case-insensitivity causes to
     table and database names; should we 'normalize' the names like we do
@@ -2570,7 +2570,7 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-	if (trx->lock.conc_state == TRX_NOT_STARTED) {
+	if (trx->state == TRX_NOT_STARTED) {
 
 		return;
 	}
@@ -2671,10 +2671,10 @@ innobase_commit(
 	be nothing to clean up. */
 
 	if (trx->active_trans == 0
-		&& trx->lock.conc_state != TRX_NOT_STARTED) {
+		&& trx->state != TRX_NOT_STARTED) {
 
 		sql_print_error("trx->active_trans == 0, but"
-			" trx->conc_state != TRX_NOT_STARTED");
+			" trx->state != TRX_NOT_STARTED");
 	}
 	if (all
 		|| (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
@@ -2987,14 +2987,14 @@ innobase_close_connection(
 	ut_a(trx);
 
 	if (trx->active_trans == 0
-		&& trx->lock.conc_state != TRX_NOT_STARTED) {
+		&& trx->state != TRX_NOT_STARTED) {
 
 		sql_print_error("trx->active_trans == 0, but"
-			" trx->conc_state != TRX_NOT_STARTED");
+			" trx->state != TRX_NOT_STARTED");
 	}
 
 
-	if (trx->lock.conc_state != TRX_NOT_STARTED &&
+	if (trx->state != TRX_NOT_STARTED &&
 		global_system_variables.log_warnings) {
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
@@ -9994,10 +9994,10 @@ innobase_xa_prepare(
 
 	innobase_release_stat_resources(trx);
 
-	if (trx->active_trans == 0 && trx->lock.conc_state != TRX_NOT_STARTED) {
+	if (trx->active_trans == 0 && trx->state != TRX_NOT_STARTED) {
 
 		sql_print_error("trx->active_trans == 0, but "
-				"trx->conc_state != TRX_NOT_STARTED");
+				"trx->state != TRX_NOT_STARTED");
 	}
 
 	if (all

@@ -341,15 +341,24 @@ trx_get_que_state_str(
 typedef struct trx_lock_struct trx_lock_t;
 
 /** Transactions locks and state, these variables are protected by
-the lock_sys->mutex and trx_mutex. */
+the lock_sys->mutex and trx_mutex.
+
+When is it unsafe to read the trx_t::state without a covering mutex ?
+=====================================================================
+1. When a transaction is changing its state to TRX_COMMITTED_IN_MEMORY
+during COMMIT. This use case is only relevant during roll back of incomplete
+transactions during crash recovery. The reason is because the recovery code
+examines the state to determine whether such transactions need to be freed and
+does tht asynchronously to the trx_commit() code.
+
+This state transition is covered by both the lock mutex and trx mutex. It is
+coupled with trx_t::is_recovered flag. Both must be changed atomically under
+the protection of both the previously mentioned mutexes.
+ */
 struct trx_lock_struct {
-	trx_conc_t	conc_state;	/*!< state of the trx from the point
-					of view of concurrency control:
-					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
-					... */
 	ulint		n_active_thrs;	/*!< number of active query threads */
 
-	trx_que_t	que_state;	/*!< valid when conc_state
+	trx_que_t	que_state;	/*!< valid when state
 					== TRX_ACTIVE: TRX_QUE_RUNNING,
 					TRX_QUE_LOCK_WAIT, ... */
 
@@ -392,7 +401,14 @@ struct trx_struct{
 	ulint		magic_n;
 
 	mutex_t		mutex;		/*!< Mutex  protecting the trx_lock_t
-				       	fields see below: */
+				       	fields and state, see below: */
+
+	trx_state_t	state;		/*!< state of the trx from the point
+					of view of concurrency control:
+					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
+					... */
+	trx_lock_t	lock;		/*!< Information about the transaction
+					locks and state. */
 
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the
@@ -535,10 +551,6 @@ struct trx_struct{
 					for this trx started: this is used to
 					return control to the original query
 					graph for error processing */
-	/*------------------------------*/
-	trx_lock_t	lock;		/*!< Information about the transaction
-					locks and state. */
-	/*------------------------------*/
 	mem_heap_t*	global_read_view_heap;
 					/*!< memory heap for the global read
 					view */
