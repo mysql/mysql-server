@@ -223,39 +223,6 @@ public:
                 bool abort = false,
                 int * stopCount = 0);
   
-  struct BackupEvent {
-    enum Event {
-      BackupStarted = 1,
-      BackupFailedToStart = 2,
-      BackupCompleted = 3,
-      BackupAborted = 4
-    } Event;
-    
-    NdbNodeBitmask Nodes;
-    union {
-      struct {
-	Uint32 BackupId;
-      } Started ;
-      struct {
-	Uint32 ErrorCode;
-      } FailedToStart ;
-      struct {
-	Uint64 NoOfBytes;
-	Uint64 NoOfRecords;
-	Uint32 BackupId;
-	Uint32 NoOfLogBytes;
-	Uint32 NoOfLogRecords;
-	Uint32 startGCP;
-	Uint32 stopGCP;
-      } Completed ;
-      struct {
-	Uint32 BackupId;
-	Uint32 Reason;
-	Uint32 ErrorCode;
-      } Aborted ;
-    };
-  };
-  
   /**
    * Backup functionallity
    */

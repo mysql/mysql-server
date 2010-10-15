@@ -3145,7 +3145,6 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
   if(backuppoint == 1)
     req->flags |= BackupReq::USE_UNDO_LOG;
 
-  BackupEvent event;
   int do_send = 1;
   while (1) {
     if (do_send)
@@ -3164,9 +3163,6 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
     case GSN_BACKUP_CONF:{
       const BackupConf * const conf = 
 	CAST_CONSTPTR(BackupConf, signal->getDataPtr());
-      event.Event = BackupEvent::BackupStarted;
-      event.Started.BackupId = conf->backupId;
-      event.Nodes.assign(conf->nodes);
 #ifdef VM_TRACE
       ndbout_c("Backup(%d) master is %d", conf->backupId,
 	       refToNode(signal->header.theSendersBlockRef));
@@ -3183,23 +3179,6 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 #ifdef VM_TRACE
       ndbout_c("Backup(%d) completed", rep->backupId);
 #endif
-      event.Event = BackupEvent::BackupCompleted;
-      event.Completed.BackupId = rep->backupId;
-    
-      event.Completed.NoOfBytes = rep->noOfBytesLow;
-      event.Completed.NoOfLogBytes = rep->noOfLogBytes;
-      event.Completed.NoOfRecords = rep->noOfRecordsLow;
-      event.Completed.NoOfLogRecords = rep->noOfLogRecords;
-      event.Completed.stopGCP = rep->stopGCP;
-      event.Completed.startGCP = rep->startGCP;
-      event.Nodes.assign(rep->nodes);
-
-      if (signal->header.theLength >= BackupCompleteRep::SignalLength)
-      {
-        event.Completed.NoOfBytes += ((Uint64)rep->noOfBytesHigh) << 32;
-        event.Completed.NoOfRecords += ((Uint64)rep->noOfRecordsHigh) << 32;
-      }
-
       backupId = rep->backupId;
       return 0;
     }
@@ -3216,17 +3195,11 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 	  m_master_node = nodeId = 0;
 	continue;
       }
-      event.Event = BackupEvent::BackupFailedToStart;
-      event.FailedToStart.ErrorCode = ref->errorCode;
       return ref->errorCode;
     }
     case GSN_BACKUP_ABORT_REP:{
       const BackupAbortRep * const rep = 
 	CAST_CONSTPTR(BackupAbortRep, signal->getDataPtr());
-      event.Event = BackupEvent::BackupAborted;
-      event.Aborted.Reason = rep->reason;
-      event.Aborted.BackupId = rep->backupId;
-      event.Aborted.ErrorCode = rep->reason;
 #ifdef VM_TRACE
       ndbout_c("Backup %d aborted", rep->backupId);
 #endif

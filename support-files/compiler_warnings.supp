@@ -107,3 +107,8 @@ buf/buf0lru.c : .*
 buf/buf0buf.c : .*
 btr/btr0sea.c : .*
 btr/btr0cur.c : .*
+
+
+# Ignore warning C4090 on Windows, until bug#55527 is fixed
+.* : .*C4090.*
+
