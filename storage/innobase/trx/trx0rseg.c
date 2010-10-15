@@ -224,6 +224,9 @@ trx_rseg_mem_create(
 		rseg_queue.rseg = rseg;
 		rseg_queue.trx_no = rseg->last_trx_no;
 
+		/* There is no need to cover this operation by the purge
+		mutex because we are still bootstrapping. */
+
 		ptr = ib_bh_push(trx_sys->ib_bh, &rseg_queue);
 		ut_a(ptr != NULL);
 	} else {

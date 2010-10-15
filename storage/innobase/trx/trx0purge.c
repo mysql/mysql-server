@@ -680,6 +680,8 @@ trx_purge_get_rseg_with_min_trx_id(
 	ulint		zip_size = 0;
 	trx_id_t	last_trx_no = IB_ULONGLONG_MAX;
 
+	ut_ad(mutex_own(&(purge_sys->mutex)));
+
 	rw_lock_s_lock(&trx_sys->lock);
 
 	if (!ib_bh_is_empty(trx_sys->ib_bh)) {
