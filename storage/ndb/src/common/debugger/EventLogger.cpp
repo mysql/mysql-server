@@ -1065,6 +1065,122 @@ void getTextSubscriptionStatus(QQQQ)
   }
 }
 
+void
+getTextStartReadLCP(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Start reading LCP for table %u fragment: %u",
+                       theData[1],
+                       theData[2]);
+}
+
+void
+getTextReadLCPComplete(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restored LCP for table %u fragment: %u rows: %llu",
+                       theData[1],
+                       theData[2],
+                       (Uint64(theData[3]) << 32) + Uint64(theData[4]));
+}
+
+void
+getTextRunRedo(QQQQ)
+{
+  const ndb_logevent_RunRedo * ev = (const ndb_logevent_RunRedo*)(theData+1);
+  if (ev->currgci == ev->startgci)
+  {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Log part: %u phase: %u run redo from "
+                         " gci: %u (file: %u mb: %u) to "
+                         " gci: %u (file: %u mb: %u)",
+                         ev->logpart,
+                         ev->phase,
+                         ev->startgci,
+                         ev->startfile,
+                         ev->startmb,
+                         ev->stopgci,
+                         ev->stopfile,
+                         ev->stopmb);
+  }
+  else if (ev->currgci == ev->stopgci)
+  {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Log part: %u phase: %u found stop "
+                         " gci: %u (file: %u mb: %u)",
+                         ev->logpart,
+                         ev->phase,
+                         ev->currgci,
+                         ev->currfile,
+                         ev->currmb);
+  }
+  else
+  {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Log part: %u phase: %u at "
+                         " gci: %u (file: %u mb: %u)",
+                         ev->logpart,
+                         ev->phase,
+                         ev->currgci,
+                         ev->currfile,
+                         ev->currmb);
+  }
+}
+
+void
+getTextRebuildIndex(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "instace: %u rebuild index: %u",
+                       theData[1],
+                       theData[2]);
+}
+
+const
+char*
+getObjectTypeName(Uint32 type)
+{
+  return "object";
+}
+
+void
+getTextCreateSchemaObject(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "create %s id: %u version: %u (from %u)",
+                       getObjectTypeName(theData[3]),
+                       theData[1],
+                       theData[2],
+                       theData[4]);
+}
+
+void
+getTextAlterSchemaObject(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "alter %s id: %u version: %u (from %u)",
+                       getObjectTypeName(theData[3]),
+                       theData[1],
+                       theData[2],
+                       theData[4]);
+}
+
+void
+getTextDropSchemaObject(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "drop %s id: %u version: %u (from %u)",
+                       getObjectTypeName(theData[3]),
+                       theData[1],
+                       theData[2],
+                       theData[4]);
+}
+
+void getTextSavedEvent(QQQQ)
+{
+  abort();
+}
+
 #if 0
 BaseString::snprintf(m_text, 
 		     m_text_len, 
@@ -1117,7 +1233,11 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(StartReport,             LogLevel::llStartUp,     4, Logger::LL_INFO ),
   ROW(LogFileInitStatus,       LogLevel::llStartUp,     7, Logger::LL_INFO),
   ROW(LogFileInitCompStatus,   LogLevel::llStartUp,     7, Logger::LL_INFO),
-  
+  ROW(StartReadLCP,            LogLevel::llStartUp,    10, Logger::LL_INFO),
+  ROW(ReadLCPComplete,         LogLevel::llStartUp,    10, Logger::LL_INFO),
+  ROW(RunRedo,                 LogLevel::llStartUp,     8, Logger::LL_INFO),
+  ROW(RebuildIndex,            LogLevel::llStartUp,    10, Logger::LL_INFO),
+
   // NODERESTART
   ROW(NR_CopyDict,             LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
   ROW(NR_CopyDistr,            LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
@@ -1145,6 +1265,11 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(MemoryUsage,             LogLevel::llStatistic,   5, Logger::LL_INFO ),
   ROW(MTSignalStatistics,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
 
+  // Schema
+  ROW(CreateSchemaObject,      LogLevel::llSchema,      8, Logger::LL_INFO ),
+  ROW(AlterSchemaObject,       LogLevel::llSchema,      8, Logger::LL_INFO ),
+  ROW(DropSchemaObject,        LogLevel::llSchema,      8, Logger::LL_INFO ),
+
   // ERROR
   ROW(TransporterError,        LogLevel::llError,  2, Logger::LL_ERROR   ),
   ROW(TransporterWarning,      LogLevel::llError,  8, Logger::LL_WARNING ),
@@ -1171,7 +1296,9 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(RestoreMetaData,         LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(RestoreData,             LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(RestoreLog,              LogLevel::llBackup, 7, Logger::LL_INFO ),
-  ROW(RestoreCompleted,        LogLevel::llBackup, 7, Logger::LL_INFO )
+  ROW(RestoreCompleted,        LogLevel::llBackup, 7, Logger::LL_INFO ),
+
+  ROW(SavedEvent,              LogLevel::llInfo,   7, Logger::LL_INFO)
 };
 
 const Uint32 EventLoggerBase::matrixSize=

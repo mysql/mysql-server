@@ -16510,6 +16510,11 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
     return;
   }
 
+  signal->theData[0] = NDB_LE_RebuildIndex;
+  signal->theData[1] = instance();
+  signal->theData[2] = tableId;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+
   BuildIndxImplReq* const req = (BuildIndxImplReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = tableId;
@@ -17111,6 +17116,8 @@ void Dblqh::srLogLimits(Signal* signal)
              logPartPtr.p->stopMbyte);           
   }
 
+
+
   /* ------------------------------------------------------------------------
    *  WE HAVE NOW FOUND BOTH THE START AND THE STOP OF THE LOG. NOW START
    *  EXECUTING THE LOG. THE FIRST ACTION IS TO OPEN THE LOG FILE WHERE TO
@@ -17122,6 +17129,7 @@ void Dblqh::srLogLimits(Signal* signal)
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
     logFilePtr.p->logFileStatus = LogFileRecord::OPEN_EXEC_SR_START;
     openFileRw(signal, logFilePtr);
+    send_runredo_event(signal, logPartPtr.p, logPartPtr.p->logStartGci);
   } else {
     jam();
     ndbrequire(logPartPtr.p->logPartState == LogPartRecord::SR_FOURTH_PHASE_STARTED);
@@ -17554,7 +17562,8 @@ void Dblqh::execSr(Signal* signal)
                  logFilePtr.p->fileNo,
                  logFilePtr.p->currentFilepage);
       }
-      if (logWord == logPartPtr.p->logLastGci) {
+      if (logWord == logPartPtr.p->logLastGci)
+      {
         jam();
 /*---------------------------------------------------------------------------*/
 /* IF IT IS THE LAST GCI TO LIVE AFTER SYSTEM RESTART THEN WE RECORD THE NEXT*/
@@ -17583,6 +17592,7 @@ void Dblqh::execSr(Signal* signal)
 /* NEXT PHASE OF THE SYSTEM RESTART.                                         */
 /*---------------------------------------------------------------------------*/
         logPartPtr.p->logExecState = LogPartRecord::LES_EXEC_LOG_COMPLETED;
+        send_runredo_event(signal, logPartPtr.p, logPartPtr.p->logLastGci);
       }//if
       break;
     default:
@@ -23102,3 +23112,31 @@ Dblqh::suspendFile(Signal* signal, Ptr<LogFileRecord> logFilePtr, Uint32 millis)
   sendSignal(NDBFS_REF, GSN_FSSUSPENDORD, signal, 2, JBA);
 }
 
+void
+Dblqh::send_runredo_event(Signal* signal, LogPartRecord * lp, Uint32 gci)
+{
+  signal->theData[0] = NDB_LE_RunRedo;
+  signal->theData[1] = lp->logPartNo;
+  signal->theData[2] = csrPhasesCompleted;
+  signal->theData[3] = lp->logStartGci;
+  signal->theData[4] = gci;
+  signal->theData[5] = lp->logLastGci;
+
+
+  LogFileRecordPtr filePtr;
+  filePtr.i = lp->startLogfile;
+  ptrCheckGuard(filePtr, clogFileFileSize, logFileRecord);
+  signal->theData[6] = filePtr.p->fileNo;
+  signal->theData[7] = lp->startMbyte;
+
+  filePtr.i = lp->currentLogfile;
+  ptrCheckGuard(filePtr, clogFileFileSize, logFileRecord);
+  signal->theData[8] = filePtr.p->fileNo;
+  signal->theData[9] = filePtr.p->currentMbyte;
+
+  filePtr.i = lp->stopLogfile;
+  ptrCheckGuard(filePtr, clogFileFileSize, logFileRecord);
+  signal->theData[10] = filePtr.p->fileNo;
+  signal->theData[11] = lp->stopMbyte;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 12, JBB);
+}

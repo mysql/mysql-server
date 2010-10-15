@@ -1012,6 +1012,8 @@ create table t1
 primary key (a,b,c,d)) 
 engine=ndb
 max_rows=800000000;
+Warnings:
+Warning	1105	Ndb might have problems storing the max amount of rows specified
 insert into t1 values
 (1,2,3,4),(2,3,4,5),(3,4,5,6),
 (3,2,3,4),(1,3,4,5),(2,4,5,6),

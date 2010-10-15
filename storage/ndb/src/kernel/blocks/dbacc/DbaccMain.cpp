@@ -18,7 +18,6 @@
 
 #define DBACC_C
 #include "Dbacc.hpp"
-#include <my_sys.h>
 
 #include <AttributeHeader.hpp>
 #include <signaldata/AccFrag.hpp>

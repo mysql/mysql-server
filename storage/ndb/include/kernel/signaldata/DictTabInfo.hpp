@@ -628,7 +628,7 @@ private:
   Uint32 tabInfoData[DataLength];
 
 public:
-  enum Depricated
+  enum Deprecated
   {
     AttributeDGroup    = 1009, //Default NotDGroup
     AttributeStoredInd = 1011, //Default NotStored

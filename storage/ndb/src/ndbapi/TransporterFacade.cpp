@@ -489,10 +489,9 @@ void TransporterFacade::threadMainReceive(void)
     for(int i = 0; i<10; i++){
       NdbSleep_MilliSleep(10);
       NdbMutex_Lock(theMutexPtr);
-      if (poll_owner == NULL) {
-        const int res = theTransporterRegistry->pollReceive(0);
-        if(res > 0)
-          theTransporterRegistry->performReceive();
+      if (m_poll_owner == NULL)
+      {
+        external_poll(0);
       }
       NdbMutex_Unlock(theMutexPtr);
     }
@@ -511,119 +510,33 @@ void TransporterFacade::threadMainReceive(void)
 void TransporterFacade::external_poll(Uint32 wait_time)
 {
   NdbMutex_Unlock(theMutexPtr);
+
+#ifdef NDB_SHM_TRANSPORTER
+  /*
+    If shared memory transporters are used we need to set our sigmask
+    such that we wake up also on interrupts on the shared memory
+    interrupt signal.
+  */
+  NdbThread_set_shm_sigmask(FALSE);
+#endif
+
   const int res = theTransporterRegistry->pollReceive(wait_time);
+
+#ifdef NDB_SHM_TRANSPORTER
+  NdbThread_set_shm_sigmask(TRUE);
+#endif
+
   NdbMutex_Lock(theMutexPtr);
-  if (res > 0) {
+  if (res > 0)
+  {
     theTransporterRegistry->performReceive();
   }
 }
 
-/*
-  This Ndb object didn't get hold of the poll "right" and will wait on a
-  conditional mutex wait instead. It is put into the conditional wait
-  queue so that it is accessible to take over the poll "right" if needed.
-  The method gets a free entry in the free list and puts it first in the
-  doubly linked list. Finally it assigns the ndb object reference to the
-  entry.
-*/
-Uint32 TransporterFacade::put_in_cond_wait_queue(NdbWaiter *aWaiter)
-{
-  /*
-   Get first free entry
-  */
-  Uint32 index = first_free_cond_wait;
-  assert(index < MAX_NO_THREADS);
-  first_free_cond_wait = cond_wait_array[index].next_cond_wait;
-
-  /*
-   Put in doubly linked list
-  */
-  cond_wait_array[index].next_cond_wait = MAX_NO_THREADS;
-  cond_wait_array[index].prev_cond_wait = last_in_cond_wait;
-  if (last_in_cond_wait == MAX_NO_THREADS) {
-    first_in_cond_wait = index;
-  } else
-    cond_wait_array[last_in_cond_wait].next_cond_wait = index;
-  last_in_cond_wait = index;
-
-  cond_wait_array[index].cond_wait_object = aWaiter;
-  aWaiter->set_cond_wait_index(index);
-  return index;
-}
-
-/*
-  Somebody is about to signal the thread to wake it up, it could also
-  be that it woke up on a timeout and found himself still in the list.
-  Removes the entry from the doubly linked list.
-  Inserts the entry into the free list.
-  NULLifies the ndb object reference entry and sets the index in the
-  Ndb object to NIL (=MAX_NO_THREADS)
-*/
-void TransporterFacade::remove_from_cond_wait_queue(NdbWaiter *aWaiter)
-{
-  Uint32 index = aWaiter->get_cond_wait_index();
-  assert(index < MAX_NO_THREADS &&
-         cond_wait_array[index].cond_wait_object == aWaiter);
-  /*
-   Remove from doubly linked list
-  */
-  Uint32 prev_elem, next_elem;
-  prev_elem = cond_wait_array[index].prev_cond_wait;
-  next_elem = cond_wait_array[index].next_cond_wait;
-  if (prev_elem != MAX_NO_THREADS)
-    cond_wait_array[prev_elem].next_cond_wait = next_elem;
-  else
-    first_in_cond_wait = next_elem;
-  if (next_elem != MAX_NO_THREADS)
-    cond_wait_array[next_elem].prev_cond_wait = prev_elem;
-  else
-    last_in_cond_wait = prev_elem;
-  /*
-   Insert into free list
-  */
-  cond_wait_array[index].next_cond_wait = first_free_cond_wait;
-  cond_wait_array[index].prev_cond_wait = MAX_NO_THREADS;
-  first_free_cond_wait = index;
-
-  cond_wait_array[index].cond_wait_object = NULL;
-  aWaiter->set_cond_wait_index(MAX_NO_THREADS);
-}
-
-/*
-  Get the latest Ndb object from the conditional wait queue
-  and also remove it from the list.
-*/
-NdbWaiter* TransporterFacade::rem_last_from_cond_wait_queue()
-{
-  NdbWaiter *tWaiter;
-  Uint32 index = last_in_cond_wait;
-  if (last_in_cond_wait == MAX_NO_THREADS)
-    return NULL;
-  tWaiter = cond_wait_array[index].cond_wait_object;
-  remove_from_cond_wait_queue(tWaiter);
-  return tWaiter;
-}
-
-void TransporterFacade::init_cond_wait_queue()
-{
-  Uint32 i;
-  /*
-   Initialise the doubly linked list as empty
-  */
-  first_in_cond_wait = MAX_NO_THREADS;
-  last_in_cond_wait = MAX_NO_THREADS;
-  /*
-   Initialise free list
-  */
-  first_free_cond_wait = 0;
-  for (i = 0; i < MAX_NO_THREADS; i++) {
-    cond_wait_array[i].cond_wait_object = NULL;
-    cond_wait_array[i].next_cond_wait = i+1;
-    cond_wait_array[i].prev_cond_wait = MAX_NO_THREADS;
-  }
-}
-
 TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
+  m_poll_owner(NULL),
+  m_poll_queue_head(NULL),
+  m_poll_queue_tail(NULL),
   theTransporterRegistry(0),
   theOwnId(0),
   theStartNodeId(1),
@@ -637,8 +550,6 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_globalDictCache(cache)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
-  init_cond_wait_queue();
-  poll_owner = NULL;
   theMutexPtr = NdbMutex_Create();
   sendPerformedLastInterval = 0;
 
@@ -814,24 +725,31 @@ TransporterFacade::trp_node_status(NodeId tNodeId, Uint32 event)
 }
 
 int 
-TransporterFacade::close(BlockNumber blockNumber)
+TransporterFacade::close_clnt(trp_client* clnt)
 {
-  NdbMutex_Lock(theMutexPtr);
-  close_local(blockNumber);
-  NdbMutex_Unlock(theMutexPtr);
-  return 0;
-}
-
-int 
-TransporterFacade::close_local(BlockNumber blockNumber){
-  m_threads.close(blockNumber);
-  return 0;
+  int ret = -1;
+  if (clnt)
+  {
+    NdbMutex_Lock(theMutexPtr);
+    if (m_threads.get(clnt->m_blockNo) == clnt)
+    {
+      m_threads.close(clnt->m_blockNo);
+      ret = 0;
+    }
+    else
+    {
+      assert(0);
+    }
+    NdbMutex_Unlock(theMutexPtr);
+  }
+  return ret;
 }
 
 int
-TransporterFacade::open(trp_client * clnt, int blockNo)
+TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
+  Guard g(theMutexPtr);
   int r= m_threads.open(clnt);
   if (r < 0)
   {
@@ -862,8 +780,8 @@ TransporterFacade::~TransporterFacade()
 {  
   DBUG_ENTER("TransporterFacade::~TransporterFacade");
 
-  NdbMutex_Lock(theMutexPtr);
   delete theClusterMgr;  
+  NdbMutex_Lock(theMutexPtr);
   delete theTransporterRegistry;
   NdbMutex_Unlock(theMutexPtr);
   NdbMutex_Destroy(theMutexPtr);
@@ -1639,103 +1557,20 @@ TransporterFacade::get_active_ndb_objects() const
   return m_threads.m_use_cnt;
 }
 
-PollGuard::PollGuard(TransporterFacade *tp, NdbWaiter *aWaiter,
-                     Uint32 block_no)
+
+void
+TransporterFacade::start_poll(trp_client* clnt)
 {
-  m_tp= tp;
-  m_waiter= aWaiter;
-  m_locked= true;
-  m_block_no= block_no;
-  tp->lock_mutex();
+  lock_mutex();
+  clnt->m_poll.m_locked = true;
 }
 
-/*
-  This is a common routine for possibly forcing the send of buffered signals
-  and receiving response the thread is waiting for. It is designed to be
-  useful from:
-  1) PK, UK lookups using the asynchronous interface
-     This routine uses the wait_for_input routine instead since it has
-     special end conditions due to the asynchronous nature of its usage.
-  2) Scans
-  3) dictSignal
-  It uses a NdbWaiter object to wait on the events and this object is
-  linked into the conditional wait queue. Thus this object contains
-  a reference to its place in the queue.
-
-  It replaces the method receiveResponse previously used on the Ndb object
-*/
-int PollGuard::wait_n_unlock(int wait_time, NodeId nodeId, Uint32 state,
-                             bool forceSend)
+void
+TransporterFacade::do_poll(trp_client* clnt, Uint32 wait_time)
 {
-  int ret_val;
-  m_waiter->set_node(nodeId);
-  m_waiter->set_state(state);
-  ret_val= wait_for_input_in_loop(wait_time, forceSend);
-  unlock_and_signal();
-  return ret_val;
-}
-
-int PollGuard::wait_scan(int wait_time, NodeId nodeId, bool forceSend)
-{
-  m_waiter->set_node(nodeId);
-  m_waiter->set_state(WAIT_SCAN);
-  return wait_for_input_in_loop(wait_time, forceSend);
-}
-
-int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
-{
-  int ret_val;
-  if (forceSend)
-    m_tp->forceSend(m_block_no);
-  else
-    m_tp->checkForceSend(m_block_no);
-
-  NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
-  NDB_TICKS max_time = curr_time + (NDB_TICKS)wait_time;
-  const int maxsleep = (wait_time == -1 || wait_time > 10) ? 10 : wait_time;
-  do
-  {
-    wait_for_input(maxsleep);
-    Uint32 state= m_waiter->get_state();
-    if (state == NO_WAIT)
-    {
-      return 0;
-    }
-    else if (state == WAIT_NODE_FAILURE)
-    {
-      ret_val= -2;
-      break;
-    }
-    if (wait_time == -1)
-    {
-#ifdef NOT_USED
-      ndbout << "Waited WAITFOR_RESPONSE_TIMEOUT, continuing wait" << endl;
-#endif
-      continue;
-    }
-    wait_time= int(max_time - NdbTick_CurrentMillisecond());
-    if (wait_time <= 0)
-    {
-#ifdef VM_TRACE
-      ndbout << "Time-out state is " << m_waiter->get_state() << endl;
-#endif
-      m_waiter->set_state(WST_WAIT_TIMEOUT);
-      ret_val= -1;
-      break;
-    }
-  } while (1);
-#ifdef VM_TRACE
-  ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
-  ndbout << m_waiter->get_state() << endl;
-#endif
-  m_waiter->set_state(NO_WAIT);
-  return ret_val;
-}
-
-void PollGuard::wait_for_input(int wait_time)
-{
-  NdbWaiter *t_poll_owner= m_tp->get_poll_owner();
-  if (t_poll_owner != NULL && t_poll_owner != m_waiter)
+  assert(clnt->m_poll.m_locked == true);
+  trp_client* owner = m_poll_owner;
+  if (owner != NULL && owner != clnt)
   {
     /*
       We didn't get hold of the poll "right". We will sleep on a
@@ -1746,11 +1581,11 @@ void PollGuard::wait_for_input(int wait_time)
       queue if it hasn't happened already. It is usually already out of the
       queue but at time-out it could be that the object is still there.
     */
-    (void) m_tp->put_in_cond_wait_queue(m_waiter);
-    m_waiter->wait(wait_time);
-    if (m_waiter->get_cond_wait_index() != TransporterFacade::MAX_NO_THREADS)
+    add_to_poll_queue(clnt);
+    clnt->cond_wait(wait_time, theMutexPtr); // release/reacquire mutex
+    if (clnt != m_poll_owner)
     {
-      m_tp->remove_from_cond_wait_queue(m_waiter);
+      remove_from_poll_queue(clnt);
     }
   }
   else
@@ -1760,25 +1595,22 @@ void PollGuard::wait_for_input(int wait_time)
       receiving data we will check if all data is received, if not we
       poll again.
     */
-#ifdef NDB_SHM_TRANSPORTER
-    /*
-      If shared memory transporters are used we need to set our sigmask
-      such that we wake up also on interrupts on the shared memory
-      interrupt signal.
-    */
-    NdbThread_set_shm_sigmask(FALSE);
-#endif
-    m_tp->set_poll_owner(m_waiter);
-    m_waiter->set_poll_owner(true);
-    m_tp->external_poll((Uint32)wait_time);
+    assert(owner == clnt || clnt->m_poll.m_poll_owner == false);
+    m_poll_owner = clnt;
+    clnt->m_poll.m_poll_owner = true;
+    external_poll(wait_time);
   }
 }
 
-void PollGuard::unlock_and_signal()
+void
+TransporterFacade::complete_poll(trp_client* clnt)
 {
-  NdbWaiter *t_signal_cond_waiter= 0;
-  if (!m_locked)
+  if (!clnt->m_poll.m_locked)
+  {
+    assert(clnt->m_poll.m_poll_owner == false);
     return;
+  }
+
   /*
    When completing the poll for this thread we must return the poll
    ownership if we own it. We will give it to the last thread that
@@ -1791,25 +1623,92 @@ void PollGuard::unlock_and_signal()
    API Volume 1 Third Edition on page 703-704 for a discussion on this
    subject.
   */
-  if (m_tp->get_poll_owner() == m_waiter)
+  trp_client* new_owner = 0;
+  if (m_poll_owner == clnt)
   {
-#ifdef NDB_SHM_TRANSPORTER
-    /*
-      If shared memory transporters are used we need to reset our sigmask
-      since we are no longer the thread to receive interrupts.
-    */
-    NdbThread_set_shm_sigmask(TRUE);
-#endif
-    m_waiter->set_poll_owner(false);
-    t_signal_cond_waiter= m_tp->rem_last_from_cond_wait_queue();
-    m_tp->set_poll_owner(t_signal_cond_waiter);
-    if (t_signal_cond_waiter)
-      t_signal_cond_waiter->set_poll_owner(true);
+    assert(clnt->m_poll.m_poll_owner == true);
+    m_poll_owner = new_owner = remove_last_from_poll_queue();
   }
-  if (t_signal_cond_waiter)
-    t_signal_cond_waiter->cond_signal();
-  m_tp->unlock_mutex();
-  m_locked=false;
+  if (new_owner)
+  {
+    assert(new_owner->m_poll.m_poll_owner == false);
+    new_owner->cond_signal();
+    new_owner->m_poll.m_poll_owner = true;
+  }
+  clnt->m_poll.m_locked = false;
+  clnt->m_poll.m_poll_owner = false;
+  unlock_mutex();
+}
+
+void
+TransporterFacade::add_to_poll_queue(trp_client* clnt)
+{
+  assert(clnt != 0);
+  assert(clnt->m_poll.m_prev == 0);
+  assert(clnt->m_poll.m_next == 0);
+  assert(clnt->m_poll.m_locked == true);
+  assert(clnt->m_poll.m_poll_owner == false);
+
+  if (m_poll_queue_head == 0)
+  {
+    assert(m_poll_queue_tail == 0);
+    m_poll_queue_head = clnt;
+    m_poll_queue_tail = clnt;
+  }
+  else
+  {
+    assert(m_poll_queue_tail->m_poll.m_next == 0);
+    m_poll_queue_tail->m_poll.m_next = clnt;
+    clnt->m_poll.m_prev = m_poll_queue_tail;
+    m_poll_queue_tail = clnt;
+  }
+}
+
+void
+TransporterFacade::remove_from_poll_queue(trp_client* clnt)
+{
+  assert(clnt != 0);
+  assert(clnt->m_poll.m_locked == true);
+  assert(clnt->m_poll.m_poll_owner == false);
+
+  if (clnt->m_poll.m_prev != 0)
+  {
+    clnt->m_poll.m_prev->m_poll.m_next = clnt->m_poll.m_next;
+  }
+  else
+  {
+    assert(m_poll_queue_head == clnt);
+    m_poll_queue_head = clnt->m_poll.m_next;
+  }
+
+  if (clnt->m_poll.m_next != 0)
+  {
+    clnt->m_poll.m_next->m_poll.m_prev = clnt->m_poll.m_prev;
+  }
+  else
+  {
+    assert(m_poll_queue_tail == clnt);
+    m_poll_queue_tail = clnt->m_poll.m_prev;
+  }
+
+  if (m_poll_queue_head == 0)
+    assert(m_poll_queue_tail == 0);
+  else if (m_poll_queue_tail == 0)
+    assert(m_poll_queue_head == 0);
+
+  clnt->m_poll.m_prev = 0;
+  clnt->m_poll.m_next = 0;
+}
+
+trp_client*
+TransporterFacade::remove_last_from_poll_queue()
+{
+  trp_client * clnt = m_poll_queue_tail;
+  if (clnt == 0)
+    return 0;
+
+  remove_from_poll_queue(clnt);
+  return clnt;
 }
 
 template class Vector<trp_client*>;

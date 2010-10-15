@@ -3973,12 +3973,15 @@ Dbdict::restart_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   if (unlikely(hasError(tx_ptr.p->m_error)))
   {
     jam();
+    /*
+      Fatal error while restoring shchema during restart,
+      dump debug info and crash
+    */
+    ndbout << "error: " << tx_ptr.p->m_error << endl;
+
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
-                         "Failure to restore schema during restart, error %u"
-                         " Check configuration changes and instructions from"
-                         " \'perror --ndb %u\'"
-                         ,tx_ptr.p->m_error.errorCode
+                         "Failed to restore schema during restart, error %u."
                          ,tx_ptr.p->m_error.errorCode);
     progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
   }
@@ -4013,12 +4016,15 @@ Dbdict::restartEndPass_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   if (unlikely(hasError(tx_ptr.p->m_error)))
   {
     jam();
+    /*
+      Fatal error while restoring shchema during restart,
+      dump debug info and crash
+    */
+    ndbout << "error: " << tx_ptr.p->m_error << endl;
+
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
-                         "Failure to restore schema during restart, error %u"
-                         " Check configuration changes and instructions from"
-                         " \'perror --ndb %u\'"
-                         ,tx_ptr.p->m_error.errorCode
+                         "Failed to restore schema during restart, error %u."
                          ,tx_ptr.p->m_error.errorCode);
     progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
   }
@@ -4341,30 +4347,18 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   if (unlikely(hasError(error)))
   {
     jam();
+    /*
+      Fatal error while restoring shchema during restart,
+      dump debug info and crash
+    */
+    ndbout << "error: " << error << endl;
+
     char msg[128];
-    if (error.errorObjectName[0] != 0)
-    {
-      jam();
-      BaseString::snprintf(msg, sizeof(msg),
-                           "Failure to recreate object %s (%u) during restart,"
-                           " error %u. Please follow instructions from"
-                           " \'perror --ndb %u\'",
-                           error.errorObjectName,
-                           c_restartRecord.activeTable, 
-                           error.errorCode, 
-                           error.errorCode);
-    }
-    else
-    {
-      jam();
-      BaseString::snprintf(msg, sizeof(msg),
-                           "Failure to recreate object %u during restart,"
-                           " error %u. Please follow instructions from"
-                           " \'perror --ndb %u\'",
-                           c_restartRecord.activeTable, 
-                           error.errorCode, 
-                           error.errorCode);
-    }
+    BaseString::snprintf(msg, sizeof(msg),
+                         "Failed to recreate object %u during restart,"
+                         " error %u."
+                         ,c_restartRecord.activeTable
+                         ,error.errorCode);
     progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
   }
   ndbrequire(!hasError(error));
@@ -4436,11 +4430,17 @@ Dbdict::restartDropObj(Signal* signal,
   if (unlikely(hasError(error)))
   {
     jam();
+    /*
+      Fatal error while restoring shchema during restart,
+      dump debug info and crash
+    */
+    ndbout << "error: " << error << endl;
+
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
-                         "Failure to drop object during restart, error %u"
-                         " Please follow instructions from \'perror --ndb %u\'"
-                         ,error.errorCode, error.errorCode);
+                         "Failed to drop object %u during restart, error %u"
+                         ,c_restartRecord.activeTable
+                         ,error.errorCode);
     progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
   }
   ndbrequire(!hasError(error));
@@ -4732,7 +4732,8 @@ Dbdict::decrease_ref_count(Uint32 obj_ptr_i)
   ptr->m_ref_count--;  
 }
 
-void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
+void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
+                               SimpleProperties::Reader & it,
 			       ParseDictTabInfoRecord * parseP,
 			       bool checkExist) 
 {
@@ -4861,6 +4862,11 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
                           c_tableDesc.TableName, 
                           tablePtr.i, tablePtr.p->m_obj_ptr_i);
     }
+    send_event(signal, trans_ptr,
+               NDB_LE_CreateSchemaObject,
+               tablePtr.i,
+               tablePtr.p->tableVersion,
+               c_tableDesc.TableType);
   }
   parseP->tablePtr = tablePtr;
   
@@ -5743,7 +5749,7 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     }
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
 
-    handleTabInfoInit(r, &parseRecord);
+    handleTabInfoInit(signal, trans_ptr, r, &parseRecord);
     releaseSections(handle);
 
     if (parseRecord.errorCode == 0)
@@ -5885,12 +5891,14 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     SimplePropertiesSectionReader r(tabInfoPtr, getSectionSegmentPool());
 
     bool checkExist = true;
-    handleTabInfoInit(r, &parseRecord, checkExist);
+    handleTabInfoInit(signal, trans_ptr, r, &parseRecord, checkExist);
 
     if (parseRecord.errorCode != 0)
     {
       jam();
       setError(error, parseRecord);
+      BaseString::snprintf(error.errorObjectName, sizeof(error.errorObjectName),
+                           "%s", c_tableDesc.TableName);
       return;
     }
 
@@ -7415,6 +7423,12 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
                         tablePtr.p->m_obj_ptr_i);
   }
 
+  send_event(signal, trans_ptr,
+             NDB_LE_DropSchemaObject,
+             tablePtr.i,
+             tablePtr.p->tableVersion,
+             tablePtr.p->tableType);
+
   if (DictTabInfo::isIndex(tablePtr.p->tableType))
   {
     Ptr<TableRecord> basePtr;
@@ -7946,7 +7960,8 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     ndbrequire(ok);
     SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
 
-    handleTabInfoInit(r, &parseRecord, false); // Will not save info
+    handleTabInfoInit(signal,
+                      trans_ptr, r, &parseRecord, false); // Will not save info
 
     if (parseRecord.errorCode != 0) {
       jam();
@@ -19893,6 +19908,12 @@ Dbdict::createFile_parse(Signal* signal, bool master,
                         createFilePtr.p->m_warningFlags);
   }
   
+  send_event(signal, trans_ptr,
+             NDB_LE_CreateSchemaObject,
+             impl_req->file_id,
+             impl_req->file_version,
+             f.FileType);
+
   return;
 error:
   if (!filePtr.isNull())
@@ -27824,6 +27845,29 @@ Dbdict::packHashMapIntoPages(SimpleProperties::Writer & w,
 
 // MODULE: debug
 
+// ErrorInfo
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::ErrorInfo& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::ErrorInfo::print(NdbOut& out) const
+{
+  out << "[";
+  out << " code: " << errorCode;
+  out << " line: " << errorLine;
+  out << " node: " << errorNodeId;
+  out << " count: " << errorCount;
+  out << " status: " << errorStatus;
+  out << " key: " << errorKey;
+  out << " name: '" << errorObjectName << "'";
+  out << " ]";
+}
+
 #ifdef VM_TRACE
 
 // DictObject
@@ -27849,24 +27893,6 @@ Dbdict::DictObject::print(NdbOut& out) const
   out << ")";
 }
 
-// ErrorInfo
-
-NdbOut&
-operator<<(NdbOut& out, const Dbdict::ErrorInfo& a)
-{
-  a.print(out);
-  return out;
-}
-
-void
-Dbdict::ErrorInfo::print(NdbOut& out) const
-{
-  out << " (ErrorInfo";
-  out << dec << V(errorCode);
-  out << dec << V(errorLine);
-  out << dec << V(errorNodeId);
-  out << ")";
-}
 
 // SchemaOp
 
@@ -28167,3 +28193,33 @@ Dbdict::check_consistency_object(DictObjectPtr obj_ptr)
 }
 
 #endif
+
+void
+Dbdict::send_event(Signal* signal,
+                   SchemaTransPtr& trans_ptr,
+                   Uint32 ev,
+                   Uint32 id,
+                   Uint32 version,
+                   Uint32 type)
+{
+  if (!trans_ptr.p->m_isMaster)
+  {
+    return;
+  }
+
+  switch(ev){
+  case NDB_LE_CreateSchemaObject:
+  case NDB_LE_AlterSchemaObject:
+  case NDB_LE_DropSchemaObject:
+    break;
+  default:
+    ndbassert(false);
+    return;
+  }
+  signal->theData[0] = ev;
+  signal->theData[1] = id;
+  signal->theData[2] = version;
+  signal->theData[3] = type;
+  signal->theData[4] = refToNode(trans_ptr.p->m_clientRef);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
+}

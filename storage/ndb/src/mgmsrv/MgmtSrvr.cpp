@@ -44,6 +44,7 @@
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/Sync.hpp>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include <EventLogger.hpp>
@@ -408,7 +409,7 @@ MgmtSrvr::start_transporter(const Config* config)
     Register ourself at TransporterFacade to be able to receive signals
     and to be notified when a database process has died.
   */
-  if ((_blockNumber= theFacade->open(this)) == -1)
+  if ((_blockNumber= open(theFacade)) == -1)
   {
     g_eventLogger->error("Failed to open block in TransporterFacade");
     theFacade->stop_instance();
@@ -869,7 +870,7 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, Uint32& mysql_version,
   }
   else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
   {
-    ClusterMgr::Node node= theFacade->theClusterMgr->getNodeInfo(nodeId);
+    trp_node node = theFacade->theClusterMgr->getNodeInfo(nodeId);
     if(node.is_connected())
     {
       version= node.m_info.m_version;
@@ -1093,7 +1094,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   for (Uint32 i = 0; i<node_ids.size(); i++)
   {
     Uint32 nodeId = node_ids[i];
-    ClusterMgr::Node node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    trp_node node = ss.getNodeInfo(nodeId);
     if (node.m_state.startLevel != NodeState::SL_STARTED)
       notstarted.set(nodeId);
   }
@@ -1405,7 +1406,7 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
 int MgmtSrvr::check_nodes_stopping()
 {
   NodeId nodeId = 0;
-  ClusterMgr::Node node;
+  trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
@@ -1421,7 +1422,7 @@ int MgmtSrvr::check_nodes_stopping()
 int MgmtSrvr::check_nodes_starting()
 {
   NodeId nodeId = 0;
-  ClusterMgr::Node node;
+  trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
@@ -1434,7 +1435,7 @@ int MgmtSrvr::check_nodes_starting()
 int MgmtSrvr::check_nodes_single_user()
 {
   NodeId nodeId = 0;
-  ClusterMgr::Node node;
+  trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
@@ -1672,7 +1673,7 @@ MgmtSrvr::status(int nodeId,
     *address= get_connect_address(nodeId);
   }
 
-  const ClusterMgr::Node node = 
+  const trp_node node =
     theFacade->theClusterMgr->getNodeInfo(nodeId);
 
   if(!node.is_connected()){
@@ -2541,7 +2542,7 @@ const char *MgmtSrvr::get_connect_address(Uint32 node_id)
       theFacade->theClusterMgr &&
       getNodeType(node_id) == NDB_MGM_NODE_TYPE_NDB) 
   {
-    const ClusterMgr::Node &node=
+    const trp_node &node=
       theFacade->theClusterMgr->getNodeInfo(node_id);
     if (node.is_connected())
     {
@@ -2561,7 +2562,7 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
     {
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
       {
-	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	const trp_node &node= theFacade->theClusterMgr->getNodeInfo(i);
 	connected_nodes.bitOR(node.m_state.m_connected_nodes);
       }
     }
@@ -3144,7 +3145,6 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
   if(backuppoint == 1)
     req->flags |= BackupReq::USE_UNDO_LOG;
 
-  BackupEvent event;
   int do_send = 1;
   while (1) {
     if (do_send)
@@ -3163,9 +3163,6 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
     case GSN_BACKUP_CONF:{
       const BackupConf * const conf = 
 	CAST_CONSTPTR(BackupConf, signal->getDataPtr());
-      event.Event = BackupEvent::BackupStarted;
-      event.Started.BackupId = conf->backupId;
-      event.Nodes.assign(conf->nodes);
 #ifdef VM_TRACE
       ndbout_c("Backup(%d) master is %d", conf->backupId,
 	       refToNode(signal->header.theSendersBlockRef));
@@ -3182,23 +3179,6 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 #ifdef VM_TRACE
       ndbout_c("Backup(%d) completed", rep->backupId);
 #endif
-      event.Event = BackupEvent::BackupCompleted;
-      event.Completed.BackupId = rep->backupId;
-    
-      event.Completed.NoOfBytes = rep->noOfBytesLow;
-      event.Completed.NoOfLogBytes = rep->noOfLogBytes;
-      event.Completed.NoOfRecords = rep->noOfRecordsLow;
-      event.Completed.NoOfLogRecords = rep->noOfLogRecords;
-      event.Completed.stopGCP = rep->stopGCP;
-      event.Completed.startGCP = rep->startGCP;
-      event.Nodes.assign(rep->nodes);
-
-      if (signal->header.theLength >= BackupCompleteRep::SignalLength)
-      {
-        event.Completed.NoOfBytes += ((Uint64)rep->noOfBytesHigh) << 32;
-        event.Completed.NoOfRecords += ((Uint64)rep->noOfRecordsHigh) << 32;
-      }
-
       backupId = rep->backupId;
       return 0;
     }
@@ -3215,17 +3195,11 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 	  m_master_node = nodeId = 0;
 	continue;
       }
-      event.Event = BackupEvent::BackupFailedToStart;
-      event.FailedToStart.ErrorCode = ref->errorCode;
       return ref->errorCode;
     }
     case GSN_BACKUP_ABORT_REP:{
       const BackupAbortRep * const rep = 
 	CAST_CONSTPTR(BackupAbortRep, signal->getDataPtr());
-      event.Event = BackupEvent::BackupAborted;
-      event.Aborted.Reason = rep->reason;
-      event.Aborted.BackupId = rep->backupId;
-      event.Aborted.ErrorCode = rep->reason;
 #ifdef VM_TRACE
       ndbout_c("Backup %d aborted", rep->backupId);
 #endif
@@ -3282,7 +3256,12 @@ MgmtSrvr::abortBackup(Uint32 backupId)
   SimpleSignal ssig;
 
   AbortBackupOrd* ord = CAST_PTR(AbortBackupOrd, ssig.getDataPtrSend());
-  ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_ABORT_BACKUP_ORD, 
+  /*
+   * Single-threaded backup.  Set instance key 1.  In the kernel
+   * this maps to main instance 0 or worker instance 1 (if MT LQH).
+   */
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, 1);
+  ssig.set(ss, TestOrd::TraceAPI, backupBlockNo, GSN_ABORT_BACKUP_ORD, 
 	   AbortBackupOrd::SignalLength);
   
   ord->requestType = AbortBackupOrd::ClientAbort;
@@ -3793,13 +3772,11 @@ MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
    *
    */
   SimpleSignal ssig;
-  EventSubscribeReq* req = CAST_PTR(EventSubscribeReq, ssig.getDataPtrSend());
-
-  req->blockRef = ss.getOwnRef();
-  req->noOfEntries = 1;
-  req->theData[0] = 0;
-  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ, 
-           EventSubscribeReq::SignalLength);
+  SyncReq* req = CAST_PTR(SyncReq, ssig.getDataPtrSend());
+  req->senderRef = ss.getOwnRef();
+  req->senderData = 12;
+  req->prio = 1; // prio b
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_SYNC_REQ, SyncReq::SignalLength);
   
   if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
   {
@@ -3812,48 +3789,8 @@ MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
     
     int gsn = signal->readSignalNumber();
     switch (gsn) {
-    case GSN_EVENT_SUBSCRIBE_CONF:
-      goto release;
-      
-    case GSN_NF_COMPLETEREP:{
-      const NFCompleteRep * const rep =
-        CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
-      if (rep->failedNodeId == nodeId)
-        return;
-      break;
-    }
-      
-    case GSN_NODE_FAILREP:{
-      const NodeFailRep * const rep =
-	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (NdbNodeBitmask::get(rep->theNodes,nodeId))
-	return;
-      break;
-    }
-      
-    case GSN_API_REGCONF:
-    case GSN_TAKE_OVERTCCONF:
-      break;
-    default:
-      return;
-    }
-  }
-
-release:
-  req->noOfEntries = 0;
-
-  if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
-  {
-    return;
-  }
-
-  while (true)
-  {
-    SimpleSignal *signal = ss.waitFor();
-    
-    int gsn = signal->readSignalNumber();
-    switch (gsn) {
-    case GSN_EVENT_SUBSCRIBE_CONF:
+    case GSN_SYNC_REF:
+    case GSN_SYNC_CONF:
       return;
       
     case GSN_NF_COMPLETEREP:{
@@ -3886,7 +3823,7 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
                          Uint32 dump_type,
                          Vector<SimpleSignal>& events)
 {
-  Uint32 nodes_counter[MAX_NDB_NODES];
+  int nodes_counter[MAX_NDB_NODES];
   SignalSender ss(theFacade);
   ss.lock();
 
@@ -3899,7 +3836,7 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
       continue;
 
     // Only request from confirmed DB nodes
-    const ClusterMgr::Node node = ss.getNodeInfo(i);
+    const trp_node node = ss.getNodeInfo(i);
     if (node.m_info.getType() != NodeInfo::DB ||
         !node.is_confirmed())
     {
@@ -3916,7 +3853,7 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
     if (ss.sendSignal(i, ssig, CMVMI, GSN_DUMP_STATE_ORD, 2) == SEND_OK)
     {
       nodes.set(i);
-      nodes_counter[i] = 0;
+      nodes_counter[i] = (int)reports_per_node;
     }
   }
 
@@ -3933,7 +3870,6 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
       const NodeId nodeid = refToNode(signal->header.theSendersBlockRef);
       const EventReport * const event =
         (const EventReport*)signal->getDataPtr();
-      (void)event; // kill warning
 
       if (!nodes.get(nodeid))
       {
@@ -3942,12 +3878,20 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
         return false;
       }
 
-      // Save signal
-      events.push_back(SimpleSignal(*signal));
+      if (event->getEventType() == NDB_LE_SavedEvent &&
+          signal->getDataPtr()[1] == 0)
+      {
+        nodes_counter[nodeid] = 1;
+      }
+      else
+      {
+        // Save signal
+        events.push_back(SimpleSignal(*signal));
+      }
 
       // Check if node is done
-      nodes_counter[nodeid]++;
-      if (nodes_counter[nodeid] == reports_per_node)
+      nodes_counter[nodeid]--;
+      if (nodes_counter[nodeid] == 0)
         nodes.clear(nodeid);
 
       break;

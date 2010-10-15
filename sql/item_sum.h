@@ -340,7 +340,6 @@ public:
     forced_const= TRUE; 
   }
   virtual bool const_item() const { return forced_const; }
-  void make_field(Send_field *field);
   virtual void print(String *str, enum_query_type query_type);
   void fix_num_length_and_dec();
 
@@ -1222,7 +1221,7 @@ class Item_func_group_concat : public Item_sum
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
                          bool is_distinct, List<Item> *is_select,
-                         SQL_LIST *is_order, String *is_separator);
+                         SQL_I_List<ORDER> *is_order, String *is_separator);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat();

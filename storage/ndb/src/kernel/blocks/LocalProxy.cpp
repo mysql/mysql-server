@@ -87,6 +87,11 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   // GSN_DBINFO_SCANREQ
   addRecSignal(GSN_DBINFO_SCANREQ, &LocalProxy::execDBINFO_SCANREQ);
   addRecSignal(GSN_DBINFO_SCANCONF, &LocalProxy::execDBINFO_SCANCONF);
+
+  // GSN_SYNC_REQ
+  addRecSignal(GSN_SYNC_REQ, &LocalProxy::execSYNC_REQ, true);
+  addRecSignal(GSN_SYNC_REF, &LocalProxy::execSYNC_REF);
+  addRecSignal(GSN_SYNC_CONF, &LocalProxy::execSYNC_CONF);
 }
 
 LocalProxy::~LocalProxy()
@@ -1050,10 +1055,13 @@ LocalProxy::find_next(Ndbinfo::ScanCursor* cursor) const
   ndbrequire(node == getOwnNodeId());
   ndbrequire(block == number());
 
-  if (instance++ < c_workers)
+
+  Uint32 worker = (instance > 0) ? workerIndex(instance) + 1 : 0;
+
+  if (worker < c_workers)
   {
     jam();
-    cursor->currRef = switchRef(block, instance, node);
+    cursor->currRef = switchRef(block, workerInstance(worker), node);
     return true;
   }
 
@@ -1211,6 +1219,91 @@ LocalProxy::execDBINFO_SCANCONF(Signal* signal)
 
   sendSignal(senderRef, GSN_DBINFO_SCANCONF, signal, signal_length, JBB);
   return;
+}
+
+// GSN_SYNC_REQ
+
+void
+LocalProxy::execSYNC_REQ(Signal* signal)
+{
+  Ss_SYNC_REQ& ss = ssSeize<Ss_SYNC_REQ>();
+
+  ss.m_req = * CAST_CONSTPTR(SyncReq, signal->getDataPtr());
+
+  sendREQ(signal, ss);
+}
+
+void
+LocalProxy::sendSYNC_REQ(Signal* signal, Uint32 ssId,
+                         SectionHandle* handle)
+{
+  Ss_SYNC_REQ& ss = ssFind<Ss_SYNC_REQ>(ssId);
+
+  SyncReq * req = CAST_PTR(SyncReq, signal->getDataPtrSend());
+  req->senderRef = reference();
+  req->senderData = ssId;
+  req->prio = ss.m_req.prio;
+
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_SYNC_REQ,
+                      signal, SyncReq::SignalLength,
+                      JobBufferLevel(ss.m_req.prio), handle);
+}
+
+void
+LocalProxy::execSYNC_REF(Signal* signal)
+{
+  SyncRef ref = * CAST_CONSTPTR(SyncRef, signal->getDataPtr());
+  Ss_SYNC_REQ& ss = ssFind<Ss_SYNC_REQ>(ref.senderData);
+
+  recvREF(signal, ss, ref.errorCode);
+}
+
+void
+LocalProxy::execSYNC_CONF(Signal* signal)
+{
+  SyncConf conf = * CAST_CONSTPTR(SyncConf, signal->getDataPtr());
+  Ss_SYNC_REQ& ss = ssFind<Ss_SYNC_REQ>(conf.senderData);
+
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::sendSYNC_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_SYNC_REQ& ss = ssFind<Ss_SYNC_REQ>(ssId);
+
+  if (!lastReply(ss))
+    return;
+
+  /**
+   * SimulatedBlock::execSYNC_REQ will reply
+   */
+  if (ss.m_error == 0)
+  {
+    jam();
+    SyncConf * conf = CAST_PTR(SyncConf, signal->getDataPtrSend());
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+
+    Uint32 prio = ss.m_req.prio;
+    sendSignal(ss.m_req.senderRef, GSN_SYNC_CONF, signal,
+               SyncConf::SignalLength,
+               JobBufferLevel(prio));
+  }
+  else
+  {
+    jam();
+    SyncRef * ref = CAST_PTR(SyncRef, signal->getDataPtrSend());
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->errorCode = ss.m_error;
+
+    Uint32 prio = ss.m_req.prio;
+    sendSignal(ss.m_req.senderRef, GSN_SYNC_REF, signal,
+               SyncRef::SignalLength,
+               JobBufferLevel(prio));
+  }
+  ssRelease<Ss_SYNC_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(LocalProxy)

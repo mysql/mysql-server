@@ -1249,7 +1249,7 @@ not always make sense; please check the manual before using it).");
        the period is an ulonglong of nano-secs. 
     */
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
-    my_sprintf(query, (query, query_format, llbuf));
+    sprintf(query, query_format, llbuf);
 
     if (mysql_real_query(mysql, query, strlen(query))
         && !check_io_slave_killed(mi->io_thd, mi, NULL))
@@ -1546,7 +1546,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi, 1))
+      if (flush_master_info(mi, TRUE, TRUE))
         sql_print_error("Failed to flush master info file");
       delete ev;
     }
@@ -1826,17 +1826,20 @@ bool show_master_info(THD* thd, Master_info* mi)
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
         get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
-        slen= my_sprintf(sbuff, (sbuff, (i==0? "%lu" : ", %lu"), s_id));
+        slen= 
+          (i==0)?
+          sprintf(sbuff, "%lu", s_id)
+        : sprintf(sbuff, ", %lu", s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
           /*
             break the loop whenever remained space could not fit
             ellipses on the next cycle
           */
-          my_sprintf(buff + cur_len, (buff + cur_len, "..."));
+          sprintf(buff + cur_len, "...");
           break;
         }
-        cur_len += my_sprintf(buff + cur_len, (buff + cur_len, "%s", sbuff));
+        cur_len += sprintf(buff + cur_len, "%s", sbuff);
       }
       protocol->store(buff, &my_charset_bin);
     }
@@ -2211,7 +2214,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->options, OPTION_BEGIN),
-                      rli->last_event_start_time));
+                      (ulong) rli->last_event_start_time));
 
   /*
     Execute the event to change the database and update the binary
@@ -2546,7 +2549,7 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f)
     memcpy(buf_act, buf, read_size);
     snd_size= my_b_gets(f, buf_act + read_size, max_size - read_size);
     if (snd_size == 0 ||
-        (snd_size + 1 == max_size - read_size) &&  buf[max_size - 2] != '\n')
+        ((snd_size + 1 == max_size - read_size) &&  buf[max_size - 2] != '\n'))
     {
       /*
         failure to make the 2nd read or short read again
@@ -2917,7 +2920,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
       {
         goto err;
       }
-      if (flush_master_info(mi, 1))
+      if (flush_master_info(mi, TRUE, TRUE))
       {
         sql_print_error("Failed to flush master info file");
         goto err;
@@ -3076,8 +3079,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
-  my_off_t saved_log_pos= 0;
-  my_off_t saved_master_log_pos= 0;
+  my_off_t UNINIT_VAR(saved_log_pos);
+  my_off_t UNINIT_VAR(saved_master_log_pos);
   my_off_t saved_skip= 0;
 
   Relay_log_info* rli = &((Master_info*)arg)->rli;
@@ -3242,11 +3245,8 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   pthread_mutex_lock(&rli->data_lock);
   if (rli->slave_skip_counter)
   {
-    char *pos;
-    pos= strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
-    pos= '\0';
-    pos= strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
-    pos= '\0';
+    strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
+    strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
     saved_log_pos= rli->group_relay_log_pos;
     saved_master_log_pos= rli->group_master_log_pos;
     saved_skip= rli->slave_skip_counter;
@@ -3990,8 +3990,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
        /* everything is filtered out from non-master */
        (s_id != mi->master_id ||
         /* for the master meta information is necessary */
-        buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
-        buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT)))
+        (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+        buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT))))
   {
     /*
       Do not write it to the relay log.
@@ -4011,9 +4011,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       as well as rli->group_relay_log_pos.
     */
     if (!(s_id == ::server_id && !mi->rli.replicate_same_server_id) ||
-        buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+        (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
         buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&
-        buf[EVENT_TYPE_OFFSET] != STOP_EVENT)
+        buf[EVENT_TYPE_OFFSET] != STOP_EVENT))
     {
       mi->master_log_pos+= inc_pos;
       memcpy(rli->ign_master_log_name_end, mi->master_log_name, FN_REFLEN);

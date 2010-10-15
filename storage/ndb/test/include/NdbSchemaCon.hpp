@@ -47,7 +47,7 @@ class NdbApiSignal;
  * into the database. 
  *
  * @note   Currently only one table can be added per transaction.
- * @note Depricated, use NdbDictionary
+ * @note Deprecated, use NdbDictionary
  */
 class NdbSchemaCon
 {

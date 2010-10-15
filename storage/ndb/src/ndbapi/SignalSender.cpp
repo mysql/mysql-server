@@ -30,12 +30,42 @@ SimpleSignal::SimpleSignal(bool dealloc){
   deallocSections = dealloc;
 }
 
+SimpleSignal::SimpleSignal(const SimpleSignal& src)
+{
+  this->operator=(src);
+}
+
+SimpleSignal&
+SimpleSignal::operator=(const SimpleSignal& src)
+{
+  deallocSections = true;
+  header = src.header;
+  memcpy(theData, src.theData, sizeof(theData));
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    ptr[i].p = 0;
+    if (src.ptr[i].p != 0)
+    {
+      ptr[i].p = new Uint32[src.ptr[i].sz];
+      ptr[i].sz = src.ptr[i].sz;
+      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
+    }
+  }
+  return * this;
+}
+
 SimpleSignal::~SimpleSignal(){
   if(!deallocSections)
     return;
-  if(ptr[0].p != 0) delete []ptr[0].p;
-  if(ptr[1].p != 0) delete []ptr[1].p;
-  if(ptr[2].p != 0) delete []ptr[2].p;
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    if (ptr[i].p != 0)
+    {
+      delete [] ptr[i].p;
+    }
+  }
 }
 
 void 
@@ -76,64 +106,47 @@ SimpleSignal::print(FILE * out) const {
 }
 
 SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
-  : m_lock(0)
 {
-  m_cond = NdbCondition_Create();
   theFacade = facade;
-  lock();
-  m_blockNo = theFacade->open(this, blockNo);
-  unlock();
+  m_blockNo = open(theFacade, blockNo);
   assert(m_blockNo > 0);
 }
 
 SignalSender::SignalSender(Ndb_cluster_connection* connection)
 {
-  m_cond = NdbCondition_Create();
   theFacade = connection->m_impl.m_transporter_facade;
-  lock();
-  m_blockNo = theFacade->open(this, -1);
-  unlock();
+  m_blockNo = open(theFacade, -1);
   assert(m_blockNo > 0);
 }
 
 SignalSender::~SignalSender(){
   int i;
-  if (m_lock)
-    unlock();
-  theFacade->close(m_blockNo);
+  unlock();
+  close();
+
   // free these _after_ closing theFacade to ensure that
   // we delete all signals
   for (i= m_jobBuffer.size()-1; i>= 0; i--)
     delete m_jobBuffer[i];
   for (i= m_usedBuffer.size()-1; i>= 0; i--)
     delete m_usedBuffer[i];
-  NdbCondition_Destroy(m_cond);
 }
 
 int SignalSender::lock()
 {
-  if (NdbMutex_Lock(theFacade->theMutexPtr))
-    return -1;
-  m_lock= 1;
+  start_poll();
   return 0;
 }
 
 int SignalSender::unlock()
 {
-  if (NdbMutex_Unlock(theFacade->theMutexPtr))
-    return -1;
-  m_lock= 0;
+  complete_poll();
   return 0;
 }
 
 Uint32
 SignalSender::getOwnRef() const {
   return numberToRef(m_blockNo, theFacade->ownId());
-}
-
-const ClusterMgr::Node & 
-SignalSender::getNodeInfo(Uint16 nodeId) const {
-  return theFacade->theClusterMgr->getNodeInfo(nodeId);
 }
 
 Uint32
@@ -213,10 +226,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
   NDB_TICKS stop = now + timeOutMillis;
   Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
   do {
-    NdbCondition_WaitTimeout(m_cond,
-			     theFacade->theMutexPtr, 
-			     wait);
-    
+    do_poll(wait);
     
     SimpleSignal * s = t.check(m_jobBuffer);
     if(s != 0){
@@ -269,7 +279,7 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
     memcpy(s->ptr[i].p, ptr[i].p, 4 * ptr[i].sz);
   }
   m_jobBuffer.push_back(s);
-  NdbCondition_Signal(m_cond);
+  wakeup();
 }
   
 void 
@@ -312,13 +322,13 @@ ok:
     NdbNodeBitmask::clear(rep->theNodes);
 
     // Mark ndb nodes as failed in bitmask
-    const ClusterMgr::Node node= getNodeInfo(nodeId);
+    const trp_node node= getNodeInfo(nodeId);
     if (node.m_info.getType() ==  NodeInfo::DB)
       NdbNodeBitmask::set(rep->theNodes, nodeId);
   }
 
   m_jobBuffer.push_back(s);
-  NdbCondition_Signal(m_cond);
+  wakeup();
 }
 
 
@@ -343,7 +353,7 @@ SignalSender::find_node(const NodeBitmask& mask, T & t)
 
 class FindConfirmedNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.is_confirmed();
   }
 };
@@ -359,7 +369,7 @@ SignalSender::find_confirmed_node(const NodeBitmask& mask)
 
 class FindConnectedNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.is_connected();
   }
 };
@@ -375,7 +385,7 @@ SignalSender::find_connected_node(const NodeBitmask& mask)
 
 class FindAliveNode {
 public:
-  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+  bool found_ok(const SignalSender& ss, const trp_node & node){
     return node.m_alive;
   }
 };

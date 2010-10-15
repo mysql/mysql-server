@@ -218,6 +218,7 @@ private:
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
 
+  void execSYNC_REQ(Signal*);
 public:
   virtual const char* get_filename(Uint32 fd) const { return "";}
 protected:

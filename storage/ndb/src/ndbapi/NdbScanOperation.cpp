@@ -1837,8 +1837,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
     The rest needs to be done under mutex due to synchronization with receiver
     thread.
   */
-  PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
-                       theNdb->theNdbBlockNumber);
+  PollGuard poll_guard(* theNdb->theImpl);
 
   const Uint32 seq= theNdbCon->theNodeSequence;
 
@@ -2037,8 +2036,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
       in all places where the object is out of context due to a return,
       break, continue or simply end of statement block
     */
-    PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
-                         theNdb->theNdbBlockNumber);
+    PollGuard poll_guard(* theNdb->theImpl);
     close_impl(tp, forceSend, &poll_guard);
   }
 
@@ -3389,9 +3387,12 @@ NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
   if (firstWordOfBound == NULL)
     firstWordOfBound= theKEYINFOptr - 1;
   
-  /* Create NULL attribute header. */
-  const NdbRecord::Attr *column= &key_record->columns[0];
-  AttributeHeader ah(column->index_attrId, 0);
+  /*
+   * bug#57396 wrong attr id inserted.
+   * First index attr id is 0, key_record not used.
+   * Create NULL attribute header.
+   */
+  AttributeHeader ah(0, 0);
 
   if (unlikely(insertKEYINFO_NdbRecord((const char*) &ah.m_value,
                                        sizeof(Uint32))))
@@ -3693,8 +3694,7 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
   Uint32 timeout= theNdb->theImpl->get_waitfor_timeout();
   TransporterFacade* tp= theNdb->theImpl->m_transporter_facade;
 
-  PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
-                       theNdb->theNdbBlockNumber);
+  PollGuard poll_guard(* theNdb->theImpl);
   if(theError.code)
     return -1;
 

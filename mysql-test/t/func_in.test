@@ -540,5 +540,20 @@ EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, NULL);
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#54477: Crash on IN / CASE with NULL arguments
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+SELECT 1 IN (NULL, a) FROM t1;
+
+SELECT a IN (a, a) FROM t1 GROUP BY a WITH ROLLUP;
+
+SELECT CASE a WHEN a THEN a END FROM t1 GROUP BY a WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
 
 --echo End of 5.1 tests

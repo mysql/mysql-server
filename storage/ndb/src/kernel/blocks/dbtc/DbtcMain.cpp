@@ -22,7 +22,6 @@
 #include "md5_hash.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
-#include <my_sys.h>
 #include <ndb_rand.h>
 
 #include <signaldata/DiGetNodes.hpp>
@@ -11265,7 +11264,8 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       ndbrequire(curr.p->scanFragState == ScanFragRec::DELIVERED);
       delivered.remove(curr);
       
-      if(curr.p->m_ops > 0 && curr.p->m_scan_frag_conf_status == 0){
+      if (curr.p->m_scan_frag_conf_status == 0)
+      {
 	jam();
 	running.add(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
@@ -11274,7 +11274,9 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		   ScanFragNextReq::SignalLength, JBB);
 	
-      } else {
+      }
+      else 
+      {
 	jam();
 	c_scan_frag_pool.release(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
@@ -11294,7 +11296,8 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       queued.remove(curr); 
       scanP->m_queued_count--;
       
-      if(curr.p->m_ops > 0){
+      if (curr.p->m_scan_frag_conf_status == 0)
+      {
 	jam();
 	running.add(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
@@ -11302,7 +11305,9 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	nextReq->senderData = curr.i;
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		   ScanFragNextReq::SignalLength, JBB);
-      } else {
+      }
+      else 
+      {
 	jam();
 	c_scan_frag_pool.release(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
@@ -11390,15 +11395,34 @@ void Dbtc::sendScanFragReq(Signal* signal,
   bool longFragReq= ((version >= NDBD_LONG_SCANFRAGREQ) &&
                      (! ERROR_INSERTED(8070) &&
 		      ! ERROR_INSERTED(8088)));
-  Uint32 reqKeyLen= 0;
-  Uint32 reqAttrLen= 0;
-  if (unlikely(! longFragReq))
-  {
-    reqKeyLen= scanP->scanKeyLen;
-    reqAttrLen= scanP->scanAiLength;
-  }
   cachePtr.i = apiConnectptr.p->cachePtr;
   ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
+
+  Uint32 reqKeyLen = scanP->scanKeyLen;
+
+  SectionHandle sections(this);
+  sections.m_ptr[0].i = cachePtr.p->attrInfoSectionI;
+  sections.m_cnt = 1;
+    
+  if (reqKeyLen > 0)
+  {
+    jam();
+    ndbassert(cachePtr.p->keyInfoSectionI != RNIL);
+    sections.m_ptr[1].i = cachePtr.p->keyInfoSectionI;
+    sections.m_cnt = 2;
+  }
+
+  if (isLastReq)
+  {
+    /* This send will release these sections, remove our
+     * references to them
+     */
+    cachePtr.p->attrInfoSectionI = RNIL;
+    cachePtr.p->keyInfoSectionI = RNIL;
+  }
+    
+  getSections(sections.m_cnt, sections.m_ptr);
+
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
   Uint32 requestInfo = scanP->scanRequestInfo;
   ScanFragReq::setScanPrio(requestInfo, 1);
@@ -11408,7 +11432,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   req->senderData = scanFragptr.i;
   req->requestInfo = requestInfo;
-  req->fragmentNoKeyLen = scanFragP->scanFragId | reqKeyLen;
+  req->fragmentNoKeyLen = scanFragP->scanFragId;
   req->resultRef = apiConnectptr.p->ndbapiBlockref;
   req->savePointId = apiConnectptr.p->currSavePointId;
   req->transId1 = apiConnectptr.p->transid[0];
@@ -11421,29 +11445,6 @@ void Dbtc::sendScanFragReq(Signal* signal,
   {
     jam();
     /* Send long, possibly fragmented SCAN_FRAGREQ */
-    /* Create SectionHandle */
-    SectionHandle sections(this);
-    sections.m_ptr[0].i= cachePtr.p->attrInfoSectionI;
-    sections.m_cnt= 1;
-    
-    if (scanP->scanKeyLen > 0)
-    {
-      jam();
-      ndbassert(cachePtr.p->keyInfoSectionI != RNIL);
-      sections.m_ptr[1].i= cachePtr.p->keyInfoSectionI;
-      sections.m_cnt= 2;
-    }
-
-    if (isLastReq)
-    {
-      /* This send will release these sections, remove our
-       * references to them
-       */
-      cachePtr.p->attrInfoSectionI= RNIL;
-      cachePtr.p->keyInfoSectionI= RNIL;
-    }
-    
-    getSections(sections.m_cnt, sections.m_ptr);
 
     // TODO : 
     //   1) Consider whether to adjust fragmentation threshold
@@ -11491,10 +11492,12 @@ void Dbtc::sendScanFragReq(Signal* signal,
     /* Short SCANFRAGREQ with separate KeyInfo and AttrInfo trains 
      * Sent to older NDBD nodes during upgrade
      */
-    ScanFragReq::setAttrLen(requestInfo, reqAttrLen);
+    Uint32 reqAttrLen = sections.m_ptr[0].sz;
+    ScanFragReq::setAttrLen(req->requestInfo, reqAttrLen);
+    req->fragmentNoKeyLen |= reqKeyLen;
     sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
                ScanFragReq::SignalLength, JBB);
-    if(scanP->scanKeyLen > 0)
+    if(reqKeyLen > 0)
     {
       jam();
       tcConnectptr.i = scanFragptr.i;
@@ -11503,7 +11506,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
                        scanFragP->lqhBlockref,
                        scanFragptr.i,
                        0, // Offset 0
-                       cachePtr.p->keyInfoSectionI);
+                       sections.m_ptr[1].i);
     }
     
     if(ERROR_INSERTED(8035))
@@ -11515,19 +11518,20 @@ void Dbtc::sendScanFragReq(Signal* signal,
                                    scanFragP->lqhBlockref,
                                    scanFragptr.i,
                                    0, // Offset 0
-                                   cachePtr.p->attrInfoSectionI));
+                                   sections.m_ptr[0].i));
     }
-
+        
     if(ERROR_INSERTED(8035))
       globalTransporterRegistry.performSend();
 
     if (isLastReq)
     {
       /* Free the sections here */
-      releaseSection(cachePtr.p->attrInfoSectionI);
-      releaseSection(cachePtr.p->keyInfoSectionI);
-      cachePtr.p->attrInfoSectionI= RNIL;
-      cachePtr.p->keyInfoSectionI= RNIL;
+      releaseSections(sections);
+    }
+    else
+    {
+      sections.clear();
     }
   }
 

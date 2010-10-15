@@ -72,9 +72,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theFirstTransId= 0;
   theMyRef= 0;
 
-  cond_wait_index = TransporterFacade::MAX_NO_THREADS;
-  cond_signal_ndb = NULL;
-
   fullyQualifiedNames = true;
 
 #ifdef POORMANSPURIFY
@@ -99,8 +96,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theImpl->m_dbname.assign(aDataBase);
   theImpl->m_schemaname.assign(aSchema);
   theImpl->update_prefix();
-
-  theImpl->theWaiter.m_mutex =  theImpl->m_transporter_facade->theMutexPtr;
 
   // Signal that the constructor has finished OK
   if (theInitState == NotConstructed)
@@ -144,9 +139,7 @@ Ndb::~Ndb()
   doDisconnect();
 
   /* Disconnect from transporter to stop signals from coming in */
-  if (theImpl->m_transporter_facade != NULL && theNdbBlockNumber > 0){
-    theImpl->m_transporter_facade->close(theNdbBlockNumber);
-  }
+  theImpl->close();
 
   delete theEventBuffer;
 
@@ -176,17 +169,15 @@ Ndb::~Ndb()
   DBUG_VOID_RETURN;
 }
 
-NdbWaiter::NdbWaiter(){
+NdbWaiter::NdbWaiter(trp_client* clnt)
+  : m_clnt(clnt)
+{
   m_node = 0;
   m_state = NO_WAIT;
-  m_mutex = 0;
-  m_poll_owner= false;
-  m_cond_wait_index= TransporterFacade::MAX_NO_THREADS;
-  m_condition = NdbCondition_Create();
 }
 
-NdbWaiter::~NdbWaiter(){
-  NdbCondition_Destroy(m_condition);
+NdbWaiter::~NdbWaiter()
+{
 }
 
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
@@ -201,6 +192,7 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     theNdbObjectIdMap(m_transporter_facade->theMutexPtr,
 		      1024,1024),
     theNoOfDBnodes(0),
+    theWaiter(this),
     m_ev_op(0)
 {
   int i;

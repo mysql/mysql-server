@@ -125,7 +125,7 @@ class Ndb;
  *
  * The NdbSchemaOp object is created using NdbSchemaCon::getNdbSchemaOp.
  * 
- * @note  This class is depricated and is now replaced with the class
+ * @note  This class is deprecated and is now replaced with the class
  *        NdbDictionary.
  */
 class NdbSchemaOp 

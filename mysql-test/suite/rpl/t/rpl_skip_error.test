@@ -55,7 +55,7 @@ insert into t1 values (7), (8), (9);
 --echo [on slave]
 sync_slave_with_master;
 select * from t1 order by n;
-source include/show_slave_status2.inc;
+source include/check_slave_is_running.inc;
 
 --echo ==== Clean Up ====
 connection master;
@@ -78,7 +78,7 @@ insert into t1 values (1), (2), (3);
 --echo [on slave]
 sync_slave_with_master;
 select * from t1;
-source include/show_slave_status2.inc;
+source include/check_slave_is_running.inc;
 
 
 --echo ==== Clean Up ====
