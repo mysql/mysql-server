@@ -2869,7 +2869,18 @@ SELECT DISTINCT STRAIGHT_JOIN table1.pk FROM
 
 drop table t;
 
+########
+# SPJ variant of bug#57396
+# Test correct format of an 'open bound'
+########
+create table t (b int, a int, primary key (a,b)) engine=ndb;
+insert into t values(0,0);
 
+explain
+select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
+select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
+
+drop table t;
 
 ########################################
 # Verify DBSPJ counters for entire test:

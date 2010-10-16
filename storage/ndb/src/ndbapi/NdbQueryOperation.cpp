@@ -1490,7 +1490,7 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
      * To encode this, we'll request all rows where the first
      * key column value is >= NULL
      */
-    AttributeHeader ah(key_record->columns[0].index_attrId, 0);
+    AttributeHeader ah(0, 0);
     m_keyInfo.append(NdbIndexScanOperation::BoundLE);
     m_keyInfo.append(ah.m_value);
   }
