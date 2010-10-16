@@ -116,17 +116,9 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                           uint first_unused);
 
-/**
- *  SPJ MERGE TODO Bug#48971:
- *  BEWARE: Temp fix for Bug#48971 in SPJ branch affects signature
- *  to optimize_cond.
- *  Permanent fix has not been merged to this branch yet.
- *  Needed as this was a showstopper for further SPJ testing.
- */
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
-			   Item::cond_result *cond_value,
-                           bool build_equalites);
+			   Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
@@ -894,7 +886,7 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
 
-  conds= optimize_cond(this, conds, join_list, &cond_value, TRUE);   
+  conds= optimize_cond(this, conds, join_list, &cond_value);   
   if (thd->is_error())
   {
     error= 1;
@@ -903,7 +895,7 @@ JOIN::optimize()
   }
 
   {
-    having= optimize_cond(this, having, join_list, &having_value, FALSE);
+    having= optimize_cond(this, having, join_list, &having_value);
     if (thd->is_error())
     {
       error= 1;
@@ -9267,39 +9259,6 @@ static bool check_interleaving_with_nj(JOIN_TAB *next_tab)
     function for the first table in join order (for which 
     check_interleaving_with_nj has not been called)
 
-  The algorithm is the reciprocal of check_interleaving_with_nj(), hence
-  parent join nest nodes are updated only when the last table in its child
-  node is removed. The ASCII graphic below will clarify.
-
-  %A table nesting such as <tt> t1 x [ ( t2 x t3 ) x ( t4 x t5 ) ] </tt>is
-  represented by the below join nest tree.
-
-  @verbatim
-                     NJ1
-                  _/ /  \
-                _/  /    NJ2
-              _/   /     / \ 
-             /    /     /   \
-   t1 x [ (t2 x t3) x (t4 x t5) ]
-  @endverbatim
-
-  At the point in time when check_interleaving_with_nj() adds the table t5 to
-  the query execution plan, QEP, it also directs the node named NJ2 to mark
-  the table as covered. NJ2 does so by incrementing its @c counter
-  member. Since all of NJ2's tables are now covered by the QEP, the algorithm
-  proceeds up the tree to NJ1, incrementing its counter as well. All join
-  nests are now completely covered by the QEP.
-
-  restore_prev_nj_state() does the above in reverse. As seen above, the node
-  NJ1 contains the nodes t2, t3, and NJ2. Its counter being equal to 3 means
-  that the plan covers t2, t3, and NJ2, @e and that the sub-plan (t4 x t5)
-  completely covers NJ2. The removal of t5 from the partial plan will first
-  decrement NJ2's counter to 1. It will then detect that NJ2 went from being
-  completely to partially covered, and hence the algorithm must continue
-  upwards to NJ1 and decrement its counter to 2. %A subsequent removal of t4
-  will however not influence NJ1 since it did not un-cover the last table in
-  NJ2.
-
   @param last  join table to remove, it is assumed to be the last in current
                partial join order.
 */
@@ -9326,16 +9285,9 @@ static void restore_prev_nj_state(JOIN_TAB *last)
 }
 
 
-/**
- *  SPJ MERGE TODO Bug#48971:
- *  BEWARE: Temp fix for Bug#48971 in SPJ branch affects signature
- *  to optimize_cond.
- *  Permanent fix has not been merged to this branch yet.
- *  Needed as this was a showstopper for further SPJ testing.
- */
 static COND *
 optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
-              Item::cond_result *cond_value, bool build_equalites)
+              Item::cond_result *cond_value)
 {
   THD *thd= join->thd;
   DBUG_ENTER("optimize_cond");
@@ -9353,12 +9305,9 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
       multiple equality contains a constant.
     */ 
     DBUG_EXECUTE("where", print_where(conds, "original", QT_ORDINARY););
-    if (build_equalites)
-    {
-      conds= build_equal_items(join->thd, conds, NULL, join_list,
-                               &join->cond_equal);
-      DBUG_EXECUTE("where",print_where(conds,"after equal_items",QT_ORDINARY););
-    }
+    conds= build_equal_items(join->thd, conds, NULL, join_list,
+                             &join->cond_equal);
+    DBUG_EXECUTE("where",print_where(conds,"after equal_items",QT_ORDINARY););
 
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
