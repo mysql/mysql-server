@@ -881,7 +881,17 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
-    if (thd->transaction.all.modified_non_trans_table && rli->is_in_group())
+    /*
+      The transaction should always be binlogged if OPTION_KEEP_LOG is set
+      (it implies that something can not be rolled back). And such case
+      should be regarded similarly as modifing a non-transactional table
+      because retrying of the transaction will lead to an error or inconsistency
+      as well.
+      Example: OPTION_KEEP_LOG is set if a temporary table is created or dropped.
+    */
+    if ((thd->transaction.all.modified_non_trans_table ||
+         (thd->variables.option_bits & OPTION_KEEP_LOG))
+        && rli->is_in_group())
     {
       char msg_stopped[]=
         "... The slave SQL is stopped, leaving the current group "
