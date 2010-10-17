@@ -8839,7 +8839,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
        the size of the first row and use that value to initialize
        storage engine for bulk insertion */
     DBUG_ASSERT(!(m_curr_row > m_curr_row_end));
-    ulong estimated_rows;
+    ulong estimated_rows= 0;
     if (m_curr_row < m_curr_row_end)
       estimated_rows= (m_rows_end - m_curr_row) / (m_curr_row_end - m_curr_row);
     else if (m_curr_row == m_curr_row_end)

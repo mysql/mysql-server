@@ -114,19 +114,19 @@ static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
 
 int Relay_log_info::count_relay_log_space()
 {
-  LOG_INFO linfo;
+  LOG_INFO flinfo;
   DBUG_ENTER("Relay_log_info::count_relay_log_space");
   log_space_total= 0;
-  if (relay_log.find_log_pos(&linfo, NullS, 1))
+  if (relay_log.find_log_pos(&flinfo, NullS, 1))
   {
     sql_print_error("Could not find first log while counting relay log space");
     DBUG_RETURN(1);
   }
   do
   {
-    if (add_relay_log(this, &linfo))
+    if (add_relay_log(this, &flinfo))
       DBUG_RETURN(1);
-  } while (!relay_log.find_next_log(&linfo, 1));
+  } while (!relay_log.find_next_log(&flinfo, 1));
   /*
      As we have counted everything, including what may have written in a
      preceding write, we must reset bytes_written, or we may count some space

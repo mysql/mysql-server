@@ -3402,8 +3402,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
-  my_off_t saved_log_pos;
-  my_off_t saved_master_log_pos;
+  my_off_t saved_log_pos= 0;
+  my_off_t saved_master_log_pos= 0;
   my_off_t saved_skip= 0;
 
   Relay_log_info* rli = ((Master_info*)arg)->rli;
@@ -5436,9 +5436,9 @@ bool change_master(THD* thd, Master_info* mi)
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
   bool ret= FALSE;
   char saved_host[HOSTNAME_LENGTH + 1];
-  uint saved_port;
+  uint saved_port= 0;
   char saved_log_name[FN_REFLEN];
-  my_off_t saved_log_pos;
+  my_off_t saved_log_pos= 0;
 
   DBUG_ENTER("change_master");
 
