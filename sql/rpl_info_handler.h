@@ -297,9 +297,9 @@ private:
   virtual bool do_set_info(const int pos, const Server_ids *value)= 0;
   virtual bool do_get_info(const int pos, char *value, const size_t size,
                            const char *default_value)= 0;
-  virtual bool do_get_info(int pos, ulong *value,
+  virtual bool do_get_info(const int pos, ulong *value,
                            const ulong default_value)= 0;
-  virtual bool do_get_info(int pos, int *value,
+  virtual bool do_get_info(const int pos, int *value,
                            const int default_value)= 0;
   virtual bool do_get_info(const int pos, float *value,
                            const float default_value)= 0;
