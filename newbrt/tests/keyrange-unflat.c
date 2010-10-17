@@ -9,9 +9,8 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static void test_flat (void) {
+static void test_flat (u_int64_t limit) {
     char fname[]= __FILE__ ".brt";
-    const u_int64_t limit=10000;
     u_int64_t permute[limit];
     unlink(fname);
     CACHETABLE ct;
@@ -67,7 +66,8 @@ static void test_flat (void) {
 
 int
 test_main (int argc , const char *argv[]) {
-#define DO_AFFINITY 0
+    u_int64_t limit = 10000;
+#define DO_AFFINITY 1
 #if DO_AFFINITY == 0
     default_parse_args(argc, argv);
 #else
@@ -81,6 +81,10 @@ test_main (int argc , const char *argv[]) {
         }
         if (strcmp(arg, "--ncpus") == 0 && i+1 < argc) {
             ncpus = atoi(argv[++i]);
+            continue;
+        }
+        if (strcmp(arg, "--limit") == 0 && i+1 < argc) {
+            limit = atoi(argv[++i]);
             continue;
         }
         break;
@@ -103,7 +107,7 @@ test_main (int argc , const char *argv[]) {
     }
 #endif
 
-    test_flat();
+    test_flat(limit);
     
     if (verbose) printf("test ok\n");
     return 0;

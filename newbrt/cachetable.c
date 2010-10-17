@@ -15,7 +15,6 @@
 #include "threadpool.h"
 #include "cachetable.h"
 #include "rwlock.h"
-#include "toku_worker.h"
 #include "log_header.h"
 #include "checkpoint.h"
 #include "minicron.h"
@@ -684,7 +683,7 @@ WORKQUEUE toku_cachetable_get_workqueue(CACHETABLE ct) {
 void toku_cachefile_get_workqueue_load (CACHEFILE cf, int *n_in_queue, int *n_threads) {
     CACHETABLE ct = cf->cachetable;
     *n_in_queue = workqueue_n_in_queue(&ct->wq, 1);
-    *n_threads  = threadpool_get_current_threads(ct->threadpool);
+    *n_threads  = toku_thread_pool_get_current_threads(ct->threadpool);
 }
 
 //Test-only function

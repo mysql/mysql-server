@@ -161,9 +161,10 @@ test_flow_control (int limit, int n, int maxthreads) {
     THREADPOOL tp;
     int i;
     rwfc_init(rwfc, limit);
-    threadpool_create(&tp, maxthreads);
-    for (i=0; i<maxthreads; i++)
-        threadpool_maybe_add(tp, rwfc_worker, &rwfc->workqueue);
+    toku_thread_pool_create(&tp, maxthreads);
+    int T = maxthreads;
+    toku_thread_pool_run(tp, 0, &T, rwfc_worker, &rwfc->workqueue);
+    assert(T == maxthreads);
     sleep(1);     // this is here to block the reader on the first deq
     for (i=0; i<n; i++) {
         WORKITEM wi = new_workitem();
@@ -179,7 +180,7 @@ test_flow_control (int limit, int n, int maxthreads) {
         // toku_os_usleep(random() % 1);
     }
     workqueue_set_closed(&rwfc->workqueue, 1);
-    threadpool_destroy(&tp);
+    toku_thread_pool_destroy(&tp);
     rwfc_destroy(rwfc);
 }
 

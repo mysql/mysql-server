@@ -12,7 +12,6 @@
 #include "toku_pthread.h"
 #include "workqueue.h"
 #include "threadpool.h"
-#include "toku_worker.h"
 
 // Create fixed number of worker threads, all waiting on a single queue
 // of work items (WORKQUEUE).
@@ -21,15 +20,13 @@ void toku_init_workers(WORKQUEUE wq, THREADPOOL *tpptr) {
     workqueue_init(wq);
     int nprocs = toku_os_get_number_active_processors();
     int nthreads = nprocs*2;
-    threadpool_create(tpptr, nthreads);
-    int i;
-    for (i=0; i<nthreads; i++)
-        threadpool_maybe_add(*tpptr, toku_worker, wq);
+    toku_thread_pool_create(tpptr, nthreads);
+    toku_thread_pool_run(*tpptr, 0, &nthreads, toku_worker, wq);
 }
 
 void toku_destroy_workers(WORKQUEUE wq, THREADPOOL *tpptr) {
     workqueue_set_closed(wq, 1);       // close the work queue and [see "A" in toku_worker()]
-    threadpool_destroy(tpptr);         // wait for all of the worker threads to exit
+    toku_thread_pool_destroy(tpptr);   // wait for all of the worker threads to exit
     workqueue_destroy(wq);    
 }
 

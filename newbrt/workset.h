@@ -8,55 +8,67 @@
 #include <toku_list.h>
 #include <toku_pthread.h>
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+#include "c_dialects.h"
 
+C_BEGIN
 
-// the work struct is the base class for work to be done by some threads
+// The work struct is the base class for work to be done by some threads
 struct work {
     struct toku_list next;
 };
 
-// the workset struct contains the set of work to be done by some threads
-// the lock protects the work list
+// The workset struct contains the set of work to be done by some threads
 struct workset {
     toku_pthread_mutex_t lock;
-    struct toku_list worklist;
+    struct toku_list worklist;           // a list of work
+    int refs;                            // number of workers that have a reference on the workset
+    toku_pthread_cond_t worker_wait;     // a condition variable used to wait for all of the worker to release their reference on the workset
 };
 
-static inline void workset_init(struct workset *ws) {
-    int r = toku_pthread_mutex_init(&ws->lock, NULL); assert(r == 0);
+static inline void 
+workset_init(struct workset *ws) {
+    int r;
+    r = toku_pthread_mutex_init(&ws->lock, NULL); invariant(r == 0);
     toku_list_init(&ws->worklist);
+    ws->refs = 1;      // the calling thread gets a reference
+    r = toku_pthread_cond_init(&ws->worker_wait, NULL); invariant(r == 0);
 }
 
-static inline void workset_destroy(struct workset *ws) {
-    assert(toku_list_empty(&ws->worklist));
-    int r = toku_pthread_mutex_destroy(&ws->lock); assert(r == 0);
+static inline void 
+workset_destroy(struct workset *ws) {
+    invariant(toku_list_empty(&ws->worklist));
+    int r;
+    r = toku_pthread_cond_destroy(&ws->worker_wait); invariant(r == 0);
+    r = toku_pthread_mutex_destroy(&ws->lock); invariant(r == 0);
 }
 
-static inline void workset_lock(struct workset *ws) {
-    int r = toku_pthread_mutex_lock(&ws->lock); assert(r == 0);
+static inline void 
+workset_lock(struct workset *ws) {
+    int r = toku_pthread_mutex_lock(&ws->lock); invariant(r == 0);
 }
         
-static inline void workset_unlock(struct workset *ws) {
-    int r = toku_pthread_mutex_unlock(&ws->lock); assert(r == 0);
+static inline void 
+workset_unlock(struct workset *ws) {
+    int r = toku_pthread_mutex_unlock(&ws->lock); invariant(r == 0);
 }
 
-// put work in the workset 
-static inline void workset_put(struct workset *ws, struct work *w) {
-    workset_lock(ws);
+// Put work in the workset.  Assume the workset is already locked.
+static inline void 
+workset_put_locked(struct workset *ws, struct work *w) {
     toku_list_push(&ws->worklist, &w->next);
+}
+
+// Put work in the workset 
+static inline void 
+workset_put(struct workset *ws, struct work *w) {
+    workset_lock(ws);
+    workset_put_locked(ws, w);
     workset_unlock(ws);
 }
 
-// put work in the workset.  assume already locked.
-static inline void workset_put_locked(struct workset *ws, struct work *w) {
-    toku_list_push(&ws->worklist, &w->next);
-}
-
-// get work from the workset
-static inline struct work *workset_get(struct workset *ws) {
+// Get work from the workset
+static inline struct work *
+workset_get(struct workset *ws) {
     workset_lock(ws);
     struct work *w = NULL;
     if (!toku_list_empty(&ws->worklist)) {
@@ -67,30 +79,34 @@ static inline struct work *workset_get(struct workset *ws) {
     return w;
 }
 
-// create a set of threads to run a given function
-// tids will contain the thread id's of the created threads
-// *ntids on input contains the number of threads requested, on output contains the number of threads created
-static inline void threadset_create(toku_pthread_t tids[], int *ntids, void *(*f)(void *arg), void *arg) {
-    int n = *ntids;
-    int i;
-    for (i = 0; i < n; i++) {
-        int r = toku_pthread_create(&tids[i], NULL, f, arg); 
-        if (r != 0)
-            break;
-    }
-    *ntids = i;
+// Add references to the workset
+static inline void 
+workset_add_ref(struct workset *ws, int refs) {
+    workset_lock(ws);
+    ws->refs += refs;
+    workset_unlock(ws);
 }
 
-// join with a set of threads
-static inline void threadset_join(toku_pthread_t tids[], int ntids) {
-    for (int i = 0; i < ntids; i++) {
-        void *ret;
-        int r = toku_pthread_join(tids[i], &ret); assert(r == 0);
+// Release a reference on the workset
+static inline void 
+workset_release_ref(struct workset *ws) {
+    workset_lock(ws);
+    if (--ws->refs == 0) {
+        int r = toku_pthread_cond_broadcast(&ws->worker_wait); invariant(r == 0);
     }
+    workset_unlock(ws);
 }
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
+// Wait until all of the worker threads have released their reference on the workset
+static inline void 
+workset_join(struct workset *ws) {
+    workset_lock(ws);
+    while (ws->refs != 0) {
+        int r = toku_pthread_cond_wait(&ws->worker_wait, &ws->lock); invariant(r == 0);
+    }
+    workset_unlock(ws);
+}
+
+C_END
 
 #endif

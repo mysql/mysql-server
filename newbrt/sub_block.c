@@ -10,6 +10,7 @@
 
 #include "toku_assert.h"
 #include "x1764.h"
+#include "threadpool.h"
 #include "sub_block.h"
 
 void 
@@ -147,11 +148,12 @@ compress_worker(void *arg) {
             break;
         compress_sub_block(w->sub_block);
     }
+    workset_release_ref(ws);
     return arg;
 }
 
 size_t
-compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores) {
+compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores, struct toku_thread_pool *pool) {
     char *compressed_base_ptr = compressed_ptr;
     size_t compressed_len;
 
@@ -186,12 +188,12 @@ compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *un
 
         // compress the sub-blocks
         if (0) printf("%s:%d T=%d N=%d\n", __FUNCTION__, __LINE__, T, n_sub_blocks);
-        toku_pthread_t tids[T];
-        threadset_create(tids, &T, compress_worker, &ws);
+        toku_thread_pool_run(pool, 0, &T, compress_worker, &ws);
+        workset_add_ref(&ws, T);
         compress_worker(&ws);
 
         // wait for all of the work to complete
-        threadset_join(tids, T);
+        workset_join(&ws);
 
         // squeeze out the holes not used by the compress bound
         compressed_ptr = compressed_base_ptr + sub_block[0].compressed_size;
@@ -246,11 +248,12 @@ decompress_worker(void *arg) {
             break;
         dw->error = decompress_sub_block(dw->compress_ptr, dw->compress_size, dw->uncompress_ptr, dw->uncompress_size, dw->xsum);
     }
+    workset_release_ref(ws);
     return arg;
 }
 
 int
-decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores) {
+decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores, struct toku_thread_pool *pool) {
     int r;
 
     if (n_sub_blocks == 1) {
@@ -281,12 +284,12 @@ decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsign
     
         // decompress the sub-blocks
         if (0) printf("%s:%d Cores=%d Blocks=%d T=%d\n", __FUNCTION__, __LINE__, num_cores, n_sub_blocks, T);
-        toku_pthread_t tids[T];
-        threadset_create(tids, &T, decompress_worker, &ws);
+        toku_thread_pool_run(pool, 0, &T, decompress_worker, &ws);
+        workset_add_ref(&ws, T);
         decompress_worker(&ws);
 
         // cleanup
-        threadset_join(tids, T);
+        workset_join(&ws);
         workset_destroy(&ws);
 
         r = 0;

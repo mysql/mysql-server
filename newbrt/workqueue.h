@@ -9,10 +9,9 @@
 #include <errno.h>
 #include "toku_assert.h"
 #include "toku_pthread.h"
+#include "c_dialects.h"
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+C_BEGIN
 
 struct workitem;
 
@@ -203,9 +202,20 @@ static int workqueue_n_in_queue (WORKQUEUE wq, int dolock) {
     return r;
 }
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
+#include "threadpool.h"
+
+// initialize the work queue and worker 
+void toku_init_workers(WORKQUEUE wq, THREADPOOL *tpptr);
+
+// destroy the work queue and worker 
+void toku_destroy_workers(WORKQUEUE wq, THREADPOOL *tpptr);
+
+// this is the thread function for the worker threads in the worker thread
+// pool. the arg is a pointer to the work queue that feeds work to the
+// workers.
+void *toku_worker(void *arg);
+
+C_END
+
 #endif
 
-
-#endif

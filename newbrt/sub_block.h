@@ -74,7 +74,7 @@ void *
 compress_worker(void *arg);
 
 size_t
-compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores);
+compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores, struct toku_thread_pool *pool);
 
 struct decompress_work {
     struct work base;
@@ -104,10 +104,10 @@ decompress_worker(void *arg);
 // decompress all sub blocks from the compressed_data buffer to the uncompressed_data buffer
 // Returns 0 if success, otherwise an error
 int
-decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores);
+decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores, struct toku_thread_pool *pool);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
-};
+}
 #endif
 
 #endif
