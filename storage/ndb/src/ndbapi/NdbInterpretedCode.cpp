@@ -991,9 +991,9 @@ NdbInterpretedCode::copy(const NdbInterpretedCode& src)
     {
       return 4000; // Alllocation failed.
     }
-    bcopy(src.m_internal_buffer, 
-          m_internal_buffer, 
-          m_buffer_length*sizeof(Uint32));
+    memcpy(m_internal_buffer,
+           src.m_internal_buffer, 
+           m_buffer_length*sizeof(Uint32));
   }
 
   m_number_of_labels = src.m_number_of_labels;
