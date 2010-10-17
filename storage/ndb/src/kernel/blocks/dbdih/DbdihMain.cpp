@@ -2592,7 +2592,7 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   Uint32 TstartNode = signal->theData[0];
   Uint32 TsendNodeId_or_blockref = signal->theData[1];
 
-  Uint32 blocklist[6];
+  Uint32 blocklist[7];
   blocklist[0] = clocallqhblockref;
   blocklist[1] = clocaltcblockref;
   blocklist[2] = cdictblockref;
