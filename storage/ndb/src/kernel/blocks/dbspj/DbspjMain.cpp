@@ -3969,6 +3969,7 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
   ndbrequire(requestPtr.p->m_outstanding);
   requestPtr.p->m_outstanding--;
   treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+  mark_active(requestPtr, treeNodePtr, false);
 
   abort(signal, requestPtr, errCode);
 }
