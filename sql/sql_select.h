@@ -1570,6 +1570,7 @@ public:
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
+  COND_EQUAL *having_equal;
   SQL_SELECT *select;                ///<created in optimisation phase
   JOIN_TAB *return_tab;              ///<used only for outer joins
   Item **ref_pointer_array; ///<used pointer reference for this select
@@ -1657,6 +1658,7 @@ public:
     zero_result_cause= 0;
     optimized= 0;
     cond_equal= 0;
+    having_equal= 0;
     group_optimized_away= 0;
     no_rows_in_result_called= 0;
 

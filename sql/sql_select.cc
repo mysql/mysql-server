@@ -127,7 +127,8 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
 
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
-			   Item::cond_result *cond_value);
+			   Item::cond_result *cond_value, 
+                           COND_EQUAL **cond_equal);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool create_internal_tmp_table_from_heap2(THD *, TABLE *,
                                      ENGINE_COLUMNDEF *, ENGINE_COLUMNDEF **, 
@@ -813,7 +814,7 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
 
-  conds= optimize_cond(this, conds, join_list, &cond_value);   
+  conds= optimize_cond(this, conds, join_list, &cond_value, &cond_equal);   
   if (thd->is_error())
   {
     error= 1;
@@ -822,7 +823,7 @@ JOIN::optimize()
   }
 
   {
-    having= optimize_cond(this, having, join_list, &having_value);
+    having= optimize_cond(this, having, join_list, &having_value, &having_equal);
     if (thd->is_error())
     {
       error= 1;
@@ -2378,6 +2379,7 @@ JOIN::destroy()
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
+  having_equal= 0;
 
   cleanup(1);
   /* Cleanup items referencing temporary table columns */
@@ -9118,6 +9120,7 @@ static COND *build_equal_items(THD *thd, COND *cond,
     if (cond->type() == Item::COND_ITEM &&
         ((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
       cond_equal= &((Item_cond_and*) cond)->cond_equal;
+
     else if (cond->type() == Item::FUNC_ITEM &&
              ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
     {
@@ -10404,7 +10407,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
 
 static COND *
 optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
-              Item::cond_result *cond_value)
+              Item::cond_result *cond_value, COND_EQUAL **cond_equal)
 {
   THD *thd= join->thd;
   DBUG_ENTER("optimize_cond");
@@ -10412,7 +10415,7 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   if (!conds)
   {
     *cond_value= Item::COND_TRUE;
-    build_equal_items(join->thd, NULL, NULL, join_list, &join->cond_equal);
+    build_equal_items(join->thd, NULL, NULL, join_list, cond_equal);
   }  
   else
   {
