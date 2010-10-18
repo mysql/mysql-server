@@ -181,4 +181,9 @@ Wildcard: inf_rmation_schema
 +--------------------+
 | information_schema |
 +--------------------+
+Database: test
++--------+
+| Tables |
++--------+
++--------+
 End of 5.0 tests
