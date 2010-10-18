@@ -103,6 +103,13 @@ AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 
+# Check whether a debug mode should be enabled.
+AC_ARG_WITH([debug],
+    AS_HELP_STRING([--with-debug@<:@=full@:>@],
+      [Enable various amounts of debugging support (full adds a slow memory checker).]),
+    [with_debug=$withval],
+    [with_debug=no])
+
 # Whether the maintainer mode should be enabled.
 MY_MAINTAINER_MODE
 
@@ -1674,11 +1681,6 @@ then
   DEBUG_OPTIMIZE_CXX=""
 fi
 
-AC_ARG_WITH(debug,
-    [  --with-debug            Add debug code
-  --with-debug=full       Add debug code (adds memory checker, very slow)],
-    [with_debug=$withval],
-    [with_debug=no])
 if test "$with_debug" = "yes"
 then
   # Medium debug.
