@@ -83,6 +83,9 @@ static char *shared_memory_base_name= 0;
 #endif
 static char* user = 0;
 static char* pass = 0;
+#ifndef MCP_WL3126
+static char *opt_bind_addr = NULL;
+#endif
 static char *charset= 0;
 
 static uint verbose= 0;
@@ -1015,6 +1018,11 @@ static struct my_option my_long_options[] =
    "argument, 'always' is used.",
    &opt_base64_output_mode_str, &opt_base64_output_mode_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef MCP_WL3126
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   /*
     mysqlbinlog needs charsets knowledge, to be able to convert a charset
     number found in binlog to a charset name (to be able to print things
@@ -1384,6 +1392,10 @@ static Exit_status safe_connect()
 
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+#ifndef MCP_WL3126
+  if (opt_bind_addr)
+    mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
+#endif
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
