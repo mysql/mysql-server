@@ -1,3 +1,9 @@
+2010-10-18	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h, innodb_bug57252.result,
+	innodb_bug57252.test:
+	Fix Bug#57252 disabling innobase_stats_on_metadata disables ANALYZE
+
 2010-10-14	The InnoDB Team
 
 	* handler/ha_innodb.cc, innodb_bug56143.result, innodb_bug56143.test:
