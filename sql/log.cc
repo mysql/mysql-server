@@ -155,7 +155,7 @@ class binlog_trx_data {
 public:
   binlog_trx_data()
     : at_least_one_stmt_committed(0), incident(FALSE), m_pending(0),
-    before_stmt_pos(MY_OFF_T_UNDEF), using_xa(0)
+    before_stmt_pos(MY_OFF_T_UNDEF), using_xa(0), commit_bin_log_file_pos(0)
   {
     trans_log.end_of_file= max_binlog_cache_size;
     (void) my_pthread_mutex_init(&LOCK_group_commit, MY_MUTEX_INIT_SLOW,
@@ -218,6 +218,7 @@ public:
     incident= FALSE;
     trans_log.end_of_file= max_binlog_cache_size;
     using_xa= FALSE;
+    commit_bin_log_file_pos= 0;
     DBUG_ASSERT(empty());
   }
 
@@ -297,6 +298,11 @@ public:
   /* Mutex and condition for wakeup after group commit. */
   pthread_mutex_t LOCK_group_commit;
   pthread_cond_t COND_group_commit;
+  /*
+    Binlog position after current commit, available to storage engines during
+    commit() and commit_ordered().
+  */
+  ulonglong commit_bin_log_file_pos;
 };
 
 handlerton *binlog_hton;
@@ -5170,6 +5176,8 @@ MYSQL_BIN_LOG::trx_group_commit_leader(TC_group_commit_entry *first)
         write_count++;
       }
 
+      current->commit_bin_log_file_pos=
+        log_file.pos_in_file + (log_file.write_pos - log_file.write_buffer);
       if (current->end_event->get_type_code() == XID_EVENT)
         xid_count++;
     }
@@ -6005,6 +6013,7 @@ int TC_LOG_group_commit::log_and_order(THD *thd, my_xid xid, bool all,
     ++num_group_commits;
     do
     {
+      DEBUG_SYNC(thd, "commit_loop_entry_commit_ordered");
       ++num_commits;
       if (!current->xid_error)
         run_commit_ordered(current->thd, current->all);
@@ -6812,6 +6821,36 @@ extern "C"
 ulonglong mysql_bin_log_file_pos(void)
 {
   return (ulonglong) mysql_bin_log.get_log_file()->pos_in_file;
+}
+/*
+  Get the current position of the MySQL binlog for transaction currently being
+  committed.
+
+  This is valid to call from within storage engine commit_ordered() and
+  commit() methods only.
+
+  Since it stores the position inside THD, it is safe to call without any
+  locking.
+
+  Note that currently the binlog file name is not stored inside THD, but this
+  is still safe as it can only change when the log is rotated, and we never
+  rotate the binlog while commits are pending inside storage engines.
+*/
+void
+mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file)
+{
+  binlog_trx_data *const trx_data=
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+  if (trx_data)
+  {
+    *out_pos= trx_data->commit_bin_log_file_pos;
+    *out_file= mysql_bin_log.get_log_fname();
+  }
+  else
+  {
+    *out_pos= NULL;
+    *out_file= NULL;
+  }
 }
 #endif /* INNODB_COMPATIBILITY_HOOKS */
 

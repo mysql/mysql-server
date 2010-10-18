@@ -2716,8 +2716,10 @@ static
 void
 innobase_commit_ordered_2(
 /*============*/
-	trx_t*	trx) /*!< in: Innodb transaction */
+	trx_t*	trx, 	/*!< in: Innodb transaction */
+	THD*	thd)	/*!< in: MySQL thread handle */
 {
+	ulonglong tmp_pos;
 	DBUG_ENTER("innobase_commit_ordered");
 
 	/* We need current binlog position for ibbackup to work.
@@ -2741,17 +2743,8 @@ retry:
 		}
 	}
 
-	/* The following calls to read the MySQL binary log
-	   file name and the position return consistent results:
-	   1) We use commit_ordered() to get same commit order
-	   in InnoDB as in binary log.
-	   2) A MySQL log file rotation cannot happen because
-	   MySQL protects against this by having a counter of
-	   transactions in prepared state and it only allows
-	   a rotation when the counter drops to zero. See
-	   LOCK_prep_xids and COND_prep_xids in log.cc. */
-	trx->mysql_log_file_name = mysql_bin_log_file_name();
-	trx->mysql_log_offset = (ib_int64_t) mysql_bin_log_file_pos();
+	mysql_bin_log_commit_pos(thd, &tmp_pos, &(trx->mysql_log_file_name));
+	trx->mysql_log_offset = (ib_int64_t) tmp_pos;
 
 	/* Don't do write + flush right now. For group commit
 	   to work we want to do the flush in the innobase_commit()
@@ -2817,7 +2810,7 @@ innobase_commit_ordered(
 	DBUG_ASSERT(all ||
 		(!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
 
-	innobase_commit_ordered_2(trx);
+	innobase_commit_ordered_2(trx, thd);
 
 	trx->active_trans |= TRX_ACTIVE_COMMIT_ORDERED;
 
@@ -2881,7 +2874,7 @@ innobase_commit(
 
 		/* Run the fast part of commit if we did not already. */
 		if ((trx->active_trans & TRX_ACTIVE_COMMIT_ORDERED) == 0) {
-			innobase_commit_ordered_2(trx);
+			innobase_commit_ordered_2(trx, thd);
 		}
 
 		/* We were instructed to commit the whole transaction, or
