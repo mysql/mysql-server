@@ -2267,6 +2267,14 @@ static void dbug_flush(CODE_STATE *cs)
 } /* dbug_flush */
 
 
+void _db_flush_()
+{
+  CODE_STATE *cs;
+  get_code_state_or_return;
+  (void) fflush(cs->stack->out_file);
+}
+
+
 void _db_lock_file_()
 {
   CODE_STATE *cs=0;
