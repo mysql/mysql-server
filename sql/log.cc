@@ -166,6 +166,7 @@ public:
   ~binlog_trx_data()
   {
     DBUG_ASSERT(pending() == NULL);
+    (void) pthread_mutex_destroy(&LOCK_group_commit);
     close_cached_file(&trans_log);
   }
 
