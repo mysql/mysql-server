@@ -1743,6 +1743,9 @@ JOIN::reinit()
       func->clear();
   }
 
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
+
   DBUG_RETURN(0);
 }
 
