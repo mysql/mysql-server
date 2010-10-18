@@ -2372,6 +2372,54 @@ finish:
   return rc;
 }
 
+
+/*
+  Add a comment on the join algorithm employed by the join cache 
+
+  SYNOPSIS
+    print_explain_comment()
+      str  string to add the comment on the employed join algorithm to
+
+  DESCRIPTION
+    This function adds info on the type of the used join buffer (flat or
+    incremental) and on the type of the the employed join algorithm (BNL,
+    BNLH, BKA or BKAH) to the the end of the sring str.
+
+  RETURN VALUE
+    none
+*/ 
+
+void JOIN_CACHE::print_explain_comment(String *str)
+{
+  str->append(STRING_WITH_LEN(" ("));
+  const char *buffer_type= prev_cache ? "incremental" : "flat";
+  str->append(buffer_type);
+  str->append(STRING_WITH_LEN(", "));
+  
+  const char *join_alg;
+  switch (get_join_alg()) {
+  case BNL_JOIN_ALG:
+    join_alg= "BNL";
+    break;
+  case BNLH_JOIN_ALG:
+    join_alg= "BNLH";
+    break;
+  case BKA_JOIN_ALG:
+    join_alg= "BKA";
+    break;
+  case BKAH_JOIN_ALG:
+    join_alg= "BKAH";
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
+  str->append(join_alg);
+  str->append(STRING_WITH_LEN(" join"));
+  str->append(STRING_WITH_LEN(")"));
+ }
+   
+
 /* 
   Initialize a hashed join cache       
 
