@@ -35,15 +35,26 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 Master_info::Master_info()
   :Slave_reporting_capability("I/O"),
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), inited(0),
-   heartbeat_period(0), received_heartbeats(0),
-   master_id(0), abort_slave(0), slave_running(0), slave_run_id(0)
+   abort_slave(0), slave_running(0),
+   slave_run_id(0)
 {
-  host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
+  host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
 
+#ifndef MCP_WL3127
+  bind_addr[0] = 0;
+#endif
+
   master_epoch= 0;
+#ifndef MCP_BUG47037
+  master_id = 0;
   my_init_dynamic_array(&ignore_server_ids, sizeof(::server_id), 16, 16);
+#endif
+#ifndef MCP_WL342
+  heartbeat_period= 0;
+  received_heartbeats= 0;
+#endif
   bzero((char*) &file, sizeof(file));
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
@@ -54,7 +65,9 @@ Master_info::Master_info()
 
 Master_info::~Master_info()
 {
+#ifndef MCP_BUG47037
   delete_dynamic(&ignore_server_ids);
+#endif
   pthread_mutex_destroy(&run_lock);
   pthread_mutex_destroy(&data_lock);
   pthread_cond_destroy(&data_cond);
@@ -62,6 +75,7 @@ Master_info::~Master_info()
   pthread_cond_destroy(&stop_cond);
 }
 
+#ifndef MCP_BUG47037
 /**
    A comparison function to be supplied as argument to @c sort_dynamic()
    and @c bsearch()
@@ -99,6 +113,7 @@ bool Master_info::shall_ignore_server_id(ulong s_id)
                    (int (*) (const void*, const void*)) change_master_server_id_cmp)
       != NULL;
 }
+#endif
 
 void init_master_info_with_options(Master_info* mi)
 {
@@ -107,8 +122,9 @@ void init_master_info_with_options(Master_info* mi)
   mi->master_log_name[0] = 0;
   mi->master_log_pos = BIN_LOG_HEADER_SIZE;             // skip magic number
 
+#ifndef MCP_WL3127
   strmake(mi->bind_addr, "0.0.0.0", sizeof(mi->bind_addr));
-
+#endif
   if (master_host)
     strmake(mi->host, master_host, sizeof(mi->host) - 1);
   if (master_user)
@@ -117,6 +133,8 @@ void init_master_info_with_options(Master_info* mi)
     strmake(mi->password, master_password, MAX_PASSWORD_LENGTH);
   mi->port = master_port;
   mi->connect_retry = master_connect_retry;
+
+#ifndef MCP_WL342
   /* 
     always request heartbeat unless master_heartbeat_period is set
     explicitly zero.  Here is the default value for heartbeat period
@@ -127,6 +145,7 @@ void init_master_info_with_options(Master_info* mi)
                                     (slave_net_timeout/2.0));
   DBUG_ASSERT(mi->heartbeat_period > (float) 0.001
               || mi->heartbeat_period == 0);
+#endif
   mi->ssl= master_ssl;
   if (master_ssl_ca)
     strmake(mi->ssl_ca, master_ssl_ca, sizeof(mi->ssl_ca)-1);
@@ -150,15 +169,26 @@ enum {
   /* 5.1.16 added value of master_ssl_verify_server_cert */
   LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
 
+#ifndef MCP_WL342
   /* 5.1.23 added value of master_heartbeat_period */
   LINE_FOR_MASTER_HEARTBEAT_PERIOD= 16,
+#endif
 
+#ifndef MCP_WL3127
   LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR= 17,
+#endif
 
+#ifndef MCP_BUG47037
   /* 6.0 added value of master_ignore_server_id */
   LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 18,
+#endif
+
   /* Number of lines currently used when saving master info file */
+#ifndef MCP_BUG47037
   LINES_IN_MASTER_INFO= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS
+#else
+  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT
+#endif
 };
 
 int init_master_info(Master_info* mi, const char* master_info_fname,
@@ -260,7 +290,9 @@ file '%s')", fname);
     mi->fd = fd;
     int port, connect_retry, master_log_pos, lines;
     int ssl= 0, ssl_verify_server_cert= 0;
+#ifndef MCP_WL342
     float master_heartbeat_period= 0.0;
+#endif
     char *first_non_digit;
 
     /*
@@ -346,24 +378,31 @@ file '%s')", fname);
           init_intvar_from_file(&ssl_verify_server_cert, &mi->file, 0))
         goto errwithmsg;
 
-      /*
-        Starting from 6.0 list of server_id of ignorable servers might be
-        in the file
-      */
+#ifndef MCP_WL342
       if (lines >= LINE_FOR_MASTER_HEARTBEAT_PERIOD &&
           init_floatvar_from_file(&master_heartbeat_period, &mi->file, 0.0))
         goto errwithmsg;
+#endif
 
+#ifndef MCP_WL3127
       if (lines >= LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR &&
           init_strvar_from_file(mi->bind_addr, sizeof(mi->bind_addr),
                                 &mi->file, ""))
         goto errwithmsg;
+#endif
+
+#ifndef MCP_BUG47037
+      /*
+        Starting from 6.0 list of server_id of ignorable servers might be
+        in the file
+      */
       if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS &&
           init_dynarray_intvar_from_file(&mi->ignore_server_ids, &mi->file))
       {
         sql_print_error("Failed to initialize master info ignore_server_ids");
         goto errwithmsg;
       }
+#endif
     }
 
 #ifndef HAVE_OPENSSL
@@ -381,7 +420,9 @@ file '%s')", fname);
     mi->connect_retry= (uint) connect_retry;
     mi->ssl= (my_bool) ssl;
     mi->ssl_verify_server_cert= ssl_verify_server_cert;
+#ifndef MCP_WL342
     mi->heartbeat_period= master_heartbeat_period;
+#endif
   }
   DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
                             mi->master_log_name,
@@ -444,6 +485,7 @@ int flush_master_info(Master_info* mi,
     the caller is responsible for setting 'flush_relay_log_cache' accordingly.
   */
 
+#ifndef MCP_BUG47037
   /*
     produce a line listing the total number and all the ignored server_id:s
   */
@@ -463,6 +505,7 @@ int flush_master_info(Master_info* mi,
       cur_len +=sprintf(ignore_server_ids_buf + cur_len, " %lu", s_id);
     }
   }
+#endif
 
   if (flush_relay_log_cache)
   {
@@ -498,8 +541,11 @@ int flush_master_info(Master_info* mi,
      contents of file). But because of number of lines in the first line
      of file we don't care about this garbage.
   */
+
+#ifndef MCP_WL342
   char heartbeat_buf[sizeof(mi->heartbeat_period) * 4]; // buffer to suffice always
   sprintf(heartbeat_buf, "%.3f", mi->heartbeat_period);
+#endif
   my_b_seek(file, 0L);
   my_b_printf(file,
               "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n",
@@ -509,9 +555,16 @@ int flush_master_info(Master_info* mi,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
-              heartbeat_buf, mi->bind_addr, 
+#ifndef MCP_WL342
+              heartbeat_buf,
+#endif
+#ifndef MCP_WL3127
+              mi->bind_addr,
+#endif
+#ifndef MCP_BUG47037
               ignore_server_ids_buf);
   my_free(ignore_server_ids_buf, MYF(0));
+#endif
   DBUG_RETURN(-flush_io_cache(file));
 }
 
