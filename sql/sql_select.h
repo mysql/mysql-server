@@ -885,7 +885,50 @@ protected:
   /* Check matching to a partial join record from the join buffer */
   bool check_match(uchar *rec_ptr);
 
+  /* 
+    This constructor creates an unlinked join cache. The cache is to be
+    used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter.
+  */   
+  JOIN_CACHE(JOIN *j, JOIN_TAB *tab)
+  {
+    join= j;
+    join_tab= tab;
+    prev_cache= next_cache= 0;
+    buff= 0;
+  }
+
+  /* 
+    This constructor creates a linked join cache. The cache is to be
+    used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter. The parameter 'prev' specifies the previous
+    cache object to which this cache is linked.
+  */   
+  JOIN_CACHE(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev)   
+  {  
+    join= j;
+    join_tab= tab;
+    next_cache= 0;
+    prev_cache= prev;
+    buff= 0;
+    if (prev)
+      prev->next_cache= this;
+  }
+
 public:
+ 
+  /*
+    The enumeration type Join_algorithm includes a mnemonic constant for
+    each join algorithm that employs join buffers
+  */
+
+  enum Join_algorithm
+  { 
+    BNL_JOIN_ALG,     /* Block Nested Loop Join algorithm                  */
+    BNLH_JOIN_ALG,    /* Block Nested Loop Hash Join algorithm             */
+    BKA_JOIN_ALG,     /* Batched Key Access Join algorithm                 */
+    BKAH_JOIN_ALG,    /* Batched Key Access with Hash Table Join Algorithm */
+  };
 
   /* 
     The enumeration type Match_flag describes possible states of the match flag
@@ -925,6 +968,9 @@ public:
 
   /* Shrink the size if the cache join buffer in a given ratio */
   bool shrink_join_buffer_in_ratio(ulonglong n, ulonglong d);
+
+  /*  Shall return the type of the employed join algorithm */
+  virtual enum Join_algorithm get_join_alg()= 0;
 
   /* 
     The function shall return TRUE only when there is a key access
@@ -970,6 +1016,9 @@ public:
      
   /* Join records from the join buffer with records from the next join table */ 
   enum_nested_loop_state join_records(bool skip_last);
+
+  /* Add a comment on the join algorithm employed by the join cache */
+  void print_explain_comment(String *str);
 
   virtual ~JOIN_CACHE() {}
   void reset_join(JOIN *j) { join= j; }
@@ -1241,6 +1290,22 @@ protected:
   /* Reallocate the join buffer of a hashed join cache */
   int realloc_buffer();
 
+  /* 
+    This constructor creates an unlinked hashed join cache. The cache is to be
+    used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter.
+  */   
+  JOIN_CACHE_HASHED(JOIN *j, JOIN_TAB *tab) :JOIN_CACHE(j, tab) {}
+
+  /* 
+    This constructor creates a linked hashed join cache. The cache is to be
+    used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter. The parameter 'prev' specifies the previous
+    cache object to which this cache is linked.
+  */   
+  JOIN_CACHE_HASHED(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev) 
+		    :JOIN_CACHE(j, tab, prev) {}
+
 public:
 
   /* Initialize a hashed join cache */       
@@ -1368,12 +1433,7 @@ public:
     used to join table 'tab' to the result of joining the previous tables 
     specified by the 'j' parameter.
   */   
-  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= next_cache= 0;
-  }
+  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab) :JOIN_CACHE(j, tab) {}
 
   /* 
     This constructor creates a linked BNL join cache. The cache is to be 
@@ -1381,18 +1441,13 @@ public:
     specified by the 'j' parameter. The parameter 'prev' specifies the previous
     cache object to which this cache is linked.
   */   
-  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= prev;
-    next_cache= 0;
-    if (prev)
-      prev->next_cache= this;
-  }
+  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev) 
+    :JOIN_CACHE(j, tab, prev) {}
 
   /* Initialize the BNL cache */       
   int init();
+
+  enum Join_algorithm get_join_alg() { return BNL_JOIN_ALG; }
 
   bool is_key_access() { return FALSE; }
 
@@ -1445,12 +1500,7 @@ public:
     used to join table 'tab' to the result of joining the previous tables 
     specified by the 'j' parameter.
   */   
-  JOIN_CACHE_BNLH(JOIN *j, JOIN_TAB *tab)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= next_cache= 0;
-  }
+  JOIN_CACHE_BNLH(JOIN *j, JOIN_TAB *tab) : JOIN_CACHE_HASHED(j, tab) {}
 
   /* 
     This constructor creates a linked BNLH join cache. The cache is to be 
@@ -1458,18 +1508,13 @@ public:
     specified by the 'j' parameter. The parameter 'prev' specifies the previous
     cache object to which this cache is linked.
   */   
-  JOIN_CACHE_BNLH(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= prev;
-    next_cache= 0;
-    if (prev)
-      prev->next_cache= this;
-  }
+  JOIN_CACHE_BNLH(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev) 
+    : JOIN_CACHE_HASHED(j, tab, prev) {}
 
   /* Initialize the BNLH cache */       
   int init();
+
+  enum Join_algorithm get_join_alg() { return BNLH_JOIN_ALG; }
 
   bool is_key_access() { return TRUE; }
 
@@ -1583,13 +1628,7 @@ public:
     The MRR mode initially is set to 'flags'.
   */   
   JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= next_cache= 0;
-    mrr_mode= flags;
-  }
-
+    :JOIN_CACHE(j, tab), mrr_mode(flags) {}
   /* 
     This constructor creates a linked BKA join cache. The cache is to be 
     used to join table 'tab' to the result of joining the previous tables 
@@ -1598,20 +1637,14 @@ public:
     The MRR mode initially is set to 'flags'.
   */   
   JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags, JOIN_CACHE *prev)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= prev;
-    next_cache= 0;
-    if (prev)
-      prev->next_cache= this;
-    mrr_mode= flags;
-  }
+    :JOIN_CACHE(j, tab, prev), mrr_mode(flags) {}
   
   uchar **get_curr_association_ptr() { return &curr_association; }
 
   /* Initialize the BKA cache */       
   int init();
+
+  enum Join_algorithm get_join_alg() { return BKA_JOIN_ALG; }
 
   bool is_key_access() { return TRUE; }
 
@@ -1688,10 +1721,8 @@ public:
     specified by the 'j' parameter.
     The MRR mode initially is set to 'flags'.
   */   
-  JOIN_CACHE_BKAH(JOIN *j, JOIN_TAB *tab, uint flags) :JOIN_CACHE_BNLH(j, tab)
-  { 
-    mrr_mode= flags;
-  }
+  JOIN_CACHE_BKAH(JOIN *j, JOIN_TAB *tab, uint flags) 
+    :JOIN_CACHE_BNLH(j, tab), mrr_mode(flags) {}
 
   /* 
     This constructor creates a linked BKAH join cache. The cache is to be 
@@ -1701,15 +1732,14 @@ public:
     The MRR mode initially is set to 'flags'.
   */   
   JOIN_CACHE_BKAH(JOIN *j, JOIN_TAB *tab, uint flags, JOIN_CACHE *prev)
-    :JOIN_CACHE_BNLH(j, tab, prev)
-  { 
-    mrr_mode= flags;
-  }
+    :JOIN_CACHE_BNLH(j, tab, prev), mrr_mode(flags)  {}
 
   uchar **get_curr_association_ptr() { return &curr_matching_chain; }
 
   /* Initialize the BKAH cache */       
   int init();
+
+  enum Join_algorithm get_join_alg() { return BKAH_JOIN_ALG; }
 
   /* Check index condition of the joined table for a record from BKAH cache */
   bool skip_index_tuple(char *range_info);

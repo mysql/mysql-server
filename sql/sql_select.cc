@@ -7644,9 +7644,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_ALL:
     if (cache_level == 1)
       prev_cache= 0;
-    if ((options & SELECT_DESCRIBE) ||
-        (((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache))) &&
-         !tab->cache->init()))
+    if ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache)) &&
+        ((options & SELECT_DESCRIBE) || !tab->cache->init()))
     {
       *icp_other_tables_ok= FALSE;
       return (2-test(!prev_cache));
@@ -7670,9 +7669,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     {
       if (cache_level == 3)
         prev_cache= 0;
-      if ((options & SELECT_DESCRIBE) ||
-	  ((tab->cache= new JOIN_CACHE_BNLH(join, tab, prev_cache)) &&
-           !tab->cache->init()))
+      if ((tab->cache= new JOIN_CACHE_BNLH(join, tab, prev_cache)) &&
+          ((options & SELECT_DESCRIBE) || !tab->cache->init()))
       {
         *icp_other_tables_ok= FALSE;        
         return (4-test(!prev_cache));
@@ -7692,9 +7690,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
       {
         if (cache_level == 5)
           prev_cache= 0;
-        if ((options & SELECT_DESCRIBE) ||
-            ((tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache)) &&
-            !tab->cache->init()))
+        if ((tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache)) &&
+            ((options & SELECT_DESCRIBE) || !tab->cache->init()))
           return (6-test(!prev_cache));
         goto no_join_cache;
       }
@@ -7702,9 +7699,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
       {
         if (cache_level == 7)
           prev_cache= 0;
-        if ((options & SELECT_DESCRIBE) ||
-            ((tab->cache= new JOIN_CACHE_BKAH(join, tab, flags, prev_cache)) &&
-            !tab->cache->init()))
+        if ((tab->cache= new JOIN_CACHE_BKAH(join, tab, flags, prev_cache)) &&
+            ((options & SELECT_DESCRIBE) || !tab->cache->init()))
 	{
           *idx_cond_fact_out= FALSE;
           return (8-test(!prev_cache));
@@ -18923,8 +18919,11 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           }
         }
 
-        if (i > 0 && tab[-1].next_select == sub_select_cache)
+        if (tab->cache)
+	{
           extra.append(STRING_WITH_LEN("; Using join buffer"));
+          tab->cache->print_explain_comment(&extra);
+        }
         
         /* Skip initial "; "*/
         const char *str= extra.ptr();
