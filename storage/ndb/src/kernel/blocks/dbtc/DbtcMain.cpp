@@ -12456,12 +12456,26 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   ApiConnectRecord * const regApiPtr = transPtr.p;  
   // Seize index operation
   TcIndexOperationPtr indexOpPtr;
-  if ((startFlag == 1) &&
-      (regApiPtr->apiConnectstate == CS_CONNECTED ||
-       (regApiPtr->apiConnectstate == CS_STARTED && 
-	regApiPtr->firstTcConnect == RNIL)) ||
+  /**
+   * NOTE this if-statement is incorrect,
+   * see bug#50648
+   *
+   * The correct if is 
+   *
+   if (startFlag == 1 &&
+       (regApiPtr->apiConnectstate == CS_CONNECTED ||
+        (regApiPtr->apiConnectstate == CS_STARTED && 
+         regApiPtr->firstTcConnect == RNIL) ||
+        (regApiPtr->apiConnectstate == CS_ABORTING && 
+         regApiPtr->abortState == AS_IDLE)))
+   */
+  if (((startFlag == 1) &&
+       (regApiPtr->apiConnectstate == CS_CONNECTED ||
+        (regApiPtr->apiConnectstate == CS_STARTED && 
+         regApiPtr->firstTcConnect == RNIL))) ||
       (regApiPtr->apiConnectstate == CS_ABORTING && 
-       regApiPtr->abortState == AS_IDLE)) {
+       regApiPtr->abortState == AS_IDLE))
+  {
     jam();
     // This is a newly started transaction, clean-up
     releaseAllSeizedIndexOperations(regApiPtr);
