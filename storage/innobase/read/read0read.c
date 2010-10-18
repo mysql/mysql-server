@@ -148,7 +148,8 @@ read_view_validate(
 {
 	ulint	i;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED)
+	      || rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (i = 1; i < view->n_trx_ids; ++i) {
