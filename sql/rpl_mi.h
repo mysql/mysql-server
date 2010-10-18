@@ -23,7 +23,6 @@
 
 #include "rpl_rli.h"
 #include "rpl_reporting.h"
-#include "my_sys.h"
 
 
 /*****************************************************************************
@@ -64,12 +63,10 @@ class Master_info : public Slave_reporting_capability
  public:
   Master_info();
   ~Master_info();
-  bool shall_ignore_server_id(ulong s_id);
 
   /* the variables below are needed because we can change masters on the fly */
   char master_log_name[FN_REFLEN];
   char host[HOSTNAME_LENGTH+1];
-  char bind_addr[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
   char password[MAX_PASSWORD_LENGTH+1];
   my_bool ssl; // enables use of SSL connection if true
@@ -89,14 +86,10 @@ class Master_info : public Slave_reporting_capability
   Relay_log_info rli;
   uint port;
   uint connect_retry;
-  float heartbeat_period;         // interface with CHANGE MASTER or master.info
-  ulonglong received_heartbeats;  // counter of received heartbeat events
-  DYNAMIC_ARRAY ignore_server_ids;
 #ifndef DBUG_OFF
   int events_till_disconnect;
 #endif
   bool inited;
-  ulong master_id;
   volatile bool abort_slave;
   volatile uint slave_running;
   volatile ulong slave_run_id;
@@ -110,7 +103,24 @@ class Master_info : public Slave_reporting_capability
 
   */
   long clock_diff_with_master;
+#ifndef MCP_WL4080
   uint64 master_epoch;
+#endif
+
+#ifndef MCP_BUG47037
+  bool shall_ignore_server_id(ulong s_id);
+  DYNAMIC_ARRAY ignore_server_ids;
+  ulong master_id;
+#endif
+
+#ifndef MCP_WL3127
+  char bind_addr[HOSTNAME_LENGTH+1];
+#endif
+
+#ifndef MCP_WL342
+  float heartbeat_period;         // interface with CHANGE MASTER or master.info
+  ulonglong received_heartbeats;  // counter of received heartbeat events
+#endif
 };
 
 void init_master_info_with_options(Master_info* mi);
@@ -122,7 +132,9 @@ void end_master_info(Master_info* mi);
 int flush_master_info(Master_info* mi, 
                       bool flush_relay_log_cache, 
                       bool need_lock_relay_log);
+#ifndef MCP_BUG47037
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
+#endif
 
 #endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */
