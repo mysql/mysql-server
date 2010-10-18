@@ -29,13 +29,17 @@
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 			  const char *default_val);
+#ifndef MCP_WL342
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
+#endif
+#ifndef MCP_BUG47037
 int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
+#endif
 
 Master_info::Master_info()
   :Slave_reporting_capability("I/O"),
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), inited(0),
-   abort_slave(0), slave_running(0),
+   abort_slave(0),slave_running(0),
    slave_run_id(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
@@ -45,8 +49,9 @@ Master_info::Master_info()
 #ifndef MCP_WL3127
   bind_addr[0] = 0;
 #endif
-
+#ifndef MCP_WL4080
   master_epoch= 0;
+#endif
 #ifndef MCP_BUG47037
   master_id = 0;
   my_init_dynamic_array(&ignore_server_ids, sizeof(::server_id), 16, 16);
@@ -411,6 +416,7 @@ file '%s')", fname);
                       "('%s') are ignored because this MySQL slave was compiled "
                       "without SSL support.", fname);
 #endif /* HAVE_OPENSSL */
+
     /*
       This has to be handled here as init_intvar_from_file can't handle
       my_off_t types

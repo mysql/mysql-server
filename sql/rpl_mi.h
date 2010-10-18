@@ -103,7 +103,9 @@ class Master_info : public Slave_reporting_capability
 
   */
   long clock_diff_with_master;
+#ifndef MCP_WL4080
   uint64 master_epoch;
+#endif
 
 #ifndef MCP_BUG47037
   bool shall_ignore_server_id(ulong s_id);
