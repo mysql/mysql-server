@@ -2064,6 +2064,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                                ER(CR_IPSOCK_ERROR), socket_errno);
       goto error;
     }
+#ifndef MCP_WL3126
     if (mysql->options.bind_name) {
       /* TODOs for client bind:
          - check error codes
@@ -2107,6 +2108,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         }
       }
     }
+#endif
 
     net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
     bzero((char*) &sock_addr,sizeof(sock_addr));
@@ -2686,7 +2688,9 @@ static void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.client_ip,MYF(MY_ALLOW_ZERO_PTR));
+#ifndef MCP_WL3126
   my_free(mysql->options.bind_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
@@ -3215,10 +3219,12 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_RECONNECT:
     mysql->reconnect= *(my_bool *) arg;
     break;
+#ifndef MCP_WL3126
   case MYSQL_OPT_BIND:
     my_free(mysql->options.bind_name, MYF(MY_ALLOW_ZERO_PTR));
     mysql->options.bind_name= my_strdup(arg, MYF(MY_WME));
     break;
+#endif
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
     if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
