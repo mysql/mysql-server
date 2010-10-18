@@ -548,7 +548,7 @@ int mysql_update(THD *thd,
   init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
   if (!table->triggers &&
-      info.using_quick &&
+      select && select->quick &&
       !ignore &&
       !using_limit &&
       direct_update_loop)

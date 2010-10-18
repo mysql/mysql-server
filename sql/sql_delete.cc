@@ -284,7 +284,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     init_read_record_idx(&info, thd, table, 1, usable_index);
 
   if (!table->triggers &&
-      info.using_quick &&
+      select && select->quick &&
       !using_limit &&
       direct_delete_loop)
   {

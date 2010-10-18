@@ -101,7 +101,10 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
                 opt_events= 0,
-                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0;
+                opt_alltspcs=0, opt_notspcs= 0;
+#ifndef MCP_BUG56691
+static my_bool opt_drop_trigger= 0;
+#endif
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -121,7 +124,9 @@ static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
 static uint opt_mysql_port= 0, opt_master_data;
+#ifndef MCP_WL3126
 static char *opt_bind_addr = NULL;
+#endif
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int   first_error=0;
@@ -203,8 +208,10 @@ static struct my_option my_long_options[] =
   {"add-drop-table", OPT_DROP, "Add a DROP TABLE before each create.",
    &opt_drop, &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
+#ifndef MCP_BUG56691
   {"add-drop-trigger", OPT_MAX_CLIENT_OPTION, "Add a DROP TRIGGER before each create.",
    (uchar**) &opt_drop_trigger, (uchar**) &opt_drop_trigger, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
   {"add-locks", OPT_LOCKS, "Add locks around INSERT statements.",
    &opt_lock, &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
@@ -215,9 +222,11 @@ static struct my_option my_long_options[] =
   {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+#ifndef MCP_WL3126
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1496,10 +1505,12 @@ static int connect_to_db(char *host, char *user,char *passwd)
 #endif
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifndef MCP_WL3126
   if (opt_bind_addr)
   {
        mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
   }
+#endif
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -2780,8 +2791,10 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
   if (opt_compact)
     fprintf(sql_file, "/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
 
+#ifndef MCP_BUG56691
   if (opt_drop_trigger)
     fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", (*show_trigger_row)[0]);
+#endif
 
   fprintf(sql_file,
           "DELIMITER ;;\n"
@@ -2857,8 +2870,10 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
 
     switch_sql_mode(sql_file, ";", row[1]);
 
+#ifndef MCP_BUG56691
     if (opt_drop_trigger)
       fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", row[0]);
+#endif
 
     fprintf(sql_file,
             "DELIMITER ;;\n"
