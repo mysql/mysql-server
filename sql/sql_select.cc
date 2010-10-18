@@ -2514,6 +2514,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	{
 	  DBUG_RETURN(TRUE);
 	}
+        /*
+          Original join tabs might be overwritten at first
+          subselect execution. So we need to restore them.
+        */
+        Item_subselect *subselect= select_lex->master_unit()->item;
+        if (subselect && subselect->is_uncacheable() && join->reinit())
+          DBUG_RETURN(TRUE);
       }
       else
       {
@@ -8956,6 +8963,13 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
         that reject nulls => the outer join can be replaced by an inner join.
       */
       table->outer_join= 0;
+      /*
+        Update TABLE::maybe_null field as it could have
+        the value(maybe_null==TRUE) based on the assumption
+        that this join is outer(see setup_table_map() func).
+      */
+      if (table->table)
+        table->table->maybe_null= FALSE;
       if (table->on_expr)
       {
         /* Add on expression to the where condition. */
