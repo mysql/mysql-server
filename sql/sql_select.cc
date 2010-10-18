@@ -553,7 +553,6 @@ JOIN::prepare(Item ***rref_pointer_array,
   }
   
   int res= check_and_do_in_subquery_rewrites(this);
-  //psergey-merge: if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
 
   select_lex->fix_prepare_information(thd, &conds, &having);
   

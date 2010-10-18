@@ -1,5 +1,6 @@
 set optimizer_switch='materialization=off,semijoin=off';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
+drop view if exists v2;
 set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 select (select 2);
@@ -4938,4 +4939,21 @@ SELECT * FROM t2 UNION SELECT * FROM t2
 ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
 DROP TABLE t1,t2;
 End of 5.1 tests
+#
+# No BUG#, a case brought from 5.2's innodb_mysql_lock.test
+#
+create table t1 (i int  not null primary key);
+insert into t1 values (1),(2),(3),(4),(5);
+create table t2 (j int not null  primary key);
+insert into t2 values (1),(2),(3),(4),(5);
+create table t3 (k int not null primary key);
+insert into t3 values (1),(2),(3);
+create view v2 as select t2.j as j from t2 where t2.j in (select t1.i from t1);
+select * from t3 where k in (select j from v2);
+k
+1
+2
+3
+drop table t1,t2,t3;
+drop view v2;
 set optimizer_switch=default;
