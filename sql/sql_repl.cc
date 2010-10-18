@@ -337,7 +337,7 @@ Increase max_allowed_packet on master";
   return error;
 }
 
-
+#ifndef MCP_WL342
 /**
   An auxiliary function for calling in mysql_binlog_send
   to initialize the heartbeat timeout in waiting for a binlogged event.
@@ -405,6 +405,7 @@ static int send_heartbeat_event(NET* net, String* packet,
   packet->set("\0", 1, &my_charset_bin);
   DBUG_RETURN(0);
 }
+#endif
 
 /*
   TODO: Clean up loop to only have one call to send_file()
@@ -432,6 +433,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
   bzero((char*) &log,sizeof(log));
+
+#ifndef MCP_WL342
   /* 
      heartbeat_period from @master_heartbeat_period user variable
   */
@@ -448,6 +451,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     coord->file_name= log_file_name; // initialization basing on what slave remembers
     coord->pos= pos;
   }
+#endif
 #ifndef DBUG_OFF
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
   {
@@ -641,11 +645,13 @@ impossible position";
 	goto err;
       }
 #endif
+#ifndef MCP_WL342
       /*
         log's filename does not change while it's active
       */
       if (coord)
         coord->pos= uint4korr(packet->ptr() + 1 + LOG_POS_OFFSET);
+#endif
 
       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
       {
@@ -741,21 +747,25 @@ impossible position";
 	  /* we read successfully, so we'll need to send it to the slave */
 	  pthread_mutex_unlock(log_lock);
 	  read_packet = 1;
+#ifndef MCP_WL342
           if (coord)
             coord->pos= uint4korr(packet->ptr() + 1 + LOG_POS_OFFSET);
+#endif
 	  break;
 
 	case LOG_READ_EOF:
+#ifndef MCP_WL342
         {
           int ret;
           ulong signal_cnt;
+#endif
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
 	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
 	  {
 	    pthread_mutex_unlock(log_lock);
 	    goto end;
 	  }
-
+#ifndef MCP_WL342
           signal_cnt= mysql_bin_log.signal_cnt;
 #ifndef DBUG_OFF
           ulong hb_info_counter= 0;
@@ -796,7 +806,18 @@ impossible position";
           pthread_mutex_unlock(log_lock);
         }
         break;
-            
+#else
+	  if (!thd->killed)
+	  {
+	    /* Note that the following call unlocks lock_log */
+	    mysql_bin_log.wait_for_update(thd, 0);
+	  }
+	  else
+	    pthread_mutex_unlock(log_lock);
+	  DBUG_PRINT("wait",("binary log received update"));
+	  break;
+#endif
+
         default:
 	  pthread_mutex_unlock(log_lock);
           test_for_non_eof_log_read_errors(error, &errmsg);
@@ -878,8 +899,10 @@ impossible position";
 
       packet->length(0);
       packet->append('\0');
+#ifndef MCP_WL342
       if (coord)
         coord->file_name= log_file_name; // reset to the next
+#endif
     }
   }
 
@@ -1267,7 +1290,9 @@ bool change_master(THD* thd, Master_info* mi)
   int thread_mask;
   const char* errmsg= 0;
   bool need_relay_log_purge= 1;
+#ifndef MCP_BUG47037
   bool ret= FALSE;
+#endif
   char saved_host[HOSTNAME_LENGTH + 1];
   uint saved_port;
   char saved_log_name[FN_REFLEN];
@@ -1276,22 +1301,38 @@ bool change_master(THD* thd, Master_info* mi)
 
   lock_slave_threads(mi);
   init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
+#ifndef MCP_BUG47037
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
+#endif
   if (thread_mask) // We refuse if any slave thread is running
   {
     my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+#ifndef MCP_BUG47037
     ret= TRUE;
     goto err;
+#else
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+#endif
   }
 
   thd_proc_info(thd, "Changing master");
+#ifndef MCP_BUG47037
+#else
+  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
+#endif
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0,
 		       thread_mask))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
+#ifndef MCP_BUG47037
     ret= TRUE;
     goto err;
+#else
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+#endif
   }
 
   /*
@@ -1330,8 +1371,10 @@ bool change_master(THD* thd, Master_info* mi)
 
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
+#ifndef MCP_WL3127
   if (lex_mi->bind_addr)
     strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
+#endif
   if (lex_mi->user)
     strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
   if (lex_mi->password)
@@ -1340,17 +1383,20 @@ bool change_master(THD* thd, Master_info* mi)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
+#ifndef MCP_WL342
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
   else
     mi->heartbeat_period= (float) min(SLAVE_MAX_HEARTBEAT_PERIOD,
                                       (slave_net_timeout/2.0));
   mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
+#endif
+#ifndef MCP_BUG47037
   /*
     reset the last time server_id list if the current CHANGE MASTER 
     is mentioning IGNORE_SERVER_IDS= (...)
   */
-  if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+  if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::IGNORE_IDS_ENABLE)
     reset_dynamic(&mi->ignore_server_ids);
   for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
   {
@@ -1373,6 +1419,7 @@ bool change_master(THD* thd, Master_info* mi)
     }
   }
   sort_dynamic(&mi->ignore_server_ids, (qsort_cmp) change_master_server_id_cmp);
+#endif
 
   if (lex_mi->ssl != LEX_MASTER_INFO::SSL_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::SSL_ENABLE);
@@ -1451,8 +1498,13 @@ bool change_master(THD* thd, Master_info* mi)
   if (flush_master_info(mi, FALSE, FALSE))
   {
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
+#ifndef MCP_BUG47037
     ret= TRUE;
     goto err;
+#else
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+#endif
   }
   if (need_relay_log_purge)
   {
@@ -1463,8 +1515,13 @@ bool change_master(THD* thd, Master_info* mi)
 			 &errmsg))
     {
       my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
-      ret= TRUE;
-      goto err;
+#ifndef MCP_BUG47037
+    ret= TRUE;
+    goto err;
+#else
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+#endif
     }
   }
   else
@@ -1479,8 +1536,13 @@ bool change_master(THD* thd, Master_info* mi)
 			   &msg, 0))
     {
       my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
-      ret= TRUE;
-      goto err;
+#ifndef MCP_BUG47037
+    ret= TRUE;
+    goto err;
+#else
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+#endif
     }
   }
   /*
@@ -1526,13 +1588,20 @@ bool change_master(THD* thd, Master_info* mi)
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 
+#ifndef MCP_BUG47037
 err:
+#endif
   unlock_slave_threads(mi);
   thd_proc_info(thd, 0);
+#ifndef MCP_BUG47037
   if (ret == FALSE)
     my_ok(thd);
   delete_dynamic(&lex_mi->repl_ignore_server_ids); //freeing of parser-time alloc
   DBUG_RETURN(ret);
+#else
+  my_ok(thd);
+  DBUG_RETURN(FALSE);
+#endif
 }
 
 
@@ -1939,6 +2008,7 @@ public:
   bool update(THD *thd, set_var *var);
 };
 
+#ifndef MCP_WL342
 static void fix_slave_net_timeout(THD *thd, enum_var_type type)
 {
   DBUG_ENTER("fix_slave_net_timeout");
@@ -1958,6 +2028,7 @@ static void fix_slave_net_timeout(THD *thd, enum_var_type type)
 #endif
   DBUG_VOID_RETURN;
 }
+#endif
 
 static sys_var_chain vars = { NULL, NULL };
 
@@ -1984,8 +2055,12 @@ static sys_var_const    sys_slave_load_tmpdir(&vars, "slave_load_tmpdir",
                                               OPT_GLOBAL, SHOW_CHAR_PTR,
                                               (uchar*) &slave_load_tmpdir);
 static sys_var_long_ptr	sys_slave_net_timeout(&vars, "slave_net_timeout",
+#ifndef MCP_WL342
 					      &slave_net_timeout,
                                               fix_slave_net_timeout);
+#else
+                                              &slave_net_timeout);
+#endif
 static sys_var_const    sys_slave_skip_errors(&vars, "slave_skip_errors",
                                               OPT_GLOBAL, SHOW_CHAR,
                                               (uchar*) slave_skip_error_names);

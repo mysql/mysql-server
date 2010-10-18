@@ -204,9 +204,8 @@ typedef struct st_lex_server_options
 */
 typedef struct st_lex_master_info
 {
-  char *host, *user, *password, *log_file_name, *bind_addr;
+  char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
-  float heartbeat_period;
   ulonglong pos;
   ulong server_id;
   /*
@@ -215,12 +214,22 @@ typedef struct st_lex_master_info
    */
   enum {SSL_UNCHANGED, SSL_DISABLE, SSL_ENABLE}
     ssl, ssl_verify_server_cert;
-  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
-    heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
+#ifndef MCP_BUG47037
+  enum {IGNORE_IDS_UNCHANGED, IGNORE_IDS_DISABLE, IGNORE_IDS_ENABLE}
+    repl_ignore_server_ids_opt;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+#endif
+#ifndef MCP_WL3127
+  char *bind_addr;
+#endif
+#ifndef MCP_WL342
+  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+    heartbeat_opt;
+  float heartbeat_period;
+#endif
 } LEX_MASTER_INFO;
 
 
