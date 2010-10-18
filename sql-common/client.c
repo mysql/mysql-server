@@ -2079,11 +2079,15 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_TCP))
   {
-    struct addrinfo *res_lst, *client_bind_ai_lst= NULL, hints, *t_res;
+    struct addrinfo *res_lst, hints, *t_res;
     int gai_errno;
     char port_buf[NI_MAXSERV];
     my_socket sock= SOCKET_ERROR;
-    int saved_error= 0, status= -1, bind_result= 0;
+    int saved_error= 0, status= -1;
+#ifndef MCP_WL3126
+    int bind_result = 0;
+    struct addrinfo *client_bind_ai_lst= NULL;
+#endif
 
     unix_socket=0;				/* This is not used */
     if (!port)
@@ -2125,6 +2129,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       goto error;
     }
 
+#ifndef MCP_WL3126
     /* Get address info for client bind name if it is provided */
     if (mysql->options.bind_name) 
     {
@@ -2140,13 +2145,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         DBUG_PRINT("info",("client bind getaddrinfo error %d", bind_gai_errno));
         set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                  ER(CR_UNKNOWN_HOST), mysql->options.bind_name,
-                                 errno);
+                                 bind_gai_errno);
 
         freeaddrinfo(res_lst);
         goto error;
       }
       DBUG_PRINT("info", ("  got address info for client bind name"));
     }
+#endif
 
     /*
       A hostname might map to multiple IP addresses (IPv4/IPv6). Go over the
@@ -2170,6 +2176,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         continue;
       }
 
+#ifndef MCP_WL3126
       if (client_bind_ai_lst)
       {
         struct addrinfo* curr_bind_ai= NULL;
@@ -2211,6 +2218,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         }
         DBUG_PRINT("info", ("Successfully bound client side of socket"));
       }
+#endif
 
       DBUG_PRINT("info", ("Connect socket"));
       status= my_connect(sock, t_res->ai_addr, t_res->ai_addrlen,
@@ -2237,8 +2245,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                 sock, status, saved_error));
 
     freeaddrinfo(res_lst);
+#ifndef MCP_WL3126
     if (client_bind_ai_lst)
       freeaddrinfo(client_bind_ai_lst);
+#endif
 
     if (sock == SOCKET_ERROR)
     {
@@ -2785,7 +2795,9 @@ static void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.client_ip,MYF(MY_ALLOW_ZERO_PTR));
+#ifndef MCP_WL3126
   my_free(mysql->options.bind_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
@@ -3314,10 +3326,12 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_RECONNECT:
     mysql->reconnect= *(my_bool *) arg;
     break;
+#ifndef MCP_WL3126
   case MYSQL_OPT_BIND:
     my_free(mysql->options.bind_name, MYF(MY_ALLOW_ZERO_PTR));
     mysql->options.bind_name= my_strdup(arg, MYF(MY_WME));
     break;
+#endif
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
     if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
