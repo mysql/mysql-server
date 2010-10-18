@@ -1374,12 +1374,12 @@ bool change_master(THD* thd, Master_info* mi)
   }
   sort_dynamic(&mi->ignore_server_ids, (qsort_cmp) change_master_server_id_cmp);
 
-  if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
-    mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
+  if (lex_mi->ssl != LEX_MASTER_INFO::SSL_UNCHANGED)
+    mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::SSL_ENABLE);
 
-  if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+  if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::SSL_UNCHANGED)
     mi->ssl_verify_server_cert=
-      (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
+      (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::SSL_ENABLE);
 
   if (lex_mi->ssl_ca)
     strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
