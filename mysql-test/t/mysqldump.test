@@ -2168,6 +2168,18 @@ SELECT LENGTH(a) FROM t2;
 
 DROP TABLE t1, t2;
 
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqldump --protocol=tcp --bind-address=127.0.0.1
+# - running mysqlimport --protocol=tcp --bind-address=127.0.0.1
+#
+create table t1 (first char(28) , last varchar(37));
+insert into t1 values ("Magnus", "Blåudd");
+--exec $MYSQL_DUMP --protocol=tcp --bind-address=127.0.0.1 --tab=$MYSQLTEST_VARDIR/tmp/ test
+truncate table t1;
+--exec $MYSQL_IMPORT --protocol=tcp --bind-address=127.0.0.1 test $MYSQLTEST_VARDIR/tmp/t1.txt
+drop table t1;
+
 ###########################################################################
 --echo #
 --echo # End of 5.1 tests
