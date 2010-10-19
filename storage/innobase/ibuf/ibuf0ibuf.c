@@ -3997,21 +3997,22 @@ ibuf_set_del_mark(
 		rec = page_cur_get_rec(&page_cur);
 		page_zip = page_cur_get_page_zip(&page_cur);
 
-		if (UNIV_UNLIKELY
-		    (rec_get_deleted_flag(
-			    rec, dict_table_is_comp(index->table)))) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: record is already delete-marked\n",
-			      stderr);
-			goto failure;
-		}
+		/* Delete mark the old index record. According to a
+		comment in row_upd_sec_index_entry(), it can already
+		have been delete marked if a lock wait occurred in
+		row_ins_index_entry() in a previous invocation of
+		row_upd_sec_index_entry(). */
 
-		btr_cur_set_deleted_flag_for_ibuf(rec, page_zip, TRUE, mtr);
+		if (UNIV_LIKELY
+		    (!rec_get_deleted_flag(
+			    rec, dict_table_is_comp(index->table)))) {
+			btr_cur_set_deleted_flag_for_ibuf(rec, page_zip,
+							  TRUE, mtr);
+		}
 	} else {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: unable to find a record to delete-mark\n",
 		      stderr);
-failure:
 		fputs("InnoDB: tuple ", stderr);
 		dtuple_print(stderr, entry);
 		fputs("\n"
