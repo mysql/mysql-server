@@ -3137,14 +3137,17 @@ loop:
 	proceed without waiting for monitor threads. */
 
 	if (srv_fast_shutdown < 2
-	   && (srv_error_monitor_active
-	      || srv_lock_timeout_active || srv_monitor_active)) {
-		const char*	thread_active = NULL;
+	    && (srv_error_monitor_active
+		|| srv_lock_timeout_active
+		|| srv_monitor_active)) {
+
+		mutex_exit(&kernel_mutex);
 
 		/* Print a message every 60 seconds if we are waiting
 		for the monitor thread to exit. Master and worker threads
 		check will be done later. */
 		if (srv_print_verbose_log && count > 600) {
+			const char*	thread_active = NULL;
 
 			if (srv_error_monitor_active) {
 				thread_active = "srv_error_monitor_thread";
@@ -3153,16 +3156,18 @@ loop:
 			} else if (srv_monitor_active) {
 				thread_active = "srv_monitor_thread";
 			}
+
+			if (thread_active) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr, "  InnoDB: Waiting for %s "
+					"to exit\n", thread_active);
+				count = 0;
+			}
 		}
 
-		mutex_exit(&kernel_mutex);
-
-		if (thread_active) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for %s "
-				"to exit\n", thread_active);
-			count = 0;
-		}
+		os_event_set(srv_error_event);
+		os_event_set(srv_monitor_event);
+		os_event_set(srv_timeout_event);
 
 		goto loop;
 	}
@@ -3198,6 +3203,8 @@ loop:
 		clean. */
 
 		log_buffer_flush_to_disk();
+
+		mutex_exit(&kernel_mutex);
 
 		return; /* We SKIP ALL THE REST !! */
 	}
