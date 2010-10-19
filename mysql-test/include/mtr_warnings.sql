@@ -215,6 +215,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave I/O: Get master clock failed with error:.*"),
  ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
  ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
+ ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum on master.*"),
  /*
    BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 
    table cause warnings in errlog
