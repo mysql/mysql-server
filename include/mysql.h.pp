@@ -288,7 +288,7 @@ struct st_mysql_options {
   union {
     char *client_ip;
     char *bind_address;
-  };
+  } ci;
   my_bool secure_auth;
   my_bool report_data_truncation;
   int (*local_infile_init)(void **, const char *, void *);
