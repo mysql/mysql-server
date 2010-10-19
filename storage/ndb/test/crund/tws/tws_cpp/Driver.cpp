@@ -1,7 +1,7 @@
-/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
+/* -*- mode: c++; c-basic-offset: 4; indent-tabs-mode: nil; -*-
  *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
  *
- *  Copyright (C) 2009 MySQL
+ *  Copyright (C) 2010 MySQL
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,27 +18,18 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <iostream>
-#include <sstream>
-#include <fstream>
-#include <string>
-#include <vector>
+#include "Driver.hpp"
+
 #include <cassert>
-#include <ctime>
 
 #include "helpers.hpp"
 #include "string_helpers.hpp"
-
-#include "Driver.hpp"
 
 using std::cout;
 using std::flush;
 using std::endl;
 using std::ios_base;
-using std::ofstream;
-using std::ostringstream;
 using std::string;
-using std::wstring;
 using std::vector;
 
 using utils::Properties;
@@ -46,7 +37,19 @@ using utils::toBool;
 using utils::toInt;
 using utils::toString;
 
-//---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Helper Macros & Functions
+// ---------------------------------------------------------------------------
+
+#define ABORT_GETTIMEOFDAY_ERROR()                                      \
+    do { cout << "!!! error in " << __FILE__ << ", line: " << __LINE__  \
+              << ", gettimeofday() returned an error code." << endl;    \
+        exit(-1);                                                       \
+    } while (0)
+
+// ---------------------------------------------------------------------------
+// Driver Implementation
+// ---------------------------------------------------------------------------
 
 vector< string > Driver::propFileNames;
 string Driver::logFileName;
@@ -128,35 +131,17 @@ Driver::run() {
         // truncate log file, reset log buffers
         closeLogFile();
         openLogFile();
-        header.rdbuf()->str("");
-        rtimes.rdbuf()->str("");
-        ctimes.rdbuf()->str("");
-        logHeader = true;
+        clearLogBuffers();
     }
 
-    if (hotRuns > 0) {
-        cout << endl
-             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
-             << "hot runs ..." << endl
-             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+    cout << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
+         << "hot runs ..." << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+    runTests();
 
-        for (int i = 0; i < hotRuns; i++) {
-            runTests();
-        }
-
-        // write log buffers
-        if (logRealTime) {
-            log << descr << ", rtime[ms]"
-                << header.rdbuf()->str() << endl
-                << rtimes.rdbuf()->str() << endl << endl << endl;
-        }        
-        if (logCpuTime) {
-            log << descr << ", ctime[ms]"
-                << header.rdbuf()->str() << endl
-                << ctimes.rdbuf()->str() << endl << endl << endl;
-        }
-    }
-
+    cout << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
     close();
 }
 
@@ -166,19 +151,12 @@ Driver::init() {
     initProperties();
     printProperties();
     openLogFile();
-
-    // clear log buffers
-    logHeader = true;
-    header.rdbuf()->str("");
-    rtimes.rdbuf()->str("");
+    clearLogBuffers();
 }
 
 void
 Driver::close() {
-    // clear log buffers
-    header.rdbuf()->str("");
-    rtimes.rdbuf()->str("");
-
+    clearLogBuffers();
     closeLogFile();
 }
 
@@ -199,21 +177,11 @@ Driver::initProperties() {
 
     ostringstream msg;
 
-    logRealTime = toBool(props[L"logRealTime"], true);
-    logCpuTime = toBool(props[L"logCpuTime"], false);
-
     warmupRuns = toInt(props[L"warmupRuns"], 0, -1);
     if (warmupRuns < 0) {
         msg << "[ignored] warmupRuns:        '"
             << toString(props[L"warmupRuns"]) << "'" << endl;
         warmupRuns = 0;
-    }
-
-    hotRuns = toInt(props[L"hotRuns"], 1, -1);
-    if (hotRuns < 0) {
-        msg << "[ignored] hotRuns:           '"
-            << toString(props[L"hotRuns"]) << "'" << endl;
-        hotRuns = 1;
     }
 
     //if (msg.tellp() == 0) // netbeans reports amibuities
@@ -232,10 +200,7 @@ Driver::printProperties() {
     cout.flags(ios_base::boolalpha);
 
     cout << endl << "driver settings ..." << endl;
-    cout << "logRealTime:                    " << logRealTime << endl;
-    cout << "logCpuTime:                     " << logCpuTime << endl;
     cout << "warmupRuns:                     " << warmupRuns << endl;
-    cout << "hotRuns:                        " << hotRuns << endl;
 
     cout.flags(f);
 }
@@ -257,57 +222,44 @@ Driver::closeLogFile() {
     cout << "           [ok: " << logFileName << "]" << endl;
 }
 
-// ----------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+
+void
+Driver::clearLogBuffers() {
+    logHeader = true;
+    header.rdbuf()->str("");
+    rtimes.rdbuf()->str("");
+}
+
+void
+Driver::writeLogBuffers() {
+    log << descr << ", rtime[ms]"
+        << header.rdbuf()->str() << endl
+        << rtimes.rdbuf()->str() << endl;
+}
 
 void
 Driver::begin(const string& name) {
     cout << endl;
     cout << name << endl;
 
-    if (logRealTime && logCpuTime) {
-        s0 = hrt_tnow(&t0);
-    } else if (logRealTime) {
-        s0 = hrt_rtnow(&t0.rtstamp);
-    } else if (logCpuTime) {
-        s0 = hrt_ctnow(&t0.ctstamp);
-    }
+    if (gettimeofday(&t0, NULL) != 0)
+        ABORT_GETTIMEOFDAY_ERROR();
 }
 
 void
-Driver::commit(const string& name) {
-    if (logRealTime && logCpuTime) {
-        s1 = hrt_tnow(&t1);
-    } else if (logRealTime) {
-        s1 = hrt_rtnow(&t1.rtstamp);
-    } else if (logCpuTime) {
-        s1 = hrt_ctnow(&t1.ctstamp);
-    }
+Driver::finish(const string& name) {
+    if (gettimeofday(&t1, NULL) != 0)
+        ABORT_GETTIMEOFDAY_ERROR();
 
-    if (logRealTime) {
-        if (s0 | s1) {
-            cout << "ERROR: failed to get the system's real time.";
-            rtimes << "\tERROR";
-        } else {
-            long t = long(hrt_rtmicros(&t1.rtstamp, &t0.rtstamp)/1000);
-            cout << "tx real time:                   " << t
-                 << "\tms" << endl;
-            rtimes << "\t" << t;
-            rta += t;
-        }
-    }
+    const long r_usec = (((t1.tv_sec - t0.tv_sec) * 1000000)
+                         + (t1.tv_usec - t0.tv_usec));
+    const long r_msec = r_usec / 1000;
 
-    if (logCpuTime) {
-        if (s0 | s1) {
-            cout << "ERROR: failed to get this process's cpu time.";
-            ctimes << "\tERROR";
-        } else {
-            long t = long(hrt_ctmicros(&t1.ctstamp, &t0.ctstamp)/1000);
-            cout << "tx cpu time:                    " << t
-                 << "\tms" << endl;
-            ctimes << "\t" << t;
-            cta += t;
-        }
-    }
+    cout << "tx real time:                   " << r_msec
+         << "\tms" << endl;
+    rtimes << "\t" << r_msec;
+    rta += r_msec;
 
     if (logHeader)
         header << "\t" << name;

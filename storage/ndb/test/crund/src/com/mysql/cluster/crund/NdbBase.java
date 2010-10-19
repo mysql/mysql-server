@@ -20,9 +20,9 @@
 
 package com.mysql.cluster.crund;
 
-abstract public class NdbBase extends Driver {
+abstract public class NdbBase extends CrundDriver {
 
-    // the NDB database connection
+    // NDB settings
     protected String mgmdConnect;
     protected String catalog;
     protected String schema;
@@ -30,31 +30,45 @@ abstract public class NdbBase extends Driver {
     // so far, there's no NDB support for caching data beyond Tx scope
     protected void clearPersistenceContext() throws Exception {}
 
-    // NDB operations must demarcate transactions themselves
-    final protected void beginTransaction() throws Exception {}
-    final protected void commitTransaction() throws Exception {}
-    final protected void rollbackTransaction() throws Exception {}
+    // ----------------------------------------------------------------------
+    // NDB Base intializers/finalizers
+    // ----------------------------------------------------------------------
 
-    protected void initProperties() {
+   protected void initProperties() {
         super.initProperties();
+
+        out.print("setting ndb properties ...");
+
+        final StringBuilder msg = new StringBuilder();
+        final String eol = System.getProperty("line.separator");
 
         // the hostname and port number of NDB mgmd
         mgmdConnect = props.getProperty("ndb.mgmdConnect", "localhost");
         assert mgmdConnect != null;
 
         // the database
-        catalog = props.getProperty("ndb.catalog", "");
+        catalog = props.getProperty("ndb.catalog", "crunddb");
         assert catalog != null;
 
         // the schema
-        schema = props.getProperty("ndb.schema", "");
+        schema = props.getProperty("ndb.schema", "def");
         assert schema != null;
+
+        if (msg.length() == 0) {
+            out.println("      [ok]");
+        } else {
+            out.println();
+            out.print(msg.toString());
+        }
     }
 
     protected void printProperties() {
         super.printProperties();
-        out.println("ndb.mgmdConnect             \"" + mgmdConnect + "\"");
-        out.println("ndb.catalog                 \"" + catalog + "\"");
-        out.println("ndb.schema                  \"" + schema + "\"");
+
+        out.println();
+        out.println("ndb settings ...");
+        out.println("ndb.mgmdConnect:                \"" + mgmdConnect + "\"");
+        out.println("ndb.catalog:                    \"" + catalog + "\"");
+        out.println("ndb.schema:                     \"" + schema + "\"");
     }
 }

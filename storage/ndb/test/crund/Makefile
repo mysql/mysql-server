@@ -2,7 +2,7 @@
 
   SRC		= ./src
 
-.PHONY:	all help dep dbg opt prf clean clobber distclean check
+.PHONY:	all help dep dbg opt prf clean mostlclean clobber distclean check
 all:	dbg
 
 help:
@@ -16,7 +16,7 @@ help:
 	@echo "distclean	-- delete also database and server log files"
 	@echo "check		-- perform self-tests (if any)"
 
-dep dbg opt prf clean mostlyclean check:
+dep dbg opt prf clean mostlyclean clobber check:
 	ant $@
 	@cd $(SRC)/crundndb && $(MAKE) $(MFLAGS) $@
 
@@ -32,8 +32,10 @@ distclean:
 # read the generic settings
 include	env.properties
 
-run.driver:	$(SRC)/crundndb/Driver
-	LD_LIBRARY_PATH=${NDB_LIBDIR} $(SRC)/crundndb/Driver \
+# not sure if needed:
+#	LD_LIBRARY_PATH=${NDB_LIBDIR}:$(SRC)/crundndb/Driver 
+run.driver:	$(SRC)/crundndb/NdbApiDriver
+	$(SRC)/crundndb/NdbApiDriver \
 	-p crundRun.properties -p crundNdbapi.properties
 #
 #run.driver:

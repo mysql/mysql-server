@@ -33,14 +33,87 @@ import java.sql.ResultSet;
 /**
  * A benchmark implementation against a JDBC/SQL database.
  */
-public class JdbcLoad extends Driver {
+public class JdbcLoad extends CrundDriver {
 
-    // JDBC connection
+    // JDBC settings
     protected String driver;
     protected String url;
+    protected String user;
+    protected String password;
+    protected boolean autoCommit;
+
+    // JDBC resources
     protected Connection conn;
     protected PreparedStatement delAllA;
     protected PreparedStatement delAllB0;
+
+    // ----------------------------------------------------------------------
+    // JDBC intializers/finalizers
+    // ----------------------------------------------------------------------
+
+    protected void initProperties() {
+        super.initProperties();
+
+        out.print("setting jdbc properties ...");
+
+        final StringBuilder msg = new StringBuilder();
+        final String eol = System.getProperty("line.separator");
+
+        // load the JDBC driver class
+        driver = props.getProperty("jdbc.driver");
+        if (driver == null) {
+            throw new RuntimeException("Missing property: jdbc.driver");
+        }
+        try {
+            Class.forName(driver);
+        } catch (ClassNotFoundException e) {
+            out.println("Cannot load JDBC driver '" + driver
+                        + "' from classpath '"
+                        + System.getProperty("java.class.path") + "'");
+            throw new RuntimeException(e);
+        }
+
+        url = props.getProperty("jdbc.url");
+        if (url == null) {
+            throw new RuntimeException("Missing property: jdbc.url");
+        }
+
+        user = props.getProperty("jdbc.user");
+        password = props.getProperty("jdbc.password");
+
+        // single ops not supported yet
+        autoCommit = parseBoolean("jdbc.autoCommit", false);
+        if (autoCommit) {
+            msg.append("[ignored] autoCommit:           " + autoCommit + eol);
+            autoCommit = false;
+        }
+
+        if (msg.length() == 0) {
+            out.println("     [ok]");
+        } else {
+            out.println();
+            out.print(msg.toString());
+        }
+
+        // have url initialized first
+        descr = "->" + url;
+     }
+
+    protected void printProperties() {
+        super.printProperties();
+
+        out.println();
+        out.println("jdbc settings ...");
+        out.println("jdbc.driver:                    " + driver);
+        out.println("jdbc.url:                       " + url);
+        out.println("jdbc.user:                      \"" + user + "\"");
+        out.println("jdbc.password:                  \"" + password + "\"");
+        out.println("jdbc.autoCommit:                " + autoCommit);
+    }
+
+    // ----------------------------------------------------------------------
+    // JDBC operations
+    // ----------------------------------------------------------------------
 
     protected abstract class JdbcOp extends Op {
         final protected String sql;
@@ -62,65 +135,6 @@ public class JdbcLoad extends Driver {
             stmt = null;
         }
     };
-
-    protected void initProperties() {
-        super.initProperties();
-
-        // load the JDBC driver class
-        driver = props.getProperty("jdbc.driver");
-        if (driver == null) {
-            throw new RuntimeException("Missing property: jdbc.driver");
-        }
-        try {
-            Class.forName(driver);
-        } catch (ClassNotFoundException e) {
-            out.println("Cannot load JDBC driver '" + driver
-                        + "' from classpath '"
-                        + System.getProperty("java.class.path") + "'");
-            throw new RuntimeException(e);
-        }
-
-        url = props.getProperty("jdbc.url");
-        if (url == null) {
-            throw new RuntimeException("Missing property: jdbc.url");
-        }
-
-        descr = "->" + url;
-    }
-
-    protected void printProperties() {
-        super.printProperties();
-        out.println("jdbc.driver:                " + driver);
-        out.println("jdbc.url:                   " + url);
-    }
-
-    protected void initConnection() throws SQLException {
-        out.print("initializing connection ...");
-        out.flush();
-        final String user = props.getProperty("jdbc.user");
-        final String password = props.getProperty("jdbc.password");
-        final String autoCommit = props.getProperty("jdbc.autoCommit");
-        conn = DriverManager.getConnection(url, user, password);
-        conn.setAutoCommit(Boolean.getBoolean(autoCommit));
-        delAllA = conn.prepareStatement("DELETE FROM a");
-        delAllB0 = conn.prepareStatement("DELETE FROM b0");
-        out.println(" [Conn: 1]");
-    }
-
-    protected void closeConnection() throws SQLException {
-        out.print("closing connection ...");
-        out.flush();
-        if (delAllB0 != null)
-            delAllB0.close();
-        delAllB0 = null;
-        if (delAllA != null)
-            delAllA.close();
-        delAllA = null;
-        if (conn != null)
-            conn.close();
-        conn = null;
-        out.println("      [ok]");
-    }
 
     static protected void setCommonAttributes(PreparedStatement stmt, int i)
         throws SQLException {
@@ -171,6 +185,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -193,6 +208,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -220,6 +236,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -247,6 +264,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -279,6 +297,7 @@ public class JdbcLoad extends Driver {
                                 rs.close();
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -311,6 +330,7 @@ public class JdbcLoad extends Driver {
                                 rs.close();
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -339,6 +359,7 @@ public class JdbcLoad extends Driver {
                                     verify(cnts[i] == 1);
                                 }
                             }
+                            conn.commit();
                         }
                     });
 
@@ -356,6 +377,7 @@ public class JdbcLoad extends Driver {
                                 verify(!rs.next());
                                 rs.close();
                             }
+                            conn.commit();
                         }
                     });
 
@@ -379,10 +401,11 @@ public class JdbcLoad extends Driver {
                                     verify(cnts[i] == 1);
                                 }
                             }
+                            conn.commit();
                         }
                     });
             }
-        
+
             for (int i = 0, l = 1; l <= maxVarcharChars; l *= 10, i++) {
                 final String s = strings[i];
                 assert l == s.length();
@@ -408,6 +431,7 @@ public class JdbcLoad extends Driver {
                                     verify(cnts[i] == 1);
                                 }
                             }
+                            conn.commit();
                         }
                     });
 
@@ -425,6 +449,7 @@ public class JdbcLoad extends Driver {
                                 verify(!rs.next());
                                 rs.close();
                             }
+                            conn.commit();
                         }
                     });
 
@@ -448,6 +473,7 @@ public class JdbcLoad extends Driver {
                                     verify(cnts[i] == 1);
                                 }
                             }
+                            conn.commit();
                         }
                     });
             }
@@ -477,6 +503,7 @@ public class JdbcLoad extends Driver {
                                     verify(cnts[i] == 1);
                                 }
                             }
+                            conn.commit();
                         }
                     });
 
@@ -494,6 +521,7 @@ public class JdbcLoad extends Driver {
                                 verify(!rs.next());
                                 rs.close();
                             }
+                            conn.commit();
                         }
                     });
             }
@@ -523,6 +551,7 @@ public class JdbcLoad extends Driver {
                                     verify(cnts[i] == 1);
                                 }
                             }
+                            conn.commit();
                         }
                     });
 
@@ -540,6 +569,7 @@ public class JdbcLoad extends Driver {
                                 verify(!rs.next());
                                 rs.close();
                             }
+                            conn.commit();
                         }
                     });
             }
@@ -565,6 +595,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -583,6 +614,7 @@ public class JdbcLoad extends Driver {
                             verify(!rs.next());
                             rs.close();
                         }
+                        conn.commit();
                     }
                 });
 
@@ -601,6 +633,7 @@ public class JdbcLoad extends Driver {
                             verify(!rs.next());
                             rs.close();
                         }
+                        conn.commit();
                     }
                 });
 
@@ -642,6 +675,7 @@ public class JdbcLoad extends Driver {
                             verify(!rs.next());
                             rs.close();
                         }
+                        conn.commit();
                     }
                 });
 
@@ -663,6 +697,7 @@ public class JdbcLoad extends Driver {
                             rs.close();
                         }
                         verify(cnt == countB);
+                        conn.commit();
                     }
                 });
 
@@ -685,6 +720,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -708,6 +744,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -731,6 +768,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -754,6 +792,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -777,6 +816,7 @@ public class JdbcLoad extends Driver {
                                 verify(cnts[i] == 1);
                             }
                         }
+                        conn.commit();
                     }
                 });
 
@@ -786,6 +826,7 @@ public class JdbcLoad extends Driver {
                     public void run(int countA, int countB) throws SQLException {
                         int cnt = stmt.executeUpdate();
                         verify(cnt == countB);
+                        conn.commit();
                     }
                 });
 
@@ -795,38 +836,56 @@ public class JdbcLoad extends Driver {
                     public void run(int countA, int countB) throws SQLException {
                         int cnt = stmt.executeUpdate();
                         verify(cnt == countA);
+                        conn.commit();
                     }
                 });
         }
-        
+
         // prepare all statements
-        for (Iterator<Driver.Op> i = ops.iterator(); i.hasNext();) {
+        for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
             ((JdbcOp)i.next()).init();
         }
-        out.println(" [JdbcOp: " + ops.size() + "]");
+        out.println("     [JdbcOp: " + ops.size() + "]");
     }
 
     protected void closeOperations() throws SQLException {
         out.print("closing statements ...");
         out.flush();
         // close all statements
-        for (Iterator<Driver.Op> i = ops.iterator(); i.hasNext();) {
+        for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
             ((JdbcOp)i.next()).close();
         }
         ops.clear();
-        out.println("      [ok]");
+        out.println("          [ok]");
     }
 
-    protected void beginTransaction() {
-        // nothing to do for JDBC
+    // ----------------------------------------------------------------------
+    // JDBC datastore operations
+    // ----------------------------------------------------------------------
+
+    protected void initConnection() throws SQLException {
+        out.print("initializing connection ...");
+        out.flush();
+        conn = DriverManager.getConnection(url, user, password);
+        conn.setAutoCommit(autoCommit);
+        delAllA = conn.prepareStatement("DELETE FROM a");
+        delAllB0 = conn.prepareStatement("DELETE FROM b0");
+        out.println("     [Conn: 1]");
     }
 
-    protected void commitTransaction() throws SQLException {
-        conn.commit();
-    }
-
-    protected void rollbackTransaction() throws SQLException {
-        conn.rollback();
+    protected void closeConnection() throws SQLException {
+        out.print("closing connection ...");
+        out.flush();
+        if (delAllB0 != null)
+            delAllB0.close();
+        delAllB0 = null;
+        if (delAllA != null)
+            delAllA.close();
+        delAllA = null;
+        if (conn != null)
+            conn.close();
+        conn = null;
+        out.println("          [ok]");
     }
 
     protected void clearPersistenceContext() {
@@ -837,7 +896,7 @@ public class JdbcLoad extends Driver {
         out.print("deleting all rows ...");
         out.flush();
         int delB0 = delAllB0.executeUpdate();
-        out.print("       [B0: " + delB0);
+        out.print("           [B0: " + delB0);
         out.flush();
         int delA = delAllA.executeUpdate();
         out.print(", A: " + delA);
