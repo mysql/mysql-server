@@ -1356,8 +1356,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
           break;
 #ifndef MCP_WL3126
 	case 32: /* bind-address */
-          my_free(options->bind_address);
-          options->bind_address= my_strdup(opt_arg, MYF(MY_WME));
+          my_free(options->client_ip);
+          options->client_ip= my_strdup(opt_arg, MYF(MY_WME));
           break;
 #endif
 	default:
@@ -2490,21 +2490,21 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
 #ifndef MCP_WL3126
     /* Get address info for client bind name if it is provided */
-    if (mysql->options.bind_address)
+    if (mysql->options.client_ip)
     {
       int bind_gai_errno= 0;
 
       DBUG_PRINT("info",("Resolving addresses for client bind: '%s'",
-                         mysql->options.bind_address));
+                         mysql->options.client_ip));
       /* Lookup address info for name */
-      bind_gai_errno= getaddrinfo(mysql->options.bind_address, 0,
+      bind_gai_errno= getaddrinfo(mysql->options.client_ip, 0,
                                   &hints, &client_bind_ai_lst);
       if (bind_gai_errno)
       {
         DBUG_PRINT("info",("client bind getaddrinfo error %d", bind_gai_errno));
         set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                  ER(CR_UNKNOWN_HOST),
-                                 mysql->options.bind_address,
+                                 mysql->options.client_ip,
                                  bind_gai_errno);
 
         freeaddrinfo(res_lst);
@@ -3615,8 +3615,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     break;
 #ifndef MCP_WL3126
   case MYSQL_OPT_BIND:
-    my_free(mysql->options.bind_address);
-    mysql->options.bind_address= my_strdup(arg, MYF(MY_WME));
+    my_free(mysql->options.client_ip);
+    mysql->options.client_ip= my_strdup(arg, MYF(MY_WME));
     break;
 #endif
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:

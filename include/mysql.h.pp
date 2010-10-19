@@ -286,10 +286,7 @@ struct st_mysql_options {
   my_bool unused3;
   my_bool unused4;
   enum mysql_option methods_to_use;
-  union {
-    char *client_ip;
-    char *bind_address;
-  };
+  char *client_ip;
   my_bool secure_auth;
   my_bool report_data_truncation;
   int (*local_infile_init)(void **, const char *, void *);
