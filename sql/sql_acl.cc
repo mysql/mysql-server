@@ -1828,10 +1828,10 @@ bool hostname_requires_resolving(const char *hostname)
   size_t localhost_len= strlen(my_localhost);
 
   if (hostname == my_localhost ||
-      hostname_len == localhost_len &&
-      !my_strnncoll(system_charset_info,
-                    (const uchar *) hostname,  hostname_len,
-		    (const uchar *) my_localhost, strlen(my_localhost)))
+      (hostname_len == localhost_len &&
+       !my_strnncoll(system_charset_info,
+                     (const uchar *) hostname,  hostname_len,
+                     (const uchar *) my_localhost, strlen(my_localhost))))
   {
     return FALSE;
   }
