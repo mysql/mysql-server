@@ -3051,7 +3051,7 @@ wait_until_unfixed:
 		/* As we have released the page_hash mutex and the
 		block_mutex to allocate an uncompressed page it is
 		possible that page_hash might have changed. We do
-		another lookup here while holding the buf_pool mutex
+		another lookup here while holding the hash_mutex
 		to verify that bpage is indeed still a part of
 		page_hash. */
 		mutex_enter(hash_mutex);
@@ -3178,6 +3178,73 @@ wait_until_unfixed:
 	bytes. */
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
 #endif
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if ((mode == BUF_GET_IF_IN_POOL || mode == BUF_GET_IF_IN_POOL_OR_WATCH)
+	    && ibuf_debug) {
+		/* Try to evict the block from the buffer pool, to use the
+		insert buffer (change buffer) as much as possible. */
+
+		/* To obey the latching order, release the
+		block->mutex before acquiring buf_pool->mutex. Protect
+		the block from changes by temporarily buffer-fixing it
+		for the time we are not holding block->mutex. */
+		buf_block_buf_fix_inc(block, file, line);
+		mutex_exit(&block->mutex);
+		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&block->mutex);
+		buf_block_buf_fix_dec(block);
+		mutex_exit(&block->mutex);
+
+		/* Now we are only holding the buf_pool->mutex,
+		not block->mutex or hash_mutex. Blocks cannot be
+		relocated or enter or exit the buf_pool while we
+		are holding the buf_pool->mutex. */
+
+		if (buf_LRU_free_block(&block->page, TRUE, NULL)
+		    == BUF_LRU_FREED) {
+			buf_pool_mutex_exit(buf_pool);
+			mutex_enter(hash_mutex);
+
+			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
+				/* Set the watch, as it would have
+				been set if the page were not in the
+				buffer pool in the first place. */
+				block = (buf_block_t*) buf_pool_watch_set(
+					space, offset, fold);
+			} else {
+				block = (buf_block_t*) buf_page_hash_get_low(
+					buf_pool, space, offset, fold);
+			}
+
+			if (UNIV_LIKELY_NULL(block)) {
+				/* The page entered the buffer
+				pool for some reason. Try to
+				evict it again. */
+				goto got_block;
+			}
+
+			mutex_exit(hash_mutex);
+			fprintf(stderr,
+				"innodb_change_buffering_debug evict %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			return(NULL);
+		}
+
+		mutex_enter(&block->mutex);
+
+		if (buf_flush_page_try(buf_pool, block)) {
+			fprintf(stderr,
+				"innodb_change_buffering_debug flush %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			guess = block;
+			goto loop;
+		}
+
+		/* Failed to evict the page; change it directly */
+
+		buf_pool_mutex_exit(buf_pool);
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 	buf_block_buf_fix_inc(block, file, line);
 
