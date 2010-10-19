@@ -1305,7 +1305,7 @@ Compute the hash fold value for blocks in buf_pool->zip_hash. */
 /* the fold should be relative when srv_buffer_pool_shm_key is enabled */
 #define BUF_POOL_ZIP_FOLD_PTR(ptr) (!srv_buffer_pool_shm_key\
 					?((ulint) (ptr) / UNIV_PAGE_SIZE)\
-					:((ulint) ((char*)ptr - (char*)(buf_pool->chunks->blocks->frame)) / UNIV_PAGE_SIZE))
+					:((ulint) ((byte*)ptr - (byte*)(buf_pool->chunks->blocks->frame)) / UNIV_PAGE_SIZE))
 #define BUF_POOL_ZIP_FOLD(b) BUF_POOL_ZIP_FOLD_PTR((b)->frame)
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */

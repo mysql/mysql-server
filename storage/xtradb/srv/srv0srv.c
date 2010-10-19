@@ -213,6 +213,8 @@ UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* key value for shm */
 UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
+UNIV_INTERN ibool	srv_buffer_pool_shm_is_reused = FALSE;
+UNIV_INTERN ibool	srv_buffer_pool_shm_checksum = TRUE;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
@@ -306,6 +308,9 @@ UNIV_INTERN ulint srv_buf_pool_flushed = 0;
 /** Number of buffer pool reads that led to the
 reading of a disk page */
 UNIV_INTERN ulint srv_buf_pool_reads = 0;
+
+/** Time in seconds between automatic buffer pool dumps */
+UNIV_INTERN uint srv_auto_lru_dump = 0;
 
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
@@ -2547,6 +2552,56 @@ loop:
 
 	srv_error_monitor_active = FALSE;
 
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+/*********************************************************************//**
+A thread which restores the buffer pool from a dump file on startup and does
+periodic buffer pool dumps.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_LRU_dump_restore_thread(
+/*====================*/
+	void*	arg __attribute__((unused)))
+			/*!< in: a dummy parameter required by
+			os_thread_create */
+{
+	uint	auto_lru_dump;
+	time_t	last_dump_time;
+	time_t	time_elapsed;
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "LRU dump/restore thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+
+	if (srv_auto_lru_dump)
+		buf_LRU_file_restore();
+
+	last_dump_time = time(NULL);
+
+loop:
+	os_thread_sleep(5000000);
+
+	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+		goto exit_func;
+	}
+
+	time_elapsed = time(NULL) - last_dump_time;
+	auto_lru_dump = srv_auto_lru_dump;
+	if (auto_lru_dump > 0 && (time_t) auto_lru_dump < time_elapsed) {
+		last_dump_time = time(NULL);
+		buf_LRU_file_dump();
+	}
+
+	goto loop;
+exit_func:
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 
