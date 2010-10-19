@@ -4624,16 +4624,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifdef __WIN__
   if (!opt_console)
   {
-<<<<<<< TREE
-    if (!freopen(log_error_file,"a+",stdout) ||
-        !freopen(log_error_file,"a+",stderr))
-    {
-      sql_print_warning("Couldn't reopen stdout or stderr");
-    }
-=======
     if (reopen_fstreams(log_error_file, stdout, stderr))
       unireg_abort(1);
->>>>>>> MERGE-SOURCE
     setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
