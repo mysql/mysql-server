@@ -2269,7 +2269,7 @@ static void dbug_flush(CODE_STATE *cs)
 
 void _db_flush_()
 {
-  CODE_STATE *cs;
+  CODE_STATE *cs= NULL;
   get_code_state_or_return;
   (void) fflush(cs->stack->out_file);
 }
