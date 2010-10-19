@@ -361,7 +361,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
       if (field->binary() &&  field->type() == MYSQL_TYPE_STRING && tmp.length())
       {
         const char *tmp_end= tmp.ptr() + tmp.length();
-        while (tmp_end > tmp.ptr() && !*--tmp_end);
+        while (tmp_end > tmp.ptr() && !*--tmp_end) ;
         tmp.length(tmp_end - tmp.ptr() + 1);
       }
       if (cs->mbmaxlen > 1 &&
