@@ -11,6 +11,7 @@ source include/have_binlog_format_row.inc;
 source include/master-slave.inc;
 source include/have_binlog_rows_query.inc;
 source include/have_innodb.inc;
+source include/have_debug.inc;
 
 SET @old_debug= @@global.debug;
 SET GLOBAL debug="+d,waiting_for_delayed_insert_queue_is_empty";
