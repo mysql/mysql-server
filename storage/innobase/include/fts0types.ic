@@ -1,0 +1,434 @@
+#ifndef INNOBASE_FTS0TYPES_IC
+#define INNOBASE_FTS0TYPES_IC
+
+#include <ctype.h>
+
+#include "rem0cmp.h"
+#include "fts_uc_data.ic"
+#include "ha_prototypes.h"
+
+extern const ulint UTF8_ERROR;
+
+/* Determine if a UTF-8 continuation byte is valid. */
+#define fts_utf8_is_valid(b) (((b) & 0xC0) == 0x80)
+
+/********************************************************************
+Compare two fts_trx_table_t instances. */
+UNIV_INLINE
+int
+fts_trx_table_cmp(
+/*==============*/
+						/* out:
+						< 0 if n1 < n2,
+						0 if n1 == n2,
+						> 0 if n1 > n2 */
+	const void*	p1,			/* in: id1 */
+	const void*	p2)			/* in: id2 */
+{
+	const dict_table_t* table1 = (*(const fts_trx_table_t**) p1)->table;
+	const dict_table_t* table2 = (*(const fts_trx_table_t**) p2)->table;
+
+	return((table1->id > table2->id)
+	       ? 1
+	       : (table1->id == table2->id)
+		  ? 0
+		  : -1);
+}
+
+/********************************************************************
+Compare a table id with a fts_trx_table_t table id. */
+UNIV_INLINE
+int
+fts_trx_table_id_cmp(
+/*=================*/
+						/* out:
+						< 0 if n1 < n2,
+						0 if n1 == n2,
+						> 0 if n1 > n2 */
+	const void*	p1,			/* in: id1 */
+	const void*	p2)			/* in: id2 */
+{
+	const ullint* table_id = (const ullint*) p1;
+	const dict_table_t* table2 = (*(const fts_trx_table_t**) p2)->table;
+
+	return((*table_id > table2->id)
+	       ? 1
+	       : (*table_id == table2->id)
+		  ? 0
+		  : -1);
+}
+
+/********************************************************************
+Duplicate an UTF-8 string. */
+UNIV_INLINE
+void
+fts_utf8_string_dup(
+/*================*/
+						/* out: 
+						< 0 if n1 < n2,
+						0 if n1 == n2,
+						> 0 if n1 > n2 */
+	fts_string_t*		dst,		/* in: dup to here */
+	const fts_string_t*	src,		/* in: src string */
+	mem_heap_t*		heap)		/* in: heap to use */
+{
+	dst->utf8 = mem_heap_dup(heap, src->utf8, src->len + 1);
+	dst->utf8[src->len] = 0;
+	dst->len = src->len;
+}
+
+/********************************************************************
+Compare two fts_trx_row_t doc_ids. */
+UNIV_INLINE
+int
+fts_trx_row_doc_id_cmp(
+/*===================*/
+						/* out:
+						< 0 if n1 < n2,
+						0 if n1 == n2,
+						> 0 if n1 > n2 */
+	const void*	p1,			/* in: id1 */
+	const void*	p2)			/* in: id2 */
+{
+	const fts_trx_row_t*	tr1 = (const fts_trx_row_t*) p1;
+	const fts_trx_row_t*	tr2 = (const fts_trx_row_t*) p2;
+
+	return(tr1->doc_id - tr2->doc_id);
+}
+
+/********************************************************************
+Compare two fts_ranking_t doc_ids. */
+UNIV_INLINE
+int
+fts_ranking_doc_id_cmp(
+/*===================*/
+						/* out:
+						< 0 if n1 < n2,
+						0 if n1 == n2,
+						> 0 if n1 > n2 */
+	const void*	p1,			/* in: id1 */
+	const void*	p2)			/* in: id2 */
+{
+	const fts_ranking_t*	rk1 = (const fts_ranking_t*) p1;
+	const fts_ranking_t*	rk2 = (const fts_ranking_t*) p2;
+
+	return(rk1->doc_id - rk2->doc_id);
+}
+
+/********************************************************************
+Compare two fts_update_t doc_ids. */
+UNIV_INLINE
+int
+fts_update_doc_id_cmp(
+/*==================*/
+						/* out:
+						< 0 if n1 < n2,
+						0 if n1 == n2,
+						> 0 if n1 > n2 */
+	const void*	p1,			/* in: id1 */
+	const void*	p2)			/* in: id2 */
+{
+	const fts_update_t*	up1 = (const fts_update_t*) p1;
+	const fts_update_t*	up2 = (const fts_update_t*) p2;
+
+	return(up1->doc_id - up2->doc_id);
+}
+
+/********************************************************************
+Check whether a character is an alphabetic one. */
+UNIV_INLINE
+ibool
+fts_utf8_isalpha(
+/*=============*/
+						/* out: TRUE if the character
+						is an alphabetic character */
+	ulint		ch)			/* in: char to test */
+{	
+	ibool		res = FALSE;
+
+	if (ch < 0x7F) {
+		res = isalpha(ch);
+	} else if (ch < FTS_UC_MAX_CODE_POINT) {
+		res = (ib_fts_uc_isletter[ch / 8] >> (ch % 8)) & 1;
+	}
+
+	return(res);
+}
+
+/********************************************************************
+Check whether a character is a digit. */
+UNIV_INLINE
+ibool
+fts_utf8_isdigit(
+/*=============*/
+						/* out: TRUE if the character
+						is a digit*/
+	ulint		ch)			/* in: UTF-8 character */
+{
+	return((ch < 0x7F) ? isdigit(ch) : FALSE);
+}
+
+/********************************************************************
+Lowercase an UTF-8 string. */
+UNIV_INLINE
+void
+fts_utf8_tolower(
+/*=============*/
+	fts_string_t*	str)			/* in: string */
+{
+	innobase_casedn_str((char*) str->utf8);
+}
+
+/********************************************************************
+Compare two UTF-8 strings. */
+UNIV_INLINE
+int
+fts_utf8_string_cmp(
+/*================*/
+						/* out: 
+						< 0 if n1 < n2, 
+						0 if n1 == n2,
+						> 0 if n1 > n2 */
+	const void*	p1,			/* in: key */
+	const void*	p2)			/* in: node */
+{
+	const fts_string_t* s1 = (const fts_string_t*) p1;
+	const fts_string_t* s2 = (const fts_string_t*) p2;
+
+	return(cmp_data_data_slow_varchar(
+		s1->utf8, s1->len, s2->utf8, s2->len));
+}
+
+/********************************************************************
+Decode a UTF-8 character.
+
+http://www.unicode.org/versions/Unicode4.0.0/ch03.pdf:
+
+ Scalar Value              1st Byte 2nd Byte 3rd Byte 4th Byte
+00000000 0xxxxxxx          0xxxxxxx
+00000yyy yyxxxxxx          110yyyyy 10xxxxxx
+zzzzyyyy yyxxxxxx          1110zzzz 10yyyyyy 10xxxxxx
+000uuuzz zzzzyyyy yyxxxxxx 11110uuu 10zzzzzz 10yyyyyy 10xxxxxx
+
+This function decodes UTF-8 sequences up to 6 bytes (31 bits).
+
+On error *ptr will point to the first byte that was not correctly
+decoded. This will hopefully help in resyncing the input. */
+UNIV_INLINE
+ulint
+fts_utf8_decode(
+/*============*/
+						/* out: UTF8_ERROR if *ptr
+						did not point to a valid
+						UTF-8 sequence, or the
+						Unicode code point. */
+	const byte**	ptr)			/* in/out: pointer to
+						UTF-8 string. The
+						pointer is advanced to
+						the start of the next
+						character. */
+{
+	const byte*	p = *ptr;
+	ulint		ch = *p++;
+#ifdef UNIV_DEBUG
+	ulint		min_ch;
+#endif /* UNIV_DEBUG */
+
+	if (UNIV_LIKELY(ch < 0x80)) {
+		/* 0xxxxxxx */
+	} else if (UNIV_UNLIKELY(ch < 0xC0)) {
+		/* A continuation byte cannot start a code. */
+		goto err_exit;
+	} else if (ch < 0xE0) {
+		/* 110yyyyy 10xxxxxx */
+		ch &= 0x1F;
+		ut_d(min_ch = 0x80);
+		goto get1;
+	} else if (ch < 0xF0) {
+		/* 1110zzzz 10yyyyyy 10xxxxxx */
+		ch &= 0x0F;
+		ut_d(min_ch = 0x800);
+		goto get2;
+	} else if (ch < 0xF8) {
+		/* 11110uuu 10zzzzzz 10yyyyyy 10xxxxxx */
+		ch &= 0x07;
+		ut_d(min_ch = 0x10000);
+		goto get3;
+	} else if (ch < 0xFC) {
+		/* 111110tt 10uuuuuu 10zzzzzz 10yyyyyy 10xxxxxx */
+		ch &= 0x03;
+		ut_d(min_ch = 0x200000);
+		goto get4;
+	} else if (ch < 0xFE) {
+		/* 1111110s 10tttttt 10uuuuuu 10zzzzzz 10yyyyyy 10xxxxxx */
+		ut_d(min_ch = 0x4000000);
+		if (!fts_utf8_is_valid(*p)) {
+			goto err_exit;
+		}
+		ch <<= 6;
+		ch |= (*p++) & 0x3F;
+get4:
+		if (!fts_utf8_is_valid(*p)) {
+			goto err_exit;
+		}
+		ch <<= 6;
+		ch |= (*p++) & 0x3F;
+get3:
+		if (!fts_utf8_is_valid(*p)) {
+			goto err_exit;
+		}
+		ch <<= 6;
+		ch |= (*p++) & 0x3F;
+get2:
+		if (!fts_utf8_is_valid(*p)) {
+			goto err_exit;
+		}
+		ch <<= 6;
+		ch |= (*p++) & 0x3F;
+get1:
+		if (!fts_utf8_is_valid(*p)) {
+			goto err_exit;
+		}
+		ch <<= 6;
+		ch |= (*p++) & 0x3F;
+
+		/* The following is needed in the 6-byte case
+		when ulint is wider than 32 bits. */
+		ch &= 0xFFFFFFFF;
+
+		/* The code positions U+D800 to U+DFFF (UTF-16 surrogate pairs)
+		and U+FFFE and U+FFFF cannot occur in valid UTF-8. */
+
+		if (UNIV_UNLIKELY
+		    ((ch >= 0xD800 && ch <= 0xDFFF)
+#ifdef UNIV_DEBUG
+		     || ch < min_ch
+#endif /* UNIV_DEBUG */
+		     || ch == 0xFFFE || ch == 0xFFFF)) {
+
+			ch = UTF8_ERROR;
+		}
+	} else {
+err_exit:
+		ch = UTF8_ERROR;
+	}
+
+	*ptr = p;
+
+	return(ch);
+}
+
+/********************************************************************
+Write the table id to the given buffer (including final NUL). Buffer must be
+at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
+@return	number of bytes written */
+UNIV_INLINE
+int
+fts_write_object_id(
+/*================*/
+	ullint		id,		/* in: a table/index id */
+	char*		str)		/* in: buffer to write the id to */
+{
+	// FIXME: We need our own snprintf() equivalent!
+	return(sprintf(str, "%016llX", id));
+}
+
+/********************************************************************
+Read the table id from the string generated by fts_write_object_id().
+@return	TRUE if parse successful */
+UNIV_INLINE
+ibool
+fts_read_object_id(
+/*===============*/
+	ullint*		id,		/* out: a ullint id */
+	const char*	str)		/* in: buffer to read from */
+{
+	return(sscanf(str, "%llu", id) == 2);
+}
+
+/********************************************************************
+Select the FTS auxiliary index for the given character. */
+UNIV_INLINE
+ulint
+fts_select_index(
+/*=============*/
+	byte		ch)	/* in: First character of a word */
+{
+	ulint		selected = 0;
+
+	// FIXME: Make this UTF-8 compatible.
+	while (fts_index_selector[selected].ch != 0) {
+
+		if (fts_index_selector[selected].ch == ch) {
+
+			return(selected);
+
+		} else if (fts_index_selector[selected].ch > ch) {
+
+			return(selected > 0 ? selected - 1 : 0);
+		}
+
+		++selected;
+	}
+
+	return(selected - 1);
+}
+
+/********************************************************************
+Select the next FTS auxiliary index for the given character. */
+UNIV_INLINE
+ulint
+fts_select_next_index(
+/*==================*/
+	byte		ch)	/* in: First character of a word */
+{
+	ulint		selected = 0;
+
+	// FIXME: Make this UTF-8 compatible.
+	while (fts_index_selector[selected].ch != 0) {
+
+		if (fts_index_selector[selected].ch == ch) {
+
+			return(selected + 1);
+
+		} else if (fts_index_selector[selected].ch > ch) {
+
+			return(selected);
+		}
+
+		++selected;
+	}
+
+	return(selected);
+}
+
+/********************************************************************
+Return the selected FTS aux index suffix. */
+UNIV_INLINE
+const char*
+fts_get_suffix(
+/*===========*/
+	ulint		selected)	/* in: selected index */
+{
+	return(fts_index_selector[selected].suffix);
+}
+
+/********************************************************************
+Get the number of index selectors. */
+UNIV_INLINE
+ulint
+fts_get_n_selectors(void)
+/*=====================*/
+					/* out: The number of selectors */
+{
+	ulint	i = 0;
+
+	// FIXME: This is a hack
+	while (fts_index_selector[i].ch != 0) {
+		++i;
+	}
+
+	return(i);
+}
+
+#endif

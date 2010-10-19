@@ -236,7 +236,7 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			handler/ha_innodb.cc handler/handler0alter.cc handler/i_s.cc handler/mysql_addons.cc
 			read/read0read.c
 			rem/rem0cmp.c rem/rem0rec.c
-			row/row0ext.c row/row0ins.c row/row0merge.c row/row0mysql.c row/row0purge.c row/row0row.c
+			row/row0ext.c row/row0ftsort.c row/row0ins.c row/row0merge.c row/row0mysql.c row/row0purge.c row/row0row.c
 			row/row0sel.c row/row0uins.c row/row0umod.c row/row0undo.c row/row0upd.c row/row0vers.c
 			srv/srv0mon.c srv/srv0srv.c srv/srv0start.c
 			sync/sync0arr.c sync/sync0rw.c sync/sync0sync.c
