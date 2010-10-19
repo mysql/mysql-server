@@ -1233,8 +1233,11 @@ sp_head::execute(THD *thd)
     The same with db_load_routine() required circa 7k bytes and
     14k bytes accordingly. Hence, here we book the stack with some
     reasonable margin.
+
+    Reverting back to 8 * STACK_MIN_SIZE until further fix.
+    8 * STACK_MIN_SIZE is required on some exotic platforms.
   */
-  if (check_stack_overrun(thd, 4 * STACK_MIN_SIZE, (uchar*)&old_packet))
+  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
