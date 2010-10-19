@@ -179,16 +179,16 @@ Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF16CharsetNumber(JNIEnv * env, jobj
 /*
  * Class:     com_mysql_ndbjtie_mysql_CharsetMap
  * Method:    isMultibyte
- * Signature: (I)Z
+ * Signature: (I)[Z
  */
-JNIEXPORT jboolean JNICALL
+JNIEXPORT jbooleanArray JNICALL
 Java_com_mysql_ndbjtie_mysql_CharsetMap_isMultibyte(JNIEnv * env, jobject jobj, jint p0)
 {
   TRACE("Java_com_mysql_ndbjtie_mysql_CharsetMap_isMultibyte(JNIEnv *, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-  return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_bool, ttrait_int, &CharsetMap::isMultibyte >(env, jobj, p0);
+  return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_bool_1cp_a, ttrait_int, &CharsetMap::isMultibyte >(env, jobj, p0);
 #else
-  return gcall_fr< ttrait_bool, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int, &MysqlUtilsWrapper::CharsetMap__isMultibyte >(env, NULL, jobj, p0);
+  return gcall_fr< ttrait_bool_1cp_a, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int, &MysqlUtilsWrapper::CharsetMap__isMultibyte >(env, NULL, jobj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
    

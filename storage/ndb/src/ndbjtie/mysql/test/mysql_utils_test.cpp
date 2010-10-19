@@ -176,17 +176,20 @@ int main()
 
   
     printf("isMultibyte TEST: ");
-    bool result1, result2, result3;
+    const bool * result1, * result2, * result3;
     result1 = csmap.isMultibyte(latin1_num);
     result2 = csmap.isMultibyte(utf16_num);
     result3 = csmap.isMultibyte(utf8_num);
     printf("latin 1: %s      UTF16: %s       UTF8: %s\n",
-           result1 ? "Yes" : "No" , result2 ? "Yes" : "No" ,result3 ? "Yes" : "No");
-    assert(!result1);
-    assert(result2);
-    assert(result3);
+           *result1 ? "Yes" : "No" , 
+           *result2 ? "Yes" : "No" ,
+           *result3 ? "Yes" : "No");
+    assert(! *result1);
+    assert(*result2);
+    assert(*result3);
+    /* Can you check every charset without getting a segfault? */
+    for(int i = 0 ; i < 256 ; i++) 
+      result1 = csmap.isMultibyte(i);
   
-  
-
     CharsetMap::unload();
 }
