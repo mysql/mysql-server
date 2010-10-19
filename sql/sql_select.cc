@@ -1276,12 +1276,13 @@ bool might_do_join_buffering(uint join_cache_level,
   /* 
      (1) sj_tab is not a const table
   */
-  return (sj_tab-sj_tab->join->join_tab != sj_tab->join->const_tables && // (1)
+  int sj_tabno= sj_tab - sj_tab->join->join_tab;
+  return (sj_tabno >= (int)sj_tab->join->const_tables && // (1)
           sj_tab->use_quick != QS_DYNAMIC_RANGE && 
-          ((join_cache_level != 0U && sj_tab->type == JT_ALL) ||
-           (join_cache_level > 4U && 
+          ((join_cache_level != 0 && sj_tab->type == JT_ALL) ||
+           (join_cache_level > 4 && 
             (sj_tab->type == JT_REF || 
-             sj_tab->type == JT_EQ_REF || 
+             sj_tab->type == JT_EQ_REF ||
              sj_tab->type == JT_CONST))));
 }
 
@@ -2440,6 +2441,15 @@ JOIN::optimize()
     }
     if (order)
     {
+      /*
+        Do we need a temporary table due to the ORDER BY not being equal to
+        the GROUP BY? The call to test_if_skip_sort_order above tests for the
+        GROUP BY clause only and hence is not valid in this case. So the
+        estimated number of rows to be read from the first table is not valid.
+        We clear it here so that it doesn't show up in EXPLAIN.
+       */
+      if (need_tmp && (select_options & SELECT_DESCRIBE) != 0)
+        join_tab[const_tables].limit= 0;
       /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
@@ -4490,6 +4500,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
 
+  if (!(join->positions=
+        new (join->thd->mem_root) POSITION[table_count+1]))
+    DBUG_RETURN(TRUE);
+
+  if (!(join->best_positions=
+        new (join->thd->mem_root) POSITION[table_count+1]))
+    DBUG_RETURN(TRUE);
+
   join->best_ref=stat_vector;
 
   stat_end=stat+table_count;
@@ -5828,7 +5846,6 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
-  KEYUSE keyuse;
 
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS))
   {
@@ -5844,20 +5861,21 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
 	{
-	  keyuse.table= field->table;
-	  keyuse.val =  key_field->val;
-	  keyuse.key =  key;
-	  keyuse.keypart=part;
-	  keyuse.keypart_map= (key_part_map) 1 << part;
-	  keyuse.used_tables=key_field->val->used_tables();
-	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
-          keyuse.null_rejecting= key_field->null_rejecting;
-          keyuse.cond_guard= key_field->cond_guard;
-          keyuse.sj_pred_no= key_field->sj_pred_no;
-	  if (insert_dynamic(keyuse_array,(uchar*) &keyuse))
-            return TRUE;
+          KEYUSE keyuse;
+          keyuse.table=          field->table;
+          keyuse.val=            key_field->val;
+          keyuse.used_tables=    key_field->val->used_tables();
+          keyuse.key=            key;
+          keyuse.keypart=        part;
+          keyuse.optimize=       key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+          keyuse.keypart_map=    (key_part_map) 1 << part;
           /* This will be set accordingly in optimize_keyuse */
           keyuse.ref_table_rows= ~(ha_rows) 0;
+          keyuse.null_rejecting= key_field->null_rejecting;
+          keyuse.cond_guard=     key_field->cond_guard;
+          keyuse.sj_pred_no=     key_field->sj_pred_no;
+          if (insert_dynamic(keyuse_array, (uchar*) &keyuse))
+            return TRUE;
 	}
       }
     }
@@ -10671,7 +10689,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       temptable.
     */
     TABLE_REF *tab_ref;
-    if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
+    if (!(tab_ref= new (thd->mem_root) TABLE_REF))
       DBUG_RETURN(TRUE); /* purecov: inspected */
     tab_ref->key= 0; /* The only temp table index. */
     tab_ref->key_length= tmp_key->key_length;
@@ -10684,10 +10702,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
           (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
 
-    tab_ref->key_buff2=tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
-    tab_ref->key_err=1;
+    tab_ref->key_buff2= tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
     tab_ref->null_rejecting= 1;
-    tab_ref->disable_cache= FALSE;
 
     KEY_PART_INFO *cur_key_part= tmp_key->key_part;
     store_key **ref_key= tab_ref->key_copy;
@@ -10878,7 +10894,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     {
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
                                                          loosescan_key_len)))
-        return TRUE; /* purecov: inspected */
+        DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
@@ -10891,7 +10907,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
        tab[-1].next_select= sub_select_sjm;
 
       if (setup_sj_materialization(tab))
-        return TRUE;
+        DBUG_RETURN(TRUE);
     }
     switch (tab->type) {
     case JT_EQ_REF:
@@ -22550,8 +22566,15 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (tab->select && tab->select->quick)
           examined_rows= rows2double(tab->select->quick->records);
         else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-          examined_rows= rows2double(tab->limit ? tab->limit : 
-                                     tab->table->file->records());
+        {
+          if (tab->limit)
+            examined_rows= rows2double(tab->limit);
+          else
+          {
+            tab->table->file->info(HA_STATUS_VARIABLE);
+            examined_rows= rows2double(tab->table->file->stats.records);
+          }
+        }
         else
           examined_rows= join->best_positions[i].records_read; 
  

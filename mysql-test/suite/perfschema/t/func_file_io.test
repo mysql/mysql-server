@@ -27,6 +27,9 @@ UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'YES';
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
 WHERE name LIKE 'wait/io/file/%';
 
+update performance_schema.THREADS SET instrumented = 'YES'
+  WHERE PROCESSLIST_ID=connection_id();
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -155,12 +158,11 @@ LIMIT 10;
 #
 
 --disable_result_log
-SELECT i.user, SUM(TIMER_WAIT) SUM_WAIT
+SELECT p.processlist_user, SUM(TIMER_WAIT) SUM_WAIT
 # ((TIME_TO_SEC(TIMEDIFF(NOW(), i.startup_time)) * 1000) / SUM(TIMER_WAIT)) * 100 WAIT_PERCENTAGE
 FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
 INNER JOIN performance_schema.THREADS p USING (THREAD_ID)
-LEFT JOIN information_schema.PROCESSLIST i USING (ID)
-GROUP BY i.user
+GROUP BY p.processlist_user
 ORDER BY SUM_WAIT DESC
 LIMIT 20;
 --enable_result_log
@@ -172,7 +174,7 @@ LIMIT 20;
 SELECT h.EVENT_NAME, SUM(h.TIMER_WAIT) TOTAL_WAIT
 FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
 INNER JOIN performance_schema.THREADS p USING (THREAD_ID)
-WHERE p.ID = 1
+WHERE p.PROCESSLIST_ID = 1
 GROUP BY h.EVENT_NAME
 HAVING TOTAL_WAIT > 0;
 --enable_result_log
@@ -182,13 +184,12 @@ HAVING TOTAL_WAIT > 0;
 #
 
 --disable_result_log
-SELECT i.user, h.operation, SUM(NUMBER_OF_BYTES) bytes
+SELECT p.processlist_user, h.operation, SUM(NUMBER_OF_BYTES) bytes
 FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
 INNER JOIN performance_schema.THREADS p USING (THREAD_ID)
-LEFT JOIN information_schema.PROCESSLIST i USING (ID)
-GROUP BY i.user, h.operation
+GROUP BY p.processlist_user, h.operation
 HAVING BYTES > 0
-ORDER BY i.user, h.operation;
+ORDER BY p.processlist_user, h.operation;
 --enable_result_log
 
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';

@@ -440,6 +440,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
 {
   TABLE_LIST table_list;
   TABLE *table;
+  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_proc_table_for_update");
 
   table_list.init_one_table("mysql", 5, "proc", 4, "proc", TL_WRITE);
@@ -449,6 +450,9 @@ static TABLE *open_proc_table_for_update(THD *thd)
 
   if (!proc_table_intact.check(table, &proc_table_def))
     DBUG_RETURN(table);
+
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   DBUG_RETURN(NULL);
 }

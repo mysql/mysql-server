@@ -4528,33 +4528,19 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
           mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
                              mi->port, 0, client_flag) == 0))
   {
-    /* Don't repeat last error */
-    if ((int)mysql_errno(mysql) != last_errno || 
-        DBUG_EVALUATE_IF("connect_to_master_always_report_error", 
-                         TRUE, FALSE))
-    {
-      /*
-        TODO: would be great that when issuing SHOW SLAVE STATUS
-              the number of retries would actually show err_count
-              instead of mi->retry_count.
-
-              We can achieve that if we remove the 'if' above and 
-              replace mi->retry_count with err_count. However, we
-              would be adding an entry in the error log for each 
-              connection attempt (ie, for each retry).
-       */
-      last_errno=mysql_errno(mysql);
-      suppress_warnings= 0;
-      mi->report(ERROR_LEVEL, last_errno,
-                 "error %s to master '%s@%s:%d'"
-                 " - retry-time: %d  retries: %lu",
-                 (reconnect ? "reconnecting" : "connecting"),
-                 mi->user, mi->host, mi->port,
-                 mi->connect_retry, 
-                 DBUG_EVALUATE_IF("connect_to_master_always_report_error", 
-                                  err_count+1, 
-                                  mi->retry_count));
-    }
+    /*
+       SHOW SLAVE STATUS will display the number of retries which
+       would be real retry counts instead of mi->retry_count for
+       each connection attempt by 'Last_IO_Error' entry.
+    */
+    last_errno=mysql_errno(mysql);
+    suppress_warnings= 0;
+    mi->report(ERROR_LEVEL, last_errno,
+               "error %s to master '%s@%s:%d'"
+               " - retry-time: %d  retries: %lu",
+               (reconnect ? "reconnecting" : "connecting"),
+               mi->user, mi->host, mi->port,
+               mi->connect_retry, err_count+1);
     /*
       By default we try forever. The reason is that failure will trigger
       master election, so if the user did not set mi->retry_count we

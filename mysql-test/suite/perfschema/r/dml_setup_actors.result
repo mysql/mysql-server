@@ -1,0 +1,60 @@
+drop table if exists test.SETUP_ACTORS;
+create table test.SETUP_ACTORS as
+select * from performance_schema.SETUP_ACTORS;
+truncate table performance_schema.SETUP_ACTORS;
+select * from performance_schema.SETUP_ACTORS;
+HOST	USER	ROLE
+select * from performance_schema.SETUP_ACTORS
+where user = '%';
+HOST	USER	ROLE
+insert into performance_schema.SETUP_ACTORS
+set user='Joe', host='localhost';
+insert into performance_schema.SETUP_ACTORS
+set user='Joe', host='%';
+insert into performance_schema.SETUP_ACTORS
+set user='%', host='server1';
+insert into performance_schema.SETUP_ACTORS
+set user='%', host='%';
+select * from performance_schema.SETUP_ACTORS
+order by USER, HOST;
+HOST	USER	ROLE
+%	%	%
+server1	%	%
+%	Joe	%
+localhost	Joe	%
+update performance_schema.SETUP_ACTORS
+set user='ILLEGAL';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.SETUP_ACTORS
+set host='ILLEGAL';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.SETUP_ACTORS
+set role='ILLEGAL';
+ERROR HY000: Invalid performance_schema usage.
+select * from performance_schema.SETUP_ACTORS
+order by USER, HOST;
+HOST	USER	ROLE
+%	%	%
+server1	%	%
+%	Joe	%
+localhost	Joe	%
+delete from performance_schema.SETUP_ACTORS
+where user = 'Joe' and host = 'localhost';
+select * from performance_schema.SETUP_ACTORS
+order by USER, HOST;
+HOST	USER	ROLE
+%	%	%
+server1	%	%
+%	Joe	%
+delete from performance_schema.SETUP_ACTORS;
+select * from performance_schema.SETUP_ACTORS
+order by USER, HOST;
+HOST	USER	ROLE
+LOCK TABLES performance_schema.SETUP_ACTORS READ;
+UNLOCK TABLES;
+LOCK TABLES performance_schema.SETUP_ACTORS WRITE;
+UNLOCK TABLES;
+truncate table performance_schema.SETUP_ACTORS;
+insert into performance_schema.SETUP_ACTORS
+select * from test.SETUP_ACTORS;
+drop table test.SETUP_ACTORS;

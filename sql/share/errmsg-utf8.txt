@@ -6387,6 +6387,9 @@ ER_TABLES_DIFFERENT_METADATA
 ER_ROW_DOES_NOT_MATCH_PARTITION
   eng "Found row that does not match the partition"
   swe "Hittade rad som inte passar i partitionen"
+ER_PARTITION_EXCHANGE_FOREIGN_KEY
+  eng "Table to exchange with partition has foreign key references: '%-.64s'"
+  swe "Tabellen att byta ut mot partition har foreign key referenser: '%-.64s'"
 ER_WARN_INDEX_NOT_APPLICABLE
   eng "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'"
 

@@ -278,6 +278,10 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_state(info);
+#endif
   return old_info;
 }
 
@@ -593,7 +597,7 @@ THD::THD()
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
   slave_net = 0;
-  command=COM_CONNECT;
+  set_command(COM_CONNECT);
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
@@ -3406,6 +3410,16 @@ void THD::set_statement(Statement *stmt)
 }
 
 
+void THD::set_command(enum enum_server_command command)
+{
+  m_command= command;
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_command(m_command);
+#endif
+}
+
+
 /** Assign a new value to thd->query.  */
 
 void THD::set_query(char *query_arg, uint32 query_length_arg)
@@ -3413,6 +3427,11 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
   mysql_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
+
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_info(query_arg, query_length_arg);
+#endif
 }
 
 /** Assign a new value to thd->query and thd->query_id.  */
