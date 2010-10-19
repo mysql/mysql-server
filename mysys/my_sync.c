@@ -58,7 +58,7 @@ int my_sync(File fd, myf my_flags)
     /* Some file systems don't support F_FULLFSYNC and fail above: */
     DBUG_PRINT("info",("fcntl(F_FULLFSYNC) failed, falling back"));
 #endif
-#if defined(HAVE_FDATASYNC)
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);
