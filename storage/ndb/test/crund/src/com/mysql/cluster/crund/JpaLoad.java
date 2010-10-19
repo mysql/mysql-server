@@ -35,31 +35,35 @@ import javax.persistence.PersistenceContextType;
 /**
  * A benchmark implementation against a JPA-mapped database.
  */
-public class JpaLoad extends Driver {
+public class JpaLoad extends CrundDriver {
 
-    // JPA database connection
+    // JPA settings
     protected String driver;
     protected String url;
+    protected String user;
+    protected String password;
     protected String connectionRetainMode;
-    protected String ndbConnectString;
     protected String brokerFactory;
+    protected String ndbConnectString;
+    protected String ndbDatabase;
+
+    // JPA resources
     protected EntityManagerFactory emf;
     protected EntityManager em;
     protected Query delAllA;
     protected Query delAllB0;
 
-    protected abstract class JpaOp extends Op {
-        public JpaOp(String name) {
-            super(name);
-        }
-
-        public void init() {}
-
-        public void close() {}
-    };
+    // ----------------------------------------------------------------------
+    // JPA intializers/finalizers
+    // ----------------------------------------------------------------------
 
     protected void initProperties() {
         super.initProperties();
+
+        out.print("setting jpa properties ...");
+
+        final StringBuilder msg = new StringBuilder();
+        final String eol = System.getProperty("line.separator");
 
         // load the JDBC driver class
         driver = props.getProperty("openjpa.ConnectionDriverName");
@@ -81,45 +85,68 @@ public class JpaLoad extends Driver {
             throw new RuntimeException("Missing property: "
                                        + "openjpa.ConnectionURL");
         }
-        
+
+        user = props.getProperty("openjpa.ConnectionUserName");
+        password = props.getProperty("openjpa.ConnectionPassword");
+
         connectionRetainMode = props.getProperty("openjpa.ConnectionRetainMode");
         if (connectionRetainMode == null) {
             throw new RuntimeException("Missing property: "
                                        + "openjpa.ConnectionRetainMode");
         }
 
-        ndbConnectString = props.getProperty("openjpa.ndb.connectString");
-        if (url == null) {
-            throw new RuntimeException("Missing property: "
-                                       + "openjpa.ndb.connectString");
-        }
-
         brokerFactory = props.getProperty("openjpa.BrokerFactory");
-        if (url == null) {
-            throw new RuntimeException("Missing property: "
-                                       + "openjpa.BrokerFactory");
+        ndbConnectString = props.getProperty("openjpa.ndb.connectString");
+        ndbDatabase = props.getProperty("openjpa.ndb.database");
+        if ("ndb".equals(brokerFactory)) {
+            if (ndbConnectString == null) {
+                throw new RuntimeException("Missing property: "
+                                           + "openjpa.ndb.connectString");
+            }
+            if (ndbDatabase == null) {
+                throw new RuntimeException("Missing property: "
+                                           + "openjpa.ndb.database");
+            }
         }
 
-        descr = "->JPA->" + url;
+        if (msg.length() == 0) {
+            out.println("      [ok]");
+        } else {
+            out.println();
+            out.print(msg.toString());
+        }
+
+        // have brokerFactory... initialized first
+        final String c =  ("ndb".equals(brokerFactory)
+                           ? ("clusterj(" + ndbConnectString + ")")
+                           : url);
+        descr = "->jpa->" + c;
     }
 
     protected void printProperties() {
         super.printProperties();
-        out.println("openjpa.ConnectionDriverName: " + driver);
-        out.println("openjpa.ConnectionURL:        " + url);
-        out.println("openjpa.ConnectionRetainMode: " + connectionRetainMode);
-        out.println("openjpa.ndb.connectString:    " + ndbConnectString);
-        out.println("openjpa.BrokerFactory:        " + brokerFactory);
+
+        out.println();
+        out.println("jpa settings ...");
+        out.println("openjpa.ConnectionDriverName:   " + driver);
+        out.println("openjpa.ConnectionURL:          " + url);
+        out.println("openjpa.ConnectionUserName:     \"" + user + "\"");
+        out.println("openjpa.ConnectionPassword:     \"" + password + "\"");
+        out.println("openjpa.ConnectionRetainMode:   " + connectionRetainMode);
+        out.println("openjpa.BrokerFactory:          " + brokerFactory);
+        out.println("openjpa.ndb.connectString:      " + ndbConnectString);
+        out.println("openjpa.ndb.database:           " + ndbDatabase);
     }
 
     protected void init() throws Exception {
         super.init();
+
         out.println();
         out.print("creating EMFactory ...");
         out.flush();
         // create EMF by standard API, which allows vendors to pool factories
         emf = Persistence.createEntityManagerFactory("crundjpa", props);
-        out.println("      [EMF: 1]");
+        out.println("          [EMF: 1]");
     }
 
     protected void close() throws Exception {
@@ -128,41 +155,24 @@ public class JpaLoad extends Driver {
         if (emf != null)
             emf.close();
         emf = null;
-        out.println("       [ok]");
+        out.println("           [ok]");
+
         super.close();
     }
 
-    protected void initConnection() {
-        out.print("creating EntityManager ...");
-        out.flush();
-        // See: clearPersistenceContext() for !allowExtendedPC
-        // Tx-scope EM supported by JPA only by container injection:
-        //   em = emf.createEntityManager(PersistenceContextType.TRANSACTION);
-        em = emf.createEntityManager();
-        // XXX check query.setHint(...) for standardized optimizations, e.g.:
-        //import org.eclipse.persistence.config.QueryHints;
-        //import org.eclipse.persistence.config.QueryType;        
-        //import org.eclipse.persistence.config.PessimisticLock;        
-        //import org.eclipse.persistence.config.HintValues;
-        //query.setHint(QueryHints.QUERY_TYPE, QueryType.ReadObject);
-        //query.setHint(QueryHints.PESSIMISTIC_LOCK, PessimisticLock.LockNoWait);
-        //query.setHint("eclipselink.batch", "e.address");
-        //query.setHint("eclipselink.join-fetch", "e.address");
-        delAllA = em.createQuery("DELETE FROM A");
-        delAllB0 = em.createQuery("DELETE FROM B0");
-        out.println("  [EM: 1]");
-    }
+    // ----------------------------------------------------------------------
+    // JPA operations
+    // ----------------------------------------------------------------------
 
-    protected void closeConnection() {
-        out.print("closing EntityManager ...");
-        out.flush();
-        delAllB0 = null;
-        delAllA = null;
-        if (em != null)
-            em.close();
-        em = null;
-        out.println("   [ok]");
-    }
+    protected abstract class JpaOp extends Op {
+        public JpaOp(String name) {
+            super(name);
+        }
+
+        public void init() {}
+
+        public void close() {}
+    };
 
     protected void setCommonFields(A o, int i) {
         assert o != null;
@@ -171,7 +181,7 @@ public class JpaLoad extends Driver {
         o.setCfloat((float)i);
         o.setCdouble((double)i);
     }
-    
+
     protected void setCommonFields(B0 o, int i) {
         assert o != null;
         o.setCint(i);
@@ -179,7 +189,7 @@ public class JpaLoad extends Driver {
         o.setCfloat((float)i);
         o.setCdouble((double)i);
     }
-    
+
     protected void verifyCommonFields(A o, int i) {
         assert o != null;
         final int id = o.getId();
@@ -215,80 +225,96 @@ public class JpaLoad extends Driver {
         ops.add(
             new JpaOp("insA") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final A o = new A();
                         o.setId(i);
                         em.persist(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("insB0") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final B0 o = new B0();
                         o.setId(i);
                         em.persist(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("setAByPK_bulk") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     // OpenJPA 1.2.1 fails to parse a unary '-' operator
                     final int upd = em.createQuery("UPDATE A o SET o.cint = 0-(o.id), o.clong = 0-(o.id), o.cfloat = 0-(o.id), o.cdouble = 0-(o.id)").executeUpdate();
                     assert upd == countA;
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("setB0ByPK_bulk") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     // OpenJPA 1.2.1 fails to parse a unary '-' operator
                     final int upd = em.createQuery("UPDATE B0 o SET o.cint = 0-(o.id), o.clong = 0-(o.id), o.cfloat = 0-(o.id), o.cdouble = 0-(o.id)").executeUpdate();
                     assert upd == countB;
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("setAByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final A o = em.find(A.class, i);
                         setCommonFields(o, i);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("setB0ByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final B0 o = em.find(B0.class, i);
                         setCommonFields(o, i);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("getAByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final A o = em.find(A.class, i);
                         verifyCommonFields(o, i);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("getB0ByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final B0 o = em.find(B0.class, i);
                         verifyCommonFields(o, i);
                     }
+                    commitTransaction();
                 }
             });
 
@@ -299,39 +325,45 @@ public class JpaLoad extends Driver {
             ops.add(
                 new JpaOp("setVarbinary" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             //o.cvarbinary_def = b; // not detected by OpenJPA
                             o.setCvarbinary_def(b);
                         }
+                        commitTransaction();
                     }
                 });
 
             ops.add(
                 new JpaOp("getVarbinary" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             verify(Arrays.equals(b, o.getCvarbinary_def()));
                         }
+                        commitTransaction();
                     }
                 });
 
             ops.add(
                 new JpaOp("clearVarbinary" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             //o.cvarbinary_def = null; // not detected by OpenJPA
                             o.setCvarbinary_def(null);
                         }
+                        commitTransaction();
                     }
                 });
         }
-        
+
         for (int i = 0, l = 1; l <= maxVarcharChars; l *= 10, i++) {
             final String s = strings[i];
             assert l == s.length();
@@ -339,42 +371,49 @@ public class JpaLoad extends Driver {
             ops.add(
                 new JpaOp("setVarchar" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             //o.cvarchar_def = s; // not detected by OpenJPA
                             o.setCvarchar_def(s);
                         }
+                        commitTransaction();
                     }
                 });
 
             ops.add(
                 new JpaOp("getVarchar" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             verify(s.equals(o.getCvarchar_def()));
                         }
+                        commitTransaction();
                     }
                 });
 
             ops.add(
                 new JpaOp("clearVarchar" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             //o.cvarchar_def = null; // not detected by OpenJPA
                             o.setCvarchar_def(null);
                         }
+                        commitTransaction();
                     }
                 });
         }
-        
+
         ops.add(
             new JpaOp("setB0->A") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final B0 b0 = em.find(B0.class, i);
                         assert b0 != null;
@@ -383,24 +422,28 @@ public class JpaLoad extends Driver {
                         assert a != null;
                         b0.setA(a);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("navB0->A") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final B0 b0 = em.find(B0.class, i);
                         assert b0 != null;
                         final A a = b0.getA();
                         verifyCommonFields(a, i % countA);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("navA->B0") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final A a = em.find(A.class, i);
                         assert a != null;
@@ -411,17 +454,20 @@ public class JpaLoad extends Driver {
                             verifyCommonFields(b0, i % countA);
                         }
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("nullB0->A") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final B0 b0 = em.find(B0.class, i);
                         assert b0 != null;
                         b0.setA(null);
                     }
+                    commitTransaction();
                 }
             });
 
@@ -442,79 +488,93 @@ public class JpaLoad extends Driver {
         ops.add(
             new JpaOp("nullB0->A_bulk") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     // OpenJPA 1.2.1 fails to parse a unary '-' operator
                     final int upd = em.createQuery("UPDATE B0 o SET o.a = NULL").executeUpdate();
                     assert upd == countB;
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("delB0ByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final B0 o = em.find(B0.class, i);
                         assert o != null;
                         em.remove(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("delAByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final A o = em.find(A.class, i);
                         assert o != null;
                         em.remove(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("insA_attr") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final A o = new A();
                         o.setId(i);
                         setCommonFields(o, -i);
                         em.persist(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("insB0_attr") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final B0 o = new B0();
                         o.setId(i);
                         setCommonFields(o, -i);
                         em.persist(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("delAllB0") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     int del = em.createQuery("DELETE FROM B0").executeUpdate();
                     assert del == countB;
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("delAllA") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     int del = em.createQuery("DELETE FROM A").executeUpdate();
                     assert del == countA;
+                    commitTransaction();
                 }
             });
 
         // prepare queries
-        for (Iterator<Driver.Op> i = ops.iterator(); i.hasNext();) {
+        for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
             ((JpaOp)i.next()).init();
         }
-        out.println(" [JpaOp: " + ops.size() + "]");
+        out.println("     [JpaOp: " + ops.size() + "]");
     }
 
     protected void closeOperations() {
@@ -522,12 +582,12 @@ public class JpaLoad extends Driver {
         out.flush();
 
         // close all queries
-        for (Iterator<Driver.Op> i = ops.iterator(); i.hasNext();) {
+        for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
             ((JpaOp)i.next()).close();
         }
         ops.clear();
 
-        out.println("      [ok]");
+        out.println("          [ok]");
     }
 
     protected void beginTransaction() {
@@ -538,8 +598,40 @@ public class JpaLoad extends Driver {
         em.getTransaction().commit();
     }
 
-    protected void rollbackTransaction() {
-        em.getTransaction().rollback();
+    // ----------------------------------------------------------------------
+    // JPA datastore operations
+    // ----------------------------------------------------------------------
+
+    protected void initConnection() {
+        out.print("creating EntityManager ...");
+        out.flush();
+        // See: clearPersistenceContext() for !allowExtendedPC
+        // Tx-scope EM supported by JPA only by container injection:
+        //   em = emf.createEntityManager(PersistenceContextType.TRANSACTION);
+        em = emf.createEntityManager();
+        // XXX check query.setHint(...) for standardized optimizations, e.g.:
+        //import org.eclipse.persistence.config.QueryHints;
+        //import org.eclipse.persistence.config.QueryType;
+        //import org.eclipse.persistence.config.PessimisticLock;
+        //import org.eclipse.persistence.config.HintValues;
+        //query.setHint(QueryHints.QUERY_TYPE, QueryType.ReadObject);
+        //query.setHint(QueryHints.PESSIMISTIC_LOCK, PessimisticLock.LockNoWait);
+        //query.setHint("eclipselink.batch", "e.address");
+        //query.setHint("eclipselink.join-fetch", "e.address");
+        delAllA = em.createQuery("DELETE FROM A");
+        delAllB0 = em.createQuery("DELETE FROM B0");
+        out.println("      [EM: 1]");
+    }
+
+    protected void closeConnection() {
+        out.print("closing EntityManager ...");
+        out.flush();
+        delAllB0 = null;
+        delAllA = null;
+        if (em != null)
+            em.close();
+        em = null;
+        out.println("       [ok]");
     }
 
     protected void clearPersistenceContext() {
@@ -557,7 +649,7 @@ public class JpaLoad extends Driver {
 
         em.getTransaction().begin();
         int delB0 = delAllB0.executeUpdate();
-        out.print("    [B0: " + delB0);
+        out.print("        [B0: " + delB0);
         out.flush();
         int delA = delAllA.executeUpdate();
         out.print(", A: " + delA);

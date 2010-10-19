@@ -10,7 +10,7 @@ include	../../env.properties
 
   DDEFINES 	=
 
-  DELIVERABLES	= libcrundndb.a libcrundndb.$(DLL_SUFFIX) Driver 
+  DELIVERABLES	= libcrundndb.a libcrundndb.$(DLL_SUFFIX) NdbApiDriver 
 
   GENERATED_H	= com_mysql_cluster_crund_NdbApiLoad.h
 
@@ -54,43 +54,47 @@ com_mysql_cluster_crund_NdbApiLoad.h:
 #		$(API_PKG_PATH)/NdbApiLoad.java
 #	$(COMPILE.java) $<
 
-run.driver:	Driver
-	LD_LIBRARY_PATH=${NDB_LIBDIR} ./Driver \
+# not sure if needed:
+#	LD_LIBRARY_PATH=${NDB_LIBDIR}:./Driver
+run.driver:	NdbApiDriver
+	./NdbApiDriver \
 	-p ../../crundRun.properties -p ../../crundNdbapi.properties
 
 # for JVM processes, try running valgrind with
 # --smc-check=all --trace-children=yes --leak-check=full --show-reachable=yes
-valgrind.driver:	Driver
-	LD_LIBRARY_PATH=${NDB_LIBDIR} valgrind \
+# not sure if needed:
+#	LD_LIBRARY_PATH=${NDB_LIBDIR}:./Driver
+valgrind.driver:	NdbApiDriver
+	valgrind \
 	--leak-check=full --show-reachable=yes --trace-children=yes \
-	./Driver \
+	./NdbApiDriver \
 	-p ../../crundRun.properties -p ../../crundNdbapi.properties
 
-Driver:	libcrundndb.a
+NdbApiDriver:	Driver.o CrundDriver.o libcrundndb.a
 
 # can list multiple archive members: lib.a(a.o b.o ...) lib.a(c.o)...
-libcrundndb.a:	libcrundndb.a(Operations.o)	\
+libcrundndb.a:	libcrundndb.a(CrundNdbApiOperations.o)	\
 		libcrundndb.a(com_mysql_cluster_crund_NdbApiLoad.o)
 
 # XXX cleanup & refactorize this rule!
 # LINK.o
-#libcrundndb.so:	Operations.o com_mysql_cluster_crund_NdbApiLoad.o
+#libcrundndb.so:	CrundNdbApiOperations.o com_mysql_cluster_crund_NdbApiLoad.o
 #libcrundndb.so:	libcrundndb.a
-libcrundndb.so:	Operations.cpp
+libcrundndb.so:	CrundNdbApiOperations.cpp
 	$(LINK.cpp) \
 	-fPIC -shared \
 	-L${NDB_LIBDIR} \
 	-lndbclient \
 	-o libcrundndb.so \
-	Operations.cpp com_mysql_cluster_crund_NdbApiLoad.cpp
+	CrundNdbApiOperations.cpp com_mysql_cluster_crund_NdbApiLoad.cpp
 
-libcrundndb.dylib:	Operations.cpp
+libcrundndb.dylib:	CrundNdbApiOperations.cpp
 	$(LINK.cpp) \
 	-fPIC -shared -dynamiclib \
 	-L${NDB_LIBDIR} \
 	-lndbclient \
 	-o libcrundndb.dylib \
-	Operations.cpp com_mysql_cluster_crund_NdbApiLoad.cpp
+	CrundNdbApiOperations.cpp com_mysql_cluster_crund_NdbApiLoad.cpp
 
 # Solaris cc?
 # -#          <!-- verbose mode -->

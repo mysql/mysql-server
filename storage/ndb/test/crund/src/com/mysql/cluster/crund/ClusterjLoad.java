@@ -39,45 +39,58 @@ import java.util.Set;
 /**
  * A benchmark implementation against a ClusterJ database.
  */
-public class ClusterjLoad extends Driver {
+public class ClusterjLoad extends CrundDriver {
 
-    // ClusterJ connection
+    // ClusterJ settings
     protected String mgmdConnect;
+
+    // ClusterJ resources
     protected SessionFactory sessionFactory;
     protected Session session;
 
-    protected abstract class ClusterjOp extends Op {
-        public ClusterjOp(String name) {
-            super(name);
-        }
-
-        public void init() {}
-
-        public void close() {}
-    };
+    // ----------------------------------------------------------------------
+    // ClusterJ intializers/finalizers
+    // ----------------------------------------------------------------------
 
     @Override
     protected void initProperties() {
         super.initProperties();
 
+        out.print("setting clusterj properties ...");
+
+        final StringBuilder msg = new StringBuilder();
+        final String eol = System.getProperty("line.separator");
+
         // check required properties
         mgmdConnect
             = props.getProperty(Constants.PROPERTY_CLUSTER_CONNECTSTRING);
-        descr = "->ClusterJ->NDB JTie->NDBAPI(" + mgmdConnect + ")";
+
+        if (msg.length() == 0) {
+            out.println(" [ok]");
+        } else {
+            out.println();
+            out.print(msg.toString());
+        }
+
+        // have mgmdConnect initialized first
+        descr = "->clusterj(" + mgmdConnect + ")";
     }
 
     @Override
     protected void printProperties() {
         super.printProperties();
-        out.println("ndb.mgmdConnect             " + mgmdConnect);
+
+        out.println();
+        out.println("clusterj settings ...");
+        out.println("ndb.mgmdConnect                 " + mgmdConnect);
         for (Iterator<Map.Entry<Object,Object>> i
                  = props.entrySet().iterator(); i.hasNext();) {
             Map.Entry<Object,Object> e = i.next();
             final String k = (String)e.getKey();
             if (k.startsWith("com.mysql.clusterj")) {
                 final StringBuilder s = new StringBuilder("..");
-                s.append(k, 10, k.length());
-                while (s.length() < 27) s.append(' ');
+                s.append(k, 18, k.length());
+                while (s.length() < 31) s.append(' ');
                 out.println(s + " " + e.getValue());
             }
         }
@@ -86,6 +99,7 @@ public class ClusterjLoad extends Driver {
     @Override
     protected void init() throws Exception {
         super.init();
+
         // load native library (better diagnostics doing it explicitely)
         out.println();
         //loadSystemLibrary("ndbj");
@@ -96,7 +110,7 @@ public class ClusterjLoad extends Driver {
         out.print("creating SessionFactory ...");
         out.flush();
         sessionFactory = ClusterJHelper.getSessionFactory(props);
-        out.println(" [SessionFactory: 1]");
+        out.println("     [SessionFactory: 1]");
     }
 
     @Override
@@ -106,25 +120,24 @@ public class ClusterjLoad extends Driver {
         if (sessionFactory != null)
             sessionFactory.close();
         sessionFactory = null;
-        out.println("  [ok]");
+        out.println("      [ok]");
+
         super.close();
     }
 
-    protected void initConnection() {
-        out.print("creating Session ...");
-        out.flush();
-        session = sessionFactory.getSession();
-        out.println("        [Session: 1]");
-    }
+    // ----------------------------------------------------------------------
+    // ClusterJ operations
+    // ----------------------------------------------------------------------
 
-    protected void closeConnection() {
-        out.print("closing Session ...");
-        out.flush();
-        if (session != null)
-            session.close();
-        session = null;
-        out.println("         [ok]");
-    }
+    protected abstract class ClusterjOp extends Op {
+        public ClusterjOp(String name) {
+            super(name);
+        }
+
+        public void init() {}
+
+        public void close() {}
+    };
 
     protected int checkFields(IA o) {
         final int cint = o.getCint();
@@ -155,18 +168,21 @@ public class ClusterjLoad extends Driver {
         ops.add(
             new ClusterjOp("insA") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
                         o.setId(i);
                         session.persist(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("insB0") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
@@ -174,12 +190,14 @@ public class ClusterjLoad extends Driver {
                         o.setCvarbinary_def(null);
                         session.persist(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("setAByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         // blind update
                         final IA o = session.newInstance(IA.class);
@@ -191,12 +209,14 @@ public class ClusterjLoad extends Driver {
                         o.setCdouble((double)i);
                         session.updatePersistent(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("setB0ByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         // blind update
                         final IB0 o = session.newInstance(IB0.class);
@@ -208,12 +228,14 @@ public class ClusterjLoad extends Driver {
                         o.setCdouble((double)i);
                         session.updatePersistent(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("getAByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final IA o = session.find(IA.class, i);
                         assert o != null;
@@ -222,12 +244,14 @@ public class ClusterjLoad extends Driver {
                         final int j = checkFields(o);
                         verify(j == id);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("getB0ByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final IB0 o = session.find(IB0.class, i);
                         assert o != null;
@@ -236,6 +260,7 @@ public class ClusterjLoad extends Driver {
                         final int j = checkFields(o);
                         verify(j == id);
                     }
+                    commitTransaction();
                 }
             });
 
@@ -246,6 +271,7 @@ public class ClusterjLoad extends Driver {
             ops.add(
                 new ClusterjOp("setVarbinary" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
@@ -254,23 +280,27 @@ public class ClusterjLoad extends Driver {
                             o.setCvarbinary_def(b);
                             session.updatePersistent(o);
                         }
+                        commitTransaction();
                     }
                 });
 
             ops.add(
                 new ClusterjOp("getVarbinary" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             final IB0 o = session.find(IB0.class, i);
                             assert o != null;
                             verify(Arrays.equals(b, o.getCvarbinary_def()));
                         }
+                        commitTransaction();
                     }
                 });
 
             ops.add(
                 new ClusterjOp("clearVarbinary" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
@@ -279,10 +309,11 @@ public class ClusterjLoad extends Driver {
                             o.setCvarbinary_def(null);
                             session.updatePersistent(o);
                         }
+                        commitTransaction();
                     }
                 });
-        }        
-        
+        }
+
         for (int i = 0, l = 1; l <= maxVarcharChars; l *= 10, i++) {
             final String s = strings[i];
             assert l == s.length();
@@ -290,6 +321,7 @@ public class ClusterjLoad extends Driver {
             ops.add(
                 new ClusterjOp("setVarchar" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
@@ -298,23 +330,27 @@ public class ClusterjLoad extends Driver {
                             o.setCvarchar_def(s);
                             session.updatePersistent(o);
                         }
+                        commitTransaction();
                     }
                 });
 
             ops.add(
                 new ClusterjOp("getVarchar" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             final IB0 o = session.find(IB0.class, i);
                             assert o != null;
                             verify(s.equals(o.getCvarchar_def()));
                         }
+                        commitTransaction();
                     }
                 });
 
             ops.add(
                 new ClusterjOp("clearVarchar" + l) {
                     public void run(int countA, int countB) {
+                        beginTransaction();
                         for (int i = 0; i < countB; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
@@ -323,13 +359,15 @@ public class ClusterjLoad extends Driver {
                             o.setCvarchar_def(null);
                             session.updatePersistent(o);
                         }
+                        commitTransaction();
                     }
                 });
         }
-        
+
         ops.add(
             new ClusterjOp("setB0->A") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         // blind update
                         final IB0 b0 = session.newInstance(IB0.class);
@@ -339,12 +377,14 @@ public class ClusterjLoad extends Driver {
                         b0.setAid(aId);
                         session.updatePersistent(b0);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("navB0->A") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final IB0 b0 = session.find(IB0.class, i);
                         assert b0 != null;
@@ -356,6 +396,7 @@ public class ClusterjLoad extends Driver {
                         final int j = checkFields(a);
                         verify(j == id);
                     }
+                    commitTransaction();
                 }
             });
 
@@ -373,6 +414,7 @@ public class ClusterjLoad extends Driver {
                 }
 
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     // QueryBuilder is the sessionFactory for queries
                     final QueryBuilder builder
                         = session.getQueryBuilder();
@@ -399,12 +441,14 @@ public class ClusterjLoad extends Driver {
                             verify(j == id);
                         }
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("nullB0->A") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         // blind update
                         final IB0 b0 = session.newInstance(IB0.class);
@@ -412,12 +456,14 @@ public class ClusterjLoad extends Driver {
                         assert b0 != null;
                         b0.setAid(0);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("delB0ByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         // blind delete
                         final IB0 o = session.newInstance(IB0.class);
@@ -425,12 +471,14 @@ public class ClusterjLoad extends Driver {
                         o.setId(i);
                         session.remove(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("delAByPK") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         // blind delete
                         final IA o = session.newInstance(IA.class);
@@ -438,12 +486,14 @@ public class ClusterjLoad extends Driver {
                         o.setId(i);
                         session.remove(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("insA_attr") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countA; i++) {
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
@@ -454,12 +504,14 @@ public class ClusterjLoad extends Driver {
                         o.setCdouble((double)-i);
                         session.persist(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("insB0_attr") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     for (int i = 0; i < countB; i++) {
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
@@ -471,31 +523,36 @@ public class ClusterjLoad extends Driver {
                         o.setCvarbinary_def(null);
                         session.persist(o);
                     }
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("delAllB0") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     int del = session.deletePersistentAll(IB0.class);
                     assert del == countB;
+                    commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("delAllA") {
                 public void run(int countA, int countB) {
+                    beginTransaction();
                     int del = session.deletePersistentAll(IA.class);
                     assert del == countA;
+                    commitTransaction();
                 }
             });
 
         // prepare queries
-        for (Iterator<Driver.Op> i = ops.iterator(); i.hasNext();) {
+        for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
             ((ClusterjOp)i.next()).init();
         }
 
-        out.println(" [ClusterjOp: " + ops.size() + "]");
+        out.println("     [ClusterjOp: " + ops.size() + "]");
     }
 
     protected void closeOperations() {
@@ -503,12 +560,12 @@ public class ClusterjLoad extends Driver {
         out.flush();
 
         // close all queries
-        for (Iterator<Driver.Op> i = ops.iterator(); i.hasNext();) {
+        for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
             ((ClusterjOp)i.next()).close();
         }
         ops.clear();
 
-        out.println("      [ok]");
+        out.println("          [ok]");
     }
 
     protected void beginTransaction() {
@@ -519,8 +576,24 @@ public class ClusterjLoad extends Driver {
         session.currentTransaction().commit();
     }
 
-    protected void rollbackTransaction() {
-        session.currentTransaction().rollback();
+    // ----------------------------------------------------------------------
+    // ClusterJ datastore operations
+    // ----------------------------------------------------------------------
+
+    protected void initConnection() {
+        out.print("creating Session ...");
+        out.flush();
+        session = sessionFactory.getSession();
+        out.println("            [Session: 1]");
+    }
+
+    protected void closeConnection() {
+        out.print("closing Session ...");
+        out.flush();
+        if (session != null)
+            session.close();
+        session = null;
+        out.println("             [ok]");
     }
 
     protected void clearPersistenceContext() {
@@ -533,7 +606,7 @@ public class ClusterjLoad extends Driver {
 
         session.currentTransaction().begin();
         int delB0 = session.deletePersistentAll(IB0.class);
-        out.print("    [B0: " + delB0);
+        out.print("        [B0: " + delB0);
         out.flush();
         int delA = session.deletePersistentAll(IA.class);
         out.print(", A: " + delA);

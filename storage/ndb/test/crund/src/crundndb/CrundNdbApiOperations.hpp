@@ -1,20 +1,33 @@
-/*
- * Operations.hpp
+/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
+ *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
  *
+ *  Copyright (C) 2009 MySQL
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef crundndb_Operations_hpp
-#define crundndb_Operations_hpp
+#ifndef CrundNdbApiOperations_hpp
+#define CrundNdbApiOperations_hpp
 
 #include <NdbApi.hpp>
 #include <NdbError.hpp>
 
-namespace crund_ndb {
-
 /**
  * Holds shortcuts to the benchmark's schema information.
  */
-struct Meta
+struct CrundModel
 {
     const NdbDictionary::Table* table_A;
     const NdbDictionary::Table* table_B0;
@@ -50,7 +63,7 @@ struct Meta
 /**
  * Implements the benchmark's basic database operations.
  */
-class Operations
+class CrundNdbApiOperations
 {
 // For a better locality of information, consider refactorizing this
 // class into separate classes: Cluster, Db, Tx, and Operations by
@@ -60,33 +73,49 @@ class Operations
 // But for now, having all in one class is good enough.
 
 public:
-    // the benchmark's metadata shortcuts
-    const Meta* meta;
 
-//protected:
-    // singleton object representing the NDB cluster (one per process)
+    CrundNdbApiOperations()
+        : model(NULL), mgmd(NULL), ndb(NULL), tx(NULL) {
+    }
+
+    ~CrundNdbApiOperations() {
+        assert(model == NULL);
+        assert(mgmd == NULL); assert(ndb == NULL); assert(tx == NULL);
+    }
+
+    // NDB Api metadata resources
+    const CrundModel* model;
+
+protected:
+
+    // NDB API resources
     Ndb_cluster_connection* mgmd;
-
-    // object representing a connection to an NDB database
     Ndb* ndb;
-
-    // object representing an NDB database transaction
     NdbTransaction* tx;
+    NdbOperation::LockMode ndbOpLockMode;
+
+    // NDB Api data resources
+    // XXX not used yet, see TwsDriver
+    //char* bb;
+    //char* bb_pos;
+    //NdbRecAttr** ra;
+    //NdbRecAttr** ra_pos;
+
+private:
+
+    CrundNdbApiOperations(const CrundNdbApiOperations&);
+    CrundNdbApiOperations& operator=(const CrundNdbApiOperations&);
 
 public:
+
     void init(const char* mgmd_conn_str);
 
     void close();
 
-    void initConnection(const char* catalog, const char* schema);
+    void initConnection(const char* catalog, const char* schema,
+                        NdbOperation::LockMode defaultLockMode);
 
     void closeConnection();
-
-    void beginTransaction();
-
-    void commitTransaction();
-
-    void rollbackTransaction();
 
     void clearData();
 
@@ -139,10 +168,15 @@ public:
                    bool batch);
 
 protected:
-    // executes the operations in the current transaction
-    void executeOperations();
 
-    // closes the current transaction
+    // XXX not used yet, see TwsDriver
+    //void ndbapiBeginTransaction();
+    //void ndbapiExecuteTransaction();
+    //void ndbapiCommitTransaction();
+    //void ndbapiCloseTransaction();
+    void beginTransaction();
+    void executeOperations();
+    void commitTransaction();
     void closeTransaction();
 
     void setVar(const NdbDictionary::Table* table, int attr_cvar,
@@ -150,8 +184,10 @@ protected:
 
     void getVar(const NdbDictionary::Table* table, int attr_cvar,
                 int from, int to, bool batch, const char* str);
+
+    // XXX not used yet, see TwsDriver
+    //static void ndbapiToBuffer1blp(void* to, const char* from, size_t width);
+    //static void ndbapiToString1blp(char* to, const void* from, size_t width);
 };
 
-} // crund_ndb
-
-#endif // crundndb_Operations_hpp
+#endif // CrundNdbApiOperations_hpp

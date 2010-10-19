@@ -1,31 +1,44 @@
-/*
- * com_mysql_cluster_crund_NdbApiLoad.cpp
+/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
+ *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
  *
+ *  Copyright (C) 2009 MySQL
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <iostream>
-#include <sstream>
-#include <cassert>
 #include <vector>
 #include <algorithm>
+#include <string>
 #include <cstring>
-#include <cstdio>
+#include <cassert>
 
 #include <NdbApi.hpp>
 #include <NdbError.hpp>
 
 #include "helpers.hpp"
 #include "string_helpers.hpp"
-#include "Operations.hpp"
+
+#include "CrundNdbApiOperations.hpp"
 
 //using namespace std;
-using std::vector;
 using std::cout;
+using std::flush;
 using std::endl;
-
-//using namespace crund_ndb;
-using crund_ndb::Meta;
-using crund_ndb::Operations;
+using std::string;
+using std::vector;
 
 // JNI crashes with gcc & operator<<(ostream &, long/int)
 using utils::toString;
@@ -64,11 +77,11 @@ using utils::toString;
     if (cond); else ABORT_ERROR("wrong data; verification failed")
 
 /************************************************************
- * Member Functions of Class Meta
+ * Member Functions of Class CrundModel
  ************************************************************/
 
 void
-Meta::init(Ndb* ndb)
+CrundModel::init(Ndb* ndb)
 {
     const NdbDictionary::Dictionary* dict = ndb->getDictionary();
 
@@ -159,9 +172,10 @@ Meta::init(Ndb* ndb)
 */
 
 void
-Operations::init(const char* mgmd_conn_str)
+CrundNdbApiOperations::init(const char* mgmd_conn_str)
 {
-    assert (mgmd_conn_str);
+    assert(mgmd == NULL);
+    assert(mgmd_conn_str);
 
     // ndb_init must be called first
     cout << endl
@@ -169,12 +183,13 @@ Operations::init(const char* mgmd_conn_str)
     int stat = ndb_init();
     if (stat != 0)
         ABORT_ERROR("ndb_init() returned: " << stat);
-    cout << "     [ok]" << endl;
+    cout << "         [ok]" << endl;
 
     // instantiate NDB cluster singleton
-    cout << "creating cluster conn ..." << flush;
+    cout << "creating cluster connection ..." << flush;
+    assert(mgmd_conn_str);
     mgmd = new Ndb_cluster_connection(mgmd_conn_str);
-    cout << "   [ok]" << endl; // no useful mgmd->string conversion
+    cout << " [ok]" << endl; // no useful mgmd->string conversion
 
     // connect to cluster management node (ndb_mgmd)
     cout << "connecting to mgmd ..." << flush;
@@ -185,67 +200,106 @@ Operations::init(const char* mgmd_conn_str)
     if (mgmd->connect(retries, delay, verbose) != 0)
         ABORT_ERROR("mgmd@" << mgmd_conn_str << " was not ready within "
                      << (retries * delay) << "s.");
-    cout << "      [ok: " << mgmd_conn_str << "]" << endl;
+    cout << "          [ok: " << mgmd_conn_str << "]" << endl;
 }
 
 void
-Operations::close()
+CrundNdbApiOperations::close()
 {
-    cout << "closing mgmd conn ..." << flush;
+    assert(mgmd != NULL);
+
+    cout << "closing cluster connection ..." << flush;
     delete mgmd;
     mgmd = NULL;
-    cout << "       [ok]" << endl;
+    cout << "  [ok]" << endl;
 
     // ndb_close must be called last
     cout << "closing NDBAPI ...   " << flush;
     ndb_end(0);
-    cout << "       [ok]" << endl;
+    cout << "           [ok]" << endl;
 }
 
 void
-Operations::initConnection(const char* catalog, const char* schema)
+CrundNdbApiOperations::initConnection(const char* catalog, const char* schema,
+                                      NdbOperation::LockMode defaultLockMode)
 {
+    assert(mgmd != NULL);
+    assert(ndb == NULL);
+    assert(tx == NULL);
+    assert(model == NULL);
+
     // optionally, connect and wait for reaching the data nodes (ndbds)
-    cout << "waiting for data nodes..." << flush;
+    cout << "waiting for data nodes ..." << flush;
     const int initial_wait = 10; // seconds to wait until first node detected
     const int final_wait = 0;    // seconds to wait after first node detected
     // returns: 0 all nodes live, > 0 at least one node live, < 0 error
     if (mgmd->wait_until_ready(initial_wait, final_wait) < 0)
         ABORT_ERROR("data nodes were not ready within "
                      << (initial_wait + final_wait) << "s.");
-    cout << "   [ok]" << endl;
+    cout << "      [ok]" << endl;
 
     // connect to database
-    cout << "connecting to database..." << flush;
+    cout << "connecting to database ..." << flush;
     ndb = new Ndb(mgmd, catalog, schema);
     const int max_no_tx = 10; // maximum number of parallel tx (<=1024)
     // note each scan or index scan operation uses one extra transaction
     //if (ndb->init() != 0)
     if (ndb->init(max_no_tx) != 0)
         ABORT_NDB_ERROR(ndb->getNdbError());
-    cout << "   [ok]" << endl;
+    cout << "      [ok: " << catalog << "." << schema << "]" << endl;
 
-    // initialize the schema shortcuts
-    Meta* m = new Meta();
+    cout << "caching metadata ..." << flush;
+    CrundModel* m = new CrundModel();
     m->init(ndb);
-    meta = m;
+    model = m;
+    cout << "            [ok]" << endl;
+
+    cout << "using lock mode for reads ..." << flush;
+    ndbOpLockMode = defaultLockMode;
+    string lm;
+    switch (defaultLockMode) {
+    case NdbOperation::LM_CommittedRead:
+        lm = "LM_CommittedRead";
+        break;
+    case NdbOperation::LM_Read:
+        lm = "LM_Read";
+        break;
+    case NdbOperation::LM_Exclusive:
+        lm = "LM_Exclusive";
+        break;
+    default:
+        ndbOpLockMode = NdbOperation::LM_CommittedRead;
+        lm = "LM_CommittedRead";
+        assert(false);
+    }
+    cout << "   [ok: " + lm + "]" << endl;
 }
 
 void
-Operations::closeConnection()
+CrundNdbApiOperations::closeConnection()
 {
-    cout << "closing database conn ..." << flush;
-    delete meta;
-    meta = NULL;
+    assert(mgmd != NULL);
+    assert(ndb != NULL);
+    assert(tx == NULL);
+    assert(model != NULL);
+
+    cout << "clearing metadata cache ..." << flush;
+    delete model;
+    model = NULL;
+    cout << "     [ok]" << endl;
+
+    cout << "closing database connection ..." << flush;
     // no ndb->close();
     delete ndb;
     ndb = NULL;
-    cout << "   [ok]" << endl;
+    cout << " [ok]" << endl;
 }
 
 void
-Operations::beginTransaction()
+CrundNdbApiOperations::beginTransaction()
 {
+    assert(tx == NULL);
+
     // start a transaction
     // must be closed with Ndb::closeTransaction or NdbTransaction::close
     if ((tx = ndb->startTransaction()) == NULL)
@@ -253,8 +307,10 @@ Operations::beginTransaction()
 }
 
 void
-Operations::executeOperations()
+CrundNdbApiOperations::executeOperations()
 {
+    assert(tx != NULL);
+
     // execute but don't commit the current transaction
     if (tx->execute(NdbTransaction::NoCommit) != 0
         || tx->getNdbError().status != NdbError::Success)
@@ -262,8 +318,10 @@ Operations::executeOperations()
 }
 
 void
-Operations::commitTransaction()
+CrundNdbApiOperations::commitTransaction()
 {
+    assert(tx != NULL);
+
     // commit the current transaction
     if (tx->execute(NdbTransaction::Commit) != 0
         || tx->getNdbError().status != NdbError::Success)
@@ -271,17 +329,10 @@ Operations::commitTransaction()
 }
 
 void
-Operations::rollbackTransaction()
+CrundNdbApiOperations::closeTransaction()
 {
-    // abort the current transaction
-    if (tx->execute(NdbTransaction::Rollback) != 0
-        || tx->getNdbError().status != NdbError::Success)
-        ABORT_NDB_ERROR(tx->getNdbError());
-}
+    assert(tx != NULL);
 
-void
-Operations::closeTransaction()
-{
     // close the current transaction
     // to be called irrespectively of success or failure
     ndb->closeTransaction(tx);
@@ -291,15 +342,15 @@ Operations::closeTransaction()
 // ----------------------------------------------------------------------
 
 void
-Operations::clearData()
+CrundNdbApiOperations::clearData()
 {
     cout << "deleting all rows ..." << flush;
     const bool batch = true;
     int delB0 = -1;
-    delByScan(meta->table_B0, delB0, batch);
-    cout << "       [B0: " << toString(delB0) << flush;
+    delByScan(model->table_B0, delB0, batch);
+    cout << "           [B0: " << toString(delB0) << flush;
     int delA = -1;
-    delByScan(meta->table_A, delA, batch);
+    delByScan(model->table_A, delA, batch);
     cout << ", A: " << toString(delA) << "]" << endl;
 }
 
@@ -346,15 +397,15 @@ selectString(int length)
     case 100: return astring100;
     case 1000: return astring1000;
     default:
-        assert (false);
+        assert(false);
         return "";
     }
 }
 
 void
-Operations::ins(const NdbDictionary::Table* table,
-                int from, int to,
-                bool setAttrs, bool batch)
+CrundNdbApiOperations::ins(const NdbDictionary::Table* table,
+                           int from, int to,
+                           bool setAttrs, bool batch)
 {
     beginTransaction();
     for (int i = from; i <= to; i++) {
@@ -366,16 +417,16 @@ Operations::ins(const NdbDictionary::Table* table,
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set values; key attribute needs to be set first
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
         if (setAttrs) {
-            if (op->setValue(meta->attr_cint, (Int32)-i) != 0)
+            if (op->setValue(model->attr_cint, (Int32)-i) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->setValue(meta->attr_clong, (Int64)-i) != 0)
+            if (op->setValue(model->attr_clong, (Int64)-i) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->setValue(meta->attr_cfloat, (float)-i) != 0)
+            if (op->setValue(model->attr_cfloat, (float)-i) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->setValue(meta->attr_cdouble, (double)-i) != 0)
+            if (op->setValue(model->attr_cdouble, (double)-i) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
         }
 
@@ -388,8 +439,8 @@ Operations::ins(const NdbDictionary::Table* table,
 }
 
 void
-Operations::delByScan(const NdbDictionary::Table* table, int& count,
-                      bool batch)
+CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
+                                 bool batch)
 {
     beginTransaction();
 
@@ -405,11 +456,6 @@ Operations::delByScan(const NdbDictionary::Table* table, int& count,
     const int batch_ = 0;
     if (op->readTuples(lock_mode, scan_flags, parallel, batch_) != 0)
         ABORT_NDB_ERROR(tx->getNdbError());
-
-    // define a read scan with exclusive locks
-    // XXX deprecated: readTuplesExclusive(int parallell = 0);
-    //if (op->readTuplesExclusive() != 0)
-    //    ABORT_NDB_ERROR(tx->getNdbError());
 
     // start the scan; don't commit yet
     executeOperations();
@@ -458,9 +504,9 @@ Operations::delByScan(const NdbDictionary::Table* table, int& count,
 }
 
 void
-Operations::delByPK(const NdbDictionary::Table* table,
-                    int from, int to,
-                    bool batch)
+CrundNdbApiOperations::delByPK(const NdbDictionary::Table* table,
+                               int from, int to,
+                               bool batch)
 {
     beginTransaction();
     for (int i = from; i <= to; i++) {
@@ -472,7 +518,7 @@ Operations::delByPK(const NdbDictionary::Table* table,
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-batching mode
@@ -484,13 +530,13 @@ Operations::delByPK(const NdbDictionary::Table* table,
 }
 
 void
-Operations::setByPK(const NdbDictionary::Table* table,
+CrundNdbApiOperations::setByPK(const NdbDictionary::Table* table,
                     int from, int to,
                     bool batch)
 {
     beginTransaction();
     for (int i = from; i <= to; i++) {
-        // get an insert operation for the table
+        // get an update operation for the table
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
@@ -498,15 +544,15 @@ Operations::setByPK(const NdbDictionary::Table* table,
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set values; key attribute needs to be set first
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->setValue(meta->attr_cint, (Int32)i) != 0)
+        if (op->setValue(model->attr_cint, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->setValue(meta->attr_clong, (Int64)i) != 0)
+        if (op->setValue(model->attr_clong, (Int64)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->setValue(meta->attr_cfloat, (float)i) != 0)
+        if (op->setValue(model->attr_cfloat, (float)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->setValue(meta->attr_cdouble, (double)i) != 0)
+        if (op->setValue(model->attr_cdouble, (double)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-batching mode
@@ -518,7 +564,7 @@ Operations::setByPK(const NdbDictionary::Table* table,
 }
 
 void
-Operations::getByPK_bb(const NdbDictionary::Table* table,
+CrundNdbApiOperations::getByPK_bb(const NdbDictionary::Table* table,
                        int from, int to,
                        bool batch)
 {
@@ -534,23 +580,23 @@ Operations::getByPK_bb(const NdbDictionary::Table* table,
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // get attributes (not readable until after commit)
-        if (op->getValue(meta->attr_id, (char*)&pab->id) == NULL)
+        if (op->getValue(model->attr_id, (char*)&pab->id) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cint, (char*)&pab->cint) == NULL)
+        if (op->getValue(model->attr_cint, (char*)&pab->cint) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_clong, (char*)&pab->clong) == NULL)
+        if (op->getValue(model->attr_clong, (char*)&pab->clong) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cfloat, (char*)&pab->cfloat) == NULL)
+        if (op->getValue(model->attr_cfloat, (char*)&pab->cfloat) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cdouble, (char*)&pab->cdouble) == NULL)
+        if (op->getValue(model->attr_cdouble, (char*)&pab->cdouble) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-batching mode
@@ -598,7 +644,7 @@ getCommonAB(const CommonAB_AR* const ab)
 }
 
 void
-Operations::getByPK_ar(const NdbDictionary::Table* table,
+CrundNdbApiOperations::getByPK_ar(const NdbDictionary::Table* table,
                        int from, int to,
                        bool batch)
 {
@@ -614,23 +660,23 @@ Operations::getByPK_ar(const NdbDictionary::Table* table,
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // get attributes (not readable until after commit)
-        if ((pab->id = op->getValue(meta->attr_id, NULL)) == NULL)
+        if ((pab->id = op->getValue(model->attr_id, NULL)) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if ((pab->cint = op->getValue(meta->attr_cint, NULL)) == NULL)
+        if ((pab->cint = op->getValue(model->attr_cint, NULL)) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if ((pab->clong = op->getValue(meta->attr_clong, NULL)) == NULL)
+        if ((pab->clong = op->getValue(model->attr_clong, NULL)) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if ((pab->cfloat = op->getValue(meta->attr_cfloat, NULL)) == NULL)
+        if ((pab->cfloat = op->getValue(model->attr_cfloat, NULL)) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if ((pab->cdouble = op->getValue(meta->attr_cdouble, NULL)) == NULL)
+        if ((pab->cdouble = op->getValue(model->attr_cdouble, NULL)) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-batching mode
@@ -657,39 +703,39 @@ Operations::getByPK_ar(const NdbDictionary::Table* table,
 }
 
 void
-Operations::setVarbinary(const NdbDictionary::Table* table,
+CrundNdbApiOperations::setVarbinary(const NdbDictionary::Table* table,
                          int from, int to, bool batch, int length)
 {
-    setVar(table, meta->attr_B0_cvarbinary_def,
+    setVar(table, model->attr_B0_cvarbinary_def,
            from, to, batch, selectString(length));
 }
 
 void
-Operations::setVarchar(const NdbDictionary::Table* table,
+CrundNdbApiOperations::setVarchar(const NdbDictionary::Table* table,
                        int from, int to, bool batch, int length)
 {
-    setVar(table, meta->attr_B0_cvarchar_def,
+    setVar(table, model->attr_B0_cvarchar_def,
            from, to, batch, selectString(length));
 }
 
 void
-Operations::getVarbinary(const NdbDictionary::Table* table,
+CrundNdbApiOperations::getVarbinary(const NdbDictionary::Table* table,
                          int from, int to, bool batch, int length)
 {
-    getVar(table, meta->attr_B0_cvarbinary_def,
+    getVar(table, model->attr_B0_cvarbinary_def,
            from, to, batch, selectString(length));
 }
 
 void
-Operations::getVarchar(const NdbDictionary::Table* table,
+CrundNdbApiOperations::getVarchar(const NdbDictionary::Table* table,
                        int from, int to, bool batch, int length)
 {
-    getVar(table, meta->attr_B0_cvarchar_def,
+    getVar(table, model->attr_B0_cvarchar_def,
            from, to, batch, selectString(length));
 }
 
 void
-Operations::setVar(const NdbDictionary::Table* table, int attr_cvar,
+CrundNdbApiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
                    int from, int to,
                    bool batch, const char* str)
 {
@@ -700,7 +746,7 @@ Operations::setVar(const NdbDictionary::Table* table, int attr_cvar,
         // XXX assumes column declared as VARBINARY/CHAR(<255)
         size_t sbuf = 1 + slen;
         // XXX buffer overflow if slen >255!!!
-        assert (slen < 255);
+        assert(slen < 255);
         buf = new char[sbuf];
         buf[0] = (char)slen;
         memcpy(buf + 1, str, slen);
@@ -711,7 +757,7 @@ Operations::setVar(const NdbDictionary::Table* table, int attr_cvar,
 
     beginTransaction();
     for (int i = from; i <= to; i++) {
-        // get an insert operation for the table
+        // get an update operation for the table
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
@@ -719,7 +765,7 @@ Operations::setVar(const NdbDictionary::Table* table, int attr_cvar,
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set values; key attribute needs to be set first
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
         if (op->setValue(attr_cvar, buf) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
@@ -738,11 +784,11 @@ Operations::setVar(const NdbDictionary::Table* table, int attr_cvar,
 }
 
 void
-Operations::getVar(const NdbDictionary::Table* table, int attr_cvar,
+CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
                    int from, int to,
                    bool batch, const char* str)
 {
-    assert (str);
+    assert(str);
 
     // allocate attributes holder
     const int count = (to - from) + 1;
@@ -764,11 +810,11 @@ Operations::getVar(const NdbDictionary::Table* table, int attr_cvar,
         NdbOperation* op = tx->getNdbOperation(table);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        if (op->equal(meta->attr_id, (Int32)1) != 0)
+        if (op->equal(model->attr_id, (Int32)1) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // get attributes (not readable until after commit)
@@ -781,7 +827,7 @@ Operations::getVar(const NdbDictionary::Table* table, int attr_cvar,
     }
     commitTransaction();
     closeTransaction();
-    assert (s == buf + sbuf);
+    assert(s == buf + sbuf);
 
     // copy (move) the strings to make them aligned and 0-terminated
     s = buf;
@@ -801,32 +847,32 @@ Operations::getVar(const NdbDictionary::Table* table, int attr_cvar,
         // check fetched values
         VERIFY(strcmp(s, str) == 0);
     }
-    assert (s == buf + sbuf);
+    assert(s == buf + sbuf);
 
     // release attributes holder
     delete[] buf;
 }
 
 void
-Operations::setB0ToA(int count_A, int count_B,
+CrundNdbApiOperations::setB0ToA(int count_A, int count_B,
                      bool batch)
 {
     beginTransaction();
     for (int i = 1; i <= count_B; i++) {
         // get an update operation for the table
-        NdbOperation* op = tx->getNdbOperation(meta->table_B0);
+        NdbOperation* op = tx->getNdbOperation(model->table_B0);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
         if (op->updateTuple() != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set a_id attribute
         int a_id = ((i - 1) % count_A) + 1;
-        if (op->setValue(meta->attr_B0_a_id, (Int32)a_id) != 0)
+        if (op->setValue(model->attr_B0_a_id, (Int32)a_id) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-batching mode
@@ -838,24 +884,24 @@ Operations::setB0ToA(int count_A, int count_B,
 }
 
 void
-Operations::nullB0ToA(int count_A, int count_B,
+CrundNdbApiOperations::nullB0ToA(int count_A, int count_B,
                       bool batch)
 {
     beginTransaction();
     for (int i = 1; i <= count_B; i++) {
         // get an update operation for the table
-        NdbOperation* op = tx->getNdbOperation(meta->table_B0);
+        NdbOperation* op = tx->getNdbOperation(model->table_B0);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
         if (op->updateTuple() != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // clear a_id attribute
-        if (op->setValue(meta->attr_B0_a_id, (char*)NULL) != 0)
+        if (op->setValue(model->attr_B0_a_id, (char*)NULL) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-batching mode
@@ -867,7 +913,7 @@ Operations::nullB0ToA(int count_A, int count_B,
 }
 
 void
-Operations::navB0ToA(int count_A, int count_B,
+CrundNdbApiOperations::navB0ToA(int count_A, int count_B,
                      bool batch)
 {
     // allocate attributes holder
@@ -881,18 +927,18 @@ Operations::navB0ToA(int count_A, int count_B,
         Int32 a_id;
         {
             // get a read operation for the table
-            NdbOperation* op = tx->getNdbOperation(meta->table_B0);
+            NdbOperation* op = tx->getNdbOperation(model->table_B0);
             if (op == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+            if (op->readTuple(ndbOpLockMode) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // set key attribute
-            if (op->equal(meta->attr_id, (Int32)i) != 0)
+            if (op->equal(model->attr_id, (Int32)i) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // get attribute (not readable until after commit)
-            if (op->getValue(meta->attr_B0_a_id, (char*)&a_id) == NULL)
+            if (op->getValue(model->attr_B0_a_id, (char*)&a_id) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
         }
         executeOperations(); // start the scan; don't commit yet
@@ -900,27 +946,27 @@ Operations::navB0ToA(int count_A, int count_B,
         // fetch the attributes from A
         {
             // get a read operation for the table
-            NdbOperation* op = tx->getNdbOperation(meta->table_A);
+            NdbOperation* op = tx->getNdbOperation(model->table_A);
             if (op == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+            if (op->readTuple(ndbOpLockMode) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // set key attribute
-            assert (a_id == ((i - 1) % count_A) + 1);
-            if (op->equal(meta->attr_id, a_id) != 0)
+            assert(a_id == ((i - 1) % count_A) + 1);
+            if (op->equal(model->attr_id, a_id) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // get attributes (not readable until after commit)
-            if (op->getValue(meta->attr_id, (char*)&pab->id) == NULL)
+            if (op->getValue(model->attr_id, (char*)&pab->id) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->getValue(meta->attr_cint, (char*)&pab->cint) == NULL)
+            if (op->getValue(model->attr_cint, (char*)&pab->cint) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->getValue(meta->attr_clong, (char*)&pab->clong) == NULL)
+            if (op->getValue(model->attr_clong, (char*)&pab->clong) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->getValue(meta->attr_cfloat, (char*)&pab->cfloat) == NULL)
+            if (op->getValue(model->attr_cfloat, (char*)&pab->cfloat) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op->getValue(meta->attr_cdouble, (char*)&pab->cdouble) == NULL)
+            if (op->getValue(model->attr_cdouble, (char*)&pab->cdouble) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
         }
 
@@ -948,7 +994,7 @@ Operations::navB0ToA(int count_A, int count_B,
 }
 
 void
-Operations::navB0ToAalt(int count_A, int count_B,
+CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
                         bool batch)
 {
     // allocate foreign key values holder
@@ -959,18 +1005,18 @@ Operations::navB0ToAalt(int count_A, int count_B,
     Int32* pa_id = a_id;
     for (int i = 1; i <= count_B; i++) {
         // get a read operation for the table
-        NdbOperation* op = tx->getNdbOperation(meta->table_B0);
+        NdbOperation* op = tx->getNdbOperation(model->table_B0);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        if (op->equal(meta->attr_id, (Int32)i) != 0)
+        if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // get attribute (not readable until after commit)
-        if (op->getValue(meta->attr_B0_a_id, (char*)pa_id++) == NULL)
+        if (op->getValue(model->attr_B0_a_id, (char*)pa_id++) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-batching mode
@@ -987,27 +1033,27 @@ Operations::navB0ToAalt(int count_A, int count_B,
     CommonAB* pab = ab;
     for (int i = 1; i <= count_B; i++, pa_id++, pab++) {
         // get a read operation for the table
-        NdbOperation* op = tx->getNdbOperation(meta->table_A);
+        NdbOperation* op = tx->getNdbOperation(model->table_A);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->readTuple(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuple(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        assert (*pa_id == ((i - 1) % count_A) + 1);
-        if (op->equal(meta->attr_id, (Int32)*pa_id) != 0)
+        assert(*pa_id == ((i - 1) % count_A) + 1);
+        if (op->equal(model->attr_id, (Int32)*pa_id) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // get attributes (not readable until after commit)
-        if (op->getValue(meta->attr_id, (char*)&pab->id) == NULL)
+        if (op->getValue(model->attr_id, (char*)&pab->id) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cint, (char*)&pab->cint) == NULL)
+        if (op->getValue(model->attr_cint, (char*)&pab->cint) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_clong, (char*)&pab->clong) == NULL)
+        if (op->getValue(model->attr_clong, (char*)&pab->clong) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cfloat, (char*)&pab->cfloat) == NULL)
+        if (op->getValue(model->attr_cfloat, (char*)&pab->cfloat) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cdouble, (char*)&pab->cdouble) == NULL)
+        if (op->getValue(model->attr_cdouble, (char*)&pab->cdouble) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-batching mode
@@ -1037,7 +1083,7 @@ Operations::navB0ToAalt(int count_A, int count_B,
 }
 
 void
-Operations::navAToB0(int count_A, int count_B,
+CrundNdbApiOperations::navAToB0(int count_A, int count_B,
                      bool forceSend)
 {
     // attributes holder
@@ -1052,36 +1098,35 @@ Operations::navAToB0(int count_A, int count_B,
     for (int i = 1; i <= count_A; i++) {
         // get an index scan operation for the table
         NdbIndexScanOperation* op
-            = tx->getNdbIndexScanOperation(meta->idx_B0_a_id);
+            = tx->getNdbIndexScanOperation(model->idx_B0_a_id);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // define a read scan without locks (LM_CommittedRead)
-        if (op->readTuples(NdbOperation::LM_CommittedRead) != 0)
+        if (op->readTuples(ndbOpLockMode) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // define the scan's bounds (more efficient than using a scan filter)
         // the argument to setBound() is not the column's attribute id
-        //    if (op->setBound(meta->attr_B0_a_id, ...
+        //    if (op->setBound(model->attr_B0_a_id, ...
         // or column name
         //    if (op->setBound("a_id", ...
         // but the attribute id of the column *in the index*.
         //    if (op->setBound(idx_B0_a_id->getColumn(0)->getAttrId()...
         // for which we introduced a shortcut.
-        if (op->setBound(meta->attr_idx_B0_a_id,
+        if (op->setBound(model->attr_idx_B0_a_id,
                          NdbIndexScanOperation::BoundEQ, &i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // get attributes (not readable until after commit)
-        if (op->getValue(meta->attr_id, (char*)&h.id) == NULL)
+        if (op->getValue(model->attr_id, (char*)&h.id) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cint, (char*)&h.cint) == NULL)
+        if (op->getValue(model->attr_cint, (char*)&h.cint) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_clong, (char*)&h.clong) == NULL)
+        if (op->getValue(model->attr_clong, (char*)&h.clong) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cfloat, (char*)&h.cfloat) == NULL)
+        if (op->getValue(model->attr_cfloat, (char*)&h.cfloat) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
-        if (op->getValue(meta->attr_cdouble, (char*)&h.cdouble) == NULL)
+        if (op->getValue(model->attr_cdouble, (char*)&h.cdouble) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // start the scan; don't commit yet
@@ -1091,7 +1136,7 @@ Operations::navAToB0(int count_A, int count_B,
         int stat;
         const bool allowFetch = true; // request new batches when exhausted
         while ((stat = op->nextResult(allowFetch, forceSend)) == 0) {
-            assert (ab <= pab && pab < ab + count_B);
+            assert(ab <= pab && pab < ab + count_B);
             *pab++ = h;
         }
         if (stat != 1)
@@ -1102,7 +1147,7 @@ Operations::navAToB0(int count_A, int count_B,
     commitTransaction();
     closeTransaction();
     //CDBG << "!!! pab - ab =" << toString(pab-ab) << endl;
-    assert (pab == ab + count_B);
+    assert(pab == ab + count_B);
 
     // check fetched values
     // XXX this is not the most efficient way of testing...
@@ -1120,7 +1165,7 @@ Operations::navAToB0(int count_A, int count_B,
 }
 
 void
-Operations::navAToB0alt(int count_A, int count_B,
+CrundNdbApiOperations::navAToB0alt(int count_A, int count_B,
                         bool forceSend)
 {
     // number of operations in a multi-scan batch
@@ -1142,37 +1187,36 @@ Operations::navAToB0alt(int count_A, int count_B,
 
         for (int i = 0; i < nmscans; i++) {
             // get an index scan operation for the table
-            op[i] = tx->getNdbIndexScanOperation(meta->idx_B0_a_id);
+            op[i] = tx->getNdbIndexScanOperation(model->idx_B0_a_id);
             if (op[i] == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // XXX ? no locks (LM_CommittedRead) or shared locks (LM_Read)
-            // define a read scan without locks
-            if (op[i]->readTuples(NdbOperation::LM_CommittedRead) != 0)
+            if (op[i]->readTuples(ndbOpLockMode) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // define the scan's bounds (more efficient than using a scan filter)
             // the argument to setBound() is not the column's attribute id
-            //    if (op[i]->setBound(meta->attr_B0_a_id, ...
+            //    if (op[i]->setBound(model->attr_B0_a_id, ...
             // or column name
             //    if (op[i]->setBound("a_id", ...
             // but the attribute id of the column *in the index*.
             //    if (op[i]->setBound(idx_B0_a_id->getColumn(0)->getAttrId()...
             // for which we introduced a shortcut.
-            if (op[i]->setBound(meta->attr_idx_B0_a_id,
+            if (op[i]->setBound(model->attr_idx_B0_a_id,
                                 NdbIndexScanOperation::BoundEQ, &a_id) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // get attributes (not readable until after commit)
-            if (op[i]->getValue(meta->attr_id, (char*)&h.id) == NULL)
+            if (op[i]->getValue(model->attr_id, (char*)&h.id) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op[i]->getValue(meta->attr_cint, (char*)&h.cint) == NULL)
+            if (op[i]->getValue(model->attr_cint, (char*)&h.cint) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op[i]->getValue(meta->attr_clong, (char*)&h.clong) == NULL)
+            if (op[i]->getValue(model->attr_clong, (char*)&h.clong) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op[i]->getValue(meta->attr_cfloat, (char*)&h.cfloat) == NULL)
+            if (op[i]->getValue(model->attr_cfloat, (char*)&h.cfloat) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
-            if (op[i]->getValue(meta->attr_cdouble, (char*)&h.cdouble) == NULL)
+            if (op[i]->getValue(model->attr_cdouble, (char*)&h.cdouble) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // next a
@@ -1186,7 +1230,7 @@ Operations::navAToB0alt(int count_A, int count_B,
             int stat;
             const bool allowFetch = true; // request new batches when exhausted
             while ((stat = op[i]->nextResult(allowFetch, forceSend)) == 0) {
-                assert (ab <= pab && pab < ab + count_B);
+                assert(ab <= pab && pab < ab + count_B);
                 *pab++ = h;
             }
             if (stat != 1)
@@ -1201,8 +1245,8 @@ Operations::navAToB0alt(int count_A, int count_B,
     commitTransaction();
     closeTransaction();
     //CDBG << "!!! pab - ab =" << toString(pab-ab) << endl;
-    assert (a_id == count_A + 1);
-    assert (pab == ab + count_B);
+    assert(a_id == count_A + 1);
+    assert(pab == ab + count_B);
 
     // check fetched values
     // XXX this is not the most efficient way of testing...

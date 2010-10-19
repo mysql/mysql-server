@@ -49,6 +49,10 @@ import com.mysql.cluster.ndbj.NdbResultSet;
  */
 public class NdbjLoad extends NdbBase {
 
+    // ----------------------------------------------------------------------
+    // NDBJ resources
+    // ----------------------------------------------------------------------
+
     // singleton object representing the NDB cluster (one per process)
     protected NdbClusterConnection mgmd;
 
@@ -61,17 +65,68 @@ public class NdbjLoad extends NdbBase {
     // object representing an NDB database transaction
     protected NdbTransaction tx;
 
-    /**
-     * Returns a string representation of an NdbError.
-     */
-    static public String toStr(NdbError e) {
+    // ----------------------------------------------------------------------
+    // NDBJ intializers/finalizers
+    // ----------------------------------------------------------------------
+
+    protected void initProperties() {
+        super.initProperties();
+        descr = "->ndbj->ndbapi(" + mgmdConnect + ")";
+    }
+
+    protected void init() throws Exception {
+        super.init();
+
+        // load native library (better diagnostics doing it explicitely)
+        out.println();
+        loadSystemLibrary("ndbj");
+
+        // instantiate NDB cluster singleton
+        out.println();
+        out.print("creating cluster conn...");
+        out.flush();
+        mgmd = NdbClusterConnection.create(mgmdConnect);
+        assert mgmd != null;
+        out.println("    [ok]");
+
+        // connect to cluster management node (ndb_mgmd)
+        out.print("connecting to mgmd ...");
+        out.flush();
+        final int retries = 0;        // retries (< 0 = indefinitely)
+        final int delay = 0;          // seconds to wait after retry
+        final boolean verbose = true; // print report of progess
+        // 0 = success, 1 = recoverable error, -1 = non-recoverable error
+        if (mgmd.connect(retries, delay, verbose) != 0) {
+            final String msg = ("mgmd@" + mgmdConnect
+                                + " was not ready within "
+                                + (retries * delay) + "s.");
+            out.println(msg);
+            throw new RuntimeException("!!! " + msg);
+        }
+        out.println("      [ok: " + mgmdConnect + "]");
+    }
+
+    protected void close() throws Exception {
+        out.print("closing mgmd conn ...");
+        out.flush();
+        if (mgmd != null)
+            mgmd.close();
+        mgmd = null;
+        out.println("       [ok]");
+        super.close();
+    }
+
+    // ----------------------------------------------------------------------
+    // NDBJ operations
+    // ----------------------------------------------------------------------
+
+    // returns a string representation of an NdbError
+    static protected String toStr(NdbError e) {
         return "NdbError[" + e.getCode() + "]: " + e.getMessage();
     }
 
-    /**
-     * Holds shortcuts to the benchmark's schema information.
-     */
-    static protected class Meta {
+    // holds shortcuts to the benchmark's schema information
+    static protected class Model {
         public final NdbTable table_A;
         public final NdbTable table_B0;
         public final NdbColumn column_A_id;
@@ -109,7 +164,7 @@ public class NdbjLoad extends NdbBase {
         public final String name_B0_cvarchar_def;
 
         // initialize this instance from the dictionary
-        public Meta(Ndb ndb) throws NdbApiException {
+        public Model(Ndb ndb) throws NdbApiException {
             final NdbDictionary dict = ndb.getDictionary();
 
             // get columns of table A
@@ -207,103 +262,6 @@ public class NdbjLoad extends NdbBase {
     final String[] strings = { string1, string10, string100 };
     final byte[][] bytes = { bytes1, bytes10, bytes100 };
 
-    protected void initProperties() {
-        super.initProperties();
-        descr = "->NDBJ->NDBAPI(" + mgmdConnect + ")";
-    }
-
-    protected void init() throws Exception {
-        super.init();
-
-        // load native library (better diagnostics doing it explicitely)
-        out.println();
-        loadSystemLibrary("ndbj");
-
-        // instantiate NDB cluster singleton
-        out.println();
-        out.print("creating cluster conn...");
-        out.flush();
-        mgmd = NdbClusterConnection.create(mgmdConnect);
-        assert mgmd != null;
-        out.println("    [ok]");
-
-        // connect to cluster management node (ndb_mgmd)
-        out.print("connecting to mgmd ...");
-        out.flush();
-        final int retries = 0;        // retries (< 0 = indefinitely)
-        final int delay = 0;          // seconds to wait after retry
-        final boolean verbose = true; // print report of progess
-        // 0 = success, 1 = recoverable error, -1 = non-recoverable error
-        if (mgmd.connect(retries, delay, verbose) != 0) {
-            final String msg = ("mgmd@" + mgmdConnect
-                                + " was not ready within "
-                                + (retries * delay) + "s.");
-            out.println(msg);
-            throw new RuntimeException("!!! " + msg);
-        }
-        out.println("      [ok: " + mgmdConnect + "]");
-    }
-
-    protected void close() throws Exception {
-        out.print("closing mgmd conn ...");
-        out.flush();
-        if (mgmd != null)
-            mgmd.close();
-        mgmd = null;
-        out.println("       [ok]");
-        super.close();
-    }
-
-    protected void initConnection() throws NdbApiException {
-        // optionally, connect and wait for reaching the data nodes (ndbds)
-        out.print("waiting for data nodes...");
-        out.flush();
-        final int initial_wait = 10; // secs to wait until first node detected
-        final int final_wait = 0;    // secs to wait after first node detected
-
-        // XXX return: 0 all nodes live, > 0 at least one node live, < 0 error
-        try {
-            mgmd.waitUntilReady(initial_wait, final_wait);
-        } catch (NdbApiException e) {
-            out.println();
-            out.println("!!! data nodes were not ready within "
-                        + (initial_wait + final_wait) + "s.");
-            throw e;
-        }
-        out.println("   [ok]");
-
-        // connect to database
-        out.print("connecting to database...");
-        out.flush();
-        try {
-            // XXX where to set schema?
-            // YYY Frazer: schema not too useful in NDB at the moment
-            // XXX unclear if maxThreads ^= maxNumberOfTransactions
-            //     since ndb.init(maxNumberOfTransactions) is deprecated
-            //final int maxThreads = 4;
-            //ndb = mgmd.createNdb(catalog, maxThreads);
-            // YYY Frazer: yes, maxThreads == maxNumber(concurrent)OfTransactions
-            ndb = mgmd.createNdb(catalog);
-        } catch (NdbApiException e) {
-            out.println();
-            out.println("!!! failed to connect: " + e);
-            throw e;
-        }
-        out.println("   [ok]");
-
-        // initialize the schema shortcuts
-        meta = new Meta(ndb);
-    }
-
-    protected void closeConnection() {
-        out.print("closing database conn ...");
-        out.flush();
-        meta = null;
-        ndb.close();
-        ndb = null;
-        out.println("   [ok]");
-    }
-
     protected void initOperations() throws NdbApiException {
         out.print("initializing operations ...");
         out.flush();
@@ -321,7 +279,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("insA" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        ins(meta.table_A, 1, countA, !setAttrs, batch);
+                        ins(model.table_A, 1, countA, !setAttrs, batch);
                     }
                 });
 
@@ -329,7 +287,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("insB0" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        ins(meta.table_B0, 1, countB, !setAttrs, batch);
+                        ins(model.table_B0, 1, countB, !setAttrs, batch);
                     }
                 });
 
@@ -337,7 +295,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("setAByPK" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        setByPK(meta.table_A, 1, countA, batch);
+                        setByPK(model.table_A, 1, countA, batch);
                     }
                 });
 
@@ -345,7 +303,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("setB0ByPK" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        setByPK(meta.table_B0, 1, countB, batch);
+                        setByPK(model.table_B0, 1, countB, batch);
                     }
                 });
 
@@ -353,7 +311,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("getAByPK" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        getByPK(meta.table_A, 1, countA, batch);
+                        getByPK(model.table_A, 1, countA, batch);
                     }
                 });
 
@@ -361,7 +319,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("getB0ByPK" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        getByPK(meta.table_B0, 1, countB, batch);
+                        getByPK(model.table_B0, 1, countB, batch);
                     }
                 });
 
@@ -373,7 +331,7 @@ public class NdbjLoad extends NdbBase {
                     new Op("setVarbinary" + l + (batch ? "_batch" : "")) {
                         public void run(int countA, int countB)
                             throws NdbApiException {
-                            setVarbinary(meta.table_B0, 1, countB, batch, b);
+                            setVarbinary(model.table_B0, 1, countB, batch, b);
                         }
                     });
 
@@ -381,11 +339,11 @@ public class NdbjLoad extends NdbBase {
                     new Op("getVarbinary" + l + (batch ? "_batch" : "")) {
                         public void run(int countA, int countB)
                             throws NdbApiException {
-                            getVarbinary(meta.table_B0, 1, countB, batch, b);
+                            getVarbinary(model.table_B0, 1, countB, batch, b);
                         }
                     });
             }
-            
+
             for (int i = 0, l = 1; l <= maxVarcharChars; l *= 10, i++) {
                 final String s = strings[i];
                 assert l == s.length();
@@ -394,7 +352,7 @@ public class NdbjLoad extends NdbBase {
                     new Op("setVarchar" + l + (batch ? "_batch" : "")) {
                         public void run(int countA, int countB)
                             throws NdbApiException {
-                            setVarchar(meta.table_B0, 1, countB, batch, s);
+                            setVarchar(model.table_B0, 1, countB, batch, s);
                         }
                     });
 
@@ -402,7 +360,7 @@ public class NdbjLoad extends NdbBase {
                     new Op("getVarchar" + l + (batch ? "_batch" : "")) {
                         public void run(int countA, int countB)
                             throws NdbApiException {
-                            getVarchar(meta.table_B0, 1, countB, batch, s);
+                            getVarchar(model.table_B0, 1, countB, batch, s);
                         }
                     });
             }
@@ -461,7 +419,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("delB0ByPK" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        delByPK(meta.table_B0, 1, countB, batch);
+                        delByPK(model.table_B0, 1, countB, batch);
                     }
                 });
 
@@ -469,7 +427,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("delAByPK" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        delByPK(meta.table_A, 1, countA, batch);
+                        delByPK(model.table_A, 1, countA, batch);
                     }
                 });
 
@@ -477,7 +435,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("insA_attr" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        ins(meta.table_A, 1, countA, setAttrs, batch);
+                        ins(model.table_A, 1, countA, setAttrs, batch);
                     }
                 });
 
@@ -485,7 +443,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("insB0_attr" + (batch ? "_batch" : "")) {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        ins(meta.table_B0, 1, countB, setAttrs, batch);
+                        ins(model.table_B0, 1, countB, setAttrs, batch);
                     }
                 });
 
@@ -493,7 +451,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("delAllB0") {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        final int count = delByScan(meta.table_B0);
+                        final int count = delByScan(model.table_B0);
                         assert count == countB;
                     }
                 });
@@ -502,7 +460,7 @@ public class NdbjLoad extends NdbBase {
                 new Op("delAllA") {
                     public void run(int countA, int countB)
                         throws NdbApiException {
-                        final int count = delByScan(meta.table_A);
+                        final int count = delByScan(model.table_A);
                         assert count == countA;
                     }
                 });
@@ -518,14 +476,14 @@ public class NdbjLoad extends NdbBase {
         out.println("      [ok]");
     }
 
-    protected void beginTransaction1() throws NdbApiException {
+    protected void beginTransaction() throws NdbApiException {
         // start a transaction
         // must be closed with NdbTransaction.close
         tx = ndb.startTransaction();
         assert tx != null;
     }
 
-    protected void executeOperations1() throws NdbApiException {
+    protected void executeOperations() throws NdbApiException {
         // execute but don't commit the current transaction
         // XXX not documented: return value != 0 v throwing exception
         // YYY Monty: should always throw exception -> void method
@@ -534,7 +492,7 @@ public class NdbjLoad extends NdbBase {
             throw new RuntimeException("stat == " + stat);
     }
 
-    protected void commitTransaction1() throws NdbApiException {
+    protected void commitTransaction() throws NdbApiException {
         // commit the current transaction
         // XXX not documented: return value != 0 v throwing exception
         // YYY Monty: should always throw exception -> void method
@@ -544,7 +502,7 @@ public class NdbjLoad extends NdbBase {
             throw new RuntimeException("stat == " + stat);
     }
 
-    protected void rollbackTransaction1() throws NdbApiException {
+    protected void rollbackTransaction() throws NdbApiException {
         // abort the current transaction
         // XXX not documented: return value != 0 v throwing exception
         // YYY Monty: should always throw exception -> void method
@@ -553,43 +511,31 @@ public class NdbjLoad extends NdbBase {
             throw new RuntimeException("stat == " + stat);
     }
 
-    protected void closeTransaction1() {
+    protected void closeTransaction() {
         // close the current transaction
         // to be called irrespectively of success or failure
         tx.close();
         tx = null;
     }
 
-    protected void clearData() throws NdbApiException {
-        out.print("deleting all rows ...");
-        out.flush();
-        final int delB0 = delByScan(meta.table_B0);
-        out.print("       [B0: " + delB0);
-        out.flush();
-        final int delA = delByScan(meta.table_A);
-        out.print(", A: " + delA);
-        out.flush();
-        out.println("]");
-    }
-
     // ----------------------------------------------------------------------
 
     protected void fetchCommonAttributes(NdbOperation op)
         throws NdbApiException {
-        op.getValue(meta.name_cint);
-        op.getValue(meta.name_clong);
-        op.getValue(meta.name_cfloat);
-        op.getValue(meta.name_cdouble);
+        op.getValue(model.name_cint);
+        op.getValue(model.name_clong);
+        op.getValue(model.name_cfloat);
+        op.getValue(model.name_cdouble);
     }
 
     protected int getCommonAttributes(NdbResultSet rs)
         throws NdbApiException {
-        final int cint = rs.getInt(meta.name_cint);
-        final long clong = rs.getLong(meta.name_clong);
+        final int cint = rs.getInt(model.name_cint);
+        final long clong = rs.getLong(model.name_clong);
         verify(clong == cint);
-        final float cfloat = rs.getFloat(meta.name_cfloat);
+        final float cfloat = rs.getFloat(model.name_cfloat);
         verify(cfloat == cint);
-        final double cdouble = rs.getDouble(meta.name_cdouble);
+        final double cdouble = rs.getDouble(model.name_cdouble);
         verify(cdouble == cint);
         return cint;
     }
@@ -597,53 +543,53 @@ public class NdbjLoad extends NdbBase {
     protected void ins(NdbTable table, int from, int to,
                        boolean setAttrs, boolean batch)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
         for (int i = from; i <= to; i++) {
             // get an insert operation for the table
             final NdbOperation op = tx.getInsertOperation(table);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, i);
+            op.equalInt(model.name_id, i);
 
             // set other attributes
             if (setAttrs) {
-                op.setInt(meta.name_cint, -i);
-                op.setLong(meta.name_clong, -i);
-                op.setFloat(meta.name_cfloat, -i);
-                op.setDouble(meta.name_cdouble, -i);
+                op.setInt(model.name_cint, -i);
+                op.setLong(model.name_clong, -i);
+                op.setFloat(model.name_cfloat, -i);
+                op.setDouble(model.name_cdouble, -i);
             }
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
-        closeTransaction1();
+        commitTransaction();
+        closeTransaction();
     }
 
     protected void delByPK(NdbTable table, int from, int to,
                            boolean batch)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
         for (int i = from; i <= to; i++) {
             // get a delete operation for the table
             final NdbOperation op = tx.getDeleteOperation(table);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, i);
+            op.equalInt(model.name_id, i);
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
-        closeTransaction1();
+        commitTransaction();
+        closeTransaction();
     }
 
     protected int delByScan(NdbTable table) throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
 
         // get a full table scan operation with exclusive locks
         final NdbScanOperation op
@@ -651,7 +597,7 @@ public class NdbjLoad extends NdbBase {
         assert op != null;
 
         // start the scan; don't commit yet
-        executeOperations1();
+        executeOperations();
 
         // delete all rows in a given scan
         int count = 0;
@@ -689,35 +635,35 @@ public class NdbjLoad extends NdbBase {
         // close the scan
         op.close();
 
-        commitTransaction1();
-        closeTransaction1();
+        commitTransaction();
+        closeTransaction();
         return count;
     }
 
     protected void setByPK(NdbTable table, int from, int to,
                            boolean batch)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
         for (int i = from; i <= to; i++) {
             // get an insert operation for the table
             final NdbOperation op = tx.getUpdateOperation(table);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, i);
+            op.equalInt(model.name_id, i);
 
             // set other attributes
-            op.setInt(meta.name_cint, i);
-            op.setLong(meta.name_clong, i);
-            op.setFloat(meta.name_cfloat, i);
-            op.setDouble(meta.name_cdouble, i);
+            op.setInt(model.name_cint, i);
+            op.setLong(model.name_clong, i);
+            op.setFloat(model.name_cfloat, i);
+            op.setDouble(model.name_cdouble, i);
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
-        closeTransaction1();
+        commitTransaction();
+        closeTransaction();
     }
 
     // XXX need to use names instead of ids due to broken
@@ -727,7 +673,7 @@ public class NdbjLoad extends NdbBase {
         assert tx == null;
         tx = ndb.startTransaction();
         assert tx != null;
-        NdbOperation op = tx.getSelectOperation(meta.table_A);
+        NdbOperation op = tx.getSelectOperation(model.table_A);
         assert op != null;
         final int int_val = 1;
         op.equalInt("id", int_val);
@@ -749,17 +695,17 @@ public class NdbjLoad extends NdbBase {
         final int count = (to - from) + 1;
         final NdbResultSet[] rss = new NdbResultSet[count];
 
-        beginTransaction1();
+        beginTransaction();
         for (int i = 0, j = from; i < count; i++, j++) {
             // get a read operation for the table
             NdbOperation op = tx.getSelectOperation(table);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, j);
+            op.equalInt(model.name_id, j);
 
             // define fetched attributes
-            op.getValue(meta.name_id);
+            op.getValue(model.name_id);
             fetchCommonAttributes(op);
 
             // get attributes (not readable until after commit)
@@ -767,9 +713,9 @@ public class NdbjLoad extends NdbBase {
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
+        commitTransaction();
 
         // check fetched values
         for (int i = 0, j = from; i < count; i++, j++) {
@@ -778,7 +724,7 @@ public class NdbjLoad extends NdbBase {
             assert hasNext;
 
             // check key attribute
-            final int id = rs.getInt(meta.name_id);
+            final int id = rs.getInt(model.name_id);
             verify(id == j);
 
             // check other attributes
@@ -787,53 +733,53 @@ public class NdbjLoad extends NdbBase {
 
             assert !rs.next();
         }
-        closeTransaction1();
+        closeTransaction();
     }
 
     protected void setVarbinary(NdbTable table, int from, int to,
                                 boolean batch, byte[] bytes)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
         for (int i = from; i <= to; i++) {
             // get an update operation for the table
             final NdbOperation op = tx.getUpdateOperation(table);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, i);
+            op.equalInt(model.name_id, i);
 
             // set varbinary
-            op.setBytes(meta.name_B0_cvarbinary_def, bytes);
+            op.setBytes(model.name_B0_cvarbinary_def, bytes);
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
-        closeTransaction1();
+        commitTransaction();
+        closeTransaction();
     }
 
     protected void setVarchar(NdbTable table, int from, int to,
                               boolean batch, String string)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
         for (int i = from; i <= to; i++) {
             // get an update operation for the table
             final NdbOperation op = tx.getUpdateOperation(table);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, i);
+            op.equalInt(model.name_id, i);
 
             // set varchar
-            op.setString(meta.name_B0_cvarchar_def, string);
+            op.setString(model.name_B0_cvarchar_def, string);
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
-        closeTransaction1();
+        commitTransaction();
+        closeTransaction();
     }
 
     protected void getVarbinary(NdbTable table, int from, int to,
@@ -843,27 +789,27 @@ public class NdbjLoad extends NdbBase {
         final int count = (to - from) + 1;
         final NdbResultSet[] rss = new NdbResultSet[count];
 
-        beginTransaction1();
+        beginTransaction();
         for (int i = 0, j = from; i < count; i++, j++) {
             // get a read operation for the table
             NdbOperation op = tx.getSelectOperation(table);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, j);
+            op.equalInt(model.name_id, j);
 
             // define fetched attributes
-            op.getValue(meta.name_B0_cvarbinary_def);
+            op.getValue(model.name_B0_cvarbinary_def);
 
             // get attributes (not readable until after commit)
             rss[i] = op.resultData();
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        //executeOperations1();
-        commitTransaction1();
+        //executeOperations();
+        commitTransaction();
 
         // check fetched values
         for (int i = 0, j = from; i < count; i++, j++) {
@@ -873,12 +819,12 @@ public class NdbjLoad extends NdbBase {
 
             // check varbinary
             final byte[] cvarbinary_def
-                = rs.getBytes(meta.name_B0_cvarbinary_def);
+                = rs.getBytes(model.name_B0_cvarbinary_def);
             verify(Arrays.equals(bytes, cvarbinary_def));
 
             assert !rs.next();
         }
-        closeTransaction1();
+        closeTransaction();
     }
 
     protected void getVarchar(NdbTable table, int from, int to,
@@ -888,27 +834,27 @@ public class NdbjLoad extends NdbBase {
         final int count = (to - from) + 1;
         final NdbResultSet[] rss = new NdbResultSet[count];
 
-        beginTransaction1();
+        beginTransaction();
         for (int i = 0, j = from; i < count; i++, j++) {
             // get a read operation for the table
             NdbOperation op = tx.getSelectOperation(table);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, j);
+            op.equalInt(model.name_id, j);
 
             // define fetched attributes
-            op.getValue(meta.name_B0_cvarchar_def);
+            op.getValue(model.name_B0_cvarchar_def);
 
             // get attributes (not readable until after commit)
             rss[i] = op.resultData();
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        //executeOperations1();
-        commitTransaction1();
+        //executeOperations();
+        commitTransaction();
 
         // check fetched values
         for (int i = 0, j = from; i < count; i++, j++) {
@@ -919,72 +865,72 @@ public class NdbjLoad extends NdbBase {
             // check varchar
             if (true) {
                 final String cvarchar_def
-                    = rs.getString(meta.name_B0_cvarchar_def);
+                    = rs.getString(model.name_B0_cvarchar_def);
                 verify(string.equals(cvarchar_def));
             } else {
                 // verification imposes a string->bytes conversion penalty
                 final byte[] cvarchar_def
-                    = rs.getStringBytes(meta.name_B0_cvarchar_def);
+                    = rs.getStringBytes(model.name_B0_cvarchar_def);
                 verify(Arrays.equals(string.getBytes(), cvarchar_def));
             }
 
             assert !rs.next();
         }
-        closeTransaction1();
+        closeTransaction();
     }
 
     protected void setB0ToA(int count_A, int count_B,
                             boolean batch)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
         for (int i = 1; i <= count_B; i++) {
             // get an update operation for the table
-            final NdbOperation op = tx.getUpdateOperation(meta.table_B0);
+            final NdbOperation op = tx.getUpdateOperation(model.table_B0);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, i);
+            op.equalInt(model.name_id, i);
 
             // set a_id attribute
             int a_id = ((i - 1) % count_A) + 1;
-            op.setInt(meta.name_B0_a_id, a_id);
+            op.setInt(model.name_B0_a_id, a_id);
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
-        closeTransaction1();
+        commitTransaction();
+        closeTransaction();
     }
 
     protected void nullB0ToA(int count_A, int count_B,
                              boolean batch)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
         for (int i = 1; i <= count_B; i++) {
             // get an update operation for the table
-            final NdbOperation op = tx.getUpdateOperation(meta.table_B0);
+            final NdbOperation op = tx.getUpdateOperation(model.table_B0);
             assert op != null;
 
             // set key attribute
-            op.equalInt(meta.name_id, i);
+            op.equalInt(model.name_id, i);
 
             // set a_id attribute
             int a_id = ((i - 1) % count_A) + 1;
-            op.setNull(meta.name_B0_a_id);
+            op.setNull(model.name_B0_a_id);
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
-        closeTransaction1();
+        commitTransaction();
+        closeTransaction();
     }
 
     protected void navB0ToA(int count_A, int count_B,
                             boolean batch)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
 
         // fetch the foreign keys from B0 and read attributes from A
         final NdbResultSet[] abs = new NdbResultSet[count_B];
@@ -993,33 +939,33 @@ public class NdbjLoad extends NdbBase {
             NdbResultSet rs;
             {
                 // get a read operation for the table
-                NdbOperation op = tx.getSelectOperation(meta.table_B0);
+                NdbOperation op = tx.getSelectOperation(model.table_B0);
                 assert op != null;
 
                 // set key attribute
-                op.equalInt(meta.name_id, i);
+                op.equalInt(model.name_id, i);
 
                 // define fetched attributes
-                op.getValue(meta.name_B0_a_id);
+                op.getValue(model.name_B0_a_id);
 
                 // get attributes (not readable until after commit)
                 rs = op.resultData();
             }
-            executeOperations1(); // start the scan; don't commit yet
+            executeOperations(); // start the scan; don't commit yet
 
             // fetch the attributes from A
             {
                 // get a read operation for the table
-                NdbOperation op = tx.getSelectOperation(meta.table_A);
+                NdbOperation op = tx.getSelectOperation(model.table_A);
                 assert op != null;
 
                 // set key attribute
-                final int a_id = rs.getInt(meta.name_B0_a_id);
+                final int a_id = rs.getInt(model.name_B0_a_id);
                 assert a_id == ((i - 1) % count_A) + 1;
-                op.equalInt(meta.name_id, a_id);
+                op.equalInt(model.name_id, a_id);
 
                 // define fetched attributes
-                op.getValue(meta.name_id);
+                op.getValue(model.name_id);
                 fetchCommonAttributes(op);
 
                 // get attributes (not readable until after commit)
@@ -1028,9 +974,9 @@ public class NdbjLoad extends NdbBase {
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
+        commitTransaction();
 
         // check fetched values
         for (int i = 1, j = 0; i <= count_B; i++, j++) {
@@ -1039,7 +985,7 @@ public class NdbjLoad extends NdbBase {
             assert hasNext;
 
             // check key attribute
-            final int id = ab.getInt(meta.name_id);
+            final int id = ab.getInt(model.name_id);
             //out.println("id = " + id + ", i = " + i);
             verify(id == ((i - 1) % count_A) + 1);
 
@@ -1049,46 +995,46 @@ public class NdbjLoad extends NdbBase {
 
             assert !ab.next();
         }
-        closeTransaction1();
+        closeTransaction();
     }
 
     protected void navB0ToAalt(int count_A, int count_B,
                                boolean batch)
         throws NdbApiException {
-        beginTransaction1();
+        beginTransaction();
 
         // fetch the foreign key value from B0
         final NdbResultSet[] a_ids = new NdbResultSet[count_B];
         for (int i = 1, j = 0; i <= count_B; i++, j++) {
                 // get a read operation for the table
-                NdbOperation op = tx.getSelectOperation(meta.table_B0);
+                NdbOperation op = tx.getSelectOperation(model.table_B0);
                 assert op != null;
 
                 // set key attribute
-                op.equalInt(meta.name_id, i);
+                op.equalInt(model.name_id, i);
 
                 // define fetched attributes
-                op.getValue(meta.name_B0_a_id);
+                op.getValue(model.name_B0_a_id);
 
                 // get attributes (not readable until after commit)
                 a_ids[j] = op.resultData();
         }
-        executeOperations1(); // start the scan; don't commit yet
+        executeOperations(); // start the scan; don't commit yet
 
         // fetch the attributes from A
         final NdbResultSet[] abs = new NdbResultSet[count_B];
         for (int i = 1, j = 0; i <= count_B; i++, j++) {
             // get a read operation for the table
-            NdbOperation op = tx.getSelectOperation(meta.table_A);
+            NdbOperation op = tx.getSelectOperation(model.table_A);
             assert op != null;
 
             // set key attribute
-            final int a_id = a_ids[j].getInt(meta.name_B0_a_id);
+            final int a_id = a_ids[j].getInt(model.name_B0_a_id);
             assert a_id == ((i - 1) % count_A) + 1;
-            op.equalInt(meta.name_id, a_id);
+            op.equalInt(model.name_id, a_id);
 
             // define fetched attributes
-            op.getValue(meta.name_id);
+            op.getValue(model.name_id);
             fetchCommonAttributes(op);
 
             // get attributes (not readable until after commit)
@@ -1096,9 +1042,9 @@ public class NdbjLoad extends NdbBase {
 
             // execute the operation now if in non-batching mode
             if (!batch)
-                executeOperations1();
+                executeOperations();
         }
-        commitTransaction1();
+        commitTransaction();
 
         // check fetched values
         for (int i = 1, j = 0; i <= count_B; i++, j++) {
@@ -1107,7 +1053,7 @@ public class NdbjLoad extends NdbBase {
             assert hasNext;
 
             // check key attribute
-            final int id = ab.getInt(meta.name_id);
+            final int id = ab.getInt(model.name_id);
             //out.println("id = " + id + ", i = " + i);
             verify(id == ((i - 1) % count_A) + 1);
 
@@ -1117,7 +1063,7 @@ public class NdbjLoad extends NdbBase {
 
             assert !ab.next();
         }
-        closeTransaction1();
+        closeTransaction();
     }
 
     protected void navAToB0(int count_A, int count_B,
@@ -1125,7 +1071,7 @@ public class NdbjLoad extends NdbBase {
         throws NdbApiException {
 // throws exceptions, see below:
 /*
-        beginTransaction1();
+        beginTransaction();
 
         // fetch attributes from B0 by foreign key scan
         final NdbResultSet[] abs = new NdbResultSet[count_B];
@@ -1134,8 +1080,8 @@ public class NdbjLoad extends NdbBase {
             // get an index scan operation for the table
             // XXX ? no locks (LM_CommittedRead) or shared locks (LM_Read)
             final NdbIndexScanOperation op
-                = tx.getSelectIndexScanOperation(meta.idx_B0_a_id,
-                                                 meta.table_B0,
+                = tx.getSelectIndexScanOperation(model.idx_B0_a_id,
+                                                 model.table_B0,
                                                  LockMode.LM_CommittedRead);
             assert op != null;
 
@@ -1147,10 +1093,10 @@ public class NdbjLoad extends NdbBase {
             //
             // which translates into
             //out.println("idx_B0_a_id.getNoOfColumns() = "
-            //            + meta.idx_B0_a_id.getNoOfColumns());
+            //            + model.idx_B0_a_id.getNoOfColumns());
             //out.println("idx_B0_a_id.getColumn(0).getColumnNo() = "
-            //            + meta.idx_B0_a_id.getColumn(0).getColumnNo());
-            //op.setBoundInt(meta.idx_B0_a_id.getColumn(0).getColumnNo(),
+            //            + model.idx_B0_a_id.getColumn(0).getColumnNo());
+            //op.setBoundInt(model.idx_B0_a_id.getColumn(0).getColumnNo(),
             //               BoundType.BoundEQ, i);
             // except that we get the usual error with NDBJ:
             //[java] idx_B0_a_id.getColumn(0).getColumnNo() = 0
@@ -1159,18 +1105,18 @@ public class NdbjLoad extends NdbBase {
             //
             // so we go by column name
             //out.println("idx_B0_a_id.getColumn(0).getName() = "
-            //            + meta.idx_B0_a_id.getColumn(0).getName());
-            //op.setBoundInt(meta.idx_B0_a_id.getColumn(0).getName(),
+            //            + model.idx_B0_a_id.getColumn(0).getName());
+            //op.setBoundInt(model.idx_B0_a_id.getColumn(0).getName(),
             //               BoundType.BoundEQ, i);
             // which is actually "a_id", so, for now, we call
             op.setBoundInt("a_id", BoundType.BoundEQ, i);
 
             // define fetched attributes
-            op.getValue(meta.name_id);
+            op.getValue(model.name_id);
             fetchCommonAttributes(op);
 
             // start the scan; don't commit yet
-            executeOperations1();
+            executeOperations();
 
             int stat;
             final boolean allowFetch = true; // request new batches when exhausted
@@ -1181,7 +1127,7 @@ public class NdbjLoad extends NdbBase {
             if (stat != 1)
                 throw new RuntimeException("stat == " + stat);
         }
-        commitTransaction1();
+        commitTransaction();
         assert (j++ == count_B);
 
         // check fetched values
@@ -1194,13 +1140,13 @@ public class NdbjLoad extends NdbBase {
             //[java] j = 1, ab = com.mysql.cluster.ndbj.NdbResultSetImpl@6f144c
             //    [java] caught com.mysql.cluster.ndbj.NdbApiException: Unknown error code
             //    [java] com.mysql.cluster.ndbj.NdbApiException: Unknown error code
-            //    [java] at com.mysql.cluster.ndbj.NdbjJNI.NdbScanOperationImpl_nextResult__SWIG_1(Native Method)
+            //    [java] at com.mysql.cluster.ndbj.NdbjJNI.NdbScanOperationImpl_nextResult__SWIG_(Native Method)
             //    [java] at com.mysql.cluster.ndbj.NdbScanOperationImpl.nextResult(NdbScanOperationImpl.java:93)
             //    [java] at com.mysql.cluster.ndbj.NdbResultSetImpl.next(NdbResultSetImpl.java:362)
             //    [java] at com.mysql.cluster.crund.NdbjLoad.navAToB0(NdbjLoad.java:1205)
             //
             // YYY Frazer: check tx object for error (could be node failure)
-            // Martin: doesn't help much; after ab.next(): 
+            // Martin: doesn't help much; after ab.next():
             //out.println("tx.getNdbError() = " + tx.getNdbError().getCode());
             // returns -1 and
             //out.println("tx.getNdbError() = " + tx.getNdbError().getMessage());
@@ -1217,7 +1163,7 @@ public class NdbjLoad extends NdbBase {
             assert hasNext;
 
             // check key attribute
-            final int id = ab.getInt(meta.name_id);
+            final int id = ab.getInt(model.name_id);
             verify(id == i);
 
             // check other attributes
@@ -1226,7 +1172,7 @@ public class NdbjLoad extends NdbBase {
 
             assert !ab.next();
         }
-        closeTransaction1();
+        closeTransaction();
 */
     }
 
@@ -1237,6 +1183,72 @@ public class NdbjLoad extends NdbBase {
 /*
         assert false;
 */
+    }
+
+    // ----------------------------------------------------------------------
+    // NDBJ datastore operations
+    // ----------------------------------------------------------------------
+
+    protected void initConnection() throws NdbApiException {
+        // optionally, connect and wait for reaching the data nodes (ndbds)
+        out.print("waiting for data nodes...");
+        out.flush();
+        final int initial_wait = 10; // secs to wait until first node detected
+        final int final_wait = 0;    // secs to wait after first node detected
+
+        // XXX return: 0 all nodes live, > 0 at least one node live, < 0 error
+        try {
+            mgmd.waitUntilReady(initial_wait, final_wait);
+        } catch (NdbApiException e) {
+            out.println();
+            out.println("!!! data nodes were not ready within "
+                        + (initial_wait + final_wait) + "s.");
+            throw e;
+        }
+        out.println("   [ok]");
+
+        // connect to database
+        out.print("connecting to database...");
+        out.flush();
+        try {
+            // XXX where to set schema?
+            // YYY Frazer: schema not too useful in NDB at the moment
+            // XXX unclear if maxThreads ^= maxNumberOfTransactions
+            //     since ndb.init(maxNumberOfTransactions) is deprecated
+            //final int maxThreads = 4;
+            //ndb = mgmd.createNdb(catalog, maxThreads);
+            // YYY Frazer: yes, maxThreads == maxNumber(concurrent)OfTransactions
+            ndb = mgmd.createNdb(catalog);
+        } catch (NdbApiException e) {
+            out.println();
+            out.println("!!! failed to connect: " + e);
+            throw e;
+        }
+        out.println("   [ok]");
+
+        // initialize the schema shortcuts
+        model = new Model(ndb);
+    }
+
+    protected void closeConnection() {
+        out.print("closing database conn ...");
+        out.flush();
+        model = null;
+        ndb.close();
+        ndb = null;
+        out.println("   [ok]");
+    }
+
+    protected void clearData() throws NdbApiException {
+        out.print("deleting all rows ...");
+        out.flush();
+        final int delB0 = delByScan(model.table_B0);
+        out.print("       [B0: " + delB0);
+        out.flush();
+        final int delA = delByScan(model.table_A);
+        out.print(", A: " + delA);
+        out.flush();
+        out.println("]");
     }
 
     // ----------------------------------------------------------------------

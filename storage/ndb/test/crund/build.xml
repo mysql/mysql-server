@@ -198,14 +198,15 @@
   </target>
 
   <!-- deletes also log files -->
-  <target name="clobber" depends="clean">
+  <target name="clobber" depends="mostlyclean"/>
+  <target name="mostlyclean" depends="clean">
     <delete includeEmptyDirs="true" quiet="true" >
       <fileset dir="${basedir}" includes="log_*"/>
     </delete>
   </target>
 
   <!-- deletes also database files -->
-  <target name="distclean" depends="clobber">
+  <target name="distclean" depends="mostlyclean">
     <delete verbose="true">
       <fileset dir="${src.java}" includes="**/*~" defaultexcludes="no"/>
     </delete>
@@ -288,13 +289,13 @@
        # Driver
        ################################################################# -->
 
-  <!-- compiles the benchmark driver -->
+  <!-- compiles the benchmark drivers -->
   <target name="compile.driver" depends="set.compile,init">
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
-	   includes="com/mysql/cluster/crund/Driver.java"/>
+	   includes="com/mysql/cluster/crund/*Driver.java"/>
   </target>
 
-  <!-- compiles the benchmark driver with optimizations -->
+  <!-- compiles the benchmark drivers with optimizations -->
   <target name="compile.driver.opt" depends="set.compile.opt,compile.driver"/>
 
   <!-- #################################################################
@@ -881,7 +882,7 @@
     <taskdef name="openjpac"
     classname="org.apache.openjpa.ant.PCEnhancerTask"/>
 
-    <- invoke enhancer on all .jdo files below the current directory ->
+    <- invoke enhancer on all .java files below the current directory ->
     <openjpac>
       <fileset dir=".">
         <include name="**/model/*.java" />

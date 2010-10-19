@@ -1,7 +1,7 @@
 /* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
  *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
  *
- *  Copyright (C) 2008 MySQL
+ *  Copyright (C) 2010 MySQL
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,7 +18,13 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package com.mysql.cluster.crund;
+package com.mysql.cluster.benchmark.tws;
+
+import java.io.PrintWriter;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.IOException;
+import java.io.FileWriter;
 
 import java.util.Properties;
 import java.util.List;
@@ -26,33 +32,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
-import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.InputStream;
 
-
-/**
- * This class benchmarks standard database operations over a series
- * of transactions on an increasing data set.
- * <p>
- * The abstract database operations are variations of: Create,
- * Read, Update, Navigate, and Delete -- hence, the benchmark's name: CRUND.
- * <p>
- * The actual operations are defined by subclasses to allow measuring the
- * operation performance across different datastore implementations.
- *
- * @see <a href="http://www.urbandictionary.com/define.php?term=crund">Urban Dictionary: crund</a>
- * <ol>
- * <li> used to debase people who torture others with their illogical
- * attempts to make people laugh;
- * <li> reference to cracking obsolete jokes;
- * <li> a dance form;
- * <li> to hit hard or smash.
- * </ol>
- */
-abstract public class Driver {
+public abstract class Driver {
 
     // console
     static protected final PrintWriter out = new PrintWriter(System.out, true);
@@ -72,11 +53,9 @@ abstract public class Driver {
     protected boolean logMemUsage;
     protected boolean includeFullGC;
     protected int warmupRuns;
-    protected int hotRuns;
 
     // driver resources
     protected PrintWriter log;
-    protected String descr = "";
     protected boolean logHeader;
     protected StringBuilder header;
     protected StringBuilder rtimes;
@@ -159,35 +138,17 @@ abstract public class Driver {
                 // truncate log file, reset log buffers
                 closeLogFile();
                 openLogFile();
-                header = new StringBuilder();
-                rtimes = new StringBuilder();
-                musage = new StringBuilder();
-                logHeader = true;
+                clearLogBuffers();
             }
-            
-            if (hotRuns > 0) {
-                out.println();
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-                out.println("hot runs ...");
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
-                for (int i = 0; i < hotRuns; i++) {
-                    runTests();
-                }
+            out.println();
+            out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+            out.println("hot runs ...");
+            out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+            runTests();
 
-                // write log buffers
-                if (logRealTime) {
-                    log.println(descr + ", rtime[ms]"
-                                + header.toString() + endl
-                                + rtimes.toString() + endl + endl + endl);
-                }
-                if (logMemUsage) {
-                    log.println(descr + ", net musage[KiB]"
-                                + header.toString() + endl
-                                + musage.toString() + endl + endl + endl);
-                }
-            }
-            
+            out.println();
+            out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             close();
         } catch (Exception ex) {
             // end the program regardless of threads
@@ -252,17 +213,15 @@ abstract public class Driver {
         initProperties();
         printProperties();
         openLogFile();
-
-        // clear log buffers
-        logHeader = true;
-        header = new StringBuilder();
-        rtimes = new StringBuilder();
-        musage = new StringBuilder();
+        clearLogBuffers();
     }
 
     // releases the driver's resources.
     protected void close() throws Exception {
-        // clear log buffers
+        out.println();
+
+        // release log buffers
+        logHeader = false;
         header = null;
         rtimes = null;
         musage = null;
@@ -326,12 +285,6 @@ abstract public class Driver {
             warmupRuns = 0;
         }
 
-        hotRuns = parseInt("hotRuns", 1);
-        if (hotRuns < 1) {
-            msg.append("[ignored] hotRuns:              " + hotRuns + eol);
-            hotRuns = 1;
-        }
-
         if (msg.length() == 0) {
             out.println("   [ok]");
         } else {
@@ -348,7 +301,6 @@ abstract public class Driver {
         out.println("logMemUsage:                    " + logMemUsage);
         out.println("includeFullGC:                  " + includeFullGC);
         out.println("warmupRuns:                     " + warmupRuns);
-        out.println("hotRuns:                        " + hotRuns);
     }
 
     // opens the benchmark's data log file
@@ -375,6 +327,30 @@ abstract public class Driver {
 
     abstract protected void runTests() throws Exception;
 
+    protected void clearLogBuffers() {
+        logHeader = true;
+        header = new StringBuilder();
+        if (logRealTime) {
+            rtimes = new StringBuilder();
+        }
+        if (logMemUsage) {
+            musage = new StringBuilder();
+        }
+    }
+    
+    protected void writeLogBuffers(String descr) {
+        if (logRealTime) {
+            log.println(descr + ", rtime[ms]"
+                        + header.toString() + endl
+                        + rtimes.toString() + endl);
+        }
+        if (logMemUsage) {
+            log.println(descr + ", net musage[KiB]"
+                        + header.toString() + endl
+                        + musage.toString() + endl);
+        }
+    }
+    
     protected void begin(String name) {
         out.println();
         out.println(name);

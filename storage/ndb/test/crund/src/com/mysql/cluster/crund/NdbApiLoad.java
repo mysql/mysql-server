@@ -22,24 +22,19 @@ package com.mysql.cluster.crund;
 
 public class NdbApiLoad extends NdbBase {
 
+    // ----------------------------------------------------------------------
+    // NDB API intializers/finalizers
+    // ----------------------------------------------------------------------
+
     protected void initProperties() {
         super.initProperties();
-        descr = "->NDBAPI(" + mgmdConnect + ")";
+        descr = "->ndbapi(" + mgmdConnect + ")";
     }
 
-    /**
-     * Initializes the NDB benchmark class.
-     *
-     * @return a non-zero value in case of an error, and zero otherwise.
-     */
-    static public native int ndbinit(String mgmd_host_portno);
-
-    /**
-     * Finalizes the NDB benchmark class.
-     *
-     * @return a non-zero value in case of an error, and zero otherwise.
-     */
-    static public native int ndbclose();
+    // initializes/finalizes the NDB benchmark class
+    // a non-zero value in case of an error, and zero otherwise
+    static protected native int ndbinit(String mgmd_host_portno);
+    static protected native int ndbclose();
 
     protected void init() throws Exception {
         super.init();
@@ -72,16 +67,9 @@ public class NdbApiLoad extends NdbBase {
     }
 
     // ----------------------------------------------------------------------
+    // NDB API operations
+    // ----------------------------------------------------------------------
 
-    // native connection handling methods
-    protected native void initConnection(String catalog, String schema);
-    protected void initConnection() {
-        initConnection(catalog, schema);
-    }
-    protected native void closeConnection();
-
-    // native benchmark operations
-    protected native void clearData();
     protected native void delAllA(int countA, int countB,
                                   boolean batch);
     protected native void delAllB0(int countA, int countB,
@@ -217,7 +205,7 @@ public class NdbApiLoad extends NdbBase {
                         }
                     });
             }
-            
+
             for (int i = 1; i <= maxVarcharChars; i *= 10) {
                 final int length = i;
 
@@ -330,15 +318,32 @@ public class NdbApiLoad extends NdbBase {
 
         }
 
-        out.println(" [Op: " + ops.size() + "]");
+        out.println("     [Op: " + ops.size() + "]");
     }
 
     protected void closeOperations() {
         out.print("closing operations ...");
         out.flush();
         ops.clear();
-        out.println("      [ok]");
+        out.println("          [ok]");
     }
+
+    // ----------------------------------------------------------------------
+    // NDB API datastore operations
+    // ----------------------------------------------------------------------
+
+    protected native void initConnection(String catalog,
+                                         String schema,
+                                         int defaultLockMode);
+    protected void initConnection() {
+        // XXX add lockMode property to CrundDriver, switch then here
+        final int LM_Read = 0;
+        final int LM_Exclusive = 1;
+        final int LM_CommittedRead = 2;
+        initConnection(catalog, schema, LM_CommittedRead);
+    }
+    protected native void closeConnection();
+    protected native void clearData();
 
     // ----------------------------------------------------------------------
 
