@@ -1787,6 +1787,11 @@ row_merge_copy_blobs(
 		(below). */
 		data = btr_rec_copy_externally_stored_field(
 			mrec, offsets, zip_size, i, &len, heap);
+		/* Because we have locked the table, any records
+		written by incomplete transactions must have been
+		rolled back already. There must not be any incomplete
+		BLOB columns. */
+		ut_a(data);
 
 		dfield_set_data(field, data, len);
 	}

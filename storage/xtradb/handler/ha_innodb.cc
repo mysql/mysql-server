@@ -194,6 +194,7 @@ static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_use_sys_stats_table		= FALSE;
+static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -2426,6 +2427,7 @@ innobase_change_buffering_inited_ok:
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
 	srv_fast_checksum = (ibool) innobase_fast_checksum;
+	srv_buffer_pool_shm_checksum = (ibool) innobase_buffer_pool_shm_checksum;
 
 #ifdef HAVE_LARGE_PAGES
         if ((os_use_large_pages = (ibool) my_use_large_pages))
@@ -2562,6 +2564,7 @@ skip_overwrite:
 	/* Get the current high water mark format. */
 	innobase_file_format_check = (char*) trx_sys_file_format_max_get();
 
+	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
 	DBUG_RETURN(TRUE);
@@ -7962,7 +7965,7 @@ ha_innobase::info(
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
-			if (srv_use_sys_stats_table
+			if (srv_use_sys_stats_table && !((ib_table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)
 			    && thd_sql_command(user_thd) == SQLCOM_ANALYZE) {
 				/* If the indexes on the table don't have enough rows in SYS_STATS system table, */
 				/* they need to be created. */
@@ -8058,17 +8061,17 @@ ha_innobase::info(
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
 		See Bug#38185. */
- 		if (flag & HA_STATUS_NO_LOCK) {
- 			/* We do not update delete_length if no
- 			locking is requested so the "old" value can
- 			remain. delete_length is initialized to 0 in
- 			the ha_statistics' constructor. */
- 		} else if (UNIV_UNLIKELY
- 			   (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE)) {
- 			/* Avoid accessing the tablespace if
- 			innodb_crash_recovery is set to a high value. */
- 			stats.delete_length = 0;
- 		} else if (srv_stats_update_need_lock) {
+		if (flag & HA_STATUS_NO_LOCK) {
+			/* We do not update delete_length if no
+			locking is requested so the "old" value can
+			remain. delete_length is initialized to 0 in
+			the ha_statistics' constructor. */
+		} else if (UNIV_UNLIKELY
+			   (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE)) {
+			/* Avoid accessing the tablespace if
+			innodb_crash_recovery is set to a high value. */
+			stats.delete_length = 0;
+		} else if (srv_stats_update_need_lock) {
 
 			/* lock the data dictionary to avoid races with
 			ibd_file_missing and tablespace_discarded */
@@ -11382,8 +11385,13 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
 
 static MYSQL_SYSVAR_UINT(buffer_pool_shm_key, srv_buffer_pool_shm_key,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "[experimental] The key value of shared memory segment for the buffer pool. 0 means disable the feature (default).",
+  "[experimental] The key value of shared memory segment for the buffer pool. 0 (default) disables the feature.",
   NULL, NULL, 0, 0, INT_MAX32, 0);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_shm_checksum, innobase_buffer_pool_shm_checksum,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable buffer_pool_shm checksum validation (enabled by default).",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -11631,6 +11639,12 @@ static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
   "Limit the allocated memory for dictionary cache. (0: unlimited)",
   NULL, NULL, 0, 0, LONG_MAX, 0);
 
+static MYSQL_SYSVAR_UINT(auto_lru_dump, srv_auto_lru_dump,
+  PLUGIN_VAR_RQCMDARG,
+  "Time in seconds between automatic buffer pool dumps. "
+  "0 (the default) disables automatic dumps.",
+  NULL, NULL, 0, 0, UINT_MAX32, 0);
+
 static	MYSQL_SYSVAR_ULINT(pass_corrupt_table, srv_pass_corrupt_table,
   PLUGIN_VAR_RQCMDARG,
   "Pass corruptions of user tables as 'corrupt table' instead of not crashing itself, "
@@ -11645,6 +11659,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_shm_key),
+  MYSQL_SYSVAR(buffer_pool_shm_checksum),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(fast_checksum),
   MYSQL_SYSVAR(commit_concurrency),
@@ -11722,6 +11737,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(auto_lru_dump),
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(pass_corrupt_table),
   NULL
