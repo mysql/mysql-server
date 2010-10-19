@@ -22,12 +22,13 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	2
 FLUSH QUERY_RESPONSE_TIME;
-SELECT c.count,
+SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
-(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as not_zero_region_count,
+(SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
+(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count != 0) as not_zero_region_count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
-FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
-count	query_count	not_zero_region_count	region_count
+FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
+count	query_count	query_total	not_zero_region_count	region_count
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 44
@@ -76,7 +77,7 @@ time
  2097152.00000
  4194304.00000
  8388608.00000
-TOO LONG QUERY
+TOO LONG
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
 SELECT test_f();
 test_f()
@@ -91,14 +92,15 @@ SELECT test_f();
 test_f()
 Hello, world!
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
-SELECT c.count,
+SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
-(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as not_zero_region_count,
+(SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
+(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count != 0) as not_zero_region_count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
-FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
-count	query_count	not_zero_region_count	region_count
-1	5	2	44
-4	5	2	44
+FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
+count	query_count	query_total	not_zero_region_count	region_count
+1	5	4	2	44
+4	5	4	2	44
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 44
@@ -147,7 +149,7 @@ time
  2097152.00000
  4194304.00000
  8388608.00000
-TOO LONG QUERY
+TOO LONG
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	2
@@ -161,14 +163,15 @@ SELECT test_f();
 test_f()
 Hello, world!
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
-SELECT c.count,
+SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
-(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as not_zero_region_count,
+(SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
+(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count != 0) as not_zero_region_count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
-FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
-count	query_count	not_zero_region_count	region_count
-1	2	2	14
-1	2	2	14
+FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
+count	query_count	query_total	not_zero_region_count	region_count
+1	2	1	2	14
+1	2	1	2	14
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 14
@@ -187,7 +190,7 @@ time
   10000.000000
  100000.000000
  1000000.00000
-TOO LONG QUERY
+TOO LONG
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	10
@@ -201,14 +204,15 @@ SELECT test_f();
 test_f()
 Hello, world!
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
-SELECT c.count,
+SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
-(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as not_zero_region_count,
+(SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
+(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count != 0) as not_zero_region_count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
-FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
-count	query_count	not_zero_region_count	region_count
-1	2	2	17
-1	2	2	17
+FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
+count	query_count	query_total	not_zero_region_count	region_count
+1	2	1	2	17
+1	2	1	2	17
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 17
@@ -230,7 +234,7 @@ time
  117649.000000
  823543.000000
  5764801.00000
-TOO LONG QUERY
+TOO LONG
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	7
@@ -244,14 +248,15 @@ SELECT test_f();
 test_f()
 Hello, world!
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
-SELECT c.count,
+SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
-(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as not_zero_region_count,
+(SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
+(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count != 0) as not_zero_region_count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
-FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
-count	query_count	not_zero_region_count	region_count
-1	2	2	7
-1	2	2	7
+FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
+count	query_count	query_total	not_zero_region_count	region_count
+1	2	1	2	7
+1	2	1	2	7
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 7
@@ -263,7 +268,7 @@ time
     156.000000
   24336.000000
  3796416.00000
-TOO LONG QUERY
+TOO LONG
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	156
@@ -277,14 +282,15 @@ SELECT test_f();
 test_f()
 Hello, world!
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
-SELECT c.count,
+SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
-(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as not_zero_region_count,
+(SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
+(SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count != 0) as not_zero_region_count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
-FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
-count	query_count	not_zero_region_count	region_count
-1	2	2	6
-1	2	2	6
+FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
+count	query_count	query_total	not_zero_region_count	region_count
+1	2	1	2	6
+1	2	1	2	6
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 6
@@ -295,7 +301,7 @@ time
       1.000000
    1000.000000
  1000000.00000
-TOO LONG QUERY
+TOO LONG
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	1000

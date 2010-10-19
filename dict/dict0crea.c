@@ -1245,13 +1245,13 @@ dict_create_index_step(
 			goto function_exit;
 		}
 
-		if (srv_use_sys_stats_table) {
+		if (srv_use_sys_stats_table
+		    && !((node->table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)) {
 			node->state = INDEX_BUILD_STATS_COLS;
 		} else {
 			node->state = INDEX_CREATE_INDEX_TREE;
 		}
 	}
-
 	if (node->state == INDEX_BUILD_STATS_COLS) {
 		if (node->stats_no <= dict_index_get_n_unique(node->index)) {
 
