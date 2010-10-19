@@ -2758,6 +2758,25 @@ mysql_execute_command(THD *thd)
         {
           TABLE_LIST *duplicate;
           create_table= lex->unlink_first_table(&link_to_local);
+
+          if (create_table->view)
+          {
+            if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
+            {
+              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                  ER_TABLE_EXISTS_ERROR,
+                                  ER(ER_TABLE_EXISTS_ERROR),
+                                  create_info.alias);
+              my_ok(thd);
+            }
+            else
+            {
+              my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_info.alias);
+              res= 1;
+            }
+            goto end_with_restore_list;
+          }
+
           if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);

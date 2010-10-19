@@ -864,16 +864,27 @@ err_exit:
 
 	err = dict_load_indexes(table, heap);
 
+	/* Initialize table foreign_child value. Its value could be
+	changed when dict_load_foreigns() is called below */
+	table->fk_max_recusive_level = 0;
+
 	/* If the force recovery flag is set, we open the table irrespective
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
 	all indexes were loaded. */
 	if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, TRUE);
+		err = dict_load_foreigns(table->name, TRUE, TRUE);
+
+		if (err != DB_SUCCESS) {
+			dict_table_remove_from_cache(table);
+			table = NULL;
+		}
 	} else if (!srv_force_recovery) {
 		dict_table_remove_from_cache(table);
 		table = NULL;
 	}
+
+	table->fk_max_recusive_level = 0;
 #if 0
 	if (err != DB_SUCCESS && table != NULL) {
 
@@ -1095,8 +1106,12 @@ dict_load_foreign(
 				/* out: DB_SUCCESS or error code */
 	const char*	id,	/* in: foreign constraint id as a
 				null-terminated string */
-	ibool		check_charsets)
+	ibool		check_charsets,
 				/* in: TRUE=check charset compatibility */
+	ibool		check_recursive)
+				/* in: Whether to record the foreign table
+				parent count to avoid unlimited recursive
+				load of chained foreign tables */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -1110,6 +1125,8 @@ dict_load_foreign(
 	ulint		len;
 	ulint		n_fields_and_type;
 	mtr_t		mtr;
+	dict_table_t*	for_table;
+	dict_table_t*	ref_table;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1194,11 +1211,54 @@ dict_load_foreign(
 
 	dict_load_foreign_cols(id, foreign);
 
-	/* If the foreign table is not yet in the dictionary cache, we
-	have to load it so that we are able to make type comparisons
-	in the next function call. */
+	ref_table = dict_table_check_if_in_cache_low(
+			foreign->referenced_table_name);
 
-	dict_table_get_low(foreign->foreign_table_name);
+	/* We could possibly wind up in a deep recursive calls if
+	we call dict_table_get_low() again here if there
+	is a chain of tables concatenated together with
+	foreign constraints. In such case, each table is
+	both a parent and child of the other tables, and
+	act as a "link" in such table chains.
+	To avoid such scenario, we would need to check the
+	number of ancesters the current table has. If that
+	exceeds DICT_FK_MAX_CHAIN_LEN, we will stop loading
+	the child table.
+	Foreign constraints are loaded in a Breath First fashion,
+	that is, the index on FOR_NAME is scanned first, and then
+	index on REF_NAME. So foreign constrains in which
+	current table is a child (foreign table) are loaded first,
+	and then those constraints where current table is a
+	parent (referenced) table.
+	Thus we could check the parent (ref_table) table's
+	reference count (fk_max_recusive_level) to know how deep the
+	recursive call is. If the parent table (ref_table) is already
+	loaded, and its fk_max_recusive_level is larger than
+	DICT_FK_MAX_CHAIN_LEN, we will stop the recursive loading
+	by skipping loading the child table. It will not affect foreign
+	constraint check for DMLs since child table will be loaded
+	at that time for the constraint check. */
+	if (!ref_table
+	    || ref_table->fk_max_recusive_level < DICT_FK_MAX_RECURSIVE_LOAD) {
+
+		/* If the foreign table is not yet in the dictionary cache, we
+		have to load it so that we are able to make type comparisons
+		in the next function call. */
+
+		for_table = dict_table_get_low(foreign->foreign_table_name);
+
+		if (for_table && ref_table && check_recursive) {
+			/* This is to record the longest chain of ancesters
+			this table has, if the parent has more ancesters
+			than this table has, record it after add 1 (for this
+			parent */
+			if (ref_table->fk_max_recusive_level
+			    >= for_table->fk_max_recusive_level) {
+				for_table->fk_max_recusive_level =
+					 ref_table->fk_max_recusive_level + 1;
+			}
+		}
+	}
 
 	/* Note that there may already be a foreign constraint object in
 	the dictionary cache for this constraint: then the following
@@ -1223,6 +1283,8 @@ dict_load_foreigns(
 /*===============*/
 					/* out: DB_SUCCESS or error code */
 	const char*	table_name,	/* in: table name */
+	ibool		check_recursive,/* in: Whether to check recursive
+					load of tables chained by FK */
 	ibool		check_charsets)	/* in: TRUE=check charset
 					compatibility */
 {
@@ -1324,7 +1386,7 @@ loop:
 
 	/* Load the foreign constraint definition to the dictionary cache */
 
-	err = dict_load_foreign(id, check_charsets);
+	err = dict_load_foreign(id, check_charsets, check_recursive);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);
@@ -1351,6 +1413,11 @@ load_next_index:
 	if (sec_index != NULL) {
 
 		mtr_start(&mtr);
+
+		/* Switch to scan index on REF_NAME, fk_max_recusive_level
+		already been updated when scanning FOR_NAME index, no need to
+		update again */
+		check_recursive = FALSE;
 
 		goto start_load;
 	}

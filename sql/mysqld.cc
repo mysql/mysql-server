@@ -196,6 +196,9 @@ typedef fp_except fp_except_t;
 # endif
 #endif
 
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream);
+
 inline void setup_fpu()
 {
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
@@ -3963,14 +3966,15 @@ static int init_server_components()
       opt_error_log= 1;				// Too long file name
     else
     {
+      my_bool res;
 #ifndef EMBEDDED_LIBRARY
-      if (freopen(log_error_file, "a+", stdout))
+      res= reopen_fstreams(log_error_file, stdout, stderr);
+#else
+      res= reopen_fstreams(log_error_file, NULL, stderr);
 #endif
-      {
-        if (!(freopen(log_error_file, "a+", stderr)))
-          sql_print_warning("Couldn't reopen stderr");
+
+      if (!res)
         setbuf(stderr, NULL);
-      }
     }
   }
 
@@ -4620,11 +4624,16 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifdef __WIN__
   if (!opt_console)
   {
+<<<<<<< TREE
     if (!freopen(log_error_file,"a+",stdout) ||
         !freopen(log_error_file,"a+",stderr))
     {
       sql_print_warning("Couldn't reopen stdout or stderr");
     }
+=======
+    if (reopen_fstreams(log_error_file, stdout, stderr))
+      unireg_abort(1);
+>>>>>>> MERGE-SOURCE
     setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }

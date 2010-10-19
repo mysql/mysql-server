@@ -4614,7 +4614,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   
-  if (escape_item->const_item())
+  if (escape_item->const_item() && !thd->lex->view_prepare_mode)
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&cmp.value1);
