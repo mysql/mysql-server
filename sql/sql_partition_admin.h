@@ -252,7 +252,7 @@ public:
 /**
   Class that represents the ALTER TABLE t1 TRUNCATE PARTITION p statement.
 */
-class Alter_table_truncate_partition_statement : public Truncate_statement
+class Alter_table_truncate_partition_statement : public Sql_statement
 {
 public:
   /**
@@ -260,10 +260,10 @@ public:
     @param lex the LEX structure for this statement.
   */
   Alter_table_truncate_partition_statement(LEX *lex)
-    : Truncate_statement(lex)
+    : Sql_statement(lex)
   {}
 
-  ~Alter_table_truncate_partition_statement()
+  virtual ~Alter_table_truncate_partition_statement()
   {}
 
   /**

@@ -341,6 +341,11 @@ int ha_perfschema::delete_all_rows(void)
   DBUG_RETURN(result);
 }
 
+int ha_perfschema::truncate()
+{
+  return delete_all_rows();
+}
+
 THR_LOCK_DATA **ha_perfschema::store_lock(THD *thd,
                                        THR_LOCK_DATA **to,
                                        enum thr_lock_type lock_type)

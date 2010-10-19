@@ -603,7 +603,7 @@ RECURSIVE              = YES
 # excluded from the INPUT source files. This way you can easily exclude a
 # subdirectory from a directory tree whose root is specified with the INPUT tag.
 
-EXCLUDE                = extra libmysql libmysql_r libmysqld mysql-test pstack storage/ibmdb2i storage/innodb storage/ndb support-files unittest zlib
+EXCLUDE                = extra libmysql libmysql_r libmysqld mysql-test storage/ibmdb2i storage/innodb storage/ndb support-files unittest zlib
 
 # The EXCLUDE_SYMLINKS tag can be used select whether or not files or
 # directories that are symbolic links (a Unix filesystem feature) are excluded

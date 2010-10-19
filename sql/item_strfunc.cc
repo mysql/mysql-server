@@ -2299,7 +2299,8 @@ String *Item_func_format::val_str_ascii(String *str)
   if (lc->grouping[0] > 0 &&
       str_length >= dec_length + 1 + lc->grouping[0])
   {
-    char buf[DECIMAL_MAX_STR_LENGTH * 2]; /* 2 - in the worst case when grouping=1 */
+    /* We need space for ',' between each group of digits as well. */
+    char buf[2 * FLOATING_POINT_BUFFER];
     int count;
     const char *grouping= lc->grouping;
     char sign_length= *str->ptr() == '-' ? 1 : 0;
@@ -2323,7 +2324,7 @@ String *Item_func_format::val_str_ascii(String *str)
         count will be initialized to -1 and
         we'll never get into this "if" anymore.
       */
-      if (!count)
+      if (count == 0)
       {
         *--dst= lc->thousand_sep;
         if (grouping[1])

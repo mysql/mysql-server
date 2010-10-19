@@ -34,6 +34,9 @@ wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxy_priv	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxy_priv	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxy_priv	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	procs_priv	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	servers	fetch	NULL

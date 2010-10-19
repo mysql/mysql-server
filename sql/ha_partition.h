@@ -137,6 +137,10 @@ private:
   */
   bool m_extra_cache;
   uint m_extra_cache_size;
+  /* The same goes for HA_EXTRA_PREPARE_FOR_UPDATE */
+  bool m_extra_prepare_for_update;
+  /* Which partition has active cache */
+  uint m_extra_cache_part_id;
 
   void init_handler_variables();
   /*
@@ -342,6 +346,7 @@ public:
   virtual int update_row(const uchar * old_data, uchar * new_data);
   virtual int delete_row(const uchar * buf);
   virtual int delete_all_rows(void);
+  virtual int truncate();
   virtual void start_bulk_insert(ha_rows rows);
   virtual int end_bulk_insert();
 private:
@@ -349,6 +354,15 @@ private:
   void start_part_bulk_insert(THD *thd, uint part_id);
   long estimate_read_buffer_size(long original_size);
 public:
+
+  /*
+    Method for truncating a specific partition.
+    (i.e. ALTER TABLE t1 TRUNCATE PARTITION p).
+
+    @remark This method is a partitioning-specific hook
+            and thus not a member of the general SE API.
+  */
+  int truncate_partition(Alter_info *);
 
   virtual bool is_fatal_error(int error, uint flags)
   {
