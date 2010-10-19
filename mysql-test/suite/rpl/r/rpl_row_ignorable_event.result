@@ -4,6 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+SET @old_debug= @@global.debug;
+SET GLOBAL debug="+d,waiting_for_delayed_insert_queue_is_empty";
 # Test non-transaction
 create table t1(a int, b int) engine= myisam;
 insert into t1(a,b) values(1,1),(2,1);
@@ -42,6 +44,7 @@ insert into t5(a, b) values(3,1);
 update t4,t5 set t4.a=4, t5.a=5 where t4.b=t5.b;
 # Test insert delayed ...
 insert delayed into t3(a,b) values(1,5),(1,6),(1,7);
+SET @@global.debug= @old_debug;
 # Test load data infile
 create table t6(a VARCHAR(60)) engine= myisam;
 load data infile '../../std_data/words.dat' into table t6;
@@ -130,6 +133,10 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Rows_query	#	#	# insert delayed into t3(a,b) values(1,5),(1,6),(1,7)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
@@ -526,10 +533,18 @@ BEGIN
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=5 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t3
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t3
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -932,6 +947,14 @@ slave-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Rows_query	#	#	# insert delayed into t3(a,b) values(1,5),(1,6),(1,7)
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT

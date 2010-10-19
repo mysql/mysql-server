@@ -796,6 +796,55 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 
 /**
+  Assign a user name to the instrumented thread.
+  @param user the user name
+  @param user_len the user name length
+*/
+typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
+
+/**
+  Assign a user name and host name to the instrumented thread.
+  @param user the user name
+  @param user_len the user name length
+  @param host the host name
+  @param host_len the host name length
+*/
+typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,
+                                          const char *host, int host_len);
+
+/**
+  Assign a current database to the instrumented thread.
+  @param db the database name
+  @param db_len the database name length
+*/
+typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
+
+/**
+  Assign a current command to the instrumented thread.
+  @param command the current command
+*/
+typedef void (*set_thread_command_v1_t)(int command);
+
+/**
+  Assign a start time to the instrumented thread.
+  @param start_time the thread start time
+*/
+typedef void (*set_thread_start_time_v1_t)(time_t start_time);
+
+/**
+  Assign a state to the instrumented thread.
+  @param state the thread state
+*/
+typedef void (*set_thread_state_v1_t)(const char* state);
+
+/**
+  Assign a process info to the instrumented thread.
+  @param info the process into string
+  @param info_len the process into string length
+*/
+typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
+
+/**
   Attach a thread instrumentation to the running thread.
   In case of thread pools, this method should be called when
   a worker thread picks a work item and runs it.
@@ -1101,6 +1150,20 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
+  /** @sa set_thread_user_v1_t. */
+  set_thread_user_v1_t set_thread_user;
+  /** @sa set_thread_user_host_v1_t. */
+  set_thread_user_host_v1_t set_thread_user_host;
+  /** @sa set_thread_db_v1_t. */
+  set_thread_db_v1_t set_thread_db;
+  /** @sa set_thread_command_v1_t. */
+  set_thread_command_v1_t set_thread_command;
+  /** @sa set_thread_start_time_v1_t. */
+  set_thread_start_time_v1_t set_thread_start_time;
+  /** @sa set_thread_state_v1_t. */
+  set_thread_state_v1_t set_thread_state;
+  /** @sa set_thread_info_v1_t. */
+  set_thread_info_v1_t set_thread_info;
   /** @sa set_thread_v1_t. */
   set_thread_v1_t set_thread;
   /** @sa delete_current_thread_v1_t. */

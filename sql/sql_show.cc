@@ -1744,7 +1744,7 @@ static const char *thread_state_info(THD *tmp)
   {
     if (tmp->net.reading_or_writing == 2)
       return "Writing to net";
-    else if (tmp->command == COM_SLEEP)
+    else if (tmp->get_command() == COM_SLEEP)
       return "";
     else
       return "Reading from net";
@@ -1818,7 +1818,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                       tmp_sctx->host ? tmp_sctx->host : "");
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
-        thd_info->command=(int) tmp->command;
+        thd_info->command=(int) tmp->get_command();
         mysql_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
           mysql_mutex_lock(&mysys_var->mutex);
@@ -1929,8 +1929,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
         table->field[4]->store(val, strlen(val), cs);
       else
-        table->field[4]->store(command_name[tmp->command].str,
-                               command_name[tmp->command].length, cs);
+        table->field[4]->store(command_name[tmp->get_command()].str,
+                               command_name[tmp->get_command()].length, cs);
       /* MYSQL_TIME */
       table->field[5]->store((longlong)(tmp->start_time ?
                                       now - tmp->start_time : 0), FALSE);

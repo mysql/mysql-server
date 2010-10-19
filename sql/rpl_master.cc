@@ -1131,7 +1131,7 @@ void kill_zombie_dump_threads(String *slave_uuid)
 
   while ((tmp=it++))
   {
-    if (tmp != current_thd && tmp->command == COM_BINLOG_DUMP)
+    if (tmp != current_thd && tmp->get_command() == COM_BINLOG_DUMP)
     {
       String tmp_uuid;
       if (get_slave_uuid(tmp, &tmp_uuid) != NULL &&

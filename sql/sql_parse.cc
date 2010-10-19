@@ -170,6 +170,42 @@ inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
   return rpl_filter->is_on() && tables && !thd->spcont &&
          !rpl_filter->tables_ok(thd->db, tables);
 }
+
+/**
+  Checks whether the event for the given database, db, should
+  be ignored or not. This is done by checking whether there are
+  active rules in ignore_db or in do_db containers. If there
+  are, then check if there is a match, if not then check the
+  wild_do rules.
+      
+  NOTE: This means that when using this function replicate-do-db 
+        and replicate-ignore-db take precedence over wild do 
+        rules.
+
+  @param thd  Thread handle.
+  @param db   Database name used while evaluating the filtering
+              rules.
+  
+*/
+inline bool db_stmt_db_ok(THD *thd, char* db)
+{
+  DBUG_ENTER("db_stmt_db_ok");
+
+  if (!thd->slave_thread)
+    DBUG_RETURN(TRUE);
+
+  /*
+    No filters exist in ignore/do_db ? Then, just check
+    wild_do_table filtering. Otherwise, check the do_db
+    rules.
+  */
+  bool db_ok= (rpl_filter->get_do_db()->is_empty() &&
+               rpl_filter->get_ignore_db()->is_empty()) ?
+              rpl_filter->db_ok_with_wild_table(db) :
+              rpl_filter->db_ok(db);
+
+  DBUG_RETURN(db_ok);
+}
 #endif
 
 
@@ -910,7 +946,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       thd->security_ctx->priv_user,
                       (char *) thd->security_ctx->host_or_ip);
   
-  thd->command=command;
+  thd->set_command(command);
   /*
     Commands which always take a long time are logged into
     the slow log only if opt_log_slow_admin_statements is set.
@@ -1492,7 +1528,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   thd_proc_info(thd, "cleaning up");
   thd->set_query(NULL, 0);
-  thd->command=COM_SLEEP;
+  thd->set_command(COM_SLEEP);
   dec_thread_running();
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
@@ -3284,9 +3320,7 @@ end_with_restore_list:
       above was not called. So we have to check rules again here.
     */
 #ifdef HAVE_REPLICATION
-    if (thd->slave_thread && 
-	(!rpl_filter->db_ok(lex->name.str) ||
-	 !rpl_filter->db_ok_with_wild_table(lex->name.str)))
+    if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
@@ -3313,9 +3347,7 @@ end_with_restore_list:
       above was not called. So we have to check rules again here.
     */
 #ifdef HAVE_REPLICATION
-    if (thd->slave_thread && 
-	(!rpl_filter->db_ok(lex->name.str) ||
-	 !rpl_filter->db_ok_with_wild_table(lex->name.str)))
+    if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
@@ -3330,9 +3362,7 @@ end_with_restore_list:
   {
     LEX_STRING *db= & lex->name;
 #ifdef HAVE_REPLICATION
-    if (thd->slave_thread && 
-       (!rpl_filter->db_ok(db->str) ||
-        !rpl_filter->db_ok_with_wild_table(db->str)))
+    if (!db_stmt_db_ok(thd, lex->name.str))
     {
       res= 1;
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
@@ -3373,9 +3403,7 @@ end_with_restore_list:
       above was not called. So we have to check rules again here.
     */
 #ifdef HAVE_REPLICATION
-    if (thd->slave_thread &&
-	(!rpl_filter->db_ok(db->str) ||
-	 !rpl_filter->db_ok_with_wild_table(db->str)))
+    if (!db_stmt_db_ok(thd, lex->name.str))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
@@ -6400,7 +6428,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
   {
-    if (tmp->command == COM_DAEMON)
+    if (tmp->get_command() == COM_DAEMON)
       continue;
     if (tmp->thread_id == id)
     {

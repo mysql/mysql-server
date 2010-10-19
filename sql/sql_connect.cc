@@ -15,7 +15,7 @@
 
 
 /*
-  Functions to autenticate and handle reqests for a connection
+  Functions to authenticate and handle requests for a connection
 */
 
 #include "my_global.h"
@@ -505,6 +505,15 @@ check_user(THD *thd, enum enum_server_command command,
         that needs to be preserved as to not break backwards compatibility.
       */
       thd->net.skip_big_packet= TRUE;
+#endif
+#ifdef HAVE_PSI_INTERFACE
+      if (PSI_server)
+      {
+        PSI_server->set_thread_user_host(thd->main_security_ctx.user,
+                                         strlen(thd->main_security_ctx.user),
+                                         thd->main_security_ctx.host_or_ip,
+                                         strlen(thd->main_security_ctx.host_or_ip));
+      }
 #endif
       /* Ready to handle queries */
       DBUG_RETURN(0);
@@ -1082,7 +1091,7 @@ void prepare_new_connection_state(THD* thd)
     TODO: refactor this to avoid code duplication there
   */
   thd->proc_info= 0;
-  thd->command= COM_SLEEP;
+  thd->set_command(COM_SLEEP);
   thd->set_time();
   thd->init_for_queries();
 

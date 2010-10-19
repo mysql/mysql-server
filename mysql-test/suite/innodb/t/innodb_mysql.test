@@ -917,4 +917,21 @@ WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#54606 innodb fast alter table + pack_keys=0 
+--echo #           prevents adding new indexes
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
+  ENGINE=InnoDB 
+  PACK_KEYS=0;
+CREATE INDEX a ON t1 (a);
+CREATE INDEX c on t1 (c);
+
+DROP TABLE t1;
+
 --echo End of 6.0 tests

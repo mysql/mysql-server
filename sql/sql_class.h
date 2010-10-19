@@ -1500,11 +1500,15 @@ public:
   uint dbug_sentry; // watch out for memory corruption
 #endif
   struct st_my_thread_var *mysys_var;
-  /*
-    Type of current query: COM_STMT_PREPARE, COM_QUERY, etc. Set from
-    first byte of the packet in do_command()
+
+private:
+  /**
+    Type of current query: COM_STMT_PREPARE, COM_QUERY, etc.
+    Set from first byte of the packet in do_command()
   */
-  enum enum_server_command command;
+  enum enum_server_command m_command;
+
+public:
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
@@ -2219,12 +2223,28 @@ public:
     }
     else
       start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
+
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+      PSI_server->set_thread_start_time(start_time);
+#endif
   }
-  inline void	set_current_time()    { start_time= my_time(MY_WME); }
-  inline void	set_time(time_t t)
+  inline void set_current_time()
+  {
+    start_time= my_time(MY_WME);
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+      PSI_server->set_thread_start_time(start_time);
+#endif
+  }
+  inline void set_time(time_t t)
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+      PSI_server->set_thread_start_time(start_time);
+#endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
@@ -2547,6 +2567,7 @@ public:
   */
   bool set_db(const char *new_db, size_t new_db_len)
   {
+    bool result;
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
       memcpy(db, new_db, new_db_len+1);
@@ -2559,7 +2580,12 @@ public:
         db= NULL;
     }
     db_length= db ? new_db_len : 0;
-    return new_db && !db;
+    result= new_db && !db;
+#ifdef HAVE_PSI_INTERFACE
+    if (result && PSI_server)
+      PSI_server->set_thread_db(new_db, new_db_len);
+#endif
+    return result;
   }
 
   /**
@@ -2577,6 +2603,10 @@ public:
   {
     db= new_db;
     db_length= new_db_len;
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+      PSI_server->set_thread_db(new_db, new_db_len);
+#endif
   }
   /*
     Copy the current database to the argument. Use the current arena to
@@ -2693,6 +2723,11 @@ private:
 public:
   /** Overloaded to guard query/query_length fields */
   virtual void set_statement(Statement *stmt);
+
+  void set_command(enum enum_server_command command);
+
+  inline enum enum_server_command get_command() const
+  { return m_command; }
 
   /**
     Assign a new value to thd->query and thd->query_id and mysys_var.

@@ -4652,13 +4652,15 @@ MY_UNICASE_INFO my_unicase_unicode520=
 
 
 static inline void
-my_tosort_unicode(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
+my_tosort_unicode(MY_UNICASE_INFO *uni_plane, my_wc_t *wc, uint flags)
 {
   if (*wc <= uni_plane->maxchar)
   {
     MY_UNICASE_CHARACTER *page;
     if ((page= uni_plane->page[*wc >> 8]))
-      *wc= page[*wc & 0xFF].sort;
+      *wc= (flags & MY_CS_LOWER_SORT) ?
+           page[*wc & 0xFF].tolower :
+           page[*wc & 0xFF].sort;
   }
   else
   {
@@ -4728,8 +4730,8 @@ my_wildcmp_unicode(CHARSET_INFO *cs,
       {
         if (weights)
         {
-          my_tosort_unicode(weights, &s_wc);
-          my_tosort_unicode(weights, &w_wc);
+          my_tosort_unicode(weights, &s_wc, cs->state);
+          my_tosort_unicode(weights, &w_wc, cs->state);
         }
         if (s_wc != w_wc)
           return 1;                               /* No match */
@@ -4799,8 +4801,8 @@ my_wildcmp_unicode(CHARSET_INFO *cs,
             return 1;
           if (weights)
           {
-            my_tosort_unicode(weights, &s_wc);
-            my_tosort_unicode(weights, &w_wc);
+            my_tosort_unicode(weights, &s_wc, cs->state);
+            my_tosort_unicode(weights, &w_wc, cs->state);
           }
           
           if (s_wc == w_wc)
@@ -4917,7 +4919,7 @@ my_strnxfrm_unicode(CHARSET_INFO *cs,
     src+= res;
 
     if (uni_plane)
-      my_tosort_unicode(uni_plane, &wc);
+      my_tosort_unicode(uni_plane, &wc, cs->state);
     
     *dst++= (uchar) (wc >> 8);
     if (dst < de)
@@ -5390,7 +5392,7 @@ static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, size_t slen,
 
   while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
   {
-    my_tosort_unicode(uni_plane, &wc);
+    my_tosort_unicode(uni_plane, &wc, cs->state);
     n1[0]^= (((n1[0] & 63)+n2[0])*(wc & 0xFF))+ (n1[0] << 8);
     n2[0]+=3;
     n1[0]^= (((n1[0] & 63)+n2[0])*(wc >> 8))+ (n1[0] << 8);
@@ -5504,8 +5506,8 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
       return bincmp(s, se, t, te);
     }
 
-    my_tosort_unicode(uni_plane, &s_wc);
-    my_tosort_unicode(uni_plane, &t_wc);
+    my_tosort_unicode(uni_plane, &s_wc, cs->state);
+    my_tosort_unicode(uni_plane, &t_wc, cs->state);
 
     if ( s_wc != t_wc )
     {
@@ -5575,8 +5577,8 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
       return bincmp(s, se, t, te);
     }
 
-    my_tosort_unicode(uni_plane, &s_wc);
-    my_tosort_unicode(uni_plane, &t_wc);
+    my_tosort_unicode(uni_plane, &s_wc, cs->state);
+    my_tosort_unicode(uni_plane, &t_wc, cs->state);
     
     if ( s_wc != t_wc )
     {
@@ -5868,6 +5870,40 @@ CHARSET_INFO my_charset_utf8_general_ci=
 };
 
 
+CHARSET_INFO my_charset_utf8_tolower_ci=
+{
+    56,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_LOWER_SORT,
+    "utf8",             /* cs name      */
+    "utf8_tolower_ci",  /* name         */
+    "",                 /* comment      */
+    NULL,               /* tailoring    */
+    ctype_utf8,         /* ctype        */
+    to_lower_utf8,      /* to_lower     */
+    to_upper_utf8,      /* to_upper     */
+    to_upper_utf8,      /* sort_order   */
+    NULL,               /* uca          */
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    &my_unicase_default,/* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    1,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen     */
+    3,                  /* mbmaxlen     */
+    0,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
+    &my_charset_utf8_handler,
+    &my_collation_utf8_general_ci_handler
+};
+
+
 CHARSET_INFO my_charset_utf8_bin=
 {
     83,0,0,             /* number       */
@@ -5939,10 +5975,10 @@ static int my_strnncoll_utf8_cs(CHARSET_INFO *cs,
     {
       save_diff = ((int)s_wc) - ((int)t_wc);
     }
-    
-    my_tosort_unicode(uni_plane, &s_wc);
-    my_tosort_unicode(uni_plane, &t_wc);
-    
+
+    my_tosort_unicode(uni_plane, &s_wc, cs->state);
+    my_tosort_unicode(uni_plane, &t_wc, cs->state);
+
     if ( s_wc != t_wc )
     {
       return  ((int) s_wc) - ((int) t_wc);
@@ -5986,10 +6022,10 @@ static int my_strnncollsp_utf8_cs(CHARSET_INFO *cs,
     {
       save_diff = ((int)s_wc) - ((int)t_wc);
     }
-    
-    my_tosort_unicode(uni_plane, &s_wc);
-    my_tosort_unicode(uni_plane, &t_wc);
-    
+
+    my_tosort_unicode(uni_plane, &s_wc, cs->state);
+    my_tosort_unicode(uni_plane, &t_wc, cs->state);
+
     if ( s_wc != t_wc )
     {
       return  ((int) s_wc) - ((int) t_wc);
@@ -7798,7 +7834,7 @@ my_hash_sort_utf8mb4(CHARSET_INFO *cs, const uchar *s, size_t slen,
 
   while ((res= my_mb_wc_utf8mb4(cs, &wc, (uchar*) s, (uchar*) e)) > 0)
   {
-    my_tosort_unicode(uni_plane, &wc);
+    my_tosort_unicode(uni_plane, &wc, cs->state);
     my_hash_add(n1, n2, (uint) (wc & 0xFF));
     my_hash_add(n1, n2, (uint) (wc >> 8)  & 0xFF);
     if (wc > 0xFFFF)
@@ -7928,9 +7964,9 @@ my_strnncoll_utf8mb4(CHARSET_INFO *cs,
       return bincmp_utf8mb4(s, se, t, te);
     }
 
-    my_tosort_unicode(uni_plane, &s_wc);
-    my_tosort_unicode(uni_plane, &t_wc);
-    
+    my_tosort_unicode(uni_plane, &s_wc, cs->state);
+    my_tosort_unicode(uni_plane, &t_wc, cs->state);
+
     if ( s_wc != t_wc )
     {
       return s_wc > t_wc ? 1 : -1;
@@ -7999,8 +8035,8 @@ my_strnncollsp_utf8mb4(CHARSET_INFO *cs,
       return bincmp_utf8mb4(s, se, t, te);
     }
 
-    my_tosort_unicode(uni_plane, &s_wc);
-    my_tosort_unicode(uni_plane, &t_wc);
+    my_tosort_unicode(uni_plane, &s_wc, cs->state);
+    my_tosort_unicode(uni_plane, &t_wc, cs->state);
 
     if ( s_wc != t_wc )
     {

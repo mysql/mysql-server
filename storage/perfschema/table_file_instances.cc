@@ -59,6 +59,7 @@ table_file_instances::m_share=
   &table_file_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,

@@ -72,7 +72,7 @@ typedef struct keyuse_t {
 
 class store_key;
 
-typedef struct st_table_ref
+typedef struct st_table_ref : public Sql_alloc
 {
   bool		key_err;
   /** True if something was read into buffer in join_read_key.  */
@@ -115,6 +115,25 @@ typedef struct st_table_ref
     produce different results (because of Index Condition Pushdown)
   */
   bool          disable_cache;
+
+  st_table_ref()
+    : key_err(TRUE),
+      has_record(FALSE),
+      key_parts(0),
+      key_length(0),
+      key(-1),
+      key_buff(NULL),
+      key_buff2(NULL),
+      key_copy(NULL),
+      items(NULL),
+      cond_guards(NULL),
+      null_rejecting(0),
+      depend_map(0),
+      null_ref_key(NULL),
+      use_count(0),
+      disable_cache(FALSE)
+  {
+  }
 
   /**
     @returns whether the reference contains NULL values which could never give
@@ -1369,7 +1388,7 @@ enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab,
      advance_sj_state() for details.
 */
 
-typedef struct st_position
+typedef struct st_position : public Sql_alloc
 {
   /*
     The "fanout" -  number of output rows that will be produced (after
@@ -1613,7 +1632,7 @@ public:
   */
   ha_rows  fetch_limit;
   /* Finally picked QEP. This is result of join optimization */
-  POSITION best_positions[MAX_TABLES+1];
+  POSITION *best_positions;
 
 /******* Join optimization state members start *******/
   /*
@@ -1623,7 +1642,7 @@ public:
   TABLE_LIST *emb_sjm_nest;
   
   /* Current join optimization state */
-  POSITION positions[MAX_TABLES+1];
+  POSITION *positions;
   
   /*
     Bitmap of nested joins embedding the position at the end of the current 
