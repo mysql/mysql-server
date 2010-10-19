@@ -95,10 +95,9 @@ static char break_chars[] = { ' ', '\t', '\n', '"', '\\', '\'', '`', '@', '$',
 char *
 fn_tilde_expand(const char *txt)
 {
-	struct passwd pwres, *pass;
+	struct passwd *pass;
 	char *temp;
 	size_t len = 0;
-	char pwbuf[1024];
 
 	if (txt[0] != '~')
 		return (strdup(txt));
