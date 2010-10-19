@@ -204,7 +204,7 @@ struct st_mysql_options {
       remote server - not used in embedded server
     */
     char *bind_address;
-  };
+  } ci;
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
   my_bool secure_auth;
   /* 0 - never report, 1 - always report (default) */

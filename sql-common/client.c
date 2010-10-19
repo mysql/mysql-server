@@ -1355,8 +1355,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
           options->report_data_truncation= opt_arg ? test(atoi(opt_arg)) : 1;
           break;
 	case 32: /* bind-address */
-          my_free(options->bind_address);
-          options->bind_address= my_strdup(opt_arg, MYF(MY_WME));
+          my_free(options->ci.bind_address);
+          options->ci.bind_address= my_strdup(opt_arg, MYF(MY_WME));
           break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -2483,21 +2483,21 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
 
     /* Get address info for client bind name if it is provided */
-    if (mysql->options.bind_address)
+    if (mysql->options.ci.bind_address)
     {
       int bind_gai_errno= 0;
 
       DBUG_PRINT("info",("Resolving addresses for client bind: '%s'",
-                         mysql->options.bind_address));
+                         mysql->options.ci.bind_address));
       /* Lookup address info for name */
-      bind_gai_errno= getaddrinfo(mysql->options.bind_address, 0,
+      bind_gai_errno= getaddrinfo(mysql->options.ci.bind_address, 0,
                                   &hints, &client_bind_ai_lst);
       if (bind_gai_errno)
       {
         DBUG_PRINT("info",("client bind getaddrinfo error %d", bind_gai_errno));
         set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                  ER(CR_UNKNOWN_HOST),
-                                 mysql->options.bind_address,
+                                 mysql->options.ci.bind_address,
                                  bind_gai_errno);
 
         freeaddrinfo(res_lst);
@@ -3112,8 +3112,8 @@ static void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.my_cnf_group);
   my_free(mysql->options.charset_dir);
   my_free(mysql->options.charset_name);
-  my_free(mysql->options.client_ip);
-  /* bind_adress is union with client_ip, already freed above */
+  my_free(mysql->options.ci.client_ip);
+  /* ci.bind_adress is union with client_ip, already freed above */
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
@@ -3588,7 +3588,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.methods_to_use= option;
     break;
   case MYSQL_SET_CLIENT_IP:
-    mysql->options.client_ip= my_strdup(arg, MYF(MY_WME));
+    mysql->options.ci.client_ip= my_strdup(arg, MYF(MY_WME));
     break;
   case MYSQL_SECURE_AUTH:
     mysql->options.secure_auth= *(my_bool *) arg;
@@ -3600,8 +3600,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->reconnect= *(my_bool *) arg;
     break;
   case MYSQL_OPT_BIND:
-    my_free(mysql->options.bind_address);
-    mysql->options.bind_address= my_strdup(arg, MYF(MY_WME));
+    my_free(mysql->options.ci.bind_address);
+    mysql->options.ci.bind_address= my_strdup(arg, MYF(MY_WME));
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
     if (*(my_bool*) arg)
