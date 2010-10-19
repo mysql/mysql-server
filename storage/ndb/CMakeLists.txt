@@ -59,11 +59,12 @@ ELSE()
   ENDIF()
 ENDIF()
 
-# Disable some warnings for NDB build:
-# 4355: 'this': used in base member initializer list
-
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
-SET(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /wd4355")
+IF(MSVC)
+  # Disable some warnings for NDB build on Windows
+  # 4355: 'this': used in base member initializer list
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
+  SET(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /wd4355")
+ENDIF()
 
 IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
   MESSAGE(STATUS "Found JDK - enabling clusterj")
