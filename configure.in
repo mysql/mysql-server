@@ -27,7 +27,7 @@ dnl
 dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
-AC_INIT([MySQL Server], [5.5.7-rc], [], [mysql])
+AC_INIT([MySQL Server], [5.5.8-ga], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -117,6 +117,13 @@ AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
 AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
+
+# Check whether a debug mode should be enabled.
+AC_ARG_WITH([debug],
+    AS_HELP_STRING([--with-debug@<:@=full@:>@],
+      [Enable various amounts of debugging support (full adds a slow memory checker).]),
+    [with_debug=$withval],
+    [with_debug=no])
 
 # Whether the maintainer mode should be enabled.
 MY_MAINTAINER_MODE
@@ -1689,10 +1696,6 @@ then
   DEBUG_OPTIMIZE_CXX=""
 fi
 
-AC_ARG_WITH(debug,
-    [AS_HELP_STRING([--with-debug], [Add debug code @<:@default=no@:>@])],
-    [with_debug=$withval],
-    [with_debug=no])
 if test "$with_debug" = "yes"
 then
   AC_DEFINE([DBUG_ON], [1], [Use libdbug])
