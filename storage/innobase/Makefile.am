@@ -156,6 +156,7 @@ noinst_HEADERS=		\
 			include/rem0rec.ic	\
 			include/rem0types.h	\
 			include/row0ext.h	\
+			include/row0ftsort.h	\
 			include/row0ext.ic	\
 			include/row0ins.h	\
 			include/row0ins.ic	\
@@ -302,6 +303,7 @@ libinnobase_a_SOURCES=	\
 			rem/rem0cmp.c			\
 			rem/rem0rec.c			\
 			row/row0ext.c			\
+			row/row0ftsort.c		\
 			row/row0ins.c			\
 			row/row0merge.c			\
 			row/row0mysql.c			\
