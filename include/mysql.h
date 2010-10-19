@@ -195,6 +195,7 @@ struct st_mysql_options {
   my_bool unused4;
   enum mysql_option methods_to_use;
 #ifndef MCP_WL3126
+#ifdef MCP_WL3126_ORIGINAL_PATCH
   union {
     /*
       The ip/hostname to use when authenticating
@@ -208,7 +209,16 @@ struct st_mysql_options {
       remote server - not used in embedded server
     */
     char *bind_address;
-  };
+  } ci;
+#endif
+  /*
+    Using smaller but "hacky" patch for WL#3126 to avoid touching
+    more lines than necessary. I.e don't define a nice union
+    but use the "client_ip" member directly.
+  */
+  char *client_ip;
+#else
+  char *client_ip;
 #endif
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
   my_bool secure_auth;
