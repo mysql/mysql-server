@@ -32,8 +32,10 @@ distclean:
 # read the generic settings
 include	env.properties
 
-run.driver:	$(SRC)/crundndb/Driver
-	LD_LIBRARY_PATH=${NDB_LIBDIR} $(SRC)/crundndb/Driver \
+# not sure if needed:
+#	LD_LIBRARY_PATH=${NDB_LIBDIR}:$(SRC)/crundndb/Driver 
+run.driver:	$(SRC)/crundndb/NdbApiDriver
+	$(SRC)/crundndb/NdbApiDriver \
 	-p crundRun.properties -p crundNdbapi.properties
 #
 #run.driver:

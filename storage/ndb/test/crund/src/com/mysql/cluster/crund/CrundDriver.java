@@ -57,6 +57,7 @@ import java.io.InputStream;
 abstract public class CrundDriver extends Driver {
 
     // benchmark settings
+    protected boolean renewConnection;
     protected boolean renewOperations;
     protected boolean logSumOfOps;
     protected boolean allowExtendedPC;
@@ -76,6 +77,16 @@ abstract public class CrundDriver extends Driver {
     // benchmark intializers/finalizers
     // ----------------------------------------------------------------------
 
+    protected void init() throws Exception {
+        super.init();
+        // do work here
+    }    
+
+    protected void close() throws Exception {
+        // do work here
+        super.close();
+    }
+
     protected void initProperties() {
         super.initProperties();
 
@@ -84,6 +95,7 @@ abstract public class CrundDriver extends Driver {
         final StringBuilder msg = new StringBuilder();
         final String eol = System.getProperty("line.separator");
 
+        renewConnection = parseBoolean("renewConnection", false);
         renewOperations = parseBoolean("renewOperations", false);
         logSumOfOps = parseBoolean("logSumOfOps", true);
         allowExtendedPC = parseBoolean("allowExtendedPC", false);
@@ -167,6 +179,7 @@ abstract public class CrundDriver extends Driver {
 
         out.println();
         out.println("crund settings ...");
+        out.println("renewConnection:                " + renewConnection);
         out.println("renewOperations:                " + renewOperations);
         out.println("logSumOfOps:                    " + logSumOfOps);
         out.println("allowExtendedPC:                " + allowExtendedPC);
@@ -206,6 +219,7 @@ abstract public class CrundDriver extends Driver {
     abstract protected void closeOperations() throws Exception;
 
     protected void runTests() throws Exception {
+        out.println();
         initConnection();
         initOperations();
 
@@ -214,7 +228,7 @@ abstract public class CrundDriver extends Driver {
         for (int i = aStart; i <= aEnd; i *= aScale) {
             for (int j = bStart; j <= bEnd; j *= bScale) {
                 try {
-                    runOperations(i, j);
+                    runLoads(i, j);
                 } catch (Exception ex) {
                     // already in rollback for database/orm exceptions
                     throw ex;
@@ -231,7 +245,7 @@ abstract public class CrundDriver extends Driver {
         closeConnection();
     }
 
-    protected void runOperations(int countA, int countB) throws Exception {
+    protected void runLoads(int countA, int countB) throws Exception {
         out.println();
         out.println("------------------------------------------------------------");
 
@@ -265,16 +279,7 @@ abstract public class CrundDriver extends Driver {
         }
         clearData();
 
-        // run operations
-        for (Op op : ops) {
-            // pre-tx cleanup
-            if (!allowExtendedPC) {
-                // effectively prevent caching beyond Tx scope by clearing
-                // any data/result caches before the next transaction
-                clearPersistenceContext();
-            }
-            runOp(op, countA, countB);
-        }
+        runOperations(countA, countB);
 
         if (logSumOfOps) {
             out.println();
@@ -298,10 +303,10 @@ abstract public class CrundDriver extends Driver {
             logHeader = false;
         }
         if (logRealTime) {
-            rtimes.append(endl);
             if (logSumOfOps) {
                 rtimes.append("\t" + ta);
             }
+            rtimes.append(endl);
         }
         if (logMemUsage) {
             if (logSumOfOps) {
@@ -311,12 +316,24 @@ abstract public class CrundDriver extends Driver {
         }
     }
 
+    protected void runOperations(int countA, int countB) throws Exception {
+        for (Op op : ops) {
+            // pre-tx cleanup
+            if (!allowExtendedPC) {
+                // effectively prevent caching beyond Tx scope by clearing
+                // any data/result caches before the next transaction
+                clearPersistenceContext();
+            }
+            runOp(op, countA, countB);
+        }
+    }
+
     protected void runOp(Op op, int countA, int countB) throws Exception {
         final String name = op.getName();
         if (!exclude.contains(name)) {
             begin(name);
             op.run(countA, countB);
-            commit(name);
+            finish(name);
         }
     }
 
@@ -324,7 +341,22 @@ abstract public class CrundDriver extends Driver {
     static protected final void verify(boolean cond) {
         //assert (cond);
         if (!cond)
-            throw new RuntimeException("wrong data; verification failed");
+            throw new RuntimeException("data verification failed.");
+    }
+
+    static protected final void verify(int exp, int act) {
+        if (exp != act)
+            throw new RuntimeException("data verification failed:"
+                                       + " expected = " + exp
+                                       + ", actual = " + act);
+    }
+
+    static protected final void verify(String exp, String act) {
+        if ((exp == null && act != null)
+            || (exp != null && !exp.equals(act)))
+            throw new RuntimeException("data verification failed:"
+                                       + " expected = '" + exp + "'"
+                                       + ", actual = '" + act + "'");
     }
 
     // ----------------------------------------------------------------------
@@ -388,4 +420,13 @@ abstract public class CrundDriver extends Driver {
         = { string1, string2, string3, string4, string5, string6, string7 };
     static final protected byte[][] bytes
         = { bytes1, bytes2, bytes3, bytes4, bytes5, bytes6, bytes7 };
+
+    // ----------------------------------------------------------------------
+    // datastore operations
+    // ----------------------------------------------------------------------
+
+    abstract protected void initConnection() throws Exception;
+    abstract protected void closeConnection() throws Exception;
+    abstract protected void clearPersistenceContext() throws Exception;
+    abstract protected void clearData() throws Exception;
 }

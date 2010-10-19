@@ -41,11 +41,10 @@ import java.util.Set;
  */
 public class ClusterjLoad extends CrundDriver {
 
-    // ----------------------------------------------------------------------
-    // ClusterJ resources
-    // ----------------------------------------------------------------------
-
+    // ClusterJ settings
     protected String mgmdConnect;
+
+    // ClusterJ resources
     protected SessionFactory sessionFactory;
     protected Session session;
 

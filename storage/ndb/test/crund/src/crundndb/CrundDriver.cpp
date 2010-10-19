@@ -43,6 +43,18 @@ using utils::toString;
 // ----------------------------------------------------------------------
 
 void
+CrundDriver::init() {
+    Driver::init();
+    // do work here
+}
+
+void
+CrundDriver::close() {
+    // do work here
+    Driver::close();
+}
+
+void
 CrundDriver::initProperties() {
     Driver::initProperties();
 
@@ -50,6 +62,7 @@ CrundDriver::initProperties() {
 
     ostringstream msg;
 
+    renewConnection = toBool(props[L"renewConnection"], false);
     renewOperations = toBool(props[L"renewOperations"], false);
 
     string lm = toString(props[L"lockMode"]);
@@ -172,6 +185,7 @@ CrundDriver::printProperties() {
     cout.flags(ios_base::boolalpha);
 
     cout << endl << "crund settings ..." << endl;
+    cout << "renewConnection:                " << renewConnection << endl;
     cout << "renewOperations:                " << renewOperations << endl;
     cout << "lockMode:                       " << toStr(lockMode) << endl;
     cout << "logSumOfOps:                    " << logSumOfOps << endl;
@@ -195,6 +209,7 @@ CrundDriver::printProperties() {
 
 void
 CrundDriver::runTests() {
+    cout << endl;
     initConnection();
     initOperations();
 
@@ -209,7 +224,6 @@ CrundDriver::runTests() {
     cout << endl
          << "------------------------------------------------------------" << endl
          << endl;
-    
     clearData();
     closeOperations();
     closeConnection();

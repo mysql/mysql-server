@@ -130,6 +130,7 @@ Driver::run() {
         openLogFile();
         header.rdbuf()->str("");
         rtimes.rdbuf()->str("");
+        ctimes.rdbuf()->str("");
         logHeader = true;
     }
 
@@ -144,9 +145,16 @@ Driver::run() {
         }
 
         // write log buffers
-        log << descr << ", rtime[ms]"
-            << header.rdbuf()->str() << endl
-            << rtimes.rdbuf()->str() << endl << endl << endl;
+        if (logRealTime) {
+            log << descr << ", rtime[ms]"
+                << header.rdbuf()->str() << endl
+                << rtimes.rdbuf()->str() << endl << endl << endl;
+        }        
+        if (logCpuTime) {
+            log << descr << ", ctime[ms]"
+                << header.rdbuf()->str() << endl
+                << ctimes.rdbuf()->str() << endl << endl << endl;
+        }
     }
 
     close();
@@ -193,7 +201,6 @@ Driver::initProperties() {
 
     logRealTime = toBool(props[L"logRealTime"], true);
     logCpuTime = toBool(props[L"logCpuTime"], false);
-    renewConnection = toBool(props[L"renewConnection"], false);
 
     warmupRuns = toInt(props[L"warmupRuns"], 0, -1);
     if (warmupRuns < 0) {
@@ -227,7 +234,6 @@ Driver::printProperties() {
     cout << endl << "driver settings ..." << endl;
     cout << "logRealTime:                    " << logRealTime << endl;
     cout << "logCpuTime:                     " << logCpuTime << endl;
-    cout << "renewConnection:                " << renewConnection << endl;
     cout << "warmupRuns:                     " << warmupRuns << endl;
     cout << "hotRuns:                        " << hotRuns << endl;
 

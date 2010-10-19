@@ -72,7 +72,6 @@ protected:
     Properties props;
     bool logRealTime;
     bool logCpuTime;
-    bool renewConnection;
     int warmupRuns;
     int hotRuns;
 
@@ -100,12 +99,6 @@ protected:
     virtual void runTests() = 0;
     virtual void begin(const string& name);
     virtual void commit(const string& name);
-
-    // datastore operations
-    virtual void initConnection() = 0;
-    virtual void closeConnection() = 0;
-    //virtual void clearPersistenceContext() = 0; // not used
-    virtual void clearData() = 0;
 };
 
 #endif // Driver_hpp

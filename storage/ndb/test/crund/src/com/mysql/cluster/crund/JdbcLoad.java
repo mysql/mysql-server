@@ -35,15 +35,14 @@ import java.sql.ResultSet;
  */
 public class JdbcLoad extends CrundDriver {
 
-    // ----------------------------------------------------------------------
-    // JDBC resources
-    // ----------------------------------------------------------------------
-
+    // JDBC settings
     protected String driver;
     protected String url;
     protected String user;
     protected String password;
     protected boolean autoCommit;
+
+    // JDBC resources
     protected Connection conn;
     protected PreparedStatement delAllA;
     protected PreparedStatement delAllB0;

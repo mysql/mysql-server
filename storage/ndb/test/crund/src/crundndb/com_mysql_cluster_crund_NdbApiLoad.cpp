@@ -40,7 +40,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_ndbinit(JNIEnv* env,
                                                 jstring mgmd_jstr)
 {
     TRACE("ndbinit()");
-    assert (mgmd_jstr);
+    assert(mgmd_jstr);
 
     // location of cluster management server (ndb_mgmd)
     // get a native string from the Java string
@@ -77,8 +77,8 @@ Java_com_mysql_cluster_crund_NdbApiLoad_initConnection(JNIEnv* env,
                                                        jint defaultLockMode)
 {
     TRACE("initConnection()");
-    assert (catalog_jstr);
-    assert (schema_jstr);
+    assert(catalog_jstr);
+    assert(schema_jstr);
 
     // get native strings from the Java strings
     const char* catalog_cstr = env->GetStringUTFChars(catalog_jstr, NULL);
@@ -118,7 +118,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_delAllA(JNIEnv* env,
     TRACE("delAllA()");
     int count;
     ops->delByScan(ops->model->table_A, count, batch == JNI_TRUE);
-    assert (count == count_A);
+    assert(count == count_A);
 }
 
 JNIEXPORT void JNICALL
@@ -131,7 +131,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_delAllB0(JNIEnv* env,
     TRACE("delAllB0()");
     int count;
     ops->delByScan(ops->model->table_B0, count, batch == JNI_TRUE);
-    assert (count == count_B);
+    assert(count == count_B);
 }
 
 JNIEXPORT void JNICALL
