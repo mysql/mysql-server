@@ -4914,7 +4914,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     if (fragments == 0)
     {
       jam();
-      tablePtr.p->fragmentCount = fragments = get_default_fragments();
+      tablePtr.p->fragmentCount = fragments = get_default_fragments(signal);
     }
 
     char buf[MAX_TAB_NAME_SIZE+1];
@@ -21809,7 +21809,7 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   but that i dont know how
      */
     Uint32 buckets = 240;
-    Uint32 fragments = get_default_fragments(1);
+    Uint32 fragments = get_default_fragments(signal, 1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
                          buckets,
@@ -27273,15 +27273,11 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
 // CreateHashMap: PARSE
 
 Uint32
-Dbdict::get_default_fragments(Uint32 extranodegroups)
+Dbdict::get_default_fragments(Signal* signal, Uint32 extranodegroups)
 {
   jam();
 
-  SignalT<25> signalT;
-  bzero(&signalT, sizeof(signalT));
-  Signal* signal = new (&signalT) Signal(0); // placement new
-
-  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, &signal->theData[0]);
+  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
@@ -27357,7 +27353,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     {
       jam();
 
-      fragments = get_default_fragments();
+      fragments = get_default_fragments(signal);
     }
 
     BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),
