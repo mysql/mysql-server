@@ -125,7 +125,7 @@ trx_i_s_common_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond);	/*!< in: condition (not used) */
+	COND*		);	/*!< in: condition (not used) */
 
 /*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
@@ -1110,7 +1110,7 @@ trx_i_s_common_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (not used) */
+	COND*		)	/*!< in: condition (not used) */
 {
 	const char*		table_name;
 	int			ret;
@@ -1270,7 +1270,7 @@ i_s_cmp_fill_low(
 /*=============*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond,	/*!< in: condition (ignored) */
+	COND*		,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	TABLE*	table	= (TABLE *) tables->table;
@@ -1546,7 +1546,7 @@ i_s_cmpmem_fill_low(
 /*================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond,	/*!< in: condition (ignored) */
+	COND*		,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	int		status = 0;
@@ -2118,9 +2118,9 @@ static
 int
 i_s_metrics_fill_table(
 /*===================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	COND*		)	/*!< in: condition (not used) */
 {
 	DBUG_ENTER("i_s_metrics_fill_table");
 
