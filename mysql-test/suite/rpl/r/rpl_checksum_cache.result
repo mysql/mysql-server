@@ -33,7 +33,7 @@ set n= n-1;
 end while;
 end|
 begin;
-call test.p_init(8000, 32);
+call test.p_init(4000, 32);
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
