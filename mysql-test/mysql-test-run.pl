@@ -236,6 +236,7 @@ my $opt_skip_core;
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
 my $opt_max_connections;
+our $opt_report_times= 0;
 
 my $opt_sleep;
 
@@ -348,8 +349,11 @@ sub main {
     }
   }
 
+  init_timers();
+
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases, \@opt_skip_test_list);
+  mark_time_used('collect');
 
   if ( $opt_report_features ) {
     # Put "report features" as the first test to run
@@ -418,6 +422,7 @@ sub main {
 	$opt_tmpdir= "$opt_tmpdir/$child_num";
       }
 
+      init_timers();
       run_worker($server_port, $child_num);
       exit(1);
     }
@@ -429,6 +434,8 @@ sub main {
   mtr_report();
   mtr_print_thick_line();
   mtr_print_header();
+
+  mark_time_used('init');
 
   my $completed= run_test_server($server, $tests, $opt_parallel);
 
@@ -474,6 +481,8 @@ sub main {
     gcov_collect($basedir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
+
+  print_total_times($opt_parallel) if $opt_report_times;
 
   mtr_report_stats("Completed", $completed);
 
@@ -651,6 +660,9 @@ sub run_test_server ($$$) {
 	elsif ($line eq 'START'){
 	  ; # Send first test
 	}
+	elsif ($line =~ /^SPENT/) {
+	  add_total_times($line);
+	}
 	else {
 	  mtr_error("Unknown response: '$line' from client");
 	}
@@ -782,7 +794,9 @@ sub run_worker ($) {
   # Ask server for first test
   print $server "START\n";
 
-  while(my $line= <$server>){
+  mark_time_used('init');
+
+  while (my $line= <$server>){
     chomp($line);
     if ($line eq 'TESTCASE'){
       my $test= My::Test::read_test($server);
@@ -800,16 +814,20 @@ sub run_worker ($) {
       # Send it back, now with results set
       #$test->print_test();
       $test->write_test($server, 'TESTRESULT');
+      mark_time_used('restart');
     }
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
       stop_all_servers($opt_shutdown_timeout);
+      mark_time_used('restart');
       if ($opt_valgrind_mysqld) {
         valgrind_exit_reports();
       }
       if ( $opt_gprof ) {
 	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
       }
+      mark_time_used('init');
+      print_times_used($server, $thread_num);
       exit(0);
     }
     else {
@@ -982,6 +1000,7 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 	     'max-connections=i'        => \$opt_max_connections,
 	     'default-myisam!'          => \&collect_option,
+	     'report-times'             => \$opt_report_times,
 
              'help|h'                   => \$opt_usage,
              'list-options'             => \$opt_list_options,
@@ -3169,6 +3188,7 @@ sub check_testcase($$)
 
 	if ( keys(%started) == 0){
 	  # All checks completed
+	  mark_time_used('check');
 	  return 0;
 	}
 	# Wait for next process to exit
@@ -3226,6 +3246,7 @@ test case was executed:\n";
     # Kill any check processes still running
     map($_->kill(), values(%started));
 
+    mark_time_used('check');
     return $result;
   }
 
@@ -3535,6 +3556,7 @@ sub run_testcase ($) {
       return 1;
     }
   }
+  mark_time_used('restart');
 
   # --------------------------------------------------------------------
   # If --start or --start-dirty given, stop here to let user manually
@@ -3587,6 +3609,8 @@ sub run_testcase ($) {
 
   do_before_run_mysqltest($tinfo);
 
+  mark_time_used('init');
+
   if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
     # Failed to record state of server or server crashed
     report_failure_and_restart($tinfo);
@@ -3633,6 +3657,7 @@ sub run_testcase ($) {
     }
     mtr_verbose("Got $proc");
 
+    mark_time_used('test');
     # ----------------------------------------------------
     # Was it the test program that exited
     # ----------------------------------------------------
@@ -4036,6 +4061,7 @@ sub check_warnings ($) {
 
 	if ( keys(%started) == 0){
 	  # All checks completed
+	  mark_time_used('ch-warn');
 	  return $result;
 	}
 	# Wait for next process to exit
@@ -4068,6 +4094,7 @@ sub check_warnings ($) {
     # Kill any check processes still running
     map($_->kill(), values(%started));
 
+    mark_time_used('ch-warn');
     return $result;
   }
 
@@ -5031,6 +5058,8 @@ sub start_mysqltest ($) {
   my $exe= $exe_mysqltest;
   my $args;
 
+  mark_time_used('init');
+
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
@@ -5668,6 +5697,8 @@ Misc options
   default-myisam        Set default storage engine to MyISAM for non-innodb
                         tests. This is needed after switching default storage
                         engine to InnoDB.
+  report-times          Report how much time has been spent on different
+                        phases of test execution.
 HERE
   exit(1);
 
