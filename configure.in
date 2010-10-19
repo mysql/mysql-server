@@ -2120,6 +2120,13 @@ MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
+AC_CHECK_DECLS([fdatasync],,,
+[
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+])
+
 AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
