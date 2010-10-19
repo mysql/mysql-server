@@ -68,7 +68,7 @@ end|
 
 delimiter ;|
 
-let $1 = 8000;
+let $1 = 4000;
 begin;
 --disable_warnings
 # todo: check if it is really so.
