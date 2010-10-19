@@ -137,7 +137,7 @@ os_cond_wait_timed(
 	const struct timespec*	abstime		/*!< in: timeout */
 #else
 	ulint			time_in_ms	/*!< in: timeout in
-						milliseconds */
+						milliseconds*/
 #endif /* !__WIN__ */
 )
 {
@@ -160,7 +160,17 @@ os_cond_wait_timed(
 
 	ret = pthread_cond_timedwait(cond, mutex, abstime);
 
-	ut_a(ret == 0 || ret == ETIMEDOUT);
+	switch (ret) {
+	case 0:
+	case ETIMEDOUT:
+	       	break;
+
+	default:
+		fprintf(stderr, "  InnoDB: pthread_cond_timedwait() returned: "
+				"%d: abstime={%lu,%lu}\n",
+			       	ret, abstime->tv_sec, abstime->tv_nsec);
+		ut_error;
+	}
 
 	return(ret == ETIMEDOUT);
 #endif
@@ -637,14 +647,15 @@ os_event_wait_time_low(
 	ib_int64_t	old_signal_count;
 
 #ifdef __WIN__
-	DWORD		time_in_ms = time_in_usec / 1000;
+	DWORD		time_in_ms;
 
 	if (!srv_use_native_conditions) {
 		DWORD	err;
 
 		ut_a(event);
 
-		if (time_in_ms != OS_SYNC_INFINITE_TIME) {
+		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
+			time_in_ms = time_in_ms / 1000;
 			err = WaitForSingleObject(event->handle, time_in_ms);
 		} else {
 			err = WaitForSingleObject(event->handle, INFINITE);
@@ -661,30 +672,44 @@ os_event_wait_time_low(
 		return(42);
 	} else {
 		ut_a(sleep_condition_variable != NULL);
+
+		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
+			time_in_ms = time_in_usec / 1000;
+		} else {
+			time_in_ms = INFINITE;
+		}
 	}
 #else
-	struct timeval	tv;
-	ulint		sec;
-	ulint		usec;
-	int		ret;
 	struct timespec	abstime;
 
-	ret = ut_usectime(&sec, &usec);
-	ut_a(ret == 0);
+	if (time_in_usec != OS_SYNC_INFINITE_TIME) {
+		struct timeval	tv;
+		int		ret;
+		ulint		sec;
+		ulint		usec;
 
-	tv.tv_sec = sec;
-	tv.tv_usec = usec;
+		ret = ut_usectime(&sec, &usec);
+		ut_a(ret == 0);
 
-	tv.tv_usec += time_in_usec;
+		tv.tv_sec = sec;
+		tv.tv_usec = usec;
 
-	if ((ulint) tv.tv_usec > MICROSECS_IN_A_SECOND) {
-		tv.tv_sec += time_in_usec / MICROSECS_IN_A_SECOND;
-		tv.tv_usec %= MICROSECS_IN_A_SECOND;
+		tv.tv_usec += time_in_usec;
+
+		if ((ulint) tv.tv_usec >= MICROSECS_IN_A_SECOND) {
+			tv.tv_sec += time_in_usec / MICROSECS_IN_A_SECOND;
+			tv.tv_usec %= MICROSECS_IN_A_SECOND;
+		}
+
+		abstime.tv_sec  = tv.tv_sec;
+		abstime.tv_nsec = tv.tv_usec * 1000;
+	} else {
+		abstime.tv_nsec = 999999999;
+		abstime.tv_sec = (time_t) ULINT_MAX;
 	}
 
-	/* Convert to nano seconds. We ignore overflow. */
-	abstime.tv_sec  = tv.tv_sec;
-	abstime.tv_nsec = tv.tv_usec * 1000;
+	ut_a(abstime.tv_nsec <= 999999999);
+
 #endif /* __WIN__ */
 
 	os_fast_mutex_lock(&event->os_mutex);
