@@ -723,6 +723,82 @@ buf_flush_try_page(
 	return(0);
 }
 
+# if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/**********************************************************************
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: buf_pool_mutex and block->mutex must be held upon entering this
+function, and they will be released by this function after flushing.
+This is loosely based on buf_flush_batch() and buf_flush_try_page(). */
+
+ibool
+buf_flush_page_try(
+/*===============*/
+					/* out: TRUE if flushed and
+					mutexes released */
+	buf_block_t*	block)		/*!< in/out: buffer control block */
+{
+	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_ad(mutex_own(&block->mutex));
+
+	if (!buf_flush_ready_for_flush(block, BUF_FLUSH_LRU)) {
+		return(FALSE);
+	}
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU] > 0
+	    || buf_pool->init_flush[BUF_FLUSH_LRU]) {
+		/* There is already a flush batch of the same type running */
+		return(FALSE);
+	}
+
+	buf_pool->init_flush[BUF_FLUSH_LRU] = TRUE;
+
+	block->io_fix = BUF_IO_WRITE;
+	block->flush_type = BUF_FLUSH_LRU;
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU]++ == 0) {
+
+		os_event_reset(buf_pool->no_flush[BUF_FLUSH_LRU]);
+	}
+
+	/* VERY IMPORTANT:
+	Because any thread may call the LRU flush, even when owning
+	locks on pages, to avoid deadlocks, we must make sure that the
+	s-lock is acquired on the page without waiting: this is
+	accomplished because buf_flush_ready_for_flush() must hold,
+	and that requires the page not to be bufferfixed. */
+
+	rw_lock_s_lock_gen(&block->lock, BUF_IO_WRITE);
+
+	/* Note that the s-latch is acquired before releasing the
+	buf_pool mutex: this ensures that the latch is acquired
+	immediately. */
+
+	mutex_exit(&block->mutex);
+	mutex_exit(&buf_pool->mutex);
+
+	/* Even though block is not protected by any mutex at this
+	point, it is safe to access block, because it is io_fixed and
+	oldest_modification != 0.  Thus, it cannot be relocated in the
+	buffer pool or removed from flush_list or LRU_list. */
+
+	buf_flush_write_block_low(block);
+
+	mutex_enter(&buf_pool->mutex);
+	buf_pool->init_flush[BUF_FLUSH_LRU] = FALSE;
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU] == 0) {
+		/* The running flush batch has ended */
+		os_event_set(buf_pool->no_flush[BUF_FLUSH_LRU]);
+	}
+
+	mutex_exit(&buf_pool->mutex);
+	buf_flush_buffered_writes();
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 /***************************************************************
 Flushes to disk all flushable pages within the flush area. */
 static
