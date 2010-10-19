@@ -1,0 +1,56 @@
+--source include/have_case_insensitive_file_system.inc
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug#46941 crash with lower_case_table_names=2 and
+--echo #           foreign data dictionary confusion
+--echo #
+
+CREATE DATABASE XY;
+USE XY;
+
+#
+# Logs are disabled, since the number of creates tables
+# and subsequent select statements may vary between
+# versions
+#
+--disable_query_log
+--disable_result_log
+
+let $tcs = `SELECT @@table_open_cache + 1`;
+
+let $i = $tcs;
+
+while ($i)
+{
+  eval CREATE TABLE XY.T_$i (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT, 
+                             primary key(a, b), unique(b)) ENGINE=InnoDB;
+  dec $i;
+}
+
+eval ALTER TABLE XY.T_$tcs ADD INDEX I1 (c, b), 
+                           ADD CONSTRAINT C1 FOREIGN KEY (c, b) REFERENCES XY.T_1 (a, b);
+                   
+eval ALTER TABLE XY.T_$tcs ADD INDEX I2 (b),
+                           ADD CONSTRAINT C2 FOREIGN KEY (b) REFERENCES XY.T_1(a);
+ 
+let $i = $tcs;
+while ($i)
+{
+  eval SELECT * FROM XY.T_$i LIMIT 1;
+  dec $i;
+}
+
+DROP DATABASE XY;
+CREATE DATABASE XY;
+USE XY;
+eval CREATE TABLE XY.T_$tcs (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT, 
+                             PRIMARY KEY(a, b), UNIQUE(b)) ENGINE=InnoDB;
+#
+# The bug causes this SELECT to err
+eval SELECT * FROM XY.T_$tcs LIMIT 1;
+
+--enable_query_log
+--enable_result_log
+DROP DATABASE XY;
+
