@@ -856,8 +856,11 @@ my_bool vio_get_normalized_ip_string(const struct sockaddr *addr,
                                      char *ip_string,
                                      size_t ip_string_size)
 {
-  struct sockaddr_storage norm_addr_storage;
-  struct sockaddr *norm_addr= (struct sockaddr *) &norm_addr_storage;
+  union {
+    struct sockaddr_storage norm_addr_storage;
+    struct sockaddr _avoid_strict_alias_warning;
+  } tmp_addr;
+  struct sockaddr *norm_addr= (struct sockaddr *) &tmp_addr.norm_addr_storage;
   int norm_addr_length;
   int err_code;
 
