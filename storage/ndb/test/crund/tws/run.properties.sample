@@ -1,4 +1,21 @@
-# benchmark settings
+######################################################################
+# driver settings
+######################################################################
+
+logRealTime=true
+logCpuTime=true
+logMemUsage=false
+includeFullGC=false
+
+#warmupRuns=10
+#warmupRuns=1
+warmupRuns=0
+
+######################################################################
+# TWS workload settings
+######################################################################
+
+renewConnection=false
 doJdbc=true
 doClusterj=true
 doNdbjtie=true
@@ -26,35 +43,36 @@ lockMode=READ_COMMITTED
 #   clusterj single/bulk: ndb-7.1.8 revno 3782 crashes with node failure during
 #nRows=16000
 #nRows=4000
-nRows=1000
+#nRows=1000
 #nRows=500
 #nRows=250
-#nRows=10
+nRows=10
 
-#warmupRuns=1000
-#warmupRuns=100
-#warmupRuns=10
-#warmupRuns=1
-warmupRuns=0
+#nRuns=100
+#nRuns=10
+nRuns=1
 
-#hotRuns=10000
-#hotRuns=1000
-#hotRuns=100
-#hotRuns=10
-hotRuns=1
-
+######################################################################
 # NDBAPI connection settings
+######################################################################
+
 ndb.mgmdConnect=localhost
 ndb.catalog=testdb
 ndb.schema=def
 
+######################################################################
 # JDBC - MySQL settings
+######################################################################
+
 jdbc.url=jdbc:mysql://localhost/testdb
 jdbc.driver=com.mysql.jdbc.Driver
 jdbc.user=root
 jdbc.password=
 
+######################################################################
 # ClusterJ settings
+######################################################################
+
 com.mysql.clusterj.connectstring=localhost:1186
 com.mysql.clusterj.database=testdb
 com.mysql.clusterj.connect.retries=4
@@ -73,4 +91,4 @@ com.mysql.clusterj.tie.level=INFO
 #handlers=java.util.logging.FileHandler
 #java.util.logging.FileHandler.formatter=java.util.logging.SimpleFormatter
 #java.util.logging.FileHandler.level=FINEST
-#java.util.logging.FileHandler.pattern=./target/log%u 
+#java.util.logging.FileHandler.pattern=./target/log%u
