@@ -905,7 +905,7 @@ struct C0 {
 
     void print() const {
         TRACE("void C0::print() const");
-        printf("    this->id = %llx\n", id);
+        printf("    this->id = %llx\n", (long long unsigned int)id);
         fflush(stdout);
     }
 
