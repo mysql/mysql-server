@@ -3816,7 +3816,7 @@ public:
   Uint32 c_outstanding_sub_startstop;
   NdbNodeBitmask c_sub_startstop_lock;
 
-  Uint32 get_default_fragments(Uint32 extra_nodegroups = 0);
+  Uint32 get_default_fragments(Signal*, Uint32 extra_nodegroups = 0);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);
