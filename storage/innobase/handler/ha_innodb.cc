@@ -7703,9 +7703,12 @@ Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 UNIV_INTERN
 int
-ha_innobase::info(
-/*==============*/
-	uint flag)	/*!< in: what information MySQL requests */
+ha_innobase::info_low(
+/*==================*/
+	uint	flag,			/*!< in: what information MySQL
+					requests */
+	bool	called_from_analyze)	/* in: TRUE if called from
+					::analyze() */
 {
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
@@ -7736,7 +7739,7 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (innobase_stats_on_metadata) {
+		if (called_from_analyze || innobase_stats_on_metadata) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -7984,6 +7987,18 @@ func_exit:
 	DBUG_RETURN(0);
 }
 
+/*********************************************************************//**
+Returns statistics information of the table to the MySQL interpreter,
+in various fields of the handle object. */
+UNIV_INTERN
+int
+ha_innobase::info(
+/*==============*/
+	uint	flag)	/*!< in: what information MySQL requests */
+{
+	return(info_low(flag, false /* not called from analyze */));
+}
+
 /**********************************************************************//**
 Updates index cardinalities of the table, based on 8 random dives into
 each index tree. This does NOT calculate exact statistics on the table.
@@ -7996,7 +8011,8 @@ ha_innobase::analyze(
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
 	/* Simply call ::info() with all the flags */
-	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+	info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
+		 true /* called from analyze */);
 
 	return(0);
 }
