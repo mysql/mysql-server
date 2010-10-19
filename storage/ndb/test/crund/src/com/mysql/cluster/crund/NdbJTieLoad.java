@@ -87,12 +87,11 @@ public class NdbJTieLoad extends NdbBase {
         loadSystemLibrary("ndbclient");
 
         // instantiate NDB cluster singleton
-        out.println();
-        out.print("creating cluster conn ...");
+        out.print("creating cluster connection ...");
         out.flush();
         mgmd = Ndb_cluster_connection.create(mgmdConnect);
         assert mgmd != null;
-        out.println("       [ok, mgmd=" + mgmd + "]");
+        out.println(" [ok]");
 
         // connect to cluster management node (ndb_mgmd)
         out.print("connecting to mgmd ...");

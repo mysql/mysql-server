@@ -37,10 +37,7 @@ import javax.persistence.PersistenceContextType;
  */
 public class JpaLoad extends CrundDriver {
 
-    // ----------------------------------------------------------------------
-    // JPA resources
-    // ----------------------------------------------------------------------
-
+    // JPA settings
     protected String driver;
     protected String url;
     protected String user;
@@ -49,6 +46,8 @@ public class JpaLoad extends CrundDriver {
     protected String brokerFactory;
     protected String ndbConnectString;
     protected String ndbDatabase;
+
+    // JPA resources
     protected EntityManagerFactory emf;
     protected EntityManager em;
     protected Query delAllA;

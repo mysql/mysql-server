@@ -22,7 +22,7 @@ package com.mysql.cluster.crund;
 
 abstract public class NdbBase extends CrundDriver {
 
-    // NDB resources
+    // NDB settings
     protected String mgmdConnect;
     protected String catalog;
     protected String schema;
@@ -30,8 +30,8 @@ abstract public class NdbBase extends CrundDriver {
     // so far, there's no NDB support for caching data beyond Tx scope
     protected void clearPersistenceContext() throws Exception {}
 
-     // ----------------------------------------------------------------------
-    // JDBC intializers/finalizers
+    // ----------------------------------------------------------------------
+    // NDB Base intializers/finalizers
     // ----------------------------------------------------------------------
 
    protected void initProperties() {

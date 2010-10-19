@@ -41,6 +41,7 @@ protected:
     static const char* toStr(LockMode mode);
     enum XMode { SINGLE, BULK, BATCH }; // XXX not used yet
     static const char* toStr(XMode mode); // XXX not used yet
+    bool renewConnection;
     bool renewOperations;
     LockMode lockMode;
     bool logSumOfOps;
@@ -58,6 +59,8 @@ protected:
     set< string > exclude;
 
     // benchmark intializers/finalizers
+    virtual void init();
+    virtual void close();
     virtual void initProperties();
     virtual void printProperties();
 
@@ -81,6 +84,12 @@ protected:
     virtual void runLoads(int countA, int countB);
     virtual void runOperations(int countA, int countB);
     virtual void runOp(const Op& op, int countA, int countB);
+
+    // datastore operations
+    virtual void initConnection() = 0;
+    virtual void closeConnection() = 0;
+    //virtual void clearPersistenceContext() = 0; // not used
+    virtual void clearData() = 0;
 };
 
 #endif // CrundDriver_hpp

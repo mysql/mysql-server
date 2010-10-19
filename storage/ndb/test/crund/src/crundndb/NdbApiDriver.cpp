@@ -80,14 +80,14 @@ NdbApiDriver::init() {
 
     // initialize the benchmark's resources
     ops = new CrundNdbApiOperations();
-    assert (!mgmdConnect.empty());
+    assert(!mgmdConnect.empty());
     ops->init(mgmdConnect.c_str());
 }
 
 void
 NdbApiDriver::close() {
     // release the benchmark's resources
-    assert (!mgmdConnect.empty());
+    assert(ops);
     ops->close();
     delete ops;
     ops = NULL;
@@ -170,7 +170,7 @@ struct NdbApiDriver::ADelAllOp : Op {
     virtual void run(int countA, int countB) const {
         int count;
         ops->delByScan(ops->model->table_A, count, OB);
-        assert (count == countA);
+        assert(count == countA);
     }
 };
 
@@ -183,7 +183,7 @@ struct NdbApiDriver::B0DelAllOp : Op {
     virtual void run(int countA, int countB) const {
         int count;
         ops->delByScan(ops->model->table_B0, count, OB);
-        assert (count == countB);
+        assert(count == countB);
     }
 };
 

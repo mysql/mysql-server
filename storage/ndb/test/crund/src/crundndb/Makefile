@@ -54,14 +54,18 @@ com_mysql_cluster_crund_NdbApiLoad.h:
 #		$(API_PKG_PATH)/NdbApiLoad.java
 #	$(COMPILE.java) $<
 
+# not sure if needed:
+#	LD_LIBRARY_PATH=${NDB_LIBDIR}:./Driver
 run.driver:	NdbApiDriver
-	LD_LIBRARY_PATH=${NDB_LIBDIR} ./NdbApiDriver \
+	./NdbApiDriver \
 	-p ../../crundRun.properties -p ../../crundNdbapi.properties
 
 # for JVM processes, try running valgrind with
 # --smc-check=all --trace-children=yes --leak-check=full --show-reachable=yes
+# not sure if needed:
+#	LD_LIBRARY_PATH=${NDB_LIBDIR}:./Driver
 valgrind.driver:	NdbApiDriver
-	LD_LIBRARY_PATH=${NDB_LIBDIR} valgrind \
+	valgrind \
 	--leak-check=full --show-reachable=yes --trace-children=yes \
 	./NdbApiDriver \
 	-p ../../crundRun.properties -p ../../crundNdbapi.properties

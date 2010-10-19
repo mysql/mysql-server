@@ -71,7 +71,6 @@ abstract public class Driver {
     protected boolean logRealTime;
     protected boolean logMemUsage;
     protected boolean includeFullGC;
-    protected boolean renewConnection;
     protected int warmupRuns;
     protected int hotRuns;
 
@@ -147,41 +146,48 @@ abstract public class Driver {
         try {
             init();
 
-            // warmup runs
-            for (int i = 0; i < warmupRuns; i++) {
-                runTests();
-            }
+            if (warmupRuns > 0) {
+                out.println();
+                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+                out.println("warmup runs ...");
+                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
-            // truncate log file, reset log buffers
-            out.println();
-            out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-            out.println("start logging results ...");
-            out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-            out.println();
-            logHeader = true;
-            header = new StringBuilder();
-            rtimes = new StringBuilder();
-            musage = new StringBuilder();
-            closeLogFile();
-            openLogFile();
+                for (int i = 0; i < warmupRuns; i++) {
+                    runTests();
+                }
 
-            // hot runs
-            for (int i = 0; i < hotRuns; i++) {
-                runTests();
+                // truncate log file, reset log buffers
+                closeLogFile();
+                openLogFile();
+                header = new StringBuilder();
+                rtimes = new StringBuilder();
+                musage = new StringBuilder();
+                logHeader = true;
             }
+            
+            if (hotRuns > 0) {
+                out.println();
+                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+                out.println("hot runs ...");
+                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
-            // write log buffers
-            if (logRealTime) {
-                log.println(descr + ", rtime[ms]"
-                            + header.toString() + endl
-                            + rtimes.toString() + endl + endl + endl);
-            }
-            if (logMemUsage) {
-                log.println(descr + ", net musage[KiB]"
-                            + header.toString() + endl
-                            + musage.toString() + endl + endl + endl);
-            }
+                for (int i = 0; i < hotRuns; i++) {
+                    runTests();
+                }
 
+                // write log buffers
+                if (logRealTime) {
+                    log.println(descr + ", rtime[ms]"
+                                + header.toString() + endl
+                                + rtimes.toString() + endl + endl + endl);
+                }
+                if (logMemUsage) {
+                    log.println(descr + ", net musage[KiB]"
+                                + header.toString() + endl
+                                + musage.toString() + endl + endl + endl);
+                }
+            }
+            
             close();
         } catch (Exception ex) {
             // end the program regardless of threads
@@ -262,6 +268,7 @@ abstract public class Driver {
         musage = null;
 
         closeLogFile();
+        props.clear();
     }
 
     // loads the benchmark's properties from properties files
@@ -312,7 +319,6 @@ abstract public class Driver {
         logRealTime = parseBoolean("logRealTime", true);
         logMemUsage = parseBoolean("logMemUsage", false);
         includeFullGC = parseBoolean("includeFullGC", false);
-        renewConnection = parseBoolean("renewConnection", false);
 
         warmupRuns = parseInt("warmupRuns", 0);
         if (warmupRuns < 0) {
@@ -341,7 +347,6 @@ abstract public class Driver {
         out.println("logRealTime:                    " + logRealTime);
         out.println("logMemUsage:                    " + logMemUsage);
         out.println("includeFullGC:                  " + includeFullGC);
-        out.println("renewConnection:                " + renewConnection);
         out.println("warmupRuns:                     " + warmupRuns);
         out.println("hotRuns:                        " + hotRuns);
     }
@@ -370,7 +375,7 @@ abstract public class Driver {
 
     abstract protected void runTests() throws Exception;
 
-    protected void begin(String name) throws Exception {
+    protected void begin(String name) {
         out.println();
         out.println(name);
 
@@ -387,7 +392,7 @@ abstract public class Driver {
         }
     }
 
-    protected void commit(String name) throws Exception {
+    protected void finish(String name) {
         // attempt one full GC, before timing tx end
         if (includeFullGC) {
             rt.gc();
@@ -421,13 +426,4 @@ abstract public class Driver {
         if (logHeader)
             header.append("\t" + name);
     }
-
-    // ----------------------------------------------------------------------
-    // datastore operations
-    // ----------------------------------------------------------------------
-
-    abstract protected void initConnection() throws Exception;
-    abstract protected void closeConnection() throws Exception;
-    abstract protected void clearPersistenceContext() throws Exception;
-    abstract protected void clearData() throws Exception;
 }
