@@ -181,6 +181,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_GCP_NODEFINISH, &Dbdih::execGCP_NODEFINISH);
   addRecSignal(GSN_GCP_COMMIT, &Dbdih::execGCP_COMMIT);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbdih::execSUB_GCP_COMPLETE_REP);
+  addRecSignal(GSN_SUB_GCP_COMPLETE_ACK, &Dbdih::execSUB_GCP_COMPLETE_ACK);
   addRecSignal(GSN_DIHNDBTAMPER, &Dbdih::execDIHNDBTAMPER);
   addRecSignal(GSN_CONTINUEB, &Dbdih::execCONTINUEB);
   addRecSignal(GSN_COPY_GCIREQ, &Dbdih::execCOPY_GCIREQ);
