@@ -32,7 +32,7 @@ public class CharsetMap extends Wrapper implements CharsetMapConst
     public final native int getCharsetNumber(String/*_const char *_*/ mysql_name) /*_const_*/;
     public final native int getUTF8CharsetNumber() /*_const_*/;
     public final native int getUTF16CharsetNumber() /*_const_*/;
-    public final native boolean isMultibyte(int cs_number) /*_const_*/;
+    public final native boolean[] isMultibyte(int cs_number) /*_const_*/;
     public final native int recode(int[]/*_int32_t *_*/ lengths, int cs_from, int cs_to, ByteBuffer/*_const void *_*/ src, ByteBuffer/*_void *_*/ dest) /*_const_*/;
     static public final native CharsetMap create();
     static public final native void delete(CharsetMap p0);

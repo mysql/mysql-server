@@ -26,6 +26,9 @@
 #include "mysql.h"
 #include "my_sys.h"
 
+bool m_false_result = false;
+bool m_true_result = true;
+
 /* _map is a static pointer visible only within the scope of this file.
    A singleton CharsetMapImpl serves every instance of CharsetMap.
 */
@@ -95,10 +98,11 @@ int CharsetMap::getCharsetNumber(const char *name) const
     return get_charset_number(name, MY_CS_AVAILABLE);
 }
 
-bool CharsetMap::isMultibyte(int cs_number) const
+const bool * CharsetMap::isMultibyte(int cs_number) const
 {
   CHARSET_INFO * cset = get_charset(cs_number, MYF(0));
-  return use_mb(cset);
+  if(cset == 0) return 0;
+  return use_mb(cset) ? & m_true_result : & m_false_result;
 }
 
 

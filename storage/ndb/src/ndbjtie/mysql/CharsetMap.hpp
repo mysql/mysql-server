@@ -108,7 +108,7 @@ public:
      * Returns true if this charset number refers to a multibyte charset;
      * otherwise false.
      */
-  bool isMultibyte(int cs_number) const;
+  const bool * isMultibyte(int cs_number) const;
 
     /**
      * Recodes the content of a source buffer into destination buffer.
@@ -129,6 +129,7 @@ public:
     RecodeStatus recode(int32_t *lengths /* IN/OUT */,
                         int cs_from, int cs_to, const void *src,
                         void *dest) const;
+                        
 };
 
 #endif // CharsetMap_hpp

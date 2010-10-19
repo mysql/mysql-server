@@ -40,6 +40,6 @@ public interface CharsetMapConst
     int getCharsetNumber(String/*_const char *_*/ mysql_name) /*_const_*/;
     int getUTF8CharsetNumber() /*_const_*/;
     int getUTF16CharsetNumber() /*_const_*/;
-    boolean isMultibyte(int cs_number) /*_const_*/;
+    boolean[] isMultibyte(int cs_number) /*_const_*/;
     int/*_RecodeStatus_*/ recode(int[]/*_int32_t *_*/ lengths, int cs_from, int cs_to, ByteBuffer/*_const void *_*/ src, ByteBuffer/*_void *_*/ dest) /*_const_*/;
 }
