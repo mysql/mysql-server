@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,6 @@ extern struct st_mysql_plugin	i_s_innodb_cmp;
 extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
-extern struct st_mysql_plugin   i_s_innodb_metrics;
+extern struct st_mysql_plugin	i_s_innodb_metrics;
 
 #endif /* i_s_h */

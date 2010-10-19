@@ -703,7 +703,9 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 
   String log_query;
   if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
-      log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+      log_query.append("`") ||
+      log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+      log_query.append("`"))
     DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -725,7 +727,9 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   {
     String log_query;
     if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+        log_query.append("`") ||
+        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+        log_query.append("`"))
       DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -1542,7 +1546,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
     sql_print_error("MSYQL_BIN_LOG::open failed to sync the index file.");
     DBUG_RETURN(1);
   }
-  DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_ABORT(););
+  DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_SUICIDE(););
 #endif
 
   write_error= 0;
@@ -1639,7 +1643,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
     if (write_file_name_to_index_file)
     {
 #ifdef HAVE_REPLICATION
-      DBUG_EXECUTE_IF("crash_create_critical_before_update_index", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_create_critical_before_update_index", DBUG_SUICIDE(););
 #endif
 
       DBUG_ASSERT(my_b_inited(&index_file) != 0);
@@ -1658,7 +1662,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         goto err;
 
 #ifdef HAVE_REPLICATION
-      DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_SUICIDE(););
 #endif
     }
   }
@@ -2110,7 +2114,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   /* Store where we are in the new file for the execution thread */
   flush_relay_log_info(rli);
 
-  DBUG_EXECUTE_IF("crash_before_purge_logs", DBUG_ABORT(););
+  DBUG_EXECUTE_IF("crash_before_purge_logs", DBUG_SUICIDE(););
 
   mysql_mutex_lock(&rli->log_space_lock);
   rli->relay_log.purge_logs(to_purge_if_included, included,
@@ -2238,7 +2242,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       break;
   }
 
-  DBUG_EXECUTE_IF("crash_purge_before_update_index", DBUG_ABORT(););
+  DBUG_EXECUTE_IF("crash_purge_before_update_index", DBUG_SUICIDE(););
 
   if ((error= sync_purge_index_file()))
   {
@@ -2253,7 +2257,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     goto err;
   }
 
-  DBUG_EXECUTE_IF("crash_purge_critical_after_update_index", DBUG_ABORT(););
+  DBUG_EXECUTE_IF("crash_purge_critical_after_update_index", DBUG_SUICIDE(););
 
 err:
   /* Read each entry from purge_index_file and delete the file. */
@@ -2263,7 +2267,7 @@ err:
                     " that would be purged.");
   close_purge_index_file();
 
-  DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index", DBUG_ABORT(););
+  DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index", DBUG_SUICIDE(););
 
   if (need_mutex)
     mysql_mutex_unlock(&LOCK_index);
@@ -3428,7 +3432,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
                         DBUG_PRINT("info", ("crashing before writing xid"));
-                        DBUG_ABORT();
+                        DBUG_SUICIDE();
                       });
 
       if ((write_error= write_cache(cache, false, false)))
@@ -3443,7 +3447,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       bool synced= 0;
       if (flush_and_sync(&synced))
         goto err;
-      DBUG_EXECUTE_IF("half_binlogged_transaction", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("half_binlogged_transaction", DBUG_SUICIDE(););
       if (cache->error)				// Error on read
       {
         sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);

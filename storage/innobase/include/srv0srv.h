@@ -229,6 +229,8 @@ extern ibool	srv_priority_boost;
 
 extern ulint	srv_n_lock_wait_count;
 
+extern ulint	srv_truncated_status_writes;
+
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
@@ -717,6 +719,7 @@ struct export_var_struct{
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
+	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
 };
 
 /** Thread slot in the thread table */

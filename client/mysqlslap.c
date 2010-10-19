@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-   original idea: Brian Aker via playing with ab for too many years
-   coded by: Patrick Galbraith
-*/
-
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
   MySQL Slap
@@ -94,6 +89,7 @@ TODO:
 #include <sys/wait.h>
 #endif
 #include <ctype.h>
+#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #ifdef __WIN__
 #define srandom  srand
@@ -688,8 +684,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2005 MySQL AB");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005, 2010"));
   puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);

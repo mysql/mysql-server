@@ -3760,9 +3760,10 @@ btr_cur_set_ownership_of_extern_field(
 Marks not updated extern fields as not-owned by this record. The ownership
 is transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field. */
+to free the field.
+@return TRUE if BLOB ownership was transferred */
 UNIV_INTERN
-void
+ibool
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
@@ -3776,13 +3777,14 @@ btr_cur_mark_extern_inherited_fields(
 	ulint	n;
 	ulint	j;
 	ulint	i;
+	ibool	change_ownership = FALSE;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
 
 	if (!rec_offs_any_extern(offsets)) {
 
-		return;
+		return(FALSE);
 	}
 
 	n = rec_offs_n_fields(offsets);
@@ -3805,10 +3807,14 @@ btr_cur_mark_extern_inherited_fields(
 
 			btr_cur_set_ownership_of_extern_field(
 				page_zip, rec, index, offsets, i, FALSE, mtr);
+
+			change_ownership = TRUE;
 updated:
 			;
 		}
 	}
+
+	return(change_ownership);
 }
 
 /*******************************************************************//**
