@@ -1850,13 +1850,11 @@ f_master_failure [] = {
   7000, 7001, 7002, 7003, 7004, 7186, 7187, 7188, 7189, 7190, 0
 };
 
-#ifdef NOT_USED
 static
 int
 f_participant_failure [] = {
-  7005, 7006, 7007, 7008, 5000, 0
+  7005, 7006, 7007, 7008, 5000, 7228, 0
 };
-#endif
 
 int
 runerrors(NdbRestarter& res, NdbRestarter::NodeSelector sel, const int* errors)
@@ -1920,6 +1918,11 @@ runGCP(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
 #endif
+
+    if (runerrors(res, NdbRestarter::NS_RANDOM, f_participant_failure))
+    {
+      return NDBT_FAILED;
+    }
 
     if (runerrors(res, NdbRestarter::NS_MASTER, f_master_failure))
     {
@@ -3915,6 +3918,40 @@ runBug56044(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug57522(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int loops = ctx->getNumLoops();
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 4)
+    return NDBT_OK;
+
+  for (int i = 0; i<loops; i++)
+  {
+    int master = res.getMasterNodeId();
+    int next0 = res.getNextMasterNodeId(master);
+    int next1 = res.getNextMasterNodeId(next0);
+    ndbout_c("master: %d next0: %d next1: %d", master, next0, next1);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+
+    if (res.dumpStateOneNode(master, val2, 2))
+      return NDBT_FAILED;
+
+    int val3[] = { 7999, 7226, next1 };
+    if (res.dumpStateOneNode(master, val3, 3))
+      return NDBT_FAILED;
+
+    res.waitNodesNoStart(&master, 1);
+    res.startNodes(&master, 1);
+    if (res.waitClusterStarted() != 0)
+      return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -4422,6 +4459,10 @@ TESTCASE("Bug48474", "")
 TESTCASE("Bug56044", "")
 {
   INITIALIZER(runBug56044);
+}
+TESTCASE("Bug57522", "")
+{
+  INITIALIZER(runBug57522);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

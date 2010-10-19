@@ -1176,6 +1176,10 @@ max-time: 5000
 cmd: testNodeRestart
 args: -n GCP -l 1 T1
 
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug57522 T1
+
 max-time: 1200
 cmd: testNodeRestart
 args: -n Bug41469 T1

@@ -666,6 +666,7 @@ private:
   void execGCP_NODEFINISH(Signal *);
   void execGCP_COMMIT(Signal *);
   void execSUB_GCP_COMPLETE_REP(Signal *);
+  void execSUB_GCP_COMPLETE_ACK(Signal *);
   void execDIHNDBTAMPER(Signal *);
   void execCONTINUEB(Signal *);
   void execCOPY_GCIREQ(Signal *);
@@ -787,6 +788,7 @@ private:
   void sendGCP_COMMIT(Signal *, Uint32 nodeId, Uint32);
   void sendGCP_PREPARE(Signal *, Uint32 nodeId, Uint32);
   void sendGCP_SAVEREQ(Signal *, Uint32 nodeId, Uint32);
+  void sendSUB_GCP_COMPLETE_REP(Signal*, Uint32 nodeId, Uint32);
   void sendINCL_NODEREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_GCPREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_LCPREQ(Signal *, Uint32 nodeId, Uint32);
@@ -935,7 +937,6 @@ private:
   void copyTabReq_complete(Signal* signal, TabRecordPtr tabPtr);
 
   void gcpcommitreqLab(Signal *);
-  void gcpsavereqLab(Signal *);
   void copyGciLab(Signal *, CopyGCIReq::CopyReason reason);
   void storeNewLcpIdLab(Signal *);
   void startLcpRoundLoopLab(Signal *, Uint32 startTableId, Uint32 startFragId);
@@ -1293,7 +1294,8 @@ private:
       M_GCP_IDLE      = 0,
       M_GCP_PREPARE   = 1,
       M_GCP_COMMIT    = 2,
-      M_GCP_COMMITTED = 3
+      M_GCP_COMMITTED = 3,
+      M_GCP_COMPLETE  = 4
     } m_state;
 
     struct {
@@ -1484,18 +1486,6 @@ private:
   Uint32 c_set_initial_start_flag;
   Uint64 c_current_time; // Updated approx. every 10ms
 
-  enum GcpMasterTakeOverState {
-    GMTOS_IDLE = 0,
-    GMTOS_INITIAL = 1,
-    ALL_READY = 2,
-    ALL_PREPARED = 3,
-    COMMIT_STARTED_NOT_COMPLETED = 4,
-    COMMIT_COMPLETED = 5,
-    PREPARE_STARTED_NOT_COMMITTED = 6,
-    SAVE_STARTED_NOT_COMPLETED = 7
-  };
-  GcpMasterTakeOverState cgcpMasterTakeOverState;
-
 public:
   enum LcpMasterTakeOverState {
     LMTOS_IDLE = 0,
@@ -1569,6 +1559,7 @@ private:
   SignalCounter c_GCP_COMMIT_Counter;
   SignalCounter c_GCP_PREPARE_Counter;
   SignalCounter c_GCP_SAVEREQ_Counter;
+  SignalCounter c_SUB_GCP_COMPLETE_REP_Counter;
   SignalCounter c_INCL_NODEREQ_Counter;
   SignalCounter c_MASTER_GCPREQ_Counter;
   SignalCounter c_MASTER_LCPREQ_Counter;
