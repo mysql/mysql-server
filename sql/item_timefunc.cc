@@ -3465,7 +3465,7 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   return 0;
 
 null_date:
-  if (fuzzy_date & TIME_NO_ZERO_DATE)
+  if (val && (fuzzy_date & TIME_NO_ZERO_DATE))
   {
     char buff[128];
     strmake(buff, val->ptr(), min(val->length(), sizeof(buff)-1));
