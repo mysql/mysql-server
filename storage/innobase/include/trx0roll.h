@@ -66,13 +66,6 @@ trx_undo_arr_get_nth_info(
 /*======================*/
 	trx_undo_arr_t*	arr,	/*!< in: undo number array */
 	ulint		n);	/*!< in: position */
-/***********************************************************************//**
-Tries truncate the undo logs. */
-UNIV_INTERN
-void
-trx_roll_try_truncate(
-/*==================*/
-	trx_t*	trx);	/*!< in/out: transaction */
 /********************************************************************//**
 Pops the topmost record when the two undo logs of a transaction are seen
 as a single stack of records ordered by their undo numbers. Inserts the
