@@ -6068,7 +6068,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
       host= acl_proxy_user->get_host();
       break;
     default:
-      assert(0);
+      MY_ASSERT_UNREACHABLE();
     }
     if (! user)
       user= "";
