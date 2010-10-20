@@ -215,40 +215,53 @@ trx_rollback_last_sql_stat_for_mysql(
 }
 
 /*******************************************************************//**
+Search for a savepoint using name.
+@return savepoint if found else NULL */
+static
+trx_named_savept_t*
+trx_savepoint_find(
+/*===============*/
+	trx_t*		trx,			/*!< in: transaction */
+	const char*	name)			/*!< in: savepoint name */
+{
+	trx_named_savept_t*	savep;
+
+	for (savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+	     savep != NULL;
+	     savep = UT_LIST_GET_NEXT(trx_savepoints, savep)) {
+
+		if (0 == ut_strcmp(savep->name, name)) {
+			return(savep);
+		}
+	}
+
+	return(NULL);
+}
+
+/*******************************************************************//**
 Frees a single savepoint struct. */
-UNIV_INTERN
+static
 void
 trx_roll_savepoint_free(
 /*=====================*/
 	trx_t*			trx,	/*!< in: transaction handle */
 	trx_named_savept_t*	savep)	/*!< in: savepoint to free */
 {
-	ut_a(savep != NULL);
-	ut_a(UT_LIST_GET_LEN(trx->trx_savepoints) > 0);
-
 	UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
 	mem_free(savep->name);
 	mem_free(savep);
 }
 
 /*******************************************************************//**
-Frees savepoint structs starting from savep, if savep == NULL then
-free all savepoints. */
+Frees savepoint structs starting from savep. */
 UNIV_INTERN
 void
 trx_roll_savepoints_free(
 /*=====================*/
 	trx_t*			trx,	/*!< in: transaction handle */
-	trx_named_savept_t*	savep)	/*!< in: free all savepoints > this one;
-					if this is NULL, free all savepoints
-					of trx */
+	trx_named_savept_t*	savep)	/*!< in: free all savepoints starting
+				       	with this savepoint i*/
 {
-	if (savep == NULL) {
-		savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
-	} else {
-		savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
-	}
-
 	while (savep != NULL) {
 		trx_named_savept_t*	next_savep;
 
@@ -282,48 +295,41 @@ trx_rollback_to_savepoint_for_mysql(
 						binlog entries of the queries
 						executed after the savepoint */
 {
-	trx_named_savept_t*	savep;
 	ulint			err;
+	trx_named_savept_t*	savep;
 
-	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
-
-	while (savep != NULL) {
-		if (0 == ut_strcmp(savep->name, savepoint_name)) {
-			/* Found */
-			break;
-		}
-		savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
-	}
+	savep = trx_savepoint_find(trx, savepoint_name);
 
 	if (savep == NULL) {
-
-		return(DB_NO_SAVEPOINT);
-	}
-
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+		err = DB_NO_SAVEPOINT;
+	} else if (trx->state == TRX_STATE_NOT_STARTED) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
 		ut_print_name(stderr, trx, FALSE, savep->name);
 		fputs(" though it is not started\n", stderr);
-		return(DB_ERROR);
+		err = DB_ERROR;
+	} else {
+
+		/* We can now free all savepoints strictly later than
+	       	savepoint_name. */
+
+		savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
+		trx_roll_savepoints_free(trx, savep);
+
+		*mysql_binlog_cache_pos = savep->mysql_binlog_cache_pos;
+
+		trx->op_info = "rollback to a savepoint";
+
+		err = trx_general_rollback_for_mysql(trx, &savep->savept);
+
+		/* Store the current undo_no of the transaction so that
+	       	we know where to roll back if we have to roll back the
+	       	next SQL statement: */
+
+		trx_mark_sql_stat_end(trx);
+
+		trx->op_info = "";
 	}
-
-	/* We can now free all savepoints strictly later than this one */
-
-	trx_roll_savepoints_free(trx, savep);
-
-	*mysql_binlog_cache_pos = savep->mysql_binlog_cache_pos;
-
-	trx->op_info = "rollback to a savepoint";
-
-	err = trx_general_rollback_for_mysql(trx, &savep->savept);
-
-	/* Store the current undo_no of the transaction so that we know where
-	to roll back if we have to roll back the next SQL statement: */
-
-	trx_mark_sql_stat_end(trx);
-
-	trx->op_info = "";
 
 	return(err);
 }
@@ -347,20 +353,9 @@ trx_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 
-	ut_a(trx);
-	ut_a(savepoint_name);
-
 	trx_start_if_not_started_xa(trx);
 
-	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
-
-	while (savep != NULL) {
-		if (0 == ut_strcmp(savep->name, savepoint_name)) {
-			/* Found */
-			break;
-		}
-		savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
-	}
+	savep = trx_savepoint_find(trx, savepoint_name);
 
 	if (savep) {
 		/* There is a savepoint with the same name: free that */
@@ -373,7 +368,7 @@ trx_savepoint_for_mysql(
 
 	/* Create a new savepoint and add it as the last in the list */
 
-	savep = mem_alloc(sizeof(trx_named_savept_t));
+	savep = mem_alloc(sizeof(*savep));
 
 	savep->name = mem_strdup(savepoint_name);
 
@@ -400,18 +395,13 @@ trx_release_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 
-	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+	savep = trx_savepoint_find(trx, savepoint_name);
 
-	/* Search for the savepoint by name and free if found. */
-	while (savep != NULL) {
-		if (0 == ut_strcmp(savep->name, savepoint_name)) {
-			trx_roll_savepoint_free(trx, savep);
-			return(DB_SUCCESS);
-		}
-		savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
+	if (savep != NULL) {
+		trx_roll_savepoint_free(trx, savep);
 	}
 
-	return(DB_NO_SAVEPOINT);
+	return(savep != NULL ? DB_SUCCESS : DB_NO_SAVEPOINT);
 }
 
 /*******************************************************************//**
