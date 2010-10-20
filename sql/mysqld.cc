@@ -574,7 +574,9 @@ ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
 static const char *slave_exec_mode_str= "STRICT";
+#ifndef MCP_WL3733
 my_bool slave_allow_batching;
+#endif
 ulong slave_type_conversions_options;
 const char *slave_type_conversions_default= "";
 ulong thread_cache_size=0, thread_pool_size= 0;
@@ -5723,7 +5725,7 @@ enum options_mysqld
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
   OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
   OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
-  OPT_SLAVE_SKIP_ERRORS, OPT_SLAVE_ALLOW_BATCHING, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
+  OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
   OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA,
   OPT_SSL_CAPATH, OPT_SSL_CIPHER,
   OPT_BACK_LOG, OPT_BINLOG_CACHE_SIZE,
@@ -7253,10 +7255,12 @@ thread is in the relay logs.",
    "before giving up and stopping.",
    &slave_trans_retries, &slave_trans_retries, 0,
    GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
-  {"slave-allow-batching", OPT_SLAVE_ALLOW_BATCHING,
+#ifndef MCP_WL3733
+  {"slave-allow-batching", 255,
    "Allow slave to batch requests.",
    &slave_allow_batching, &slave_allow_batching,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+#endif
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), "
