@@ -590,9 +590,11 @@ static sys_var_set_slave_mode slave_exec_mode(&vars,
                                               &slave_exec_mode_options,
                                               &slave_exec_mode_typelib,
                                               0);
+#ifndef MCP_WL3733
 #ifdef HAVE_REPLICATION
 static sys_var_bool_ptr         sys_slave_allow_batching(&vars, "slave_allow_batching",
                                                          &slave_allow_batching);
+#endif
 #endif
 static sys_var_long_ptr	sys_slow_launch_time(&vars, "slow_launch_time",
 					     &slow_launch_time);
