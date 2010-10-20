@@ -180,7 +180,7 @@ because in GCC it returns a long. */
                                     UNIV_EXPECT(((mbminmaxlen) % DATA_MBMAX), \
                                                 1))
 /* Get mbmaxlen from mbminmaxlen. */
-#define DATA_MBMAXLEN(mbminmaxlen) ((mbminmaxlen) / DATA_MBMAX)
+#define DATA_MBMAXLEN(mbminmaxlen) ((ulint) ((mbminmaxlen) / DATA_MBMAX))
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
