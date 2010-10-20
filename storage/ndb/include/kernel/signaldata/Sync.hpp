@@ -47,6 +47,25 @@ struct SyncConf
   Uint32 senderRef;
   Uint32 senderData;
 
+  STATIC_CONST( SignalLength = 3 );
+};
+
+struct SyncPathReq
+{
+  Uint32 senderData;
+  Uint32 prio;
+  Uint32 count;
+  Uint32 pathlen;
+  Uint32 path[1];
+
+  STATIC_CONST( SignalLength = 4 );
+};
+
+struct SyncPathConf
+{
+  Uint32 senderData;
+  Uint32 count;
+
   STATIC_CONST( SignalLength = 2 );
 };
 
