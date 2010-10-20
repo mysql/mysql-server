@@ -512,3 +512,55 @@ create table t1 (a int not null, b int not null, primary key (b,a)) engine=ndb;
 insert into t1(a,b) values(0,0);
 select * from t1 where b < 8 or b >= 8;
 drop table t1;
+
+# bug#56853 missing shrink varchar in index bound dist key check
+
+--echo # bug#56853
+
+create table t1 (
+  x varchar(16) not null,
+  primary key (x)
+)
+character set latin1
+collate latin1_swedish_ci
+engine ndb
+partition by key (x) partitions 8;
+
+# like % works here
+insert into t1 (x) values ('aaa');
+insert into t1 (x) values ('bbb');
+insert into t1 (x) values ('ccc');
+insert into t1 (x) values ('ddd');
+select x from t1 where x like 'aa%';
+select x from t1 where x like 'aa_';
+select x from t1 where x like 'bb%';
+select x from t1 where x like 'bb_';
+select x from t1 where x like 'cc%';
+select x from t1 where x like 'cc_';
+select x from t1 where x like 'dd%';
+select x from t1 where x like 'dd_';
+drop table t1;
+
+# show same bug with like %
+create table t1 (
+  x varchar(4) not null,
+  primary key (x)
+)
+character set latin1
+collate latin1_swedish_ci
+engine ndb
+partition by key (x) partitions 8;
+
+insert into t1 (x) values ('aaaa');
+insert into t1 (x) values ('bbbb');
+insert into t1 (x) values ('cccc');
+insert into t1 (x) values ('dddd');
+select x from t1 where x like 'aaa%';
+select x from t1 where x like 'aaa_';
+select x from t1 where x like 'bbb%';
+select x from t1 where x like 'bbb_';
+select x from t1 where x like 'ccc%';
+select x from t1 where x like 'ccc_';
+select x from t1 where x like 'ddd%';
+select x from t1 where x like 'ddd_';
+drop table t1;
