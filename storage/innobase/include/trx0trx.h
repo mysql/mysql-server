@@ -349,7 +349,7 @@ system threads, like the timeout monitor thread or user threads executing
 other queries. Another thing to be mindful of is that there is a delay between
 when a query thread is put into LOCK_WAIT state and before it actually starts
 waiting.  Between these two events it is possible that the query thread is
-granted the lock it was waiting, which implies that the state can be changed
+granted the lock it was waiting for, which implies that the state can be changed
 asynchronously.
 
 All these operations take place within the context of locking. Therefore state
