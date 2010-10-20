@@ -173,7 +173,7 @@ The chain of modified blocks (buf_pool->flush_list) contains the blocks
 holding file pages that have been modified in the memory
 but not written to disk yet. The block with the oldest modification
 which has not yet been written to disk is at the end of the chain.
-The access to this list is protected by flush_list_mutex.
+The access to this list is protected by buf_pool->flush_list_mutex.
 
 The chain of unmodified compressed blocks (buf_pool->zip_clean)
 contains the control blocks (buf_page_t) of those compressed pages
@@ -1932,7 +1932,7 @@ page_found:
 	hash_mutexes. buf_pool mutex is needed because any changes to
 	the page_hash must be covered by it and hash_mutexes are needed
 	because we don't want to read any stale information in
-	buf_pool_watch[]. However, it is not in the critical code path
+	buf_pool->watch[]. However, it is not in the critical code path
 	as this function will be called only by the purge thread. */
 
 
@@ -1969,8 +1969,8 @@ page_found:
 			ut_ad(!bpage->in_page_hash);
 			ut_ad(bpage->buf_fix_count == 0);
 
-			/* bpage is pointing to buf_pool_watch[],
-			which is protected by buf_pool_mutex.
+			/* bpage is pointing to buf_pool->watch[],
+			which is protected by buf_pool->mutex.
 			Normally, buf_page_t objects are protected by
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
@@ -3061,7 +3061,7 @@ wait_until_unfixed:
 		mutex_enter(&block->mutex);
 		if (UNIV_UNLIKELY(bpage != hash_bpage)) {
 			/* The buf_pool->page_hash was modified
-			while buf_pool_mutex was released.
+			while buf_pool->mutex was released.
 			Free the block that was allocated. */
 
 			buf_LRU_block_free_non_file_page(block);
