@@ -21,5 +21,6 @@ ADD_LIBRARY(ndblogger STATIC
             LogHandlerList.cpp
             LogHandler.cpp
             ConsoleLogHandler.cpp
+	    SysLogHandler.cpp
             EventLogHandler.cpp
             FileLogHandler.cpp)
