@@ -581,7 +581,7 @@ ibuf_init_at_db_start(void)
 
 	table->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
 
-	dict_table_add_to_cache(table, heap);
+	dict_table_add_to_cache(table, FALSE, heap);
 	mem_heap_free(heap);
 
 	index = dict_mem_index_create(
