@@ -187,7 +187,7 @@ UNIV_INTERN
 trx_t *
 trx_get_trx_by_xid(
 /*===============*/
-	XID*	xid);	/*!< in: X/Open XA transaction identification */
+	const XID*	xid);	/*!< in: X/Open XA transaction identification */
 /**********************************************************************//**
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE.
