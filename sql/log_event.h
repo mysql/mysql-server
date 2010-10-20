@@ -1032,7 +1032,7 @@ public:
     return (void*) my_malloc((uint)size, MYF(MY_WME|MY_FAE));
   }
 
-  static void operator delete(void *ptr, size_t size)
+  static void operator delete(void *ptr, size_t)
   {
     my_free(ptr);
   }
