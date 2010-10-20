@@ -511,7 +511,7 @@ enum open_table_mode
   Dont report errors for individual rows,
   But just report error on commit (or read ofcourse)
 */
-#define OPTION_ALLOW_BATCH              (ULL(1) << 33) // THD, intern (slave)
+#define OPTION_ALLOW_BATCH              (ULL(1) << 34) // THD, intern (slave)
 #endif
 
 /**
