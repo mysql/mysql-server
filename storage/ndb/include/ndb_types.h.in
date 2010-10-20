@@ -46,6 +46,18 @@ typedef unsigned short Uint16;
 typedef   signed int   Int32;
 typedef unsigned int   Uint32;
 
+#ifndef INT_MIN64
+#define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
+#endif // !INT_MIN64
+
+#ifndef INT_MAX64
+#define INT_MAX64       0x7FFFFFFFFFFFFFFFLL
+#endif // !INT_MAX64
+
+#ifndef UINT_MAX64
+#define UINT_MAX64      0xFFFFFFFFFFFFFFFFLL
+#endif // !UINT_MAX64
+
 typedef unsigned int UintR;
 
 #ifdef __SIZE_TYPE__
