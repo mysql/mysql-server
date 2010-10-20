@@ -253,7 +253,7 @@ trx_free(
 	ut_a(trx->insert_undo == NULL);
 	ut_a(trx->update_undo == NULL);
 
-	if (trx->undo_no_arr) {
+	if (trx->undo_no_arr != NULL) {
 		trx_undo_arr_free(trx->undo_no_arr);
 	}
 
