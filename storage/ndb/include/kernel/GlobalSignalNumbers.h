@@ -825,8 +825,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SYNC_REF                    611
 #define GSN_SYNC_CONF                   612
 
-#define GSN_613
-#define GSN_614
+#define GSN_SYNC_PATH_REQ               613
+#define GSN_SYNC_PATH_CONF              614
 #define GSN_615
 #define GSN_616
 #define GSN_617

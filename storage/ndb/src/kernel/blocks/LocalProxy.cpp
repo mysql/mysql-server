@@ -92,6 +92,9 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   addRecSignal(GSN_SYNC_REQ, &LocalProxy::execSYNC_REQ, true);
   addRecSignal(GSN_SYNC_REF, &LocalProxy::execSYNC_REF);
   addRecSignal(GSN_SYNC_CONF, &LocalProxy::execSYNC_CONF);
+
+  // GSN_SYNC_PATH_REQ
+  addRecSignal(GSN_SYNC_PATH_REQ, &LocalProxy::execSYNC_PATH_REQ, true);
 }
 
 LocalProxy::~LocalProxy()
@@ -1304,6 +1307,22 @@ LocalProxy::sendSYNC_CONF(Signal* signal, Uint32 ssId)
                JobBufferLevel(prio));
   }
   ssRelease<Ss_SYNC_REQ>(ssId);
+}
+
+void
+LocalProxy::execSYNC_PATH_REQ(Signal* signal)
+{
+  SyncPathReq* req = CAST_PTR(SyncPathReq, signal->getDataPtrSend());
+  req->count *= c_workers;
+
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    Uint32 ref = numberToRef(number(), workerInstance(i), getOwnNodeId());
+    sendSignal(ref, GSN_SYNC_PATH_REQ, signal,
+               signal->getLength(),
+               JobBufferLevel(req->prio));
+  }
 }
 
 BLOCK_FUNCTIONS(LocalProxy)
