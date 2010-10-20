@@ -900,7 +900,7 @@ tab_create_graph_create(
 					heap);
 	node->col_def->common.parent = node;
 
-	node->commit_node = commit_node_create(heap);
+	node->commit_node = trx_commit_node_create(heap);
 	node->commit_node->common.parent = node;
 
 	return(node);
@@ -937,7 +937,7 @@ ind_create_graph_create(
 					  dict_sys->sys_fields, heap);
 	node->field_def->common.parent = node;
 
-	node->commit_node = commit_node_create(heap);
+	node->commit_node = trx_commit_node_create(heap);
 	node->commit_node->common.parent = node;
 
 	return(node);
