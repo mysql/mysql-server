@@ -5742,7 +5742,7 @@ int read_line(char *buf, int size)
 	{
 	  /* It was not a multiline char, push back the characters */
 	  /* We leave first 'c', i.e. pretend it was a normal char */
-	  while (p > mb_start)
+	  while (p-1 > mb_start)
 	    my_ungetc(*--p);
 	}
       }
