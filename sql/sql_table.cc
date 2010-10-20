@@ -22,7 +22,7 @@
 #include "sql_rename.h" // do_rename
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_cache.h"                          // query_cache_*
-#include "sql_base.h"   // open_temporary_table, lock_table_names
+#include "sql_base.h"   // open_table_uncached, lock_table_names
 #include "lock.h"       // wait_if_global_read_lock
                         // start_waiting_global_read_lock,
                         // mysql_unlock_tables
@@ -2184,7 +2184,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       for (table= tables; table; table= table->next_local)
         if (table->open_type != OT_BASE_ONLY &&
-	    find_temporary_table(thd, table->db, table->table_name))
+	    find_temporary_table(thd, table))
         {
           /*
             A temporary table.
@@ -4411,9 +4411,14 @@ bool mysql_create_table_no_lock(THD *thd,
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    TABLE *table= NULL;
-    /* Open table and put in temporary table list */
-    if (!(table= open_temporary_table(thd, path, db, table_name, 1)))
+    /*
+      Open a table (skipping table cache) and add it into
+      THD::temporary_tables list.
+    */
+
+    TABLE *table= open_table_uncached(thd, path, db, table_name, TRUE);
+
+    if (!table)
     {
       (void) rm_temporary_table(create_info->db_type, path);
       goto err;
@@ -6115,7 +6120,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         *fn_ext(new_name)=0;
         if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias, 0))
           error= -1;
-        else if (Table_triggers_list::change_table_name(thd, db, table_name,
+        else if (Table_triggers_list::change_table_name(thd, db,
+                                                        alias, table_name,
                                                         new_db, new_alias))
         {
           (void) mysql_rename_table(old_db_type, new_db, new_alias, db,
@@ -6503,8 +6509,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       /* table is a normal table: Create temporary table in same directory */
       build_table_filename(path, sizeof(path) - 1, new_db, tmp_name, "",
                            FN_IS_TMP);
-      /* Open our intermediate table */
-      new_table= open_temporary_table(thd, path, new_db, tmp_name, 1);
+      /* Open our intermediate table. */
+      new_table= open_table_uncached(thd, path, new_db, tmp_name, TRUE);
     }
     if (!new_table)
       goto err_new_table_cleanup;
@@ -6752,7 +6758,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
             (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
              mysql_rename_table(save_old_db_type, db, table_name, new_db,
                                 new_alias, NO_FRM_RENAME)) &&
-            Table_triggers_list::change_table_name(thd, db, table_name,
+            Table_triggers_list::change_table_name(thd, db, alias, table_name,
                                                    new_db, new_alias)))
   {
     /* Try to get everything back. */
@@ -6844,7 +6850,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     char path[FN_REFLEN];
     TABLE *t_table;
     build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
-    t_table= open_temporary_table(thd, path, new_db, tmp_name, 0);
+    t_table= open_table_uncached(thd, path, new_db, tmp_name, FALSE);
     if (t_table)
     {
       intern_close_table(t_table);
