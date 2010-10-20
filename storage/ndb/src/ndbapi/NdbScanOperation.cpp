@@ -700,6 +700,22 @@ compare_index_row_prefix(const NdbRecord *rec,
       Uint32 maxSize= col->maxSize;
       const char *ptr1= row1 + offset;
       const char *ptr2= row2 + offset;
+
+      /*  bug#56853 */
+      char buf1[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
+      char buf2[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
+      if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
+      {
+        Uint32 len1;
+        bool ok1 = col->shrink_varchar(row1, len1, buf1);
+        assert(ok1);
+        ptr1 = buf1;
+        Uint32 len2;
+        bool ok2 = col->shrink_varchar(row2, len2, buf2);
+        assert(ok2);
+        ptr2 = buf2;
+      }
+
       void *info= col->charset_info;
       int res=
         (*col->compare_function)(info, ptr1, maxSize, ptr2, maxSize, true);
