@@ -32,8 +32,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "trx0sys.h"
 
-#define trx_roll_free_all_savepoints(s) trx_roll_savepoints_free((s), NULL)
-
 /*******************************************************************//**
 Determines if this transaction is rolling back an incomplete transaction
 in crash recovery.
@@ -236,17 +234,7 @@ trx_release_savepoint_for_mysql(
 	const char*	savepoint_name);	/*!< in: savepoint name */
 
 /*******************************************************************//**
-Frees a single savepoint struct. */
-UNIV_INTERN
-void
-trx_roll_savepoint_free(
-/*=====================*/
-	trx_t*			trx,	/*!< in: transaction handle */
-	trx_named_savept_t*	savep);	/*!< in: savepoint to free */
-
-/*******************************************************************//**
-Frees savepoint structs starting from savep, if savep == NULL then
-free all savepoints. */
+Frees savepoint structs starting from savep. */
 UNIV_INTERN
 void
 trx_roll_savepoints_free(

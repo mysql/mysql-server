@@ -671,9 +671,10 @@ trx_commit(
 /*=======*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	page_t*		update_hdr_page;
-	ib_uint64_t	lsn		= 0;
-	mtr_t		mtr;
+	mtr_t			mtr;
+	trx_named_savept_t*	savep;
+	ib_uint64_t		lsn = 0;
+	page_t*			update_hdr_page;
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
 		trx_rseg_t*	rseg;
@@ -831,8 +832,9 @@ trx_commit(
 		trx->commit_lsn = lsn;
 	}
 
-	/* Free all savepoints */
-	trx_roll_free_all_savepoints(trx);
+	/* Free all savepoints, starting from the first. */
+	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+	trx_roll_savepoints_free(trx, savep);
 
 	trx->rseg = NULL;
 	trx->undo_no = 0;
