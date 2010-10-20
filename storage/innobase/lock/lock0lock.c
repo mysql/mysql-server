@@ -5822,6 +5822,6 @@ lock_table_has_locks(
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
 #endif /* UNIV_DEBUG */

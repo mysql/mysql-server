@@ -2590,6 +2590,7 @@ row_import_tablespace_for_mysql(
 		err = DB_ERROR;
 
 		row_mysql_lock_data_dictionary(trx);
+		table = NULL;
 
 		goto funct_exit;
 	}
