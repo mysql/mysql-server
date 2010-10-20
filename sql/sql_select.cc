@@ -13367,7 +13367,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
-  uint min_length= (uint) ~0;
+  double min_cost= DBL_MAX;
   uint best= MAX_KEY;
   if (!usable_keys->is_clear_all())
   {
@@ -13375,9 +13375,10 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
     {
       if (usable_keys->is_set(nr))
       {
-        if (table->key_info[nr].key_length < min_length)
+        double cost= table->file->keyread_time(nr, 1, table->file->records());
+        if (cost < min_cost)
         {
-          min_length=table->key_info[nr].key_length;
+          min_cost= cost;
           best=nr;
         }
       }
