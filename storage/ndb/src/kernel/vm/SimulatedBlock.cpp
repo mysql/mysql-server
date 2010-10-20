@@ -44,6 +44,7 @@
 #include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/LocalRouteOrd.hpp>
 #include <signaldata/TransIdAI.hpp>
+#include <signaldata/Sync.hpp>
 #include <DebuggerNames.hpp>
 #include "LongSignal.hpp"
 
@@ -218,6 +219,8 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_SYNC_THREAD_CONF] = &SimulatedBlock::execSYNC_THREAD_CONF;
   a[GSN_LOCAL_ROUTE_ORD] = &SimulatedBlock::execLOCAL_ROUTE_ORD;
   a[GSN_SYNC_REQ] = &SimulatedBlock::execSYNC_REQ;
+  a[GSN_SYNC_PATH_REQ] = &SimulatedBlock::execSYNC_PATH_REQ;
+  a[GSN_SYNC_PATH_CONF] = &SimulatedBlock::execSYNC_PATH_CONF;
 }
 
 void
@@ -4141,6 +4144,100 @@ SimulatedBlock::execSYNC_REQ(Signal* signal)
   sendSignal(ref, GSN_SYNC_CONF, signal, signal->getLength(),
              JobBufferLevel(prio));
 }
+
+void
+SimulatedBlock::synchronize_path(Signal * signal,
+                                 const Uint32 blocks[],
+                                 const Callback & cb,
+                                 JobBufferLevel prio)
+{
+  ljam();
+
+  // reuse SyncThreadRecord
+  Ptr<SyncThreadRecord> ptr;
+  ndbrequire(c_syncThreadPool.seize(ptr));
+  ptr.p->m_cnt = 0; // with count of 0
+  ptr.p->m_callback = cb;
+
+  SyncPathReq* req = CAST_PTR(SyncPathReq, signal->getDataPtrSend());
+  req->senderData = ptr.i;
+  req->prio = Uint32(prio);
+  req->count = 1;
+  if (blocks[0] == 0)
+  {
+    ljam();
+    ndbrequire(false); // TODO
+  }
+  else
+  {
+    ljam();
+    Uint32 len = 0;
+    for (; blocks[len+1] != 0; len++)
+    {
+      req->path[len] = blocks[len+1];
+    }
+    req->pathlen = 1 + len;
+    req->path[len] = reference();
+    sendSignal(numberToRef(blocks[0], getOwnNodeId()),
+               GSN_SYNC_PATH_REQ, signal,
+               SyncPathReq::SignalLength + (1 + len), prio);
+  }
+}
+
+void
+SimulatedBlock::execSYNC_PATH_REQ(Signal* signal)
+{
+  ljamEntry();
+  SyncPathReq * req = CAST_PTR(SyncPathReq, signal->getDataPtrSend());
+  if (req->pathlen == 1)
+  {
+    ljam();
+    SyncPathReq copy = *req;
+    SyncPathConf* conf = CAST_PTR(SyncPathConf, signal->getDataPtrSend());
+    conf->senderData = copy.senderData;
+    conf->count = copy.count;
+    sendSignal(copy.path[0], GSN_SYNC_PATH_CONF, signal,
+               SyncPathConf::SignalLength, JobBufferLevel(copy.prio));
+  }
+  else
+  {
+    ljam();
+    Uint32 ref = numberToRef(req->path[0], getOwnNodeId());
+    req->pathlen--;
+    memmove(req->path, req->path + 1, 4 * req->pathlen);
+    sendSignal(ref, GSN_SYNC_PATH_REQ, signal,
+               SyncPathReq::SignalLength + (1 + req->pathlen),
+               JobBufferLevel(req->prio));
+  }
+}
+
+void
+SimulatedBlock::execSYNC_PATH_CONF(Signal* signal)
+{
+  ljamEntry();
+  SyncPathConf conf = * CAST_CONSTPTR(SyncPathConf, signal->getDataPtr());
+  Ptr<SyncThreadRecord> ptr;
+
+  c_syncThreadPool.getPtr(ptr, conf.senderData);
+
+  if (ptr.p->m_cnt == 0)
+  {
+    ljam();
+    ptr.p->m_cnt = conf.count;
+  }
+
+  if (ptr.p->m_cnt == 1)
+  {
+    ljam();
+    Callback copy = ptr.p->m_callback;
+    c_syncThreadPool.release(ptr);
+    execute(signal, copy, 0);
+    return;
+  }
+
+  ptr.p->m_cnt --;
+}
+
 
 bool
 SimulatedBlock::checkNodeFailSequence(Signal* signal)

@@ -587,6 +587,8 @@ protected:
     }
   };
   SsPool<Ss_SYNC_REQ> c_ss_SYNC_REQ;
+
+  void execSYNC_PATH_REQ(Signal*);
 };
 
 #endif

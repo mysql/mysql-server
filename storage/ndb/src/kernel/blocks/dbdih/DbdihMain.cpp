@@ -9986,8 +9986,8 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
   Callback cb;
   cb.m_callbackData = 10;
   cb.m_callbackFunction = safe_cast(&Dbdih::execGCP_TCFINISHED_sync_conf);
-  Uint32 blocks[] = { DBLQH, 0 };
-  synchronize_threads_for_blocks(signal, blocks, cb);
+  Uint32 path[] = { DBLQH, SUMA, 0 };
+  synchronize_path(signal, path, cb);
 }//Dbdih::execGCP_TCFINISHED()
 
 void
