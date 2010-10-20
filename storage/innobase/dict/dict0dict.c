@@ -363,7 +363,6 @@ dict_table_close(
 	--table->n_ref_count;
 
 	ut_ad(dict_lru_validate());
-	ut_a(table->n_rec_locks == 0 || table->n_ref_count > 0);
 
 #ifdef UNIV_DEBUG
 	if (table->can_be_evicted) {
