@@ -849,7 +849,6 @@ srv_table_reserve_slot(
 
 /*********************************************************************//**
 Suspends the calling thread to wait for the event in its thread slot.
-NOTE! The server mutex has to be reserved by the caller!
 @return	event for the calling thread to wait */
 static
 os_event_t
@@ -2863,6 +2862,7 @@ srv_purge_coordinator_thread(
 	srv_sys_mutex_exit();
 
 	for (;;) {
+		ulint		n_pages_purged;
 		ib_time_t	last_time = ut_time();
 		ulint		count = srv_sys->activity_count;
 		ulint		batch_size = srv_purge_batch_size;
@@ -2875,7 +2875,6 @@ srv_purge_coordinator_thread(
 		/* If number of threads is 1 then we let trx_purge() do
 		the actual purge for us. */
 		if (srv_n_purge_threads == 1) {
-			ulint	n_pages_purged;
 
 			do {
 				n_pages_purged = trx_purge(0, batch_size);
@@ -2901,9 +2900,8 @@ srv_purge_coordinator_thread(
 
 		} else {
 			do {
-				ulint	n_purged;
 
-				n_purged = trx_purge(
+				n_pages_purged = trx_purge(
 					srv_n_purge_threads, batch_size);
 
 				/* During shutdown the worker threads can
@@ -2933,7 +2931,7 @@ srv_purge_coordinator_thread(
 				} else {
 					sleep_ms = 1000000;
 
-					if (n_purged > 0) {
+					if (n_pages_purged > 0) {
 						sleep_ms = 100000;
 					}
 
@@ -2951,6 +2949,14 @@ srv_purge_coordinator_thread(
 				 && srv_shutdown_state == SRV_SHUTDOWN_NONE
 				 && srv_fast_shutdown == 0);
 		}
+
+		/* Check if Slow shutdown and no more pages to purge. */
+		if (srv_shutdown_state != 0
+		    && srv_fast_shutdown == 0
+		    && n_pages_purged == 0) {
+
+			break;
+		}
 	}
 
 	/* The task queue should always be empty, independent of fast
@@ -2965,9 +2971,6 @@ srv_purge_coordinator_thread(
 	/* Decrement the active count. */
 	srv_suspend_thread();
 
-	/* Free the thread local memory. */
-	thr_local_free(os_thread_get_curr_id());
-
 	srv_sys_mutex_enter();
 
 	/* Free the slot for reuse. */
@@ -2975,6 +2978,9 @@ srv_purge_coordinator_thread(
 	slot->in_use = FALSE;
 
 	srv_sys_mutex_exit();
+
+	/* Free the thread local memory. */
+	thr_local_free(os_thread_get_curr_id());
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Purge coordinator exiting, id %lu\n",

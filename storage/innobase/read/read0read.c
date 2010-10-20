@@ -170,7 +170,8 @@ read_view_list_validate(void)
 	const read_view_t*	view;
 	const read_view_t*	prev_view = NULL;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED)
+	      || rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
 
 	for (view = UT_LIST_GET_FIRST(trx_sys->view_list);
 	     view != NULL;
