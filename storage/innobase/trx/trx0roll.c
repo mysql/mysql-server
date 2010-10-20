@@ -867,7 +867,7 @@ trx_undo_arr_get_biggest(
 
 /***********************************************************************//**
 Tries truncate the undo logs. */
-UNIV_INTERN
+static
 void
 trx_roll_try_truncate(
 /*==================*/
