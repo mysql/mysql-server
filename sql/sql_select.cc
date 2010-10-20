@@ -1821,6 +1821,17 @@ JOIN::save_join_tab()
 }
 
 
+static void
+disable_sorted_access(JOIN_TAB* join_tab)
+{
+  join_tab->sorted= 0;
+  if (join_tab->select && join_tab->select->quick)
+  {
+    join_tab->select->quick->sorted= 0;
+  }
+}
+
+
 /**
   Exec select.
 
@@ -1990,7 +2001,7 @@ JOIN::exec()
     DBUG_PRINT("info", ("%s", thd->proc_info));
     if (!curr_join->sort_and_group &&
         curr_join->const_tables != curr_join->tables)
-      curr_join->join_tab[curr_join->const_tables].sorted= 0;
+      disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
     if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
     {
       error= tmp_error;
@@ -2154,7 +2165,7 @@ JOIN::exec()
       curr_join->group_list= 0;
       if (!curr_join->sort_and_group &&
           curr_join->const_tables != curr_join->tables)
-        curr_join->join_tab[curr_join->const_tables].sorted= 0;
+        disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
       if (setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
@@ -6738,7 +6749,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
   uint i;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool ordered_set= 0;
-  bool sorted= 1;
+  bool sorted= (join->order || join->group_list);
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -12036,7 +12047,7 @@ join_read_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
   {
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+    table->file->ha_index_init(tab->ref.key, 0);
   }
   if (cmp_buffer_with_ref(tab) ||
       (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
@@ -12365,7 +12376,7 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index, 1);
+    table->file->ha_index_init(tab->index, tab->sorted);
   if ((error= tab->table->file->index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
@@ -12389,7 +12400,7 @@ join_ft_read_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, 1);
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
 #if NOT_USED_YET
   /* as ft-key doesn't use store_key's, see also FT_SELECT::init() */
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))

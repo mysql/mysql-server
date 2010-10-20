@@ -3138,7 +3138,7 @@ scan_count
 pruned_scan_count
 1
 sorted_scan_count
-2
+1
 pushed_queries_defined
 3
 pushed_queries_dropped
