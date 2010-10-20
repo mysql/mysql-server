@@ -1062,6 +1062,24 @@ bool ha_ndbcluster::get_error_message(int error,
 }
 
 
+/*
+  field_used_length() returns the number of bytes actually used to
+  store the data of the field. So for a varstring it includes both
+  length byte(s) and string data, and anything after data_length()
+  bytes are unused.
+*/
+static
+uint32 field_used_length(const Field* field)
+{
+ if (field->type() == MYSQL_TYPE_VARCHAR)
+ {
+   const Field_varstring* f = static_cast<const Field_varstring*>(field);
+   return f->length_bytes + const_cast<Field_varstring*>(f)->data_length();
+                            // ^ no 'data_length() const'
+ }
+ return field->pack_length();
+}
+
 
 /**
   Check if MySQL field type forces var part in ndb storage
@@ -1679,7 +1697,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
               
               value= value >> 1;
             }
-            Uint32 defaultLen = field->used_length();
+            Uint32 defaultLen = field_used_length(field);
             defaultLen = ((defaultLen + 3) & ~(Uint32)0x7);
             defaults_aligned= (0 == memcmp(ndb_default, 
                                            out, 
@@ -4984,7 +5002,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
         if (!field->is_null())
         {
           /* Only copy actually used bytes of varstrings. */
-          uint32 actual_length= field->used_length();
+          uint32 actual_length= field_used_length(field);
           uchar *src_ptr= field->ptr;
           field->move_field_offset(dst_offset - src_offset);
           field->set_notnull();
@@ -5055,7 +5073,7 @@ static void get_default_value(void *def_val, Field *field)
         if (!field->is_null())
         {
           /* Only copy actually used bytes of varstrings. */
-          uint32 actual_length= field->used_length();
+          uint32 actual_length= field_used_length(field);
           uchar *src_ptr= field->ptr;
           field->set_notnull();
           memcpy(def_val, src_ptr, actual_length);
@@ -6912,7 +6930,7 @@ static int create_ndb_column(THD *thd,
             /* For bit columns, default length is rounded up to 
                nearest word, ensuring all data sent
             */
-            Uint32 defaultLen = field->used_length();
+            Uint32 defaultLen = field_used_length(field);
             if(field->type() == MYSQL_TYPE_BIT)
               defaultLen = ((defaultLen + 3) /4) * 4;
             col.setDefaultValue(buf, defaultLen);

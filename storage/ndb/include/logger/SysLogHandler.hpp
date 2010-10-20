@@ -20,9 +20,8 @@
 #define SYSLOGHANDLER_H
 
 #include "LogHandler.hpp"
-#ifndef NDB_WIN32
+
 #include <syslog.h>
-#endif
 
 /**
  * Logs messages to syslog. The default identity is 'NDB'. 
