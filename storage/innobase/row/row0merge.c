@@ -2128,7 +2128,7 @@ row_merge_drop_temp_indexes(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_table_get_on_id_low(table_id);
+		table = dict_table_open_on_id(table_id, TRUE);
 
 		if (table) {
 			dict_index_t*	index;
@@ -2144,11 +2144,12 @@ row_merge_drop_temp_indexes(void)
 					trx_commit_for_mysql(trx);
 				}
 			}
+
+			dict_table_close(table, TRUE);
 		}
 
 		mtr_start(&mtr);
-		btr_pcur_restore_position(BTR_SEARCH_LEAF,
-					  &pcur, &mtr);
+		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
 	}
 
 	btr_pcur_close(&pcur);
@@ -2547,7 +2548,7 @@ row_merge_drop_table(
 	dict_table_t*	table)		/*!< in: table to drop */
 {
 	/* There must be no open transactions on the table. */
-	ut_a(table->n_mysql_handles_opened == 0);
+	ut_a(table->n_ref_count == 0);
 
 	return(row_drop_table_for_mysql(table->name, trx, FALSE));
 }

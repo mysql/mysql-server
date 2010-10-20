@@ -237,9 +237,12 @@ row_upd_check_references_constraints(
 				entry, index, node->update,
 				foreign->n_fields))) {
 
+			dict_table_t*	ref_table = NULL;
+
 			if (foreign->foreign_table == NULL) {
-				dict_table_get(foreign->foreign_table_name,
-					       FALSE);
+
+				ref_table = dict_table_open_on_name(
+					foreign->foreign_table_name, FALSE);
 			}
 
 			if (foreign->foreign_table) {
@@ -269,6 +272,10 @@ row_upd_check_references_constraints(
 				 ->n_foreign_key_checks_running)--;
 
 				mutex_exit(&(dict_sys->mutex));
+			}
+
+			if (ref_table != NULL) {
+				dict_table_close(ref_table, FALSE);
 			}
 
 			if (err != DB_SUCCESS) {

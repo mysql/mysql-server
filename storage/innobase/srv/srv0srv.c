@@ -2668,6 +2668,8 @@ srv_master_thread(
 	ulint		i;
 	ibool		max_modified_ratio_exceeded = FALSE;
 	ib_time_t	last_print_time;
+	ulint		n_tables_evicted = 0;
+	ulint		last_table_lru_flush_time = ut_time();
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2694,6 +2696,26 @@ loop:
 	/*****************************************************************/
 	/* ---- When there is database activity by users, we cycle in this
 	loop */
+
+	/* Try and evict some tables from the table LRU list. */
+	/* Note: The 60 seconds and 50% below are an arbitrary choice. */
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_NONE
+	    && ut_time() - last_table_lru_flush_time > 60) {
+
+		rw_lock_x_lock(&dict_operation_lock);
+
+		dict_mutex_enter_for_mysql();
+
+		n_tables_evicted = dict_make_room_in_cache(
+			innobase_get_table_cache_size(), 50);
+
+		dict_mutex_exit_for_mysql();
+
+		rw_lock_x_unlock(&dict_operation_lock);
+
+		last_table_lru_flush_time = ut_time();
+	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -2963,6 +2985,24 @@ background_loop:
 		srv_master_do_purge();
 	}
 
+	/* Try and evict as many tables as possible from the table LRU list. */
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+
+		rw_lock_x_lock(&dict_operation_lock);
+
+		dict_mutex_enter_for_mysql();
+
+		n_tables_evicted = dict_make_room_in_cache(
+			innobase_get_table_cache_size(), 100);
+
+		dict_mutex_exit_for_mysql();
+
+		rw_lock_x_unlock(&dict_operation_lock);
+
+		last_table_lru_flush_time = ut_time();
+	}
+
 	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
@@ -3081,9 +3121,12 @@ flush_loop:
 
 			goto background_loop;
 		}
-	} else if (n_tables_to_drop
-		   + n_pages_purged + n_bytes_merged + n_pages_flushed
-		   + n_bytes_archived != 0) {
+	} else if (n_tables_to_drop > 0
+		   || n_pages_purged > 0
+		   || n_bytes_merged > 0
+		   || n_pages_flushed > 0
+		   || n_tables_evicted > 0
+		   || n_bytes_archived > 0) {
 		/* In a 'slow' shutdown we run purge and the insert buffer
 		merge to completion */
 

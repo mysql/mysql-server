@@ -255,7 +255,8 @@ static
 void
 row_undo_ins_parse_undo_rec(
 /*========================*/
-	undo_node_t*	node)	/*!< in/out: row undo node */
+	undo_node_t*	node,		/*!< in/out: row undo node */
+	ibool		dict_locked)	/*!< in: TRUE if own dict_sys->mutex */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -273,18 +274,27 @@ row_undo_ins_parse_undo_rec(
 	node->rec_type = type;
 
 	node->update = NULL;
-	node->table = dict_table_get_on_id(table_id, node->trx);
+	node->table = dict_table_open_on_id(table_id, dict_locked);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (UNIV_UNLIKELY(node->table == NULL)) {
 	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
+		dict_table_close(node->table, dict_locked);
 		node->table = NULL;
 	} else {
 		clust_index = dict_table_get_first_index(node->table);
 
 		if (clust_index != NULL) {
-			ptr = trx_undo_rec_get_row_ref(
+			trx_undo_rec_get_row_ref(
 				ptr, clust_index, &node->ref, node->heap);
+
+			if (!row_undo_search_clust_to_pcur(node)) {
+
+				dict_table_close(node->table, dict_locked);
+
+				node->table = NULL;
+			}
+
 		} else {
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: table ");
@@ -292,6 +302,8 @@ row_undo_ins_parse_undo_rec(
 				      node->table->name);
 			fprintf(stderr, " has no indexes, "
 				"ignoring the table\n");
+
+			dict_table_close(node->table, dict_locked);
 
 			node->table = NULL;
 		}
@@ -311,12 +323,17 @@ row_undo_ins(
 /*=========*/
 	undo_node_t*	node)	/*!< in: row undo node */
 {
+	ulint		err;
+	ibool		dict_locked;
+
 	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
 
-	row_undo_ins_parse_undo_rec(node);
+	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
 
-	if (!node->table || !row_undo_search_clust_to_pcur(node)) {
+	row_undo_ins_parse_undo_rec(node, dict_locked);
+
+	if (node->table == NULL) {
 		trx_undo_rec_release(node->trx, node->undo_no);
 
 		return(DB_SUCCESS);
@@ -330,7 +347,6 @@ row_undo_ins(
 
 	while (node->index != NULL) {
 		dtuple_t*	entry;
-		ulint		err;
 
 		entry = row_build_index_entry(node->row, node->ext,
 					      node->index, node->heap);
@@ -347,9 +363,14 @@ row_undo_ins(
 			ut_a(trx_is_recv(node->trx));
 		} else {
 			log_free_check();
+
 			err = row_undo_ins_remove_sec(node->index, entry);
 
 			if (err != DB_SUCCESS) {
+
+				dict_table_close(node->table, dict_locked);
+
+				node->table = NULL;
 
 				return(err);
 			}
@@ -359,5 +380,12 @@ row_undo_ins(
 	}
 
 	log_free_check();
-	return(row_undo_ins_remove_clust_rec(node));
+
+	err = row_undo_ins_remove_clust_rec(node);
+
+	dict_table_close(node->table, dict_locked);
+
+	node->table = NULL;
+
+	return(err);
 }

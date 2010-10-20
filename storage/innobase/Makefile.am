@@ -66,6 +66,7 @@ noinst_HEADERS=		\
 			include/dict0load.ic	\
 			include/dict0mem.h	\
 			include/dict0mem.ic	\
+			include/dict0priv.ic	\
 			include/dict0types.h	\
 			include/dyn0dyn.h	\
 			include/dyn0dyn.ic	\
