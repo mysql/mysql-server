@@ -719,7 +719,10 @@ THD::THD()
   /* Variables with default values */
   proc_info="login";
   where= THD::DEFAULT_WHERE;
-  unmasked_server_id = server_id = ::server_id;
+  server_id = ::server_id;
+#ifndef MCP_BUG52305
+  unmasked_server_id = server_id;
+#endif
   slave_net = 0;
   command=COM_CONNECT;
   *scramble= '\0';

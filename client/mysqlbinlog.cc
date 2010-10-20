@@ -104,8 +104,10 @@ static ulonglong rec_count= 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
 static const char* dirname_for_local_load= 0;
+#ifndef MCP_BUG52305
 uint opt_server_id_bits = 0;
 ulong opt_server_id_mask = 0;
+#endif
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -1157,12 +1159,14 @@ that may lead to an endless loop.",
    "Used to reserve file descriptors for use by this program.",
    &open_files_limit, &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+#ifndef MCP_BUG52305
   {"server-id-bits", 255,
    "Set number of significant bits in ServerId",
    (uchar**) &opt_server_id_bits,
    (uchar**) &opt_server_id_bits,
    /* Default + Max 32 bits, minimum 7 bits */
    0, GET_UINT, REQUIRED_ARG, 32, 7, 32, 0, 0, 0},
+#endif
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2061,8 +2065,10 @@ int main(int argc, char** argv)
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
 
+#ifndef MCP_BUG52305
   opt_server_id_mask = (opt_server_id_bits == 32)?
     ~ ulong(0) : (1 << opt_server_id_bits) -1;
+#endif
 
   my_set_max_open_files(open_files_limit);
 
