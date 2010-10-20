@@ -65,7 +65,9 @@
 
 #include "events.h"
 
+#ifndef MCP_BUG52305
 extern uint opt_server_id_bits;
+#endif
 
 extern CHARSET_INFO *character_set_filesystem;
 
@@ -697,9 +699,11 @@ static sys_var_thd_bool
 sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
 			      &SV::engine_condition_pushdown);
 
+#ifndef MCP_BUG52305
 static sys_var_const
 sys_server_id_bits(&vars, "server_id_bits", OPT_GLOBAL, SHOW_INT, 
                    (uchar*) &opt_server_id_bits);
+#endif
 
 /* Time/date/datetime formats */
 

@@ -492,8 +492,10 @@ handlerton *partition_hton;
 ulong opt_ndb_wait_setup;
 int(*ndb_wait_setup_func)(ulong)= 0;
 #endif
+#ifndef MCP_BUG52305
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
+#endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
@@ -3950,8 +3952,6 @@ with --log-bin instead.");
   DBUG_ASSERT((uint)global_system_variables.binlog_format <=
               array_elements(binlog_format_names)-1);
 
-  opt_server_id_mask = ~ulong(0);
-
 #ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
   {
@@ -3961,6 +3961,11 @@ using --replicate-same-server-id in conjunction with \
 server.");
     unireg_abort(1);
   }
+#endif
+
+#ifndef MCP_BUG52305
+  opt_server_id_mask = ~ulong(0);
+#ifdef HAVE_REPLICATION
   opt_server_id_mask = (opt_server_id_bits == 32)?
     ~ ulong(0) : (1 << opt_server_id_bits) -1;
   if (server_id != (server_id & opt_server_id_mask))
@@ -3970,6 +3975,7 @@ server-id configured is too large to represent with \
 server-id-bits configured.");
     unireg_abort(1);
   }
+#endif
 #endif
 
   if (opt_bin_log)
@@ -6266,12 +6272,14 @@ each time the SQL thread starts.",
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    &myisam_recover_options_str, &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef MCP_BUG52305
   {"server-id-bits", 255,
    "Set number of significant bits in ServerId",
    &opt_server_id_bits,
    &opt_server_id_bits,
    /* Default + Max 32 bits, minimum 7 bits */
    0, GET_UINT, REQUIRED_ARG, 32, 7, 32, 0, 0, 0},
+#endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    &global_system_variables.new_mode,
    &max_system_variables.new_mode,
@@ -6438,8 +6446,12 @@ thread is in the relay logs.",
    &opt_secure_file_priv, &opt_secure_file_priv, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
+#ifndef MCP_BUG52305
    "Uniquely identifies the server instance in the community of replication partners.  "
    "Max value is limited by opt-server-id-bits if set.",
+#else
+   "Uniquely identifies the server instance in the community of replication partners.",
+#endif
    &server_id, &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, UINT_MAX32,
    0, 0, 0},
   {"set-variable", 'O',
