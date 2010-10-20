@@ -207,6 +207,13 @@ public:
   void synchronize_threads_for_blocks(Signal*, const Uint32 blocks[],
                                       const Callback&, JobBufferLevel = JBB);
   
+  /**
+   * This method make sure that the path specified in blocks[]
+   *   will be traversed before returning
+   */
+  void synchronize_path(Signal*, const Uint32 blocks[],
+                        const Callback&, JobBufferLevel = JBB);
+
 private:
   struct SyncThreadRecord
   {
@@ -219,6 +226,9 @@ private:
   void execSYNC_THREAD_CONF(Signal*);
 
   void execSYNC_REQ(Signal*);
+
+  void execSYNC_PATH_REQ(Signal*);
+  void execSYNC_PATH_CONF(Signal*);
 public:
   virtual const char* get_filename(Uint32 fd) const { return "";}
 protected:
