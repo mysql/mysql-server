@@ -336,15 +336,15 @@ trx_list_insert_ordered(
 
 	ut_a(srv_is_being_started);
 
-	trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx2 != NULL;
+	     trx2 = UT_LIST_GET_NEXT(trx_list, trx2)) {
 
-	while (trx2 != NULL) {
 		if (trx->id >= trx2->id) {
 
 			ut_ad(trx->id > trx2->id);
 			break;
 		}
-		trx2 = UT_LIST_GET_NEXT(trx_list, trx2);
 	}
 
 	if (trx2 != NULL) {
