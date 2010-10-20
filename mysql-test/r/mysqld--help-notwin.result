@@ -915,7 +915,6 @@ slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
-socket /tmp/mysql.sock
 sort-buffer-size 2097152
 sporadic-binlog-dump-fail FALSE
 sql-mode 
