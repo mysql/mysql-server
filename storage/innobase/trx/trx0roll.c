@@ -710,7 +710,7 @@ trx_rollback_or_clean_all_recovered(
 /*******************************************************************//**
 Creates an undo number array.
 @return	own: undo number array */
-UNIV_INTERN
+static
 trx_undo_arr_t*
 trx_undo_arr_create(
 /*================*/

@@ -51,13 +51,6 @@ trx_savept_take(
 /*============*/
 	trx_t*	trx);	/*!< in: transaction */
 /*******************************************************************//**
-Creates an undo number array. */
-UNIV_INTERN
-trx_undo_arr_t*
-trx_undo_arr_create(
-/*================*/
-	ulint	n_purge_threads);	/*!< in: number of purge threads */
-/*******************************************************************//**
 Frees an undo number array. */
 UNIV_INTERN
 void
