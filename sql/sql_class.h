@@ -46,7 +46,6 @@ class Relay_log_info;
 
 class Query_log_event;
 class Load_log_event;
-class Slave_log_event;
 class sp_rcontext;
 class sp_cache;
 class Parser_state;
