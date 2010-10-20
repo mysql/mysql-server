@@ -1474,7 +1474,7 @@ UNIV_INTERN
 trx_t*
 trx_get_trx_by_xid(
 /*===============*/
-	XID*	xid)	/*!< in: X/Open XA transaction identification */
+	const XID*	xid)	/*!< in: X/Open XA transaction identification */
 {
 	trx_t*	trx;
 
