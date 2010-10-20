@@ -321,7 +321,7 @@ buf_flush_insert_sorted_into_flush_list(
 
 	buf_flush_list_mutex_enter(buf_pool);
 
-	/* The field in_LRU_list is protected by buf_pool_mutex, which
+	/* The field in_LRU_list is protected by buf_pool->mutex, which
 	we are not holding.  However, while a block is in the flush
 	list, it is dirty and cannot be discarded, not from the
 	page_hash or from the LRU list.  At most, the uncompressed
@@ -1061,7 +1061,7 @@ buf_flush_write_block_low(
 
 	ut_ad(buf_page_in_file(bpage));
 
-	/* We are not holding buf_pool_mutex or block_mutex here.
+	/* We are not holding buf_pool->mutex or block_mutex here.
 	Nevertheless, it is safe to access bpage, because it is
 	io_fixed and oldest_modification != 0.  Thus, it cannot be
 	relocated in the buffer pool or removed from flush_list or
@@ -1135,7 +1135,7 @@ buf_flush_write_block_low(
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /********************************************************************//**
 Writes a flushable page asynchronously from the buffer pool to a file.
-NOTE: buf_pool_mutex and block->mutex must be held upon entering this
+NOTE: buf_pool->mutex and block->mutex must be held upon entering this
 function, and they will be released by this function after flushing.
 This is loosely based on buf_flush_batch() and buf_flush_page().
 @return TRUE if the page was flushed and the mutexes released */
@@ -2193,12 +2193,12 @@ buf_flush_validate_low(
 
 		ut_ad(bpage->in_flush_list);
 
-		/* A page in flush_list can be in BUF_BLOCK_REMOVE_HASH
-		state. This happens when a page is in the middle of
-		being relocated. In that case the original descriptor
-		can have this state and still be in the flush list
-		waiting to acquire the flush_list_mutex to complete
-		the relocation. */
+		/* A page in buf_pool->flush_list can be in
+		BUF_BLOCK_REMOVE_HASH state. This happens when a page
+		is in the middle of being relocated. In that case the
+		original descriptor can have this state and still be
+		in the flush list waiting to acquire the
+		buf_pool->flush_list_mutex to complete the relocation. */
 		ut_a(buf_page_in_file(bpage)
 		     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 		ut_a(om > 0);

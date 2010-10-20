@@ -356,8 +356,8 @@ scan_again:
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
 		/* bpage->space and bpage->io_fix are protected by
-		buf_pool_mutex and block_mutex.  It is safe to check
-		them while holding buf_pool_mutex only. */
+		buf_pool->mutex and block_mutex.  It is safe to check
+		them while holding buf_pool->mutex only. */
 
 		if (buf_page_get_space(bpage) != id) {
 			/* Skip this block, as it does not belong to
@@ -403,7 +403,7 @@ scan_again:
 						/* Descriptors of uncompressed
 						blocks will not be relocated,
 						because we are holding the
-						buf_pool_mutex. */
+						buf_pool->mutex. */
 						break;
 					case BUF_BLOCK_ZIP_PAGE:
 					case BUF_BLOCK_ZIP_DIRTY:
@@ -1443,10 +1443,10 @@ Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
 NOTE: If this function returns BUF_LRU_FREED, it will temporarily
-release buf_pool_mutex.  Furthermore, the page frame will no longer be
+release buf_pool->mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
-The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
+The caller must hold buf_pool->mutex and buf_page_get_mutex(bpage) and
 release these two mutexes after the call.  No other
 buf_page_get_mutex() may be held when calling this function.
 @return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
