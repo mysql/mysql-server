@@ -656,12 +656,14 @@ srv_que_task_enqueue_low(
 	que_thr_t*	thr);	/*!< in: query thread */
 
 /**********************************************************************//**
-Check whether any background thread is active.
-@return FALSE if all are are suspended or have exited. */
+Check whether any background thread is active. If so, return the thread
+type.
+@return ULINT_UNDEFINED if all are are suspended or have exited, thread
+type if any are still active. */
 UNIV_INTERN
-ibool
-srv_is_any_background_thread_active(void);
-/*======================================*/
+ulint
+srv_get_active_thread_type(void);
+/*============================*/
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{

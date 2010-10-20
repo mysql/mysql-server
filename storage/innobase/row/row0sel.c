@@ -1182,6 +1182,9 @@ row_sel_try_search_shortcut(
 	sel_node_t*	node,	/*!< in: select node for a consistent read */
 	plan_t*		plan,	/*!< in: plan for a unique search in clustered
 				index */
+	ibool		search_latch_locked,
+				/*!< in: whether the search holds
+				btr_search_latch */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	dict_index_t*	index;
@@ -1198,10 +1201,12 @@ row_sel_try_search_shortcut(
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	if (search_latch_locked) {
+		ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	}
 #endif /* UNIV_SYNC_DEBUG */
 
-	row_sel_open_pcur(plan, TRUE, mtr);
+	row_sel_open_pcur(plan, search_latch_locked, mtr);
 
 	rec = btr_pcur_get_rec(&(plan->pcur));
 
@@ -1369,9 +1374,11 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			rw_lock_s_lock(&btr_search_latch);
+			if (!btr_search_fully_disabled) {
+				rw_lock_s_lock(&btr_search_latch);
 
-			search_latch_locked = TRUE;
+				search_latch_locked = TRUE;
+			}
 		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
@@ -1385,7 +1392,9 @@ table_loop:
 			rw_lock_s_lock(&btr_search_latch);
 		}
 
-		found_flag = row_sel_try_search_shortcut(node, plan, &mtr);
+		found_flag = row_sel_try_search_shortcut(node, plan,
+							 search_latch_locked,
+							 &mtr);
 
 		if (found_flag == SEL_FOUND) {
 
@@ -3269,7 +3278,7 @@ row_sel_push_cache_row_for_mysql(
 Tries to do a shortcut to fetch a clustered index record with a unique key,
 using the hash index if possible (not always). We assume that the search
 mode is PAGE_CUR_GE, it is a consistent read, there is a read view in trx,
-btr search latch has been locked in S-mode.
+btr search latch has been locked in S-mode if AHI is enabled.
 @return	SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
 static
 ulint
@@ -3293,7 +3302,9 @@ row_sel_try_search_shortcut_for_mysql(
 #ifndef UNIV_SEARCH_DEBUG
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
 				   BTR_SEARCH_LEAF, pcur,
-				   RW_S_LATCH,
+				   (trx->has_search_latch)
+				    ? RW_S_LATCH
+				    : 0,
 				   mtr);
 #else /* UNIV_SEARCH_DEBUG */
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
@@ -3638,7 +3649,8 @@ row_search_for_mysql(
 			hash index semaphore! */
 
 #ifndef UNIV_SEARCH_DEBUG
-			if (!trx->has_search_latch) {
+			if (!trx->has_search_latch
+			    &&(!btr_search_fully_disabled)) {
 				rw_lock_s_lock(&btr_search_latch);
 				trx->has_search_latch = TRUE;
 			}
