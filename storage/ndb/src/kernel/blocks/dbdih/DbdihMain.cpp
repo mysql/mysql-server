@@ -13585,6 +13585,55 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   return false;
 }//Dbdih::findStartGci()
 
+static
+Uint32
+count_db_nodes(ndb_mgm_configuration_iterator * iter)
+{
+  Uint32 cnt = 0;
+  for (ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter))
+  {
+    jam();
+    Uint32 nodeId = 0;
+    Uint32 type = ~Uint32(0);
+    if (ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &nodeId) == 0 &&
+        ndb_mgm_get_int_parameter(iter,CFG_TYPE_OF_SECTION, &type) == 0 &&
+        type == NodeInfo::DB)
+    {
+      cnt++;
+    }
+  }
+  return cnt;
+}
+
+/**
+ * Compute max time it can take to "resolve" cascading node-failures
+ *   given hb-interval, arbit timeout and #db-nodes
+ */
+static
+Uint32
+compute_max_failure_time(const ndb_mgm_configuration_iterator * p,
+                         ndb_mgm_configuration_iterator * cluster)
+{
+  Uint32 dbnodes = count_db_nodes(cluster);
+
+  Uint32 hbDBDB = 1500;
+  Uint32 arbitTimeout = 1000;
+  ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
+  ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
+  
+  /*
+   * Max time for 1 node failure is
+   */
+  Uint32 max_time_one_failure = arbitTimeout + 4 * hbDBDB;
+  
+  /**
+   * And worst case...this can be cascading failure with all but self
+   */
+  Uint32 max_time_total_failure = (dbnodes - 1) * max_time_one_failure;
+
+  return max_time_total_failure;
+}
+
 void Dbdih::initCommonData()
 {
   c_blockCommit = false;
@@ -13661,19 +13710,25 @@ void Dbdih::initCommonData()
 	      "Only up to four replicas are supported. Check NoOfReplicas.");
   }
 
+  Uint32 max_failure_time = compute_max_failure_time
+    (p, m_ctx.m_config.getClusterConfigIterator());
+  
   bzero(&m_gcp_save, sizeof(m_gcp_save));
   bzero(&m_micro_gcp, sizeof(m_micro_gcp));
   {
-    Uint32 tmp = 2000;
-    ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &tmp);
-    tmp = tmp > 60000 ? 60000 : (tmp < 10 ? 10 : tmp);
-    m_gcp_save.m_master.m_time_between_gcp = tmp;
-
+    { // Set time-between global checkpoint
+      Uint32 tmp = 2000;
+      ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &tmp);
+      tmp = tmp > 60000 ? 60000 : (tmp < 10 ? 10 : tmp);
+      m_gcp_save.m_master.m_time_between_gcp = tmp;
+    }
+    
+    Uint32 tmp = 0;
     if (ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_INTERVAL, &tmp) == 0 &&
         tmp)
     {
       /**
-       * A value is set for micro gcp...run new protocol when applicable
+       * Set time-between epochs
        */
       if (tmp > m_gcp_save.m_master.m_time_between_gcp)
         tmp = m_gcp_save.m_master.m_time_between_gcp;
@@ -13682,24 +13737,19 @@ void Dbdih::initCommonData()
       m_micro_gcp.m_master.m_time_between_gcp = tmp;
     }
 
-    /**
-     * No config...hard code...
-     */
-    m_gcp_monitor.m_gcp_save.m_max_lag = 
-      (m_gcp_save.m_master.m_time_between_gcp + 120000) / 100; // 2 minutes
+    { // Set time-between global checkpoint timeout
+      Uint32 tmp = 120000;     // No config, hard code 2 minutes
+      tmp += max_failure_time; //
+      m_gcp_monitor.m_gcp_save.m_max_lag = 
+        (m_gcp_save.m_master.m_time_between_gcp + tmp) / 100;
+    }
 
-    {
+    { // Set time-between epochs timeout
       Uint32 tmp = 4000;
-      Uint32 hbDBDB = 1500;
-      Uint32 arbitTimeout = 1000;
       ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_TIMEOUT, &tmp);
-      ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
-      ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
-      Uint32 max_lag = tmp + 4 * hbDBDB;
-      if (tmp + arbitTimeout > max_lag)
-        max_lag = tmp + arbitTimeout;
+      tmp += max_failure_time;
       m_gcp_monitor.m_micro_gcp.m_max_lag = 
-        (m_micro_gcp.m_master.m_time_between_gcp + max_lag) / 100;
+        (m_micro_gcp.m_master.m_time_between_gcp + tmp) / 100;
     }
   }
 }//Dbdih::initCommonData()
