@@ -106,6 +106,8 @@ void
 trx_purge_sys_print(void);
 /*======================*/
 
+/** This is the purge pointer/iterator. We need both the undo no and the
+transaction no up to which purge has parsed and applied the records. */
 typedef struct purge_iter_struct {
 	trx_id_t	trx_no;		/*!< Purge has advanced past all
 					transactions whose number is less
@@ -140,8 +142,13 @@ struct trx_purge_struct{
 					below */
 	ulint		n_pages_handled;/*!< Approximate number of undo log
 					pages processed in purge */
+	/*-----------------------------*/
 	purge_iter_t	iter;		/* Limit up to which we have read and
-					parsed the UNDO log records */
+					parsed the UNDO log records.  Not
+					necessarily purged from the indexes.
+					Note that this can never be less than
+					the limit below, we check for this
+					invariant in trx0purge.c */
 	purge_iter_t	limit;		/* The 'purge pointer' which advances
 					during a purge, and which is used in
 				       	history list truncation */
