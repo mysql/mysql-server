@@ -35,7 +35,7 @@ const int32_t B0::d0sc = -20;
 int32_t B1::d0s = 30;
 const int32_t B1::d0sc = -30;
 
-A * A::a;
+A * A::a = NULL;
 int32_t A::d0s = 10;
 const int32_t A::d0sc = -10;
 
@@ -52,96 +52,112 @@ void B1::finit() {
 }
 
 void A::init() {
-    assert(!a);
-    a = new A();
-    //printf("    a = %p\n", a);
+    //printf("    XXX A::a = %p\n", A::a);
+    assert(!A::a);
+    A::a = new A();
+    //printf("    YYY A::a = %p\n", A::a);
 }
 
 void A::finit() {
-    assert(a);
-    delete a;
-    a = NULL;
+    //printf("    ZZZ A::a = %p\n", A::a);
+    assert(A::a);
+    delete A::a;
+    A::a = NULL;
 }
 
 // ----------------------------------------
 
-const C0 * C0::cc;
-C0 * C0::c;
+const C0 * C0::cc = NULL;
+C0 * C0::c = NULL;
 
-const C1 * C1::cc;
-C1 * C1::c;
+const C1 * C1::cc = NULL;
+C1 * C1::c = NULL;
 
 void C0::init() {
-    assert(!c);
-    assert(!cc);
+    //printf("    XXX C0::c = %p, C0::cc = %p\n", C0::c, C0::cc);
+    //printf("    XXX C1::c = %p, C1::cc = %p\n", C1::c, C1::cc);
+    assert(!C0::c);
+    assert(!C0::cc);
     assert(C1::c);
     assert(C1::cc);
-    c = C1::c;
-    cc = C1::cc;
-    //printf("    c = %p, cc = %p\n", C0::c, C0::cc);
+    C0::c = C1::c;
+    C0::cc = C1::cc;
+    //printf("    YYY C0::c = %p, C0::cc = %p\n", C0::c, C0::cc);
 }
 
 void C0::finit() {
-    assert(c);
-    assert(cc);
-    c = NULL;
-    cc = NULL;
+    //printf("    ZZZ C0::c = %p, C0::cc = %p\n", C0::c, C0::cc);
+    assert(C0::c);
+    assert(C0::cc);
+    C0::c = NULL;
+    C0::cc = NULL;
 }
 
 void C1::init() {
-    assert(!c);
-    assert(!cc);
-    c = new C1();
-    cc = new C1();
-    //printf("    c = %p, cc = %p\n", C1::c, C1::cc);
+    //printf("    XXX C1::c = %p, C1::cc = %p\n", C1::c, C1::cc);
+    assert(!C1::c);
+    assert(!C1::cc);
+    C1::c = new C1();
+    C1::cc = new C1();
+    //printf("    YYY C1::c = %p, C1::cc = %p\n", C1::c, C1::cc);
 }
 
 void C1::finit() {
-    assert(c);
-    assert(cc);
-    delete c;
-    delete cc;
-    c = NULL;
-    cc = NULL;
+    //printf("    ZZZ C1::c = %p, C1::cc = %p\n", C1::c, C1::cc);
+    assert(C1::c);
+    assert(C1::cc);
+    delete C1::c;
+    delete C1::cc;
+    C1::c = NULL;
+    C1::cc = NULL;
 }
 
 // ----------------------------------------
 
-D0 * D0::d;
-D1 * D1::d;
-D2 * D2::d;
+D0 * D0::d = NULL;
+D1 * D1::d = NULL;
+D2 * D2::d = NULL;
 
 void D0::init() {
-    assert(!d);
-    d = new D0();
+    //printf("    XXX D0::d = %p\n", D0::d);
+    assert(!D0::d);
+    D0::d = new D0();
+    //printf("    YYY D0::d = %p\n", D0::d);
 }
 
 void D0::finit() {
-    assert(d);
-    delete d;
-    d = NULL;
+    //printf("    ZZZ D0::d = %p\n", D0::d);
+    assert(D0::d);
+    delete D0::d;
+    D0::d = NULL;
 }
 
 void D1::init() {
-    assert(!d);
-    d = new D1();
+    //printf("    XXX D1::d = %p\n", D1::d);
+    assert(!D1::d);
+    D1::d = new D1();
+    //printf("    YYY D1::d = %p\n", D1::d);
 }
 
 void D1::finit() {
-    assert(d);
-    delete d;
-    d = NULL;
+    //printf("    ZZZ D1::d = %p\n", D1::d);
+    assert(D1::d);
+    delete D1::d;
+    D1::d = NULL;
 }
 
 void D2::init() {
-    assert(!d);
-    d = new D2();
+    //printf("    XXX D2::d = %p\n", D2::d);
+    assert(!D2::d);
+    D2::d = new D2();
+    //printf("    YYY D2::d = %p\n", D2::d);
 }
 
 void D2::finit() {
-    assert(d);
-    delete d;
-    d = NULL;
+    //printf("    ZZZ D2::d = %p\n", D2::d);
+    assert(D2::d);
+    delete D2::d;
+    D2::d = NULL;
 }
 
 // ----------------------------------------
@@ -159,14 +175,14 @@ void myapi_init() {
 }
 
 void myapi_finit() {
-    A::init();
-    B0::init();
-    B1::init();
-    C0::init();
-    C1::init();
-    D0::init();
-    D1::init();
-    D2::init();
+    A::finit();
+    B0::finit();
+    B1::finit();
+    C0::finit();
+    C1::finit();
+    D0::finit();
+    D1::finit();
+    D2::finit();
 }
 
 // ---------------------------------------------------------------------------
