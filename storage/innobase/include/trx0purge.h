@@ -140,13 +140,9 @@ struct trx_purge_struct{
 					below */
 	ulint		n_pages_handled;/*!< Approximate number of undo log
 					pages processed in purge */
-	ulint		n_pages_handled_start; /*!< The value of n_pages_handled
-					when a purge was initiated */
-	ulint		handle_limit;	/*!< Target of how many pages to get
-					processed in the current purge */
-	purge_iter_t	limit;		/* Limit up to which we have read and
+	purge_iter_t	iter;		/* Limit up to which we have read and
 					parsed the UNDO log records */
-	purge_iter_t	iter;		/* The 'purge pointer' which advances
+	purge_iter_t	limit;		/* The 'purge pointer' which advances
 					during a purge, and which is used in
 				       	history list truncation */
 	/*-----------------------------*/

@@ -528,7 +528,7 @@ void
 trx_purge_truncate_history(
 /*========================*/
 	purge_iter_t*		limit,		/*!< in: truncate limit */
-	const read_view_t*	view)		/* !< purge view */
+	const read_view_t*	view)		/*!< in: purge view */
 {
 	ulint		i;
 
@@ -1013,6 +1013,8 @@ trx_purge_attach_undo_recs(
 	thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 	ut_a(n_thrs > 0 && thr != NULL);
 
+	ut_ad(trx_purge_check_limit());
+
 	do {
 		purge_node_t*		node;
 		trx_purge_rec_t*	purge_rec;
@@ -1064,6 +1066,8 @@ trx_purge_attach_undo_recs(
 			thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 		}
 	} while (thr);
+
+	ut_ad(trx_purge_check_limit());
 }
 
 /*******************************************************************//**
@@ -1140,6 +1144,8 @@ trx_purge_truncate(void)
 {
 	ut_ad(mutex_own(&purge_sys->mutex));
 
+	ut_ad(trx_purge_check_limit());
+
 	if (purge_sys->limit.trx_no == 0) {
 		trx_purge_truncate_history(&purge_sys->iter, purge_sys->view);
 	} else {
@@ -1160,6 +1166,7 @@ trx_purge(
 					to purge in one batch */
 {
 	que_thr_t*	thr = NULL;
+	ulint		n_pages_handled_start;
 
 	srv_dml_needed_delay = trx_purge_dml_delay();
 
@@ -1180,13 +1187,11 @@ trx_purge(
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
-	purge_sys->n_pages_handled_start = purge_sys->n_pages_handled;
+	n_pages_handled_start = purge_sys->n_pages_handled;
 
 	/* Fetch the UNDO recs that need to be purged. */
 	trx_purge_attach_undo_recs(
 		n_purge_threads, purge_sys, &purge_sys->limit, batch_size);
-
-	purge_sys->handle_limit = purge_sys->n_pages_handled + batch_size;
 
 	mutex_exit(&purge_sys->mutex);
 
@@ -1219,14 +1224,14 @@ trx_purge(
 run_synchronously:
 		++purge_sys->n_submitted;
 
+		if (srv_print_thread_releases) {
+			fputs("Starting purge\n", stderr);
+		}
+
 		que_run_threads(thr);
 
 		os_atomic_inc_ulint(
 			&purge_sys->mutex, &purge_sys->n_completed, 1);
-
-		if (srv_print_thread_releases) {
-			fputs("Starting purge\n", stderr);
-		}
 
 		if (srv_print_thread_releases) {
 
@@ -1246,7 +1251,7 @@ run_synchronously:
 
 	mutex_exit(&purge_sys->mutex);
 
-	return(purge_sys->n_pages_handled - purge_sys->n_pages_handled_start);
+	return(purge_sys->n_pages_handled - n_pages_handled_start);
 }
 
 /******************************************************************//**
