@@ -16,6 +16,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef _WIN32
+
 #include "SysLogHandler.hpp"
 
 #include <syslog.h>
@@ -167,3 +169,5 @@ SysLogHandler::setFacility(const BaseString &facility) {
   setErrorStr("Invalid syslog facility name");
   return false;
 }
+
+#endif
