@@ -13173,7 +13173,7 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
   /**
    * Update maxGciInLcp after scan has been performed
    */
-#if defined VM_TRACE || defined ERROR_INSERTED
+#if defined VM_TRACE || defined ERROR_INSERT
   if (fragptr.p->newestGci != fragptr.p->maxGciInLcp)
   {
     ndbout_c("tab: %u frag: %u increasing maxGciInLcp from %u to %u",
