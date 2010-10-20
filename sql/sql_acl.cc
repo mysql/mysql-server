@@ -5479,7 +5479,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
       host= grant_name->host.hostname;
       break;
     default:
-      assert(0);
+      MY_ASSERT_UNREACHABLE();
     }
     if (! user)
       user= "";
