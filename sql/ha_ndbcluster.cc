@@ -894,6 +894,24 @@ bool ha_ndbcluster::get_error_message(int error,
 }
 
 
+/*
+  field_used_length() returns the number of bytes actually used to
+  store the data of the field. So for a varstring it includes both
+  length byte(s) and string data, and anything after data_length()
+  bytes are unused.
+*/
+static
+uint32 field_used_length(const Field* field)
+{
+ if (field->type() == MYSQL_TYPE_VARCHAR)
+ {
+   const Field_varstring* f = static_cast<const Field_varstring*>(field);
+   return f->length_bytes + const_cast<Field_varstring*>(f)->data_length();
+                            // ^ no 'data_length() const'
+ }
+ return field->pack_length();
+}
+
 
 /**
   Check if MySQL field type forces var part in ndb storage
@@ -4579,7 +4597,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
         if (!field->is_null())
         {
           /* Only copy actually used bytes of varstrings. */
-          uint32 actual_length= field->used_length();
+          uint32 actual_length= field_used_length(field);
           uchar *src_ptr= field->ptr;
           field->move_field_offset(dst_offset - src_offset);
           field->set_notnull();
