@@ -50,6 +50,10 @@ Master_info::Master_info(bool is_slave_recovery)
   mysql_cond_init(key_master_info_data_cond, &data_cond, NULL);
   mysql_cond_init(key_master_info_start_cond, &start_cond, NULL);
   mysql_cond_init(key_master_info_stop_cond, &stop_cond, NULL);
+
+#ifndef MCP_WL4080
+  master_epoch= 0;
+#endif
 }
 
 Master_info::~Master_info()

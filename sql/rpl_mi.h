@@ -112,6 +112,10 @@ class Master_info : public Slave_reporting_capability
   ulonglong received_heartbeats;  // counter of received heartbeat events
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
+
+#ifndef MCP_WL4080
+  uint64 master_epoch;
+#endif
 };
 void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,
