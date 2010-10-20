@@ -506,11 +506,13 @@ enum open_table_mode
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
 #define OPTION_PROFILING                (ULL(1) << 33)
 
+#ifndef MCP_WL3733
 /*
   Dont report errors for individual rows,
   But just report error on commit (or read ofcourse)
 */
 #define OPTION_ALLOW_BATCH              (ULL(1) << 33) // THD, intern (slave)
+#endif
 
 /**
   Maximum length of time zone name that we support
@@ -1933,7 +1935,9 @@ extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_connect_errors, connect_timeout;
+#ifndef MCP_WL3733
 extern my_bool slave_allow_batching;
+#endif
 extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
