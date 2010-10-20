@@ -714,7 +714,7 @@ Log_event::Log_event(const char* buf,
   when = uint4korr(buf);
 #ifndef MCP_BUG52305
   unmasked_server_id = uint4korr(buf + SERVER_ID_OFFSET);
-  /* 
+  /*
      Mask out any irrelevant parts of the server_id
   */
 #ifdef HAVE_REPLICATION
@@ -722,6 +722,8 @@ Log_event::Log_event(const char* buf,
 #else
   server_id = unmasked_server_id;
 #endif
+#else
+  server_id = uint4korr(buf + SERVER_ID_OFFSET);
 #endif
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
