@@ -172,7 +172,7 @@ The chain of modified blocks (buf_pool->flush_list) contains the blocks
 holding file pages that have been modified in the memory
 but not written to disk yet. The block with the oldest modification
 which has not yet been written to disk is at the end of the chain.
-The access to this list is protected by flush_list_mutex.
+The access to this list is protected by buf_pool->flush_list_mutex.
 
 The chain of unmodified compressed blocks (buf_pool->zip_clean)
 contains the control blocks (buf_page_t) of those compressed pages
@@ -1882,8 +1882,8 @@ buf_pool_watch_set(
 			ut_ad(!bpage->in_page_hash);
 			ut_ad(bpage->buf_fix_count == 0);
 
-			/* bpage is pointing to buf_pool_watch[],
-			which is protected by buf_pool_mutex.
+			/* bpage is pointing to buf_pool->watch[],
+			which is protected by buf_pool->mutex.
 			Normally, buf_page_t objects are protected by
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
