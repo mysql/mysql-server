@@ -243,8 +243,6 @@ trx_roll_savepoints_free(
 					if this is NULL, free all savepoints
 					of trx */
 {
-	trx_named_savept_t*	next_savep;
-
 	if (savep == NULL) {
 		savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 	} else {
@@ -252,6 +250,8 @@ trx_roll_savepoints_free(
 	}
 
 	while (savep != NULL) {
+		trx_named_savept_t*	next_savep;
+
 		next_savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
 
 		trx_roll_savepoint_free(trx, savep);
