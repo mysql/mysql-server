@@ -3403,6 +3403,19 @@ int rewrite_to_index_subquery_engine(JOIN *join)
   /*
     is this simple IN subquery?
   */
+  /* TODO: In order to use these more efficient subquery engines in more cases,
+     the following problems need to be solved:
+     - the code that removes GROUP BY (group_list), also adds an ORDER BY
+       (order), thus GROUP BY queries (almost?) never pass through this branch.
+       Solution: remove the test below '!join->order', because we remove the
+       ORDER clase for subqueries anyway.
+     - in order to set a more efficient engine, the optimizer needs to both
+       decide to remove GROUP BY, *and* select one of the JT_[EQ_]REF[_OR_NULL]
+       access methods, *and* loose scan should be more expensive or
+       inapliccable. When is that possible?
+     - Consider expanding the applicability of this rewrite for loose scan
+       for group by queries.
+  */
   if (!join->group_list && !join->order &&
       join->unit->item && 
       join->unit->item->substype() == Item_subselect::IN_SUBS &&

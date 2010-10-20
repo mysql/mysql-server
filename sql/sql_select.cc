@@ -19372,12 +19372,6 @@ int JOIN::reoptimize(Item *added_where, table_map join_tables,
   DYNAMIC_ARRAY added_keyuse;
   SARGABLE_PARAM *sargables= 0; /* Used only as a dummy parameter. */
 
-  if (my_init_dynamic_array(&added_keyuse, sizeof(KEYUSE), 20, 64))
-  {
-    delete_dynamic(&added_keyuse);
-    return 1;
-  }
-
   /* Re-run the REF optimizer to take into account the new conditions. */
   if (update_ref_and_keys(thd, &added_keyuse, join_tab, tables, added_where,
                           ~outer_join, select_lex, &sargables))
