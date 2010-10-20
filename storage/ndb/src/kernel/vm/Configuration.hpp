@@ -143,6 +143,7 @@ public:
 private:
   friend class Cmvmi;
   friend class Qmgr;
+  friend class Dbdih;
   friend int reportShutdown(class Configuration *config, int error, int restart);
 
   ndb_mgm_configuration_iterator * getClusterConfigIterator() const;
