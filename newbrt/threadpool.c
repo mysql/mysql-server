@@ -50,8 +50,8 @@ toku_thread_create(struct toku_thread_pool *pool, struct toku_thread **toku_thre
     } else {
         memset(thread, 0, sizeof *thread);
         thread->pool = pool;
-        r = toku_pthread_cond_init(&thread->wait, NULL); invariant(r == 0);
-        r = toku_pthread_create(&thread->tid, NULL, toku_thread_run_internal, thread); invariant(r == 0);
+        r = toku_pthread_cond_init(&thread->wait, NULL); resource_assert_zero(r);
+        r = toku_pthread_create(&thread->tid, NULL, toku_thread_run_internal, thread); resource_assert_zero(r);
         *toku_thread_return = thread;
     }
     return r;
@@ -64,7 +64,7 @@ toku_thread_run(struct toku_thread *thread, void *(*f)(void *arg), void *arg) {
     thread->f = f;
     thread->arg = arg;
     toku_thread_pool_unlock(thread->pool);
-    r = toku_pthread_cond_signal(&thread->wait); invariant(r == 0);
+    r = toku_pthread_cond_signal(&thread->wait); resource_assert_zero(r);
 }
 
 static void 
@@ -76,14 +76,14 @@ toku_thread_destroy(struct toku_thread *thread) {
     toku_thread_pool_lock(pool);
     toku_list_remove(&thread->free_link);
     toku_thread_pool_unlock(pool);
-    r = toku_pthread_cond_destroy(&thread->wait); invariant(r == 0);
+    r = toku_pthread_cond_destroy(&thread->wait); resource_assert_zero(r);
     toku_free(thread);
 }
 
 static void 
 toku_thread_ask_exit(struct toku_thread *thread) {
     thread->doexit = 1;
-    int r = toku_pthread_cond_signal(&thread->wait); invariant(r == 0);
+    int r = toku_pthread_cond_signal(&thread->wait); resource_assert_zero(r);
 }
 
 static void *
@@ -93,13 +93,13 @@ toku_thread_run_internal(void *arg) {
     int r;
     toku_thread_pool_lock(pool);
     while (1) {
-        r = toku_pthread_cond_signal(&pool->wait_free); invariant(r == 0);
+        r = toku_pthread_cond_signal(&pool->wait_free); resource_assert_zero(r);
         void *(*thread_f)(void *); void *thread_arg; int doexit;
         while (1) {
             thread_f = thread->f; thread_arg = thread->arg; doexit = thread->doexit; // make copies of these variables to make helgrind happy
             if (thread_f || doexit) 
                 break;
-            r = toku_pthread_cond_wait(&thread->wait, &pool->lock); invariant(r == 0);
+            r = toku_pthread_cond_wait(&thread->wait, &pool->lock); resource_assert_zero(r);
         }
         toku_thread_pool_unlock(pool);
         if (thread_f)
@@ -121,10 +121,10 @@ toku_thread_pool_create(struct toku_thread_pool **pool_return, int max_threads) 
         r = errno;
     } else {
         memset(pool, 0, sizeof *pool);
-        r = toku_pthread_mutex_init(&pool->lock, NULL); invariant(r == 0);
+        r = toku_pthread_mutex_init(&pool->lock, NULL); resource_assert_zero(r);
         toku_list_init(&pool->free_threads);
         toku_list_init(&pool->all_threads);
-        r = toku_pthread_cond_init(&pool->wait_free, NULL); invariant(r == 0);
+        r = toku_pthread_cond_init(&pool->wait_free, NULL); resource_assert_zero(r);
         pool->cur_threads = 0;
         pool->max_threads = max_threads;
         *pool_return = pool;
@@ -135,12 +135,12 @@ toku_thread_pool_create(struct toku_thread_pool **pool_return, int max_threads) 
 
 static void 
 toku_thread_pool_lock(struct toku_thread_pool *pool) {
-    int r = toku_pthread_mutex_lock(&pool->lock); invariant(r == 0);
+    int r = toku_pthread_mutex_lock(&pool->lock); resource_assert_zero(r);
 }
 
 static void 
 toku_thread_pool_unlock(struct toku_thread_pool *pool) {
-    int r = toku_pthread_mutex_unlock(&pool->lock); invariant(r == 0);
+    int r = toku_pthread_mutex_unlock(&pool->lock); resource_assert_zero(r);
 }
 
 void 
@@ -169,8 +169,8 @@ toku_thread_pool_destroy(struct toku_thread_pool **poolptr) {
     
     // cleanup
     int r;
-    r = toku_pthread_cond_destroy(&pool->wait_free); invariant(r == 0);
-    r = toku_pthread_mutex_destroy(&pool->lock); invariant(r == 0);
+    r = toku_pthread_cond_destroy(&pool->wait_free); resource_assert_zero(r);
+    r = toku_pthread_mutex_destroy(&pool->lock); resource_assert_zero(r);
     
     toku_free(pool);
 }
@@ -183,7 +183,7 @@ toku_thread_pool_add(struct toku_thread_pool *pool) {
         pool->cur_threads += 1;
         toku_list_push(&pool->all_threads, &thread->all_link);
         toku_list_push(&pool->free_threads, &thread->free_link);
-        r = toku_pthread_cond_signal(&pool->wait_free); invariant(r == 0);
+        r = toku_pthread_cond_signal(&pool->wait_free); resource_assert_zero(r);
     }
     return r;
 }   
@@ -204,7 +204,7 @@ toku_thread_pool_get_one(struct toku_thread_pool *pool, int dowait, struct toku_
             break;
         }
         pool->get_blocks++;
-        r = toku_pthread_cond_wait(&pool->wait_free, &pool->lock); invariant(r == 0);
+        r = toku_pthread_cond_wait(&pool->wait_free, &pool->lock); resource_assert_zero(r);
     }
     if (r == 0) {
         struct toku_list *list = toku_list_pop_head(&pool->free_threads);

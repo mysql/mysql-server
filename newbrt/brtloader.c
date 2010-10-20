@@ -108,19 +108,19 @@ int brt_loader_lock_init(BRTLOADER bl) {
 
 void brt_loader_lock_destroy(BRTLOADER bl) {
     if (bl->mutex_init) {
-        int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert(r == 0);
+        int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert_zero(r);
         bl->mutex_init = FALSE;
     }
 }
 
 static void brt_loader_lock(BRTLOADER bl) {
     invariant(bl->mutex_init);
-    int r = toku_pthread_mutex_lock(&bl->mutex); resource_assert(r == 0);
+    int r = toku_pthread_mutex_lock(&bl->mutex); resource_assert_zero(r);
 }
 
 static void brt_loader_unlock(BRTLOADER bl) {
     invariant(bl->mutex_init);
-    int r = toku_pthread_mutex_unlock(&bl->mutex); resource_assert(r == 0);
+    int r = toku_pthread_mutex_unlock(&bl->mutex); resource_assert_zero(r);
 }
 
 static int add_big_buffer(struct file_info *file) {
@@ -155,7 +155,7 @@ static void cleanup_big_buffer(struct file_info *file) {
 
 int brtloader_init_file_infos (struct file_infos *fi) {
     int result = 0;
-    int r = toku_pthread_mutex_init(&fi->lock, NULL); resource_assert(r == 0);
+    int r = toku_pthread_mutex_init(&fi->lock, NULL); resource_assert_zero(r);
     fi->n_files = 0;
     fi->n_files_limit = 1;
     fi->n_files_open = 0;
@@ -172,7 +172,7 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
 // If !is_error then requires that all the temp files have been closed and destroyed
 // No error codes are returned.  If anything goes wrong with closing and unlinking then it's only in an is_error case, so we don't care.
 {
-    int r = toku_pthread_mutex_destroy(&fi->lock); resource_assert(r == 0);
+    int r = toku_pthread_mutex_destroy(&fi->lock); resource_assert_zero(r);
     if (!is_error) {
 	invariant(fi->n_files_open==0);
 	invariant(fi->n_files_extant==0);
@@ -201,7 +201,7 @@ static int open_file_add (struct file_infos *fi,
                           /* out */ FIDX *idx)
 {
     int result = 0;
-    int r = toku_pthread_mutex_lock(&fi->lock); resource_assert(r==0);
+    int r = toku_pthread_mutex_lock(&fi->lock); resource_assert_zero(r);
     if (fi->n_files >= fi->n_files_limit) {
 	fi->n_files_limit *=2;
 	XREALLOC_N(fi->n_files_limit, fi->file_infos);
@@ -221,13 +221,13 @@ static int open_file_add (struct file_infos *fi,
         fi->n_files_extant++;
         fi->n_files_open++;
     }
-    r = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r==0);
+    r = toku_pthread_mutex_unlock(&fi->lock); resource_assert_zero(r);
     return result;
 }
 
 int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
     int result = 0;
-    int r = toku_pthread_mutex_lock(&fi->lock); resource_assert(r==0);
+    int r = toku_pthread_mutex_lock(&fi->lock); resource_assert_zero(r);
     int i = idx.idx;
     invariant(i>=0 && i<fi->n_files);
     invariant(!fi->file_infos[i].is_open);
@@ -241,14 +241,14 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
         //add_big_buffer(&fi->file_infos[i]);
         fi->n_files_open++;
     }
-    r = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r==0);
+    r = toku_pthread_mutex_unlock(&fi->lock); resource_assert_zero(r);
     return result;
 }
 
 int brtloader_fi_close (struct file_infos *fi, FIDX idx)
 {
     int result = 0;
-    { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert(r2==0); }
+    { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert_zero(r2); }
     invariant(idx.idx >=0 && idx.idx < fi->n_files);
     if (fi->file_infos[idx.idx].is_open) {
         invariant(fi->n_files_open>0);   // loader-cleanup-test failure
@@ -261,13 +261,13 @@ int brtloader_fi_close (struct file_infos *fi, FIDX idx)
             result = errno;
     } else 
         result = EINVAL;
-    { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r2==0); }
+    { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert_zero(r2); }
     return result;
 }
 
 int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
     int result = 0;
-    { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert(r2==0); }
+    { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert_zero(r2); }
     int id = idx.idx;
     invariant(id >=0 && id < fi->n_files);
     if (fi->file_infos[id].is_extant) { // must still exist
@@ -282,7 +282,7 @@ int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
         fi->file_infos[id].fname = NULL;
     } else
         result = EINVAL;
-    { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r2==0); }
+    { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert_zero(r2); }
     return result;
 }
 
@@ -639,11 +639,11 @@ static void brt_loader_set_panic(BRTLOADER bl, int error, BOOL callback) {
 
 // One of the tests uses this.
 FILE *toku_bl_fidx2file (BRTLOADER bl, FIDX i) {
-    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert(r2==0); }
+    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert_zero(r2); }
     invariant(i.idx >=0 && i.idx < bl->file_infos.n_files);
     invariant(bl->file_infos.file_infos[i.idx].is_open);
     FILE *result=bl->file_infos.file_infos[i.idx].file;
-    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert(r2==0); }
+    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert_zero(r2); }
     return result;
 }
 
@@ -780,9 +780,9 @@ int loader_write_row(DBT *key, DBT *val, FIDX data, FILE *dataf, u_int64_t *data
     // we have a chance to handle the errors because when we close we can delete all the files.
     if ((r=bl_write_dbt(key, dataf, dataoff, bl))) return r;
     if ((r=bl_write_dbt(val, dataf, dataoff, bl))) return r;
-    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert(r2==0); }
+    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert_zero(r2); }
     bl->file_infos.file_infos[data.idx].n_rows++;
-    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert(r2==0); }
+    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert_zero(r2); }
     return 0;
 }
 
@@ -1006,7 +1006,7 @@ static void enqueue_for_extraction (BRTLOADER bl) {
     *enqueue_me = bl->primary_rowset;
     zero_rowset(&bl->primary_rowset);
     int r = queue_enq(bl->primary_rowset_queue, (void*)enqueue_me, 1, NULL);
-    resource_assert(r==0); 
+    resource_assert_zero(r); 
 }
 
 static int loader_do_put(BRTLOADER bl,
@@ -1050,7 +1050,8 @@ static int finish_extractor (BRTLOADER bl) {
     {
 	void *toku_pthread_retval;
 	int r = toku_pthread_join(bl->extractor_thread, &toku_pthread_retval);
-	resource_assert(r==0 && toku_pthread_retval==NULL);
+        resource_assert_zero(r); 
+        invariant(toku_pthread_retval == NULL);
         bl->extractor_live = FALSE;
 	BL_TRACE(blt_join_on_extractor);
     }
@@ -1485,7 +1486,7 @@ static int update_progress (int N,
 {
     // Need a lock here because of cilk and also the various pthreads.
     // Must protect the increment and the call to the poll_function.
-    { int r = toku_pthread_mutex_lock(&update_progress_lock); resource_assert(r == 0); }
+    { int r = toku_pthread_mutex_lock(&update_progress_lock); resource_assert_zero(r); }
     bl->progress+=N;
 
     int result;
@@ -1498,7 +1499,7 @@ static int update_progress (int N,
     } else {
 	result = bl->progress_callback_result;
     }
-    { int r = toku_pthread_mutex_unlock(&update_progress_lock); resource_assert(r == 0); }
+    { int r = toku_pthread_mutex_unlock(&update_progress_lock); resource_assert_zero(r); }
     return result;
 }
 
@@ -1663,9 +1664,9 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	    }
 
 	    dataoff[i] = 0;
-	    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert(r2==0); }
+	    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert_zero(r2); }
 	    n_rows += bl->file_infos.file_infos[srcs_fidxs[i].idx].n_rows;
-	    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert(r2==0); }
+	    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert_zero(r2); }
 	}
     }
     u_int64_t n_rows_done = 0;
@@ -1740,7 +1741,6 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 		} else {
                     fprintf(stderr, "%s:%d r=%d errno=%d bfs=%p mini=%d\n", __FILE__, __LINE__, r, errno, bfs, mini);
                     dbufio_print(bfs);
-                    // lazy_assert(0);
                     result = r;
                     break;
 		}
@@ -2602,7 +2602,7 @@ static int loader_do_i (BRTLOADER bl,
 	    int r2 = toku_pthread_join(bl->fractal_threads[which_db], &toku_pthread_retval);
 	    invariant(fta.bl==bl); // this is a gratuitous assertion to make sure that the fta struct is still live here.  A previous bug but that struct into a C block statement.
 	    BL_TRACE(blt_join_on_fractal);
-	    resource_assert(r2==0);
+	    resource_assert_zero(r2);
             invariant(toku_pthread_retval==NULL);
 	    invariant(bl->fractal_threads_live[which_db]);
 	    bl->fractal_threads_live[which_db] = FALSE;

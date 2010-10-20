@@ -28,28 +28,28 @@ struct workset {
 static inline void 
 workset_init(struct workset *ws) {
     int r;
-    r = toku_pthread_mutex_init(&ws->lock, NULL); invariant(r == 0);
+    r = toku_pthread_mutex_init(&ws->lock, NULL); resource_assert_zero(r);
     toku_list_init(&ws->worklist);
     ws->refs = 1;      // the calling thread gets a reference
-    r = toku_pthread_cond_init(&ws->worker_wait, NULL); invariant(r == 0);
+    r = toku_pthread_cond_init(&ws->worker_wait, NULL); resource_assert_zero(r);
 }
 
 static inline void 
 workset_destroy(struct workset *ws) {
     invariant(toku_list_empty(&ws->worklist));
     int r;
-    r = toku_pthread_cond_destroy(&ws->worker_wait); invariant(r == 0);
-    r = toku_pthread_mutex_destroy(&ws->lock); invariant(r == 0);
+    r = toku_pthread_cond_destroy(&ws->worker_wait); resource_assert_zero(r);
+    r = toku_pthread_mutex_destroy(&ws->lock); resource_assert_zero(r);
 }
 
 static inline void 
 workset_lock(struct workset *ws) {
-    int r = toku_pthread_mutex_lock(&ws->lock); invariant(r == 0);
+    int r = toku_pthread_mutex_lock(&ws->lock); resource_assert_zero(r);
 }
         
 static inline void 
 workset_unlock(struct workset *ws) {
-    int r = toku_pthread_mutex_unlock(&ws->lock); invariant(r == 0);
+    int r = toku_pthread_mutex_unlock(&ws->lock); resource_assert_zero(r);
 }
 
 // Put work in the workset.  Assume the workset is already locked.
@@ -92,7 +92,7 @@ static inline void
 workset_release_ref(struct workset *ws) {
     workset_lock(ws);
     if (--ws->refs == 0) {
-        int r = toku_pthread_cond_broadcast(&ws->worker_wait); invariant(r == 0);
+        int r = toku_pthread_cond_broadcast(&ws->worker_wait); resource_assert_zero(r);
     }
     workset_unlock(ws);
 }
@@ -102,7 +102,7 @@ static inline void
 workset_join(struct workset *ws) {
     workset_lock(ws);
     while (ws->refs != 0) {
-        int r = toku_pthread_cond_wait(&ws->worker_wait, &ws->lock); invariant(r == 0);
+        int r = toku_pthread_cond_wait(&ws->worker_wait, &ws->lock); resource_assert_zero(r);
     }
     workset_unlock(ws);
 }
