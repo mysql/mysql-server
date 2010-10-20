@@ -1622,7 +1622,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   for (;;)
   {
     const char *error_msg;
-    Log_event *ev;
+    Log_event *UNINIT_VAR(ev);
     Log_event_type type;
 
     len= cli_safe_read(mysql);
