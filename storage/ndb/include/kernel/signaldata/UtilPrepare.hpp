@@ -132,6 +132,7 @@ class UtilPrepareRef {
   /**
    * Sender(s) / Receiver(s)
    */
+  friend class Dbdict;
   friend class DbUtil;
   friend class Trix;
 
@@ -153,13 +154,14 @@ public:
     MISSING_PROPERTIES_SECTION = 5
   };
 
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
   GET_SET_SENDERDATA
   GET_SET_ERRORCODE
 private:
   Uint32 senderData; // MUST be no 1!
   Uint32 errorCode;
+  Uint32 dictErrCode; // If errorCode == DICT_TAB_INFO_ERROR
 };
 
 
