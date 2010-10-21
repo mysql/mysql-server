@@ -791,8 +791,9 @@ static
 void
 row_undo_mod_parse_undo_rec(
 /*========================*/
-	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr)	/*!< in: query thread */
+	undo_node_t*	node,		/*!< in: row undo node */
+	que_thr_t*	thr,		/*!< in: query thread */
+	ibool		dict_locked)	/*!< in: TRUE if own dict_sys->mutex */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -812,7 +813,7 @@ row_undo_mod_parse_undo_rec(
 				    &dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
-	node->table = dict_table_get_on_id(table_id, trx);
+	node->table = dict_table_open_on_id(table_id, dict_locked);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the
 	same table by another user */
@@ -823,6 +824,8 @@ row_undo_mod_parse_undo_rec(
 	}
 
 	if (node->table->ibd_file_missing) {
+		dict_table_close(node->table, dict_locked);
+
 		/* We skip undo operations to missing .ibd files */
 		node->table = NULL;
 
@@ -843,6 +846,13 @@ row_undo_mod_parse_undo_rec(
 	node->new_roll_ptr = roll_ptr;
 	node->new_trx_id = trx_id;
 	node->cmpl_info = cmpl_info;
+
+	if (!row_undo_search_clust_to_pcur(node)) {
+
+		dict_table_close(node->table, dict_locked);
+
+		node->table = NULL;
+	}
 }
 
 /***********************************************************//**
@@ -855,14 +865,17 @@ row_undo_mod(
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint	err;
+	ulint		err;
+	ibool		dict_locked;
 
 	ut_ad(node && thr);
 	ut_ad(node->state == UNDO_NODE_MODIFY);
 
-	row_undo_mod_parse_undo_rec(node, thr);
+	dict_locked = thr_get_trx(thr)->dict_operation_lock_mode == RW_X_LATCH;
 
-	if (!node->table || !row_undo_search_clust_to_pcur(node)) {
+	row_undo_mod_parse_undo_rec(node, thr, dict_locked);
+
+	if (node->table == NULL) {
 		/* It is already undone, or will be undone by another query
 		thread, or table was dropped */
 
@@ -887,12 +900,14 @@ row_undo_mod(
 		err = row_undo_mod_upd_del_sec(node, thr);
 	}
 
-	if (err != DB_SUCCESS) {
+	if (err == DB_SUCCESS) {
 
-		return(err);
+		err = row_undo_mod_clust(node, thr);
 	}
 
-	err = row_undo_mod_clust(node, thr);
+	dict_table_close(node->table, dict_locked);
+
+	node->table = NULL;
 
 	return(err);
 }

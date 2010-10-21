@@ -732,6 +732,16 @@ ulint
 lock_rec_get_page_no(
 /*=================*/
 	const lock_t*	lock);	/*!< in: lock */
+/*******************************************************************//**
+Check if there are any locks (table or rec) against table.
+@return	TRUE if locks exist */
+UNIV_INTERN
+ibool
+lock_table_has_locks(
+/*=================*/
+	const dict_table_t*	table);	/*!< in: check if there are any locks
+					held on records in this table or on the
+					table itself */
 
 /*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.

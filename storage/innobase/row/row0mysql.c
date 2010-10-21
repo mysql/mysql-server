@@ -512,7 +512,7 @@ row_mysql_convert_row_to_innobase(
 					row is used, as row may contain
 					pointers to this record! */
 {
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	dfield_t*		dfield;
 	ulint			i;
 
@@ -804,7 +804,7 @@ row_prebuilt_free(
 		}
 	}
 
-	dict_table_decrement_handle_count(prebuilt->table, dict_locked);
+	dict_table_close(prebuilt->table, dict_locked);
 
 	mem_heap_free(prebuilt->heap);
 }
@@ -1473,7 +1473,12 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table);
+	/* We update table statistics only if it is a DELETE or UPDATE
+	that changes indexed columns, UPDATEs that change only non-indexed
+	columns would not affect statistics. */
+	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		row_update_statistics_if_needed(prebuilt->table);
+	}
 
 	trx->op_info = "";
 
@@ -1914,7 +1919,15 @@ err_exit:
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(" because tablespace full\n", stderr);
 
-		if (dict_table_get_low(table->name)) {
+		if (dict_table_open_on_name_no_stats(table->name, FALSE)) {
+
+			/* Make things easy for the drop table code. */
+
+			if (table->can_be_evicted) {
+				dict_table_move_from_lru_to_non_lru(table);
+			}
+
+			dict_table_close(table, FALSE);
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
 			trx_commit_for_mysql(trx);
@@ -2204,9 +2217,7 @@ loop:
 		return(n_tables + n_tables_dropped);
 	}
 
-	mutex_enter(&(dict_sys->mutex));
-	table = dict_table_get_low(drop->table_name);
-	mutex_exit(&(dict_sys->mutex));
+	table = dict_table_open_on_name_no_stats(drop->table_name, FALSE);
 
 	if (table == NULL) {
 		/* If for some reason the table has already been dropped
@@ -2214,6 +2225,10 @@ loop:
 
 		goto already_dropped;
 	}
+
+	ut_a(!table->can_be_evicted);
+
+	dict_table_close(table, FALSE);
 
 	if (DB_SUCCESS != row_drop_table_for_mysql_in_background(
 		    drop->table_name)) {
@@ -2372,7 +2387,7 @@ row_discard_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_get_low(name);
+	table = dict_table_open_on_name_no_stats(name, TRUE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -2497,6 +2512,11 @@ row_discard_tablespace_for_mysql(
 	}
 
 funct_exit:
+
+	if (table != NULL) {
+		dict_table_close(table, TRUE);
+	}
+
 	trx_commit_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -2555,6 +2575,7 @@ row_import_tablespace_for_mysql(
 		err = DB_ERROR;
 
 		row_mysql_lock_data_dictionary(trx);
+		table = NULL;
 
 		goto funct_exit;
 	}
@@ -2564,7 +2585,7 @@ row_import_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_get_low(name);
+	table = dict_table_open_on_name_no_stats(name, TRUE);
 
 	if (!table) {
 		ut_print_timestamp(stderr);
@@ -2635,6 +2656,11 @@ row_import_tablespace_for_mysql(
 	}
 
 funct_exit:
+
+	if (table != NULL) {
+		dict_table_close(table, TRUE);
+	}
+
 	trx_commit_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -2793,6 +2819,15 @@ row_truncate_table_for_mysql(
 
 	trx->table_id = table->id;
 
+	/* Lock all index trees for this table, as we will
+	truncate the table/index and possibly change their metadata.
+	All DML/DDL are blocked by table level lock, with
+	a few exceptions such as queries into information schema
+	about the table, MySQL could try to access index stats
+	for this kind of query, we need to use index locks to
+	sync up */
+	dict_table_x_lock_indexes(table);
+
 	if (table->space && !table->dir_path_of_temp_table) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
@@ -2809,6 +2844,7 @@ row_truncate_table_for_mysql(
 			    || fil_create_new_single_table_tablespace(
 				    space, table->name, FALSE, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+				dict_table_x_unlock_indexes(table);
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: TRUNCATE TABLE %s failed to"
@@ -2912,6 +2948,10 @@ next_rec:
 
 	mem_heap_free(heap);
 
+	/* Done with index truncation, release index tree locks,
+	subsequent work relates to table level metadata change */
+	dict_table_x_unlock_indexes(table);
+
 	dict_hdr_get_new_id(&new_id, NULL, NULL);
 
 	info = pars_info_create();
@@ -2951,8 +2991,7 @@ next_rec:
 		dict_table_change_id_in_cache(table, new_id);
 	}
 
-	/* MySQL calls ha_innobase::reset_auto_increment() which does
-	the same thing. */
+	/* Reset auto-increment. */
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
@@ -3008,10 +3047,6 @@ row_drop_table_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = "dropping table";
-
-	trx_start_if_not_started_xa(trx);
-
 	/* The table name is prefixed with the database name and a '/'.
 	Certain table names starting with 'innodb_' have their special
 	meaning regardless of the database name.  Thus, we need to
@@ -3050,6 +3085,10 @@ row_drop_table_for_mysql(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
+	trx->op_info = "dropping table";
+
+	trx_start_if_not_started(trx);
+
 	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
 		/* Prevent foreign key checks etc. while we are dropping the
 		table */
@@ -3064,7 +3103,7 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_get_low(name);
+	table = dict_table_open_on_name_no_stats(name, TRUE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -3084,6 +3123,15 @@ row_drop_table_for_mysql(
 		      stderr);
 		goto funct_exit;
 	}
+
+	/* Move the table the the non-LRU list so that it isn't
+	considered for eviction. */
+
+	if (table->can_be_evicted) {
+		dict_table_move_from_lru_to_non_lru(table);
+	}
+
+	dict_table_close(table, TRUE);
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
@@ -3124,7 +3172,7 @@ check_next_foreign:
 		goto check_next_foreign;
 	}
 
-	if (table->n_mysql_handles_opened > 0) {
+	if (table->n_ref_count > 0 || table->n_rec_locks > 0) {
 		ibool	added;
 
 		added = row_add_table_to_background_drop_list(table->name);
@@ -3552,14 +3600,15 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_get_low(table_name);
+		table = dict_table_open_on_name_no_stats(table_name, TRUE);
 
 		ut_a(table);
+		ut_a(!table->can_be_evicted);
 
 		/* Wait until MySQL does not have any queries running on
 		the table */
 
-		if (table->n_mysql_handles_opened > 0) {
+		if (table->n_ref_count > 0) {
 			row_mysql_unlock_data_dictionary(trx);
 
 			ut_print_timestamp(stderr);
@@ -3701,7 +3750,8 @@ row_rename_table_for_mysql(
 	trx_t*		trx,		/*!< in: transaction handle */
 	ibool		commit)		/*!< in: if TRUE then commit trx */
 {
-	dict_table_t*	table;
+	dict_table_t*	table			= NULL;
+	ibool		dict_locked;
 	ulint		err			= DB_ERROR;
 	mem_heap_t*	heap			= NULL;
 	const char**	constraints_to_drop	= NULL;
@@ -3741,7 +3791,9 @@ row_rename_table_for_mysql(
 	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
 
-	table = dict_table_get_low(old_name);
+	dict_locked = trx->dict_operation_lock_mode == RW_X_LATCH;
+
+	table = dict_table_open_on_name_no_stats(old_name, dict_locked);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -3786,7 +3838,6 @@ row_rename_table_for_mysql(
 			&constraints_to_drop);
 
 		if (err != DB_SUCCESS) {
-
 			goto funct_exit;
 		}
 	}
@@ -3996,6 +4047,10 @@ end:
 	}
 
 funct_exit:
+
+	if (table != NULL) {
+		dict_table_close(table, dict_locked);
+	}
 
 	if (commit) {
 		trx_commit_for_mysql(trx);

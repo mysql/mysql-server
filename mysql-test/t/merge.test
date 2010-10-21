@@ -2,6 +2,9 @@
 # Test of MERGE TABLES
 #
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
 # MERGE tables require MyISAM tables
 let $default=`select @@global.storage_engine`;
 set global storage_engine=myisam;
@@ -1731,6 +1734,84 @@ t2 WHERE b SOUNDS LIKE e AND d = 1;
 
 DROP TABLE t2, t1;
 
+--echo #
+--echo # Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS m1, t1;
+--enable_warnings
+#
+# Test derived from a proposal of Shane Bester.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MYISAM;
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1) INSERT_METHOD=LAST;
+#
+# REPAIR ... USE_FRM with LOCK TABLES.
+#
+LOCK TABLE m1 READ;
+REPAIR TABLE m1 USE_FRM;
+UNLOCK TABLES;
+#
+# REPAIR ... USE_FRM without LOCK TABLES.
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+DROP TABLE m1,t1;
+#
+# Test derived from a proposal of Matthias Leich.
+#
+# Base table is missing.
+#
+CREATE TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Create base table.
+#
+CREATE TABLE t1 (f1 BIGINT) ENGINE = MyISAM;
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Normal repair as reference.
+#
+REPAIR TABLE m1;
+#
+# Cleanup.
+#
+DROP TABLE m1, t1;
+#
+# Same with temporary tables.
+#
+# Base table is missing.
+#
+CREATE TEMPORARY TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Create base table.
+#
+CREATE TEMPORARY TABLE t1 (f1 BIGINT) ENGINE=MyISAM;
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Normal repair as reference.
+#
+REPAIR TABLE m1;
+#
+# Cleanup.
+#
+DROP TABLE m1, t1;
+
 --echo End of 5.1 tests
 
 --echo #
@@ -2519,7 +2600,7 @@ UNLOCK TABLES;
 DROP TABLE m1, t1;
 
 --echo #
---echo # If children are to be altered, they need an explicit lock.
+--echo # Locking the merge table won't implicitly lock children.
 --echo #
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
@@ -2665,6 +2746,58 @@ drop view v1;
 drop temporary table tmp;
 drop table t1, t2, t3, m1, m2;
 
+
+--echo #
+--echo # Bug#56494 Segfault in upgrade_shared_lock_to_exclusive() for
+--echo #           REPAIR of merge table
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t_not_exists;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 engine= MERGE UNION (t_not_exists);
+# This caused the segfault
+ANALYZE TABLE t1;
+CHECK TABLE t1;
+CHECKSUM TABLE t1;
+OPTIMIZE TABLE t1;
+REPAIR TABLE t1;
+
+# This caused an assert
+REPAIR TABLE t1 USE_FRM;
+
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT) engine= MERGE UNION (t1);
+# This caused an assert
+REPAIR TABLE t2 USE_FRM;
+
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#57002 Assert in upgrade_shared_lock_to_exclusive()
+--echo #           for ALTER TABLE + MERGE tables
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, m1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) engine=myisam;
+CREATE TABLE m1(a INT) engine=merge UNION(t1);
+LOCK TABLES t1 READ, m1 WRITE;
+
+# This caused an assert
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+ALTER TABLE t1 engine=myisam;
+
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+
+
 --echo End of 6.0 tests
 
 --disable_result_log
@@ -2672,3 +2805,7 @@ drop table t1, t2, t3, m1, m2;
 eval set global storage_engine=$default;
 --enable_result_log
 --enable_query_log
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

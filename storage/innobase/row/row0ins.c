@@ -1540,10 +1540,12 @@ row_ins_check_foreign_constraints(
 
 	while (foreign) {
 		if (foreign->foreign_index == index) {
+			dict_table_t*	ref_table = NULL;
 
 			if (foreign->referenced_table == NULL) {
-				dict_table_get(foreign->referenced_table_name,
-					       FALSE);
+
+				ref_table = dict_table_open_on_name(
+					foreign->referenced_table_name, FALSE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {
@@ -1584,7 +1586,12 @@ row_ins_check_foreign_constraints(
 				row_mysql_unfreeze_data_dictionary(trx);
 			}
 
+			if (ref_table != NULL) {
+				dict_table_close(ref_table, FALSE);
+			}
+
 			if (err != DB_SUCCESS) {
+
 				return(err);
 			}
 		}

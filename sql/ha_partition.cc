@@ -232,6 +232,8 @@ void ha_partition::init_handler_variables()
   m_innodb= FALSE;
   m_extra_cache= FALSE;
   m_extra_cache_size= 0;
+  m_extra_prepare_for_update= FALSE;
+  m_extra_cache_part_id= NO_CURRENT_PART_ID;
   m_handler_status= handler_not_initialized;
   m_low_byte_first= 1;
   m_part_field_array= NULL;
@@ -3336,110 +3338,120 @@ int ha_partition::delete_row(const uchar *buf)
     Called from sql_delete.cc by mysql_delete().
     Called from sql_select.cc by JOIN::reinit().
     Called from sql_union.cc by st_select_lex_unit::exec().
- 
-     Also used for handle ALTER TABLE t TRUNCATE PARTITION ...
-     NOTE: auto increment value will be truncated in that partition as well!
 */
 
 int ha_partition::delete_all_rows()
 {
   int error;
-  bool truncate= FALSE;
   handler **file;
-  THD *thd= ha_thd();
   DBUG_ENTER("ha_partition::delete_all_rows");
 
-  if (thd->lex->sql_command == SQLCOM_TRUNCATE)
-  {
-    Alter_info *alter_info= &thd->lex->alter_info;
-    /* TRUNCATE also means resetting auto_increment */
-    lock_auto_increment();
-    table_share->ha_part_data->next_auto_inc_val= 0;
-    table_share->ha_part_data->auto_inc_initialized= FALSE;
-    unlock_auto_increment();
-    if (alter_info->flags & ALTER_ADMIN_PARTITION)
-    {
-      /* ALTER TABLE t TRUNCATE PARTITION ... */
-      List_iterator<partition_element> part_it(m_part_info->partitions);
-      int saved_error= 0;
-      uint num_parts= m_part_info->num_parts;
-      uint num_subparts= m_part_info->num_subparts;
-      uint i= 0;
-      uint num_parts_set= alter_info->partition_names.elements;
-      uint num_parts_found= set_part_state(alter_info, m_part_info,
-                                           PART_ADMIN);
-      if (num_parts_set != num_parts_found &&
-          (!(alter_info->flags & ALTER_ALL_PARTITION)))
-        DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
-
-      /*
-        Cannot return HA_ERR_WRONG_COMMAND here without correct pruning
-        since that whould delete the whole table row by row in sql_delete.cc
-      */
-      bitmap_clear_all(&m_part_info->used_partitions);
-      do
-      {
-        partition_element *part_elem= part_it++;
-        if (part_elem->part_state == PART_ADMIN)
-        {
-          if (m_is_sub_partitioned)
-          {
-            List_iterator<partition_element>
-                                        subpart_it(part_elem->subpartitions);
-            partition_element *sub_elem;
-            uint j= 0, part;
-            do
-            {
-              sub_elem= subpart_it++;
-              part= i * num_subparts + j;
-              bitmap_set_bit(&m_part_info->used_partitions, part);
-              if (!saved_error)
-              {
-                DBUG_PRINT("info", ("truncate subpartition %u (%s)",
-                                    part, sub_elem->partition_name));
-                if ((error= m_file[part]->ha_delete_all_rows()))
-                  saved_error= error;
-                /* If not reset_auto_increment is supported, just accept it */
-                if (!saved_error &&
-                    (error= m_file[part]->ha_reset_auto_increment(0)) &&
-                    error != HA_ERR_WRONG_COMMAND)
-                  saved_error= error;
-              }
-            } while (++j < num_subparts);
-          }
-          else
-          {
-            DBUG_PRINT("info", ("truncate partition %u (%s)", i,
-                                part_elem->partition_name));
-            bitmap_set_bit(&m_part_info->used_partitions, i);
-            if (!saved_error)
-            {
-              if ((error= m_file[i]->ha_delete_all_rows()) && !saved_error)
-                saved_error= error;
-              /* If not reset_auto_increment is supported, just accept it */
-              if (!saved_error &&
-                  (error= m_file[i]->ha_reset_auto_increment(0)) &&
-                  error != HA_ERR_WRONG_COMMAND)
-                saved_error= error;
-            }
-          }
-          part_elem->part_state= PART_NORMAL;
-        }
-      } while (++i < num_parts);
-      DBUG_RETURN(saved_error);
-    }
-    truncate= TRUE;
-  }
   file= m_file;
   do
   {
     if ((error= (*file)->ha_delete_all_rows()))
       DBUG_RETURN(error);
-    /* Ignore the error */
-    if (truncate)
-      (void) (*file)->ha_reset_auto_increment(0);
   } while (*(++file));
   DBUG_RETURN(0);
+}
+
+
+/**
+  Manually truncate the table.
+
+  @retval  0    Success.
+  @retval  > 0  Error code.
+*/
+
+int ha_partition::truncate()
+{
+  int error;
+  handler **file;
+  DBUG_ENTER("ha_partition::truncate");
+
+  /*
+    TRUNCATE also means resetting auto_increment. Hence, reset
+    it so that it will be initialized again at the next use.
+  */
+  lock_auto_increment();
+  table_share->ha_part_data->next_auto_inc_val= 0;
+  table_share->ha_part_data->auto_inc_initialized= FALSE;
+  unlock_auto_increment();
+
+  file= m_file;
+  do
+  {
+    if ((error= (*file)->ha_truncate()))
+      DBUG_RETURN(error);
+  } while (*(++file));
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Truncate a set of specific partitions.
+
+  @remark Auto increment value will be truncated in that partition as well!
+
+  ALTER TABLE t TRUNCATE PARTITION ...
+*/
+
+int ha_partition::truncate_partition(Alter_info *alter_info)
+{
+  int error= 0;
+  List_iterator<partition_element> part_it(m_part_info->partitions);
+  uint num_parts= m_part_info->num_parts;
+  uint num_subparts= m_part_info->num_subparts;
+  uint i= 0;
+  uint num_parts_set= alter_info->partition_names.elements;
+  uint num_parts_found= set_part_state(alter_info, m_part_info,
+                                        PART_ADMIN);
+  DBUG_ENTER("ha_partition::truncate_partition");
+
+  /*
+    TRUNCATE also means resetting auto_increment. Hence, reset
+    it so that it will be initialized again at the next use.
+  */
+  lock_auto_increment();
+  table_share->ha_part_data->next_auto_inc_val= 0;
+  table_share->ha_part_data->auto_inc_initialized= FALSE;
+  unlock_auto_increment();
+
+  if (num_parts_set != num_parts_found &&
+      (!(alter_info->flags & ALTER_ALL_PARTITION)))
+    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+
+  do
+  {
+    partition_element *part_elem= part_it++;
+    if (part_elem->part_state == PART_ADMIN)
+    {
+      if (m_is_sub_partitioned)
+      {
+        List_iterator<partition_element>
+                                    subpart_it(part_elem->subpartitions);
+        partition_element *sub_elem;
+        uint j= 0, part;
+        do
+        {
+          sub_elem= subpart_it++;
+          part= i * num_subparts + j;
+          DBUG_PRINT("info", ("truncate subpartition %u (%s)",
+                              part, sub_elem->partition_name));
+          if ((error= m_file[part]->ha_truncate()))
+            break;
+        } while (++j < num_subparts);
+      }
+      else
+      {
+        DBUG_PRINT("info", ("truncate partition %u (%s)", i,
+                            part_elem->partition_name));
+        error= m_file[i]->ha_truncate();
+      }
+      part_elem->part_state= PART_NORMAL;
+    }
+  } while (!error && (++i < num_parts));
+  DBUG_RETURN(error);
 }
 
 
@@ -5516,9 +5528,6 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
     when performing the sequential scan we will check this recorded value
     and call extra_opt whenever we start scanning a new partition.
 
-    monty: Neads to be fixed so that it's passed to all handlers when we
-    move to another partition during table scan.
-
   HA_EXTRA_NO_CACHE:
     When performing a UNION SELECT HA_EXTRA_NO_CACHE is called from the
     flush method in the select_union class.
@@ -5530,7 +5539,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
     for. If no cache is in use they will quickly return after finding
     this out. And we also ensure that all caches are disabled and no one
     is left by mistake.
-    In the future this call will probably be deleted an we will instead call
+    In the future this call will probably be deleted and we will instead call
     ::reset();
 
   HA_EXTRA_WRITE_CACHE:
@@ -5542,8 +5551,9 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
     This is called as part of a multi-table update. When the table to be
     updated is also scanned then this informs MyISAM handler to drop any
     caches if dynamic records are used (fixed size records do not care
-    about this call). We pass this along to all underlying MyISAM handlers
-    and ignore it for the rest.
+    about this call). We pass this along to the first partition to scan, and
+    flag that it is to be called after HA_EXTRA_CACHE when moving to the next
+    partition to scan.
 
   HA_EXTRA_PREPARE_FOR_DROP:
     Only used by MyISAM, called in preparation for a DROP TABLE.
@@ -5698,9 +5708,22 @@ int ha_partition::extra(enum ha_extra_function operation)
   case HA_EXTRA_PREPARE_FOR_RENAME:
     DBUG_RETURN(prepare_for_rename());
     break;
+  case HA_EXTRA_PREPARE_FOR_UPDATE:
+    /*
+      Needs to be run on the first partition in the range now, and 
+      later in late_extra_cache, when switching to a new partition to scan.
+    */
+    m_extra_prepare_for_update= TRUE;
+    if (m_part_spec.start_part != NO_CURRENT_PART_ID)
+    {
+      if (!m_extra_cache)
+        m_extra_cache_part_id= m_part_spec.start_part;
+      DBUG_ASSERT(m_extra_cache_part_id == m_part_spec.start_part);
+      (void) m_file[m_part_spec.start_part]->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
+    }
+    break;
   case HA_EXTRA_NORMAL:
   case HA_EXTRA_QUICK:
-  case HA_EXTRA_PREPARE_FOR_UPDATE:
   case HA_EXTRA_FORCE_REOPEN:
   case HA_EXTRA_PREPARE_FOR_DROP:
   case HA_EXTRA_FLUSH_CACHE:
@@ -5723,10 +5746,22 @@ int ha_partition::extra(enum ha_extra_function operation)
     break;
   }
   case HA_EXTRA_NO_CACHE:
+  {
+    int ret= 0;
+    if (m_extra_cache_part_id != NO_CURRENT_PART_ID)
+      ret= m_file[m_extra_cache_part_id]->extra(HA_EXTRA_NO_CACHE);
+    m_extra_cache= FALSE;
+    m_extra_cache_size= 0;
+    m_extra_prepare_for_update= FALSE;
+    m_extra_cache_part_id= NO_CURRENT_PART_ID;
+    DBUG_RETURN(ret);
+  }
   case HA_EXTRA_WRITE_CACHE:
   {
     m_extra_cache= FALSE;
     m_extra_cache_size= 0;
+    m_extra_prepare_for_update= FALSE;
+    m_extra_cache_part_id= NO_CURRENT_PART_ID;
     DBUG_RETURN(loop_extra(operation));
   }
   case HA_EXTRA_IGNORE_NO_KEY:
@@ -5863,6 +5898,7 @@ int ha_partition::extra_opt(enum ha_extra_function operation, ulong cachesize)
 void ha_partition::prepare_extra_cache(uint cachesize)
 {
   DBUG_ENTER("ha_partition::prepare_extra_cache()");
+  DBUG_PRINT("info", ("cachesize %u", cachesize));
 
   m_extra_cache= TRUE;
   m_extra_cache_size= cachesize;
@@ -5921,16 +5957,18 @@ int ha_partition::loop_extra(enum ha_extra_function operation)
 {
   int result= 0, tmp;
   handler **file;
+  bool is_select;
   DBUG_ENTER("ha_partition::loop_extra()");
   
-  /* 
-    TODO, 5.2: this is where you could possibly add optimisations to add the bitmap
-    _if_ a SELECT.
-  */
+  is_select= (thd_sql_command(ha_thd()) == SQLCOM_SELECT);
   for (file= m_file; *file; file++)
   {
-    if ((tmp= (*file)->extra(operation)))
-      result= tmp;
+    if (!is_select ||
+        bitmap_is_set(&(m_part_info->used_partitions), file - m_file))
+    {
+      if ((tmp= (*file)->extra(operation)))
+        result= tmp;
+    }
   }
   DBUG_RETURN(result);
 }
@@ -5951,14 +5989,25 @@ void ha_partition::late_extra_cache(uint partition_id)
 {
   handler *file;
   DBUG_ENTER("ha_partition::late_extra_cache");
+  DBUG_PRINT("info", ("extra_cache %u prepare %u partid %u size %u",
+                      m_extra_cache, m_extra_prepare_for_update,
+                      partition_id, m_extra_cache_size));
 
-  if (!m_extra_cache)
+  if (!m_extra_cache && !m_extra_prepare_for_update)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
-  if (m_extra_cache_size == 0)
-    (void) file->extra(HA_EXTRA_CACHE);
-  else
-    (void) file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size);
+  if (m_extra_cache)
+  {
+    if (m_extra_cache_size == 0)
+      (void) file->extra(HA_EXTRA_CACHE);
+    else
+      (void) file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size);
+  }
+  if (m_extra_prepare_for_update)
+  {
+    (void) file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
+  }
+  m_extra_cache_part_id= partition_id;
   DBUG_VOID_RETURN;
 }
 
@@ -5979,10 +6028,12 @@ void ha_partition::late_extra_no_cache(uint partition_id)
   handler *file;
   DBUG_ENTER("ha_partition::late_extra_no_cache");
 
-  if (!m_extra_cache)
+  if (!m_extra_cache && !m_extra_prepare_for_update)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
   (void) file->extra(HA_EXTRA_NO_CACHE);
+  DBUG_ASSERT(partition_id == m_extra_cache_part_id);
+  m_extra_cache_part_id= NO_CURRENT_PART_ID;
   DBUG_VOID_RETURN;
 }
 
@@ -6287,8 +6338,8 @@ void ha_partition::print_error(int error, myf errflag)
   /* Should probably look for my own errors first */
   DBUG_PRINT("enter", ("error: %d", error));
 
-  if (error == HA_ERR_NO_PARTITION_FOUND &&
-      thd->lex->sql_command != SQLCOM_TRUNCATE)
+  if ((error == HA_ERR_NO_PARTITION_FOUND) &&
+      ! (thd->lex->alter_info.flags & ALTER_TRUNCATE_PARTITION))
     m_part_info->print_no_partition_found(table);
   else
   {
