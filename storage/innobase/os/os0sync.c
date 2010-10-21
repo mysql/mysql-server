@@ -136,7 +136,7 @@ os_cond_wait_timed(
 #ifndef __WIN__
 	const struct timespec*	abstime		/*!< in: timeout */
 #else
-	ulint			time_in_ms	/*!< in: timeout in
+	DWORD			time_in_ms	/*!< in: timeout in
 						milliseconds*/
 #endif /* !__WIN__ */
 )
@@ -655,7 +655,7 @@ os_event_wait_time_low(
 		ut_a(event);
 
 		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-			time_in_ms = time_in_ms / 1000;
+			time_in_ms = time_in_usec / 1000;
 			err = WaitForSingleObject(event->handle, time_in_ms);
 		} else {
 			err = WaitForSingleObject(event->handle, INFINITE);
