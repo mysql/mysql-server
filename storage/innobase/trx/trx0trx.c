@@ -105,7 +105,11 @@ trx_create(
 	trx->is_purge = 0;
 	trx->is_recovered = 0;
 	trx->conc_state = TRX_NOT_STARTED;
-	trx->start_time = time(NULL);
+
+	trx->is_registered = 0;
+	trx->owns_prepare_mutex = 0;
+
+	trx->start_time = ut_time();
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
@@ -124,7 +128,6 @@ trx_create(
 	trx->table_id = 0;
 
 	trx->mysql_thd = NULL;
-	trx->active_trans = 0;
 	trx->duplicates = 0;
 
 	trx->n_mysql_tables_in_use = 0;

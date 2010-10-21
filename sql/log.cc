@@ -1362,7 +1362,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
     file_log= file_log_handler->get_mysql_log();
     break;
   default:
-    assert(0);                                  // Impossible
+    MY_ASSERT_UNREACHABLE();
   }
 
   if (!(*tmp_opt))
