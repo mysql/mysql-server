@@ -30,6 +30,7 @@
 #include <my_pthread.h>
 #include <my_getopt.h>
 #include "sql_audit.h"
+#include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
@@ -65,6 +66,7 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
   { C_STRING_WITH_LEN("AUDIT") },
   { C_STRING_WITH_LEN("REPLICATION") },
+  { C_STRING_WITH_LEN("AUTHENTICATION") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -81,13 +83,13 @@ extern int finalize_audit_plugin(st_plugin_int *plugin);
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_initialize_handlerton,0,0,initialize_schema_table,
-  initialize_audit_plugin
+  initialize_audit_plugin,0,0
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_finalize_handlerton,0,0,finalize_schema_table,
-  finalize_audit_plugin
+  finalize_audit_plugin,0,0
 };
 
 #ifdef HAVE_DLOPEN
@@ -110,7 +112,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
   MYSQL_AUDIT_INTERFACE_VERSION,
-  MYSQL_REPLICATION_INTERFACE_VERSION
+  MYSQL_REPLICATION_INTERFACE_VERSION,
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -120,7 +123,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
   MYSQL_AUDIT_INTERFACE_VERSION,
-  MYSQL_REPLICATION_INTERFACE_VERSION
+  MYSQL_REPLICATION_INTERFACE_VERSION,
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION
 };
 
 /* support for Services */
