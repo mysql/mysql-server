@@ -273,7 +273,16 @@ UNIV_INTERN
 void
 thd_set_lock_wait_time(
 /*===================*/
-        void*   thd,	/*!< in: thread handle (THD*) */
-        ulint   value);	/*!< in: time waited for the lock */
+	void*	thd,	/*!< in: thread handle (THD*) */
+	ulint	value);	/*!< in: time waited for the lock */
 
+/**********************************************************************//**
+Get the current seting of the table_cache_size global parameter. We do
+a dirty read because for one there is no synchronization object and
+secondly there is little harm in doing so even if we get a torn read.
+@return	SQL statement string */
+UNIV_INTERN
+ulint
+innobase_get_table_cache_size(void);
+/*===============================*/
 #endif
