@@ -441,6 +441,11 @@ enum ha_push_flag {
      within this pushed join 
    */
   ,HA_PUSH_MULTIPLE_DEPENDENCY
+
+  /* Handler is unable to return the result in sorted order using an
+     ordered index on the parent operation.
+   */
+  ,HA_PUSH_NO_ORDERED_INDEX
 };
 
 /**
