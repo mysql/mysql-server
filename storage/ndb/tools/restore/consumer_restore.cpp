@@ -1957,20 +1957,48 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
     return (hash_value % no_frags);
 }
 
+struct TransGuard
+{
+  NdbTransaction* pTrans;
+  TransGuard(NdbTransaction* p) : pTrans(p) {}
+  ~TransGuard() { if (pTrans) pTrans->close();}
+};
+
 void
 BackupRestore::logEntry(const LogEntry & tup)
 {
   if (!m_restore)
     return;
 
+
+  Uint32 retries = 0;
+  NdbError errobj;
+retry:
+  if (retries == 11)
+  {
+    err << "execute failed: " << errobj << endl;
+    exitHandler();
+  }
+  else if (retries > 0)
+  {
+    NdbSleep_MilliSleep(100 + (retries - 1) * 100);
+  }
+  
+  retries++;
+
   NdbTransaction * trans = m_ndb->startTransaction();
   if (trans == NULL) 
   {
-    // TODO: handle the error
-    err << "Cannot start transaction" << endl;
+    errobj = m_ndb->getNdbError();
+    if (errobj.status == NdbError::TemporaryError)
+    {
+      goto retry;
+    }
+    err << "Cannot start transaction: " << errobj << endl;
     exitHandler();
   } // if
   
+  TransGuard g(trans);
   const NdbDictionary::Table * table = get_table(tup.m_table->m_dictTable);
   NdbOperation * op = trans->getNdbOperation(table);
   if (op == NULL) 
@@ -2071,9 +2099,11 @@ BackupRestore::logEntry(const LogEntry & tup)
   {
     // Both insert update and delete can fail during log running
     // and it's ok
-    // TODO: check that the error is either tuple exists or tuple does not exist?
     bool ok= false;
-    NdbError errobj= trans->getNdbError();
+    errobj= trans->getNdbError();
+    if (errobj.status == NdbError::TemporaryError)
+      goto retry;
+
     switch(tup.m_type)
     {
     case LogEntry::LE_INSERT:
@@ -2095,7 +2125,6 @@ BackupRestore::logEntry(const LogEntry & tup)
     }
   }
   
-  m_ndb->closeTransaction(trans);
   m_logBytes+= n_bytes;
   m_logCount++;
 }
