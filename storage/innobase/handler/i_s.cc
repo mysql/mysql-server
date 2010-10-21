@@ -24,7 +24,7 @@ Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
 #include <mysqld_error.h>
-#include <sql_acl.h>                            // PROCESS_ACL
+#include <sql_acl.h>				// PROCESS_ACL
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -125,7 +125,7 @@ trx_i_s_common_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		cond);	/*!< in: condition (not used) */
+	Item*		);	/*!< in: condition (not used) */
 
 /*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
@@ -1110,7 +1110,7 @@ trx_i_s_common_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		cond)	/*!< in: condition (not used) */
+	Item*		)	/*!< in: condition (not used) */
 {
 	const char*		table_name;
 	int			ret;
@@ -1270,7 +1270,7 @@ i_s_cmp_fill_low(
 /*=============*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		cond,	/*!< in: condition (ignored) */
+	Item*		,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	TABLE*	table	= (TABLE *) tables->table;
@@ -1530,7 +1530,7 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		"Total Duration of Relocations,"
-		    			" in Seconds"),
+					" in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	END_OF_ST_FIELD_INFO
@@ -1546,7 +1546,7 @@ i_s_cmpmem_fill_low(
 /*================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		cond,	/*!< in: condition (ignored) */
+	Item*		,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	int		status = 0;
@@ -1930,7 +1930,7 @@ int
 i_s_metrics_fill(
 /*=============*/
 	THD*		thd,		/*!< in: thread */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	int		count;
 	Field**		fields;
@@ -2118,9 +2118,9 @@ static
 int
 i_s_metrics_fill_table(
 /*===================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	Item*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
 	DBUG_ENTER("i_s_metrics_fill_table");
 
@@ -2282,7 +2282,7 @@ i_s_dict_fill_sys_tables(
 /*=====================*/
 	THD*		thd,		/*!< in: thread */
 	dict_table_t*	table,		/*!< in: table */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -2312,9 +2312,9 @@ static
 int
 i_s_sys_tables_fill_table(
 /*======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	Item*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -2384,7 +2384,7 @@ static
 int
 innodb_sys_tables_init(
 /*===================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -2544,7 +2544,7 @@ i_s_dict_fill_sys_tablestats(
 /*=========================*/
 	THD*		thd,		/*!< in: thread */
 	dict_table_t*	table,		/*!< in: table */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -2593,9 +2593,9 @@ static
 int
 i_s_sys_tables_fill_table_stats(
 /*============================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	Item*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -2659,7 +2659,7 @@ static
 int
 innodb_sys_tablestats_init(
 /*=======================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -2803,7 +2803,7 @@ i_s_dict_fill_sys_indexes(
 	table_id_t	table_id,	/*!< in: table id */
 	dict_index_t*	index,		/*!< in: populated dict_index_t
 					struct with index info */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -2837,9 +2837,9 @@ static
 int
 i_s_sys_indexes_fill_table(
 /*=======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	Item*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t		pcur;
 	const rec_t*		rec;
@@ -2905,7 +2905,7 @@ static
 int
 innodb_sys_indexes_init(
 /*====================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -3041,7 +3041,7 @@ i_s_dict_fill_sys_columns(
 	const char*	col_name,	/*!< in: column name */
 	dict_col_t*	column,		/*!< in: dict_col_t struct holding
 					more column information */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -3073,9 +3073,9 @@ static
 int
 i_s_sys_columns_fill_table(
 /*=======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	Item*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -3141,7 +3141,7 @@ static
 int
 innodb_sys_columns_init(
 /*====================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -3248,7 +3248,7 @@ i_s_dict_fill_sys_fields(
 	index_id_t	index_id,	/*!< in: index id for the field */
 	dict_field_t*	field,		/*!< in: table */
 	ulint		pos,		/*!< in: Field position */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -3275,9 +3275,9 @@ static
 int
 i_s_sys_fields_fill_table(
 /*======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	Item*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -3348,7 +3348,7 @@ static
 int
 innodb_sys_fields_init(
 /*===================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -3472,7 +3472,7 @@ i_s_dict_fill_sys_foreign(
 /*======================*/
 	THD*		thd,		/*!< in: thread */
 	dict_foreign_t*	foreign,	/*!< in: table */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -3505,9 +3505,9 @@ static
 int
 i_s_sys_foreign_fill_table(
 /*=======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	Item*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -3569,7 +3569,7 @@ static
 int
 innodb_sys_foreign_init(
 /*====================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -3687,7 +3687,7 @@ i_s_dict_fill_sys_foreign_cols(
 	const char*	ref_col_name,	/*!< in: referenced column
 					name */
 	ulint		pos,		/*!< in: column position */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -3716,9 +3716,9 @@ static
 int
 i_s_sys_foreign_cols_fill_table(
 /*============================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	Item*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -3783,7 +3783,7 @@ static
 int
 innodb_sys_foreign_cols_init(
 /*========================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 

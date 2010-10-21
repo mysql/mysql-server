@@ -2001,6 +2001,8 @@ dict_stats_fetch_from_ps(
 	pars_info_t*	pinfo;
 	ulint		ret;
 
+	ut_ad(mutex_own(&dict_sys->mutex) == caller_has_dict_sys_mutex);
+
 	mutex_enter(&kernel_mutex);
 	trx = trx_create(trx_dummy_sess);
 	mutex_exit(&kernel_mutex);
@@ -2213,11 +2215,13 @@ dict_stats_update(
 		/* fetch requested, either fetch from persistent statistics
 		storage or use the old method */
 
-		if (strchr(table->name, '/') == NULL) {
+		if (!strchr(table->name, '/')
+		    || !strcmp(table->name, INDEX_STATS_NAME)
+		    || !strcmp(table->name, TABLE_STATS_NAME)) {
 			/* Use the quick transient stats method for
-			SYS_* tables because we know the persistent
-			stats storage does not contain data for SYS_*
-			tables */
+			InnoDB internal tables, because we know the
+			persistent stats storage does not contain data
+			for them */
 			dict_stats_update_transient(table);
 			ret = DB_SUCCESS;
 		} else if (dict_stats_persistent_storage_check(
@@ -2256,85 +2260,79 @@ dict_stats_update(
 /* @} */
 
 /*********************************************************************//**
-Increment stats tables' mysql reference count to prevent these tables from
-being DROPped. Also check whether they have the correct structure. The caller
-must call dict_stats_dec_ref_count() when he has finished DMLing the tables.
-dict_stats_inc_ref_count_and_check() @{
-@return TRUE if tables exist, have the correct structure and reference count
-was incremented */
+Open stats tables to prevent these tables from being DROPped.
+Also check whether they have the correct structure. The caller
+must call dict_stats_close() when he has finished DMLing the tables.
+@return TRUE if tables were opened and have the correct structure */
 UNIV_INLINE
 ibool
-dict_stats_inc_ref_count_and_check(
-/*===============================*/
-	trx_t*	trx)	/*!< in/out: transaction to use */
+dict_stats_open(void)
+/*=================*/
 {
 	dict_table_t*	table_stats;
 	dict_table_t*	index_stats;
 
-	row_mysql_lock_data_dictionary(trx);
+	mutex_enter(&dict_sys->mutex);
 
-	table_stats = dict_table_get_low(TABLE_STATS_NAME);
-	index_stats = dict_table_get_low(INDEX_STATS_NAME);
+	table_stats = dict_table_open_on_name(TABLE_STATS_NAME, TRUE);
+	index_stats = dict_table_open_on_name(INDEX_STATS_NAME, TRUE);
 
-	if (table_stats == NULL || index_stats == NULL) {
-		/* tables do not exist */
-		row_mysql_unlock_data_dictionary(trx);
-		return(FALSE);
-	}
-
-	table_stats->n_mysql_handles_opened++;
-	index_stats->n_mysql_handles_opened++;
-
-	row_mysql_unlock_data_dictionary(trx);
+	mutex_exit(&dict_sys->mutex);
 
 	/* Check if the tables have the correct structure, if yes then
 	after this function we can safely DELETE from them without worrying
 	that they may get DROPped or DDLed because we have incremented the
-	mysql reference count. */
-	if (!dict_stats_persistent_storage_check(FALSE)) {
+	reference count. */
 
-		row_mysql_lock_data_dictionary(trx);
+	if (table_stats == NULL || index_stats == NULL
+	    || !dict_stats_persistent_storage_check(FALSE)) {
 
-		table_stats->n_mysql_handles_opened--;
-		index_stats->n_mysql_handles_opened--;
+		mutex_enter(&dict_sys->mutex);
 
-		row_mysql_unlock_data_dictionary(trx);
+		if (table_stats != NULL) {
+			dict_table_close(table_stats, TRUE);
+		}
+		if (index_stats != NULL) {
+			dict_table_close(index_stats, TRUE);
+		}
+
+		mutex_exit(&dict_sys->mutex);
 
 		return(FALSE);
 	}
 
 	return(TRUE);
 }
-/* @} */
 
 /*********************************************************************//**
-Decrement stats tables' mysql reference count. Should always be called
-after dict_stats_inc_ref_count_and_check().
-dict_stats_dec_ref_count() @{ */
+Close the stats tables. Should always be called
+after successful dict_stats_open(). */
 UNIV_INLINE
 void
-dict_stats_dec_ref_count(
-/*=====================*/
-	trx_t*	trx
-)
+dict_stats_close(void)
+/*==================*/
 {
 	dict_table_t*	table_stats;
 	dict_table_t*	index_stats;
 
-	row_mysql_lock_data_dictionary(trx);
+	mutex_enter(&dict_sys->mutex);
 
-	table_stats = dict_table_get_low(TABLE_STATS_NAME);
+	table_stats = dict_table_open_on_name(TABLE_STATS_NAME, TRUE);
 	ut_a(table_stats != NULL);
+	/* undo the open above */
+	dict_table_close(table_stats, TRUE);
+	/* undo dict_stats_open() */
+	dict_table_close(table_stats, TRUE);
 
-	index_stats = dict_table_get_low(INDEX_STATS_NAME);
+	index_stats = dict_table_open_on_name(INDEX_STATS_NAME, TRUE);
 	ut_a(index_stats != NULL);
+	/* undo the open above */
+	dict_table_close(index_stats, TRUE);
+	/* undo dict_stats_open() */
+	dict_table_close(index_stats, TRUE);
 
-	dict_table_decrement_handle_count(table_stats, TRUE);
-	dict_table_decrement_handle_count(index_stats, TRUE);
-
-	row_mysql_unlock_data_dictionary(trx);
+	mutex_exit(&dict_sys->mutex);
 }
-/* @} */
 
 /*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
@@ -2376,7 +2374,7 @@ dict_stats_delete_index_stats(
 
 	/* Increment table reference count to prevent the tables from
 	being DROPped just before que_eval_sql(). */
-	if (!dict_stats_inc_ref_count_and_check(trx)) {
+	if (!dict_stats_open()) {
 		/* stats tables do not exist or have unexpected structure */
 		return(DB_SUCCESS);
 	}
@@ -2440,7 +2438,7 @@ dict_stats_delete_index_stats(
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-	dict_stats_dec_ref_count(trx);
+	dict_stats_close();
 
 	return(ret);
 }
@@ -2498,7 +2496,7 @@ dict_stats_delete_table_stats(
 	from races, but we nevertheless increment the ref counter to
 	be sure the code continues to be race-free even if MySQL code
 	is changed. */
-	if (!dict_stats_inc_ref_count_and_check(trx)) {
+	if (!dict_stats_open()) {
 		/* stats tables do not exist or have unexpected structure */
 		ret = DB_SUCCESS;
 		goto commit_and_return;
@@ -2566,7 +2564,7 @@ dict_stats_delete_table_stats(
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-	dict_stats_dec_ref_count(trx);
+	dict_stats_close();
 
 commit_and_return:
 

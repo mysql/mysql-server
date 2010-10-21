@@ -27,6 +27,7 @@ Created 1/8/1996 Heikki Tuuri
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
+#include "dict0priv.ic"
 #endif
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
@@ -56,6 +57,11 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
 #include "srv0mon.h"
+#include "srv0start.h"
+#ifdef UNIV_DEBUG
+#include "lock0lock.h"
+#endif /* UNIV_DEBUG */
+#include "dict0priv.h"
 
 #include <ctype.h>
 
@@ -165,6 +171,50 @@ void
 dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign);	/*!< in, own: foreign key struct */
+
+/**********************************************************************//**
+Removes an index from the dictionary cache. */
+static
+void
+dict_index_remove_from_cache_low(
+/*=============================*/
+	dict_table_t*	table,		/*!< in/out: table */
+	dict_index_t*	index,		/*!< in, own: index */
+	ibool		lru_evict);	/*!< in: TRUE if page being evicted
+					to make room in the table LRU list */
+/**********************************************************************//**
+Removes a table object from the dictionary cache. */
+static
+void
+dict_table_remove_from_cache_low(
+/*=============================*/
+	dict_table_t*	table,		/*!< in, own: table */
+	ibool		lru_evict);	/*!< in: TRUE if evicting from LRU */
+#ifdef UNIV_DEBUG
+/**********************************************************************//**
+Validate the dictionary table LRU list.
+@return TRUE if validate OK */
+static
+ibool
+dict_lru_validate(void);
+/*===================*/
+/**********************************************************************//**
+Check if table is in the dictionary table LRU list.
+@return TRUE if table found */
+static
+ibool
+dict_lru_find_table(
+/*================*/
+	const dict_table_t*	find_table);	/*!< in: table to find */
+/**********************************************************************//**
+Check if a table exists in the dict table non-LRU list.
+@return TRUE if table found */
+static
+ibool
+dict_non_lru_find_table(
+/*====================*/
+	const dict_table_t*	find_table);	/*!< in: table to find */
+#endif /* UNIV_DEBUG */
 
 /* Stream for storing detailed information about the latest foreign key
 and unique key errors */
@@ -296,11 +346,11 @@ dict_index_stat_mutex_exit(
 }
 
 /********************************************************************//**
-Decrements the count of open MySQL handles to a table. */
+Decrements the count of open handles to a table. */
 UNIV_INTERN
 void
-dict_table_decrement_handle_count(
-/*==============================*/
+dict_table_close(
+/*=============*/
 	dict_table_t*	table,		/*!< in/out: table */
 	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
@@ -309,11 +359,19 @@ dict_table_decrement_handle_count(
 	}
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_a(table->n_mysql_handles_opened > 0);
+	ut_a(table->n_ref_count > 0);
 
-	table->n_mysql_handles_opened--;
+	--table->n_ref_count;
 
-	MONITOR_INC(MONITOR_TABLE_CLOSE);
+	ut_ad(dict_lru_validate());
+
+#ifdef UNIV_DEBUG
+	if (table->can_be_evicted) {
+		ut_ad(dict_lru_find_table(table));
+	} else {
+		ut_ad(dict_non_lru_find_table(table));
+	}
+#endif /* UNIV_DEBUG */
 
 	if (!dict_locked) {
 		mutex_exit(&dict_sys->mutex);
@@ -422,8 +480,8 @@ dict_table_autoinc_unlock(
 
 /**********************************************************************//**
 Looks for an index with the given table and index id.
-NOTE that we do not reserve the dictionary mutex.
-@return	index or NULL if not found from cache */
+Note: Does not reserve the dictionary mutex.
+@return	index or NULL if not found in cache */
 UNIV_INTERN
 dict_index_t*
 dict_index_get_on_id_low(
@@ -433,16 +491,15 @@ dict_index_get_on_id_low(
 {
 	dict_index_t*	index;
 
-	index = dict_table_get_first_index(table);
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
 
-	while (index) {
 		if (id == index->id) {
 			/* Found */
 
 			return(index);
 		}
-
-		index = dict_table_get_next_index(index);
 	}
 
 	return(NULL);
@@ -576,29 +633,33 @@ Returns a table object based on table id.
 @return	table, NULL if does not exist */
 UNIV_INTERN
 dict_table_t*
-dict_table_get_on_id(
-/*=================*/
+dict_table_open_on_id(
+/*==================*/
 	table_id_t	table_id,	/*!< in: table id */
-	trx_t*		trx)		/*!< in: transaction handle */
+	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
 	dict_table_t*	table;
 
-	if (table_id <= DICT_FIELDS_ID
-	    || trx->dict_operation_lock_mode == RW_X_LATCH) {
-
-		/* Note: An X latch implies that the transaction
-		already owns the dictionary mutex. */
-
-		ut_ad(mutex_own(&dict_sys->mutex));
-
-		return(dict_table_get_on_id_low(table_id));
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
 	}
 
-	mutex_enter(&(dict_sys->mutex));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
-	table = dict_table_get_on_id_low(table_id);
+	table = dict_table_open_on_id_low(table_id);
 
-	mutex_exit(&(dict_sys->mutex));
+	if (table != NULL) {
+
+		if (table->can_be_evicted) {
+			dict_move_to_mru(table);
+		}
+
+		++table->n_ref_count;
+	}
+
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	return(table);
 }
@@ -663,7 +724,7 @@ dict_init(void)
 {
 	int	i;
 
-	dict_sys = mem_alloc(sizeof(dict_sys_t));
+	dict_sys = mem_zalloc(sizeof(dict_sys_t));
 
 	mutex_create(dict_sys_mutex_key, &dict_sys->mutex, SYNC_DICT);
 
@@ -673,10 +734,6 @@ dict_init(void)
 	dict_sys->table_id_hash = hash_create(buf_pool_get_curr_size()
 					      / (DICT_POOL_PER_TABLE_HASH
 						 * UNIV_WORD_SIZE));
-	dict_sys->size = 0;
-
-	UT_LIST_INIT(dict_sys->table_LRU);
-
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
@@ -693,43 +750,106 @@ dict_init(void)
 }
 
 /**********************************************************************//**
-Returns a table object and optionally increment its MySQL open handle count.
-NOTE! This is a high-level function to be used mainly from outside the
-'dict' directory. Inside this directory dict_table_get_low is usually the
-appropriate function.
-@return	table, NULL if does not exist */
+Move to the most recently used segment of the LRU list. */
 UNIV_INTERN
+void
+dict_move_to_mru(
+/*=============*/
+	dict_table_t*	table)		/*!< in: table to move to MRU */
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(dict_lru_validate());
+	ut_ad(dict_lru_find_table(table));
+
+	ut_a(table->can_be_evicted);
+
+	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+
+	UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
+
+	ut_ad(dict_lru_validate());
+}
+
+/**********************************************************************//**
+Returns a table object and increments its open handle count.
+@return	table, NULL if does not exist */
+static
 dict_table_t*
-dict_table_get(
-/*===========*/
+dict_table_open_on_name_low(
+/*========================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		inc_mysql_count)/*!< in: whether to increment the open
-					handle count on the table */
+	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
 	dict_table_t*	table;
 
-	mutex_enter(&(dict_sys->mutex));
+	if (!dict_locked) {
+		mutex_enter(&(dict_sys->mutex));
+	}
+
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	table = dict_table_get_low(table_name);
 
-	if (inc_mysql_count && table) {
-		table->n_mysql_handles_opened++;
+	if (table != NULL) {
+
+		if (table->can_be_evicted) {
+			dict_move_to_mru(table);
+		}
+
+		++table->n_ref_count;
 	}
 
-	mutex_exit(&(dict_sys->mutex));
+	ut_ad(dict_lru_validate());
 
-	if (table != NULL) {
-		if (!table->stat_initialized) {
-			/* If table->ibd_file_missing == TRUE, this will
-			print an error message and return without doing
-			anything. */
-			ut_ad(!mutex_own(&dict_sys->mutex));
-			dict_stats_update(table, DICT_STATS_FETCH, FALSE);
-		}
+	if (!dict_locked) {
+		mutex_exit(&(dict_sys->mutex));
 	}
 
 	return(table);
 }
+
+/**********************************************************************//**
+Returns a table object and increment its open handle count.
+NOTE! This is a high-level function to be used mainly from outside the
+'dict' directory. Inside this directory dict_table_get_low
+is usually the appropriate function.
+@return	table, NULL if does not exist */
+UNIV_INTERN
+dict_table_t*
+dict_table_open_on_name(
+/*====================*/
+	const char*	table_name,	/*!< in: table name */
+	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
+{
+	dict_table_t*	table;
+
+	table = dict_table_open_on_name_low(table_name, dict_locked);
+
+	if (table != NULL && !table->stat_initialized) {
+		/* If table->ibd_file_missing == TRUE, this will
+		print an error message and return without doing
+		anything. */
+		dict_stats_update(table, DICT_STATS_FETCH, dict_locked);
+	}
+
+	return(table);
+}
+
+/**********************************************************************//**
+Returns a table object and increment its open handle count. Table
+statistics will not be updated if they are not initialized.
+Call this function when dropping a table.
+@return	table, NULL if does not exist */
+UNIV_INTERN
+dict_table_t*
+dict_table_open_on_name_no_stats(
+/*=============================*/
+	const char*	table_name,	/*!< in: table name */
+	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
+{
+	return(dict_table_open_on_name_low(table_name, dict_locked));
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -785,13 +905,16 @@ UNIV_INTERN
 void
 dict_table_add_to_cache(
 /*====================*/
-	dict_table_t*	table,	/*!< in: table */
-	mem_heap_t*	heap)	/*!< in: temporary heap */
+	dict_table_t*	table,		/*!< in: table */
+	ibool		can_be_evicted,	/*!< in: TRUE if can be evicted */
+	mem_heap_t*	heap)		/*!< in: temporary heap */
 {
 	ulint	fold;
 	ulint	id_fold;
 	ulint	i;
 	ulint	row_len;
+
+	ut_ad(dict_lru_validate());
 
 	/* The lower limit for what we consider a "big" row */
 #define BIG_ROW_SIZE 1024
@@ -864,18 +987,225 @@ dict_table_add_to_cache(
 	/* Add table to hash table of tables based on table id */
 	HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash, id_fold,
 		    table);
-	/* Add table to LRU list of tables */
-	UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
+
+	table->can_be_evicted = can_be_evicted;
+
+	if (table->can_be_evicted) {
+		UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
+	} else {
+		UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_non_LRU, table);
+	}
+
+	ut_ad(dict_lru_validate());
 
 	dict_sys->size += mem_heap_get_size(table->heap)
 		+ strlen(table->name) + 1;
 }
 
 /**********************************************************************//**
+Test whether a table can be evicted from the LRU cache.
+@return TRUE if table can be evicted. */
+static
+ibool
+dict_table_can_be_evicted(
+/*======================*/
+	const dict_table_t*	table)		/*!< in: table to test */
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	ut_a(table->can_be_evicted);
+	ut_a(UT_LIST_GET_LEN(table->foreign_list) == 0);
+	ut_a(UT_LIST_GET_LEN(table->referenced_list) == 0);
+
+	if (table->n_ref_count == 0) {
+		dict_index_t*	index;
+
+		/* The transaction commit and rollback are called from
+		outside the handler interface. This means that there is
+		a window where the table->n_ref_count can be zero but
+		the table instance is in "use". */
+
+		mutex_enter(&kernel_mutex);
+
+		if (UT_LIST_GET_LEN(table->locks) != 0
+		    || table->n_rec_locks != 0) {
+
+			mutex_exit(&kernel_mutex);
+
+			return(FALSE);
+		}
+
+		ut_ad(lock_table_has_locks(table) == NULL);
+
+		mutex_exit(&kernel_mutex);
+
+		for (index = dict_table_get_first_index(table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+
+			btr_search_t*	info = index->search_info;
+
+			/* We are not allowed to free the in-memory index
+			struct dict_index_t until all entries in the adaptive
+			hash index that point to any of the page belonging to
+			his b-tree index are dropped. This is so because
+			dropping of these entries require access to
+			dict_index_t struct. To avoid such scenario we keep
+			a count of number of such pages in the search_info and
+			only free the dict_index_t struct when this count
+			drops to zero.
+
+			See also: dict_index_remove_from_cache_low() */
+
+			if (btr_search_info_get_ref_count(info) > 0) {
+				return(FALSE);
+			}
+		}
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/**********************************************************************//**
+Make room in the table cache by evicting an unused table. The unused table
+should not be part of FK relationship and currently not used in any user
+transaction. There is no guarantee that it will remove a table.
+@return number of tables evicted. If the number of tables in the dict_LRU
+is less than max_tables it will not do anything. */
+UNIV_INTERN
+ulint
+dict_make_room_in_cache(
+/*====================*/
+	ulint		max_tables,	/*!< in: max tables allowed in cache */
+	ulint		pct_check)	/*!< in: max percent to check */
+{
+	ulint		i;
+	ulint		len;
+	dict_table_t*	table;
+	ulint		check_up_to;
+	ulint		n_evicted = 0;
+
+	ut_a(pct_check > 0);
+	ut_a(pct_check <= 100);
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(dict_lru_validate());
+
+	i = len = UT_LIST_GET_LEN(dict_sys->table_LRU);
+
+	if (len < max_tables) {
+		return(0);
+	}
+
+	check_up_to = len - ((len * pct_check) / 100);
+
+	/* Check for overflow */
+	ut_a(i == 0 || check_up_to <= i);
+
+	/* Find a suitable candidate to evict from the cache. Don't scan the
+	entire LRU list. Only scan pct_check list entries. */
+
+	for (table = UT_LIST_GET_LAST(dict_sys->table_LRU);
+	     table != NULL
+	     && i > check_up_to
+	     && (len - n_evicted) > max_tables;
+	     --i) {
+
+		dict_table_t*	prev_table;
+
+	        prev_table = UT_LIST_GET_PREV(table_LRU, table);
+
+		if (dict_table_can_be_evicted(table)) {
+
+			dict_table_remove_from_cache_low(table, TRUE);
+
+			++n_evicted;
+		}
+
+		table = prev_table;
+	}
+
+	return(n_evicted);
+}
+
+/**********************************************************************//**
+Move a table to the non-LRU list from the LRU list. */
+UNIV_INTERN
+void
+dict_table_move_from_lru_to_non_lru(
+/*================================*/
+	dict_table_t*	table)	/*!< in: table to move from LRU to non-LRU */
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(dict_lru_find_table(table));
+
+	ut_a(table->can_be_evicted);
+
+	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+
+	UT_LIST_ADD_LAST(table_LRU, dict_sys->table_non_LRU, table);
+
+	table->can_be_evicted = FALSE;
+}
+
+/**********************************************************************//**
+Move a table to the LRU list from the non-LRU list. */
+UNIV_INTERN
+void
+dict_table_move_from_non_lru_to_lru(
+/*================================*/
+	dict_table_t*	table)	/*!< in: table to move from non-LRU to LRU */
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(dict_non_lru_find_table(table));
+
+	ut_a(!table->can_be_evicted);
+
+	UT_LIST_REMOVE(table_LRU, dict_sys->table_non_LRU, table);
+
+	UT_LIST_ADD_LAST(table_LRU, dict_sys->table_LRU, table);
+
+	table->can_be_evicted = TRUE;
+}
+
+/**********************************************************************//**
+Looks for an index with the given id given a table instance.
+@return	index or NULL */
+static
+dict_index_t*
+dict_table_find_index_on_id(
+/*========================*/
+	const dict_table_t*	table,	/*!< in: table instance */
+	index_id_t		id)	/*!< in: index id */
+{
+	dict_index_t*	index;
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		if (id == index->id) {
+			/* Found */
+
+			return(index);
+		}
+	}
+
+	return(NULL);
+}
+
+/**********************************************************************//**
 Looks for an index with the given id. NOTE that we do not reserve
 the dictionary mutex: this function is for emergency purposes like
 printing info of a corrupt database page!
-@return	index or NULL if not found from cache */
+@return	index or NULL if not found in cache */
 UNIV_INTERN
 dict_index_t*
 dict_index_find_on_id_low(
@@ -883,24 +1213,27 @@ dict_index_find_on_id_low(
 	index_id_t	id)	/*!< in: index id */
 {
 	dict_table_t*	table;
-	dict_index_t*	index;
 
-	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
 
-	while (table) {
-		index = dict_table_get_first_index(table);
+		dict_index_t*	index = dict_table_find_index_on_id(table, id);
 
-		while (index) {
-			if (id == index->id) {
-				/* Found */
-
-				return(index);
-			}
-
-			index = dict_table_get_next_index(index);
+		if (index != NULL) {
+			return(index);
 		}
+	}
 
-		table = UT_LIST_GET_NEXT(table_LRU, table);
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+
+		dict_index_t*	index = dict_table_find_index_on_id(table, id);
+
+		if (index != NULL) {
+			return(index);
+		}
 	}
 
 	return(NULL);
@@ -1166,17 +1499,22 @@ dict_table_change_id_in_cache(
 
 /**********************************************************************//**
 Removes a table object from the dictionary cache. */
-UNIV_INTERN
+static
 void
-dict_table_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table)	/*!< in, own: table */
+dict_table_remove_from_cache_low(
+/*=============================*/
+	dict_table_t*	table,		/*!< in, own: table */
+	ibool		lru_evict)	/*!< in: TRUE if table being evicted
+					to make room in the table LRU list */
 {
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		size;
 
 	ut_ad(table);
+	ut_ad(dict_lru_validate());
+	ut_a(table->n_ref_count == 0);
+	ut_a(table->n_rec_locks == 0);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
@@ -1187,40 +1525,51 @@ dict_table_remove_from_cache(
 #endif
 
 	/* Remove the foreign constraints from the cache */
-	foreign = UT_LIST_GET_LAST(table->foreign_list);
 
-	while (foreign != NULL) {
+	for (foreign = UT_LIST_GET_LAST(table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_LAST(table->foreign_list)) {
+
 		dict_foreign_remove_from_cache(foreign);
-		foreign = UT_LIST_GET_LAST(table->foreign_list);
 	}
 
 	/* Reset table field in referencing constraints */
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
 
-	while (foreign != NULL) {
 		foreign->referenced_table = NULL;
 		foreign->referenced_index = NULL;
-
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
 	/* Remove the indexes from the cache */
-	index = UT_LIST_GET_LAST(table->indexes);
 
-	while (index != NULL) {
-		dict_index_remove_from_cache(table, index);
-		index = UT_LIST_GET_LAST(table->indexes);
+	for (index = UT_LIST_GET_LAST(table->indexes);
+	     index != NULL;
+	     index = UT_LIST_GET_LAST(table->indexes)) {
+
+		dict_index_remove_from_cache_low(table, index, lru_evict);
 	}
 
 	/* Remove table from the hash tables of tables */
+
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
 		    ut_fold_string(table->name), table);
+
 	HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
 		    ut_fold_ull(table->id), table);
 
-	/* Remove table from LRU list of tables */
-	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+	/* Remove table from LRU or non-LRU list. */
+	if (table->can_be_evicted) {
+		ut_ad(dict_lru_find_table(table));
+		UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+	} else {
+		ut_ad(dict_non_lru_find_table(table));
+		UT_LIST_REMOVE(table_LRU, dict_sys->table_non_LRU, table);
+	}
+
+	ut_ad(dict_lru_validate());
 
 	size = mem_heap_get_size(table->heap) + strlen(table->name) + 1;
 
@@ -1229,6 +1578,17 @@ dict_table_remove_from_cache(
 	dict_sys->size -= size;
 
 	dict_mem_table_free(table);
+}
+
+/**********************************************************************//**
+Removes a table object from the dictionary cache. */
+UNIV_INTERN
+void
+dict_table_remove_from_cache(
+/*=========================*/
+	dict_table_t*	table)	/*!< in, own: table */
+{
+	return(dict_table_remove_from_cache_low(table, FALSE));
 }
 
 /****************************************************************//**
@@ -1685,12 +2045,14 @@ undo_size_ok:
 
 /**********************************************************************//**
 Removes an index from the dictionary cache. */
-UNIV_INTERN
+static
 void
-dict_index_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	dict_index_t*	index)	/*!< in, own: index */
+dict_index_remove_from_cache_low(
+/*=============================*/
+	dict_table_t*	table,		/*!< in/out: table */
+	dict_index_t*	index,		/*!< in, own: index */
+	ibool		lru_evict)	/*!< in: TRUE if index being evicted
+					to make room in the table LRU list */
 {
 	ulint		size;
 	ulint		retries = 0;
@@ -1707,16 +2069,17 @@ dict_index_remove_from_cache(
 	ut_ad(info);
 
 	/* We are not allowed to free the in-memory index struct
- 	dict_index_t until all entries in the adaptive hash index
+	dict_index_t until all entries in the adaptive hash index
 	that point to any of the page belonging to his b-tree index
 	are dropped. This is so because dropping of these entries
 	require access to dict_index_t struct. To avoid such scenario
 	We keep a count of number of such pages in the search_info and
 	only free the dict_index_t struct when this count drops to
-	zero. */
+	zero. See also: dict_table_can_be_evicted() */
 
-	for (;;) {
+	do {
 		ulint ref_count = btr_search_info_get_ref_count(info);
+
 		if (ref_count == 0) {
 			break;
 		}
@@ -1744,7 +2107,7 @@ dict_index_remove_from_cache(
 		if (retries >= 60000) {
 			ut_error;
 		}
-	}
+	} while (srv_shutdown_state == SRV_SHUTDOWN_NONE || !lru_evict);
 
 	rw_lock_free(&index->lock);
 
@@ -1758,6 +2121,18 @@ dict_index_remove_from_cache(
 	dict_sys->size -= size;
 
 	dict_mem_index_free(index);
+}
+
+/**********************************************************************//**
+Removes an index from the dictionary cache. */
+UNIV_INTERN
+void
+dict_index_remove_from_cache(
+/*=========================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	dict_index_t*	index)	/*!< in, own: index */
+{
+	return(dict_index_remove_from_cache_low(table, index, FALSE));
 }
 
 /*******************************************************************//**
@@ -2660,6 +3035,19 @@ dict_foreign_add_to_cache(
 				 for_table->foreign_list,
 				 for_in_cache);
 	}
+
+	/* We need to move the table to the non-LRU end of the table LRU
+	list. Otherwise it will be evicted from the cache. */
+
+	if (ref_table != NULL && ref_table->can_be_evicted) {
+		dict_table_move_from_lru_to_non_lru(ref_table);
+	}
+
+	if (for_table != NULL && for_table->can_be_evicted) {
+		dict_table_move_from_lru_to_non_lru(for_table);
+	}
+
+	ut_ad(dict_lru_validate());
 
 	return(DB_SUCCESS);
 }
@@ -4640,6 +5028,7 @@ dict_ind_init(void)
 	dict_index_add_col(dict_ind_redundant, table,
 			   dict_table_get_nth_col(table, 0), 0);
 	dict_ind_redundant->table = table;
+
 	/* create dummy table and index for COMPACT infimum and supremum */
 	table = dict_mem_table_create("SYS_DUMMY2",
 				      DICT_HDR_SPACE, 1, DICT_TF_COMPACT);
@@ -4837,7 +5226,7 @@ dict_table_schema_check(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	if (table->n_def - DATA_N_SYS_COLS != req_schema->n_cols) {
+	if ((ulint) table->n_def - DATA_N_SYS_COLS != req_schema->n_cols) {
 		/* the table has a different number of columns than
 		required */
 
@@ -4956,7 +5345,7 @@ dict_table_schema_check(
 }
 /* @} */
 
-/**************************************************************************
+/**********************************************************************//**
 Closes the data dictionary module. */
 UNIV_INTERN
 void
@@ -5011,3 +5400,90 @@ dict_close(void)
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/**********************************************************************//**
+Validate the dictionary table LRU list.
+@return TRUE if valid  */
+UNIV_INTERN
+ibool
+dict_lru_validate(void)
+/*===================*/
+{
+	dict_table_t*	table;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+
+		ut_a(table->can_be_evicted);
+	}
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+
+		ut_a(!table->can_be_evicted);
+	}
+
+	return(TRUE);
+}
+
+/**********************************************************************//**
+Check if a table exists in the dict table LRU list.
+@return TRUE if table found in LRU list */
+UNIV_INTERN
+ibool
+dict_lru_find_table(
+/*================*/
+	const dict_table_t*	find_table)	/*!< in: table to find */
+{
+	dict_table_t*		table;
+
+	ut_ad(find_table != NULL);
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+
+		ut_a(table->can_be_evicted);
+
+		if (table == find_table) {
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
+/**********************************************************************//**
+Check if a table exists in the dict table non-LRU list.
+@return TRUE if table found in non-LRU list */
+static
+ibool
+dict_non_lru_find_table(
+/*====================*/
+	const dict_table_t*	find_table)	/*!< in: table to find */
+{
+	dict_table_t*		table;
+
+	ut_ad(find_table != NULL);
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+
+		ut_a(!table->can_be_evicted);
+
+		if (table == find_table) {
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+#endif /* UNIV_DEBUG */
