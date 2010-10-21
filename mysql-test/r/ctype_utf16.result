@@ -611,6 +611,38 @@ utf16_bin	00610009
 utf16_bin	0061
 utf16_bin	00610020
 drop table t1;
+#
+# Bug#55980 Character sets: supplementary character _bin ordering is wrong
+#
+CREATE TABLE t1 AS SELECT REPEAT('a',1) AS a LIMIT 0;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1) CHARACTER SET utf16 COLLATE utf16_bin NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
+INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
+SELECT HEX(a), HEX(CONVERT(a USING utf8mb4)) FROM t1 ORDER BY a;
+HEX(a)	HEX(CONVERT(a USING utf8mb4))
+0385	CE85
+D800DF84	F0908E84
+DBC0DC00	F4808080
+FF9D	EFBE9D
+ALTER TABLE t1 ADD KEY(a);
+SELECT HEX(a), HEX(CONVERT(a USING utf8mb4)) FROM t1 ORDER BY a;
+HEX(a)	HEX(CONVERT(a USING utf8mb4))
+0385	CE85
+D800DF84	F0908E84
+DBC0DC00	F4808080
+FF9D	EFBE9D
+# Additional test for bug#37244 Character sets: short utf8_bin weight_string value
+SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
+HEX(a)	HEX(WEIGHT_STRING(a))
+0385	000385
+D800DF84	010384
+DBC0DC00	100000
+FF9D	20FF9D
+DROP TABLE IF EXISTS t1;
 select @@collation_connection;
 @@collation_connection
 utf16_bin
@@ -1275,178 +1307,178 @@ select @@collation_connection;
 utf16_bin
 select hex(weight_string('a'));
 hex(weight_string('a'))
-0061
+000061
 select hex(weight_string('A'));
 hex(weight_string('A'))
-0041
+000041
 select hex(weight_string('abc'));
 hex(weight_string('abc'))
-006100620063
+000061000062000063
 select hex(weight_string('abc' as char(2)));
 hex(weight_string('abc' as char(2)))
-00610062
+000061000062
 select hex(weight_string('abc' as char(3)));
 hex(weight_string('abc' as char(3)))
-006100620063
+000061000062000063
 select hex(weight_string('abc' as char(5)));
 hex(weight_string('abc' as char(5)))
-00610062006300200020
+000061000062000063000020000020
 select hex(weight_string('abc', 1, 2, 0xC0));
 hex(weight_string('abc', 1, 2, 0xC0))
 00
 select hex(weight_string('abc', 2, 2, 0xC0));
 hex(weight_string('abc', 2, 2, 0xC0))
-0061
+0000
 select hex(weight_string('abc', 3, 2, 0xC0));
 hex(weight_string('abc', 3, 2, 0xC0))
-006100
+000061
 select hex(weight_string('abc', 4, 2, 0xC0));
 hex(weight_string('abc', 4, 2, 0xC0))
-00610062
+00006100
 select hex(weight_string('abc', 5, 2, 0xC0));
 hex(weight_string('abc', 5, 2, 0xC0))
-0061006200
+0000610000
 select hex(weight_string('abc',25, 2, 0xC0));
 hex(weight_string('abc',25, 2, 0xC0))
-00610062002000200020002000200020002000200020002000
+00006100006200002000002000002000002000002000002000
 select hex(weight_string('abc', 1, 3, 0xC0));
 hex(weight_string('abc', 1, 3, 0xC0))
 00
 select hex(weight_string('abc', 2, 3, 0xC0));
 hex(weight_string('abc', 2, 3, 0xC0))
-0061
+0000
 select hex(weight_string('abc', 3, 3, 0xC0));
 hex(weight_string('abc', 3, 3, 0xC0))
-006100
+000061
 select hex(weight_string('abc', 4, 3, 0xC0));
 hex(weight_string('abc', 4, 3, 0xC0))
-00610062
+00006100
 select hex(weight_string('abc', 5, 3, 0xC0));
 hex(weight_string('abc', 5, 3, 0xC0))
-0061006200
+0000610000
 select hex(weight_string('abc',25, 3, 0xC0));
 hex(weight_string('abc',25, 3, 0xC0))
-00610062006300200020002000200020002000200020002000
+00006100006200006300002000002000002000002000002000
 select hex(weight_string('abc', 1, 4, 0xC0));
 hex(weight_string('abc', 1, 4, 0xC0))
 00
 select hex(weight_string('abc', 2, 4, 0xC0));
 hex(weight_string('abc', 2, 4, 0xC0))
-0061
+0000
 select hex(weight_string('abc', 3, 4, 0xC0));
 hex(weight_string('abc', 3, 4, 0xC0))
-006100
+000061
 select hex(weight_string('abc', 4, 4, 0xC0));
 hex(weight_string('abc', 4, 4, 0xC0))
-00610062
+00006100
 select hex(weight_string('abc', 5, 4, 0xC0));
 hex(weight_string('abc', 5, 4, 0xC0))
-0061006200
+0000610000
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
-00610062006300200020002000200020002000200020002000
+00006100006200006300002000002000002000002000002000
 select @@collation_connection;
 @@collation_connection
 utf16_bin
 select hex(weight_string(cast(_latin1 0x80 as char)));
 hex(weight_string(cast(_latin1 0x80 as char)))
-20AC
+0020AC
 select hex(weight_string(cast(_latin1 0x808080 as char)));
 hex(weight_string(cast(_latin1 0x808080 as char)))
-20AC20AC20AC
+0020AC0020AC0020AC
 select hex(weight_string(cast(_latin1 0x808080 as char) as char(2)));
 hex(weight_string(cast(_latin1 0x808080 as char) as char(2)))
-20AC20AC
+0020AC0020AC
 select hex(weight_string(cast(_latin1 0x808080 as char) as char(3)));
 hex(weight_string(cast(_latin1 0x808080 as char) as char(3)))
-20AC20AC20AC
+0020AC0020AC0020AC
 select hex(weight_string(cast(_latin1 0x808080 as char) as char(5)));
 hex(weight_string(cast(_latin1 0x808080 as char) as char(5)))
-20AC20AC20AC00200020
+0020AC0020AC0020AC000020000020
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 2, 0xC0))
-20
+00
 select hex(weight_string(cast(_latin1 0x808080 as char), 2, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 2, 2, 0xC0))
-20AC
+0020
 select hex(weight_string(cast(_latin1 0x808080 as char), 3, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 3, 2, 0xC0))
-20AC20
+0020AC
 select hex(weight_string(cast(_latin1 0x808080 as char), 4, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 4, 2, 0xC0))
-20AC20AC
+0020AC00
 select hex(weight_string(cast(_latin1 0x808080 as char), 5, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 5, 2, 0xC0))
-20AC20AC00
+0020AC0020
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 2, 0xC0))
-20AC20AC002000200020002000200020002000200020002000
+0020AC0020AC00002000002000002000002000002000002000
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 3, 0xC0))
-20
+00
 select hex(weight_string(cast(_latin1 0x808080 as char), 2, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 2, 3, 0xC0))
-20AC
+0020
 select hex(weight_string(cast(_latin1 0x808080 as char), 3, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 3, 3, 0xC0))
-20AC20
+0020AC
 select hex(weight_string(cast(_latin1 0x808080 as char), 4, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 4, 3, 0xC0))
-20AC20AC
+0020AC00
 select hex(weight_string(cast(_latin1 0x808080 as char), 5, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 5, 3, 0xC0))
-20AC20AC20
+0020AC0020
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 3, 0xC0))
-20AC20AC20AC00200020002000200020002000200020002000
+0020AC0020AC0020AC00002000002000002000002000002000
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 4, 0xC0))
-20
+00
 select hex(weight_string(cast(_latin1 0x808080 as char), 2, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 2, 4, 0xC0))
-20AC
+0020
 select hex(weight_string(cast(_latin1 0x808080 as char), 3, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 3, 4, 0xC0))
-20AC20
+0020AC
 select hex(weight_string(cast(_latin1 0x808080 as char), 4, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 4, 4, 0xC0))
-20AC20AC
+0020AC00
 select hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
-20AC20AC20
+0020AC0020
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
-20AC20AC20AC00200020002000200020002000200020002000
+0020AC0020AC0020AC00002000002000002000002000002000
 select @@collation_connection;
 @@collation_connection
 utf16_bin
 select hex(weight_string('a' LEVEL 1));
 hex(weight_string('a' LEVEL 1))
-0061
+000061
 select hex(weight_string('A' LEVEL 1));
 hex(weight_string('A' LEVEL 1))
-0041
+000041
 select hex(weight_string('abc' LEVEL 1));
 hex(weight_string('abc' LEVEL 1))
-006100620063
+000061000062000063
 select hex(weight_string('abc' as char(2) LEVEL 1));
 hex(weight_string('abc' as char(2) LEVEL 1))
-00610062
+000061000062
 select hex(weight_string('abc' as char(3) LEVEL 1));
 hex(weight_string('abc' as char(3) LEVEL 1))
-006100620063
+000061000062000063
 select hex(weight_string('abc' as char(5) LEVEL 1));
 hex(weight_string('abc' as char(5) LEVEL 1))
-00610062006300200020
+000061000062000063000020000020
 select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
 hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-20002000630062006100
+200000200000630000620000610000
 select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
 hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-FF9EFF9DFF9CFFDFFFDF
+FFFF9EFFFF9DFFFF9CFFFFDFFFFFDF
 select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
 hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFFFDFFF9CFF9DFF9EFF
+DFFFFFDFFFFF9CFFFF9DFFFF9EFFFF
 #
 # End of 5.6 tests
 #
