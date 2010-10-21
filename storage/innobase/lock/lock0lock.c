@@ -2268,7 +2268,7 @@ lock_rec_dequeue_from_page(
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
 
-	in_lock->index->table->n_rec_locks++;
+	in_lock->index->table->n_rec_locks--;
 
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
