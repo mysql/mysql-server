@@ -8258,6 +8258,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                 m_field_metadata, m_field_metadata_size,
                 m_null_bits, m_flags);
     table_list->m_tabledef_valid= TRUE;
+    table_list->skip_temporary= 1;
 
     /*
       We record in the slave's information that the table should be
