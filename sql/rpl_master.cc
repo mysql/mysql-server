@@ -511,6 +511,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   const char *errmsg = "Unknown error";
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
+  mysql_cond_t *log_cond;
   bool binlog_can_be_corrupted= FALSE;
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
@@ -654,7 +655,8 @@ impossible position";
     mysql_bin_log, and it's already inited, and it will be destroyed
     only at shutdown).
   */
-  log_lock = mysql_bin_log.get_log_lock();
+  log_lock= mysql_bin_log.get_log_lock();
+  log_cond= mysql_bin_log.get_log_cond();
   if (pos > BIN_LOG_HEADER_SIZE)
   {
     /* reset transmit packet for the event read from binary log
@@ -889,6 +891,7 @@ impossible position";
 #ifndef DBUG_OFF
           ulong hb_info_counter= 0;
 #endif
+          const char* old_msg= thd->proc_info;
           signal_cnt= mysql_bin_log.signal_cnt;
           do 
           {
@@ -897,6 +900,9 @@ impossible position";
               DBUG_ASSERT(heartbeat_ts && heartbeat_period != 0);
               set_timespec_nsec(*heartbeat_ts, heartbeat_period);
             }
+            thd->enter_cond(log_cond, log_lock,
+                            "Master has sent all binlog to slave; "
+                            "waiting for binlog to be updated");
             ret= mysql_bin_log.wait_for_update_bin_log(thd, heartbeat_ts);
             DBUG_ASSERT(ret == 0 || (heartbeat_period != 0 && coord != NULL));
             if (ret == ETIMEDOUT || ret == ETIME)
@@ -912,12 +918,15 @@ impossible position";
 #endif
               /* reset transmit packet for the heartbeat event */
               if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
+              {
+                thd->exit_cond(old_msg);
                 goto err;
+              }
               if (send_heartbeat_event(net, packet, coord))
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;
-                mysql_mutex_unlock(log_lock);
+                thd->exit_cond(old_msg);
                 goto err;
               }
             }
@@ -926,7 +935,7 @@ impossible position";
               DBUG_PRINT("wait",("binary log received update or a broadcast signal caught"));
             }
           } while (signal_cnt == mysql_bin_log.signal_cnt && !thd->killed);
-          mysql_mutex_unlock(log_lock);
+          thd->exit_cond(old_msg);
         }
         break;
             

@@ -187,6 +187,7 @@ int handle_options(int *argc, char ***argv,
   {
     char **first= pos;
     char *cur_arg= *pos;
+    opt_found= 0;
     if (!is_cmdline_arg && (cur_arg == args_separator))
     {
       is_cmdline_arg= 1;
