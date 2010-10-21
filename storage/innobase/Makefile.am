@@ -116,7 +116,6 @@ noinst_HEADERS=		\
 			include/mtr0mtr.h	\
 			include/mtr0mtr.ic	\
 			include/mtr0types.h	\
-			include/mysql_addons.h	\
 			include/os0file.h	\
 			include/os0file.ic	\
 			include/os0proc.h	\
@@ -261,7 +260,6 @@ libinnobase_a_SOURCES=	\
 			handler/ha_innodb.cc		\
 			handler/handler0alter.cc	\
 			handler/i_s.cc			\
-			handler/mysql_addons.cc		\
 			ibuf/ibuf0ibuf.c		\
 			lock/lock0iter.c		\
 			lock/lock0lock.c		\
