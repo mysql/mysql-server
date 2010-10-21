@@ -244,7 +244,7 @@ public:
   Sql_cmd_alter_table_truncate_partition()
   {}
 
-  ~Sql_cmd_alter_table_truncate_partition()
+  virtual ~Sql_cmd_alter_table_truncate_partition()
   {}
 
   bool execute(THD *thd);
