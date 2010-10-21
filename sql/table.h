@@ -1172,7 +1172,9 @@ enum enum_schema_table_state
 
 typedef struct st_foreign_key_info
 {
-  LEX_STRING *forein_id;
+  LEX_STRING *foreign_id;
+  LEX_STRING *foreign_db;
+  LEX_STRING *foreign_table;
   LEX_STRING *referenced_db;
   LEX_STRING *referenced_table;
   LEX_STRING *update_method;
