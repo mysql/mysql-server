@@ -1556,9 +1556,11 @@ partitions 10;
 show create table t1;
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE),
 (18446744073709551613), (18446744073709551612);
+--sorted_result
 select * from t1;
 select * from t1 where a = 18446744073709551615;
 delete from t1 where a = 18446744073709551615;
+--sorted_result
 select * from t1;
 drop table t1;
 
