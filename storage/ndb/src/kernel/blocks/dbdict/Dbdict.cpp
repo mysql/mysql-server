@@ -611,6 +611,21 @@ void Dbdict::packTableIntoPages(Signal* signal)
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, tableId);
     packTableIntoPages(w, tablePtr, signal);
+    if (unlikely(signal->theData[0] != 0))
+    {
+      jam();
+      Uint32 err = signal->theData[0];
+      GetTabInfoRef * ref = CAST_PTR(GetTabInfoRef, signal->getDataPtrSend());
+      ref->tableId = c_retrieveRecord.tableId;
+      ref->senderRef = reference();
+      ref->senderData = c_retrieveRecord.m_senderData;
+      ref->errorCode = err;
+      Uint32 dstRef = c_retrieveRecord.blockRef;
+      sendSignal(dstRef, GSN_GET_TABINFOREF, signal, 
+                 GetTabInfoRef::SignalLength, JBB);
+      initRetrieveRecord(0,0,0);
+      return;
+    }
     break;
   }
   case DictTabInfo::Tablespace:
@@ -733,7 +748,22 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   {
     /* This branch is run at GET_TABINFOREQ */
 
-    Uint32 err = get_fragmentation(signal, tablePtr.p->tableId);
+    Uint32 err = 0;
+    if (!ERROR_INSERTED(6025))
+    {
+      err = get_fragmentation(signal, tablePtr.p->tableId);
+    }
+    else
+    {
+      err = CreateFragmentationRef::InvalidPrimaryTable;
+    }
+    if (unlikely(err != 0))
+    { 
+      jam();
+      signal->theData[0] = err;
+      return;
+    }
+
     ndbrequire(err == 0);
     Uint16 *data = (Uint16*)&signal->theData[25];
     Uint32 count = 2 + (1 + data[0]) * data[1];
@@ -13931,8 +13961,13 @@ void
 Dbdict::execUTIL_PREPARE_REF(Signal *signal)
 {
   jamEntry();
+  const UtilPrepareRef * ref = CAST_CONSTPTR(UtilPrepareRef, 
+                                             signal->getDataPtr());
+  Uint32 code = ref->errorCode;
+  if (code == UtilPrepareRef::DICT_TAB_INFO_ERROR)
+    code = ref->dictErrCode;
   EVENT_TRACE;
-  ndbrequire(recvSignalUtilReq(signal, 1) == 0);
+  ndbrequire(recvSignalUtilReq(signal, code) == 0);
 }
 
 void Dbdict::execUTIL_EXECUTE_CONF(Signal *signal)
