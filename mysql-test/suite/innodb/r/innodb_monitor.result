@@ -590,14 +590,14 @@ max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name = "metadata_table_closed";
 name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
-metadata_table_closed	1	NULL	1	1	NULL	1	enabled
+metadata_table_closed	3	NULL	3	3	NULL	3	enabled
 select name, max_count, min_count, count,
 max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "metadata%";
 name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
 metadata_table_opened	2	NULL	2	2	NULL	2	enabled
-metadata_table_closed	1	NULL	1	1	NULL	1	enabled
+metadata_table_closed	3	NULL	3	3	NULL	3	enabled
 set global innodb_disable_monitor_counter = module_metadata;
 set global innodb_reset_monitor_counter = module_metadata;
 select name, max_count, min_count, count,
@@ -606,7 +606,7 @@ from information_schema.innodb_metrics
 where name like "metadata%";
 name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
 metadata_table_opened	2	NULL	2	NULL	NULL	0	disabled
-metadata_table_closed	1	NULL	1	NULL	NULL	0	disabled
+metadata_table_closed	3	NULL	3	NULL	NULL	0	disabled
 set global innodb_reset_all_monitor_counter = module_metadata;
 select name, max_count, min_count, count,
 max_count_since_reset, min_count_since_reset, count_since_reset, status
