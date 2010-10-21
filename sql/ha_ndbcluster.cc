@@ -4587,17 +4587,17 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
   // log_name
   char tmp_buf[FN_REFLEN];
   ndb_pack_varchar(ndbtab->getColumn(2u), tmp_buf,
-                   active_mi->rli.group_master_log_name,
-                   strlen(active_mi->rli.group_master_log_name));
+                   active_mi->rli->get_group_master_log_name(),
+                   strlen(active_mi->rli->get_group_master_log_name()));
   r|= op->setValue(2u, tmp_buf);
   DBUG_ASSERT(r == 0);
   // start_pos
-  r|= op->setValue(3u, (Uint64)active_mi->rli.group_master_log_pos);
+  r|= op->setValue(3u, (Uint64)active_mi->rli->get_group_master_log_pos());
   DBUG_ASSERT(r == 0);
   // end_pos
-  r|= op->setValue(4u, (Uint64)active_mi->rli.group_master_log_pos + 
-                   ((Uint64)active_mi->rli.future_event_relay_log_pos -
-                    (Uint64)active_mi->rli.group_relay_log_pos));
+  r|= op->setValue(4u, (Uint64)active_mi->rli->get_group_master_log_pos() +
+                   ((Uint64)active_mi->rli->get_future_event_relay_log_pos() -
+                    (Uint64)active_mi->rli->get_group_relay_log_pos()));
   DBUG_ASSERT(r == 0);
   return 0;
 }

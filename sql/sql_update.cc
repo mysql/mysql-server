@@ -395,6 +395,7 @@ int mysql_update(THD *thd,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
+  table->mark_columns_needed_for_update();
   select= make_select(table, 0, 0, conds, 0, &error);
   if (error || !limit ||
       (select && select->check_quick(thd, safe_update, limit)))
@@ -428,8 +429,6 @@ int mysql_update(THD *thd,
     }
   }
   init_ftfuncs(thd, select_lex, 1);
-
-  table->mark_columns_needed_for_update();
 
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);

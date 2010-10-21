@@ -1625,9 +1625,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
   for (;;)
   {
-    const char *error_msg;
-    Log_event *ev;
-    Log_event_type type;
+    const char *error_msg= NULL;
+    Log_event *ev= NULL;
+    Log_event_type type= UNKNOWN_EVENT;
 
     len= cli_safe_read(mysql);
     if (len == packet_error)
