@@ -3928,6 +3928,8 @@ ha_innobase::close(void)
 	my_free(upd_buff);
 	free_share(share);
 
+	MONITOR_INC(MONITOR_TABLE_CLOSE);
+
 	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
