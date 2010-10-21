@@ -452,6 +452,16 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define LINT_INIT(var)
 #endif
 
+#ifndef SO_EXT
+#ifdef _WIN32
+#define SO_EXT ".dll"
+#elif defined(__APPLE__)
+#define SO_EXT ".dylib"
+#else
+#define SO_EXT ".so"
+#endif
+#endif
+
 /*
    Suppress uninitialized variable warning without generating code.
 
@@ -1355,7 +1365,9 @@ do { doubleget_union _tmp; \
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
+#ifndef HAVE_DLOPEN
 #define HAVE_DLOPEN
+#endif
 #endif
 
 #ifdef HAVE_DLOPEN
@@ -1365,7 +1377,11 @@ do { doubleget_union _tmp; \
 #endif
 
 #ifndef HAVE_DLERROR
+#ifdef _WIN32
 #define dlerror() ""
+#else
+#define dlerror() "No support for dynamic loading (static build?)"
+#endif
 #endif
 
 
@@ -1483,7 +1499,6 @@ static inline double rint(double x)
 /* Things we don't need in the embedded version of MySQL */
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
-#undef HAVE_PSTACK				/* No stacktrace */
 #undef HAVE_OPENSSL
 #undef HAVE_SMEM				/* No shared memory */
 #undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
