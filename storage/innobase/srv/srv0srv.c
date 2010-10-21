@@ -595,6 +595,7 @@ like a command to shut the database.
 Utility threads are a different group of threads which takes
 care of the buffer pool flushing and other, mainly background
 operations, in the server.
+
 Some of these utility threads always run at a lower than normal
 priority, so that they are always in background. Some of them
 may dynamically boost their priority by the pri_adjust function,
@@ -617,10 +618,9 @@ the system fully. The background priority threads make up for this,
 starting to run when the load drops.
 
 When there is no activity in the system, also the master thread
-suspends itself to wait for an event making
-the server totally silent. The responsibility to signal this
-event is on the user thread which again receives a message
-from a client.
+suspends itself to wait for an event making the server totally silent.
+The responsibility to signal this event is on the user thread which again
+receives a message from a client.
 
 There is still one complication in our server design. If a
 background utility thread obtains a resource (e.g., mutex) needed by a user
@@ -639,10 +639,9 @@ A drawback of this solution is that the overhead of acquiring a mutex
 increases slightly, maybe 0.2 microseconds on a 100 MHz Pentium, because
 the thread has to call os_thread_get_curr_id.
 This may be compared to 0.5 microsecond overhead for a mutex lock-unlock
-pair. Note that the thread
-cannot store the information in the resource, say mutex, itself,
-because competing threads could wipe out the information if it is
-stored before acquiring the mutex, and if it stored afterwards,
+pair. Note that the thread cannot store the information in the resource
+, say mutex, itself, because competing threads could wipe out the information
+if it is stored before acquiring the mutex, and if it stored afterwards,
 the information is outdated for the time of one machine instruction,
 at least. (To be precise, the information could be stored to
 lock_word in mutex if the machine supports atomic swap.)
@@ -669,11 +668,10 @@ Utility threads probably will access resources used by
 user threads not very often, so collisions of user threads
 to preempted utility threads should not happen very often.
 
-The thread table contains
-information of the current status of each thread existing in the system,
-and also the event semaphores used in suspending the master thread
-and utility and parallel communication threads when they have nothing to do.
-The thread table can be seen as an analogue to the process table
+The thread table contains information of the current status of each
+thread existing in the system, and also the event semaphores used in
+suspending the master thread and utility threads when they have nothing
+to do.  The thread table can be seen as an analogue to the process table
 in a traditional Unix implementation.
 
 The thread table is also used in the global priority inheritance
@@ -717,13 +715,11 @@ UNIV_INTERN mutex_t	server_mutex;
 
 static srv_sys_t*	srv_sys	= NULL;
 
-UNIV_INTERN os_event_t	srv_timeout_event;
-
+/** Event to signal the monitor thread. */
 UNIV_INTERN os_event_t	srv_monitor_event;
 
+/** Event to signal the error thread */
 UNIV_INTERN os_event_t	srv_error_event;
-
-UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
 /*********************************************************************//**
 Asynchronous purge thread.
@@ -998,11 +994,7 @@ srv_init(void)
 
 	srv_error_event = os_event_create(NULL);
 
-	srv_timeout_event = os_event_create(NULL);
-
 	srv_monitor_event = os_event_create(NULL);
-
-	srv_lock_timeout_thread_event = os_event_create(NULL);
 
 	UT_LIST_INIT(srv_sys->tasks);
 

@@ -39,7 +39,7 @@ UNIV_INTERN ulint	srv_n_lock_wait_current_count	= 0;
 UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
 UNIV_INTERN ulint	srv_n_lock_max_wait_time	= 0;
 
-UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
+UNIV_INTERN os_event_t	srv_timeout_event;
 
 /*********************************************************************//**
 Print the contents of the lock_sys_t::waiting_threads array. */
@@ -266,7 +266,7 @@ lock_wait_suspend_thread(
 
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
-	os_event_set(srv_lock_timeout_thread_event);
+	os_event_set(srv_timeout_event);
 
 	trx_mutex_exit(trx);
 	lock_wait_mutex_exit();
@@ -462,6 +462,7 @@ lock_wait_timeout_thread(
 			os_thread_create */
 {
 	srv_slot_t*	slot;
+	ulint		sig_count = 0;
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
@@ -470,10 +471,31 @@ lock_wait_timeout_thread(
 	do {
 		ibool	some_waits;
 
+		server_mutex_enter();
+
+		srv_lock_timeout_active = FALSE;
+
+		server_mutex_exit();
+
 		/* When someone is waiting for a lock, we wake up every second
 		and check if a timeout has passed for a lock wait */
 
-		os_thread_sleep(1000000);
+		os_event_wait_time_low(srv_timeout_event, 1000000, sig_count);
+
+		/* Note: In logs_empty_and_mark_files_at_shutdown() we
+		check the srv_lock_timeout_active flag to determine whether
+		this thread has exited or not. There is a small window here
+		where the flag can be FALSE before we set it to TRUE below.
+		This is OK because:
+
+		  1. We will exit after executing the code
+		  2. logs_empty_and_mark_files_at_shutdown() has additional
+		     checks that will block the shutdown from proceeding
+		     to the next state. */
+
+		if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+			break;
+		}
 
 		server_mutex_enter();
 
@@ -496,17 +518,9 @@ lock_wait_timeout_thread(
 			}
 		}
 
-		os_event_reset(srv_lock_timeout_thread_event);
+		sig_count = os_event_reset(srv_timeout_event);
 
 		lock_wait_mutex_exit();
-
-		if (!some_waits) {
-			server_mutex_enter();
-
-			srv_lock_timeout_active = FALSE;
-
-			server_mutex_exit();
-		}
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
