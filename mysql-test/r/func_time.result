@@ -1348,3 +1348,13 @@ c1	c2	c3
 2009-02-27	2009-02-27	5
 drop table t1;
 End of 5.5 tests
+#
+# Bug#57039: constant subtime expression returns incorrect result.
+#
+CREATE TABLE t1 (`date_date` datetime NOT NULL);
+INSERT INTO t1 VALUES ('2008-01-03 00:00:00'), ('2008-01-03 00:00:00');
+SELECT * FROM t1 WHERE date_date >= subtime(now(), "00:30:00");
+date_date
+SELECT * FROM t1 WHERE date_date <= addtime(date_add("2000-1-1", INTERVAL "1:1:1" HOUR_SECOND), "00:20:00");
+date_date
+DROP TABLE t1;

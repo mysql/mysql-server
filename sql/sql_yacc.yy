@@ -1192,6 +1192,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PROCESSLIST_SYM
 %token  PROFILE_SYM
 %token  PROFILES_SYM
+%token  PROXY_SYM
 %token  PURGE
 %token  QUARTER_SYM
 %token  QUERY_SYM
@@ -4840,7 +4841,7 @@ part_value_expr_item:
 
             if (!lex->safe_to_cache_query)
             {
-              my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+              my_parse_error(ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
               MYSQL_YYABORT;
             }
             if (part_info->add_column_list_value(YYTHD, part_expr))
@@ -12487,6 +12488,9 @@ user:
             $$->user = $1;
             $$->host.str= (char *) "%";
             $$->host.length= 1;
+            $$->password= null_lex_str; 
+            $$->plugin= empty_lex_str;
+            $$->auth= empty_lex_str;
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -12499,6 +12503,9 @@ user:
             if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
             $$->user = $1; $$->host=$3;
+            $$->password= null_lex_str; 
+            $$->plugin= empty_lex_str;
+            $$->auth= empty_lex_str;
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -12764,6 +12771,7 @@ keyword_sp:
         | PROCESSLIST_SYM          {}
         | PROFILE_SYM              {}
         | PROFILES_SYM             {}
+        | PROXY_SYM                {}
         | QUARTER_SYM              {}
         | QUERY_SYM                {}
         | QUICK                    {}
@@ -13152,7 +13160,7 @@ option_value:
             if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
               MYSQL_YYABORT;
             user->host=null_lex_str;
-            user->user.str=thd->security_ctx->priv_user;
+            user->user.str=thd->security_ctx->user;
             set_var_password *var= new set_var_password(user, $3);
             if (var == NULL)
               MYSQL_YYABORT;
@@ -13512,6 +13520,13 @@ revoke_command:
           {
             Lex->sql_command = SQLCOM_REVOKE_ALL;
           }
+        | PROXY_SYM ON user FROM grant_list
+          {
+            LEX *lex= Lex;
+            lex->users_list.push_front ($3);
+            lex->sql_command= SQLCOM_REVOKE;
+            lex->type= TYPE_ENUM_PROXY;
+          } 
         ;
 
 grant:
@@ -13551,6 +13566,13 @@ grant_command:
             lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
+        | PROXY_SYM ON user TO_SYM grant_list opt_grant_option
+          {
+            LEX *lex= Lex;
+            lex->users_list.push_front ($3);
+            lex->sql_command= SQLCOM_GRANT;
+            lex->type= TYPE_ENUM_PROXY;
+          } 
         ;
 
 opt_table:
@@ -13744,6 +13766,8 @@ grant_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
             $$=$1; $1->password=$4;
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
             if ($4.length)
             {
               if (YYTHD->variables.old_passwords)
@@ -13769,7 +13793,28 @@ grant_user:
             }
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
-          { $$= $1; $1->password= $5; }
+          { 
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
+            $$= $1; 
+            $1->password= $5; 
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text
+          {
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
+            $$= $1;
+            $1->plugin= $4;
+            $1->auth= empty_lex_str;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
+          {
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
+            $$= $1;
+            $1->plugin= $4;
+            $1->auth= $6;
+          }
         | user
           { $$= $1; $1->password= null_lex_str; }
         ;
@@ -13839,6 +13884,11 @@ require_clause:
 grant_options:
           /* empty */ {}
         | WITH grant_option_list
+        ;
+
+opt_grant_option:
+          /* empty */ {}
+        | WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
         ;
 
 grant_option_list:
