@@ -958,8 +958,6 @@ error_handling:
 
 		prebuilt = row_create_prebuilt(indexed_table);
 
-		indexed_table->n_ref_count++;
-
 		innodb_table = indexed_table;
 
 		goto convert_error;
@@ -981,7 +979,7 @@ error:
 
 		if (new_primary) {
 			if (indexed_table != innodb_table) {
-				ut_a(indexed_table->n_ref_count == 0);
+				dict_table_close(indexed_table, dict_locked);
 				row_merge_drop_table(trx, indexed_table);
 			}
 		} else {

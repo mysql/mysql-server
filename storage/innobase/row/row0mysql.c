@@ -3172,7 +3172,13 @@ check_next_foreign:
 		goto check_next_foreign;
 	}
 
-	if (table->n_ref_count > 0 || table->n_rec_locks > 0) {
+	/* FIXME: There is a bug in the old code, ideally when dropping
+	a table no other transaction should have any locks on the table
+	but they do. For now we don't use the stricter check.
+
+	if (table->n_ref_count > 0 || table->n_rec_locks > 0) { */
+
+	if (table->n_ref_count > 0) {
 		ibool	added;
 
 		added = row_add_table_to_background_drop_list(table->name);

@@ -2291,6 +2291,16 @@ row_merge_create_temporary_table(
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
 		new_table = NULL;
+	} else {
+		dict_table_t*	temp_table;
+
+		/* We need to bump up the table ref count and before we can
+		use it we need to open the table. */
+
+		temp_table = dict_table_open_on_name_no_stats(
+			new_table->name, TRUE);
+
+		ut_a(new_table == temp_table);
 	}
 
 	return(new_table);

@@ -38,8 +38,6 @@ Created July 17, 2007 Vasil Dimov
 
 #include <mysql/plugin.h>
 
-#include "mysql_addons.h"
-
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "ha0storage.h"

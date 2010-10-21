@@ -313,8 +313,8 @@ trx_rollback_to_savepoint_for_mysql(
 		/* We can now free all savepoints strictly later than
 	       	savepoint_name. */
 
-		savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
-		trx_roll_savepoints_free(trx, savep);
+		trx_roll_savepoints_free(
+			trx, UT_LIST_GET_NEXT(trx_savepoints, savep));
 
 		*mysql_binlog_cache_pos = savep->mysql_binlog_cache_pos;
 

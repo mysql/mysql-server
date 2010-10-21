@@ -370,8 +370,6 @@ dict_table_close(
 	}
 #endif /* UNIV_DEBUG */
 
-	MONITOR_INC(MONITOR_TABLE_CLOSE);
-
 	if (!dict_locked) {
 		mutex_exit(&dict_sys->mutex);
 	}
