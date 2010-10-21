@@ -4586,7 +4586,6 @@ buf_pool_validate_instance(
 	buf_page_t*	b;
 	buf_chunk_t*	chunk;
 	ulint		i;
-	ulint		n_single_flush	= 0;
 	ulint		n_lru_flush	= 0;
 	ulint		n_list_flush	= 0;
 	ulint		n_lru		= 0;
@@ -4657,9 +4656,6 @@ buf_pool_validate_instance(
 						break;
 					case BUF_FLUSH_LIST:
 						n_list_flush++;
-						break;
-					case BUF_FLUSH_SINGLE_PAGE:
-						n_single_flush++;
 						break;
 					default:
 						ut_error;
@@ -4750,9 +4746,6 @@ buf_pool_validate_instance(
 				case BUF_FLUSH_LIST:
 					n_list_flush++;
 					break;
-				case BUF_FLUSH_SINGLE_PAGE:
-					n_single_flush++;
-					break;
 				default:
 					ut_error;
 				}
@@ -4798,7 +4791,6 @@ buf_pool_validate_instance(
 		ut_error;
 	}
 
-	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] == n_single_flush);
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LRU] == n_lru_flush);
 
@@ -4868,7 +4860,7 @@ buf_print_instance(
 		"modified database pages %lu\n"
 		"n pending decompressions %lu\n"
 		"n pending reads %lu\n"
-		"n pending flush LRU %lu list %lu single page %lu\n"
+		"n pending flush LRU %lu list %lu\n"
 		"pages made young %lu, not young %lu\n"
 		"pages read %lu, created %lu, written %lu\n",
 		(ulong) size,
@@ -4879,7 +4871,6 @@ buf_print_instance(
 		(ulong) buf_pool->n_pend_reads,
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST],
-		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE],
 		(ulong) buf_pool->stat.n_pages_made_young,
 		(ulong) buf_pool->stat.n_pages_not_made_young,
 		(ulong) buf_pool->stat.n_pages_read,
@@ -5105,8 +5096,7 @@ buf_get_n_pending_ios(void)
 		pend_ios +=
 			buf_pool->n_pend_reads
 			+ buf_pool->n_flush[BUF_FLUSH_LRU]
-			+ buf_pool->n_flush[BUF_FLUSH_LIST]
-			+ buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE];
+			+ buf_pool->n_flush[BUF_FLUSH_LIST];
 	}
 
 	return(pend_ios);
@@ -5160,7 +5150,7 @@ buf_print_io_instance(
 		"Old database pages %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
-		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
+		"Pending writes: LRU %lu, flush list %lu\n",
 		(ulong) buf_pool->curr_size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
@@ -5170,8 +5160,7 @@ buf_print_io_instance(
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU]
 		+ buf_pool->init_flush[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST]
-		+ buf_pool->init_flush[BUF_FLUSH_LIST],
-		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
+		+ buf_pool->init_flush[BUF_FLUSH_LIST]);
 
 	buf_flush_list_mutex_exit(buf_pool);
 
@@ -5346,8 +5335,7 @@ buf_pool_check_no_pending_io(void)
 
 		pending_io += buf_pool->n_pend_reads
 			      + buf_pool->n_flush[BUF_FLUSH_LRU]
-			      + buf_pool->n_flush[BUF_FLUSH_LIST]
-			      + buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE];
+			      + buf_pool->n_flush[BUF_FLUSH_LIST];
 
 	}
 

@@ -4995,11 +4995,11 @@ loop:
 			ut_a(rec);
 			offsets = rec_get_offsets(rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
-
+#if 0
 			fprintf(stderr,
 				"Validating %lu %lu\n",
 				(ulong) space, (ulong) page_no);
-
+#endif
 			/* If this thread is holding the file space
 			latch (fil_space_t::latch), the following
 			check WILL break the latching order and may

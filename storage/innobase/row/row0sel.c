@@ -4472,13 +4472,10 @@ requires_clust_rec:
 		}
 
 		if (prebuilt->clust_index_was_generated) {
-			if (result_rec != rec) {
-				offsets = rec_get_offsets(
-					rec, index, offsets, ULINT_UNDEFINED,
-					&heap);
-			}
-			row_sel_store_row_id_to_prebuilt(prebuilt, rec,
-							 index, offsets);
+			row_sel_store_row_id_to_prebuilt(
+				prebuilt, result_rec,
+				result_rec == rec ? index : clust_index,
+				offsets);
 		}
 	}
 

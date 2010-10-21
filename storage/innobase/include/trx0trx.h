@@ -440,6 +440,20 @@ struct trx_struct{
 					wants to suppress foreign key checks,
 					(in table imports, for example) we
 					set this FALSE */
+	/*------------------------------*/
+	/* MySQL has a transaction coordinator to coordinate two phase
+       	commit between multiple storage engines and the binary log. When
+       	an engine participates in a transaction, it's responsible for
+       	registering itself using the trans_register_ha() API. */
+	unsigned	is_registered:1;/* This flag is set to 1 after the
+				       	transaction has been registered with
+				       	the coordinator using the XA API, and
+				       	is set to 0 after commit or rollback. */
+	unsigned	owns_prepare_mutex:1;/* 1 if owns prepare mutex, if
+					this is set to 1 then registered should
+					also be set to 1. This is used in the
+					XA code */
+	/*------------------------------*/
 	ulint		check_unique_secondary;
 					/*!< normally TRUE, but if the user
 					wants to speed up inserts by
@@ -465,9 +479,6 @@ struct trx_struct{
 				       	flush the log in
 				       	trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	ulint		active_trans;	/*!< 1 - if a transaction in MySQL
-					is active. 2 - if prepare_commit_mutex
-					was taken */
 	ulint		has_search_latch;
 					/*!< TRUE if this trx has latched the
 					search system latch in S-mode */
