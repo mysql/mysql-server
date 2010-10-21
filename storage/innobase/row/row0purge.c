@@ -654,11 +654,7 @@ row_purge_parse_undo_rec(
 
 	row_mysql_freeze_data_dictionary(trx);
 
-	mutex_enter(&(dict_sys->mutex));
-
-	node->table = dict_table_get_on_id_low(table_id);
-
-	mutex_exit(&(dict_sys->mutex));
+	node->table = dict_table_open_on_id(table_id, FALSE);
 
 	if (node->table == NULL) {
 		/* The table has been dropped: no need to do purge */
@@ -670,6 +666,8 @@ err_exit:
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
+		dict_table_close(node->table, FALSE);
+
 		node->table = NULL;
 
 		goto err_exit;
@@ -678,6 +676,9 @@ err_exit:
 	clust_index = dict_table_get_first_index(node->table);
 
 	if (clust_index == NULL) {
+
+		dict_table_close(node->table, FALSE);
+
 		/* The table was corrupt in the data dictionary */
 
 		goto err_exit;
@@ -766,11 +767,16 @@ row_purge(
 
 		MONITOR_INC(MONITOR_NUM_ROW_PURGE);
 
+		if (node->table != NULL) {
+			dict_table_close(node->table, FALSE);
+		}
+
 		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	/* Do some cleanup */
 	trx_purge_rec_release(node->reservation);
+
 	mem_heap_empty(node->heap);
 
 	thr->run_node = node;
