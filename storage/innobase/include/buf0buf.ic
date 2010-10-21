@@ -301,7 +301,6 @@ buf_page_get_flush_type(
 #ifdef UNIV_DEBUG
 	switch (flush_type) {
 	case BUF_FLUSH_LRU:
-	case BUF_FLUSH_SINGLE_PAGE:
 	case BUF_FLUSH_LIST:
 		return(flush_type);
 	case BUF_FLUSH_N_TYPES:
