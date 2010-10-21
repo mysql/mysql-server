@@ -1805,7 +1805,6 @@ trx_prepare_off_kernel(
 /*===================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	page_t*		update_hdr_page;
 	trx_rseg_t*	rseg;
 	ib_uint64_t	lsn		= 0;
 	mtr_t		mtr;
@@ -1838,7 +1837,7 @@ trx_prepare_off_kernel(
 		}
 
 		if (trx->update_undo) {
-			update_hdr_page = trx_undo_set_state_at_prepare(
+			trx_undo_set_state_at_prepare(
 				trx, trx->update_undo, &mtr);
 		}
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2004 MySQL AB
+/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include <my_dir.h>
 #include "log_event.h"
 #include "sql_common.h"
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -1274,10 +1275,7 @@ static void print_version()
 static void usage()
 {
   print_version();
-  puts("By Monty and Sasha, for your professional use\n\
-This software comes with NO WARRANTY:  This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license.\n");
-
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2001, 2010"));
   printf("\
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");

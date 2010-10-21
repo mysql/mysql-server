@@ -197,7 +197,7 @@ extern void my_large_free(uchar *ptr);
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
 #else
-#define my_alloca(SZ) my_malloc(SZ,MYF(0))
+#define my_alloca(SZ) my_malloc(SZ,MYF(MY_FAE))
 #define my_afree(PTR) my_free(PTR)
 #endif /* HAVE_ALLOCA */
 
@@ -824,6 +824,10 @@ extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
                                 size_t prealloc_size);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
+static inline char *safe_strdup_root(MEM_ROOT *root, const char *str)
+{
+  return str ? strdup_root(root, str) : 0;
+}
 extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,

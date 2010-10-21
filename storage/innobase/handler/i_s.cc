@@ -36,11 +36,9 @@ Created July 18, 2007 Vasil Dimov
 #include <mysql/innodb_priv.h>
 
 extern "C" {
-#include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
 #include "buf0buddy.h" /* for i_s_cmpmem */
 #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
-#include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "ha_prototypes.h" /* for innobase_convert_name() */
@@ -1199,6 +1197,7 @@ trx_i_s_common_fill_table(
 	deadlock occurs between the mysqld server and mysql client,
 	see http://bugs.mysql.com/29900 ; when that bug is resolved
 	we can enable the DBUG_RETURN(ret) above */
+	ret++;  // silence a gcc46 warning
 	DBUG_RETURN(0);
 #endif
 }
@@ -2220,6 +2219,7 @@ i_s_common_deinit(
 
 	DBUG_RETURN(0);
 }
+#if 0
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLES */
 static ST_FIELD_INFO    innodb_sys_tables_fields_info[] =
@@ -3846,3 +3846,4 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+#endif
