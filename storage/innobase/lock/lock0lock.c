@@ -1148,16 +1148,16 @@ lock_rec_get_first_on_page_addr(
 
 	ut_ad(lock_mutex_own());
 
-	lock = HASH_GET_FIRST(lock_sys->rec_hash,
-			      lock_rec_hash(space, page_no));
-	while (lock) {
-		if ((lock->un_member.rec_lock.space == space)
-		    && (lock->un_member.rec_lock.page_no == page_no)) {
+	for (lock = HASH_GET_FIRST(lock_sys->rec_hash,
+				   lock_rec_hash(space, page_no));
+	      lock != NULL;
+	      lock = HASH_GET_NEXT(hash, lock)) {
+
+		if (lock->un_member.rec_lock.space == space
+		    && lock->un_member.rec_lock.page_no == page_no) {
 
 			break;
 		}
-
-		lock = HASH_GET_NEXT(hash, lock);
 	}
 
 	return(lock);
@@ -1207,16 +1207,15 @@ lock_rec_get_first_on_page(
 
 	hash = buf_block_get_lock_hash_val(block);
 
-	lock = HASH_GET_FIRST(lock_sys->rec_hash, hash);
+	for (lock = HASH_GET_FIRST(lock_sys->rec_hash, hash);
+	     lock != NULL;
+	     lock = HASH_GET_NEXT(hash, lock)) {
 
-	while (lock) {
 		if ((lock->un_member.rec_lock.space == space)
 		    && (lock->un_member.rec_lock.page_no == page_no)) {
 
 			break;
 		}
-
-		lock = HASH_GET_NEXT(hash, lock);
 	}
 
 	return(lock);
@@ -1330,9 +1329,10 @@ lock_rec_get_prev(
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
 
-	lock = lock_rec_get_first_on_page_addr(space, page_no);
+	for (lock = lock_rec_get_first_on_page_addr(space, page_no);
+	     /* No op */;
+	     lock = lock_rec_get_next_on_page(lock)) {
 
-	for (;;) {
 		ut_ad(lock);
 
 		if (lock == in_lock) {
@@ -1344,8 +1344,6 @@ lock_rec_get_prev(
 
 			found_lock = lock;
 		}
-
-		lock = lock_rec_get_next_on_page(lock);
 	}
 }
 
@@ -1368,9 +1366,9 @@ lock_table_has(
 
 	/* Look for stronger locks the same trx already has on the table */
 
-	lock = UT_LIST_GET_LAST(table->locks);
-
-	while (lock != NULL) {
+	for (lock = UT_LIST_GET_LAST(table->locks);
+	     lock != NULL;
+	     lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock)) {
 
 		if (lock->trx == trx
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)) {
@@ -1382,8 +1380,6 @@ lock_table_has(
 
 			return(lock);
 		}
-
-		lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock);
 	}
 
 	return(NULL);
@@ -1416,9 +1412,10 @@ lock_rec_has_expl(
 	      || (precise_mode & LOCK_MODE_MASK) == LOCK_X);
 	ut_ad(!(precise_mode & LOCK_INSERT_INTENTION));
 
-	lock = lock_rec_get_first(block, heap_no);
+	for (lock = lock_rec_get_first(block, heap_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 
-	while (lock) {
 		if (lock->trx == trx
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock),
 						precise_mode & LOCK_MODE_MASK)
@@ -1433,8 +1430,6 @@ lock_rec_has_expl(
 
 			return(lock);
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 
 	return(NULL);
@@ -1469,9 +1464,10 @@ lock_rec_other_has_expl_req(
 	ut_ad(gap == 0 || gap == LOCK_GAP);
 	ut_ad(wait == 0 || wait == LOCK_WAIT);
 
-	lock = lock_rec_get_first(block, heap_no);
+	for (lock = lock_rec_get_first(block, heap_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 
-	while (lock) {
 		if (lock->trx != trx
 		    && (gap
 			|| !(lock_rec_get_gap(lock)
@@ -1481,8 +1477,6 @@ lock_rec_other_has_expl_req(
 
 			return(lock);
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 
 	return(NULL);
@@ -1506,33 +1500,19 @@ lock_rec_other_has_conflicting(
 	ulint			heap_no,/*!< in: heap number of the record */
 	trx_t*			trx)	/*!< in: our transaction */
 {
-	lock_t*	lock;
+	lock_t*			lock;
+	ibool			is_supremum;
 
 	ut_ad(lock_mutex_own());
 
-	lock = lock_rec_get_first(block, heap_no);
+	is_supremum = (heap_no == PAGE_HEAP_NO_SUPREMUM);
 
-	if (UNIV_LIKELY_NULL(lock)) {
-		if (UNIV_UNLIKELY(heap_no == PAGE_HEAP_NO_SUPREMUM)) {
+	for (lock = lock_rec_get_first(block, heap_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 
-			do {
-				if (lock_rec_has_to_wait(trx, mode, lock,
-							 TRUE)) {
-					return(lock);
-				}
-
-				lock = lock_rec_get_next(heap_no, lock);
-			} while (lock);
-		} else {
-
-			do {
-				if (lock_rec_has_to_wait(trx, mode, lock,
-							 FALSE)) {
-					return(lock);
-				}
-
-				lock = lock_rec_get_next(heap_no, lock);
-			} while (lock);
+		if (lock_rec_has_to_wait(trx, mode, lock, is_supremum)) {
+			return(lock);
 		}
 	}
 
@@ -1555,15 +1535,16 @@ lock_rec_find_similar_on_page(
 {
 	ut_ad(lock_mutex_own());
 
-	while (lock != NULL) {
+	for (/* No op */;
+	     lock != NULL;
+	     lock = lock_rec_get_next_on_page(lock)) {
+
 		if (lock->trx == trx
 		    && lock->type_mode == type_mode
 		    && lock_rec_get_n_bits(lock) > heap_no) {
 
 			return(lock);
 		}
-
-		lock = lock_rec_get_next_on_page(lock);
 	}
 
 	return(NULL);
@@ -1630,14 +1611,14 @@ lock_number_of_rows_locked(
 {
 	lock_t*	lock;
 	ulint   n_records = 0;
-	ulint	n_bits;
-	ulint	n_bit;
 
-	lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+	for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+	     lock != NULL;
+	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
 
-	while (lock) {
 		if (lock_get_type_low(lock) == LOCK_REC) {
-			n_bits = lock_rec_get_n_bits(lock);
+			ulint	n_bit;
+			ulint	n_bits = lock_rec_get_n_bits(lock);
 
 			for (n_bit = 0; n_bit < n_bits; n_bit++) {
 				if (lock_rec_get_nth_bit(lock, n_bit)) {
@@ -1645,8 +1626,6 @@ lock_number_of_rows_locked(
 				}
 			}
 		}
-
-		lock = UT_LIST_GET_NEXT(trx_locks, lock);
 	}
 
 	return (n_records);
@@ -1908,16 +1887,15 @@ lock_rec_add_to_queue(
 
 	/* Look for a waiting lock request on the same record or on a gap */
 
-	first_lock = lock = lock_rec_get_first_on_page(block);
+	for (first_lock = lock = lock_rec_get_first_on_page(block);
+	     lock != NULL;
+	     lock = lock_rec_get_next_on_page(lock)) {
 
-	while (lock != NULL) {
 		if (lock_get_wait(lock)
-		    && (lock_rec_get_nth_bit(lock, heap_no))) {
+		    && lock_rec_get_nth_bit(lock, heap_no)) {
 
 			goto somebody_waits;
 		}
-
-		lock = lock_rec_get_next_on_page(lock);
 	}
 
 	if (UNIV_LIKELY(!(type_mode & LOCK_WAIT))) {
@@ -2295,20 +2273,22 @@ static
 void
 lock_rec_dequeue_from_page(
 /*=======================*/
-	lock_t*	in_lock)/*!< in: record lock object: all record locks which
-			are contained in this lock object are removed;
-			transactions waiting behind will get their lock
-			requests granted, if they are now qualified to it */
+	lock_t*		in_lock)	/*!< in: record lock object: all
+				       	record locks which are contained in
+				       	this lock object are removed;
+				       	transactions waiting behind will
+				       	get their lock requests granted,
+				       	if they are now qualified to it */
 {
-	ulint	space;
-	ulint	page_no;
-	lock_t*	lock;
-	trx_t*	trx;
+	ulint		space;
+	ulint		page_no;
+	lock_t*		lock;
+	trx_lock_t*	trx_lock;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(in_lock) == LOCK_REC);
 
-	trx = in_lock->trx;
+	trx_lock = &in_lock->trx->lock;
 
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
@@ -2318,7 +2298,7 @@ lock_rec_dequeue_from_page(
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
 
-	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, in_lock);
+	UT_LIST_REMOVE(trx_locks, trx_lock->trx_locks, in_lock);
 
 	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
 	MONITOR_DEC(MONITOR_NUM_RECLOCK);
@@ -2326,17 +2306,16 @@ lock_rec_dequeue_from_page(
 	/* Check if waiting locks in the queue can now be granted: grant
 	locks if there are no conflicting locks ahead. */
 
-	lock = lock_rec_get_first_on_page_addr(space, page_no);
+	for (lock = lock_rec_get_first_on_page_addr(space, page_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next_on_page(lock)) {
 
-	while (lock != NULL) {
 		if (lock_get_wait(lock)
 		    && !lock_rec_has_to_wait_in_queue(lock)) {
 
 			/* Grant the lock */
 			lock_grant(lock);
 		}
-
-		lock = lock_rec_get_next_on_page(lock);
 	}
 }
 
@@ -2346,17 +2325,18 @@ static
 void
 lock_rec_discard(
 /*=============*/
-	lock_t*	in_lock)/*!< in: record lock object: all record locks which
-			are contained in this lock object are removed */
+	lock_t*		in_lock)	/*!< in: record lock object: all
+				       	record locks which are contained
+				       	in this lock object are removed */
 {
-	ulint	space;
-	ulint	page_no;
-	trx_t*	trx;
+	ulint		space;
+	ulint		page_no;
+	trx_lock_t*	trx_lock;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(in_lock) == LOCK_REC);
 
-	trx = in_lock->trx;
+	trx_lock = &in_lock->trx->lock;
 
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
@@ -2366,7 +2346,7 @@ lock_rec_discard(
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
 
-	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, in_lock);
+	UT_LIST_REMOVE(trx_locks, trx_lock->trx_locks, in_lock);
 
 	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
 	MONITOR_DEC(MONITOR_NUM_RECLOCK);
@@ -2423,16 +2403,15 @@ lock_rec_reset_and_release_wait(
 
 	ut_ad(lock_mutex_own());
 
-	lock = lock_rec_get_first(block, heap_no);
+	for (lock = lock_rec_get_first(block, heap_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 
-	while (lock != NULL) {
 		if (lock_get_wait(lock)) {
 			lock_rec_cancel(lock);
 		} else {
 			lock_rec_reset_nth_bit(lock, heap_no);
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 }
 
@@ -2460,15 +2439,16 @@ lock_rec_inherit_to_gap(
 
 	ut_ad(lock_mutex_own());
 
-	lock = lock_rec_get_first(block, heap_no);
-
 	/* If srv_locks_unsafe_for_binlog is TRUE or session is using
 	READ COMMITTED isolation level, we do not want locks set
 	by an UPDATE or a DELETE to be inherited as gap type locks. But we
 	DO want S-locks set by a consistency constraint to be inherited also
 	then. */
 
-	while (lock != NULL) {
+	for (lock = lock_rec_get_first(block, heap_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
+
 		if (!lock_rec_get_insert_intention(lock)
 		    && !((srv_locks_unsafe_for_binlog
 			  || lock->trx->isolation_level
@@ -2480,8 +2460,6 @@ lock_rec_inherit_to_gap(
 					      heir_block, heir_heap_no,
 					      lock->index, lock->trx);
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 }
 
@@ -2505,9 +2483,10 @@ lock_rec_inherit_to_gap_if_gap_lock(
 
 	lock_mutex_enter();
 
-	lock = lock_rec_get_first(block, heap_no);
+	for (lock = lock_rec_get_first(block, heap_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 
-	while (lock != NULL) {
 		if (!lock_rec_get_insert_intention(lock)
 		    && (heap_no == PAGE_HEAP_NO_SUPREMUM
 			|| !lock_rec_get_rec_not_gap(lock))) {
@@ -2517,8 +2496,6 @@ lock_rec_inherit_to_gap_if_gap_lock(
 					      block, heir_heap_no,
 					      lock->index, lock->trx);
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 
 	lock_mutex_exit();
@@ -2546,11 +2523,12 @@ lock_rec_move(
 
 	ut_ad(lock_mutex_own());
 
-	lock = lock_rec_get_first(donator, donator_heap_no);
-
 	ut_ad(lock_rec_get_first(receiver, receiver_heap_no) == NULL);
 
-	while (lock != NULL) {
+	for (lock = lock_rec_get_first(donator, donator_heap_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next(donator_heap_no, lock)) {
+
 		const ulint	type_mode = lock->type_mode;
 
 		lock_rec_reset_nth_bit(lock, donator_heap_no);
@@ -2564,7 +2542,6 @@ lock_rec_move(
 
 		lock_rec_add_to_queue(type_mode, receiver, receiver_heap_no,
 				      lock->index, lock->trx);
-		lock = lock_rec_get_next(donator_heap_no, lock);
 	}
 
 	ut_ad(lock_rec_get_first(donator, donator_heap_no) == NULL);
@@ -3882,13 +3859,13 @@ lock_table_other_has_incompatible(
 	dict_table_t*	table,	/*!< in: table */
 	enum lock_mode	mode)	/*!< in: lock mode */
 {
-	lock_t*	lock;
+	lock_t*		lock;
 
 	ut_ad(lock_mutex_own());
 
-	lock = UT_LIST_GET_LAST(table->locks);
-
-	while (lock != NULL) {
+	for (lock = UT_LIST_GET_LAST(table->locks);
+	     lock != NULL;
+	     lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock)) {
 
 		if ((lock->trx != trx)
 		    && (!lock_mode_compatible(lock_get_mode(lock), mode))
@@ -3896,8 +3873,6 @@ lock_table_other_has_incompatible(
 
 			return(lock);
 		}
-
-		lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock);
 	}
 
 	return(NULL);
@@ -3988,16 +3963,14 @@ lock_table_has_to_wait_in_queue(
 
 	table = wait_lock->un_member.tab_lock.table;
 
-	lock = UT_LIST_GET_FIRST(table->locks);
-
-	while (lock != wait_lock) {
+	for (lock = UT_LIST_GET_FIRST(table->locks);
+	     lock != wait_lock;
+	     lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock)) {
 
 		if (lock_has_to_wait(wait_lock, lock)) {
 
 			return(TRUE);
 		}
-
-		lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock);
 	}
 
 	return(FALSE);
@@ -4027,7 +4000,9 @@ lock_table_dequeue(
 	/* Check if waiting locks in the queue can now be granted: grant
 	locks if there are no conflicting locks ahead. */
 
-	while (lock != NULL) {
+	for (/* No op */;
+	     lock != NULL;
+	     lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock)) {
 
 		if (lock_get_wait(lock)
 		    && !lock_table_has_to_wait_in_queue(lock)) {
@@ -4035,8 +4010,6 @@ lock_table_dequeue(
 			/* Grant the lock */
 			lock_grant(lock);
 		}
-
-		lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock);
 	}
 }
 
