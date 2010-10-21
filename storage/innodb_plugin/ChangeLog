@@ -1,3 +1,9 @@
+2010-10-20	The InnoDB Team
+
+	* dict/dict0load.c
+	Fix Bug #57616 Sig 11 in dict_load_table() when failed to load
+	index or foreign key
+
 2010-10-19	The InnoDB Team
 
 	* btr/btr0cur.c, buf/buf0buf.c, buf/buf0flu.c, handler/ha_innodb.cc,
