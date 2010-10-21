@@ -187,7 +187,7 @@ void table_events_waits_common::clear_object_columns()
 */
 void table_events_waits_common::make_row(bool thread_own_wait,
                                          PFS_thread *pfs_thread,
-                                         PFS_events_waits *wait)
+                                         volatile PFS_events_waits *wait)
 {
   pfs_lock lock;
   PFS_thread *safe_thread;
@@ -251,21 +251,27 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   case WAIT_CLASS_TABLE:
     m_row.m_object_type= "TABLE";
     m_row.m_object_type_length= 5;
-    memcpy(m_row.m_object_schema, wait->m_schema_name,
-           wait->m_schema_name_length);
     m_row.m_object_schema_length= wait->m_schema_name_length;
-    memcpy(m_row.m_object_name, wait->m_object_name,
-           wait->m_object_name_length);
+    if (unlikely((m_row.m_object_schema_length == 0) ||
+                 (m_row.m_object_schema_length > sizeof(m_row.m_object_schema))))
+      return;
+    memcpy(m_row.m_object_schema, wait->m_schema_name, m_row.m_object_schema_length);
     m_row.m_object_name_length= wait->m_object_name_length;
+    if (unlikely((m_row.m_object_name_length == 0) ||
+                 (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+      return;
+    memcpy(m_row.m_object_name, wait->m_object_name, m_row.m_object_name_length);
     safe_class= &global_table_class;
     break;
   case WAIT_CLASS_FILE:
     m_row.m_object_type= "FILE";
     m_row.m_object_type_length= 4;
     m_row.m_object_schema_length= 0;
-    memcpy(m_row.m_object_name, wait->m_object_name,
-           wait->m_object_name_length);
     m_row.m_object_name_length= wait->m_object_name_length;
+    if (unlikely((m_row.m_object_name_length == 0) ||
+                 (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+      return;
+    memcpy(m_row.m_object_name, wait->m_object_name, m_row.m_object_name_length);
     safe_class= sanitize_file_class((PFS_file_class*) wait->m_class);
     break;
   case NO_WAIT_CLASS:
