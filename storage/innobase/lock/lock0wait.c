@@ -137,6 +137,7 @@ lock_wait_table_reserve_slot(
 	srv_slot_t*	slot;
 
 	ut_ad(lock_wait_mutex_own());
+	ut_ad(trx_mutex_own(thr_get_trx(thr)));
 
 	slot = lock_sys->waiting_threads;
 
@@ -248,8 +249,6 @@ lock_wait_suspend_thread(
 	ut_ad(thr->is_active == FALSE);
 
 	slot = lock_wait_table_reserve_slot(thr);
-
-	os_event_set(srv_lock_timeout_thread_event);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		// FIXME: Use atomics/lock_sys->mutex
