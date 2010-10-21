@@ -4587,17 +4587,17 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
   // log_name
   char tmp_buf[FN_REFLEN];
   ndb_pack_varchar(ndbtab->getColumn(2u), tmp_buf,
-                   active_mi->rli.group_master_log_name,
-                   strlen(active_mi->rli.group_master_log_name));
+                   active_mi->rli->get_group_master_log_name(),
+                   strlen(active_mi->rli->get_group_master_log_name()));
   r|= op->setValue(2u, tmp_buf);
   DBUG_ASSERT(r == 0);
   // start_pos
-  r|= op->setValue(3u, (Uint64)active_mi->rli.group_master_log_pos);
+  r|= op->setValue(3u, (Uint64)active_mi->rli->get_group_master_log_pos());
   DBUG_ASSERT(r == 0);
   // end_pos
-  r|= op->setValue(4u, (Uint64)active_mi->rli.group_master_log_pos + 
-                   ((Uint64)active_mi->rli.future_event_relay_log_pos -
-                    (Uint64)active_mi->rli.group_relay_log_pos));
+  r|= op->setValue(4u, (Uint64)active_mi->rli->get_group_master_log_pos() +
+                   ((Uint64)active_mi->rli->get_future_event_relay_log_pos() -
+                    (Uint64)active_mi->rli->get_group_relay_log_pos()));
   DBUG_ASSERT(r == 0);
   return 0;
 }
@@ -6434,8 +6434,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   for (;;)
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (m_skip_auto_increment &&
-        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
+    if ((m_skip_auto_increment &&
+        ndb->readAutoIncrementValue(m_table, g.range, auto_value)) ||
         ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
     {
       if (--retries &&
@@ -10381,8 +10381,8 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
-    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
-        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    if ((col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY) ||
+        (col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK))
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);

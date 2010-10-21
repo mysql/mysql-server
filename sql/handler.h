@@ -805,6 +805,19 @@ struct handlerton
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
+/*
+  This flag should be set when deciding that the engine does not allow row based
+  binary logging (RBL) optimizations.
+
+  Currently, setting this flag, means that table's read/write_set will be left 
+  untouched when logging changes to tables in this engine. In practice this 
+  means that the server will not mess around with table->write_set and/or 
+  table->read_set when using RBL and deciding whether to log full or minimal rows.
+
+  It's valuable for instance for virtual tables, eg: Performance Schema which have
+  no meaning for replication.
+*/
+#define HTON_NO_BINLOG_ROW_OPT       (1 << 9)
 
 class Ha_trx_info;
 
@@ -1606,6 +1619,7 @@ public:
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
   int ha_delete_all_rows();
+  int ha_truncate();
   int ha_reset_auto_increment(ulonglong value);
   int ha_optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_analyze(THD* thd, HA_CHECK_OPT* check_opt);
@@ -1948,8 +1962,33 @@ public:
   { return(NULL);}  /* gets tablespace name from handler */
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
-  /** used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
-  virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  /**
+    Get the list of foreign keys in this table.
+
+    @remark Returns the set of foreign keys where this table is the
+            dependent or child table.
+
+    @param thd  The thread handle.
+    @param f_key_list[out]  The list of foreign keys.
+
+    @return The handler error code or zero for success.
+  */
+  virtual int
+  get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  { return 0; }
+  /**
+    Get the list of foreign keys referencing this table.
+
+    @remark Returns the set of foreign keys where this table is the
+            referenced or parent table.
+
+    @param thd  The thread handle.
+    @param f_key_list[out]  The list of foreign keys.
+
+    @return The handler error code or zero for success.
+  */
+  virtual int
+  get_parent_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   { return 0; }
   virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
@@ -2293,16 +2332,34 @@ public:
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
     return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-    by one. It should reset auto_increment if
-    thd->lex->sql_command == SQLCOM_TRUNCATE.
+    by one.
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
   /**
+    Quickly remove all rows from a table.
+
+    @remark This method is responsible for implementing MySQL's TRUNCATE
+            TABLE statement, which is a DDL operation. As such, a engine
+            can bypass certain integrity checks and in some cases avoid
+            fine-grained locking (e.g. row locks) which would normally be
+            required for a DELETE statement.
+
+    @remark Typically, truncate is not used if it can result in integrity
+            violation. For example, truncate is not used when a foreign
+            key references the table, but it might be used if foreign key
+            checks are disabled.
+
+    @remark Engine is responsible for resetting the auto-increment counter.
+
+    @remark The table is locked in exclusive mode.
+  */
+  virtual int truncate()
+  { return HA_ERR_WRONG_COMMAND; }
+  /**
     Reset the auto-increment counter to the given value, i.e. the next row
-    inserted will get the given value. This is called e.g. after TRUNCATE
-    is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
-    returned by storage engines that don't support this operation.
+    inserted will get the given value. HA_ERR_WRONG_COMMAND is returned by
+    storage engines that don't support this operation.
   */
   virtual int reset_auto_increment(ulonglong value)
   { return HA_ERR_WRONG_COMMAND; }

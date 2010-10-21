@@ -1169,7 +1169,7 @@ int ha_commit_trans(THD *thd, bool all)
     uint rw_ha_count;
     bool rw_trans;
 
-    DBUG_EXECUTE_IF("crash_commit_before", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
     /* Close all cursors that can not survive COMMIT */
     if (is_real_trans)                          /* not a statement commit */
@@ -1221,7 +1221,7 @@ int ha_commit_trans(THD *thd, bool all)
         }
         status_var_increment(thd->status_var.ha_prepare_count);
       }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
@@ -1229,13 +1229,13 @@ int ha_commit_trans(THD *thd, bool all)
         error= 1;
         goto end;
       }
-      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
     }
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
     if (cookie)
       tc_log->unlog(cookie, xid);
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
     if (rw_trans)
@@ -2690,7 +2690,7 @@ void handler::column_bitmaps_signal()
 {
   DBUG_ENTER("column_bitmaps_signal");
   DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
-                      (long) table->write_set));
+                      (long)table->write_set));
   DBUG_VOID_RETURN;
 }
 
@@ -3384,6 +3384,21 @@ handler::ha_delete_all_rows()
   mark_trx_read_write();
 
   return delete_all_rows();
+}
+
+
+/**
+  Truncate table: public interface.
+
+  @sa handler::truncate()
+*/
+
+int
+handler::ha_truncate()
+{
+  mark_trx_read_write();
+
+  return truncate();
 }
 
 
@@ -5641,8 +5656,8 @@ static int write_locked_table_maps(THD *thd)
 }
 
 
-typedef bool Log_func(THD*, TABLE*, bool, MY_BITMAP*,
-                      uint, const uchar*, const uchar*);
+typedef bool Log_func(THD*, TABLE*, bool,
+                      const uchar*, const uchar*);
 
 static int binlog_log_row(TABLE* table,
                           const uchar *before_record,
@@ -5656,40 +5671,28 @@ static int binlog_log_row(TABLE* table,
 
   if (check_table_binlog_row_based(thd, table))
   {
-    MY_BITMAP cols;
-    /* Potential buffer on the stack for the bitmap */
-    uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
-    uint n_fields= table->s->fields;
-    my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
+    DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,
+              (table->s->fields + 7) / 8);
 
     /*
       If there are no table maps written to the binary log, this is
       the first row handled in this statement. In that case, we need
       to write table maps for all locked tables to the binary log.
     */
-    if (likely(!(error= bitmap_init(&cols,
-                                    use_bitbuf ? bitbuf : NULL,
-                                    (n_fields + 7) & ~7UL,
-                                    FALSE))))
+    if (likely(!(error= write_locked_table_maps(thd))))
     {
-      bitmap_set_all(&cols);
-      if (likely(!(error= write_locked_table_maps(thd))))
-      {
-        /*
-          We need to have a transactional behavior for SQLCOM_CREATE_TABLE
-          (i.e. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
-          compatible behavior with the STMT based replication even when
-          the table is not transactional. In other words, if the operation
-          fails while executing the insert phase nothing is written to the
-          binlog.
-        */
-        bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
-                             table->file->has_transactions();
-        error= (*log_func)(thd, table, has_trans, &cols, table->s->fields,
-                           before_record, after_record);
-      }
-      if (!use_bitbuf)
-        bitmap_free(&cols);
+      /*
+        We need to have a transactional behavior for SQLCOM_CREATE_TABLE
+        (i.e. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
+        compatible behavior with the STMT based replication even when
+        the table is not transactional. In other words, if the operation
+        fails while executing the insert phase nothing is written to the
+        binlog.
+      */
+      bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                           table->file->has_transactions();
+      error=
+        (*log_func)(thd, table, has_trans, before_record, after_record);
     }
   }
   return error ? HA_ERR_RBR_LOGGING_FAILED : 0;

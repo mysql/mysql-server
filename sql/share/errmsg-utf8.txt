@@ -6157,7 +6157,7 @@ ER_WARN_ENGINE_TRANSACTION_ROLLBACK
 ER_SLAVE_HEARTBEAT_FAILURE
   eng "Unexpected master's heartbeat data: %s"
 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
-  eng "The requested value for the heartbeat period %s %s"
+  eng "The requested value for the heartbeat period is either negative or exceeds the maximum allowed (%s seconds)."
 
 ER_NDB_REPLICATION_SCHEMA_ERROR
         eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
@@ -6425,6 +6425,17 @@ ER_PARTITION_EXCHANGE_FOREIGN_KEY
   swe "Tabellen att byta ut mot partition har foreign key referenser: '%-.64s'"
 ER_WARN_INDEX_NOT_APPLICABLE
   eng "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'"
-
 ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."
+ER_TRUNCATE_ILLEGAL_FK 42000
+  eng "Cannot truncate a table referenced in a foreign key constraint (%.192s)"
+
+ER_PLUGIN_IS_PERMANENT
+  eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
+
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
+  eng "The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled."
+
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
+  eng "The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout."
+

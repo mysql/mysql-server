@@ -47,7 +47,7 @@ static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
 
-enum operations { DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
 static struct my_option my_long_options[] =
 {
@@ -241,6 +241,8 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
+  int orig_what_to_do= what_to_do;
+
   switch(optid) {
   case 'a':
     what_to_do = DO_ANALYZE;
@@ -314,6 +316,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
     break;
+  }
+
+  if (orig_what_to_do && (what_to_do != orig_what_to_do))
+  {
+    fprintf(stderr, "Error:  %s doesn't support multiple contradicting commands.\n",
+            my_progname);
+    return 1;
   }
   return 0;
 }

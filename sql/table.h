@@ -1099,6 +1099,7 @@ public:
   void mark_columns_needed_for_update(void);
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
+  void mark_columns_per_binlog_row_image(void);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {
@@ -1172,7 +1173,9 @@ enum enum_schema_table_state
 
 typedef struct st_foreign_key_info
 {
-  LEX_STRING *forein_id;
+  LEX_STRING *foreign_id;
+  LEX_STRING *foreign_db;
+  LEX_STRING *foreign_table;
   LEX_STRING *referenced_db;
   LEX_STRING *referenced_table;
   LEX_STRING *update_method;

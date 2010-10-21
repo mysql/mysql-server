@@ -57,6 +57,13 @@ struct scheduler_functions
 */
 enum scheduler_types
 {
+  /*
+    The default of --thread-handling is the first one in the
+    thread_handling_names array, this array has to be consistent with
+    the order in this array, so to change default one has to change
+    the first entry in this enum and the first entry in the
+    thread_handling_names array.
+  */
   SCHEDULER_ONE_THREAD_PER_CONNECTION=0,
   SCHEDULER_NO_THREADS,
   SCHEDULER_TYPES_COUNT

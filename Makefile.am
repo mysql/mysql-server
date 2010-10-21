@@ -264,6 +264,8 @@ test-full-qa:
 #
 # Headers which need to be checked for abi/api compatibility.
 #
+# Attention: do not forget to also add to cmake/abi_check.cmake
+#
 
 API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin_audit.h \
 			$(top_srcdir)/include/mysql/plugin_ftparser.h \

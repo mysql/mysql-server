@@ -181,13 +181,15 @@ class ha_innobase: public handler
 	void update_create_info(HA_CREATE_INFO* create_info);
 	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
-	int delete_all_rows();
+	int truncate();
 	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
 	char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
 	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
+	int get_parent_foreign_key_list(THD *thd,
+					List<FOREIGN_KEY_INFO> *f_key_list);
 	bool can_switch_engines();
 	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);

@@ -1,0 +1,34 @@
+#
+# This file contains tests for WL#5096 and bug fixes. 
+#
+
+-- source include/rpl_chained_3_hosts.inc
+-- source include/have_binlog_format_row.inc
+
+-- connection mysqld_a
+-- source include/have_innodb.inc
+-- connection mysqld_b
+-- source include/have_innodb.inc
+-- connection mysqld_c
+-- source include/have_innodb.inc
+-- connection mysqld_a
+
+#
+# WL#5096
+#
+
+#
+#  Tests for different storage engines on each server, 
+#  but same index structure on tables. The tests are conducted
+#  using MINIMAL binlog-row-image on all servers.
+#
+
+-- let $row_img_set=mysqld_a:MINIMAL:N,mysqld_b:MINIMAL:Y,mysqld_c:MINIMAL:Y
+-- source include/rpl_row_img_set.inc
+
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img.test
+-- source include/rpl_row_img_general_loop.inc
+
+-- let $row_img_set=mysqld_a:FULL:N,mysqld_b:FULL:Y,mysqld_c:FULL:Y
+-- source include/rpl_row_img_set.inc
+

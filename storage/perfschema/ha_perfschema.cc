@@ -80,7 +80,8 @@ static int pfs_init_func(void *p)
   pfs_hton->show_status= pfs_show_status;
   pfs_hton->flags= HTON_ALTER_NOT_SUPPORTED |
     HTON_TEMPORARY_NOT_SUPPORTED |
-    HTON_NO_PARTITION;
+    HTON_NO_PARTITION |
+    HTON_NO_BINLOG_ROW_OPT;
 
   /*
     As long as the server implementation keeps using legacy_db_type,
@@ -342,6 +343,11 @@ int ha_perfschema::delete_all_rows(void)
     result= HA_ERR_WRONG_COMMAND;
   }
   DBUG_RETURN(result);
+}
+
+int ha_perfschema::truncate()
+{
+  return delete_all_rows();
 }
 
 THR_LOCK_DATA **ha_perfschema::store_lock(THD *thd,
