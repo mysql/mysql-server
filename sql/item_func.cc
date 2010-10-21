@@ -3699,7 +3699,7 @@ longlong Item_master_pos_wait::val_int()
 #ifdef HAVE_REPLICATION
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
-  if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
+  if ((event_count = active_mi->rli->wait_for_pos(thd, log_name, pos, timeout)) == -2)
   {
     null_value = 1;
     event_count=0;
@@ -3709,47 +3709,91 @@ longlong Item_master_pos_wait::val_int()
 }
 
 
+/**
+  Enables a session to wait on a condition until a timeout or a network
+  disconnect occurs.
+
+  @remark The connection is polled every m_interrupt_interval nanoseconds.
+*/
+
+class Interruptible_wait
+{
+  THD *m_thd;
+  struct timespec m_abs_timeout;
+  static const ulonglong m_interrupt_interval;
+
+  public:
+    Interruptible_wait(THD *thd)
+    : m_thd(thd) {}
+
+    ~Interruptible_wait() {}
+
+  public:
+    /**
+      Set the absolute timeout.
+
+      @param timeout The amount of time in nanoseconds to wait
+    */
+    void set_timeout(ulonglong timeout)
+    {
+      /*
+        Calculate the absolute system time at the start so it can
+        be controlled in slices. It relies on the fact that once
+        the absolute time passes, the timed wait call will fail
+        automatically with a timeout error.
+      */
+      set_timespec_nsec(m_abs_timeout, timeout);
+    }
+
+    /** The timed wait. */
+    int wait(mysql_cond_t *, mysql_mutex_t *);
+};
+
+
+/** Time to wait before polling the connection status. */
+const ulonglong Interruptible_wait::m_interrupt_interval= 5 * ULL(1000000000);
+
 
 /**
-  Wait for a given condition to be signaled within the specified timeout.
+  Wait for a given condition to be signaled.
 
-  @param cond the condition variable to wait on
-  @param lock the associated mutex
-  @param abstime the amount of time in seconds to wait
+  @param cond   The condition variable to wait on.
+  @param mutex  The associated mutex.
+
+  @remark The absolute timeout is preserved across calls.
 
   @retval return value from mysql_cond_timedwait
 */
 
-#define INTERRUPT_INTERVAL (5 * ULL(1000000000))
-
-static int interruptible_wait(THD *thd, mysql_cond_t *cond,
-                              mysql_mutex_t *lock, double time)
+int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
 {
   int error;
-  struct timespec abstime;
-  ulonglong slice, timeout= (ulonglong) (time * 1000000000.0);
+  struct timespec timeout;
 
-  do
+  while (1)
   {
     /* Wait for a fixed interval. */
-    if (timeout > INTERRUPT_INTERVAL)
-      slice= INTERRUPT_INTERVAL;
-    else
-      slice= timeout;
+    set_timespec_nsec(timeout, m_interrupt_interval);
 
-    timeout-= slice;
-    set_timespec_nsec(abstime, slice);
-    error= mysql_cond_timedwait(cond, lock, &abstime);
+    /* But only if not past the absolute timeout. */
+    if (cmp_timespec(timeout, m_abs_timeout) > 0)
+      timeout= m_abs_timeout;
+
+    error= mysql_cond_timedwait(cond, mutex, &timeout);
     if (error == ETIMEDOUT || error == ETIME)
     {
       /* Return error if timed out or connection is broken. */
-      if (!timeout || !thd->is_connected())
+      if (!cmp_timespec(timeout, m_abs_timeout) || !m_thd->is_connected())
         break;
     }
-  } while (error && timeout);
+    /* Otherwise, propagate status to the caller. */
+    else
+      break;
+  }
 
   return error;
 }
+
 
 /**
   Get a user level lock.  If the thread has an old lock this is first released.
@@ -3766,10 +3810,11 @@ longlong Item_func_get_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  double timeout= args[1]->val_real();
+  ulonglong timeout= args[1]->val_int();
   THD *thd=current_thd;
   User_level_lock *ull;
   int error;
+  Interruptible_wait timed_cond(thd);
   DBUG_ENTER("Item_func_get_lock::val_int");
 
   /*
@@ -3830,11 +3875,13 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
+  timed_cond.set_timeout(timeout * ULL(1000000000));
+
   error= 0;
   while (ull->locked && !thd->killed)
   {
     DBUG_PRINT("info", ("waiting on lock"));
-    error= interruptible_wait(thd, &ull->cond, &LOCK_user_locks, timeout);
+    error= timed_cond.wait(&ull->cond, &LOCK_user_locks);
     if (error == ETIMEDOUT || error == ETIME)
     {
       DBUG_PRINT("info", ("lock wait timeout"));
@@ -4029,6 +4076,7 @@ void Item_func_benchmark::print(String *str, enum_query_type query_type)
 longlong Item_func_sleep::val_int()
 {
   THD *thd= current_thd;
+  Interruptible_wait timed_cond(thd);
   mysql_cond_t cond;
   double timeout;
   int error;
@@ -4048,6 +4096,8 @@ longlong Item_func_sleep::val_int()
   if (timeout < 0.00001)
     return 0;
 
+  timed_cond.set_timeout((ulonglong) (timeout * 1000000000.0));
+
   mysql_cond_init(key_item_func_sleep_cond, &cond, NULL);
   mysql_mutex_lock(&LOCK_user_locks);
 
@@ -4058,7 +4108,7 @@ longlong Item_func_sleep::val_int()
   error= 0;
   while (!thd->killed)
   {
-    error= interruptible_wait(thd, &cond, &LOCK_user_locks, timeout);
+    error= timed_cond.wait(&cond, &LOCK_user_locks);
     if (error == ETIMEDOUT || error == ETIME)
       break;
     error= 0;

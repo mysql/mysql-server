@@ -206,7 +206,9 @@ static void init_re(void);
 static int match_re(my_regex_t *, char *);
 static void free_re(void);
 
-static uint opt_protocol=0;
+#ifndef EMBEDDED_LIBRARY
+static uint opt_protocol= 0;
+#endif
 
 DYNAMIC_ARRAY q_lines;
 
@@ -5412,7 +5414,7 @@ void do_connect(struct st_command *command)
   }
 #endif
 
-#ifdef __WIN__
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (con_pipe)
   {
     opt_protocol= MYSQL_PROTOCOL_PIPE;

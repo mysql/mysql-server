@@ -1968,7 +1968,7 @@ INSERT INTO t2 VALUES (3,2);
 SET AUTOCOMMIT = 0;
 START TRANSACTION;
 TRUNCATE TABLE t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
 SELECT * FROM t1;
 id
 1
@@ -1980,7 +1980,7 @@ id
 2
 START TRANSACTION;
 TRUNCATE TABLE t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
 SELECT * FROM t1;
 id
 1
@@ -1998,7 +1998,7 @@ id
 2
 COMMIT;
 TRUNCATE TABLE t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
 SELECT * FROM t1;
 id
 1
@@ -2010,9 +2010,12 @@ id
 1
 2
 TRUNCATE TABLE t1;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
 ROLLBACK;
 SELECT * FROM t1;
 id
+1
+2
 TRUNCATE TABLE t2;
 DROP TABLE t2;
 DROP TABLE t1;
@@ -2104,9 +2107,9 @@ i	i
 ** error handling inside a row iteration.
 **
 DROP TRIGGER trg;
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t2;
-TRUNCATE TABLE t3;
+DELETE FROM t1;
+DELETE FROM t2;
+DELETE FROM t3;
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t3 VALUES (1),(2),(3),(4);
 INSERT INTO t4 VALUES (3,3),(4,4);
@@ -2132,9 +2135,9 @@ DROP TRIGGER trg;
 **
 ** Induce an error midway through an AFTER-trigger
 **
-TRUNCATE TABLE t4;
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t3;
+DELETE FROM t4;
+DELETE FROM t1;
+DELETE FROM t3;
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t3 VALUES (1),(2),(3),(4);
 CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW

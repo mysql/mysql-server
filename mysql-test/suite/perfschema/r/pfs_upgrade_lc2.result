@@ -26,7 +26,7 @@ ERROR 1050 (42S01) at line 250: Table 'setup_consumers' already exists
 ERROR 1050 (42S01) at line 259: Table 'setup_instruments' already exists
 ERROR 1050 (42S01) at line 267: Table 'setup_timers' already exists
 ERROR 1050 (42S01) at line 287: Table 'threads' already exists
-ERROR 1644 (HY000) at line 703: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 705: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_table";
 Tables_in_performance_schema (user_table)
@@ -57,7 +57,7 @@ ERROR 1050 (42S01) at line 250: Table 'setup_consumers' already exists
 ERROR 1050 (42S01) at line 259: Table 'setup_instruments' already exists
 ERROR 1050 (42S01) at line 267: Table 'setup_timers' already exists
 ERROR 1050 (42S01) at line 287: Table 'threads' already exists
-ERROR 1644 (HY000) at line 703: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 705: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
@@ -86,7 +86,7 @@ ERROR 1050 (42S01) at line 250: Table 'setup_consumers' already exists
 ERROR 1050 (42S01) at line 259: Table 'setup_instruments' already exists
 ERROR 1050 (42S01) at line 267: Table 'setup_timers' already exists
 ERROR 1050 (42S01) at line 287: Table 'threads' already exists
-ERROR 1644 (HY000) at line 703: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 705: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -115,7 +115,7 @@ ERROR 1050 (42S01) at line 250: Table 'setup_consumers' already exists
 ERROR 1050 (42S01) at line 259: Table 'setup_instruments' already exists
 ERROR 1050 (42S01) at line 267: Table 'setup_timers' already exists
 ERROR 1050 (42S01) at line 287: Table 'threads' already exists
-ERROR 1644 (HY000) at line 703: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 705: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -144,7 +144,7 @@ ERROR 1050 (42S01) at line 250: Table 'setup_consumers' already exists
 ERROR 1050 (42S01) at line 259: Table 'setup_instruments' already exists
 ERROR 1050 (42S01) at line 267: Table 'setup_timers' already exists
 ERROR 1050 (42S01) at line 287: Table 'threads' already exists
-ERROR 1644 (HY000) at line 703: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 705: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.event where db='performance_schema';
 name
