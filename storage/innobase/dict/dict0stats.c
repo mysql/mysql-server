@@ -1385,10 +1385,6 @@ dict_stats_save_index_stat(
 
 	pinfo = pars_info_create();
 
-	/* we do this because the slash in INDEX_STATS_NAME confuses the
-	parser if used directly inside the SQL */
-	pars_info_add_id(pinfo, "index_stats", INDEX_STATS_NAME);
-
 	pars_info_add_literal(pinfo, "database_name", index->table->name,
 			      dict_get_db_name_len(index->table->name),
 			      DATA_VARCHAR, 0);
@@ -1420,7 +1416,7 @@ dict_stats_save_index_stat(
 			   "BEGIN\n"
 
 			   "SELECT database_name INTO dummy\n"
-			   "FROM $index_stats\n"
+			   "FROM \"" INDEX_STATS_NAME "\"\n"
 			   "WHERE\n"
 			   "database_name = :database_name AND\n"
 			   "table_name = :table_name AND\n"
@@ -1429,7 +1425,7 @@ dict_stats_save_index_stat(
 			   "FOR UPDATE;\n"
 
 			   "IF (SQL % NOTFOUND) THEN\n"
-			   "  INSERT INTO $index_stats\n"
+			   "  INSERT INTO \"" INDEX_STATS_NAME "\"\n"
 			   "  VALUES\n"
 			   "  (\n"
 			   "  :database_name,\n"
@@ -1442,7 +1438,7 @@ dict_stats_save_index_stat(
 			   "  :stat_description\n"
 			   "  );\n"
 			   "ELSE\n"
-			   "  UPDATE $index_stats SET\n"
+			   "  UPDATE \"" INDEX_STATS_NAME "\" SET\n"
 			   "  stat_value = :stat_value,\n"
 			   "  sample_size = :sample_size,\n"
 			   "  stat_description = :stat_description\n"
@@ -1504,10 +1500,6 @@ dict_stats_save(
 
 	pinfo = pars_info_create();
 
-	/* we do this because the slash in TABLE_STATS_NAME confuses
-	the parser if used directly inside the SQL */
-	pars_info_add_id(pinfo, "table_stats", TABLE_STATS_NAME);
-
 	pars_info_add_literal(pinfo, "database_name", table->name,
 			      dict_get_db_name_len(table->name),
 			      DATA_VARCHAR, 0);
@@ -1531,14 +1523,14 @@ dict_stats_save(
 			   "BEGIN\n"
 
 			   "SELECT database_name INTO dummy\n"
-			   "FROM $table_stats\n"
+			   "FROM \"" TABLE_STATS_NAME "\"\n"
 			   "WHERE\n"
 			   "database_name = :database_name AND\n"
 			   "table_name = :table_name\n"
 			   "FOR UPDATE;\n"
 
 			   "IF (SQL % NOTFOUND) THEN\n"
-			   "  INSERT INTO $table_stats\n"
+			   "  INSERT INTO \"" TABLE_STATS_NAME "\"\n"
 			   "  VALUES\n"
 			   "  (\n"
 			   "  :database_name,\n"
@@ -1549,7 +1541,7 @@ dict_stats_save(
 			   "  :sum_of_other_index_sizes\n"
 			   "  );\n"
 			   "ELSE\n"
-			   "  UPDATE $table_stats SET\n"
+			   "  UPDATE \"" TABLE_STATS_NAME "\" SET\n"
 			   "  stats_timestamp = :stats_timestamp,\n"
 			   "  n_rows = :n_rows,\n"
 			   "  clustered_index_size = :clustered_index_size,\n"
@@ -2022,11 +2014,6 @@ dict_stats_fetch_from_ps(
 
 	pinfo = pars_info_create();
 
-	/* we do this because the slash in TABLE_STATS_NAME confuses
-	the parser if used directly inside the SQL */
-	pars_info_add_id(pinfo, "table_stats", TABLE_STATS_NAME);
-	pars_info_add_id(pinfo, "index_stats", INDEX_STATS_NAME);
-
 	pars_info_add_literal(pinfo, "database_name", table->name,
 			      dict_get_db_name_len(table->name),
 			      DATA_VARCHAR, 0);
@@ -2057,7 +2044,7 @@ dict_stats_fetch_from_ps(
 			   "  n_rows,\n"
 			   "  clustered_index_size,\n"
 			   "  sum_of_other_index_sizes\n"
-			   "  FROM $table_stats\n"
+			   "  FROM \"" TABLE_STATS_NAME "\"\n"
 			   "  WHERE\n"
 			   "  database_name = :database_name AND\n"
 			   "  table_name = :table_name;\n"
@@ -2070,7 +2057,7 @@ dict_stats_fetch_from_ps(
 			   "  stat_name,\n"
 			   "  stat_value,\n"
 			   "  sample_size\n"
-			   "  FROM $index_stats\n"
+			   "  FROM \"" INDEX_STATS_NAME "\"\n"
 			   "  WHERE\n"
 			   "  database_name = :database_name AND\n"
 			   "  table_name = :table_name;\n"
@@ -2404,10 +2391,6 @@ dict_stats_delete_index_stats(
 
 	pinfo = pars_info_create();
 
-	/* we do this because the slash in INDEX_STATS_NAME confuses
-	the parser if used directly inside the SQL */
-	pars_info_add_id(pinfo, "index_stats", INDEX_STATS_NAME);
-
 	pars_info_add_str_literal(pinfo, "database_name", database_name);
 
 	pars_info_add_str_literal(pinfo, "table_name", table_name);
@@ -2420,7 +2403,7 @@ dict_stats_delete_index_stats(
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE DROP_INDEX_STATS () IS\n"
 			   "BEGIN\n"
-			   "DELETE FROM $index_stats WHERE\n"
+			   "DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
 			   "database_name = :database_name AND\n"
 			   "table_name = :table_name AND\n"
 			   "index_name = :index_name;\n"
@@ -2529,11 +2512,6 @@ dict_stats_delete_table_stats(
 
 	pinfo = pars_info_create();
 
-	/* we do this because the slash in TABLE_STATS_NAME confuses
-	the parser if used directly inside the SQL */
-	pars_info_add_id(pinfo, "table_stats", TABLE_STATS_NAME);
-	pars_info_add_id(pinfo, "index_stats", INDEX_STATS_NAME);
-
 	pars_info_add_str_literal(pinfo, "database_name", database_name);
 
 	pars_info_add_str_literal(pinfo, "table_name", table_name_strip);
@@ -2542,11 +2520,11 @@ dict_stats_delete_table_stats(
 			   "PROCEDURE DROP_TABLE_STATS () IS\n"
 			   "BEGIN\n"
 
-			   "DELETE FROM $index_stats WHERE\n"
+			   "DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
 			   "database_name = :database_name AND\n"
 			   "table_name = :table_name;\n"
 
-			   "DELETE FROM $table_stats WHERE\n"
+			   "DELETE FROM \"" TABLE_STATS_NAME "\" WHERE\n"
 			   "database_name = :database_name AND\n"
 			   "table_name = :table_name;\n"
 
