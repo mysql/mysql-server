@@ -798,10 +798,12 @@ DbUtil::execUTIL_RELEASE_REF(Signal* signal) {
 
 void
 DbUtil::sendUtilPrepareRef(Signal* signal, UtilPrepareRef::ErrorCode error, 
-			   Uint32 recipient, Uint32 senderData){
+			   Uint32 recipient, Uint32 senderData,
+                           Uint32 errCode2){
   UtilPrepareRef * ref = (UtilPrepareRef *)signal->getDataPtrSend();
   ref->errorCode = error;
   ref->senderData = senderData;
+  ref->dictErrCode = errCode2;
 
   sendSignal(recipient, GSN_UTIL_PREPARE_REF, signal, 
 	     UtilPrepareRef::SignalLength, JBB);
@@ -1011,7 +1013,8 @@ DbUtil::execGET_TABINFOREF(Signal* signal){
   c_runningPrepares.getPtr(prepPtr, prepI);
 
   sendUtilPrepareRef(signal, UtilPrepareRef::DICT_TAB_INFO_ERROR,
-		     prepPtr.p->clientRef, prepPtr.p->clientData);
+		     prepPtr.p->clientRef, prepPtr.p->clientData,
+                     ref->errorCode);
 
   releasePrepare(prepPtr);
 }
