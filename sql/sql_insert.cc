@@ -802,7 +802,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (thd->slave_thread &&
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
-      rpl_master_has_bug(&active_mi->rli, 24432, TRUE, NULL, NULL))
+      rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
     goto abort;
 #endif
 
@@ -1836,6 +1836,7 @@ public:
   bool auto_increment_field_not_null;
   bool query_start_used, ignore, log_query, binlog_rows_query_log_events;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
+  MY_BITMAP write_set;
   ulonglong first_successful_insert_id_in_prev_stmt;
   ulonglong forced_insert_id;
   ulong auto_increment_increment;
@@ -2345,6 +2346,7 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
 {
   delayed_row *row= 0;
   Delayed_insert *di=thd->di;
+  my_bitmap_map *bitmaps;
   const Discrete_interval *forced_auto_inc;
   DBUG_ENTER("write_delayed");
   DBUG_PRINT("enter", ("query = '%s' length %lu", query.str,
@@ -2423,6 +2425,15 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
     DBUG_PRINT("delayed", ("transmitting auto_inc: %lu",
                            (ulong) row->forced_insert_id));
   }
+  
+  /*
+    Since insert delayed has its own thread and table, we
+    need to copy the user thread session write_set.
+  */
+  bitmaps= (my_bitmap_map*) my_malloc(bitmap_buffer_size(table->write_set->n_bits), MYF(0));
+  bitmap_init(&row->write_set, bitmaps, table->write_set->n_bits, FALSE);
+  bitmap_clear_all(&row->write_set);
+  bitmap_union(&row->write_set, table->write_set);
 
   di->rows.push_back(row);
   di->stacked_inserts++;
@@ -2862,7 +2873,6 @@ bool Delayed_insert::handle_inserts(void)
   mysql_mutex_unlock(&mutex);
 
   table->next_number_field=table->found_next_number_field;
-  table->use_all_columns();
 
   thd_proc_info(&thd, "upgrading lock");
   if (thr_upgrade_write_delay_lock(*thd.lock->locks, delayed_lock,
@@ -2895,6 +2905,7 @@ bool Delayed_insert::handle_inserts(void)
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   mysql_mutex_lock(&mutex);
 
+  bitmap_set_all(table->read_set);
   while ((row=rows.get()))
   {
     stacked_inserts--;
@@ -2903,6 +2914,16 @@ bool Delayed_insert::handle_inserts(void)
 
     thd.start_time=row->start_time;
     thd.query_start_used=row->query_start_used;
+
+    /* 
+       Copy to the DI table hander the row write set
+       which in its turn is a copy of the user thread's table
+       write set at the time the delayed insert was issued.
+     */
+    bitmap_clear_all(table->write_set);
+    bitmap_union(table->write_set, &row->write_set);
+    table->file->column_bitmaps_signal();
+
     /*
       To get the exact auto_inc interval to store in the binlog we must not
       use values from the previous interval (of the previous rows).
@@ -3342,7 +3363,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (thd->slave_thread &&
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
-      rpl_master_has_bug(&active_mi->rli, 24432, TRUE, NULL, NULL))
+      rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
     DBUG_RETURN(1);
 #endif
 

@@ -16,6 +16,9 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
+#include "sql_priv.h"
+#include "rpl_info.h"
+#include "rpl_utility.h"
 #include "rpl_tblmap.h"
 #include "rpl_reporting.h"
 #include "rpl_utility.h"
@@ -27,33 +30,21 @@ struct RPL_TABLE_LIST;
 class Master_info;
 extern uint sql_slave_skip_counter;
 
-/****************************************************************************
+/*******************************************************************************
+Replication SQL Thread
 
-  Replication SQL Thread
+Relay_log_info contains:
+  - the current relay log
+  - the current relay log offset
+  - master log name
+  - master log sequence corresponding to the last update
+  - misc information specific to the SQL thread
 
-  Relay_log_info contains:
-    - the current relay log
-    - the current relay log offset
-    - master log name
-    - master log sequence corresponding to the last update
-    - misc information specific to the SQL thread
-
-  Relay_log_info is initialized from the slave.info file if such
-  exists.  Otherwise, data members are intialized with defaults. The
-  initialization is done with init_relay_log_info() call.
-
-  The format of slave.info file:
-
-  relay_log_name
-  relay_log_pos
-  master_log_name
-  master_log_pos
-
-  To clean up, call end_relay_log_info()
-
-*****************************************************************************/
-
-class Relay_log_info : public Slave_reporting_capability
+Relay_log_info is initialized from a repository, e.g. table or file, if there is
+one. Otherwise, data members are intialized with defaults by calling
+init_relay_log_info(). Currently, only files are available as repositories.
+*******************************************************************************/
+class Relay_log_info : public Rpl_info
 {
 public:
   /**
@@ -76,8 +67,8 @@ public:
   */
   inline bool belongs_to_client()
   {
-    DBUG_ASSERT(sql_thd);
-    return !sql_thd->slave_thread;
+    DBUG_ASSERT(info_thd);
+    return !info_thd->slave_thread;
   }
 
   /*
@@ -90,14 +81,10 @@ public:
   bool replicate_same_server_id;
 
   /*** The following variables can only be read when protect by data lock ****/
-
   /*
-    info_fd - file descriptor of the info file. set only during
-    initialization or clean up - safe to read anytime
     cur_log_fd - file descriptor of the current read  relay log
   */
-  File info_fd,cur_log_fd;
-
+  File cur_log_fd;
   /*
     Protected with internal locks.
     Must get data_lock when resetting the logs.
@@ -117,22 +104,12 @@ public:
   IO_CACHE cache_buf,*cur_log;
 
   /*
-    Keeps track of the number of transactions that commits
-    before fsyncing. The option --sync-relay-log-info determines 
-    how many transactions should commit before fsyncing.
-  */ 
-  uint sync_counter;
-
-  /*
     Identifies when the recovery process is going on.
     See sql/slave.cc:init_recovery for further details.
-  */ 
+  */
   bool is_relay_log_recovery;
 
   /* The following variables are safe to read any time */
-
-  /* IO_CACHE of the info file - set only during init or end */
-  IO_CACHE info_file;
 
   /*
     When we restart slave thread we need to have access to the previously
@@ -140,19 +117,6 @@ public:
     thread, read only by SQL thread.
   */
   TABLE *save_temporary_tables;
-
-  /*
-    standard lock acquisition order to avoid deadlocks:
-    run_lock, data_lock, relay_log.LOCK_log, relay_log.LOCK_index
-  */
-  mysql_mutex_t data_lock, run_lock;
-
-  /*
-    start_cond is broadcast when SQL thread is started
-    stop_cond - when stopped
-    data_cond - when data protected by data_lock changes
-  */
-  mysql_cond_t start_cond, stop_cond, data_cond;
 
   /* parent Master_info structure */
   Master_info *mi;
@@ -162,7 +126,7 @@ public:
     a different log under our feet
   */
   uint32 cur_log_old_open_count;
-  
+
   /*
     Let's call a group (of events) :
       - a transaction
@@ -180,19 +144,15 @@ public:
     relay log and finishing (commiting) on another relay log. Case which can
     happen when, for example, the relay log gets rotated because of
     max_binlog_size.
-
-    Note: group_relay_log_name, group_relay_log_pos must only be
-    written from the thread owning the Relay_log_info (SQL thread if
-    !belongs_to_client(); client thread executing BINLOG statement if
-    belongs_to_client()).
   */
+protected:
   char group_relay_log_name[FN_REFLEN];
   ulonglong group_relay_log_pos;
   char event_relay_log_name[FN_REFLEN];
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
 
-  /* 
+  /*
      Original log name and position of the group we're currently executing
      (whose coordinates are group_relay_log_name/pos in the relay log)
      in the master's binlog. These concern the *group*, because in the master's
@@ -208,15 +168,6 @@ public:
   volatile my_off_t group_master_log_pos;
 
   /*
-    Handling of the relay_log_space_limit optional constraint.
-    ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
-    threads, the SQL thread sets it to unblock the I/O thread and make it
-    temporarily forget about the constraint.
-  */
-  ulonglong log_space_limit,log_space_total;
-  bool ignore_log_space_limit;
-
-  /*
     When it commits, InnoDB internally stores the master log position it has
     processed so far; the position to store is the one of the end of the
     committing event (the COMMIT query event, or the event if in autocommit
@@ -228,9 +179,25 @@ public:
   ulonglong future_group_master_log_pos;
 #endif
 
+public:
+  int init_relay_log_pos(const char* log,
+                         ulonglong pos, bool need_data_lock,
+                         const char** errmsg,
+                         bool look_for_description_event);
+
+  /*
+    Handling of the relay_log_space_limit optional constraint.
+    ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
+    threads, the SQL thread sets it to unblock the I/O thread and make it
+    temporarily forget about the constraint.
+  */
+  ulonglong log_space_limit,log_space_total;
+  bool ignore_log_space_limit;
+
   time_t last_master_timestamp;
 
   void clear_until_condition();
+
   /**
     Reset the delay.
     This is used by RESET SLAVE to clear the delay.
@@ -240,7 +207,6 @@ public:
     sql_delay= 0;
   }
 
-
   /*
     Needed for problems when slave stops and we want to restart it
     skipping one or more events in the master log that have caused
@@ -248,36 +214,19 @@ public:
   */
   volatile uint32 slave_skip_counter;
   volatile ulong abort_pos_wait;	/* Incremented on change master */
-  volatile ulong slave_run_id;		/* Incremented on slave start */
   mysql_mutex_t log_space_lock;
   mysql_cond_t log_space_cond;
-  THD * sql_thd;
-#ifndef DBUG_OFF
-  int events_till_abort;
-#endif  
 
   /*
-    inited changes its value within LOCK_active_mi-guarded critical
-    sections  at times of start_slave_threads() (0->1) and end_slave() (1->0).
-    Readers may not acquire the mutex while they realize potential concurrency
-    issue.
-    If not set, the value of other members of the structure are undefined.
-  */
-  volatile bool inited;
-  volatile bool abort_slave;
-  volatile uint slave_running;
-
-  /* 
      Condition and its parameters from START SLAVE UNTIL clause.
      
-     UNTIL condition is tested with is_until_satisfied() method that is 
+     UNTIL condition is tested with is_until_satisfied() method that is
      called by exec_relay_log_event(). is_until_satisfied() caches the result
      of the comparison of log names because log names don't change very often;
      this cache is invalidated by parts of code which change log names with
      notify_*_log_name_updated() methods. (They need to be called only if SQL
      thread is running).
    */
-  
   enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS} until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
@@ -321,11 +270,16 @@ public:
   char slave_patternload_file[FN_REFLEN]; 
   size_t slave_patternload_file_size;  
 
-  Relay_log_info(bool is_slave_recovery);
-  ~Relay_log_info();
+  Relay_log_info(bool is_slave_recovery,
+                 PSI_mutex_key *param_key_info_run_lock,
+                 PSI_mutex_key *param_key_info_data_lock,
+                 PSI_mutex_key *param_key_info_data_cond,
+                 PSI_mutex_key *param_key_info_start_cond,
+                 PSI_mutex_key *param_key_info_stop_cond);
+  virtual ~Relay_log_info();
 
-  /*
-    Invalidate cached until_log_name and group_relay_log_name comparison 
+  /**
+    Invalidates cached until_log_name and group_relay_log_name comparison
     result. Should be called after any update of group_realy_log_name if
     there chances that sql_thread is running.
   */
@@ -335,8 +289,9 @@ public:
       until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_UNKNOWN;
   }
 
-  /*
-    The same as previous but for group_master_log_name. 
+  /**
+    The same as @c notify_group_relay_log_name_update but for
+    @c group_master_log_name.
   */
   inline void notify_group_master_log_name_update()
   {
@@ -350,7 +305,7 @@ public:
   }
 
   void inc_group_relay_log_pos(ulonglong log_pos,
-                               bool skip_lock= 0);
+			       bool skip_lock= FALSE);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
@@ -387,9 +342,9 @@ public:
     return false;
   }
 
-  /*
+  /**
     Last charset (6 bytes) seen by slave SQL thread is cached here; it helps
-    the thread save 3 get_charset() per Query_log_event if the charset is not
+    the thread save 3 @c get_charset() per @c Query_log_event if the charset is not
     changing from event to event (common situation).
     When the 6 bytes are equal to 0 is used to mean "cache is invalidated".
   */
@@ -399,6 +354,7 @@ public:
   void cleanup_context(THD *, bool);
   void slave_close_thread_tables(THD *);
   void clear_tables_to_lock();
+  int purge_relay_logs(THD *thd, bool just_reset, const char** errmsg);
 
   /*
     Used to defer stopping the SQL thread to give it a chance
@@ -466,21 +422,85 @@ public:
      @retval false Replication thread is currently not inside a group
    */
   bool is_in_group() const {
-    return (sql_thd->variables.option_bits & OPTION_BEGIN) ||
+    return (info_thd->variables.option_bits & OPTION_BEGIN) ||
       (m_flags & (1UL << IN_STMT));
   }
+
+  int count_relay_log_space();
+
+  int init_info();
+  void end_info();
+  int flush_info(bool force= FALSE);
+  int flush_current_log();
+  void set_master_info(Master_info *info);
+
+  inline ulonglong get_future_event_relay_log_pos() { return future_event_relay_log_pos; }
+  inline void set_future_event_relay_log_pos(ulonglong log_pos)
+  {
+    future_event_relay_log_pos= log_pos;
+  }
+
+  inline const char* get_group_master_log_name() { return group_master_log_name; }
+  inline ulonglong get_group_master_log_pos() { return group_master_log_pos; }
+  inline void set_group_master_log_name(const char *log_file_name)
+  {
+     strmake(group_master_log_name,log_file_name, sizeof(group_master_log_name)-1);
+  }
+  inline void set_group_master_log_pos(ulonglong log_pos)
+  {
+    group_master_log_pos= log_pos;
+  }
+
+  inline const char* get_group_relay_log_name() { return group_relay_log_name; }
+  inline ulonglong get_group_relay_log_pos() { return group_relay_log_pos; }
+  inline void set_group_relay_log_name(const char *log_file_name)
+  {
+     strmake(group_relay_log_name,log_file_name, sizeof(group_relay_log_name)-1);
+  }
+  inline void set_group_relay_log_name(const char *log_file_name, size_t len)
+  {
+     strmake(group_relay_log_name, log_file_name, len);
+  }
+  inline void set_group_relay_log_pos(ulonglong log_pos)
+  {
+    group_relay_log_pos= log_pos;
+  }
+
+  inline const char* get_event_relay_log_name() { return event_relay_log_name; }
+  inline ulonglong get_event_relay_log_pos() { return event_relay_log_pos; }
+  inline void set_event_relay_log_name(const char *log_file_name)
+  {
+     strmake(event_relay_log_name,log_file_name, sizeof(event_relay_log_name)-1);
+  }
+  inline void set_event_relay_log_name(const char *log_file_name, size_t len)
+  {
+     strmake(event_relay_log_name,log_file_name, len);
+  }
+  inline void set_event_relay_log_pos(ulonglong log_pos)
+  {
+    event_relay_log_pos= log_pos;
+  }
+  inline const char* get_rpl_log_name()
+  {
+    return (group_master_log_name[0] ? group_master_log_name : "FIRST");
+  }
+
+#if MYSQL_VERSION_ID < 40100
+  inline ulonglong get_future_master_log_pos() { return future_master_log_pos; }
+#else
+  inline ulonglong get_future_group_master_log_pos() { return future_group_master_log_pos; }
+  inline void set_future_group_master_log_pos(ulonglong log_pos)
+  {
+    future_group_master_log_pos= log_pos;
+  }
+#endif
+
+  size_t get_number_info_rli_fields();
 
   /**
     Text used in THD::proc_info when the slave SQL thread is delaying.
   */
   static const char *const state_delaying_string;
-
-  bool flush();
-
-  /**
-    Reads the relay_log.info file.
-  */
-  int init(const char* info_filename);
 
   /**
     Indicate that a delay starts.
@@ -497,7 +517,7 @@ public:
   {
     mysql_mutex_assert_owner(&data_lock);
     sql_delay_end= delay_end;
-    thd_proc_info(sql_thd, state_delaying_string);
+    thd_proc_info(info_thd, state_delaying_string);
   }
 
   int32 get_sql_delay() { return sql_delay; }
@@ -515,7 +535,7 @@ private:
     MASTER_DELAY=X.  Read by SQL thread and by client threads
     executing SHOW SLAVE STATUS.  Note: must not be written while the
     slave SQL thread is running, since the SQL thread reads it without
-    a lock when executing flush_relay_log_info().
+    a lock when executing flush_info().
   */
   int sql_delay;
 
@@ -530,33 +550,19 @@ private:
   time_t sql_delay_end;
 
   /*
-    Before the MASTER_DELAY parameter was added (WL#344),
-    relay_log.info had 4 lines. Now it has 5 lines.
+    Before the MASTER_DELAY parameter was added (WL#344), relay_log.info
+    had 4 lines. Now it has 5 lines.
   */
   static const int LINES_IN_RELAY_LOG_INFO_WITH_DELAY= 5;
+
+  bool read_info(Rpl_info_handler *from);
+  bool write_info(Rpl_info_handler *to, bool force);
+
+  Relay_log_info& operator=(const Relay_log_info& info);
+  Relay_log_info(const Relay_log_info& info);
 
   uint32 m_flags;
 };
 
-
-/**
-  Reads the relay_log.info file.
-
-  @todo This is a wrapper around Relay_log_info::init(). It's only
-  kept for historical reasons. It would be good if we removed this
-  function and replaced all calls to it by calls to
-  Relay_log_info::init(). /SVEN
-*/
-int init_relay_log_info(Relay_log_info* rli, const char* info_fname);
-bool flush_relay_log_info(Relay_log_info* rli);
-void end_relay_log_info(Relay_log_info* rli);
-int init_relay_log_pos(Relay_log_info* rli,const char* log,ulonglong pos,
-		       bool need_data_lock, const char** errmsg,
-                       bool look_for_description_event);
-
-int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
-		     const char** errmsg);
-void rotate_relay_log(Master_info* mi);
 bool mysql_show_relaylog_events(THD* thd);
-
 #endif /* RPL_RLI_H */

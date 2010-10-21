@@ -433,6 +433,7 @@ typedef struct system_variables
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   my_bool binlog_direct_non_trans_update;
+  ulong binlog_row_image; 
   my_bool sql_log_bin;
   ulong completion_type;
   ulong query_cache_type;
@@ -1551,14 +1552,12 @@ public:
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
-                       MY_BITMAP const* cols, size_t colcnt,
-                       const uchar *buf);
+                       const uchar *new_data);
   int binlog_delete_row(TABLE* table, bool is_transactional,
-                        MY_BITMAP const* cols, size_t colcnt,
-                        const uchar *buf);
+                        const uchar *old_data);
   int binlog_update_row(TABLE* table, bool is_transactional,
-                        MY_BITMAP const* cols, size_t colcnt,
                         const uchar *old_data, const uchar *new_data);
+  void binlog_prepare_row_images(TABLE* table);
 
   void set_server_id(uint32 sid) { server_id = sid; }
 
@@ -1567,8 +1566,6 @@ public:
   */
   template <class RowsEventT> Rows_log_event*
     binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
-                                      MY_BITMAP const* cols,
-                                      size_t colcnt,
                                       size_t needed,
                                       bool is_transactional,
 				      RowsEventT* hint);
