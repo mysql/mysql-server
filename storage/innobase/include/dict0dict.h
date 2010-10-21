@@ -73,16 +73,16 @@ Returns a table object based on table id.
 @return	table, NULL if does not exist */
 UNIV_INTERN
 dict_table_t*
-dict_table_get_on_id(
-/*=================*/
-        table_id_t	table_id,	/*!< in: table id */
-        trx_t*		trx);		/*!< in: transaction handle */
+dict_table_open_on_id(
+/*==================*/
+	table_id_t	table_id,	/*!< in: table id */
+	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
 /********************************************************************//**
-Decrements the count of open MySQL handles to a table. */
+Decrements the count of open handles to a table. */
 UNIV_INTERN
 void
-dict_table_decrement_handle_count(
-/*==============================*/
+dict_table_close(
+/*=============*/
 	dict_table_t*	table,		/*!< in/out: table */
 	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
 /**********************************************************************//**
@@ -267,8 +267,9 @@ UNIV_INTERN
 void
 dict_table_add_to_cache(
 /*====================*/
-	dict_table_t*	table,	/*!< in: table */
-	mem_heap_t*	heap);	/*!< in: temporary heap */
+	dict_table_t*	table,		/*!< in: table */
+	ibool		can_be_evicted,	/*!< in: TRUE if can be evicted*/
+	mem_heap_t*	heap);		/*!< in: temporary heap */
 /**********************************************************************//**
 Removes a table object from the dictionary cache. */
 UNIV_INTERN
@@ -403,54 +404,28 @@ dict_foreign_parse_drop_constraints(
 	const char***	constraints_to_drop);	/*!< out: id's of the
 						constraints to drop */
 /**********************************************************************//**
-Returns a table object and optionally increment its MySQL open handle count.
+Returns a table object and increments its open handle count.
 NOTE! This is a high-level function to be used mainly from outside the
-'dict' directory. Inside this directory dict_table_get_low is usually the
-appropriate function.
+'dict' directory. Inside this directory dict_table_get_low
+is usually the appropriate function.
 @return	table, NULL if does not exist */
 UNIV_INTERN
 dict_table_t*
-dict_table_get(
-/*===========*/
+dict_table_open_on_name(
+/*====================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		inc_mysql_count);
-					/*!< in: whether to increment the open
-					handle count on the table */
+	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
 /**********************************************************************//**
-Returns a index object, based on table and index id, and memoryfixes it.
-@return	index, NULL if does not exist */
-UNIV_INTERN
-dict_index_t*
-dict_index_get_on_id_low(
-/*=====================*/
-	dict_table_t*	table,		/*!< in: table */
-	index_id_t	index_id);	/*!< in: index id */
-/**********************************************************************//**
-Checks if a table is in the dictionary cache.
-@return	table, NULL if not found */
-
-UNIV_INLINE
-dict_table_t*
-dict_table_check_if_in_cache_low(
-/*=============================*/
-	const char*	table_name);	/*!< in: table name */
-/**********************************************************************//**
-Gets a table; loads it to the dictionary cache if necessary. A low-level
-function.
-@return	table, NULL if not found */
-UNIV_INLINE
-dict_table_t*
-dict_table_get_low(
-/*===============*/
-	const char*	table_name);	/*!< in: table name */
-/**********************************************************************//**
-Returns a table object based on table id.
+Returns a table object and increment its open handle count. Table
+statistics will not be updated if they are not initialized.
+Call this function when dropping a table.
 @return	table, NULL if does not exist */
-UNIV_INLINE
+UNIV_INTERN
 dict_table_t*
-dict_table_get_on_id_low(
-/*=====================*/
-	table_id_t	table_id);	/*!< in: table id */
+dict_table_open_on_name_no_stats(
+/*=============================*/
+	const char*	table_name,	/*!< in: table name */
+	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
 /**********************************************************************//**
 Find an index that is equivalent to the one passed in and is not marked
 for deletion.
@@ -707,6 +682,22 @@ ulint
 dict_table_zip_size(
 /*================*/
 	const dict_table_t*	table);	/*!< in: table */
+/*********************************************************************//**
+Obtain exclusive locks on all index trees of the table. This is to prevent
+accessing index trees while InnoDB is updating internal metadata for
+operations such as truncate tables. */
+UNIV_INLINE
+void
+dict_table_x_lock_indexes(
+/*======================*/
+	dict_table_t*	table);	/*!< in: table */
+/*********************************************************************//**
+Release the exclusive locks on all index tree. */
+UNIV_INLINE
+void
+dict_table_x_unlock_indexes(
+/*========================*/
+	dict_table_t*	table);	/*!< in: table */
 /********************************************************************//**
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns.
@@ -738,6 +729,17 @@ dict_index_t*
 dict_index_find_on_id_low(
 /*======================*/
 	index_id_t	id);	/*!< in: index id */
+/**********************************************************************//**
+Make room in the table cache by evicting an unused table. The unused table
+should not be part of FK relationship and currently not used in any user
+transaction. There is no guarantee that it will remove a table.
+@return number of tables evicted. */
+UNIV_INTERN
+ulint
+dict_make_room_in_cache(
+/*====================*/
+	ulint		max_tables,	/*!< in: max tables allowed in cache */
+	ulint		pct_check);	/*!< in: max percent to check */
 /**********************************************************************//**
 Adds an index to the dictionary cache.
 @return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
@@ -1143,6 +1145,27 @@ dict_table_get_index_on_name_and_min_id(
 /*====================================*/
 	dict_table_t*	table,	/*!< in: table */
 	const char*	name);	/*!< in: name of the index to find */
+/**********************************************************************//**
+Move a table to the non LRU end of the LRU list. */
+UNIV_INTERN
+void
+dict_table_move_from_lru_to_non_lru(
+/*================================*/
+	dict_table_t*	table);	/*!< in: table to move from LRU to non-LRU */
+/**********************************************************************//**
+Move a table to the LRU list from the non-LRU list. */
+UNIV_INTERN
+void
+dict_table_move_from_non_lru_to_lru(
+/*================================*/
+	dict_table_t*	table);	/*!< in: table to move from non-LRU to LRU */
+/**********************************************************************//**
+Move to the most recently used segment of the LRU list. */
+UNIV_INTERN
+void
+dict_move_to_mru(
+/*=============*/
+	dict_table_t*	table);	/*!< in: table to move to MRU */
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
 extern FILE*	dict_foreign_err_file;
@@ -1172,8 +1195,6 @@ struct dict_sys_struct{
 					on name */
 	hash_table_t*	table_id_hash;	/*!< hash table of the tables, based
 					on id */
-	UT_LIST_BASE_NODE_T(dict_table_t)
-			table_LRU;	/*!< LRU list of tables */
 	ulint		size;		/*!< varying space in bytes occupied
 					by the data dictionary table and
 					index objects */
@@ -1181,6 +1202,14 @@ struct dict_sys_struct{
 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
+
+	/*=============================*/
+	UT_LIST_BASE_NODE_T(dict_table_t)
+			table_LRU;	/*!< List of tables that can be evicted
+					from the cache */
+	UT_LIST_BASE_NODE_T(dict_table_t)
+			table_non_LRU;	/*!< List of tables that can't be
+					evicted from the cache */
 };
 #endif /* !UNIV_HOTBACKUP */
 

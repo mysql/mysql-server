@@ -19,7 +19,7 @@ SET(REGEX_SOURCES regcomp.c regerror.c regexec.c regfree.c reginit.c)
 ADD_CONVENIENCE_LIBRARY(regex ${REGEX_SOURCES})
 
 ADD_EXECUTABLE(re main.c split.c debug.c)
-TARGET_LINK_LIBRARIES(re regex strings)
+TARGET_LINK_LIBRARIES(re regex strings mysys)
 
 ADD_TEST(regex1 re     -i${CMAKE_CURRENT_SOURCE_DIR}/tests)
 ADD_TEST(regex2 re -el -i${CMAKE_CURRENT_SOURCE_DIR}/tests)

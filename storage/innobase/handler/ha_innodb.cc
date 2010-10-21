@@ -688,6 +688,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
   {"num_open_files",
   (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG},
+  {"truncated_status_writes",
+  (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -1167,6 +1169,19 @@ innobase_get_stmt(
 	stmt = thd_query_string((THD*) mysql_thd);
 	*length = stmt->length;
 	return(stmt->str);
+}
+
+/**********************************************************************//**
+Get the current seting of the table_cache_size global parameter. We do
+a dirty read because for one there is no synchronization object and
+secondly there is little harm in doing so even if we get a torn read.
+@return	SQL statement string */
+extern "C" UNIV_INTERN
+ulint
+innobase_get_table_cache_size(void)
+/*===============================*/
+{
+	return(table_cache_size);
 }
 
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
@@ -3567,12 +3582,19 @@ ha_innobase::innobase_initialize_autoinc()
 		err = row_search_max_autoinc(index, col_name, &read_auto_inc);
 
 		switch (err) {
-		case DB_SUCCESS:
-			/* At the this stage we do not know the increment
-			or the offset, so use a default increment of 1. */
-			auto_inc = read_auto_inc + 1;
-			break;
+		case DB_SUCCESS: {
+			ulonglong	col_max_value;
 
+			col_max_value = innobase_get_int_col_max_value(field);
+
+			/* At the this stage we do not know the increment
+			nor the offset, so use a default increment of 1. */
+
+			auto_inc = innobase_next_autoinc(
+				read_auto_inc, 1, 1, col_max_value);
+
+			break;
+		}
 		case DB_RECORD_NOT_FOUND:
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
@@ -3673,8 +3695,8 @@ ha_innobase::open(
 	is_part = strstr(norm_name, "#P#");
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
-	ib_table = dict_table_get(norm_name, TRUE);
-	
+	ib_table = dict_table_open_on_name(norm_name, FALSE);
+
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
 			++retries;
@@ -3725,7 +3747,7 @@ retry:
 		my_free(upd_buff);
 		my_errno = ENOENT;
 
-		dict_table_decrement_handle_count(ib_table, FALSE);
+		dict_table_close(ib_table, FALSE);
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -3869,8 +3891,6 @@ retry:
 			dict_table_get_format(prebuilt->table));
 	}
 
-	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
-
 	/* Only if the table has an AUTOINC column. */
 	if (prebuilt->table != NULL && table->found_next_number_field != NULL) {
 		dict_table_autoinc_lock(prebuilt->table);
@@ -3886,6 +3906,8 @@ retry:
 
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
+
+	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
 }
@@ -4633,17 +4655,18 @@ include_field:
 		n_requested_fields++;
 
 		templ->col_no = i;
+		templ->clust_rec_field_no = dict_col_get_clust_pos(
+			col, clust_index);
+		ut_ad(templ->clust_rec_field_no != ULINT_UNDEFINED);
 
 		if (index == clust_index) {
-			templ->rec_field_no = dict_col_get_clust_pos(
-				col, index);
+			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
-		}
-
-		if (templ->rec_field_no == ULINT_UNDEFINED) {
-			prebuilt->need_to_access_clustered = TRUE;
+			if (templ->rec_field_no == ULINT_UNDEFINED) {
+				prebuilt->need_to_access_clustered = TRUE;
+			}
 		}
 
 		if (field->null_ptr) {
@@ -4693,9 +4716,7 @@ skip_field:
 		for (i = 0; i < n_requested_fields; i++) {
 			templ = prebuilt->mysql_template + i;
 
-			templ->rec_field_no = dict_col_get_clust_pos(
-				&index->table->cols[templ->col_no],
-				clust_index);
+			templ->rec_field_no = templ->clust_rec_field_no;
 		}
 	}
 }
@@ -6574,8 +6595,8 @@ create_options_are_valid(
 				? "COMPRESSED"
 				: "DYNAMIC";
 
-			/* These two ROW_FORMATs require
-			srv_file_per_table and srv_file_format */
+			/* These two ROW_FORMATs require srv_file_per_table
+			and srv_file_format > Antelope */
 			if (!srv_file_per_table) {
 				push_warning_printf(
 					thd,
@@ -6585,7 +6606,6 @@ create_options_are_valid(
 					" requires innodb_file_per_table.",
 					row_format_name);
 					ret = FALSE;
-
 			}
 
 			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
@@ -6784,6 +6804,8 @@ ha_innobase::create(
 		ulint	ssize, ksize;
 		ulint	key_block_size = create_info->key_block_size;
 
+		/*  Set 'flags' to the correct key_block_size.
+		It will be zero if key_block_size is an invalid number.*/
 		for (ssize = ksize = 1; ssize <= DICT_TF_ZSSIZE_MAX;
 		     ssize++, ksize <<= 1) {
 			if (key_block_size == ksize) {
@@ -6824,10 +6846,10 @@ ha_innobase::create(
 	row_type = form->s->row_type;
 
 	if (flags) {
-		/* KEY_BLOCK_SIZE was specified. */
-		if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
-			/* ROW_FORMAT was not specified;
-			default to ROW_FORMAT=COMPRESSED */
+		/* if KEY_BLOCK_SIZE was specified on this statement and
+		 ROW_FORMAT was not, automatically change ROW_FORMAT to COMPRESSED.*/
+		if (   (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)
+		    && !(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
 			row_type = ROW_TYPE_COMPRESSED;
 		} else if (row_type != ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT other than COMPRESSED
@@ -6846,7 +6868,7 @@ ha_innobase::create(
 			flags = 0;
 		}
 	} else {
-		/* No KEY_BLOCK_SIZE */
+		/* flags == 0 means no KEY_BLOCK_SIZE.*/
 		if (row_type == ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT=COMPRESSED without
 			KEY_BLOCK_SIZE implies half the
@@ -7001,7 +7023,7 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name, FALSE);
+	innobase_table = dict_table_open_on_name(norm_name, FALSE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -7041,6 +7063,8 @@ ha_innobase::create(
 		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
 		dict_table_autoinc_unlock(innobase_table);
 	}
+
+	dict_table_close(innobase_table, FALSE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -7099,33 +7123,21 @@ Deletes all rows of an InnoDB table.
 @return	error number */
 UNIV_INTERN
 int
-ha_innobase::delete_all_rows(void)
+ha_innobase::truncate(void)
 /*==============================*/
 {
 	int		error;
 
-	DBUG_ENTER("ha_innobase::delete_all_rows");
+	DBUG_ENTER("ha_innobase::truncate");
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created, and update prebuilt->trx */
 
 	update_thd(ha_thd());
 
-	if (thd_sql_command(user_thd) != SQLCOM_TRUNCATE) {
-	fallback:
-		/* We only handle TRUNCATE TABLE t as a special case.
-		DELETE FROM t will have to use ha_innobase::delete_row(),
-		because DELETE is transactional while TRUNCATE is not. */
-		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
-	}
-
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-	if (error == DB_ERROR) {
-		/* Cannot truncate; resort to ha_innobase::delete_row() */
-		goto fallback;
-	}
 
 	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
 					    NULL);
@@ -7718,9 +7730,12 @@ Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 UNIV_INTERN
 int
-ha_innobase::info(
-/*==============*/
-	uint flag)	/*!< in: what information MySQL requests */
+ha_innobase::info_low(
+/*==================*/
+	uint	flag,			/*!< in: what information MySQL
+					requests */
+	bool	called_from_analyze)	/* in: TRUE if called from
+					::analyze() */
 {
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
@@ -7751,7 +7766,7 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (innobase_stats_on_metadata) {
+		if (called_from_analyze || innobase_stats_on_metadata) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -7999,6 +8014,18 @@ func_exit:
 	DBUG_RETURN(0);
 }
 
+/*********************************************************************//**
+Returns statistics information of the table to the MySQL interpreter,
+in various fields of the handle object. */
+UNIV_INTERN
+int
+ha_innobase::info(
+/*==============*/
+	uint	flag)	/*!< in: what information MySQL requests */
+{
+	return(info_low(flag, false /* not called from analyze */));
+}
+
 /**********************************************************************//**
 Updates index cardinalities of the table, based on 8 random dives into
 each index tree. This does NOT calculate exact statistics on the table.
@@ -8011,7 +8038,8 @@ ha_innobase::analyze(
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
 	/* Simply call ::info() with all the flags */
-	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+	info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
+		 true /* called from analyze */);
 
 	return(0);
 }
@@ -8312,8 +8340,6 @@ ha_innobase::get_foreign_key_create_info(void)
 	flen = ftell(srv_dict_tmpfile);
 	if (flen < 0) {
 		flen = 0;
-	} else if (flen > 64000 - 1) {
-		flen = 64000 - 1;
 	}
 
 	/* allocate buffer for the string, and
@@ -8333,136 +8359,199 @@ ha_innobase::get_foreign_key_create_info(void)
 }
 
 
+/***********************************************************************//**
+Maps a InnoDB foreign key constraint to a equivalent MySQL foreign key info.
+@return pointer to foreign key info */
+static
+FOREIGN_KEY_INFO*
+get_foreign_key_info(
+/*=================*/
+	THD*			thd,		/*!< in: user thread handle */
+	dict_foreign_t*		foreign)	/*!< in: foreign key constraint */
+{
+	FOREIGN_KEY_INFO	f_key_info;
+	FOREIGN_KEY_INFO*	pf_key_info;
+	uint			i = 0;
+	ulint			len;
+	char			tmp_buff[NAME_LEN+1];
+	char			name_buff[NAME_LEN+1];
+	const char*		ptr;
+	LEX_STRING*		referenced_key_name;
+	LEX_STRING*		name = NULL;
+
+	ptr = dict_remove_db_name(foreign->id);
+	f_key_info.foreign_id = thd_make_lex_string(thd, 0, ptr,
+						    (uint) strlen(ptr), 1);
+
+	/* Name format: database name, '/', table name, '\0' */
+
+	/* Referenced (parent) database name */
+	len = dict_get_db_name_len(foreign->referenced_table_name);
+	ut_a(len < sizeof(tmp_buff));
+	ut_memcpy(tmp_buff, foreign->referenced_table_name, len);
+	tmp_buff[len] = 0;
+
+	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
+	f_key_info.referenced_db = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Referenced (parent) table name */
+	ptr = dict_remove_db_name(foreign->referenced_table_name);
+	len = filename_to_tablename(ptr, name_buff, sizeof(name));
+	f_key_info.referenced_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Dependent (child) database name */
+	len = dict_get_db_name_len(foreign->foreign_table_name);
+	ut_a(len < sizeof(tmp_buff));
+	ut_memcpy(tmp_buff, foreign->foreign_table_name, len);
+	tmp_buff[len] = 0;
+
+	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
+	f_key_info.foreign_db = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Dependent (child) table name */
+	ptr = dict_remove_db_name(foreign->foreign_table_name);
+	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
+	f_key_info.foreign_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	do {
+		ptr = foreign->foreign_col_names[i];
+		name = thd_make_lex_string(thd, name, ptr,
+					   (uint) strlen(ptr), 1);
+		f_key_info.foreign_fields.push_back(name);
+		ptr = foreign->referenced_col_names[i];
+		name = thd_make_lex_string(thd, name, ptr,
+					   (uint) strlen(ptr), 1);
+		f_key_info.referenced_fields.push_back(name);
+	} while (++i < foreign->n_fields);
+
+	if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE) {
+		len = 7;
+		ptr = "CASCADE";
+	} else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL) {
+		len = 8;
+		ptr = "SET NULL";
+	} else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
+		len = 9;
+		ptr = "NO ACTION";
+	} else {
+		len = 8;
+		ptr = "RESTRICT";
+	}
+
+	f_key_info.delete_method = thd_make_lex_string(thd,
+						       f_key_info.delete_method,
+						       ptr, len, 1);
+
+	if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
+		len = 7;
+		ptr = "CASCADE";
+	} else if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL) {
+		len = 8;
+		ptr = "SET NULL";
+	} else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
+		len = 9;
+		ptr = "NO ACTION";
+	} else {
+		len = 8;
+		ptr = "RESTRICT";
+	}
+
+	f_key_info.update_method = thd_make_lex_string(thd,
+						       f_key_info.update_method,
+						       ptr, len, 1);
+
+	if (foreign->referenced_index && foreign->referenced_index->name) {
+		referenced_key_name = thd_make_lex_string(thd,
+					f_key_info.referenced_key_name,
+					foreign->referenced_index->name,
+					 (uint) strlen(foreign->referenced_index->name),
+					1);
+	} else {
+		referenced_key_name = NULL;
+	}
+
+	f_key_info.referenced_key_name = referenced_key_name;
+
+	pf_key_info = (FOREIGN_KEY_INFO *) thd_memdup(thd, &f_key_info,
+						      sizeof(FOREIGN_KEY_INFO));
+
+	return(pf_key_info);
+}
+
+/*******************************************************************//**
+Gets the list of foreign keys in this table.
+@return always 0, that is, always succeeds */
 UNIV_INTERN
 int
-ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+ha_innobase::get_foreign_key_list(
+/*==============================*/
+	THD*			thd,		/*!< in: user thread handle */
+	List<FOREIGN_KEY_INFO>*	f_key_list)	/*!< out: foreign key list */
 {
-  dict_foreign_t* foreign;
+	FOREIGN_KEY_INFO*	pf_key_info;
+	dict_foreign_t*		foreign;
 
-  DBUG_ENTER("get_foreign_key_list");
-  ut_a(prebuilt != NULL);
-  update_thd(ha_thd());
-  prebuilt->trx->op_info = (char*)"getting list of foreign keys";
-  trx_search_latch_release_if_reserved(prebuilt->trx);
-  mutex_enter(&(dict_sys->mutex));
-  foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	ut_a(prebuilt != NULL);
+	update_thd(ha_thd());
 
-  while (foreign != NULL) {
-	  uint i;
-	  FOREIGN_KEY_INFO f_key_info;
-	  LEX_STRING *name= 0;
-          uint ulen;
-          char uname[NAME_LEN+1];           /* Unencoded name */
-          char db_name[NAME_LEN+1];
-	  const char *tmp_buff;
+	prebuilt->trx->op_info = "getting list of foreign keys";
 
-	  tmp_buff= foreign->id;
-	  i= 0;
-	  while (tmp_buff[i] != '/')
-		  i++;
-	  tmp_buff+= i + 1;
-	  f_key_info.forein_id = thd_make_lex_string(thd, 0,
-		  tmp_buff, (uint) strlen(tmp_buff), 1);
-	  tmp_buff= foreign->referenced_table_name;
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-          /* Database name */
-	  i= 0;
-	  while (tmp_buff[i] != '/')
-          {
-            db_name[i]= tmp_buff[i];
-            i++;
-          }
-          db_name[i]= 0;
-          ulen= filename_to_tablename(db_name, uname, sizeof(uname));
-	  f_key_info.referenced_db = thd_make_lex_string(thd, 0,
-		  uname, ulen, 1);
+	mutex_enter(&(dict_sys->mutex));
 
-          /* Table name */
-	  tmp_buff+= i + 1;
-          ulen= filename_to_tablename(tmp_buff, uname, sizeof(uname));
-	  f_key_info.referenced_table = thd_make_lex_string(thd, 0,
-		  uname, ulen, 1);
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		pf_key_info = get_foreign_key_info(thd, foreign);
+		if (pf_key_info) {
+			f_key_list->push_back(pf_key_info);
+		}
+	}
 
-	  for (i= 0;;) {
-		  tmp_buff= foreign->foreign_col_names[i];
-		  name = thd_make_lex_string(thd, name,
-			  tmp_buff, (uint) strlen(tmp_buff), 1);
-		  f_key_info.foreign_fields.push_back(name);
-		  tmp_buff= foreign->referenced_col_names[i];
-		  name = thd_make_lex_string(thd, name,
-			tmp_buff, (uint) strlen(tmp_buff), 1);
-		  f_key_info.referenced_fields.push_back(name);
-		  if (++i >= foreign->n_fields)
-			  break;
-	  }
+	mutex_exit(&(dict_sys->mutex));
 
-          ulong length;
-          if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE)
-          {
-            length=7;
-            tmp_buff= "CASCADE";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
-          {
-            length=8;
-            tmp_buff= "SET NULL";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION)
-          {
-            length=9;
-            tmp_buff= "NO ACTION";
-          }
-          else
-          {
-            length=8;
-            tmp_buff= "RESTRICT";
-          }
-	  f_key_info.delete_method = thd_make_lex_string(
-		  thd, f_key_info.delete_method, tmp_buff, length, 1);
+	prebuilt->trx->op_info = "";
 
+	return(0);
+}
 
-          if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)
-          {
-            length=7;
-            tmp_buff= "CASCADE";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)
-          {
-            length=8;
-            tmp_buff= "SET NULL";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION)
-          {
-            length=9;
-            tmp_buff= "NO ACTION";
-          }
-          else
-          {
-            length=8;
-            tmp_buff= "RESTRICT";
-          }
-	  f_key_info.update_method = thd_make_lex_string(
-		  thd, f_key_info.update_method, tmp_buff, length, 1);
-          if (foreign->referenced_index &&
-              foreign->referenced_index->name)
-          {
-	    f_key_info.referenced_key_name = thd_make_lex_string(
-		    thd, f_key_info.referenced_key_name,
-		    foreign->referenced_index->name,
-		    (uint) strlen(foreign->referenced_index->name), 1);
-          }
-          else
-            f_key_info.referenced_key_name= 0;
+/*******************************************************************//**
+Gets the set of foreign keys where this table is the referenced table.
+@return always 0, that is, always succeeds */
+UNIV_INTERN
+int
+ha_innobase::get_parent_foreign_key_list(
+/*=====================================*/
+	THD*			thd,		/*!< in: user thread handle */
+	List<FOREIGN_KEY_INFO>*	f_key_list)	/*!< out: foreign key list */
+{
+	FOREIGN_KEY_INFO*	pf_key_info;
+	dict_foreign_t*		foreign;
 
-	  FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
-		  thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
-	  f_key_list->push_back(pf_key_info);
-	  foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
-  }
-  mutex_exit(&(dict_sys->mutex));
-  prebuilt->trx->op_info = (char*)"";
+	ut_a(prebuilt != NULL);
+	update_thd(ha_thd());
 
-  DBUG_RETURN(0);
+	prebuilt->trx->op_info = "getting list of referencing foreign keys";
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+
+	mutex_enter(&(dict_sys->mutex));
+
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		pf_key_info = get_foreign_key_info(thd, foreign);
+		if (pf_key_info) {
+			f_key_list->push_back(pf_key_info);
+		}
+	}
+
+	mutex_exit(&(dict_sys->mutex));
+
+	prebuilt->trx->op_info = "";
+
+	return(0);
 }
 
 /*****************************************************************//**
@@ -8996,7 +9085,7 @@ innodb_show_status(
 {
 	trx_t*			trx;
 	static const char	truncated_msg[] = "... truncated...\n";
-	const long		MAX_STATUS_SIZE = 64000;
+	const long		MAX_STATUS_SIZE = 1048576;
 	ulint			trx_list_start = ULINT_UNDEFINED;
 	ulint			trx_list_end = ULINT_UNDEFINED;
 
@@ -9026,6 +9115,7 @@ innodb_show_status(
 
 	if (flen > MAX_STATUS_SIZE) {
 		usable_len = MAX_STATUS_SIZE;
+		srv_truncated_status_writes++;
 	} else {
 		usable_len = flen;
 	}
@@ -9601,7 +9691,11 @@ ha_innobase::innobase_peek_autoinc(void)
 
 	auto_inc = dict_table_autoinc_read(innodb_table);
 
-	ut_a(auto_inc > 0);
+	if (auto_inc == 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: AUTOINC next value generation "
+			"is disabled for '%s'\n", innodb_table->name);
+	}
 
 	dict_table_autoinc_unlock(innodb_table);
 
@@ -11129,13 +11223,13 @@ static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
 static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   PLUGIN_VAR_NOCMDARG,
   "Stores each InnoDB table to an .ibd file in the database dir.",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   PLUGIN_VAR_RQCMDARG,
   "File format to use for new tables in .ibd files.",
   innodb_file_format_name_validate,
-  innodb_file_format_name_update, "Barracuda");
+  innodb_file_format_name_update, "Antelope");
 
 /* "innobase_file_format_check" decides whether we would continue
 booting the server if the file format stamped on the system
@@ -11385,6 +11479,13 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, "all");
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB change buffering (0=none)",
+  NULL, NULL, 0, 0, 1, 0);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
   "Number of pages that must be accessed sequentially for InnoDB to "
@@ -11472,6 +11573,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   MYSQL_SYSVAR(change_buffering),
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+  MYSQL_SYSVAR(change_buffering_debug),
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(enable_monitor_counter),
@@ -11507,7 +11611,6 @@ i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
 i_s_innodb_metrics
-
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.

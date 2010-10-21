@@ -3138,8 +3138,10 @@ loop:
 	server_mutex_enter();
 
 	if (srv_fast_shutdown < 2
-	   && (srv_error_monitor_active
-	      || srv_lock_timeout_active || srv_monitor_active)) {
+	    && (srv_error_monitor_active
+		|| srv_lock_timeout_active
+		|| srv_monitor_active)) {
+
 		const char*	thread_active = NULL;
 
 		/* Print a message every 60 seconds if we are waiting
@@ -3164,6 +3166,10 @@ loop:
 				"to exit\n", thread_active);
 			count = 0;
 		}
+
+		os_event_set(srv_error_event);
+		os_event_set(srv_monitor_event);
+		os_event_set(srv_timeout_event);
 
 		goto loop;
 	}

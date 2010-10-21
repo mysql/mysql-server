@@ -477,7 +477,6 @@ io_handler_thread(
 			the aio array */
 {
 	ulint	segment;
-	ulint	i;
 
 	segment = *((ulint*)arg);
 
@@ -490,15 +489,13 @@ io_handler_thread(
 	pfs_register_thread(io_handler_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
-	for (i = 0;; i++) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 		fil_aio_wait(segment);
 
 		mutex_enter(&ios_mutex);
 		ios++;
 		mutex_exit(&ios_mutex);
 	}
-
-	thr_local_free(os_thread_get_curr_id());
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit.

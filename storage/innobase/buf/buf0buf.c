@@ -173,7 +173,7 @@ The chain of modified blocks (buf_pool->flush_list) contains the blocks
 holding file pages that have been modified in the memory
 but not written to disk yet. The block with the oldest modification
 which has not yet been written to disk is at the end of the chain.
-The access to this list is protected by flush_list_mutex.
+The access to this list is protected by buf_pool->flush_list_mutex.
 
 The chain of unmodified compressed blocks (buf_pool->zip_clean)
 contains the control blocks (buf_page_t) of those compressed pages
@@ -1935,7 +1935,7 @@ page_found:
 	hash_mutexes. buf_pool mutex is needed because any changes to
 	the page_hash must be covered by it and hash_mutexes are needed
 	because we don't want to read any stale information in
-	buf_pool_watch[]. However, it is not in the critical code path
+	buf_pool->watch[]. However, it is not in the critical code path
 	as this function will be called only by the purge thread. */
 
 
@@ -1972,8 +1972,8 @@ page_found:
 			ut_ad(!bpage->in_page_hash);
 			ut_ad(bpage->buf_fix_count == 0);
 
-			/* bpage is pointing to buf_pool_watch[],
-			which is protected by buf_pool_mutex.
+			/* bpage is pointing to buf_pool->watch[],
+			which is protected by buf_pool->mutex.
 			Normally, buf_page_t objects are protected by
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
@@ -3054,7 +3054,7 @@ wait_until_unfixed:
 		/* As we have released the page_hash mutex and the
 		block_mutex to allocate an uncompressed page it is
 		possible that page_hash might have changed. We do
-		another lookup here while holding the buf_pool mutex
+		another lookup here while holding the hash_mutex
 		to verify that bpage is indeed still a part of
 		page_hash. */
 		mutex_enter(hash_mutex);
@@ -3064,7 +3064,7 @@ wait_until_unfixed:
 		mutex_enter(&block->mutex);
 		if (UNIV_UNLIKELY(bpage != hash_bpage)) {
 			/* The buf_pool->page_hash was modified
-			while buf_pool_mutex was released.
+			while buf_pool->mutex was released.
 			Free the block that was allocated. */
 
 			buf_LRU_block_free_non_file_page(block);
@@ -3181,6 +3181,73 @@ wait_until_unfixed:
 	bytes. */
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
 #endif
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if ((mode == BUF_GET_IF_IN_POOL || mode == BUF_GET_IF_IN_POOL_OR_WATCH)
+	    && ibuf_debug) {
+		/* Try to evict the block from the buffer pool, to use the
+		insert buffer (change buffer) as much as possible. */
+
+		/* To obey the latching order, release the
+		block->mutex before acquiring buf_pool->mutex. Protect
+		the block from changes by temporarily buffer-fixing it
+		for the time we are not holding block->mutex. */
+		buf_block_buf_fix_inc(block, file, line);
+		mutex_exit(&block->mutex);
+		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&block->mutex);
+		buf_block_buf_fix_dec(block);
+		mutex_exit(&block->mutex);
+
+		/* Now we are only holding the buf_pool->mutex,
+		not block->mutex or hash_mutex. Blocks cannot be
+		relocated or enter or exit the buf_pool while we
+		are holding the buf_pool->mutex. */
+
+		if (buf_LRU_free_block(&block->page, TRUE, NULL)
+		    == BUF_LRU_FREED) {
+			buf_pool_mutex_exit(buf_pool);
+			mutex_enter(hash_mutex);
+
+			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
+				/* Set the watch, as it would have
+				been set if the page were not in the
+				buffer pool in the first place. */
+				block = (buf_block_t*) buf_pool_watch_set(
+					space, offset, fold);
+			} else {
+				block = (buf_block_t*) buf_page_hash_get_low(
+					buf_pool, space, offset, fold);
+			}
+
+			if (UNIV_LIKELY_NULL(block)) {
+				/* The page entered the buffer
+				pool for some reason. Try to
+				evict it again. */
+				goto got_block;
+			}
+
+			mutex_exit(hash_mutex);
+			fprintf(stderr,
+				"innodb_change_buffering_debug evict %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			return(NULL);
+		}
+
+		mutex_enter(&block->mutex);
+
+		if (buf_flush_page_try(buf_pool, block)) {
+			fprintf(stderr,
+				"innodb_change_buffering_debug flush %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			guess = block;
+			goto loop;
+		}
+
+		/* Failed to evict the page; change it directly */
+
+		buf_pool_mutex_exit(buf_pool);
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 	buf_block_buf_fix_inc(block, file, line);
 

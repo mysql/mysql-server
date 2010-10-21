@@ -970,6 +970,7 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_REMOVE_PARTITIONING (1L << 22)
 #define ALTER_FOREIGN_KEY        (1L << 23)
 #define ALTER_EXCHANGE_PARTITION (1L << 24)
+#define ALTER_TRUNCATE_PARTITION (1L << 25)
 
 enum enum_alter_table_change_level
 {
@@ -1059,6 +1060,8 @@ struct st_sp_chistics
   enum enum_sp_data_access daccess;
 };
 
+extern const LEX_STRING null_lex_str;
+extern const LEX_STRING empty_lex_str;
 
 struct st_trg_chistics
 {
@@ -2329,6 +2332,7 @@ struct LEX: public Query_tables_list
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
+  bool proxy_priv;
   sp_pcontext *spcont;
 
   st_sp_chistics sp_chistics;
@@ -2367,15 +2371,19 @@ struct LEX: public Query_tables_list
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
 
-    keyword_delayed_begin points to the begin of the DELAYED keyword in
-    INSERT DELAYED statement.
+    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
+    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
+    offset to the character right after the DELAYED keyword.
   */
   union {
     const char *stmt_definition_begin;
-    const char *keyword_delayed_begin;
+    uint keyword_delayed_begin_offset;
   };
 
-  const char *stmt_definition_end;
+  union {
+    const char *stmt_definition_end;
+    uint keyword_delayed_end_offset;
+  };
 
   /**
     During name resolution search only in the table list given by 
