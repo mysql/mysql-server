@@ -4983,7 +4983,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
     {
       if (!(quick= get_quick_select(param, (*first_scan)->idx,
                                     (*first_scan)->sel_arg, alloc)) ||
-          quick_intrsect->push_quick_back(quick))
+          (quick->sorted= 1, quick_intrsect->push_quick_back(quick)))
       {
         delete quick_intrsect;
         DBUG_RETURN(NULL);
@@ -4998,6 +4998,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
         DBUG_RETURN(NULL);
       }
       quick->file= NULL; 
+      quick->sorted= 1;
       quick_intrsect->cpk_quick= quick;
     }
     quick_intrsect->records= records;
@@ -5024,7 +5025,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
     for (scan= first_ror; scan != last_ror; scan++)
     {
       if (!(quick= (*scan)->make_quick(param, FALSE, &quick_roru->alloc)) ||
-          quick_roru->push_quick_back(quick))
+          (quick->sorted= 1, quick_roru->push_quick_back(quick)))
         DBUG_RETURN(NULL);
     }
     quick_roru->records= records;
@@ -8454,7 +8455,7 @@ int QUICK_RANGE_SELECT::reset()
   in_range= FALSE;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
-  if (file->inited == handler::NONE && (error= file->ha_index_init(index,1)))
+  if (file->inited == handler::NONE && (error= file->ha_index_init(index,sorted)))
     DBUG_RETURN(error);
  
   /* Do not allocate the buffers twice. */
@@ -8671,7 +8672,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
 				   last_range->max_keypart_map ? &end_key : 0,
                                    test(last_range->flag & EQ_RANGE),
-				   TRUE);
+				   sorted);
     if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
       last_range= 0;			// Stop searching
 
@@ -8797,6 +8798,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
       r->flag&= ~EQ_RANGE;
   }
   rev_it.rewind();
+  sorted= 1;
   q->dont_free=1;				// Don't free shared mem
   delete q;
 }
@@ -10208,11 +10210,18 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
     if (quick_prefix_records == HA_POS_ERROR)
       quick->quick_prefix_select= NULL; /* Can't construct a quick select. */
     else
+    {
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
       quick->quick_prefix_select= get_quick_select(param, param_idx,
                                                    index_tree,
                                                    &quick->alloc);
-
+      if (!quick->quick_prefix_select)
+      {
+        delete quick;
+        DBUG_RETURN(NULL);
+      }
+      quick->quick_prefix_select->sorted= 1;
+    }
     /*
       Extract the SEL_ARG subtree that contains only ranges for the MIN/MAX
       attribute, and create an array of QUICK_RANGES to be used by the
@@ -10603,6 +10612,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
   head->set_keyread(TRUE); /* We need only the key attributes */
+
+  // Request ordered index access as usage of ::index_last(), ::index_first()
+  // within GROUP_MIN_MAX depends on it.
   if ((result= file->ha_index_init(index,1)))
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())
