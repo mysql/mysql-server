@@ -401,6 +401,21 @@ void Dbdict::packTableIntoPages(Signal* signal)
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, tableId);
     packTableIntoPages(w, tablePtr, signal);
+    if (unlikely(signal->theData[0] != 0))
+    {
+      jam();
+      Uint32 err = signal->theData[0];
+      GetTabInfoRef * ref = CAST_PTR(GetTabInfoRef, signal->getDataPtrSend());
+      ref->tableId = c_retrieveRecord.tableId;
+      ref->senderRef = reference();
+      ref->senderData = c_retrieveRecord.m_senderData;
+      ref->errorCode = err;
+      Uint32 dstRef = c_retrieveRecord.blockRef;
+      sendSignal(dstRef, GSN_GET_TABINFOREF, signal, 
+                 GetTabInfoRef::SignalLength, JBB);
+      initRetrieveRecord(0,0,0);
+      return;
+    }
     break;
   }
   case DictTabInfo::Tablespace:
@@ -515,8 +530,21 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     req->fragmentationType = tablePtr.p->fragmentType;
     req->noOfFragments = 0;
     req->primaryTableId = tablePtr.i;
-    EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
-		   CreateFragmentationReq::SignalLength);
+    if (!ERROR_INSERTED(6025))
+    {
+      EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
+                     CreateFragmentationReq::SignalLength);
+    }
+    else
+    {
+      signal->theData[0] = CreateFragmentationRef::InvalidPrimaryTable;
+    }
+    Uint32 err = signal->theData[0];
+    if (unlikely(err != 0))
+    {
+      jam();
+      return;
+    }
     ndbrequire(signal->theData[0] == 0);
     Uint16 *data = (Uint16*)&signal->theData[25];
     Uint32 count = 2 + (1 + data[0]) * data[1];
@@ -9900,8 +9928,13 @@ void
 Dbdict::execUTIL_PREPARE_REF(Signal *signal)
 {
   jamEntry();
+  const UtilPrepareRef * ref = CAST_CONSTPTR(UtilPrepareRef, 
+                                             signal->getDataPtr());
+  Uint32 code = ref->errorCode;
+  if (code == UtilPrepareRef::DICT_TAB_INFO_ERROR)
+    code = ref->dictErrCode;
   EVENT_TRACE;
-  ndbrequire(recvSignalUtilReq(signal, 1) == 0);
+  ndbrequire(recvSignalUtilReq(signal, code) == 0);
 }
 
 void Dbdict::execUTIL_EXECUTE_CONF(Signal *signal)

@@ -418,7 +418,8 @@ public:
 			SimpleProperties::Reader* reader, 
 			Uint32 senderData);
   void prepareOperation(Signal*, PreparePtr, SegmentedSectionPtr);
-  void sendUtilPrepareRef(Signal*, UtilPrepareRef::ErrorCode, Uint32, Uint32);
+  void sendUtilPrepareRef(Signal*, UtilPrepareRef::ErrorCode, Uint32, Uint32,
+                          Uint32 extraError = 0);
   void sendUtilExecuteRef(Signal*, UtilExecuteRef::ErrorCode, 
 			  Uint32, Uint32, Uint32);
   void releasePrepare(PreparePtr);
