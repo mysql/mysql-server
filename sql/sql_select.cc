@@ -7632,6 +7632,12 @@ optimize_straight_join(JOIN *join, table_map join_tables)
  
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
+    /*
+      Dependency computation (make_join_statistics()) and proper ordering
+      based on them (join_tab_cmp*) guarantee that this order is compatible
+      with execution, check it:
+    */
+    DBUG_ASSERT(!check_interleaving_with_nj(s));
     /* Find the best access method from 's' to the current partial plan */
     best_access_path(join, s, join_tables, idx, FALSE, record_count,
                      join->positions + idx, &loose_scan_pos);
