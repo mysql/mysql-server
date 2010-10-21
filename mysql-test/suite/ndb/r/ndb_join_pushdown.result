@@ -3929,8 +3929,8 @@ join t1 as x2 on x1.a=x2.b
 join t1 as x3 on x2.a=x3.b 
 order by x1.pk limit 70;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x1	index	NULL	PRIMARY	4	NULL	10	
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	Parent of 2 pushed join@1; Using where
+1	SIMPLE	x1	index	NULL	PRIMARY	4	NULL	10	Parent of 3 pushed join@1; Using temporary; Using filesort
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	Child of pushed join@1; Using where
 1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	1	Child of pushed join@1; Using where
 select x1.pk,x1.a,x1.b from t1 as x1 
 join t1 as x2 on x1.a=x2.b 
@@ -4009,8 +4009,8 @@ pk	a	b
 2	20	20
 explain select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x1	ref	ix1	ix1	5	const	10	Using where with pushed condition
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	Using where
+1	SIMPLE	x1	ref	ix1	ix1	5	const	10	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	Child of pushed join@1; Using where
 select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 pk	a	b	pk	a	b
 drop table t1;
@@ -4071,10 +4071,10 @@ counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
 LOCAL_TABLE_SCANS_SENT	196
 PRUNED_RANGE_SCANS_RECEIVED	16
-RANGE_SCANS_RECEIVED	205
+RANGE_SCANS_RECEIVED	203
 READS_NOT_FOUND	405
 READS_RECEIVED	61
-SCAN_ROWS_RETURNED	63643
+SCAN_ROWS_RETURNED	63863
 TABLE_SCANS_RECEIVED	196
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
@@ -4086,15 +4086,15 @@ LOCAL+REMOTE READS_SENT
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2003
+2000
 pruned_scan_count
 7
 sorted_scan_count
-44
+7
 pushed_queries_defined
-341
+343
 pushed_queries_dropped
 11
 pushed_queries_executed
-265
+264
 set ndb_join_pushdown = @save_ndb_join_pushdown;

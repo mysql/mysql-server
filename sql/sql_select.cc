@@ -1702,21 +1702,23 @@ make_pushed_join(THD *thd, JOIN *join)
     }
   }
 
-  /* If we just pushed a join containing an ORDER BY and/or GROUP BY clause,
+  /* If we just pushed a join containing an ORDER BY and/or a GROUP BY clause,
    * we have to ensure that we either can skip the sort by scanning an ordered index,
    * or write to a temp. table later being filesorted.
    */
   if (join->const_tables < join->tables &&
       join->join_tab[join->const_tables].table->file->is_parent_of_pushed_join())
   {
+    const handler *ha=join->join_tab[join->const_tables].table->file;
+
     if (join->group_list && join->simple_group &&
-        !plan.group_by_filesort_is_skippable())
+        (!plan.group_by_filesort_is_skippable() || ha->test_push_flag(HA_PUSH_NO_ORDERED_INDEX)))
     {
       join->need_tmp= 1;
       join->simple_order= join->simple_group= 0;
     }
     else if (join->order && join->simple_order &&
-             !plan.order_by_filesort_is_skippable())
+             (!plan.order_by_filesort_is_skippable() || ha->test_push_flag(HA_PUSH_NO_ORDERED_INDEX)))
     {
       join->need_tmp= 1;
       join->simple_order= join->simple_group= 0;
@@ -12111,8 +12113,8 @@ join_read_key_unlock_row(st_join_table *tab)
 
 /**
   Read a table *assumed* to be included in execution of a pushed join.
-  This is the counterpart of join_read_key() for child tables in a 
-  pushed join.
+  This is the counterpart of join_read_key() / join_read_always_key()
+  for child tables in a pushed join.
 
     When the table access is performed as part of the pushed join,
     all 'linked' child colums are prefetched together with the parent row.
@@ -12139,6 +12141,7 @@ join_read_linked_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_first");
 
+  DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, tab->sorted);
 
@@ -13973,6 +13976,7 @@ check_reverse_order:
 	  DBUG_RETURN(0);		// Reverse sort not supported
 	}
 	select->quick=tmp;
+	DBUG_ASSERT(select->quick->sorted);
       }
     }
     else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&

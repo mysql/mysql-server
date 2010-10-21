@@ -1302,13 +1302,6 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_PRINT("info", ("Table %d not a pushable access type", join_cnt));
       continue;
     }
-    if (join_root->is_sorted() && !is_lookup_operation(child_type))  
-    {
-      // Sorted scan cannot have scan descendant.
-      DBUG_PRINT("info", ("Table %d is scanned. Therefore it cannot be pushed"
-                          " as a descendant of a sorted scan", join_cnt));
-      continue;
-    }
     if (!context.field_ref_is_join_pushable(join_tab, join_items, join_parent))
     {
       DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
@@ -1631,8 +1624,7 @@ private:
  */
 bool 
 ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, 
-                                 uint idx,
-                                 bool rootSorted) const
+                                 uint idx, bool needSorted) const
 {
   if (m_pushed_join == NULL)
   {
@@ -1685,6 +1677,12 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
 
   case NdbQueryOperationDef::TableScan:
     DBUG_ASSERT (idx==MAX_KEY);
+    if (needSorted)
+    {
+      DBUG_PRINT("info", ("TableScan access not not be provied as sorted result. ", 
+                          "Therefore, join cannot be pushed."));
+      return FALSE;
+    }
     break;
 
   case NdbQueryOperationDef::OrderedIndexScan:
@@ -1692,29 +1690,11 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
     //          DBUG_ASSERT(m_index[idx].index == expected_index);
     if (m_index[idx].index != expected_index)
     {
-      DBUG_PRINT("info", ("Actual index %s differs from expected index %s."
+      DBUG_PRINT("info", ("Actual index %s differs from expected index %s. "
                           "Therefore, join cannot be pushed.", 
                           m_index[idx].index->getName(),
                           expected_index->getName()));
       return FALSE;
-    }
-    // Check that we do not have a sorted scan with sub scans.
-    if (rootSorted)
-    {
-      const NdbQueryDef& query_def = m_pushed_join->get_query_def();
-      for (uint i= 1; i < query_def.getNoOfOperations(); i++)
-      {
-        const NdbQueryOperationTypeWrapper& child_type= 
-          query_def.getQueryOperation(i)->getType();
-        if (child_type == NdbQueryOperationDef::TableScan ||
-            child_type == NdbQueryOperationDef::OrderedIndexScan)
-        {
-          DBUG_PRINT("info", ("If the root operation is a sorted scan, then "
-                              "there may not be scan children. This join "
-                              "cannot be pushed.")); 
-          return FALSE;
-        }
-      }
     }
     break;
 
@@ -1901,6 +1881,46 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
       DBUG_RETURN(true);
     }
     DBUG_RETURN(false);
+
+  case HA_PUSH_NO_ORDERED_INDEX:
+  {
+    if (!m_pushed_join)
+    {
+      DBUG_RETURN(true);
+    }
+    const NdbQueryDef& query_def = m_pushed_join->get_query_def();
+    const NdbQueryOperationTypeWrapper& root_type=
+      query_def.getQueryOperation(0U)->getType();
+
+    /**
+     * Primary key/ unique key lookup is always 'ordered' wrt. itself.
+     */
+    if (root_type == NdbQueryOperationDef::PrimaryKeyAccess  ||
+        root_type == NdbQueryOperationDef::UniqueIndexAccess)
+    {
+      DBUG_RETURN(false);
+    }
+
+    /**
+     * Ordered index scan can be provided as an ordered resultset iff
+     * it has no child scans.
+     */
+    if (root_type == NdbQueryOperationDef::OrderedIndexScan)
+    {
+      for (uint i= 1; i < query_def.getNoOfOperations(); i++)
+      {
+        const NdbQueryOperationTypeWrapper& child_type=
+          query_def.getQueryOperation(i)->getType();
+        if (child_type == NdbQueryOperationDef::TableScan ||
+            child_type == NdbQueryOperationDef::OrderedIndexScan)
+        {
+          DBUG_RETURN(true);
+        }
+      }
+      DBUG_RETURN(false);
+    }
+    DBUG_RETURN(true);
+  }
 
   default:
     DBUG_ASSERT(0);

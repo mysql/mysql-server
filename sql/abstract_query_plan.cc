@@ -449,16 +449,6 @@ namespace AQP
   {}
 
   /**
-    @return True if sorted results are expetced from this operation. 
-   */
-  bool Table_access::is_sorted() const
-  {
-    return get_join_tab()->type == JT_NEXT || 
-      (get_join_tab()->type == JT_REF && get_join_tab()->sorted) ||
-      (get_join_tab()->type == JT_REF_OR_NULL && get_join_tab()->sorted); 
-  }
-
-  /**
     @param plan Iterate over fields within this plan.
     @param field_item Iterate over Item_fields equal to this.
   */
