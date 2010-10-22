@@ -1164,7 +1164,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
  
   records++;  /* Increment the counter of records in the cache */
 
-  len= pack_length;
+  len= pack_length + extra_key_length();
 
   /* Make an adjustment for the size of the auxiliary buffer if there is any */
   uint incr= aux_buffer_incr(records);
@@ -2723,6 +2723,7 @@ bool JOIN_CACHE_HASHED::put_record()
       memcpy(cp, key, key_len);
     }
     last_key_entry= cp;
+    DBUG_ASSERT(last_key_entry >= end_pos);
     /* Increment the counter of key_entries in the hash table */ 
     key_entries++;
   }  

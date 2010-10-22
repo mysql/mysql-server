@@ -1983,8 +1983,8 @@ DROP TABLE t1,t2,t3;
 set join_cache_level=default;
 
 --echo #
---echo # Bug#51084: Batched key access crashes for SELECT with
---echo #            derived table and LEFT JOIN 
+--echo # Bug #51084: Batched key access crashes for SELECT with
+--echo #             derived table and LEFT JOIN 
 --echo #
 
 CREATE TABLE t1 (
@@ -2027,7 +2027,7 @@ SET join_cache_level=default;
 DROP TABLE t1,t2,t3,t4;
 
 --echo #
---echo # BUG#52636: allowing JOINs on NULL values w/ join_cache_level = 5-8
+--echo # Bug #52636: allowing JOINs on NULL values w/ join_cache_level = 5-8
 --echo #
 
 CREATE TABLE t1 (b int);
@@ -2077,8 +2077,8 @@ set join_cache_level = default;
 DROP TABLE t1,t2;
 
 --echo #
---echo # BUG#54359 "Extra rows with join_cache_level=7,8 and two joins
---echo # --and multi-column index"
+--echo # Bug #54359: Extra rows with join_cache_level=7,8 and two joins
+--echo #             and multi-column index"
 --echo #
 
 CREATE TABLE t1 (
@@ -2104,9 +2104,8 @@ SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
 set join_cache_level = default;
 DROP TABLE t1;
 
-
 --echo #
---echo # Bug#54235 Extra rows with join_cache_level=6,8 and two LEFT JOINs
+--echo # Bug #54235: Extra rows with join_cache_level=6,8 and two LEFT JOINs
 --echo #
 
 CREATE TABLE t1 (a int);
@@ -2135,6 +2134,52 @@ SELECT t1.a
 
 set join_cache_level = default;
 DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #663840: Memory overwrite causing crash with hash join
+--echo #
+
+SET SESSION join_cache_level=3;
+SET SESSION join_buffer_size=100;
+
+CREATE TABLE t3 (
+  i int NOT NULL,
+  j int NOT NULL,
+  d date NOT NULL,
+  t time NOT NULL,
+  v varchar(1) NOT NULL,
+  u varchar(1) NOT NULL,
+  INDEX idx (v)
+)  COLLATE=latin1_bin;
+
+INSERT INTO t3 VALUES
+  (3,8,'2008-12-04','00:00:00','v','v'), (3,8,'2009-03-28','00:00:00','f','f'),
+  (3,5,'1900-01-01','00:55:47','v','v'), (2,8,'2009-10-02','00:00:00','s','s'),
+  (1,8,'1900-01-01','20:51:59','a','a'), (0,6,'2008-06-04','09:47:27','p','p'),
+  (8,7,'2009-01-13','21:58:29','z','z'), (5,2,'1900-01-01','22:45:53','a','a'),
+  (9,5,'2008-01-28','14:06:48','h','h'), (5,7,'2004-09-18','22:17:16','h','h'),
+  (4,2,'2006-10-14','14:59:37','v','v'), (2,9,'1900-01-01','23:37:40','v','v'),
+  (33,142,'2000-11-28','14:14:01','b','b'), (5,3,'2008-04-04','02:54:19','y','y'),
+  (1,0,'2002-07-13','06:34:26','v','v'), (9,3,'2003-01-03','18:07:38','m','m'),
+  (1,5,'2006-04-02','13:55:23','z','z'), (3,9,'2006-10-19','20:32:28','n','n'),
+  (8,1,'2005-06-08','11:57:44','d','d'), (231,107,'2006-12-26','03:10:35','a','a');
+
+CREATE TABLE t1 SELECT * FROM t3;
+DELETE FROM t1 WHERE i > 8;
+CREATE TABLE t2 SELECT * FROM t3;
+DELETE FROM t2 WHERE j > 10;
+
+EXPLAIN
+SELECT t1.i, t1.d,  t1.v, t2.i, t2.d, t2.t, t2.v FROM t1,t2,t3
+  WHERE t3.u <='a' AND t2.j < 5 AND t3.v = t2.u;
+
+SELECT t1.i, t1.d,  t1.v, t2.i, t2.d, t2.t, t2.v FROM t1,t2,t3
+  WHERE t3.u <='a' AND t2.j < 5 AND t3.v = t2.u;
+
+DROP TABLE t1,t2,t3;
+
+SET SESSION join_cache_level=DEFAULT;
+SET SESSION join_buffer_size=DEFAULT;
 
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

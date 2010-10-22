@@ -790,6 +790,12 @@ protected:
     return max(buff_size-(end_pos-buff)-aux_buff_size,0);
   }
 
+  /* 
+    Shall calculate how much space is taken by allocation of the key
+    for a record in the join buffer
+  */
+  virtual uint extra_key_length() { return 0; }
+
   /*  Read all flag and data fields of a record from the join buffer */
   uint read_all_record_fields();
   
@@ -1271,6 +1277,12 @@ protected:
   { 
     return max(last_key_entry-end_pos-aux_buff_size,0);
   }
+
+  /* 
+    Calculate how much space is taken by allocation of the key
+    entry for a record in the join buffer
+  */
+  virtual uint extra_key_length() { return key_entry_length; }
 
   /* 
     Skip record from a hashed join buffer if its match flag
