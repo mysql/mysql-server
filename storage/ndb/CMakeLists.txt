@@ -86,9 +86,9 @@ SET(NDBCLUSTER_SOURCES
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 
-IF(EXISTS ${SOURCE_DIR}/storage/mysql_storage_engine.cmake)
+IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
   # Old plugin support on Windows only
-  INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+  INCLUDE("${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
   SET(NDBCLUSTER_LIBS ndbclient)
   MYSQL_STORAGE_ENGINE(NDBCLUSTER)
 ELSE()
