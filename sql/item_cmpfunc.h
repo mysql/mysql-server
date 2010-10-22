@@ -274,6 +274,8 @@ public:
   { with_subselect= TRUE; }
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   bool is_null();
   longlong val_int();
   void cleanup();
@@ -1513,7 +1515,8 @@ public:
     list.prepand(nlist);
   }
   bool fix_fields(THD *, Item **ref);
-  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
