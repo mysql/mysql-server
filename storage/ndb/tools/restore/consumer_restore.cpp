@@ -2343,16 +2343,6 @@ BackupRestore::check_compat_lossy(const NDBCOL &old_col,
   return ACT_LOSSY;
 }
 
-/**
- * Returns a negative integer, zero, or a positive integer as x is less than,
- * equal to, or greater than y.
- */
-static int
-compare(Uint32 x, Uint32 y)
-{
-  return (x < y ? -1 : (x > y ? 1 : 0));
-}
-
 AttrConvType
 BackupRestore::check_compat_sizes(const NDBCOL &old_col,
                                   const NDBCOL &new_col)
@@ -2904,10 +2894,7 @@ BackupRestore::convert_uint16_uint8(const void *old_data,
   Uint16 old_data16;
   memcpy(&old_data16, old_data, 2);
   Uint8 new_data8;
-  if (old_data16 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else if (old_data16 > UINT_MAX8) {
+  if (old_data16 > UINT_MAX8) {
     new_data8 = (Uint8)(UINT_MAX8);
     truncated = true;
   } else {
@@ -2926,10 +2913,7 @@ BackupRestore::convert_uint24_uint8(const void *old_data,
 {
   Uint32 old_data24 = uint3korr((char*)old_data);
   Uint8 new_data8;
-  if (old_data24 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else if (old_data24 > UINT_MAX8) {
+  if (old_data24 > UINT_MAX8) {
     new_data8 = (Uint8)(UINT_MAX8);
     truncated = true;
   } else {
@@ -2948,10 +2932,7 @@ BackupRestore::convert_uint24_uint16(const void *old_data,
 {
   Uint32 old_data24 = uint3korr((char*)old_data);
   Uint16 new_data16;
-  if (old_data24 < 0) {
-    new_data16 = (Uint16)0;
-    truncated = true;
-  } else if (old_data24 > UINT_MAX16) {
+  if (old_data24 > UINT_MAX16) {
     new_data16 = (Uint16)(UINT_MAX16);
     truncated = true;
   } else {
@@ -2971,10 +2952,7 @@ BackupRestore::convert_uint32_uint8(const void *old_data,
   Uint32 old_data32;
   memcpy(&old_data32, old_data, 4);
   Uint8 new_data8;
-  if (old_data32 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else if (old_data32 > UINT_MAX8) {
+  if (old_data32 > UINT_MAX8) {
     new_data8 = (Uint8)(UINT_MAX8);
     truncated = true;
   } else {
@@ -2994,10 +2972,7 @@ BackupRestore::convert_uint32_uint16(const void *old_data,
   Uint32 old_data32;
   memcpy(&old_data32, old_data, 4);
   Uint16 new_data16;
-  if (old_data32 < 0) {
-    new_data16 = (Uint16)0;
-    truncated = true;
-  } else if (old_data32 > UINT_MAX16) {
+  if (old_data32 > UINT_MAX16) {
     new_data16 = (Uint16)(UINT_MAX16);
     truncated = true;
   } else {
@@ -3017,10 +2992,7 @@ BackupRestore::convert_uint32_uint24(const void *old_data,
   Uint32 old_data32;
   memcpy(&old_data32, old_data, 4);
   Uint32 new_data24;
-  if (old_data32 < 0) {
-    new_data24 = (Uint32)0;
-    truncated = true;
-  } else if (old_data32 > UINT_MAX24) {
+  if (old_data32 > UINT_MAX24) {
     new_data24 = (Uint32)(UINT_MAX24);
     truncated = true;
   } else {
@@ -3040,10 +3012,7 @@ BackupRestore::convert_uint64_uint8(const void *old_data,
   Uint64 old_data64;
   memcpy(&old_data64, old_data, 8);
   Uint8 new_data8;
-  if (old_data64 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else if (old_data64 > UINT_MAX8) {
+  if (old_data64 > UINT_MAX8) {
     new_data8 = (Uint8)(UINT_MAX8);
     truncated = true;
   } else {
@@ -3063,10 +3032,7 @@ BackupRestore::convert_uint64_uint16(const void *old_data,
   Uint64 old_data64;
   memcpy(&old_data64, old_data, 8);
   Uint16 new_data16;
-  if (old_data64 < 0) {
-    new_data16 = (Uint16)0;
-    truncated = true;
-  } else if (old_data64 > UINT_MAX16) {
+  if (old_data64 > UINT_MAX16) {
     new_data16 = (Uint16)(UINT_MAX16);
     truncated = true;
   } else {
@@ -3086,10 +3052,7 @@ BackupRestore::convert_uint64_uint24(const void *old_data,
   Uint64 old_data64;
   memcpy(&old_data64, old_data, 8);
   Uint32 new_data24;
-  if (old_data64 < 0) {
-    new_data24 = (Uint32)0;
-    truncated = true;
-  } else if (old_data64 > UINT_MAX24) {
+  if (old_data64 > UINT_MAX24) {
     new_data24 = (Uint32)(UINT_MAX24);
     truncated = true;
   } else {
@@ -3109,10 +3072,7 @@ BackupRestore::convert_uint64_uint32(const void *old_data,
   Uint64 old_data64;
   memcpy(&old_data64, old_data, 8);
   Uint32 new_data32;
-  if (old_data64 < 0) {
-    new_data32 = (Uint32)0;
-    truncated = true;
-  } else if (old_data64 > UINT_MAX32) {
+  if (old_data64 > UINT_MAX32) {
     new_data32 = (Uint32)(UINT_MAX32);
     truncated = true;
   } else {
