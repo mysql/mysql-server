@@ -5815,13 +5815,12 @@ bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
   if (m_has_unique_index)
   {
     KEY *key;
-    uint i;
-    for (i= 0; i < table_share->keys; i++)
+    for (uint i= 0; i < table_share->keys; i++)
     {
       key= table->key_info + i;
       if ((key->flags & HA_NOSAME) &&
           bitmap_is_overlapping(table->write_set,
-                                m_key_fields[key - table->key_info]))
+                                m_key_fields[i]))
       {
         DBUG_RETURN(FALSE);
       }
