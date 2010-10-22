@@ -3548,16 +3548,20 @@ static TABLE_LIST *alloc_join_nest(THD *thd)
 }
 
 
-void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist)
+void fix_list_after_tbl_changes(st_select_lex *parent_select,
+                                st_select_lex *removed_select,
+                                List<TABLE_LIST> *tlist)
 {
   List_iterator<TABLE_LIST> it(*tlist);
   TABLE_LIST *table;
   while ((table= it++))
   {
     if (table->on_expr)
-      table->on_expr->fix_after_pullout(new_parent, &table->on_expr);
+      table->on_expr->fix_after_pullout(parent_select, removed_select,
+                                        &table->on_expr);
     if (table->nested_join)
-      fix_list_after_tbl_changes(new_parent, &table->nested_join->join_list);
+      fix_list_after_tbl_changes(parent_select, removed_select,
+                                 &table->nested_join->join_list);
   }
 }
 
@@ -3870,15 +3874,16 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     sj_nest->sj_on_expr->fix_fields(thd, &sj_nest->sj_on_expr);
   }
 
+  /* Unlink the child select_lex: */
+  subq_lex->master_unit()->exclude_level();
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
-  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, &sj_nest->sj_on_expr);
-  fix_list_after_tbl_changes(parent_lex, &nested_join->join_list);
-
-  /* Unlink the child select_lex so it doesn't show up in EXPLAIN: */
-  subq_lex->master_unit()->exclude_level();
+  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex,
+                                         &sj_nest->sj_on_expr);
+  fix_list_after_tbl_changes(parent_lex, subq_lex,
+                             &sj_nest->nested_join->join_list);
 
   //TODO fix QT_
   DBUG_EXECUTE("where",
@@ -7627,6 +7632,12 @@ optimize_straight_join(JOIN *join, table_map join_tables)
  
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
+    /*
+      Dependency computation (make_join_statistics()) and proper ordering
+      based on them (join_tab_cmp*) guarantee that this order is compatible
+      with execution, check it:
+    */
+    DBUG_ASSERT(!check_interleaving_with_nj(s));
     /* Find the best access method from 's' to the current partial plan */
     best_access_path(join, s, join_tables, idx, FALSE, record_count,
                      join->positions + idx, &loose_scan_pos);
@@ -10722,7 +10733,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
                                       use that information instead.
                                    */
                                    cur_ref_buff + null_count,
-                                   null_count ? tab_ref->key_buff : 0,
+                                   null_count ? cur_ref_buff : 0,
                                    cur_key_part->length, tab_ref->items[i]);
       cur_ref_buff+= cur_key_part->store_length;
     }
