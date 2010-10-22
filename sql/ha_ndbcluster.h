@@ -434,8 +434,8 @@ class ha_ndbcluster: public handler
 #endif
   void get_dynamic_partition_info(PARTITION_STATS *stat_info, uint part_id);
   uint32 calculate_key_hash_value(Field **field_array);
-  bool read_before_write_removal_possible(List<Item> *fields,
-                                          List<Item> *values);
+  bool read_before_write_removal_possible();
+  ha_rows read_before_write_removal_rows_written(void) const;
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
@@ -682,8 +682,6 @@ private:
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);
-  int get_ndb_lock_type(enum thr_lock_type type,
-                        const MY_BITMAP *column_bitmap);
 
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);

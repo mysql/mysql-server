@@ -2473,8 +2473,12 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
   DBUG_VOID_RETURN;
 }
 
-int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type,
-                                     const MY_BITMAP *column_bitmap)
+
+/*
+  Map from thr_lock_type to NdbOperation::LockMode
+*/
+static inline
+NdbOperation::LockMode get_ndb_lock_mode(enum thr_lock_type type)
 {
   if (type >= TL_WRITE_ALLOW_WRITE)
     return NdbOperation::LM_Exclusive;
@@ -2482,6 +2486,7 @@ int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type,
     return NdbOperation::LM_Read;
   return NdbOperation::LM_CommittedRead;
 }
+
 
 static const ulong index_type_flags[]=
 {
@@ -2588,10 +2593,8 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   DBUG_DUMP("key", key, key_len);
   DBUG_ASSERT(trans);
 
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-  
-  if (!(op= pk_unique_index_read_key(table->s->primary_key, key, buf, lm,
+  if (!(op= pk_unique_index_read_key(table->s->primary_key, key, buf,
+                                     get_ndb_lock_mode(m_lock.type),
                                      (m_user_defined_partitioning ?
                                       part_id :
                                       NULL))))
@@ -2654,10 +2657,9 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
     bitmap_copy(&m_bitmap, table->read_set);
     bitmap_union(&m_bitmap, table->write_set);
     bitmap_invert(&m_bitmap);
-    NdbOperation::LockMode lm=
-      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, &m_bitmap);
     if (!(op= trans->readTuple(key_rec, (const char *)key_row,
-                               m_ndb_record, (char *)new_data, lm,
+                               m_ndb_record, (char *)new_data,
+                               get_ndb_lock_mode(m_lock.type),
                                (const unsigned char *)(m_bitmap.bitmap),
                                poptions,
                                sizeof(NdbOperation::OperationOptions))))
@@ -2855,8 +2857,7 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
   {
     DBUG_RETURN(error);
   }
-  NdbOperation::LockMode lm=
-      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, NULL);
+  const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
   first= NULL;
   if (write_op != NDB_UPDATE && table->s->primary_key != MAX_KEY)
   {
@@ -2967,9 +2968,9 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   DBUG_DUMP("key", key, key_len);
   DBUG_ASSERT(trans);
 
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-  if (!(op= pk_unique_index_read_key(active_index, key, buf, lm, NULL)))
+  if (!(op= pk_unique_index_read_key(active_index, key, buf,
+                                     get_ndb_lock_mode(m_lock.type),
+                                     NULL)))
     ERR_RETURN(trans->getNdbError());
   
   if (execute_no_commit_ie(m_thd_ndb, trans) != 0 ||
@@ -3285,8 +3286,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   if (m_active_cursor && (error= close_scan()))
     DBUG_RETURN(error);
 
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
+  const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
 
   NdbScanOperation::ScanOptions options;
   options.optionsPresent=NdbScanOperation::ScanOptions::SO_SCANFLAGS;
@@ -3363,7 +3363,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
 static
 int
-guess_scan_flags(NdbOperation::LockMode lm, 
+guess_scan_flags(NdbOperation::LockMode lm,
 		 const NDBTAB* tab, const MY_BITMAP* readset)
 {
   int flags= 0;
@@ -3445,8 +3445,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     if (unlikely(!(trans= start_transaction(error))))
       DBUG_RETURN(error);
 
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
+  const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
   NdbScanOperation::ScanOptions options;
   options.optionsPresent = (NdbScanOperation::ScanOptions::SO_SCANFLAGS |
                             NdbScanOperation::ScanOptions::SO_PARALLEL);
@@ -5736,11 +5735,6 @@ int ha_ndbcluster::info(uint flag)
         stats.auto_increment_value= (ulonglong)auto_increment_value64;
     }
   }
-  if (flag & HA_STATUS_WRITTEN_ROWS)
-  {
-    stats.rows_updated= m_rows_updated;
-    stats.rows_deleted= m_rows_deleted;
-  }
 
   if(result == -1)
     result= HA_ERR_NO_CONNECTION;
@@ -5816,8 +5810,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 }
 
 
-bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
-                                                       List<Item> *values)
+bool ha_ndbcluster::read_before_write_removal_possible()
 {
   THD *thd= table->in_use;
   DBUG_ENTER("read_before_write_removal_possible");
@@ -5832,7 +5825,6 @@ bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
   if (uses_blob_value(table->write_set) ||
       (thd->lex->sql_command == SQLCOM_DELETE &&
        table_share->blob_fields) ||
-      (values && !check_constant_expressions(values)) ||
       (table_share->primary_key != MAX_KEY &&
        bitmap_is_overlapping(table->write_set, m_pk_bitmap_p)))
   {
@@ -5841,13 +5833,12 @@ bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
   if (m_has_unique_index)
   {
     KEY *key;
-    uint i;
-    for (i= 0; i < table_share->keys; i++)
+    for (uint i= 0; i < table_share->keys; i++)
     {
       key= table->key_info + i;
       if ((key->flags & HA_NOSAME) &&
           bitmap_is_overlapping(table->write_set,
-                                m_key_fields[key - table->key_info]))
+                                m_key_fields[i]))
       {
         DBUG_RETURN(FALSE);
       }
@@ -5856,6 +5847,15 @@ bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
   DBUG_PRINT("info", ("read_before_write_removal_possible TRUE"));
   m_read_before_write_removal_possible= TRUE;
   DBUG_RETURN(TRUE);
+}
+
+
+ha_rows ha_ndbcluster::read_before_write_removal_rows_written(void) const
+{
+  DBUG_ENTER("read_before_write_removal_rows_written");
+  DBUG_PRINT("info", ("updated: %llu, deleted: %llu",
+                      m_rows_updated, m_rows_deleted));
+  DBUG_RETURN(m_rows_updated + m_rows_deleted);
 }
 
 
@@ -11717,8 +11717,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   m_multi_cursor= 0;
   const NdbOperation* lastOp= trans ? trans->getLastDefinedOperation() : 0;
-  NdbOperation::LockMode lm= 
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
+  const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
   uchar *row_buf= (uchar *)buffer->buffer;
   const uchar *end_of_buffer= buffer->buffer_end;
   uint num_scan_ranges= 0;
