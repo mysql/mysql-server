@@ -805,6 +805,19 @@ struct handlerton
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
+/*
+  This flag should be set when deciding that the engine does not allow row based
+  binary logging (RBL) optimizations.
+
+  Currently, setting this flag, means that table's read/write_set will be left 
+  untouched when logging changes to tables in this engine. In practice this 
+  means that the server will not mess around with table->write_set and/or 
+  table->read_set when using RBL and deciding whether to log full or minimal rows.
+
+  It's valuable for instance for virtual tables, eg: Performance Schema which have
+  no meaning for replication.
+*/
+#define HTON_NO_BINLOG_ROW_OPT       (1 << 9)
 
 class Ha_trx_info;
 
