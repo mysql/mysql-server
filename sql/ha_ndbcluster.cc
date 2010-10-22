@@ -28,7 +28,8 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "ha_ndbcluster_glue.h"
+
 #include "rpl_mi.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -3655,7 +3656,7 @@ thd_allow_batch(const THD* thd)
 #ifndef OPTION_ALLOW_BATCH
   return false;
 #else
-  return (thd->options & OPTION_ALLOW_BATCH);
+  return (thd_options(thd) & OPTION_ALLOW_BATCH);
 #endif
 }
 
@@ -5748,7 +5749,7 @@ int ha_ndbcluster::info(uint flag)
 }
 
 
-void ha_ndbcluster::get_dynamic_partition_info(PARTITION_INFO *stat_info,
+void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                                uint part_id)
 {
   /* 
@@ -5756,7 +5757,7 @@ void ha_ndbcluster::get_dynamic_partition_info(PARTITION_INFO *stat_info,
      implement ndb function which retrives the statistics
      about ndb partitions.
   */
-  bzero((char*) stat_info, sizeof(PARTITION_INFO));
+  bzero((char*) stat_info, sizeof(PARTITION_STATS));
   return;
 }
 
@@ -6191,7 +6192,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   if (table_count == 0)
   {
     trans_register_ha(thd, FALSE, ndbcluster_hton);
-    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
       if (!trans)
         trans_register_ha(thd, TRUE, ndbcluster_hton);
@@ -6231,7 +6232,7 @@ int ha_ndbcluster::start_statement(THD *thd,
     thd_ndb->init_open_tables();
     thd_ndb->query_state&= NDB_QUERY_NORMAL;
     thd_ndb->m_slow_path= FALSE;
-    if (!(thd->options & OPTION_BIN_LOG) ||
+    if (!(thd_options(thd) & OPTION_BIN_LOG) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     {
       thd_ndb->trans_options|= TNTO_NO_LOGGING;
@@ -6246,7 +6247,7 @@ int ha_ndbcluster::start_statement(THD *thd,
        
     Check if it should be read or write lock
   */
-  if (thd->options & (OPTION_TABLE_LOCK))
+  if (thd_options(thd) & (OPTION_TABLE_LOCK))
   {
     /* This is currently dead code in wait for implementation in NDB */
     /* lockThisTable(); */
@@ -6293,7 +6294,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd)
   }
 #endif
 
-  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     const void *key= m_table;
     HASH_SEARCH_STATE state;
@@ -6393,7 +6394,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("info", ("Rows has changed"));
 
       if (thd_ndb->trans &&
-          thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+          thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       {
         DBUG_PRINT("info", ("Add share to list of changed tables, %p",
                             m_share));
@@ -6416,7 +6417,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     {
       DBUG_PRINT("trans", ("Last external_lock"));
 
-      if ((!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) &&
+      if ((!(thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) &&
           thd_ndb->trans)
       {
         if (thd_ndb->trans)
@@ -6646,7 +6647,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     DBUG_PRINT("info", ("trans == NULL"));
     DBUG_RETURN(0);
   }
-  if (!all && (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (!all && (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     /*
       An odditity in the handler interface is that commit on handlerton
@@ -6789,7 +6790,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     DBUG_PRINT("info", ("trans == NULL"));
     DBUG_RETURN(0);
   }
-  if (!all && (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+  if (!all && (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
       (thd_ndb->save_point_count > 0))
   {
     /*
@@ -10683,7 +10684,7 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   DBUG_PRINT("enter", ("dbname: %s, tabname: %s",
                        dbname, tabname));
 
-  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     /* Don't allow qc to be used if table has been previously
        modified in transaction */
@@ -10769,7 +10770,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   DBUG_PRINT("enter",("dbname: %s, tabname: %s",
 		      m_dbname, m_tabname));
 
-  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     /* Don't allow qc to be used if table has been previously
        modified in transaction */
