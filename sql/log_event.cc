@@ -684,6 +684,10 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
     cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
   else
     cache_type= Log_event::EVENT_STMT_CACHE;
+
+#ifndef MCP_BUG52305
+  unmasked_server_id= server_id;
+#endif
 }
 
 /**
@@ -704,6 +708,10 @@ Log_event::Log_event()
   */
   when=		0;
   log_pos=	0;
+
+#ifndef MCP_BUG52305
+  unmasked_server_id= server_id;
+#endif
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -721,6 +729,17 @@ Log_event::Log_event(const char* buf,
 #endif
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
+#ifndef MCP_BUG52305
+  unmasked_server_id = server_id;
+  /*
+     Mask out any irrelevant parts of the server_id
+  */
+#ifdef HAVE_REPLICATION
+  server_id = unmasked_server_id & opt_server_id_mask;
+#else
+  server_id = unmasked_server_id;
+#endif
+#endif
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
   {

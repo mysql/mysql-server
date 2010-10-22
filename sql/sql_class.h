@@ -1493,6 +1493,9 @@ public:
     first byte of the packet in do_command()
   */
   enum enum_server_command command;
+#ifndef MCP_BUG52305
+  uint32     unmasked_server_id;
+#endif
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
