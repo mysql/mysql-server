@@ -2008,6 +2008,11 @@ sub environment_setup {
 		  ["storage/ndb/src/kernel", "bin", "libexec"],
 		  ["ndbmtd", "ndbd"]);
 
+    $ENV{'NDB_RESTORE'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_restore");
+
     $ENV{'NDB_TOOLS_DIR'}=
       my_find_dir($basedir,
 		  ["storage/ndb/tools", "bin"]);
