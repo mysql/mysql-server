@@ -68,7 +68,8 @@ end|
 
 delimiter ;|
 
-let $1 = 8000;
+let $1 = 4000;  # be careful with a big value, PB2 can run it slow to time out on following sync_slave_with_master:s
+
 begin;
 --disable_warnings
 # todo: check if it is really so.
