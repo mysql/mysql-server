@@ -1282,7 +1282,7 @@ protected:
     Calculate how much space is taken by allocation of the key
     entry for a record in the join buffer
   */
-  virtual uint extra_key_length() { return key_entry_length; }
+  uint extra_key_length() { return key_entry_length; }
 
   /* 
     Skip record from a hashed join buffer if its match flag

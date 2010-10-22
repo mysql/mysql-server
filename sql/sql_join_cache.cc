@@ -1161,10 +1161,11 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   uchar *cp= pos;
   uchar *init_pos= cp;
   uchar *rec_len_ptr= 0;
+  uint key_extra= extra_key_length();
  
   records++;  /* Increment the counter of records in the cache */
 
-  len= pack_length + extra_key_length();
+  len= pack_length + key_extra;
 
   /* Make an adjustment for the size of the auxiliary buffer if there is any */
   uint incr= aux_buffer_incr(records);
@@ -1204,7 +1205,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
     This function is called only in the case when there is enough space left in
     the cache to store at least non-blob parts of the current record.
   */
-  last_record= (len+pack_length_with_blob_ptrs) > rem_space();
+  last_record= (len+pack_length_with_blob_ptrs+key_extra) > rem_space();
   
   /* 
     Save the position for the length of the record in the cache if it's needed.
