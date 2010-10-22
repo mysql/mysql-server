@@ -9,7 +9,7 @@
 --disable_query_log
 --source include/have_ndb.inc
 --source include/have_innodb.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 --enable_query_log
 
 # statement format is supported because master uses innodb
