@@ -33,3 +33,9 @@ EOF
 --exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
 
 remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
+
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqladmin --protcol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQLADMIN --no-defaults --protocol=tcp --bind-address=127.0.0.1 --host=127.0.0.1 -P $MASTER_MYPORT -u root ping 2>&1

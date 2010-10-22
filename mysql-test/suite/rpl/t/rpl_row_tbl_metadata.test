@@ -197,9 +197,8 @@ FLUSH LOGS;
 -- let $diff_table_2=slave:test.t1
 -- source include/diff_tables.inc
 
-DROP TABLE `t1`;
-
 -- connection master
+DROP TABLE `t1`;
 -- sync_slave_with_master
 -- connection master
 

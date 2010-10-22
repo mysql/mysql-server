@@ -11,10 +11,19 @@
 source include/have_binlog_format_statement.inc;
 source include/master-slave.inc;
 
-CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
---connection slave
-CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TRIGGER IF EXISTS tr1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+--sync_slave_with_master
 --connection master
+
 
 CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY);
 CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY);
