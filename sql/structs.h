@@ -146,7 +146,7 @@ struct READ_RECORD {			/* Parameter to read_record */
   uchar *rec_buf;                /* to read field values  after filesort */
   uchar	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
-  bool print_error, ignore_not_found_rows, using_quick;
+  bool print_error, ignore_not_found_rows;
 };
 
 

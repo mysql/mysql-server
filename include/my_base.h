@@ -375,11 +375,6 @@ enum ha_base_keytype {
 */
 #define HA_STATUS_AUTO          64
 /*
-  update the number of rows updated and deleted since last reset call.
-  handler::rows_updated, rows_deleted
-*/
-#define HA_STATUS_WRITTEN_ROWS  128
-/*
   Errorcodes given by handler functions
 
   opt_sum_query() assumes these codes are > 1

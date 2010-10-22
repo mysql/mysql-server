@@ -87,6 +87,35 @@ static bool check_fields(THD *thd, List<Item> &items)
 }
 
 
+/*
+  Check if all expressions in list are constant expressions
+
+  SYNOPSIS
+    check_constant_expressions()
+    values                       List of expressions
+
+  RETURN
+    TRUE                         Only constant expressions
+    FALSE                        At least one non-constant expression
+*/
+
+static bool check_constant_expressions(List<Item> &values)
+{
+  Item *value;
+  List_iterator_fast<Item> v(values);
+  DBUG_ENTER("check_constant_expressions");
+
+  while ((value= v++))
+  {
+    if (!value->const_item())
+    {
+      DBUG_RETURN(FALSE);
+    }
+  }
+  DBUG_RETURN(TRUE);
+}
+
+
 /**
   Re-read record if more columns are needed for error message.
 
@@ -190,7 +219,7 @@ int mysql_update(THD *thd,
   bool		safe_update= test(thd->options & OPTION_SAFE_UPDATES);
   bool		used_key_is_modified, transactional_table, will_batch;
   bool		can_compare_record;
-  bool          might_use_read_removal= FALSE;
+  bool          using_read_removal= FALSE;
   int           res;
   int		error, loc_error;
   uint		used_index= MAX_KEY, dup_key_found;
@@ -539,10 +568,11 @@ int mysql_update(THD *thd,
   init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
   if (!table->triggers &&
-      info.using_quick &&
+      select && select->quick &&
       !ignore &&
       !using_limit &&
-      direct_update_loop)
+      direct_update_loop &&
+      check_constant_expressions(values))
   {
     /*
       In certain cases the handler can avoid doing a real read before
@@ -551,8 +581,8 @@ int mysql_update(THD *thd,
       them for real. This extra call tells the handler that this
       is possible for this handler until next reset of handler.
     */
-    might_use_read_removal=
-      table->file->read_before_write_removal_possible(&fields, &values);
+    using_read_removal=
+      table->file->read_before_write_removal_possible();
   }
   updated= found= 0;
   /*
@@ -844,7 +874,7 @@ int mysql_update(THD *thd,
   DBUG_ASSERT(transactional_table || !updated || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
 
-  if (might_use_read_removal)
+  if (using_read_removal)
   {
     /*
       updated counter is not valid when using read before write removal
@@ -856,8 +886,8 @@ int mysql_update(THD *thd,
       hard checks on UPDATE statement. Still it is used very often with
       all those limitations.
     */
-    table->file->info(HA_STATUS_WRITTEN_ROWS);
-    updated= table->file->stats.rows_updated;
+
+    updated= table->file->read_before_write_removal_rows_written();
     /*
       If we could compare the records then the records were
       either found by reading the table or they were
