@@ -107,7 +107,10 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			debug_sync.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
 			rpl_reporting.h sql_locale.h sql_parse.h \
-			log.h sql_show.h rpl_rli.h rpl_mi.h \
+			rpl_info_handler.h \
+			log.h sql_show.h rpl_info.h rpl_info_file.h \
+			rpl_rli.h rpl_mi.h \
+			rpl_info_factory.h server_ids.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h sql_base.h \
 			sql_table.h key.h lock.h thr_malloc.h strfunc.h \
@@ -188,8 +191,9 @@ libbinlog_la_SOURCES =	log_event.cc log_event_old.cc binlog.cc \
 			rpl_utility.cc sql_binlog.cc rpl_injector.cc
 librpl_la_SOURCES    =  rpl_handler.cc rpl_tblmap.cc
 libmaster_la_SOURCES =	rpl_master.cc
-libslave_la_SOURCES = 	rpl_slave.cc rpl_reporting.cc rpl_rli.cc rpl_mi.cc
-
+libslave_la_SOURCES = 	rpl_slave.cc rpl_reporting.cc rpl_rli.cc rpl_mi.cc \
+			rpl_info.cc rpl_info_factory.cc rpl_info_file.cc \
+			rpl_info_handler.cc
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ha_ndbcluster_binlog.cc \
