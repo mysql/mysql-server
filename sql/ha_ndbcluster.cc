@@ -6089,20 +6089,6 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
   DBUG_RETURN(to);
 }
 
-#ifndef DBUG_OFF
-#define PRINT_OPTION_FLAGS(t) { \
-      if (t->options & OPTION_NOT_AUTOCOMMIT) \
-        DBUG_PRINT("thd->options", ("OPTION_NOT_AUTOCOMMIT")); \
-      if (t->options & OPTION_BEGIN) \
-        DBUG_PRINT("thd->options", ("OPTION_BEGIN")); \
-      if (t->options & OPTION_TABLE_LOCK) \
-        DBUG_PRINT("thd->options", ("OPTION_TABLE_LOCK")); \
-}
-#else
-#define PRINT_OPTION_FLAGS(t)
-#endif
-
-
 /*
   As MySQL will execute an external lock for every new table it uses
   we can use this to start the transactions.
@@ -6204,7 +6190,6 @@ int ha_ndbcluster::start_statement(THD *thd,
 
   if (table_count == 0)
   {
-    PRINT_OPTION_FLAGS(thd);
     trans_register_ha(thd, FALSE, ndbcluster_hton);
     if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
@@ -6430,7 +6415,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     if (!--thd_ndb->lock_count)
     {
       DBUG_PRINT("trans", ("Last external_lock"));
-      PRINT_OPTION_FLAGS(thd);
 
       if ((!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) &&
           thd_ndb->trans)
@@ -6655,7 +6639,6 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   DBUG_ENTER("ndbcluster_commit");
   DBUG_ASSERT(ndb);
-  PRINT_OPTION_FLAGS(thd);
   DBUG_PRINT("enter", ("Commit %s", (all ? "all" : "stmt")));
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL)
@@ -6798,7 +6781,6 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("ndbcluster_rollback");
   DBUG_PRINT("enter", ("all: %d  thd_ndb->save_point_count: %d",
                        all, thd_ndb->save_point_count));
-  PRINT_OPTION_FLAGS(thd);
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL)
