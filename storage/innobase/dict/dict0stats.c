@@ -2274,8 +2274,8 @@ dict_stats_open(void)
 
 	mutex_enter(&dict_sys->mutex);
 
-	table_stats = dict_table_open_on_name(TABLE_STATS_NAME, TRUE);
-	index_stats = dict_table_open_on_name(INDEX_STATS_NAME, TRUE);
+	table_stats = dict_table_open_on_name_no_stats(TABLE_STATS_NAME, TRUE);
+	index_stats = dict_table_open_on_name_no_stats(INDEX_STATS_NAME, TRUE);
 
 	mutex_exit(&dict_sys->mutex);
 
@@ -2317,14 +2317,14 @@ dict_stats_close(void)
 
 	mutex_enter(&dict_sys->mutex);
 
-	table_stats = dict_table_open_on_name(TABLE_STATS_NAME, TRUE);
+	table_stats = dict_table_open_on_name_no_stats(TABLE_STATS_NAME, TRUE);
 	ut_a(table_stats != NULL);
 	/* undo the open above */
 	dict_table_close(table_stats, TRUE);
 	/* undo dict_stats_open() */
 	dict_table_close(table_stats, TRUE);
 
-	index_stats = dict_table_open_on_name(INDEX_STATS_NAME, TRUE);
+	index_stats = dict_table_open_on_name_no_stats(INDEX_STATS_NAME, TRUE);
 	ut_a(index_stats != NULL);
 	/* undo the open above */
 	dict_table_close(index_stats, TRUE);
