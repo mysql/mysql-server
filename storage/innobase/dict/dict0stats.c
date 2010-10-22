@@ -2215,9 +2215,9 @@ dict_stats_update(
 		/* fetch requested, either fetch from persistent statistics
 		storage or use the old method */
 
-		if (!strchr(table->name, '/')
-		    || !strcmp(table->name, INDEX_STATS_NAME)
-		    || !strcmp(table->name, TABLE_STATS_NAME)) {
+		if (strchr(table->name, '/') == NULL
+		    || strcmp(table->name, INDEX_STATS_NAME) == 0
+		    || strcmp(table->name, TABLE_STATS_NAME) == 0) {
 			/* Use the quick transient stats method for
 			InnoDB internal tables, because we know the
 			persistent stats storage does not contain data
