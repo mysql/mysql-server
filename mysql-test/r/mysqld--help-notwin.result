@@ -65,6 +65,17 @@ The following options may be given as the first argument:
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
  size if possible. The value has to be a multiple of 256.
+ --binlog-row-image=name 
+ Controls whether rows should be logged in 'FULL',
+ 'NOBLOB' or 'MINIMAL' formats. 'FULL', means that all
+ columns in the before and after image are logged.
+ 'NOBLOB', means that mysqld avoids logging blob columns
+ whenever possible (eg, blob column was not changed or is
+ not part of primary key). 'MINIMAL', means that a PK
+ equivalent (PK columns or full row if there is no PK in
+ the table) is logged in the before image, and only
+ changed columns are logged in the after image. (Default:
+ FULL).
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
  --bootstrap         Used by mysql installation scripts.
@@ -271,6 +282,9 @@ The following options may be given as the first argument:
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
  master's binlogs.
+ --master-info-repository=name 
+ Defines the type of the repository for the master
+ information.
  --master-retry-count=# 
  The number of tries the slave will make to connect to the
  master before giving up.
@@ -497,6 +511,9 @@ The following options may be given as the first argument:
  --relay-log-info-file=name 
  The location and name of the file that remembers where
  the SQL replication thread is in the relay logs
+ --relay-log-info-repository=name 
+ Defines the type of the repository for the relay log
+ information.
  --relay-log-purge   if disabled - do not purge relay logs. if enabled - purge
  them as soon as they are no more needed
  (Defaults to on; use --skip-relay-log-purge to disable.)
@@ -736,6 +753,7 @@ binlog-cache-size 32768
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
+binlog-row-image FULL
 binlog-rows-query-log-events FALSE
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
@@ -810,6 +828,7 @@ long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
 master-info-file master.info
+master-info-repository FILE
 master-retry-count 86400
 max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
@@ -891,6 +910,7 @@ read-rnd-buffer-size 262144
 relay-log (No default value)
 relay-log-index (No default value)
 relay-log-info-file relay-log.info
+relay-log-info-repository FILE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
