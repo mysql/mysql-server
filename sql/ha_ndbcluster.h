@@ -681,8 +681,6 @@ private:
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);
-  int get_ndb_lock_type(enum thr_lock_type type,
-                        const MY_BITMAP *column_bitmap);
 
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
