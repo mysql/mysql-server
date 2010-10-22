@@ -8895,19 +8895,29 @@ uchar *Field_enum::pack(uchar *to, const uchar *from,
   DBUG_ENTER("Field_enum::pack");
   DBUG_PRINT("debug", ("packlength: %d", packlength));
   DBUG_DUMP("from", from, packlength);
+  uchar *result= to + 1;
 
   switch (packlength)
   {
   case 1:
     *to = *from;
-    DBUG_RETURN(to + 1);
-  case 2: DBUG_RETURN(pack_int16(to, from, low_byte_first));
-  case 3: DBUG_RETURN(pack_int24(to, from, low_byte_first));
-  case 4: DBUG_RETURN(pack_int32(to, from, low_byte_first));
-  case 8: DBUG_RETURN(pack_int64(to, from, low_byte_first));
+    break;
+  case 2:
+    result= pack_int16(to, from, low_byte_first);
+    break;
+  case 3:
+    result= pack_int24(to, from, low_byte_first);
+    break;
+  case 4:
+    result= pack_int32(to, from, low_byte_first);
+    break;
+  case 8:
+    result= pack_int64(to, from, low_byte_first);
+    break;
   default:
     DBUG_ASSERT(0);
   }
+  DBUG_RETURN(result);
 }
 
 const uchar *Field_enum::unpack(uchar *to, const uchar *from,
@@ -8916,20 +8926,29 @@ const uchar *Field_enum::unpack(uchar *to, const uchar *from,
   DBUG_ENTER("Field_enum::unpack");
   DBUG_PRINT("debug", ("packlength: %d", packlength));
   DBUG_DUMP("from", from, packlength);
+  const uchar *result= from + 1;
 
   switch (packlength)
   {
   case 1:
     *to = *from;
-    DBUG_RETURN(from + 1);
-
-  case 2: DBUG_RETURN(unpack_int16(to, from, low_byte_first));
-  case 3: DBUG_RETURN(unpack_int24(to, from, low_byte_first));
-  case 4: DBUG_RETURN(unpack_int32(to, from, low_byte_first));
-  case 8: DBUG_RETURN(unpack_int64(to, from, low_byte_first));
+    break;
+  case 2:
+    result= unpack_int16(to, from, low_byte_first);
+    break;
+  case 3:
+    result= unpack_int24(to, from, low_byte_first);
+    break;
+  case 4:
+    result= unpack_int32(to, from, low_byte_first);
+    break;
+  case 8:
+    result= unpack_int64(to, from, low_byte_first);
+    break;
   default:
     DBUG_ASSERT(0);
   }
+  DBUG_RETURN(result);
 }
 
 
