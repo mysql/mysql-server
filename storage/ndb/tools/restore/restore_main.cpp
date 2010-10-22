@@ -40,6 +40,7 @@ static int ga_backupId = 0;
 bool ga_dont_ignore_systab_0 = false;
 static bool ga_no_upgrade = false;
 static bool ga_promote_attributes = false;
+static bool ga_demote_attributes = false;
 static Vector<class BackupConsumer *> g_consumers;
 static BackupPrinter* g_printer = NULL;
 
@@ -162,6 +163,11 @@ static struct my_option my_long_options[] =
   { "promote-attributes", 'A',
     "Allow attributes to be promoted when restoring data from backup",
     (uchar**) &ga_promote_attributes, (uchar**) &ga_promote_attributes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "lossy-conversions", 'L',
+    "Allow lossy conversions for attributes (type demotions or integral"
+    " signed/unsigned type changes) when restoring data from backup",
+    (uchar**) &ga_demote_attributes, (uchar**) &ga_demote_attributes, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "preserve-trailing-spaces", 'P',
     "Allow to preserve the tailing spaces (including paddings) When char->varchar or binary->varbinary is promoted",
@@ -769,6 +775,11 @@ o verify nodegroup mapping
     g_tableCompabilityMask |= TCM_ATTRIBUTE_PROMOTION;
   }
 
+  if (ga_demote_attributes)
+  {
+    g_tableCompabilityMask |= TCM_ATTRIBUTE_DEMOTION;
+  }
+
   if (ga_exclude_missing_columns)
   {
     g_tableCompabilityMask |= TCM_EXCLUDE_MISSING_COLUMNS;
@@ -1056,6 +1067,27 @@ static void report_progress(const char *prefix, const BackupFile &f)
     info << prefix << f.get_file_pos() << " bytes\n";
 }
 
+/**
+ * Reports, clears information on columns where data truncation was detected.
+ */
+static void
+check_data_truncations(const TableS * table)
+{
+  assert(table);
+  const char * tname = table->getTableName();
+  const int n = table->getNoOfAttributes();
+  for (int i = 0; i < n; i++) {
+    AttributeDesc * desc = table->getAttributeDesc(i);
+    if (desc->truncation_detected) {
+      const char * cname = desc->m_column->getName();
+      info.setLevel(254);
+      info << "Data truncation(s) detected for attribute: "
+           << tname << "." << cname << endl;
+      desc->truncation_detected = false;
+    }
+  }
+}
+
 int
 main(int argc, char** argv)
 {
@@ -1075,6 +1107,8 @@ main(int argc, char** argv)
     g_options.appfmt(" -u");
   if (ga_promote_attributes)
     g_options.appfmt(" -A");
+  if (ga_demote_attributes)
+    g_options.appfmt(" -L");
   if (_preserve_trailing_spaces)
     g_options.appfmt(" -P");
   if (ga_skip_table_check)
@@ -1406,9 +1440,10 @@ main(int argc, char** argv)
     
     if(_restore_data)
     {
-      for(i = 0; i<metaData.getNoOfTables(); i++)
+      for(i = 0; i < metaData.getNoOfTables(); i++)
       {
         const TableS* table = metaData[i];
+        check_data_truncations(table);
         OutputStream *output = table_output[table->getLocalId()];
         if (!output)
           continue;

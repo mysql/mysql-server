@@ -40,6 +40,10 @@ Uint32 n_new;
 char new_row[1];
 };
 
+enum AttrConvType { ACT_UNSUPPORTED = 0, ACT_PRESERVING = 1, ACT_LOSSY =-1 };
+typedef  AttrConvType (*AttrCheckCompatFunc)(const NDBCOL &old_col,
+                                             const NDBCOL &new_col);
+
 struct PromotionRules {
   NDBCOL::Type old_type;
   NDBCOL::Type new_type;
@@ -124,46 +128,241 @@ public:
   Uint32 map_ng(Uint32 ng);
   bool translate_frm(NdbDictionary::Table *table);
 
-  static bool check_compat_common(const NDBCOL &old_col, 
-                                  const NDBCOL &new_col); 
-  static bool check_compat_alwaystrue(const NDBCOL &old_col,
-                                      const NDBCOL &new_col);
-  static void* convert_int8_int16(const void *old_data,    void *parameter);
-  static void* convert_int8_int24(const void *old_data,    void *parameter);
-  static void* convert_int8_int32(const void *old_data,    void *parameter);
-  static void* convert_int8_int64(const void *old_data,    void *parameter);
-  static void* convert_int16_int24(const void *old_data,   void *parameter);
-  static void* convert_int16_int32(const void *old_data,   void *parameter);
-  static void* convert_int16_int64(const void *old_data,   void *parameter);
-  static void* convert_int24_int32(const void *old_data,   void *parameter);
-  static void* convert_int24_int64(const void *old_data,   void *parameter);
-  static void* convert_int32_int64(const void *old_data,   void *parameter);
-  static void* convert_uint8_uint16(const void *old_data,  void *parameter);
-  static void* convert_uint8_uint24(const void *old_data,  void *parameter);
-  static void* convert_uint8_uint32(const void *old_data,  void *parameter);
-  static void* convert_uint8_uint64(const void *old_data,  void *parameter);
-  static void* convert_uint16_uint24(const void *old_data, void *parameter);
-  static void* convert_uint16_uint32(const void *old_data, void *parameter);
-  static void* convert_uint16_uint64(const void *old_data, void *parameter);
-  static void* convert_uint24_uint32(const void *old_data, void *parameter);
-  static void* convert_uint24_uint64(const void *old_data, void *parameter);
-  static void* convert_uint32_uint64(const void *old_data, void *parameter);
+  static AttrConvType check_compat_sizes(const NDBCOL &old_col,
+                                         const NDBCOL &new_col);
+  static AttrConvType check_compat_promotion(const NDBCOL &old_col,
+                                             const NDBCOL &new_col);
+  static AttrConvType check_compat_lossy(const NDBCOL &old_col,
+                                         const NDBCOL &new_col);
 
-  static void* convert_char_char(const void *old_data,            void *parameter);
-  static void* convert_binary_binary(const void *old_data,        void *parameter);
-  static void* convert_char_varchar(const void *old_data,         void *parameter);
-  static void* convert_char_longvarchar(const void *old_data,     void *parameter);
-  static void* convert_binary_varbinary(const void *old_data,     void *parameter);
-  static void* convert_binary_longvarbinary(const void *old_data, void *parameter);
-  static void* convert_bit_bit(const void *old_data,              void *parameter);
-  static void* convert_var_var(const void *old_data,              void *parameter);
-  static void* convert_var_longvar(const void *old_data,          void *parameter);
-  static void* convert_longvar_longvar(const void *old_data,      void *parameter);
+  // integral attribute promotion conversions
+  static void* convert_int8_int16(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int8_int24(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int8_int32(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int8_int64(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int16_int24(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int16_int32(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int16_int64(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int24_int32(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int24_int64(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int32_int64(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint8_uint16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint8_uint24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint8_uint32(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint8_uint64(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint16_uint24(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint16_uint32(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint16_uint64(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint24_uint32(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint24_uint64(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint32_uint64(const void *old_data,
+                                     void *parameter, bool &truncated);
 
+  // integral attribute demotion conversions
+  static void* convert_int16_int8(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int24_int8(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int24_int16(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int32_int8(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int32_int16(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int32_int24(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int64_int8(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int64_int16(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int64_int24(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int64_int32(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint16_uint8(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint24_uint8(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint24_uint16(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint32_uint8(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint32_uint16(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint32_uint24(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint64_uint8(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint64_uint16(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint64_uint24(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_uint64_uint32(const void *old_data,
+                                     void *parameter, bool &truncated);
 
+  // integral attribute signedness conversions
+  static void* convert_int8_uint8(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_int16_uint16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int24_uint24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int32_uint32(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int64_uint64(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint8_int8(const void *old_data,
+                                  void *parameter, bool &truncated);
+  static void* convert_uint16_int16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint24_int24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint32_int32(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint64_int64(const void *old_data,
+                                    void *parameter, bool &truncated);
+
+  // integral attribute signedness+promotion conversions
+  static void* convert_int8_uint16(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int8_uint24(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int8_uint32(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int8_uint64(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int16_uint24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int16_uint32(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int16_uint64(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int24_uint32(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int24_uint64(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int32_uint64(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint8_int16(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint8_int24(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint8_int32(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint8_int64(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint16_int24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint16_int32(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint16_int64(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint24_int32(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint24_int64(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint32_int64(const void *old_data,
+                                    void *parameter, bool &truncated);
+
+  // integral attribute signedness+demotion conversions
+  static void* convert_int16_uint8(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int24_uint8(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int24_uint16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int32_uint8(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int32_uint16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int32_uint24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int64_uint8(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_int64_uint16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int64_uint24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_int64_uint32(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint16_int8(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint24_int8(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint24_int16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint32_int8(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint32_int16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint32_int24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint64_int8(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_uint64_int16(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint64_int24(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_uint64_int32(const void *old_data,
+                                    void *parameter, bool &truncated);
+
+  // char/binary promotion/demotion conversions
+  static void* convert_bit_bit(const void *old_data,
+                               void *parameter, bool &truncated);
+  static void* convert_char_char(const void *old_data,
+                                 void *parameter, bool &truncated);
+  static void* convert_binary_binary(const void *old_data,
+                                     void *parameter, bool &truncated);
+  static void* convert_char_varchar(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_varchar_char(const void *old_data,
+                                    void *parameter, bool &truncated);
+  static void* convert_char_longvarchar(const void *old_data,
+                                        void *parameter, bool &truncated);
+  static void* convert_longvarchar_char(const void *old_data,
+                                        void *parameter, bool &truncated);
+  static void* convert_binary_varbinary(const void *old_data,
+                                        void *parameter, bool &truncated);
+  static void* convert_varbinary_binary(const void *old_data,
+                                        void *parameter, bool &truncated);
+  static void* convert_binary_longvarbinary(const void *old_data,
+                                            void *parameter, bool &truncated);
+  static void* convert_longvarbinary_binary(const void *old_data,
+                                            void *parameter, bool &truncated);
+  static void* convert_var_var(const void *old_data,
+                               void *parameter, bool &truncated);
+  static void* convert_var_longvar(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_longvar_var(const void *old_data,
+                                   void *parameter, bool &truncated);
+  static void* convert_longvar_longvar(const void *old_data,
+                                       void *parameter, bool &truncated);
+
+  // returns the handler function checking type conversion compatibility
   AttrCheckCompatFunc 
-    get_attr_check_compatability(const NDBCOL::Type &old_type,
-                                 const NDBCOL::Type &new_type);
+  get_attr_check_compatability(const NDBCOL::Type &old_type,
+                               const NDBCOL::Type &new_type);
+
+  // returns the handler function converting a value
   AttrConvertFunc
   get_convert_func(const NDBCOL::Type &old_type,
                    const NDBCOL::Type &new_type);
