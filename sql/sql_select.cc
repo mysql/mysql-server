@@ -47,6 +47,7 @@
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
+#include "debug_sync.h"          // DEBUG_SYNC
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <hash.h>
@@ -852,6 +853,7 @@ JOIN::optimize()
   if (optimized)
     DBUG_RETURN(0);
   optimized= 1;
+  DEBUG_SYNC(thd, "before_join_optimize");
 
   thd_proc_info(thd, "optimizing");
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :

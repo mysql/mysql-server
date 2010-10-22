@@ -721,9 +721,17 @@ int start_slave_thread(
     while (start_id == *slave_run_id)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      const char* old_msg = thd->enter_cond(start_cond,cond_lock,
-                                            "Waiting for slave thread to start");
-      mysql_cond_wait(start_cond, cond_lock);
+      const char *old_msg= thd->enter_cond(start_cond, cond_lock,
+                                           "Waiting for slave thread to start");
+      /*
+        It is not sufficient to test this at loop bottom. We must test
+        it after registering the mutex in enter_cond(). If the kill
+        happens after testing of thd->killed and before the mutex is
+        registered, we could otherwise go waiting though thd->killed is
+        set.
+      */
+      if (!thd->killed)
+        mysql_cond_wait(start_cond, cond_lock);
       thd->exit_cond(old_msg);
       mysql_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)

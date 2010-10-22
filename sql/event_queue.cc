@@ -741,11 +741,13 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
 
   thd->enter_cond(&COND_queue_state, &LOCK_event_queue, msg);
 
-  DBUG_PRINT("info", ("mysql_cond_%swait", abstime? "timed":""));
-  if (!abstime)
-    mysql_cond_wait(&COND_queue_state, &LOCK_event_queue);
-  else
-    mysql_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
+  if (!thd->killed)
+  {
+    if (!abstime)
+      mysql_cond_wait(&COND_queue_state, &LOCK_event_queue);
+    else
+      mysql_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
+  }
 
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;
