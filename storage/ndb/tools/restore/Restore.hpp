@@ -34,14 +34,19 @@
 enum TableChangesMask
 {
   /**
-   * Allow attribute promotion
+   * Allow attribute type promotion
    */
   TCM_ATTRIBUTE_PROMOTION = 0x1,
 
   /**
    * Allow missing columns
    */
-  TCM_EXCLUDE_MISSING_COLUMNS = 0x2
+  TCM_EXCLUDE_MISSING_COLUMNS = 0x2,
+
+  /**
+   * Allow attribute type demotion and integral signed/unsigned type changes.
+   */
+  TCM_ATTRIBUTE_DEMOTION = 0x4
 };
 
 inline
@@ -53,10 +58,9 @@ isDrop6(Uint32 version)
 
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
-typedef  bool (*AttrCheckCompatFunc)(const NDBCOL &old_col,
-                                     const NDBCOL &new_col);
 typedef  void* (*AttrConvertFunc)(const void *old_data, 
-                                  void *parameter);
+                                  void *parameter,
+                                  bool &truncated);
 
 struct AttributeData {
   bool null;
@@ -96,6 +100,8 @@ struct AttributeDesc {
   Uint32 m_nullBitIndex;
   AttrConvertFunc convertFunc;
   void *parameter;
+  bool truncation_detected;
+
 public:
   
   AttributeDesc(NdbDictionary::Column *column);
@@ -110,7 +116,7 @@ public:
 
 class AttributeS {
 public:
-  const AttributeDesc * Desc;
+  AttributeDesc * Desc;
   AttributeData Data;
 };
 
@@ -136,7 +142,7 @@ public:
   TupleS & operator=(const TupleS& tuple);
   int getNoOfAttributes() const;
   TableS * getTable() const;
-  const AttributeDesc * getDesc(int i) const;
+  AttributeDesc * getDesc(int i) const;
   AttributeData * getData(int i) const;
 }; // class TupleS
 
@@ -420,6 +426,7 @@ public:
   bool validateFragmentFooter();
 
   const TupleS *getNextTuple(int & res);
+  TableS *getCurrentTable();
 
 private:
   void init_bitfield_storage(const NdbDictionary::Table*);

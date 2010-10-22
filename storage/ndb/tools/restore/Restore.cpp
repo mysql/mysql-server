@@ -849,7 +849,7 @@ TableS * TupleS::getTable() const {
   return m_currentTable;
 }
 
-const AttributeDesc * TupleS::getDesc(int i) const {
+AttributeDesc * TupleS::getDesc(int i) const {
   return m_currentTable->allAttributesDesc[i];
 }
 
@@ -968,6 +968,11 @@ RestoreDataIterator::getNextTuple(int  & res)
   return &m_tuple;
 } // RestoreDataIterator::getNextTuple
 
+TableS *
+RestoreDataIterator::getCurrentTable()
+{
+  return m_currentTable;
+}
 
 int
 RestoreDataIterator::readTupleData_packed(Uint32 *buf_ptr, 
@@ -1738,7 +1743,7 @@ RestoreDataIterator::validateFragmentFooter() {
 } // RestoreDataIterator::getFragmentFooter
 
 AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
-  : m_column(c)
+  : m_column(c), truncation_detected(false)
 {
   size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
   arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
@@ -1798,7 +1803,7 @@ TableS::get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) co
     the found SYSKEY value is a valid table_id (< 0x10000000).
    */
   AttributeData * attr_data = tuple.getData(0);
-  const AttributeDesc * attr_desc = tuple.getDesc(0);
+  AttributeDesc * attr_desc = tuple.getDesc(0);
   const AttributeS attr1 = {attr_desc, *attr_data};
   memcpy(syskey ,attr1.Data.u_int32_value, sizeof(Uint32));
   attr_data = tuple.getData(1);
@@ -1991,7 +1996,7 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     if(unlikely(!m_hostByteOrder))
       *(Uint32*)ah = Twiddle32(*(Uint32*)ah);
 
-    attr->Desc = (* tab)[ah->getAttributeId()];
+    attr->Desc = tab->getAttributeDesc(ah->getAttributeId());
     assert(attr->Desc != 0);
 
     const Uint32 sz = ah->getDataSize();
@@ -2043,7 +2048,7 @@ operator<<(NdbOut& ndbout, const TupleS& tuple)
     if (i > 0)
       ndbout << g_ndbrecord_print_format.fields_terminated_by;
     AttributeData * attr_data = tuple.getData(i);
-    const AttributeDesc * attr_desc = tuple.getDesc(i);
+    AttributeDesc * attr_desc = tuple.getDesc(i);
     const AttributeS attr = {attr_desc, *attr_data};
     debug << i << " " << attr_desc->m_column->getName();
     ndbout << attr;
