@@ -5710,11 +5710,6 @@ int ha_ndbcluster::info(uint flag)
         stats.auto_increment_value= (ulonglong)auto_increment_value64;
     }
   }
-  if (flag & HA_STATUS_WRITTEN_ROWS)
-  {
-    stats.rows_updated= m_rows_updated;
-    stats.rows_deleted= m_rows_deleted;
-  }
 
   if(result == -1)
     result= HA_ERR_NO_CONNECTION;
@@ -5790,8 +5785,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 }
 
 
-bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
-                                                       List<Item> *values)
+bool ha_ndbcluster::read_before_write_removal_possible()
 {
   THD *thd= table->in_use;
   DBUG_ENTER("read_before_write_removal_possible");
@@ -5806,7 +5800,6 @@ bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
   if (uses_blob_value(table->write_set) ||
       (thd->lex->sql_command == SQLCOM_DELETE &&
        table_share->blob_fields) ||
-      (values && !check_constant_expressions(values)) ||
       (table_share->primary_key != MAX_KEY &&
        bitmap_is_overlapping(table->write_set, m_pk_bitmap_p)))
   {
@@ -5829,6 +5822,15 @@ bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
   DBUG_PRINT("info", ("read_before_write_removal_possible TRUE"));
   m_read_before_write_removal_possible= TRUE;
   DBUG_RETURN(TRUE);
+}
+
+
+ha_rows ha_ndbcluster::read_before_write_removal_rows_written(void) const
+{
+  DBUG_ENTER("read_before_write_removal_rows_written");
+  DBUG_PRINT("info", ("updated: %llu, deleted: %llu",
+                      m_rows_updated, m_rows_deleted));
+  DBUG_RETURN(m_rows_updated + m_rows_deleted);
 }
 
 

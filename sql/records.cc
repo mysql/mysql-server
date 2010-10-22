@@ -241,7 +241,6 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   {
     DBUG_PRINT("info",("using rr_quick"));
     info->read_record=rr_quick;
-    info->using_quick= TRUE;
   }
   else if (table->sort.record_pointers)
   {

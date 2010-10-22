@@ -8130,35 +8130,6 @@ err_no_arena:
 ******************************************************************************/
 
 /*
-  Check if all expressions in list are constant expressions
-
-  SYNOPSIS
-    check_constant_expressions()
-    values                       List of expressions
-
-  RETURN
-    TRUE                         Only constant expressions
-    FALSE                        At least one non-constant expression
-*/
-
-bool check_constant_expressions(List<Item> *values)
-{
-  List_iterator_fast<Item> v(*values);
-  Item *value;
-  DBUG_ENTER("check_constant_expressions");
-
-  while ((value= v++))
-  {
-    if (!value->const_item())
-    {
-      DBUG_RETURN(FALSE);
-    }
-  }
-  DBUG_RETURN(TRUE);
-}
-
-
-/*
   Fill fields with given items.
 
   SYNOPSIS

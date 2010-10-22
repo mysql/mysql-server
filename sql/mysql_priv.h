@@ -1778,7 +1778,6 @@ bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);
-bool check_constant_expressions(List<Item> *values);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
