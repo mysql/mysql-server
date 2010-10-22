@@ -3649,6 +3649,16 @@ bool ha_ndbcluster::isManualBinlogExec(THD *thd)
 
 }
 
+static inline bool
+thd_allow_batch(const THD* thd)
+{
+#ifndef OPTION_ALLOW_BATCH
+  return false;
+#else
+  return (thd->options & OPTION_ALLOW_BATCH);
+#endif
+}
+
 int ha_ndbcluster::write_row(uchar *record)
 {
   DBUG_ENTER("ha_ndbcluster::write_row");
@@ -4004,7 +4014,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     ERR_RETURN(trans->getNdbError());
 
   bool do_batch= !need_flush &&
-    (batched_update || (thd->options & OPTION_ALLOW_BATCH));
+    (batched_update || thd_allow_batch(thd));
   uint blob_count= 0;
   if (table_share->blob_fields > 0)
   {
@@ -4362,7 +4372,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
   DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
   *dup_key_found= 0;
   if (m_thd_ndb->m_unsent_bytes &&
-      !(table->in_use->options & OPTION_ALLOW_BATCH) &&
+      !thd_allow_batch(table->in_use) &&
       (!m_thd_ndb->m_handler ||
        m_blobs_pending))
   {
@@ -4446,7 +4456,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
                    have_pk &&
                    bitmap_is_overlapping(table->write_set, m_pk_bitmap_p) &&
                    primary_key_cmp(old_data, new_data));
-  bool batch_allowed= is_bulk_update || (thd->options & OPTION_ALLOW_BATCH);
+  bool batch_allowed= is_bulk_update || thd_allow_batch(thd);
   NdbOperation::SetValueSpec sets[1];
 
   DBUG_ENTER("ndb_update_row");
@@ -4703,7 +4713,7 @@ int ha_ndbcluster::end_bulk_delete()
   DBUG_ENTER("end_bulk_delete");
   assert(m_is_bulk_delete); // Don't allow end() without start()
   if (m_thd_ndb->m_unsent_bytes &&
-      !(table->in_use->options & OPTION_ALLOW_BATCH) &&
+      !thd_allow_batch(table->in_use) &&
       !m_thd_ndb->m_handler)
   {
     uint ignore_count= 0;
@@ -4735,7 +4745,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   const NdbOperation *op;
   uint32 part_id= ~uint32(0);
   int error;
-  bool allow_batch= m_is_bulk_delete || (thd->options & OPTION_ALLOW_BATCH);
+  bool allow_batch= m_is_bulk_delete || thd_allow_batch(thd);
   DBUG_ENTER("ndb_delete_row");
   DBUG_ASSERT(trans);
 
@@ -5985,7 +5995,7 @@ int ha_ndbcluster::end_bulk_insert()
   THD *thd= table->in_use;
   Thd_ndb *thd_ndb= m_thd_ndb;
   
-  if ((thd->options & OPTION_ALLOW_BATCH) == 0 && thd_ndb->m_unsent_bytes)
+  if (!thd_allow_batch(thd) && thd_ndb->m_unsent_bytes)
   {
     bool allow_batch= (thd_ndb->m_handler != 0);
     error= flush_bulk_insert(allow_batch);
