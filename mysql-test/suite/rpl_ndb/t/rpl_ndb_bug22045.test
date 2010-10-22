@@ -2,7 +2,7 @@
 # Test case currently fails for statement-based replication, as BUG#22045 is
 # not fixed in the replication slave thread.
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 # BUG#22045: Got error 839 'Illegal null attribute' from NDBCLUSTER when 'Replace Into'.
 # Check that REPLACE INTO replicates correctly with partial value list and with/without blobs.

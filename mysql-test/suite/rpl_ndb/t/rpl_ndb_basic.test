@@ -1,7 +1,7 @@
 --source include/have_ndb.inc
 #error message differs slightly with statement based replication
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 -- disable_query_log
 call mtr.add_suppression("Slave: Got error 146 during COMMIT Error_code: 1180");
