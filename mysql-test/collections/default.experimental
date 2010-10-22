@@ -19,5 +19,3 @@ rpl_ndb.rpl_ndb_2ndb   # rpl_ndb_2ndb fails sporadically
 
 binlog.binlog_unsafe @solaris            # Bug #47128 Test "binlog_unsafe" exceds default stack allocation
 
-rpl_ndb.rpl_ndb_typeconv_all @solaris    # bug#52131
-rpl_ndb.rpl_ndb_typeconv_lossy @solaris  # bug#52131
