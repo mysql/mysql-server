@@ -3503,8 +3503,20 @@ You should consider changing lower_case_table_names to 1 or 2",
 
   /* Reset table_alias_charset, now that lower_case_table_names is set. */
   table_alias_charset= (lower_case_table_names ?
-			files_charset_info :
+			&my_charset_utf8_tolower_ci :
 			&my_charset_bin);
+
+  /*
+    Build do_table and ignore_table rules to hush
+    after the resetting of table_alias_charset
+  */
+  if (rpl_filter->build_do_table_hash() ||
+      rpl_filter->build_ignore_table_hash())
+  {
+    sql_print_error("An error occurred while building do_table"
+                    "and ignore_table rules to hush.");
+    return 1;
+  }
 
   return 0;
 }
@@ -6218,7 +6230,7 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
   var->value= buff;
   *((my_bool *)buff)= (my_bool) (active_mi && 
                                  active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
-                                 active_mi->rli.slave_running);
+                                 active_mi->rli->slave_running);
   mysql_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
@@ -6234,9 +6246,9 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_LONG;
     var->value= buff;
-    mysql_mutex_lock(&active_mi->rli.data_lock);
-    *((long *)buff)= (long)active_mi->rli.retried_trans;
-    mysql_mutex_unlock(&active_mi->rli.data_lock);
+    mysql_mutex_lock(&active_mi->rli->data_lock);
+    *((long *)buff)= (long)active_mi->rli->retried_trans;
+    mysql_mutex_unlock(&active_mi->rli->data_lock);
   }
   else
     var->type= SHOW_UNDEF;
@@ -6251,9 +6263,9 @@ static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_LONGLONG;
     var->value= buff;
-    mysql_mutex_lock(&active_mi->rli.data_lock);
+    mysql_mutex_lock(&active_mi->rli->data_lock);
     *((longlong *)buff)= active_mi->received_heartbeats;
-    mysql_mutex_unlock(&active_mi->rli.data_lock);
+    mysql_mutex_unlock(&active_mi->rli->data_lock);
   }
   else
     var->type= SHOW_UNDEF;
@@ -7135,7 +7147,7 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_DO_TABLE:
   {
-    if (rpl_filter->add_do_table(argument))
+    if (rpl_filter->add_do_table_array(argument))
     {
       sql_print_error("Could not add do table rule '%s'!\n", argument);
       return 1;
@@ -7162,7 +7174,7 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
   {
-    if (rpl_filter->add_ignore_table(argument))
+    if (rpl_filter->add_ignore_table_array(argument))
     {
       sql_print_error("Could not add ignore table rule '%s'!\n", argument);
       return 1;

@@ -4575,6 +4575,11 @@ SELECT LENGTH(a) FROM t2;
 LENGTH(a)
 800
 DROP TABLE t1, t2;
+create table t1 (first char(28) , last varchar(37));
+insert into t1 values ("Magnus", "Blåudd");
+truncate table t1;
+test.t1: Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
+drop table t1;
 #
 # End of 5.1 tests
 #
