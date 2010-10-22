@@ -429,7 +429,10 @@ class ha_ndbcluster: public handler
   ha_rows estimate_rows_upper_bound()
     { return HA_POS_ERROR; }
   int info(uint);
-  void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
+#if MYSQL_VERSION_ID < 50501
+  typedef PARTITION_INFO PARTITION_STATS;
+#endif
+  void get_dynamic_partition_info(PARTITION_STATS *stat_info, uint part_id);
   uint32 calculate_key_hash_value(Field **field_array);
   bool read_before_write_removal_possible(List<Item> *fields,
                                           List<Item> *values);
