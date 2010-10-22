@@ -989,6 +989,14 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
     const char *new_message= "Waiting to get readlock";
     (void) mysql_mutex_lock(&LOCK_global_read_lock);
 
+    old_message= thd->enter_cond(&COND_global_read_lock,
+                                 &LOCK_global_read_lock, new_message);
+    DBUG_PRINT("info",
+               ("waiting_for: %d  protect_against: %d",
+                waiting_for_read_lock, protect_against_global_read_lock));
+
+    waiting_for_read_lock++;
+
 #if defined(ENABLED_DEBUG_SYNC)
     /*
       The below sync point fires if we have to wait for
@@ -997,27 +1005,18 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
       WARNING: Beware to use WAIT_FOR with this sync point. We hold
       LOCK_global_read_lock here.
 
-      Call the sync point before calling enter_cond() as it does use
-      enter_cond() and exit_cond() itself if a WAIT_FOR action is
-      executed in spite of the above warning.
+      The sync point is after enter_cond() so that proc_info is
+      available immediately after the sync point sends a SIGNAL. This
+      can make tests more reliable.
 
-      Pre-set proc_info so that it is available immediately after the
-      sync point sends a SIGNAL. This makes tests more reliable.
+      The sync point is before the loop so that it is executed only once.
     */
-    if (protect_against_global_read_lock)
+    if (protect_against_global_read_lock && !thd->killed)
     {
-      thd_proc_info(thd, new_message);
       DEBUG_SYNC(thd, "wait_lock_global_read_lock");
     }
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-    old_message=thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
-                                new_message);
-    DBUG_PRINT("info",
-	       ("waiting_for: %d  protect_against: %d",
-		waiting_for_read_lock, protect_against_global_read_lock));
-
-    waiting_for_read_lock++;
     while (protect_against_global_read_lock && !thd->killed)
       mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
     waiting_for_read_lock--;

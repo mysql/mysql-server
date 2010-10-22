@@ -1953,6 +1953,12 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
+  /*
+    If checking this in conjunction with a wait condition, please
+    include a check after enter_cond() if you want to avoid a race
+    condition. For details see the implementation of awake(),
+    especially the "broadcast" part.
+  */
   enum killed_state
   {
     NOT_KILLED=0,
