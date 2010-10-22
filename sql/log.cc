@@ -5928,11 +5928,21 @@ int TC_LOG_unordered::log_and_order(THD *thd, my_xid xid, bool all,
 TC_LOG_group_commit::TC_LOG_group_commit()
   : num_commits(0), num_group_commits(0)
 {
+}
+
+TC_LOG_group_commit::~TC_LOG_group_commit()
+{
+}
+
+void
+TC_LOG_group_commit::init()
+{
   my_pthread_mutex_init(&LOCK_group_commit, MY_MUTEX_INIT_SLOW,
                         "LOCK_group_commit", MYF(0));
 }
 
-TC_LOG_group_commit::~TC_LOG_group_commit()
+void
+TC_LOG_group_commit::deinit()
 {
   pthread_mutex_destroy(&LOCK_group_commit);
 }
@@ -6591,6 +6601,7 @@ int TC_LOG_BINLOG::open(const char *opt_name)
   DBUG_ASSERT(total_ha_2pc > 1);
   DBUG_ASSERT(opt_name && opt_name[0]);
 
+  TC_LOG_group_commit::init();
   pthread_mutex_init(&LOCK_prep_xids, MY_MUTEX_INIT_FAST);
   pthread_cond_init (&COND_prep_xids, 0);
 
@@ -6674,6 +6685,7 @@ void TC_LOG_BINLOG::close()
   DBUG_ASSERT(prepared_xids==0);
   pthread_mutex_destroy(&LOCK_prep_xids);
   pthread_cond_destroy (&COND_prep_xids);
+  TC_LOG_group_commit::deinit();
 }
 
 /*

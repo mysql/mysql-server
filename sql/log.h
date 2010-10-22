@@ -150,6 +150,8 @@ class TC_LOG_group_commit: public TC_LOG_queued
 public:
   TC_LOG_group_commit();
   ~TC_LOG_group_commit();
+  void init();
+  void deinit();
 
   int log_and_order(THD *thd, my_xid xid, bool all,
                     bool need_prepare_ordered, bool need_commit_ordered);
