@@ -1781,6 +1781,14 @@ static Sys_var_ulong Sys_server_id(
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_server_id));
 
+#ifndef MCP_BUG53205
+static Sys_var_uint Sys_server_id_bits(
+       "server_id_bits",
+       "Set number of significant bits in server-id",
+       GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
+#endif
+
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
        "Use compression on master/slave protocol",
