@@ -1289,7 +1289,15 @@ que_eval_sql(
 
 	que_run_threads(thr);
 
+	if (reserve_dict_mutex) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
 	que_graph_free(graph);
+
+	if (reserve_dict_mutex) {
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	return(trx->error_state);
 }

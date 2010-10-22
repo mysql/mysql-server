@@ -362,6 +362,7 @@ sym_tab_add_bound_id(
 
 	node->table = NULL;
 	node->resolved = FALSE;
+	node->token_type = SYM_UNSET;
 	node->indirection = NULL;
 
 	node->name = mem_heap_strdup(sym_tab->heap, bid->id);
