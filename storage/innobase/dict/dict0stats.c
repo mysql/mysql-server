@@ -126,6 +126,13 @@ descending to lower levels and fetch
 srv_stats_persistent_sample_pages records from that level */
 #define N_DIFF_REQUIRED	(srv_stats_persistent_sample_pages * 10)
 
+/** Open handles on the stats tables. Currently this is used to increase the
+reference count of the stats tables. */
+typedef struct dict_stats_struct {
+	dict_table_t*	table_stats;	/*!< Handle to open TABLE_STATS_NAME */
+	dict_table_t*	index_stats;	/*!< Handle to open INDEX_STATS_NAME */
+} dict_stats_t;
+
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. This function
 is relatively quick and is used to calculate transient statistics that
@@ -2261,78 +2268,62 @@ dict_stats_update(
 /* @} */
 
 /*********************************************************************//**
+Close the stats tables. Should always be called after successful
+dict_stats_open(). It will free the dict_stats handle. */
+UNIV_INLINE
+void
+dict_stats_close(
+/*=============*/
+	dict_stats_t*	dict_stats)	/*!< in/own: Handle to open
+					statistics tables */
+{
+	if (dict_stats->table_stats != NULL) {
+		dict_table_close(dict_stats->table_stats, FALSE);
+		dict_stats->table_stats = NULL;
+	}
+
+	if (dict_stats->index_stats != NULL) {
+		dict_table_close(dict_stats->index_stats, FALSE);
+		dict_stats->index_stats = NULL;
+	}
+
+	mem_free(dict_stats);
+}
+/*********************************************************************//**
 Open stats tables to prevent these tables from being DROPped.
 Also check whether they have the correct structure. The caller
 must call dict_stats_close() when he has finished DMLing the tables.
-@return TRUE if tables were opened and have the correct structure */
+@return pointer to open tables or NULL on failure */
 UNIV_INLINE
-ibool
+dict_stats_t*
 dict_stats_open(void)
 /*=================*/
 {
-	dict_table_t*	table_stats;
-	dict_table_t*	index_stats;
+	dict_stats_t*	dict_stats;
 
-	mutex_enter(&dict_sys->mutex);
+	dict_stats = mem_zalloc(sizeof(*dict_stats));
 
-	table_stats = dict_table_open_on_name_no_stats(TABLE_STATS_NAME, TRUE);
-	index_stats = dict_table_open_on_name_no_stats(INDEX_STATS_NAME, TRUE);
+	dict_stats->table_stats = dict_table_open_on_name_no_stats(
+		TABLE_STATS_NAME, FALSE);
 
-	mutex_exit(&dict_sys->mutex);
+	dict_stats->index_stats = dict_table_open_on_name_no_stats(
+		INDEX_STATS_NAME, FALSE);
 
 	/* Check if the tables have the correct structure, if yes then
 	after this function we can safely DELETE from them without worrying
-	that they may get DROPped or DDLed because we have incremented the
-	reference count. */
+	that they may get DROPped or DDLed because the open will have
+	increased the reference count. */
 
-	if (table_stats == NULL || index_stats == NULL
+	if (dict_stats->table_stats == NULL
+	    || dict_stats->index_stats == NULL
 	    || !dict_stats_persistent_storage_check(FALSE)) {
 
-		mutex_enter(&dict_sys->mutex);
-
-		if (table_stats != NULL) {
-			dict_table_close(table_stats, TRUE);
-		}
-		if (index_stats != NULL) {
-			dict_table_close(index_stats, TRUE);
-		}
-
-		mutex_exit(&dict_sys->mutex);
-
-		return(FALSE);
+		/* There was an error, close the tables and free the handle. */
+		dict_stats_close(dict_stats);
+		dict_stats = NULL;
 	}
 
-	return(TRUE);
-}
-
-/*********************************************************************//**
-Close the stats tables. Should always be called
-after successful dict_stats_open(). */
-UNIV_INLINE
-void
-dict_stats_close(void)
-/*==================*/
-{
-	dict_table_t*	table_stats;
-	dict_table_t*	index_stats;
-
-	mutex_enter(&dict_sys->mutex);
-
-	table_stats = dict_table_open_on_name_no_stats(TABLE_STATS_NAME, TRUE);
-	ut_a(table_stats != NULL);
-	/* undo the open above */
-	dict_table_close(table_stats, TRUE);
-	/* undo dict_stats_open() */
-	dict_table_close(table_stats, TRUE);
-
-	index_stats = dict_table_open_on_name_no_stats(INDEX_STATS_NAME, TRUE);
-	ut_a(index_stats != NULL);
-	/* undo the open above */
-	dict_table_close(index_stats, TRUE);
-	/* undo dict_stats_open() */
-	dict_table_close(index_stats, TRUE);
-
-	mutex_exit(&dict_sys->mutex);
+	return(dict_stats);
 }
 
 /*********************************************************************//**
@@ -2365,6 +2356,7 @@ dict_stats_delete_index_stats(
 	pars_info_t*	pinfo;
 	ulint		ret;
 	ibool		allowed_to_wait_orig;
+	dict_stats_t*	dict_stats;
 
 	/* skip indexes whose table names do not contain a database name
 	e.g. if we are dropping an index from SYS_TABLES */
@@ -2375,7 +2367,9 @@ dict_stats_delete_index_stats(
 
 	/* Increment table reference count to prevent the tables from
 	being DROPped just before que_eval_sql(). */
-	if (!dict_stats_open()) {
+	dict_stats = dict_stats_open();
+
+	if (dict_stats == NULL) {
 		/* stats tables do not exist or have unexpected structure */
 		return(DB_SUCCESS);
 	}
@@ -2439,7 +2433,7 @@ dict_stats_delete_index_stats(
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-	dict_stats_close();
+	dict_stats_close(dict_stats);
 
 	return(ret);
 }
@@ -2465,6 +2459,7 @@ dict_stats_delete_table_stats(
 	trx_t*		trx;
 	pars_info_t*	pinfo;
 	enum db_err	ret = DB_ERROR;
+	dict_stats_t*	dict_stats;
 
 	/* skip tables that do not contain a database name
 	e.g. if we are dropping SYS_TABLES */
@@ -2492,12 +2487,10 @@ dict_stats_delete_table_stats(
 	trx_start(trx, ULINT_UNDEFINED);
 
 	/* Increment table reference count to prevent the tables from
-	being DROPped just before que_eval_sql(). As of the time of
-	this code is written MySQL's LOCK_open mutex protects us here
-	from races, but we nevertheless increment the ref counter to
-	be sure the code continues to be race-free even if MySQL code
-	is changed. */
-	if (!dict_stats_open()) {
+	being DROPped just before que_eval_sql(). */
+	dict_stats = dict_stats_open();
+
+	if (dict_stats == NULL) {
 		/* stats tables do not exist or have unexpected structure */
 		ret = DB_SUCCESS;
 		goto commit_and_return;
@@ -2565,7 +2558,7 @@ dict_stats_delete_table_stats(
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-	dict_stats_close();
+	dict_stats_close(dict_stats);
 
 commit_and_return:
 
