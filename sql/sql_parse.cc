@@ -3923,6 +3923,10 @@ end_with_restore_list:
     if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
+
+    /* Replicate current user as grantor */
+    thd->binlog_invoker();
+
     /* Conditionally writes to binlog */
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
       my_ok(thd);
@@ -3942,6 +3946,9 @@ end_with_restore_list:
                      select_lex->db ?
                      is_schema_db(select_lex->db) : 0))
       goto error;
+
+    /* Replicate current user as grantor */
+    thd->binlog_invoker();
 
     if (thd->security_ctx->user)              // If not replication
     {
