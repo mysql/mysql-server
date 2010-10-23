@@ -314,7 +314,7 @@ dict_stats_persistent_storage_check(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
-	/* We return silently if some of the tables is not present because
+	/* We return silently if some of the tables are not present because
 	this code is executed during open table. By design we check if the
 	persistent statistics storage is present and whether there are stats
 	for the table being opened and if so, then we use them, otherwise we
@@ -384,7 +384,7 @@ dict_stats_analyze_index_level(
 	n_uniq = dict_index_get_n_unique(index);
 
 	/* elements in the n_diff array are 1..n_uniq (inclusive) */
-	memset(n_diff, 0x0, (n_uniq + 1) * sizeof(ib_int64_t));
+	memset(n_diff, 0x0, (n_uniq + 1) * sizeof(*n_diff));
 
 	heap = mem_heap_create(256);
 
@@ -421,9 +421,10 @@ dict_stats_analyze_index_level(
 
 	/* check whether the first record on the leftmost page is marked
 	as such, if we are on a non-leaf level */
-	ut_a(level == 0 || REC_INFO_MIN_REC_FLAG
-	     & rec_get_info_bits(page_rec_get_next(page_get_infimum_rec(page)),
-				 page_is_comp(page)));
+	ut_a(level == 0
+	     || (REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
+		     page_rec_get_next(page_get_infimum_rec(page)),
+		     page_is_comp(page))));
 
 	if (btr_pcur_is_before_first_on_page(&pcur)) {
 		btr_pcur_move_to_next_on_page(&pcur);
