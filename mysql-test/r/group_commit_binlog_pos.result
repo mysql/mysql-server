@@ -21,9 +21,9 @@ a
 2
 SET SESSION debug="+d,crash_dispatch_command_before";
 SELECT 1;
-ERROR HY000: Lost connection to MySQL server during query
-ERROR HY000: Lost connection to MySQL server during query
-ERROR HY000: Lost connection to MySQL server during query
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
 SELECT * FROM t1 ORDER BY a;
 a
 0

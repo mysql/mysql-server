@@ -717,6 +717,10 @@ void handle_no_error(struct st_command*);
 
 #ifdef EMBEDDED_LIBRARY
 
+/* workaround for MySQL BUG#57491 */
+#undef MY_WME
+#define MY_WME 0
+
 /* attributes of the query thread */
 pthread_attr_t cn_thd_attrib;
 
