@@ -28,11 +28,8 @@ SELECT length(c1), length(b1) FROM t3;
 --source include/ndb_backup.inc
 
 # command shortcuts
-#--let $restore_cmd=$NDB_RESTORE --no-defaults -b $the_backup_id -r
-#--let $restore_cmd=$restore_cmd --backup_path=$NDB_BACKUPS-$the_backup_id
-# for ndb 6.3:
---let $restore_cmd=$NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id
---let $restore_cmd=$restore_cmd -r --backup_path=$NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id
+--let $restore_cmd=$NDB_RESTORE --no-defaults -b $the_backup_id
+--let $restore_cmd=$restore_cmd -r --backup_path=$NDB_BACKUPS-$the_backup_id
 
 --echo ************************************************************
 --echo * Restoring table with unchanged char+binary types (sanity check):
