@@ -829,6 +829,7 @@ JOIN::optimize()
                            "Impossible HAVING" : "Impossible WHERE";
       tables= 0;
       error= 0;
+      choose_tableless_subquery_plan();
       goto setup_subq_exit;
     }
   }
@@ -873,12 +874,13 @@ JOIN::optimize()
     */
     if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
     {
-      if (res == HA_ERR_KEY_NOT_FOUND)
+      if (res == HA_ERR_KEY_NOT_FOUND || res < 0)
       {
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
         tables= 0;
 	error=0;
+        choose_tableless_subquery_plan();
         goto setup_subq_exit;
       }
       if (res > 1)
@@ -887,14 +889,7 @@ JOIN::optimize()
         DBUG_PRINT("error",("Error from opt_sum_query"));
         DBUG_RETURN(1);
       }
-      if (res < 0)
-      {
-        DBUG_PRINT("info",("No matching min/max row"));
-        zero_result_cause= "No matching min/max row";
-        tables= 0;
-        error=0;
-        goto setup_subq_exit;
-      }
+
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
@@ -919,40 +914,14 @@ JOIN::optimize()
                                  QT_ORDINARY););
         conds= table_independent_conds;
       }
-      goto setup_subq_exit;
     }
   }
   if (!tables_list)
   {
     DBUG_PRINT("info",("No tables"));
     error= 0;
-    if (optimize_unflattened_subqueries())
-      DBUG_RETURN(1);
-    /*
-      TIMOUR: TODO: consider do we need to optimize here at all and refactor
-      this block and JOIN::choose_subquery_plan.
-
-    if (choose_subquery_plan())
-      DBUG_RETURN(1);
-    */
-    Item_in_subselect *in_subs;
-    if (select_lex->master_unit()->item &&
-        select_lex->master_unit()->item->is_in_predicate())
-    {
-      in_subs= (Item_in_subselect*) select_lex->master_unit()->item;
-      if (in_subs->in_strategy & SUBS_MATERIALIZATION &&
-          in_subs->setup_mat_engine())
-        in_subs->in_strategy= SUBS_IN_TO_EXISTS;
-      if (in_subs->in_strategy & SUBS_IN_TO_EXISTS)
-      {
-        if (in_subs->create_in_to_exists_cond(this))
-          DBUG_RETURN(1);
-        if (in_subs->inject_in_to_exists_cond(this))
-          DBUG_RETURN(1);
-        tmp_having= having;
-      }
-    }
-    DBUG_RETURN(0);
+    choose_tableless_subquery_plan();
+    goto setup_subq_exit;
   }
   error= -1;					// Error is sent to client
   sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);

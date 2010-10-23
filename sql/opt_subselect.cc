@@ -3823,3 +3823,65 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
 
   return FALSE;
 }
+
+
+/**
+  Choose a query plan for a table-less subquery.
+
+  @notes
+
+  @retval FALSE     success.
+  @retval TRUE      error occurred.
+*/
+
+bool JOIN::choose_tableless_subquery_plan()
+{
+  DBUG_ASSERT(!tables_list || !tables);
+  if (select_lex->master_unit()->item)
+  {
+    DBUG_ASSERT(select_lex->master_unit()->item->type() ==
+                Item::SUBSELECT_ITEM);
+    Item_subselect *subs_predicate= select_lex->master_unit()->item;
+
+    /*
+      If the optimizer determined that his query has an empty result,
+      in most cases the subquery predicate is a known constant value -
+      either FALSE or NULL. The implementation of Item_subselect::reset()
+      determines which one.
+    */
+    if (zero_result_cause)
+    {
+      if (!implicit_grouping)
+      {
+        /*
+          Both group by queries and non-group by queries without aggregate
+          functions produce empty subquery result.
+        */
+        subs_predicate->reset();
+        subs_predicate->make_const();
+        return FALSE;
+      }
+
+      /* TODO:
+         A further optimization is possible when a non-group query with
+         MIN/MAX/COUNT is optimized by opt_sum_query. Then, if there are
+         only MIN/MAX functions over an empty result set, the subquery
+         result is a NULL value/row, thus the value of subs_predicate is
+         NULL.
+      */
+    }
+
+    if (subs_predicate->is_in_predicate())
+    {
+      Item_in_subselect *in_subs;
+      in_subs= (Item_in_subselect*) subs_predicate;
+      in_subs->in_strategy= SUBS_IN_TO_EXISTS;
+      if (in_subs->create_in_to_exists_cond(this) ||
+          in_subs->inject_in_to_exists_cond(this))
+        return TRUE;
+      tmp_having= having;
+    }
+  }
+  return FALSE;
+}
+

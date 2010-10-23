@@ -36,7 +36,7 @@ Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), thd(0), substitution(0),
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
   const_item_cache(1), 
-  inside_first_fix_fields(0), done_first_fix_fields(FALSE),
+  inside_first_fix_fields(0), done_first_fix_fields(FALSE), forced_const(FALSE),
   eliminated(FALSE), 
   engine_changed(0), changed(0), is_correlated(FALSE)
 {
@@ -121,6 +121,7 @@ void Item_subselect::cleanup()
   depends_on.empty();
   reset();
   value_assigned= 0;
+  forced_const= FALSE;
   DBUG_VOID_RETURN;
 }
 
@@ -158,7 +159,6 @@ void Item_in_subselect::cleanup()
     left_expr_cache= NULL;
   }
   first_execution= TRUE;
-  is_constant= FALSE;
   if (in_strategy & SUBS_MATERIALIZATION)
     in_strategy= 0;
   pushed_cond_guards= NULL;
@@ -682,12 +682,15 @@ Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 
 void Item_subselect::update_used_tables()
 {
-  recalc_used_tables(parent_select, FALSE);
-  if (!engine->uncacheable())
+  if (!forced_const)
   {
-    // did all used tables become static?
-    if (!(used_tables_cache & ~engine->upper_select_const_tables()))
-      const_item_cache= 1;
+    recalc_used_tables(parent_select, FALSE);
+    if (!engine->uncacheable())
+    {
+      // did all used tables become static?
+      if (!(used_tables_cache & ~engine->upper_select_const_tables()))
+        const_item_cache= 1;
+    }
   }
 }
 
@@ -753,7 +756,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
     of Items belonged to subquery, which will be not repeated
   */
   used_tables_cache= parent->get_used_tables_cache();
-  const_item_cache= parent->get_const_item_cache();
+  const_item_cache= parent->const_item();
 
   /*
     this subquery always creates during preparation, so we can assign
@@ -791,8 +794,7 @@ void Item_maxmin_subselect::print(String *str, enum_query_type query_type)
 
 void Item_singlerow_subselect::reset()
 {
-  eliminated= FALSE;
-  null_value= 1;
+  Item_subselect::reset();
   if (value)
     value->null_value= 1;
 }
@@ -1082,8 +1084,7 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-  is_constant(FALSE), optimizer(0), pushed_cond_guards(NULL),
-  in_strategy(0), upper_item(0)
+  optimizer(0), pushed_cond_guards(NULL), in_strategy(0), upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -1313,7 +1314,7 @@ bool Item_in_subselect::val_bool()
 {
   DBUG_ASSERT(fixed == 1);
   null_value= 0;
-  if (is_constant)
+  if (forced_const)
     return value;
   if (exec())
   {
@@ -4147,11 +4148,10 @@ int subselect_hash_sj_engine::exec()
   tmp_table->file->info(HA_STATUS_VARIABLE);
   if (!tmp_table->file->stats.records)
   {
-    item_in->value= FALSE;
     /* The value of IN will not change during this execution. */
-    item_in->is_constant= TRUE;
+    item_in->reset();
+    item_in->make_const();
     item_in->set_first_execution();
-    /* TIMOUR: check if we need this: item_in->null_value= FALSE; */
     DBUG_RETURN(FALSE);
   }
 

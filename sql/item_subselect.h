@@ -70,6 +70,13 @@ protected:
   
   bool inside_first_fix_fields;
   bool done_first_fix_fields;
+  /*
+    Set to TRUE if at optimization or execution time we determine that this
+    item's value is a constant. We need this member because it is not possible
+    to substitute 'this' with a constant item.
+  */
+  bool forced_const;
+
 public:
   /* A reference from inside subquery predicate to somewhere outside of it */
   class Ref_to_outside : public Sql_alloc
@@ -154,12 +161,21 @@ public:
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void recalc_used_tables(st_select_lex *new_parent, bool after_pullout);
   virtual bool exec();
+  /*
+    If subquery optimization or execution determines that the subquery has
+    an empty result, mark the subquery predicate as a constant value.
+  */
+  void make_const()
+  { 
+    used_tables_cache= 0;
+    const_item_cache= 0;
+    forced_const= TRUE; 
+  }
   virtual void fix_length_and_dec();
   table_map used_tables() const;
   table_map not_null_tables() const { return 0; }
   bool const_item() const;
   inline table_map get_used_tables_cache() { return used_tables_cache; }
-  inline bool get_const_item_cache() { return const_item_cache; }
   Item *get_tmp_table_item(THD *thd);
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
@@ -353,12 +369,6 @@ protected:
   */
   List<Cached_item> *left_expr_cache;
   bool first_execution;
-  /*
-    Set to TRUE if at query execution time we determine that this item's
-    value is a constant during this execution. We need this member because
-    it is not possible to substitute 'this' with a constant item.
-  */
-  bool is_constant;
 
   /*
     expr & optimizer used in subselect rewriting to store Item for
@@ -435,7 +445,7 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-    is_constant(FALSE), optimizer(0), abort_on_null(0),
+    optimizer(0), abort_on_null(0),
     pushed_cond_guards(NULL), func(NULL), in_strategy(0),
     upper_item(0)
     {}

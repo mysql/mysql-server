@@ -342,7 +342,21 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -609,7 +623,21 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -876,7 +904,21 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -1193,7 +1235,22 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -1505,7 +1562,22 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -1817,7 +1889,22 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -2134,7 +2221,22 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -2446,7 +2548,22 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -2758,7 +2875,22 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -3032,7 +3164,21 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -3299,7 +3445,21 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */
@@ -3566,7 +3726,21 @@ a1
 /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 TODO this test produces wrong result due to missing logic to handle the case
 when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
 
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
 /* E.6 make_join_select detects impossible WHERE. *
 TODO
 /* E.7 constant optimization detects "no matching row in const table". */

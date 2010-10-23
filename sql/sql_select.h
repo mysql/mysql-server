@@ -1383,6 +1383,8 @@ protected:
   void restore_query_plan(DYNAMIC_ARRAY *save_keyuse, POSITION *save_positions,
                       KEYUSE **save_join_tab_keyuse,
                       key_map *save_join_tab_checked_keys);
+  /* Choose a subquery plan for a table-less subquery. */
+  bool choose_tableless_subquery_plan();
 
 public:
   JOIN_TAB *join_tab,**best_ref;

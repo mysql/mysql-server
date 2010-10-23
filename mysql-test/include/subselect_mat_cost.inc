@@ -123,13 +123,13 @@ select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03'
 -- echo /* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
 -- echo TODO this test produces wrong result due to missing logic to handle the case
 -- echo when JOIN::optimize detects an empty subquery result.
-#explain
-#select a1 from t1 where a1 in (select max(b1) from t2);
-#select a1 from t1 where a1 in (select max(b1) from t2);
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+select a1 from t1 where a1 in (select max(b1) from t2);
 -- echo
-#explain
-#select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
-#select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
 
 -- echo /* E.6 make_join_select detects impossible WHERE. *
 
