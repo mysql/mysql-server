@@ -7980,8 +7980,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     JOIN_TAB *tab=join->join_tab+i;
     if (tab->use_join_cache)
     {
-      JOIN_TAB *sort_by_tab= join->get_sort_by_join_tab();
-      if (sort_by_tab && !join->need_tmp)
+       JOIN_TAB *sort_by_tab= join->group && join->simple_group &&
+                              join->group_list ?
+			       join->join_tab+join->const_tables :
+                               join->get_sort_by_join_tab();
+     if (sort_by_tab)
       {
         join->need_tmp= 1;
         join->simple_order= join->simple_group= 0;

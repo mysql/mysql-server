@@ -699,6 +699,7 @@ EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
@@ -2173,6 +2174,7 @@ EXPLAIN
 SELECT t1.i, t1.d,  t1.v, t2.i, t2.d, t2.t, t2.v FROM t1,t2,t3
   WHERE t3.u <='a' AND t2.j < 5 AND t3.v = t2.u;
 
+--sorted_result
 SELECT t1.i, t1.d,  t1.v, t2.i, t2.d, t2.t, t2.v FROM t1,t2,t3
   WHERE t3.u <='a' AND t2.j < 5 AND t3.v = t2.u;
 
@@ -2180,6 +2182,66 @@ DROP TABLE t1,t2,t3;
 
 SET SESSION join_cache_level=DEFAULT;
 SET SESSION join_buffer_size=DEFAULT;
+
+
+--echo #
+--echo # Bug #664508: 'Simple' GROUP BY + ORDER BY 
+--echo #              when join buffers are used
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL, i int NOT NULL, v  varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2 (v,i)
+);
+INSERT INTO t1 VALUES
+  (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
+  (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
+  (25,3,'m'), (26,5,'z'), (27,9,'n'), (28,1,'d'), (29,107,'a');
+
+CREATE TABLE t2 (
+  pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2(v,i)
+);
+INSERT INTO t2 VALUES
+  (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
+  (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
+  (20,2,'v'), (21,9,'v'), (22,142,'b'), (23,3,'y'), (24,0,'v'),
+  (25,3,'m'), (26,5,'z'), (27,9,'n'), (28,1,'d'), (29,107,'a');
+
+CREATE TABLE t3 (
+  pk int NOT NULL, i int(11) NOT NULL,  v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2(v,i)
+);
+INSERT INTO t3 VALUES
+  (1,9,'x'), (2,5,'g'), (3,1,'o'), (4,0,'g'), (5,1,'v'),
+  (6,190,'m'), (7,6,'x'), (8,3,'c'), (9,4,'z'), (10,3,'i'),
+  (11,186,'x'), (12,1,'g'), (13,8,'q'), (14,226,'m'), (15,133,'p'),
+  (16,6,'e'), (17,3,'t'), (18,8,'j'), (19,5,'h'), (20,7,'w');
+
+SET SESSION join_cache_level=1;
+EXPLAIN
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+
+SET SESSION join_cache_level=6;
+EXPLAIN
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+
+SET SESSION join_cache_level=4;
+EXPLAIN
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+
+DROP TABLE t1,t2,t3;
+
+SET SESSION join_cache_level=DEFAULT;
 
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
