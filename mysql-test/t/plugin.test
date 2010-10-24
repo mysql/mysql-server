@@ -120,6 +120,8 @@ CREATE TABLE t1 (a int) ENGINE=example ULL=1e2;
 CREATE TABLE t1 (a int) ENGINE=example ULL=0x1234;
 SHOW CREATE TABLE t1;
 
+select create_options from information_schema.tables where table_schema='test' and table_name='t1';
+
 ALTER TABLE t1 ULL=DEFAULT;
 SHOW CREATE TABLE t1;
 

@@ -111,6 +111,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ULL`=4660
+select create_options from information_schema.tables where table_schema='test' and table_name='t1';
+create_options
+`ULL`=4660
 ALTER TABLE t1 ULL=DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
