@@ -2066,20 +2066,23 @@ srv_active_wake_master_thread(void)
 	if (srv_sys->n_threads_active[SRV_MASTER] == 0) {
 		srv_slot_t*	slot;
 
-		slot = srv_table_get_nth_slot(0);
-
-		ut_a(slot->in_use);
-	        ut_a(slot->type == SRV_MASTER);
-
 		srv_sys_mutex_enter();
 
-	       	if (slot->suspended) {
+		slot = srv_table_get_nth_slot(0);
 
-			slot->suspended = FALSE;
+		/* Only if the master thread has been started. */
 
-			++srv_sys->n_threads_active[SRV_MASTER];
+		if (slot->in_use) {
+	        	ut_a(slot->type == SRV_MASTER);
 
-			os_event_set(slot->event);
+	       		if (slot->suspended) {
+
+				slot->suspended = FALSE;
+
+				++srv_sys->n_threads_active[SRV_MASTER];
+
+				os_event_set(slot->event);
+			}
 		}
 
 		srv_sys_mutex_exit();
