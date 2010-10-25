@@ -84,8 +84,8 @@ GRANT PROXY ON qa_test_5_dest TO ''@'localhost';
 SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
 			*DFCACE76914AD7BD801FC1A1ECF6562272621A22
-qa_test_5_user	qa_auth_interface	qa_test_5_dest	
 qa_test_5_dest			*DFCACE76914AD7BD801FC1A1ECF6562272621A22
+qa_test_5_user	qa_auth_interface	qa_test_5_dest	
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_5_user  --password=qa_test_5_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 ERROR 1045 (28000): Access denied for user 'qa_test_5_user'@'localhost' (using password: YES)
 DROP USER qa_test_5_user;
@@ -98,32 +98,35 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest identified by 'dest_pas
 GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
 SELECT user,plugin,authentication_string,password FROM mysql.user;
 user	plugin	authentication_string	password
-root			
-root			
-root			
-qa_test_6_user	qa_auth_interface	qa_test_6_dest	
 qa_test_6_dest			*DFCACE76914AD7BD801FC1A1ECF6562272621A22
+qa_test_6_user	qa_auth_interface	qa_test_6_dest	
+root			
+root			
+root			
+root			
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_6_user  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 ERROR 1045 (28000): Access denied for user 'qa_test_6_user'@'localhost' (using password: YES)
 GRANT PROXY ON qa_test_6_dest TO root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
 SELECT user,plugin,authentication_string,password FROM mysql.user;
 user	plugin	authentication_string	password
-root			
-root			
-root			
-qa_test_6_user	qa_auth_interface	qa_test_6_dest	
 qa_test_6_dest			*DFCACE76914AD7BD801FC1A1ECF6562272621A22
+qa_test_6_user	qa_auth_interface	qa_test_6_dest	
+root			
+root			
+root			
+root			
 root	qa_auth_interface	qa_test_6_dest	
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
 REVOKE PROXY ON qa_test_6_dest FROM root;
 SELECT user,plugin,authentication_string FROM mysql.user;
 user	plugin	authentication_string
-root		
-root		
-root		
-qa_test_6_user	qa_auth_interface	qa_test_6_dest
 qa_test_6_dest		
+qa_test_6_user	qa_auth_interface	qa_test_6_dest
+root		
+root		
+root		
+root		
 root	qa_auth_interface	qa_test_6_dest
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
@@ -132,6 +135,7 @@ DROP USER qa_test_6_dest;
 DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
 SELECT user,plugin,authentication_string,password FROM mysql.user;
 user	plugin	authentication_string	password
+root			
 root			
 root			
 root			
