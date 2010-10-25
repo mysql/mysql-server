@@ -2463,16 +2463,20 @@ static void start_mutex_wait_v1(PSI_mutex_locker* locker,
   DBUG_ASSERT(state != NULL);
 
   register uint flags= state->m_flags;
+  ulonglong timer_start= 0;
 
   if (flags & STATE_FLAG_TIMED)
-    state->m_timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+  {
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
+  }
 
   if (flags & STATE_FLAG_WAIT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
 
-    wait->m_timer_start= state->m_timer_start;
+    wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
   }
@@ -2553,18 +2557,22 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
 static void start_rwlock_rdwait_v1(PSI_rwlock_locker* locker,
                                    const char *src_file, uint src_line)
 {
+  ulonglong timer_start= 0;
   PSI_rwlock_locker_state *state= reinterpret_cast<PSI_rwlock_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
   if (state->m_flags & STATE_FLAG_TIMED)
-    state->m_timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+  {
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
+  }
 
   if (state->m_flags & STATE_FLAG_WAIT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
 
-    wait->m_timer_start= state->m_timer_start;
+    wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
   }
@@ -2653,18 +2661,22 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
 static void start_rwlock_wrwait_v1(PSI_rwlock_locker* locker,
                                    const char *src_file, uint src_line)
 {
+  ulonglong timer_start= 0;
   PSI_rwlock_locker_state *state= reinterpret_cast<PSI_rwlock_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
   if (state->m_flags & STATE_FLAG_TIMED)
-    state->m_timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+  {
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
+  }
 
   if (state->m_flags & STATE_FLAG_WAIT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
 
-    wait->m_timer_start= state->m_timer_start;
+    wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
   }
@@ -2746,18 +2758,22 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
 static void start_cond_wait_v1(PSI_cond_locker* locker,
                                const char *src_file, uint src_line)
 {
+  ulonglong timer_start= 0;
   PSI_cond_locker_state *state= reinterpret_cast<PSI_cond_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
   if (state->m_flags & STATE_FLAG_TIMED)
-    state->m_timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+  {
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
+  }
 
   if (state->m_flags & STATE_FLAG_WAIT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
 
-    wait->m_timer_start= state->m_timer_start;
+    wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
   }
@@ -2832,20 +2848,24 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
 static void start_table_wait_v1(PSI_table_locker* locker, uint index,
                                 const char *src_file, uint src_line)
 {
+  ulonglong timer_start= 0;
   PSI_table_locker_state *state= reinterpret_cast<PSI_table_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
   register uint flags= state->m_flags;
 
   if (flags & STATE_FLAG_TIMED)
-    state->m_timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+  {
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
+  }
 
   if (flags & STATE_FLAG_WAIT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
 
-    wait->m_timer_start= state->m_timer_start;
+    wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
   }
@@ -3020,20 +3040,24 @@ static void start_file_wait_v1(PSI_file_locker *locker,
                                const char *src_file,
                                uint src_line)
 {
+  ulonglong timer_start= 0;
   PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
   register uint flags= state->m_flags;
 
   if (flags & STATE_FLAG_TIMED)
-    state->m_timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+  {
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
+  }
 
   if (flags & STATE_FLAG_WAIT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
 
-    wait->m_timer_start= state->m_timer_start;
+    wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
     wait->m_number_of_bytes= count;
