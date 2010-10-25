@@ -326,7 +326,7 @@ libxtradb_a_SOURCES=	\
 			ut/ut0vec.c			\
 			ut/ut0wqueue.c
 
-libxtradb_a_CXXFLAGS=	$(AM_CFLAGS)
+libxtradb_a_CXXFLAGS=	$(AM_CXXFLAGS)
 libxtradb_a_CFLAGS=	$(AM_CFLAGS)
 
 EXTRA_LTLIBRARIES=	ha_xtradb.la

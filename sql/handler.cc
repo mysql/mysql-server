@@ -2049,6 +2049,21 @@ handler *handler::clone(MEM_ROOT *mem_root)
   return new_handler;
 }
 
+double handler::keyread_time(uint index, uint ranges, ha_rows rows)
+{
+  /*
+    It is assumed that we will read trough the whole key range and that all
+    key blocks are half full (normally things are much better). It is also
+    assumed that each time we read the next key from the index, the handler
+    performs a random seek, thus the cost is proportional to the number of
+    blocks read. This model does not take into account clustered indexes -
+    engines that support that (e.g. InnoDB) may want to overwrite this method.
+  */
+  double keys_per_block= (stats.block_size/2.0/
+                          (table->key_info[index].key_length +
+                           ref_length) + 1);
+  return (rows + keys_per_block - 1)/ keys_per_block;
+}
 
 void **handler::ha_data(THD *thd) const
 {
@@ -3121,33 +3136,6 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
     return error;
   return update_frm_version(table);
 }
-
-/*
-  Calculate cost of 'index only' scan for given index and number of records.
-
-  SYNOPSIS
-  handler->keyread_read_time()
-      index    key to read
-      ranges   number of ranges
-      rows     #of records to read
-
-  NOTES
-    It is assumed that we will read trough all key ranges and that all
-    key blocks are half full (normally things are much better). It is also
-    assumed that each time we read the next key from the index, the handler
-    performs a random seek, thus the cost is proportional to the number of
-    blocks read.
-*/
-
-double handler::keyread_read_time(uint index, uint ranges, ha_rows rows)
-{
-  double read_time;
-  uint keys_per_block= (stats.block_size/2/
-			(table->key_info[index].key_length + ref_length) + 1);
-  read_time=((double) (rows+keys_per_block-1)/ (double) keys_per_block);
-  return read_time;
-}
-
 
 /**
   A helper function to mark a transaction read-write,

@@ -11,6 +11,7 @@ dnl internals@lists.mysql.com in advance of pushing the change.
 dnl
 dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
+dnl to update version.c in ndb.
 AC_INIT([MariaDB Server], [5.2.2-MariaDB-gamma], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
