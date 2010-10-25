@@ -6,7 +6,7 @@ connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
 connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 -- connection slave
--- source include/have_one_ndb.inc
+-- source suite/rpl_ndb/have_one_ndb.inc
 -- source include/ndb_conflict_info_init.inc
 
 connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
