@@ -212,7 +212,7 @@ The following options may be given as the first argument:
  a full path. Deprecated. Use --lc-messages-dir instead.
  --large-pages       Enable support for large pages
  --lc-messages=name  Set the language used for the error messages.
- -L, --lc-messages-dir=name 
+ --lc-messages-dir=name 
  Directory where error messages are
  --lc-time-names=name 
  Set the language used for the month names and the days of
@@ -287,7 +287,8 @@ The following options may be given as the first argument:
  information.
  --master-retry-count=# 
  The number of tries the slave will make to connect to the
- master before giving up.
+ master before giving up. Deprecated option, use 'CHANGE
+ MASTER TO master_retry_count = <num>' instead.
  --max-allowed-packet=# 
  Max packet length to send to or receive from the server
  --max-binlog-cache-size=# 

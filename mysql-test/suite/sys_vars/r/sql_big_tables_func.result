@@ -9,6 +9,8 @@ INSERT INTO t1 VALUES('aa','bb');
 INSERT INTO t1 VALUES('aa','bb');
 '#--------------------FN_DYNVARS_155_01-------------------------#'
 SET SESSION sql_big_tables = 1;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SET @diskTableCount = 0;
 SET @tempTableCount = 0;
 SELECT * FROM (SELECT ta.a as a, tb.b as b 
@@ -51,6 +53,8 @@ SELECT @tempTableCount;
 1 Expected
 '#--------------------FN_DYNVARS_155_02-------------------------#'
 SET SESSION sql_big_tables = 0;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SET @diskTableCount = 1;
 SET @tempTableCount = 1;
 SELECT * FROM (SELECT ta.b as a, tb.a as b FROM t1 as ta INNER JOIN t1 as tb ON ta.a = tb.a) sub;
@@ -98,6 +102,8 @@ SELECT @@SESSION.sql_big_tables;
 0
 0 / FALSE Expected;
 SET SESSION sql_big_tables = FALSE;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 ** Connecting con_int2 using root **
 ** Connection con_int2 **
 SELECT @@SESSION.sql_big_tables;
@@ -105,6 +111,8 @@ SELECT @@SESSION.sql_big_tables;
 0
 0 / FALSE Expected;
 SET SESSION sql_big_tables = TRUE;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 ** Connection con_int1 **
 SELECT @@SESSION.sql_big_tables;
 @@SESSION.sql_big_tables
@@ -118,4 +126,6 @@ SELECT @@SESSION.sql_big_tables;
 ** Connection default **
 Disconnecting Connections con_int1, con_int2
 SET SESSION sql_big_tables = @old_big_tables;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 DROP TABLE t1;

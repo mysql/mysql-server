@@ -1,5 +1,5 @@
 #---------------- 2-sweeps read Index merge test 2 -------------------------------
-SET SESSION STORAGE_ENGINE = InnoDB;
+SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 drop table if exists t1;
 create table t1 (
 pk int primary key,
@@ -137,7 +137,7 @@ pk	key1	key2	filler	filler2
 54	54	54	filler-data	filler-data-2
 drop table t1;
 #---------------- Clustered PK ROR-index_merge tests -----------------------------
-SET SESSION STORAGE_ENGINE = InnoDB;
+SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 drop table if exists  t1;
 create table t1
 (
