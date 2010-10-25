@@ -461,9 +461,10 @@ sub run_test_server ($$$) {
   my $num_failed_test= 0; # Number of tests failed so far
 
   # Scheduler variables
-  my $max_ndb= $childs / 2;
-  $max_ndb = 4 if $max_ndb > 4;
+  my $max_ndb= $ENV{MTR_MAX_NDB} || $childs;
+  $max_ndb = $childs if $max_ndb > $childs;
   $max_ndb = 1 if $max_ndb < 1;
+  print "max_ndb: $max_ndb\n";
   my $num_ndb_tests= 0;
 
   my $completed= [];
