@@ -18,6 +18,12 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
+mysql.slave_master_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
+mysql.slave_relay_log_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
 status   : OK
@@ -50,6 +56,12 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
+mysql.slave_master_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
+mysql.slave_relay_log_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
 status   : OK
@@ -82,6 +94,12 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
+mysql.slave_master_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
+mysql.slave_relay_log_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
 status   : OK
@@ -116,6 +134,12 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
+mysql.slave_master_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
+mysql.slave_relay_log_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
 status   : OK
@@ -154,6 +178,12 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
+mysql.slave_master_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
+mysql.slave_relay_log_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
 status   : OK
@@ -195,6 +225,12 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
+mysql.slave_master_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
+mysql.slave_relay_log_info
+Error    : You can't use locks with rpl info tables.
+status   : OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
 status   : OK

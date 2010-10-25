@@ -13,33 +13,57 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef RPL_INFO_FILE_H
-#define RPL_INFO_FILE_H
+#ifndef RPL_INFO_TABLE_H
+#define RPL_INFO_TABLE_H
 
-#include <my_global.h>
-#include <sql_priv.h>
 #include "rpl_info_handler.h"
+#include "rpl_info_table_access.h"
 
-/**
-  Defines a file hander.
-*/
-class Rpl_info_file : public Rpl_info_handler
+class Rpl_info_table : public Rpl_info_handler
 {
 public:
-  Rpl_info_file(int const nparam, const char* param_info_fname);
-  virtual ~Rpl_info_file() { };
+  Rpl_info_table(uint nparam, uint param_field_id, const char* param_schema,
+                 const char *param_table);
+  virtual ~Rpl_info_table();
+  /*
+    This enables to change the engine in use by internally executing
+    an ALTER TABLE ENGINE= engine.
 
+    @param[in]  engine  Type of the engine, e.g. Innodb, MyIsam.
+
+    @retval FALSE No error
+    @retval TRUE  Failure
+  */
+  bool change_engine(const char* engine);
 private:
-  char info_fname[FN_REFLEN + 128];
+  /*
+    This property identifies the name of the schema where a
+    replication table is created.
+  */
+  LEX_STRING str_schema;
 
   /*
-    info_fd - file descriptor of the info file. set only during
-    initialization or clean up - safe to read anytime
+    This property identifies the name of a replication
+    table.
   */
-  File info_fd;
+  LEX_STRING str_table;
 
-  /* IO_CACHE of the info file - set only during init or end */
-  IO_CACHE info_file;
+  /*
+    This property indentifies the id/position of the field that is
+    used as primary key.
+  */
+  uint field_idx;
+  /*
+    This property represents a description of the repository.
+    Speciffically, "schema"."table".
+  */
+  char *description;
+
+  /*
+    This is a pointer to a class that facilitates manipulation
+    of replication tables.
+  */
+  Rpl_info_table_access *access;
 
   int do_init_info();
   int do_check_info();
@@ -67,7 +91,8 @@ private:
   char* do_get_description_info();
   bool do_is_transactional();
 
-  Rpl_info_file& operator=(const Rpl_info_file& info);
-  Rpl_info_file(const Rpl_info_file& info);
+  Rpl_info_table& operator=(const Rpl_info_table& info);
+  Rpl_info_table(const Rpl_info_table& info);
 };
-#endif /* RPL_INFO_FILE_H */
+
+#endif /* RPL_INFO_TABLE_H */
