@@ -26,7 +26,6 @@ rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails spora
 rpl.rpl_innodb_bug28430*                 # Bug#46029
 rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_innodb_bug30888 fails sporadically on Solaris
 rpl.rpl_killed_ddl @windows              # Bug#47638 2010-01-20 alik The rpl_killed_ddl test fails on Windows
-rpl.rpl_row_sp011* @solaris              # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 sys_vars.slow_query_log_func @solaris         # Bug#54819 2010-06-26 alik sys_vars.slow_query_log_func fails sporadically on Solaris 10
