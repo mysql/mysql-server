@@ -56,7 +56,6 @@ connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
 let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
-
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 --let $binlog_killed_pos=query_get_value(SHOW BINLOG EVENTS, Pos, 4)
@@ -75,6 +74,14 @@ eval set @result= $rows - $error_code - $insert_binlogged;
 
 --enable_warnings
 --enable_abort_on_error
+
+if (`SELECT @result != 0`)
+{
+  -- echo error_code:$error_code, insert:$insert_binlogged, rows:$rows
+  SELECT * FROM t2;
+  
+  -- die
+}
 
 select @result /* must be zero either way */;
 

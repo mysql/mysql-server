@@ -5772,7 +5772,18 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       ((Field_str*)field)->charset() != conf_func->compare_collation() &&
       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
+  {
+    if (param->thd->lex->describe & DESCRIBE_EXTENDED)
+      push_warning_printf(
+              param->thd,
+              MYSQL_ERROR::WARN_LEVEL_WARN, 
+              ER_WARN_INDEX_NOT_APPLICABLE,
+              ER(ER_WARN_INDEX_NOT_APPLICABLE),
+              "range",
+              field->table->key_info[param->real_keynr[key_part->key]].name,
+              field->field_name);
     goto end;
+  }
 
   if (key_part->image_type == Field::itMBR)
   {
@@ -5893,7 +5904,18 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   if (field->result_type() == STRING_RESULT &&
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
+  {
+    if (param->thd->lex->describe & DESCRIBE_EXTENDED)
+      push_warning_printf(
+              param->thd,
+              MYSQL_ERROR::WARN_LEVEL_WARN, 
+              ER_WARN_INDEX_NOT_APPLICABLE,
+              ER(ER_WARN_INDEX_NOT_APPLICABLE),
+              "range",
+              field->table->key_info[param->real_keynr[key_part->key]].name,
+              field->field_name);
     goto end;
+  }
   /* For comparison purposes allow invalid dates like 2000-01-32 */
   orig_sql_mode= field->table->in_use->variables.sql_mode;
   if (value->real_item()->type() == Item::STRING_ITEM &&
@@ -8678,9 +8700,14 @@ int QUICK_RANGE_SELECT::reset()
   last_range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
-  if (file->inited == handler::NONE && (error= file->ha_index_init(index,1)))
-    DBUG_RETURN(error);
- 
+  if (file->inited == handler::NONE)
+  {
+    if (in_ror_merged_scan)
+      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+    if ((error= file->ha_index_init(index,1)))
+        DBUG_RETURN(error);
+  }
+
   /* Allocate buffer if we need one but haven't allocated it yet */
   if (mrr_buf_size && !mrr_buf_desc)
   {

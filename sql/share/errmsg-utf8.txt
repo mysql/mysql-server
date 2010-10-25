@@ -6393,4 +6393,7 @@ ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from a log file."
 ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE
   eng "Slave can not handle replication events with the checksum that master is configured to log."
-
+ER_WARN_INDEX_NOT_APPLICABLE
+  eng "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'"
+ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
+  eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."

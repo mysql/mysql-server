@@ -257,6 +257,7 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
+#define IGNORABLE_HEADER_LEN   0
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -498,6 +499,17 @@ struct sql_ex_info
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
 /**
+   @def LOG_EVENT_IGNORABLE_F
+
+   For an event, 'e', carrying a type code, that a slave,
+   's', does not recognize, 's' will check 'e' for
+   LOG_EVENT_IGNORABLE_F, and if the flag is set, then 'e'
+   is ignored. Otherwise, 's' acknowledges that it has
+   found an unknown event in the relay log.
+*/
+#define LOG_EVENT_IGNORABLE_F 0x80
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -610,7 +622,16 @@ enum Log_event_type
     to ensure master's online status to slave 
   */
   HEARTBEAT_LOG_EVENT= 27,
-  
+
+  /*
+    In some situations, it is necessary to send over ignorable
+    data to the slave: data that a slave can handle in case there
+    is code for handling it, but which can be ignored if it is not
+    recognized.
+  */
+  IGNORABLE_LOG_EVENT= 28,
+  ROWS_QUERY_LOG_EVENT= 29,
+
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -1107,6 +1128,7 @@ public:
   void set_relay_log_event() { flags |= LOG_EVENT_RELAY_LOG_F; }
   bool is_artificial_event() const { return flags & LOG_EVENT_ARTIFICIAL_F; }
   bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
+  bool is_ignorable_event() const { return flags & LOG_EVENT_IGNORABLE_F; }
   inline bool use_trans_cache() const
   { 
     return (cache_type == Log_event::EVENT_TRANSACTIONAL_CACHE);
@@ -3628,8 +3650,57 @@ public:
   virtual int get_data_size();
 
   MY_BITMAP const *get_cols() const { return &m_cols; }
+  MY_BITMAP const *get_cols_ai() const { return &m_cols_ai; }
   size_t get_width() const          { return m_width; }
   ulong get_table_id() const        { return m_table_id; }
+
+#if defined(MYSQL_SERVER)
+  /*
+    This member function compares the table's read/write_set
+    with this event's m_cols and m_cols_ai. Comparison takes 
+    into account what type of rows event is this: Delete, Write or
+    Update, therefore it uses the correct m_cols[_ai] according
+    to the event type code.
+
+    Note that this member function should only be called for the
+    following events:
+    - Delete_rows_log_event
+    - Wrirte_rows_log_event
+    - Update_rows_log_event
+
+    @param[IN] table The table to compare this events bitmaps 
+                     against.
+
+    @return TRUE if sets match, FALSE otherwise. (following 
+                 bitmap_cmp return logic).
+
+   */
+  virtual bool read_write_bitmaps_cmp(TABLE *table)
+  {
+    bool res= FALSE;
+
+    switch (get_type_code())
+    {
+      case DELETE_ROWS_EVENT:
+        res= bitmap_cmp(get_cols(), table->read_set);
+        break;
+      case UPDATE_ROWS_EVENT:
+        res= (bitmap_cmp(get_cols(), table->read_set) &&
+              bitmap_cmp(get_cols_ai(), table->write_set));
+        break;
+      case WRITE_ROWS_EVENT:
+        res= bitmap_cmp(get_cols(), table->write_set);
+        break;
+      default:
+        /* 
+          We should just compare bitmaps for Delete, Write
+          or Update rows events.
+        */
+        DBUG_ASSERT(0);
+    }
+    return res;
+  }
+#endif
 
 #ifdef MYSQL_SERVER
   virtual bool write_data_header(IO_CACHE *file);
@@ -3709,13 +3780,14 @@ protected:
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
+                         MY_BITMAP const *cols,
                          const bool abort_on_warning= TRUE)
   { 
     DBUG_ASSERT(m_table);
 
     bool first_row= (m_curr_row == m_rows_buf);
-    ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
-    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
+    ASSERT_OR_RETURN_ERROR(m_curr_row <= m_rows_end, HA_ERR_CORRUPT_EVENT);
+    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, cols,
                                    &m_curr_row_end, &m_master_reclength,
                                    abort_on_warning, first_row);
     if (m_curr_row_end > m_rows_end)
@@ -3807,7 +3879,7 @@ public:
 
 #if defined(MYSQL_SERVER)
   Write_rows_log_event(THD*, TABLE*, ulong table_id, 
-		       MY_BITMAP const *cols, bool is_transactional);
+		       bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Write_rows_log_event(const char *buf, uint event_len, 
@@ -3816,14 +3888,12 @@ public:
 #if defined(MYSQL_SERVER) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
-                                          MY_BITMAP *cols,
-                                          uint fields,
                                           const uchar *before_record
                                           __attribute__((unused)),
                                           const uchar *after_record)
   {
     return thd->binlog_write_row(table, is_transactional,
-                                 cols, fields, after_record);
+                                 after_record);
   }
 #endif
 
@@ -3870,7 +3940,6 @@ public:
                         bool is_transactional);
 
   Update_rows_log_event(THD*, TABLE*, ulong table_id,
-			MY_BITMAP const *cols,
                         bool is_transactional);
 
   void init(MY_BITMAP const *cols);
@@ -3886,13 +3955,11 @@ public:
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
-                                          MY_BITMAP *cols,
-                                          uint fields,
                                           const uchar *before_record,
                                           const uchar *after_record)
   {
     return thd->binlog_update_row(table, is_transactional,
-                                  cols, fields, before_record, after_record);
+                                  before_record, after_record);
   }
 #endif
 
@@ -3946,7 +4013,7 @@ public:
 
 #ifdef MYSQL_SERVER
   Delete_rows_log_event(THD*, TABLE*, ulong, 
-			MY_BITMAP const *cols, bool is_transactional);
+			bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Delete_rows_log_event(const char *buf, uint event_len, 
@@ -3955,14 +4022,12 @@ public:
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
-                                          MY_BITMAP *cols,
-                                          uint fields,
                                           const uchar *before_record,
                                           const uchar *after_record
                                           __attribute__((unused)))
   {
     return thd->binlog_delete_row(table, is_transactional,
-                                  cols, fields, before_record);
+                                  before_record);
   }
 #endif
   
@@ -4081,6 +4146,96 @@ private:
   LEX_STRING m_message;
 };
 
+
+/**
+  @class Ignorable_log_event
+
+  Base class for ignorable log events. Events deriving from
+  this class can be safely ignored by slaves that cannot
+  recognize them. Newer slaves, will be able to read and
+  handle them. This has been designed to be an open-ended
+  architecture, so adding new derived events shall not harm
+  the old slaves that support ignorable log event mechanism
+  (they will just ignore unrecognized ignorable events).
+**/
+class Ignorable_log_event : public Log_event {
+public:
+#ifndef MYSQL_CLIENT
+  Ignorable_log_event(THD *thd_arg)
+      : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, FALSE)
+  {
+    DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
+    DBUG_VOID_RETURN;
+  }
+#endif
+
+  Ignorable_log_event(const char *buf,
+                      const Format_description_log_event *descr_event);
+
+  virtual ~Ignorable_log_event();
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+  virtual Log_event_type get_type_code() { return IGNORABLE_LOG_EVENT; }
+
+  virtual bool is_valid() const { return 1; }
+
+  virtual int get_data_size() { return IGNORABLE_HEADER_LEN; }
+};
+
+
+class Rows_query_log_event : public Ignorable_log_event {
+public:
+#ifndef MYSQL_CLIENT
+  Rows_query_log_event(THD *thd_arg, const char * query, ulong query_len)
+    : Ignorable_log_event(thd_arg)
+  {
+    DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
+    if (!(m_rows_query= (char*) my_malloc(query_len + 1, MYF(MY_WME))))
+      return;
+    my_snprintf(m_rows_query, query_len + 1, "%s", query);
+    DBUG_PRINT("enter", ("%s", m_rows_query));
+    DBUG_VOID_RETURN;
+  }
+#endif
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+  Rows_query_log_event(const char *buf, uint event_len,
+                     const Format_description_log_event *descr_event);
+
+  virtual ~Rows_query_log_event();
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+  virtual bool write_data_body(IO_CACHE *file);
+
+  virtual Log_event_type get_type_code() { return ROWS_QUERY_LOG_EVENT; }
+
+  virtual int get_data_size()
+  {
+    return IGNORABLE_HEADER_LEN + 1 + (uint) strlen(m_rows_query);
+  }
+
+private:
+#if !defined(MYSQL_CLIENT)
+  virtual int do_apply_event(Relay_log_info const* rli);
+#endif
+
+  char * m_rows_query;
+};
+
+
+
 static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
                                                        FILE *file)
 {
@@ -4128,6 +4283,7 @@ private:
 int append_query_string(CHARSET_INFO *csinfo,
                         String const *from, String *to);
 bool sqlcom_can_generate_row_events(const THD *thd);
+void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli);
 
 bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);

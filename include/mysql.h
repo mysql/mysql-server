@@ -167,7 +167,7 @@ enum mysql_option
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-  MYSQL_OPT_SSL_VERIFY_SERVER_CERT
+  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_OPT_BIND
 };
 
 struct st_mysql_options {
@@ -191,7 +191,20 @@ struct st_mysql_options {
   my_bool unused3;
   my_bool unused4;
   enum mysql_option methods_to_use;
-  char *client_ip;
+  union {
+    /*
+      The ip/hostname to use when authenticating
+      client against embedded server built with
+      grant tables - only used in embedded server
+    */
+    char *client_ip;
+
+    /*
+      The local address to bind when connecting to
+      remote server - not used in embedded server
+    */
+    char *bind_address;
+  } ci;
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
   my_bool secure_auth;
   /* 0 - never report, 1 - always report (default) */
@@ -208,7 +221,8 @@ struct st_mysql_options {
 
 enum mysql_status 
 {
-  MYSQL_STATUS_READY,MYSQL_STATUS_GET_RESULT,MYSQL_STATUS_USE_RESULT
+  MYSQL_STATUS_READY, MYSQL_STATUS_GET_RESULT, MYSQL_STATUS_USE_RESULT,
+  MYSQL_STATUS_STATEMENT_GET_RESULT
 };
 
 enum mysql_protocol_type 

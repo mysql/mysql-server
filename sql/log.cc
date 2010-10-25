@@ -1125,7 +1125,7 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
 void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 {
   my_bool *tmp_opt= 0;
-  MYSQL_LOG *file_log;
+  MYSQL_LOG *file_log= NULL;
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -1996,10 +1996,32 @@ extern "C" my_bool reopen_fstreams(const char *filename,
                                    FILE *outstream, FILE *errstream)
 {
   int handle_fd;
-  int stream_fd;
+  int err_fd, out_fd;
   HANDLE osfh;
 
-  DBUG_ASSERT(filename && (outstream || errstream));
+  DBUG_ASSERT(filename && errstream);
+
+  // Services don't have stdout/stderr on Windows, so _fileno returns -1.
+  err_fd= _fileno(errstream);
+  if (err_fd < 0)
+  {
+    if (!freopen(filename, "a+", errstream))
+      return TRUE;
+
+    setbuf(errstream, NULL);
+    err_fd= _fileno(errstream);
+  }
+
+  if (outstream)
+  {
+    out_fd= _fileno(outstream);
+    if (out_fd < 0)
+    {
+      if (!freopen(filename, "a+", outstream))
+        return TRUE;
+      out_fd= _fileno(outstream);
+    }
+  }
 
   if ((osfh= CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
                         FILE_SHARE_READ | FILE_SHARE_WRITE |
@@ -2015,24 +2037,16 @@ extern "C" my_bool reopen_fstreams(const char *filename,
     return TRUE;
   }
 
-  if (outstream)
+  if (_dup2(handle_fd, err_fd) < 0)
   {
-    stream_fd= _fileno(outstream);
-    if (_dup2(handle_fd, stream_fd) < 0)
-    {
-      CloseHandle(osfh);
-      return TRUE;
-    }
+    CloseHandle(osfh);
+    return TRUE;
   }
 
-  if (errstream)
+  if (outstream && _dup2(handle_fd, out_fd) < 0)
   {
-    stream_fd= _fileno(errstream);
-    if (_dup2(handle_fd, stream_fd) < 0)
-    {
-      CloseHandle(osfh);
-      return TRUE;
-    }
+    CloseHandle(osfh);
+    return TRUE;
   }
 
   _close(handle_fd);

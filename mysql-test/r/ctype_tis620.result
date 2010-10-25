@@ -138,7 +138,7 @@ year
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1
 (
 name varchar(50) NOT NULL default '',

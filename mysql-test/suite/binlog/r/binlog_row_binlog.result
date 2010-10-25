@@ -1,3 +1,25 @@
+SELECT @@session.binlog_row_image INTO @saved_binlog_row_image;
+SET binlog_row_image= MINIMAL;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+RESET MASTER;
+CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(100)) ENGINE=Innodb;
+INSERT INTO t1 VALUES (1,'a'), (2,'b'), (3, 'c');
+DELETE FROM t1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(100)) ENGINE=Innodb
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+DROP TABLE t1;
+SET binlog_row_image= @saved_binlog_row_image;
 drop table if exists t1, t2;
 reset master;
 create table t1 (a int) engine=innodb;
@@ -675,8 +697,9 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
-insert delayed into t1 values (null),(null),(null),(null);
-insert delayed into t1 values (null),(null),(400),(null);
+RESET MASTER;
+insert /* before delayed */ delayed /* after delayed */ into t1 values (null),(null),(null),(null);
+insert  /*! delayed */ into t1 values (null),(null),(400),(null);
 select * from t1;
 a
 207

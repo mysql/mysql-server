@@ -262,7 +262,7 @@ enum mysql_option
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-  MYSQL_OPT_SSL_VERIFY_SERVER_CERT
+  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_OPT_BIND
 };
 struct st_mysql_options {
   unsigned int connect_timeout, read_timeout, write_timeout;
@@ -285,7 +285,10 @@ struct st_mysql_options {
   my_bool unused3;
   my_bool unused4;
   enum mysql_option methods_to_use;
-  char *client_ip;
+  union {
+    char *client_ip;
+    char *bind_address;
+  } ci;
   my_bool secure_auth;
   my_bool report_data_truncation;
   int (*local_infile_init)(void **, const char *, void *);
@@ -297,7 +300,8 @@ struct st_mysql_options {
 };
 enum mysql_status
 {
-  MYSQL_STATUS_READY,MYSQL_STATUS_GET_RESULT,MYSQL_STATUS_USE_RESULT
+  MYSQL_STATUS_READY, MYSQL_STATUS_GET_RESULT, MYSQL_STATUS_USE_RESULT,
+  MYSQL_STATUS_STATEMENT_GET_RESULT
 };
 enum mysql_protocol_type
 {
