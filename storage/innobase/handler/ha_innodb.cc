@@ -1168,16 +1168,16 @@ innobase_get_stmt(
 }
 
 /**********************************************************************//**
-Get the current seting of the table_cache_size global parameter. We do
+Get the current seting of the table_def_size global parameter. We do
 a dirty read because for one there is no synchronization object and
 secondly there is little harm in doing so even if we get a torn read.
-@return	SQL statement string */
+@return	value of table_def_size */
 extern "C" UNIV_INTERN
 ulint
 innobase_get_table_cache_size(void)
 /*===============================*/
 {
-	return(table_cache_size);
+	return(table_def_size);
 }
 
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)

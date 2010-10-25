@@ -1587,7 +1587,7 @@ dict_table_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table)	/*!< in, own: table */
 {
-	return(dict_table_remove_from_cache_low(table, FALSE));
+	dict_table_remove_from_cache_low(table, FALSE);
 }
 
 /****************************************************************//**
@@ -2124,7 +2124,7 @@ dict_index_remove_from_cache(
 	dict_table_t*	table,	/*!< in/out: table */
 	dict_index_t*	index)	/*!< in, own: index */
 {
-	return(dict_index_remove_from_cache_low(table, index, FALSE));
+	dict_index_remove_from_cache_low(table, index, FALSE);
 }
 
 /*******************************************************************//**
