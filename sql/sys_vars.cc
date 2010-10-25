@@ -36,6 +36,7 @@
 #include <thr_alarm.h>
 #include "rpl_slave.h"
 #include "rpl_mi.h"
+#include "rpl_info_factory.h"
 #include "transaction.h"
 #include "mysqld.h"
 #include "lock.h"
@@ -243,6 +244,12 @@ static Sys_var_charptr Sys_basedir(
        READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
        IN_FS_CHARSET, DEFAULT(0));
 
+static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
+{
+  check_binlog_cache_size(thd);
+  return false;
+}
+
 static Sys_var_ulong Sys_binlog_cache_size(
        "binlog_cache_size", "The size of the cache to "
        "hold the SQL statements for the binary log during a "
@@ -250,7 +257,9 @@ static Sys_var_ulong Sys_binlog_cache_size(
        "transactions you can increase this to get more performance",
        GLOBAL_VAR(binlog_cache_size),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
+       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_cache_size));
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
@@ -335,6 +344,22 @@ static Sys_var_enum Sys_binlog_format(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
        ON_UPDATE(fix_binlog_format_after_update));
 
+static const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
+static Sys_var_enum Sys_binlog_row_image(
+       "binlog_row_image", 
+       "Controls whether rows should be logged in 'FULL', 'NOBLOB' or "
+       "'MINIMAL' formats. 'FULL', means that all columns in the before "
+       "and after image are logged. 'NOBLOB', means that mysqld avoids logging "
+       "blob columns whenever possible (eg, blob column was not changed or "
+       "is not part of primary key). 'MINIMAL', means that a PK equivalent (PK "
+       "columns or full row if there is no PK in the table) is logged in the "
+       "before image, and only changed columns are logged in the after image. "
+       "(Default: FULL).",
+       SESSION_VAR(binlog_row_image), CMD_LINE(REQUIRED_ARG),
+       binlog_row_image_names, DEFAULT(BINLOG_ROW_IMAGE_FULL),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL));
+
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
 {
   if (check_has_super(self, thd, var))
@@ -375,6 +400,31 @@ static Sys_var_mybool Sys_binlog_direct(
        SESSION_VAR(binlog_direct_non_trans_update),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
+
+static const char *repository_names[]=
+{
+  "FILE", 0
+};
+
+ulong opt_mi_repository_id;
+static Sys_var_enum Sys_mi_repository(
+       "master_info_repository",
+       "Defines the type of the repository for the master information."
+       , READ_ONLY GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
+       repository_names, DEFAULT(0));
+
+ulong opt_rli_repository_id;
+static Sys_var_enum Sys_rli_repository(
+       "relay_log_info_repository",
+       "Defines the type of the repository for the relay log information."
+       , READ_ONLY GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
+       repository_names, DEFAULT(0));
+
+static Sys_var_mybool Sys_binlog_rows_query(
+       "binlog_rows_query_log_events",
+       "Allow writing of Rows_query_log events into binary log.",
+       SESSION_VAR(binlog_rows_query_log_events),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
@@ -1057,14 +1107,16 @@ static Sys_var_ulonglong Sys_max_binlog_cache_size(
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
        DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
-       BLOCK_SIZE(IO_SIZE));
+       BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_cache_size));
 
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_bin_log.set_max_size(max_binlog_size);
 #ifdef HAVE_REPLICATION
   if (!max_relay_log_size)
-    active_mi->rli.relay_log.set_max_size(max_binlog_size);
+    active_mi->rli->relay_log.set_max_size(max_binlog_size);
 #endif
   return false;
 }
@@ -1198,7 +1250,7 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifdef HAVE_REPLICATION
-  active_mi->rli.relay_log.set_max_size(max_relay_log_size ?
+  active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
                                         max_relay_log_size: max_binlog_size);
 #endif
   return false;
@@ -3009,32 +3061,32 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
   mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli.run_lock);
-  if (active_mi->rli.slave_running)
+  mysql_mutex_lock(&active_mi->rli->run_lock);
+  if (active_mi->rli->slave_running)
   {
     my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
     result= true;
   }
-  mysql_mutex_unlock(&active_mi->rli.run_lock);
+  mysql_mutex_unlock(&active_mi->rli->run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
   return result;
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli.run_lock);
+  mysql_mutex_lock(&active_mi->rli->run_lock);
   /*
     The following test should normally never be true as we test this
     in the check function;  To be safe against multiple
     SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
   */
-  if (!active_mi->rli.slave_running)
+  if (!active_mi->rli->slave_running)
   {
-    mysql_mutex_lock(&active_mi->rli.data_lock);
-    active_mi->rli.slave_skip_counter= sql_slave_skip_counter;
-    mysql_mutex_unlock(&active_mi->rli.data_lock);
+    mysql_mutex_lock(&active_mi->rli->data_lock);
+    active_mi->rli->slave_skip_counter= sql_slave_skip_counter;
+    mysql_mutex_unlock(&active_mi->rli->data_lock);
   }
-  mysql_mutex_unlock(&active_mi->rli.run_lock);
+  mysql_mutex_unlock(&active_mi->rli->run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
   return 0;
 }

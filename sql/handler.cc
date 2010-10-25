@@ -2690,7 +2690,7 @@ void handler::column_bitmaps_signal()
 {
   DBUG_ENTER("column_bitmaps_signal");
   DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
-                      (long) table->write_set));
+                      (long)table->write_set));
   DBUG_VOID_RETURN;
 }
 
@@ -5595,6 +5595,7 @@ static int write_locked_table_maps(THD *thd)
       if (lock == NULL)
         continue;
 
+      bool need_binlog_rows_query= thd->variables.binlog_rows_query_log_events;
       TABLE **const end_ptr= lock->table + lock->table_count;
       for (TABLE **table_ptr= lock->table ; 
            table_ptr != end_ptr ;
@@ -5620,7 +5621,12 @@ static int write_locked_table_maps(THD *thd)
           */
           bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
                                 table->file->has_transactions();
-          int const error= thd->binlog_write_table_map(table, has_trans);
+          int const error= thd->binlog_write_table_map(table, has_trans,
+                                                       need_binlog_rows_query);
+          /* Binlog Rows_query log event once for one statement which updates
+             two or more tables.*/
+          if (need_binlog_rows_query)
+            need_binlog_rows_query= FALSE;
           /*
             If an error occurs, it is the responsibility of the caller to
             roll back the transaction.
@@ -5635,8 +5641,8 @@ static int write_locked_table_maps(THD *thd)
 }
 
 
-typedef bool Log_func(THD*, TABLE*, bool, MY_BITMAP*,
-                      uint, const uchar*, const uchar*);
+typedef bool Log_func(THD*, TABLE*, bool,
+                      const uchar*, const uchar*);
 
 static int binlog_log_row(TABLE* table,
                           const uchar *before_record,
@@ -5650,40 +5656,28 @@ static int binlog_log_row(TABLE* table,
 
   if (check_table_binlog_row_based(thd, table))
   {
-    MY_BITMAP cols;
-    /* Potential buffer on the stack for the bitmap */
-    uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
-    uint n_fields= table->s->fields;
-    my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
+    DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,
+              (table->s->fields + 7) / 8);
 
     /*
       If there are no table maps written to the binary log, this is
       the first row handled in this statement. In that case, we need
       to write table maps for all locked tables to the binary log.
     */
-    if (likely(!(error= bitmap_init(&cols,
-                                    use_bitbuf ? bitbuf : NULL,
-                                    (n_fields + 7) & ~7UL,
-                                    FALSE))))
+    if (likely(!(error= write_locked_table_maps(thd))))
     {
-      bitmap_set_all(&cols);
-      if (likely(!(error= write_locked_table_maps(thd))))
-      {
-        /*
-          We need to have a transactional behavior for SQLCOM_CREATE_TABLE
-          (i.e. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
-          compatible behavior with the STMT based replication even when
-          the table is not transactional. In other words, if the operation
-          fails while executing the insert phase nothing is written to the
-          binlog.
-        */
-        bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
-                             table->file->has_transactions();
-        error= (*log_func)(thd, table, has_trans, &cols, table->s->fields,
-                           before_record, after_record);
-      }
-      if (!use_bitbuf)
-        bitmap_free(&cols);
+      /*
+        We need to have a transactional behavior for SQLCOM_CREATE_TABLE
+        (i.e. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
+        compatible behavior with the STMT based replication even when
+        the table is not transactional. In other words, if the operation
+        fails while executing the insert phase nothing is written to the
+        binlog.
+      */
+      bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                           table->file->has_transactions();
+      error=
+        (*log_func)(thd, table, has_trans, before_record, after_record);
     }
   }
   return error ? HA_ERR_RBR_LOGGING_FAILED : 0;

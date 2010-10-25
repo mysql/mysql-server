@@ -1276,6 +1276,19 @@ public:
     Return TRUE if the item points to a column of an outer-joined table.
   */
   virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
+
+  /**
+     Check if an item either is a blob field, or will be represented as a BLOB
+     field if a field is created based on this item.
+     
+     @note Original non-BLOB items that are longer than
+     CONVERT_IF_BIGGER_TO_BLOB will be converted to BLOBs when a field
+     is created for it.
+     
+     @retval TRUE  If a field based on this item will be a BLOB field,
+     @retval FALSE Otherwise.
+  */
+  bool is_blob_field() const;
 };
 
 

@@ -487,3 +487,10 @@ diff_files $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn $MYSQLTEST_VARDIR/tmp/mysqlbin
 # Cleanup for this part of test
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;
+
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqlbinlog --protocol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQL_BINLOG --short-form --read-from-remote-server --protocol=tcp --bind-address=127.0.0.1 master-bin.000001 > /dev/null
+

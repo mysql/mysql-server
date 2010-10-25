@@ -104,9 +104,10 @@ mysql_mutex_t LOCK_dd_owns_lock_open;
 uint dd_owns_lock_open= 0;
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_open;
+static PSI_mutex_key key_LOCK_open, key_LOCK_dd_owns_lock_open;
 static PSI_mutex_info all_tdc_mutexes[]= {
-  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL }
+  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL },
+  { &key_LOCK_dd_owns_lock_open, "LOCK_dd_owns_lock_open", PSI_FLAG_GLOBAL }
 };
 
 /**
@@ -300,7 +301,8 @@ bool table_def_init(void)
   init_tdc_psi_keys();
 #endif
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(NULL, &LOCK_dd_owns_lock_open, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_dd_owns_lock_open, &LOCK_dd_owns_lock_open,
+                   MY_MUTEX_INIT_FAST);
   oldest_unused_share= &end_of_unused_share;
   end_of_unused_share.prev= &oldest_unused_share;
 
@@ -8171,7 +8173,17 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   if (!table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
+  {
+    String tbl_name;
+    if (db_name)
+    {
+      tbl_name.append(String(db_name,system_charset_info));
+      tbl_name.append('.');
+    }
+    tbl_name.append(String(table_name,system_charset_info));
+
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
+  }
 
   DBUG_RETURN(TRUE);
 }

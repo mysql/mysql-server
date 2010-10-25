@@ -3783,11 +3783,6 @@ SELECT 1 FROM t1 WHERE a <> 1 AND NOT
 ROW(1,a) <=> ROW(1,(SELECT 1 FROM t1))
 INTO @var0;
 
-# Query correctly return 2 rows since comparison a <=> fisrt_subquery is
-# always false, thus the second query is never executed.
-SELECT 1 FROM t1 WHERE a <> 1 AND NOT
-ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1));
-
 DROP TABLE t1;
  
 --echo #

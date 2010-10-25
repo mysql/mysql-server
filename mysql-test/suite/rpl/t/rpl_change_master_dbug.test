@@ -6,7 +6,9 @@
 #
 # BUG#44209: MASTER_CONNECT_RETRY and --master-retry-count disconnected from each other
 #
-# Second part of the tests. Requires debug build.
+# BUG#56416
+# The test also verifies that the 'Last_IO_Error' entry of SHOW SLAVE STATUS
+# will display the number of real retries
 #
 
 ## Checks that the slave actually gives up after retrying N times, where
@@ -14,8 +16,6 @@
 
 -- connection slave
 -- source include/stop_slave.inc
-SET @old_debug= @@global.debug;
-SET GLOBAL debug="+d,connect_to_master_always_report_error";
 CHANGE MASTER TO master_retry_count=3, master_host='dummy', master_connect_retry=1;
 START SLAVE io_thread;
 
@@ -32,7 +32,6 @@ if (!`SELECT "$error" LIKE "%retries: 3"`)
   -- echo Expected number of retries was: 3
   -- die
 }
-SET @@global.debug= @old_debug;
 
 -- source include/master-slave-reset.inc
 -- source include/master-slave-end.inc

@@ -229,11 +229,12 @@ public:
      be set to 1, otherwise 0.
 
      @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
+     @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success
      @retval other Failure
   */
-  bool flush_and_sync(bool *synced);
+  bool flush_and_sync(bool *synced, const bool force=FALSE);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
@@ -263,6 +264,7 @@ public:
   inline char* get_log_fname() { return log_file_name; }
   inline char* get_name() { return name; }
   inline mysql_mutex_t* get_log_lock() { return &LOCK_log; }
+  inline mysql_cond_t* get_log_cond() { return &update_cond; }
   inline IO_CACHE* get_log_file() { return &log_file; }
 
   inline void lock_index() { mysql_mutex_lock(&LOCK_index);}
@@ -295,5 +297,6 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
+void check_binlog_cache_size(THD *thd);
 
 #endif /* BINLOG_H_INCLUDED */

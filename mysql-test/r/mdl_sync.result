@@ -16,7 +16,7 @@ connection: con1
 connection: default
 unlock tables;
 connection: con2
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 drop table t3;
 SET DEBUG_SYNC= 'RESET';
 #
@@ -2878,7 +2878,7 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Reaping: DROP DATABASE db1
 # Connection con2
 # Reaping: DROP TABLE db1.t1
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'db1.t1'
 # Connection default
 SET DEBUG_SYNC= 'RESET';
 #
