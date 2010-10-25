@@ -106,6 +106,36 @@ static MYSQL_THDVAR_BOOL(prelock_empty,
   TRUE
   );
 
+void tokudb_checkpoint_lock(THD * thd);
+void tokudb_checkpoint_unlock(THD * thd);
+
+static
+void
+tokudb_checkpoint_lock_update(
+    THD* thd,
+    struct st_mysql_sys_var* var,
+    void* var_ptr,
+    const void* save) 
+{
+    printf("Hello update!\n");
+    my_bool* val = (my_bool *) var_ptr;
+    *val= *(my_bool *) save ? TRUE : FALSE;
+    if (*val) {
+        tokudb_checkpoint_lock(thd);
+    }
+    else {
+        tokudb_checkpoint_unlock(thd);
+    }
+}
+  
+static MYSQL_THDVAR_BOOL(checkpoint_lock,
+  0,
+  "Tokudb Checkpoint Lock",
+  NULL, 
+  tokudb_checkpoint_lock_update, 
+  FALSE
+  );
+
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
 static void tokudb_cleanup_log_files(void);
@@ -1120,59 +1150,56 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 }
 
 
-int tokudb_checkpoint_lock(THD * thd, stat_print_fn * stat_print) {
+void tokudb_checkpoint_lock(THD * thd) {
     int error;
     tokudb_trx_data* trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
         error = create_tokudb_trx_data_instance(&trx);
-        if (error) { goto cleanup; }
+        //
+        // can only fail due to memory allocation, so ok to assert
+        //
+        assert(!error);
         thd_data_set(thd, tokudb_hton->slot, trx);
     }
     
     if (trx->checkpoint_lock_taken) {
-        STATPRINT("checkpoint lock", "Lock already taken");
-        error = 0;
         goto cleanup;
     }
+    //
+    // This can only fail if environment is not created, which is not possible
+    // in handlerton
+    //
     error = db_env->checkpointing_postpone(db_env);
-    if (error) { goto cleanup; }
+    assert(!error);
 
     trx->checkpoint_lock_taken = true;
-    STATPRINT("checkpoint lock", "Lock successfully taken");
-    error = 0;
-    
 cleanup:
-    if (error) { my_errno = error; }
-    return error;
+    return;
 }
 
-int tokudb_checkpoint_unlock(THD * thd, stat_print_fn * stat_print) {
+void tokudb_checkpoint_unlock(THD * thd) {
     int error;
     tokudb_trx_data* trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
         error = 0;
-        STATPRINT("checkpoint unlock", "Lock never taken");
         goto  cleanup;
     }
     if (!trx->checkpoint_lock_taken) {
         error = 0;
-        STATPRINT("checkpoint unlock", "Lock never taken");
         goto  cleanup;
     }
     //
     // at this point, we know the checkpoint lock has been taken
     //
     error = db_env->checkpointing_resume(db_env);
-    if (error) {goto cleanup;}
+    assert(!error);
 
     trx->checkpoint_lock_taken = false;
-    STATPRINT("checkpoint unlock", "Successfully unlocked");
     
 cleanup:
-    if (error) { my_errno = error; }
-    return error;
+    return;
 }
 
 
@@ -1183,14 +1210,6 @@ bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print
     case HA_ENGINE_STATUS:
         return tokudb_show_engine_status(thd, stat_print);
         break;
-#if TOKU_INCLUDE_CHECKPOINT_LOCK
-    case HA_ENGINE_CHECKPOINT_LOCK:
-        return tokudb_checkpoint_lock(thd, stat_print);
-        break;
-    case HA_ENGINE_CHECKPOINT_UNLOCK:
-        return tokudb_checkpoint_unlock(thd, stat_print);
-        break;
-#endif
     default:
         break;
     }
@@ -1323,6 +1342,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),
     MYSQL_SYSVAR(prelock_empty),
+    MYSQL_SYSVAR(checkpoint_lock),
     MYSQL_SYSVAR(write_status_frequency),
     MYSQL_SYSVAR(read_status_frequency),
     MYSQL_SYSVAR(fs_reserve_percent),
