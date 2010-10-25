@@ -17,7 +17,7 @@ select * from mysql.ndb_apply_status;
 
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
--- source include/ndb_master-slave.inc
+-- source suite/rpl_ndb/ndb_master-slave.inc
 
 #
 # Bug#28170 replicate-ignore-db=mysql should not ignore mysql.ndb_apply_status

@@ -6,7 +6,7 @@
 #            table is updated.
 #############################################
 # Notes: 
-# include/select_ndb_apply_status.inc
+# select_ndb_apply_status.inc
 # Selects out the log name, start & end pos
 # from the ndb_apply_status table
 #
@@ -45,7 +45,7 @@ insert into t1 values (1,2);
 --echo
 
 --sync_slave_with_master
---source include/select_ndb_apply_status.inc
+--source extra/rpl_tests/select_ndb_apply_status.inc
 
 --echo
 
@@ -85,7 +85,7 @@ commit;
 --echo
 
 --sync_slave_with_master
---source include/select_ndb_apply_status.inc
+--source extra/rpl_tests/select_ndb_apply_status.inc
 
 connection master;
 --let $binlog_start= $start_pos
@@ -158,7 +158,7 @@ SET AUTOCOMMIT=1;
 --enable_query_log
 
 --sync_slave_with_master
---source include/select_ndb_apply_status.inc
+--source extra/rpl_tests/select_ndb_apply_status.inc
 
 --echo
 
@@ -208,7 +208,7 @@ SET AUTOCOMMIT=1;
 --echo
 
 --sync_slave_with_master
---source include/select_ndb_apply_status.inc
+--source extra/rpl_tests/select_ndb_apply_status.inc
 
 --echo
 
@@ -256,7 +256,7 @@ SET AUTOCOMMIT=1;
 --enable_query_log
 
 --sync_slave_with_master
---source include/select_ndb_apply_status.inc
+--source extra/rpl_tests/select_ndb_apply_status.inc
 
 --echo
 
@@ -281,7 +281,7 @@ DROP DATABASE tpcb;
 
 ####### Commenting out until decision on Bug#27960 ###########
 
-#--source include/select_ndb_apply_status.inc
+#--source extra/rpl_tests/select_ndb_apply_status.inc
 
 #connection master;
 #--eval SHOW BINLOG EVENTS in '$log_name' from $start_pos
