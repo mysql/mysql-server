@@ -921,3 +921,25 @@ execute s;
 update t1 set a=123;
 execute s;
 drop table t0, t1;
+
+
+--echo #
+--echo # LPBUG#609121: RQG: wrong result on aggregate + NOT IN + HAVING and
+--echo # partial_match_table_scan=on
+--echo #
+
+create table t1 (c1 int);
+create table t2 (c2 int);
+insert into t1 values (1);
+insert into t2 values (2);
+
+set @@optimizer_switch='semijoin=off';
+
+EXPLAIN
+SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+EXPLAIN
+SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2) HAVING c1_sum;
+SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2) HAVING c1_sum;
+
+drop table t1, t2;
