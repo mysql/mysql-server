@@ -28,13 +28,15 @@ ADD_LIBRARY(ndbconf
                InitConfigFileParser.cpp
 )
 
+IF(WIN32)
+  # Add the rseource files for logging to event log
+  SET(NDB_MGMD_EXTRA_SRC
+    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/message.rc
+    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin)
+ENDIF()
+
 ADD_EXECUTABLE(ndb_mgmd
-               ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/message.rc
-               ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin
-               MgmtSrvr.cpp
-               main.cpp
-               Services.cpp
-               ConfigManager.cpp)
+  MgmtSrvr.cpp main.cpp Services.cpp ConfigManager.cpp ${NDB_MGMD_EXTRA_SRC})
 TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient ndbmgmclient)
 
 INSTALL(TARGETS ndb_mgmd DESTINATION libexec)
