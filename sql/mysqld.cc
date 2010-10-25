@@ -6003,8 +6003,9 @@ struct my_option my_long_options[]=
    "the I/O replication thread is in the master's binlogs.",
    &master_info_file, &master_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"master-retry-count", 0,
-   "The number of tries the slave will make to connect to the master before giving up.",
+  {"master-retry-count", OPT_MASTER_RETRY_COUNT,
+   "The number of tries the slave will make to connect to the master before giving up. "
+   "Deprecated option, use 'CHANGE MASTER TO master_retry_count = <num>' instead.", 
    &master_retry_count, &master_retry_count, 0, GET_ULONG,
    REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
@@ -7048,7 +7049,7 @@ mysqld_get_one_option(int optid,
       default_collation_name= 0;
     break;
   case 'l':
-    WARN_DEPRECATED(NULL, 7, 0, "--log", "'--general-log'/'--general-log-file'");
+    WARN_DEPRECATED(NULL, "--log", "'--general-log'/'--general-log-file'");
     opt_log=1;
     break;
   case 'h':
@@ -7063,6 +7064,9 @@ mysqld_get_one_option(int optid,
       sql_print_warning("Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
     break;
   case 'L':
+    WARN_DEPRECATED(NULL, "--language/-l", "'--lc-messages-dir'");
+    /* Note:  fall-through */
+  case OPT_LC_MESSAGES_DIRECTORY:
     strmake(lc_messages_dir, argument, sizeof(lc_messages_dir)-1);
     lc_messages_dir_ptr= lc_messages_dir;
     break;
@@ -7183,8 +7187,11 @@ mysqld_get_one_option(int optid,
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
-    WARN_DEPRECATED(NULL, 7, 0, "--log-slow-queries", "'--slow-query-log'/'--slow-query-log-file'");
+    WARN_DEPRECATED(NULL, "--log-slow-queries", "'--slow-query-log'/'--slow-query-log-file'");
     opt_slow_log= 1;
+    break;
+  case (int) OPT_MASTER_RETRY_COUNT:
+    WARN_DEPRECATED(NULL, "--master-retry-count", "'CHANGE MASTER TO master_retry_count = <num>'");
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;

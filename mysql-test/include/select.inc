@@ -1413,9 +1413,9 @@ drop table tmp;
 
 # big table done
 
-SET SQL_BIG_TABLES=1;
+SET BIG_TABLES=1;
 select distinct concat(fld3," ",fld3) as namn from t2,t3 where t2.fld1=t3.t2nr order by namn limit 10;
-SET SQL_BIG_TABLES=0;
+SET BIG_TABLES=0;
 select distinct concat(fld3," ",fld3) from t2,t3 where t2.fld1=t3.t2nr order by fld3 limit 10;
 select distinct fld5 from t2 limit 10;
 
@@ -1424,9 +1424,9 @@ select distinct fld5 from t2 limit 10;
 #
 
 select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
-SET SQL_BIG_TABLES=1; # Force use of MyISAM
+SET BIG_TABLES=1; # Force use of MyISAM
 select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
-SET SQL_BIG_TABLES=0;
+SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 
 #
