@@ -13,35 +13,38 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef RPL_INFO_VALUES_H
+#define RPL_INFO_VALUES_H
+
 #include <my_global.h>
 #include <sql_priv.h>
-#include "rpl_info_handler.h"
+#include <my_sys.h>
+#include <sql_string.h>
 
-Rpl_info_handler::Rpl_info_handler(const int nparam)
-  :field_values(0), ninfo(nparam), cursor((my_off_t)0),
-  prv_error(0), sync_counter(0), sync_period(0)
-{  
-  field_values= new Rpl_info_values(ninfo);
-  /*
-    Configures fields to temporary hold information. If the configuration
-    fails due to memory allocation problems, the object is deleted.
-  */
-  if (field_values && field_values->init())
-  {
-    delete field_values;
-    field_values= 0;
-  }
-}
-
-Rpl_info_handler::~Rpl_info_handler()
+typedef struct struct_value
 {
-  if (field_values)
-  {
-    delete field_values;
-  }
-}
+  String *str;
+} struct_value;
 
-void Rpl_info_handler::set_sync_period(uint period)
+class Rpl_info_values
 {
-  sync_period= period; 
-}
+public:
+  Rpl_info_values(int param_ninfo);
+  virtual ~Rpl_info_values();
+
+  bool init();
+  bool resize(int needed_size, int pos);
+
+  /* Sequence of values to be read from or stored into a repository. */
+  struct_value *value;
+
+  MEM_ROOT mem_root;
+
+private:
+  /* This property represents the number of fields. */
+  int ninfo;
+
+  Rpl_info_values& operator=(const Rpl_info_values& values);
+  Rpl_info_values(const Rpl_info_values& values);
+};
+#endif /* RPL_INFO_VALUES_H */

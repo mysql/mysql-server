@@ -124,6 +124,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   (LONG_TIMEOUT = 1 year) rather than the user-supplied timeout value.
 */
 #define MYSQL_LOCK_IGNORE_TIMEOUT               0x0800
+#define MYSQL_LOCK_RPL_INFO_TABLE               0x1000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\

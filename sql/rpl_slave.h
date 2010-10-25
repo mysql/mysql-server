@@ -161,7 +161,7 @@ int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
 int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
 void end_info(Master_info* mi);
-int reset_info(Master_info* mi);
+int remove_info(Master_info* mi);
 int flush_master_info(Master_info* mi, bool force);
 void init_slave_skip_errors(const char* arg);
 int register_slave_on_master(MYSQL* mysql);

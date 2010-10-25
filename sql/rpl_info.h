@@ -64,9 +64,9 @@ public:
     return (handler->check_info());
   }
 
-  int reset_info()
+  int remove_info()
   {
-    return (handler->reset_info());
+    return (handler->remove_info());
   }
 
   bool is_transactional()
