@@ -282,6 +282,9 @@ The following options may be given as the first argument:
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
  master's binlogs.
+ --master-info-repository=name 
+ Defines the type of the repository for the master
+ information.
  --master-retry-count=# 
  The number of tries the slave will make to connect to the
  master before giving up.
@@ -508,6 +511,9 @@ The following options may be given as the first argument:
  --relay-log-info-file=name 
  The location and name of the file that remembers where
  the SQL replication thread is in the relay logs
+ --relay-log-info-repository=name 
+ Defines the type of the repository for the relay log
+ information.
  --relay-log-purge   if disabled - do not purge relay logs. if enabled - purge
  them as soon as they are no more needed
  (Defaults to on; use --skip-relay-log-purge to disable.)
@@ -822,6 +828,7 @@ long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
 master-info-file master.info
+master-info-repository FILE
 master-retry-count 86400
 max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
@@ -904,6 +911,7 @@ read-rnd-buffer-size 262144
 relay-log (No default value)
 relay-log-index (No default value)
 relay-log-info-file relay-log.info
+relay-log-info-repository FILE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
