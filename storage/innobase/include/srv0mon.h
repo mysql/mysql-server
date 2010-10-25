@@ -78,10 +78,12 @@ enum monitor_type_value {
 	MONITOR_AVERAGE = 4,	/*!< Set this status if we want to
 				calculate the average value (over time)
 				for the counter. */
-	MONITOR_DISPLAY_CURRENT = 8 /*!< Display current value of the
+	MONITOR_DISPLAY_CURRENT = 8, /*!< Display current value of the
 				counter, rather than incremental value
 				over the period. Mostly for counters
 				displaying current resource usage */
+	MONITOR_GROUP_MODULE = 16 /*!< Monitor can be turned on/off
+				only as a module, but not individually */
 };
 
 typedef enum monitor_type_value	monitor_type_t;
@@ -149,6 +151,42 @@ enum monitor_id_value {
 	MONITOR_OVLD_BYTE_READ,
 	MONITOR_OVLD_BYTE_WRITTEN,
 
+	/* Buffer Page I/O specific counters. */
+	MONITOR_MODULE_BUF_PAGE,
+	MONITOR_INDEX_LEAF_PAGE_READ,
+	MONITOR_INDEX_NON_LEAF_PAGE_READ,
+	MONITOR_INDEX_IBUF_LEAF_PAGE_READ,
+	MONITOR_INDEX_IBUF_NON_LEAF_PAGE_READ,
+	MONITOR_UNDO_LOG_PAGE_READ,
+	MONITOR_INODE_PAGE_READ,
+	MONITOR_IBUF_FREELIST_PAGE_READ,
+	MONITOR_IBUF_BITMAP_PAGE_READ,
+	MONITOR_SYSTEM_PAGE_READ,
+	MONITOR_TRX_SYSTEM_PAGE_READ,
+	MONITOR_FSP_HDR_PAGE_READ,
+	MONITOR_XDES_PAGE_READ,
+	MONITOR_BLOB_PAGE_READ,
+	MONITOR_ZBLOB_PAGE_READ,
+	MONITOR_ZBLOB2_PAGE_READ,
+	MONITOR_OTHER_PAGE_READ,
+
+	MONITOR_INDEX_LEAF_PAGE_WRITTEN,
+	MONITOR_INDEX_NON_LEAF_PAGE_WRITTEN,
+	MONITOR_INDEX_IBUF_LEAF_PAGE_WRITTEN,
+	MONITOR_INDEX_IBUF_NON_LEAF_PAGE_WRITTEN,
+	MONITOR_UNDO_LOG_PAGE_WRITTEN,
+	MONITOR_INODE_PAGE_WRITTEN,
+	MONITOR_IBUF_FREELIST_PAGE_WRITTEN,
+	MONITOR_IBUF_BITMAP_PAGE_WRITTEN,
+	MONITOR_SYSTEM_PAGE_WRITTEN,
+	MONITOR_TRX_SYSTEM_PAGE_WRITTEN,
+	MONITOR_FSP_HDR_PAGE_WRITTEN,
+	MONITOR_XDES_PAGE_WRITTEN,
+	MONITOR_BLOB_PAGE_WRITTEN,
+	MONITOR_ZBLOB_PAGE_WRITTEN,
+	MONITOR_ZBLOB2_PAGE_WRITTEN,
+	MONITOR_OTHER_PAGE_WRITTEN,
+
 	/* OS level counters (I/O) */
 	MONITOR_MODULE_OS,
 	MONITOR_OVLD_OS_FILE_READ,
@@ -194,6 +232,10 @@ enum monitor_id_value {
 	MONITOR_MODULE_INDEX,
 	MONITOR_INDEX_SPLIT,
 	MONITOR_INDEX_MERGE,
+
+	/* Tablespace related counters */
+	MONITOR_MODULE_FIL_SYSTEM,
+	MONITOR_OVLD_N_FILE_OPENED,
 
 	/* Data DML related counters */
 	MONITOR_MODULE_DMLSTATS,
@@ -350,7 +392,7 @@ already exists. No additional mutex is necessary when operating
 on the counters */
 #define	MONITOR_INC(monitor)						\
 	if (MONITOR_IS_ON(monitor)) {					\
-		INC_VALUE(MONITOR_VALUE(monitor), 1);			\
+		MONITOR_VALUE(monitor)++;				\
 		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
 			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
 		}							\
@@ -358,11 +400,29 @@ on the counters */
 
 #define	MONITOR_DEC(monitor)						\
 	if (MONITOR_IS_ON(monitor)) {					\
-		INC_VALUE(MONITOR_VALUE(monitor), -1);			\
+		MONITOR_VALUE(monitor)--;				\
 		if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) {  \
 			MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);\
 		}							\
 	}
+
+/* Increment/decrement counter without check the monitor on/off bit, which
+could already be checked as a module group */
+#define	MONITOR_INC_NOCHECK(monitor)					\
+	do {								\
+		MONITOR_VALUE(monitor)++;				\
+		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
+			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
+		}							\
+	} while (0)							\
+
+#define	MONITOR_DEC_NOCHECK(monitor)					\
+	do {								\
+		MONITOR_VALUE(monitor)--;				\
+		if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) {  \
+			MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);\
+		}							\
+	} while (0)
 
 /** Directly set a monitor counter's value */
 #define	MONITOR_SET(monitor, value)					\

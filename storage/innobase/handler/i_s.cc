@@ -1776,7 +1776,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 {
 #define	METRIC_NAME		0
-	{STRUCT_FLD(field_name,		"name"),
+	{STRUCT_FLD(field_name,		"NAME"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
@@ -1785,7 +1785,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_SUBSYS		1
-	{STRUCT_FLD(field_name,		"subsystem"),
+	{STRUCT_FLD(field_name,		"SUBSYSTEM"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
@@ -1794,7 +1794,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_VALUE_START	2
-	{STRUCT_FLD(field_name,		"value_since_start"),
+	{STRUCT_FLD(field_name,		"COUNT"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1803,7 +1803,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_MAX_VALUE_START	3
-	{STRUCT_FLD(field_name,		"max_since_start"),
+	{STRUCT_FLD(field_name,		"MAX_COUNT"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1812,7 +1812,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_MIN_VALUE_START	4
-	{STRUCT_FLD(field_name,		"min_since_start"),
+	{STRUCT_FLD(field_name,		"MIN_COUNT"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1821,7 +1821,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_AVG_VALUE_START	5
-	{STRUCT_FLD(field_name,		"avg_since_start"),
+	{STRUCT_FLD(field_name,		"AVG_COUNT"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
@@ -1830,7 +1830,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_VALUE_RESET	6
-	{STRUCT_FLD(field_name,		"value_since_reset"),
+	{STRUCT_FLD(field_name,		"COUNT_SINCE_RESET"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1839,7 +1839,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_MAX_VALUE_RESET	7
-	{STRUCT_FLD(field_name,		"max_since_reset"),
+	{STRUCT_FLD(field_name,		"MAX_COUNT_SINCE_RESET"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1848,7 +1848,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_MIN_VALUE_RESET	8
-	{STRUCT_FLD(field_name,		"min_since_reset"),
+	{STRUCT_FLD(field_name,		"MIN_COUNT_SINCE_RESET"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1857,7 +1857,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_AVG_VALUE_RESET	9
-	{STRUCT_FLD(field_name,		"avg_since_reset"),
+	{STRUCT_FLD(field_name,		"AVG_COUNT_SINCE_RESET"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
@@ -1866,7 +1866,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_START_TIME	10
-	{STRUCT_FLD(field_name,		"start_time"),
+	{STRUCT_FLD(field_name,		"TIME_ENABLED"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
 	 STRUCT_FLD(value,		0),
@@ -1875,7 +1875,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_STOP_TIME	11
-	{STRUCT_FLD(field_name,		"stop_time"),
+	{STRUCT_FLD(field_name,		"TIME_DISABLED"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
 	 STRUCT_FLD(value,		0),
@@ -1884,7 +1884,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_RESET_TIME	12
-	{STRUCT_FLD(field_name,		"reset_time"),
+	{STRUCT_FLD(field_name,		"TIME_RESET"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
 	 STRUCT_FLD(value,		0),
@@ -1893,7 +1893,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_STATUS		13
-	{STRUCT_FLD(field_name,		"status"),
+	{STRUCT_FLD(field_name,		"STATUS"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
@@ -1902,7 +1902,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_TYPE		14
-	{STRUCT_FLD(field_name,		"type"),
+	{STRUCT_FLD(field_name,		"TYPE"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
@@ -1911,7 +1911,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_DESC		15
-	{STRUCT_FLD(field_name,		"description"),
+	{STRUCT_FLD(field_name,		"COMMENT"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
@@ -2079,9 +2079,9 @@ i_s_metrics_fill(
 				fields[METRIC_RESET_TIME]->set_null();
 			}
 
-			/* Display the monitor status to be "started" */
+			/* Display the monitor status as "enabled" */
 			OK(field_store_string(fields[METRIC_STATUS],
-					      "started"));
+					      "enabled"));
 		} else {
 			if (MONITOR_FIELD(count, mon_stop_time)) {
 				OK(field_store_time_t(fields[METRIC_STOP_TIME],
@@ -2094,15 +2094,15 @@ i_s_metrics_fill(
 			fields[METRIC_RESET_TIME]->set_null();
 
 			OK(field_store_string(fields[METRIC_STATUS],
-					      "stopped"));
+					      "disabled"));
 		}
 
 		if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
 			OK(field_store_string(fields[METRIC_TYPE],
-					      "current_value"));
+					      "value"));
 		} else {
 			OK(field_store_string(fields[METRIC_TYPE],
-					      "counter_value"));
+					      "counter"));
 		}
 
 		OK(schema_table_store_record(thd, table_to_fill));
