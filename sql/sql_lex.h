@@ -760,10 +760,11 @@ public:
   st_select_lex* outer_select();
   st_select_lex* next_select() { return (st_select_lex*) next; }
 
-  inline st_select_lex* last_select() 
+  st_select_lex* last_select() 
   { 
     st_select_lex* mylast= this;
-    for (; mylast->next_select(); mylast= mylast->next_select());
+    for (; mylast->next_select(); mylast= mylast->next_select())
+    {}
     return mylast; 
   }
 
