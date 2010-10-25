@@ -503,7 +503,7 @@ row_mysql_convert_row_to_innobase(
 					row is used, as row may contain
 					pointers to this record! */
 {
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	dfield_t*		dfield;
 	ulint			i;
 
@@ -2985,8 +2985,7 @@ next_rec:
 		dict_table_change_id_in_cache(table, new_id);
 	}
 
-	/* MySQL calls ha_innobase::reset_auto_increment() which does
-	the same thing. */
+	/* Reset auto-increment. */
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);

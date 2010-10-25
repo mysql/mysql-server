@@ -35,10 +35,23 @@ connection master1;
 send CALL test.p1();
 
 connection master;
-# To make sure tha the call on master1 arrived at the get_lock
-sleep 1;
+# Make sure that the call on master1 arrived at the get_lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'User lock' and
+        info = 'SELECT  get_lock("test", 100)';
+--source include/wait_condition.inc
 CALL test.p2();
 SELECT release_lock("test");
+
+connection master1;
+# Reap CALL test.p1() to ensure that it has fully completed
+# before doing any selects on test.t1.
+--reap
+# Release lock acquired by it.
+SELECT release_lock("test");
+
+connection master;
 SELECT * FROM test.t1; 
 #show binlog events;
 --source include/wait_for_ndb_to_binlog.inc
@@ -51,6 +64,7 @@ DROP TABLE IF EXISTS test.t1;
 eval CREATE TABLE test.t1(a INT,PRIMARY KEY(a))ENGINE=$engine_type;
 CALL test.p2();
 CALL test.p1();
+SELECT release_lock("test");
 SELECT * FROM test.t1;
 
 sync_slave_with_master;
