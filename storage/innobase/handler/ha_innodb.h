@@ -224,28 +224,75 @@ class ha_innobase: public handler
 	/** @} */
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
+private:
+	/** Builds a 'template' to the prebuilt struct.
+
+	The template is used in fast retrieval of just those column
+	values MySQL needs in its processing.
+	@param whole_row true if access is needed to a whole row,
+	false if accessing individual fields is enough */
+	void build_template(bool whole_row);
+	/** Resets a query execution 'template'.
+	@see build_template() */
+	inline void reset_template();
+
 public:
-	/**
-	* Multi Range Read interface
+	/** @name Multi Range Read interface @{ */
+	/** Initialize multi range read @see DsMrr_impl::dsmrr_init
+	* @param seq
+	* @param seq_init_param
+	* @param n_ranges
+	* @param mode
+	* @param buf
 	*/
-	int multi_range_read_init(RANGE_SEQ_IF* seq, void* seq_init_param,
+	int multi_range_read_init(RANGE_SEQ_IF* seq,
+				  void* seq_init_param,
 				  uint n_ranges, uint mode,
 				  HANDLER_BUFFER* buf);
+	/** Process next multi range read @see DsMrr_impl::dsmrr_next
+	* @param range_info
+	*/
 	int multi_range_read_next(char** range_info);
+	/** Initialize multi range read and get information.
+	* @see ha_myisam::multi_range_read_info_const
+	* @see DsMrr_impl::dsmrr_info_const
+	* @param keyno
+	* @param seq
+	* @param seq_init_param
+	* @param n_ranges
+	* @param bufsz
+	* @param flags
+	* @param cost
+	*/
 	ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF* seq,
 					   void* seq_init_param,
 					   uint n_ranges, uint* bufsz,
 					   uint* flags, COST_VECT* cost);
+	/** Initialize multi range read and get information.
+	* @see DsMrr_impl::dsmrr_info
+	* @param keyno
+	* @param seq
+	* @param seq_init_param
+	* @param n_ranges
+	* @param bufsz
+	* @param flags
+	* @param cost
+	*/
 	ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
 				      uint* bufsz, uint* flags,
 				      COST_VECT* cost);
-	DsMrr_impl ds_mrr;
 
-	int read_range_first(const key_range* start_key,
-			     const key_range* end_key,
-			     bool eq_range_arg, bool sorted);
-	int read_range_next();
-	Item* idx_cond_push(uint keyno, Item* idx_cond);
+	/** Attempt to push down an index condition.
+	* @param[in] keyno	MySQL key number
+	* @param[in] idx_cond	Index condition to be checked
+	* @return idx_cond if pushed; NULL if not pushed
+	*/
+	class Item* idx_cond_push(uint keyno, class Item* idx_cond);
+
+private:
+	/** The multi range read session object */
+	DsMrr_impl ds_mrr;
+	/* @} */
 };
 
 /* Some accessor functions which the InnoDB plugin needs, but which
