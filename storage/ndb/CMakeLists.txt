@@ -15,7 +15,10 @@
 
 INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
-INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake")
+IF(NOT EXISTS ${CMAKE_SOURCE_DIR}/cmake/)
+  # No MySQL Server cmake support, use the version in storage/ndb/cmake
+  INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake")
+ENDIF()
 INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
 
 SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
@@ -110,13 +113,22 @@ IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
 ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 SET(NDBCLUSTER_SOURCES
-	../../sql/ha_ndbcluster.cc
-	../../sql/ha_ndbcluster_cond.cc
-	../../sql/ha_ndbcluster_connection.cc
-	../../sql/ha_ndbcluster_binlog.cc
-	../../sql/ha_ndbinfo.cc)
-SET(NDBCLUSTER_LIBS ndbclient)
-MYSQL_STORAGE_ENGINE(NDBCLUSTER)
+  ${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster.cc
+  ${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_cond.cc
+  ${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_connection.cc
+  ${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_binlog.cc
+  ${CMAKE_SOURCE_DIR}/sql/ha_ndbinfo.cc)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+
+
+IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
+  # Old plugin support on Windows only
+  INCLUDE("${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+  SET(NDBCLUSTER_LIBS ndbclient)
+  MYSQL_STORAGE_ENGINE(NDBCLUSTER)
+ELSE()
+  # New plugin support, cross-platform
+  MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
+    DEFAULT MODULE_OUTPUT_NAME ha_ndb)
+ENDIF()
