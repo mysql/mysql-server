@@ -16,8 +16,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql_priv.h"
-#include "sql_show.h"
+#include "ha_ndbcluster_glue.h"
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
@@ -252,7 +252,7 @@ static void run_query(THD *thd, char *buf, char *end,
   struct system_status_var save_thd_status_var= thd->status_var;
   THD_TRANS save_thd_transaction_all= thd->transaction.all;
   THD_TRANS save_thd_transaction_stmt= thd->transaction.stmt;
-  ulonglong save_thd_options= thd->options;
+  ulonglong save_thd_options= thd_options(thd);
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->options));
   NET save_thd_net= thd->net;
   const char* found_semicolon= NULL;
@@ -2174,7 +2174,7 @@ int ndbcluster_log_schema_op(THD *thd,
         /* Schema change originating from this MySQLD, check SQL_LOG_BIN
          * variable and pass 'setting' to all logging MySQLDs via AnyValue  
          */
-        if (thd->options & OPTION_BIN_LOG) /* e.g. SQL_LOG_BIN == on */
+        if (thd_options(thd) & OPTION_BIN_LOG) /* e.g. SQL_LOG_BIN == on */
         {
           DBUG_PRINT("info", ("Schema event for binlogging"));
           ndbcluster_anyvalue_set_normal(anyValue);
@@ -3401,7 +3401,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
     Turn of binlogging to prevent the table changes to be written to
     the binary log.
   */
-  ulonglong saved_options= thd->options;
+  ulonglong saved_options= thd_options(thd);
   thd->options&= ~(OPTION_BIN_LOG);
 
 
