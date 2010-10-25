@@ -748,10 +748,13 @@ static sys_var_thd_bit	sys_log_binlog(&vars, "sql_log_bin",
                                        check_log_update,
                                        set_option_log_bin_bit,
 				       OPTION_BIN_LOG);
+
+#ifndef MCP_WL3733
 static sys_var_thd_bit
 sys_transaction_allow_batching(&vars, "transaction_allow_batching", 0,
                                set_option_bit,
                                OPTION_ALLOW_BATCH);
+#endif
 static sys_var_thd_bit	sys_sql_warnings(&vars, "sql_warnings", 0,
 					 set_option_bit,
 					 OPTION_WARNINGS);
@@ -1272,6 +1275,7 @@ bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
     result= check_log_update(thd, var);
   return result;
 }
+
 
 bool sys_var_thd_binlog_format::is_readonly() const
 {

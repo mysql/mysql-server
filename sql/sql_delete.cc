@@ -47,7 +47,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool          using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, safe_update, const_cond;
   bool          direct_delete_loop;
-  bool          might_use_read_removal= FALSE;
+  bool          using_read_removal= FALSE;
   bool          const_cond_result;
   ha_rows	deleted= 0;
   bool          triggers_applicable;
@@ -289,8 +289,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       direct_delete_loop)
   {
     /* See comment in sql_update.cc for similar code */
-    might_use_read_removal= 
-      table->file->read_before_write_removal_possible(NULL, NULL);
+    using_read_removal=
+      table->file->read_before_write_removal_possible();
   }
   init_ftfuncs(thd, select_lex, 1);
   thd_proc_info(thd, "updating");
@@ -462,10 +462,9 @@ cleanup:
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
 
-  if (might_use_read_removal)
+  if (using_read_removal)
   {
-    table->file->info(HA_STATUS_WRITTEN_ROWS);
-    deleted= table->file->stats.rows_deleted;
+    deleted= table->file->read_before_write_removal_rows_written();
   }
 
   if (error < 0 || 
