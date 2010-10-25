@@ -2678,7 +2678,7 @@ srv_master_thread(
 	ibool		max_modified_ratio_exceeded = FALSE;
 	ib_time_t	last_print_time;
 	ulint		n_tables_evicted = 0;
-	ulint		last_table_lru_flush_time = ut_time();
+	ib_time_t	last_table_lru_flush_time = ut_time();
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
