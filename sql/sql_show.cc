@@ -4181,8 +4181,10 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       str.qs_append(STRING_WITH_LEN(" partitioned"));
 #endif
     if (share->transactional != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " transactional=",
-                   ha_choice_values[(uint) share->transactional], NullS);
+    {
+      str.qs_append(STRING_WITH_LEN(" transactional="));
+      str.qs_append(ha_choice_values[(uint) share->transactional]);
+    }
     append_create_options(thd, &str, share->option_list);
     if (str.length())
       table->field[19]->store(str.ptr()+1, str.length()-1, cs);
