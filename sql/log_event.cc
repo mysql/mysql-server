@@ -2374,7 +2374,7 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 4;
   }
 
-  if (thd && thd->is_current_user_used())
+  if (thd && thd->need_binlog_invoker())
   {
     LEX_STRING user;
     LEX_STRING host;

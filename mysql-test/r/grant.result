@@ -1448,8 +1448,6 @@ CREATE USER 'userbug33464'@'localhost';
 GRANT CREATE ROUTINE ON dbbug33464.* TO 'userbug33464'@'localhost';
 	
 userbug33464@localhost	dbbug33464
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
 CREATE PROCEDURE sp3(v1 char(20))
 BEGIN
 SELECT * from dbbug33464.t6 where t6.f2= 'xyz';

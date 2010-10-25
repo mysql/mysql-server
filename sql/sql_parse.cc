@@ -3406,6 +3406,10 @@ end_with_restore_list:
     if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
+
+    /* Replicate current user as grantor */
+    thd->binlog_invoker();
+
     /* Conditionally writes to binlog */
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
       my_ok(thd);
@@ -3421,6 +3425,9 @@ end_with_restore_list:
                      first_table ? &first_table->grant.m_internal : NULL,
                      first_table ? 0 : 1, 0))
       goto error;
+
+    /* Replicate current user as grantor */
+    thd->binlog_invoker();
 
     if (thd->security_ctx->user)              // If not replication
     {
@@ -4024,49 +4031,39 @@ create_sp_error:
       int sp_result;
       int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
                  TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
+      char *db= lex->spname->m_db.str;
+      char *name= lex->spname->m_name.str;
 
-      /*
-        @todo: here we break the metadata locking protocol by
-        looking up the information about the routine without
-        a metadata lock. Rewrite this piece to make sp_drop_routine
-        return whether the routine existed or not.
-      */
-      sp_result= sp_routine_exists_in_table(thd, type, lex->spname);
-      thd->warning_info->opt_clear_warning_info(thd->query_id);
-      if (sp_result == SP_OK)
-      {
-        char *db= lex->spname->m_db.str;
-	char *name= lex->spname->m_name.str;
+      if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
+                               lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
+        goto error;
 
-	if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
-                                 lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
-          goto error;
-
-        /* Conditionally writes to binlog */
-        sp_result= sp_drop_routine(thd, type, lex->spname);
+      /* Conditionally writes to binlog */
+      sp_result= sp_drop_routine(thd, type, lex->spname);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-        /*
-          We're going to issue an implicit REVOKE statement.
-          It takes metadata locks and updates system tables.
-          Make sure that sp_create_routine() did not leave any
-          locks in the MDL context, so there is no risk to
-          deadlock.
-        */
-        close_mysql_tables(thd);
+      /*
+        We're going to issue an implicit REVOKE statement.
+        It takes metadata locks and updates system tables.
+        Make sure that sp_create_routine() did not leave any
+        locks in the MDL context, so there is no risk to
+        deadlock.
+      */
+      close_mysql_tables(thd);
 
-        if (sp_automatic_privileges && !opt_noacl &&
-            sp_revoke_privileges(thd, db, name,
-                                 lex->sql_command == SQLCOM_DROP_PROCEDURE))
-        {
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                       ER_PROC_AUTO_REVOKE_FAIL,
-                       ER(ER_PROC_AUTO_REVOKE_FAIL));
-          /* If this happens, an error should have been reported. */
-          goto error;
-        }
-#endif
+      if (sp_result != SP_KEY_NOT_FOUND &&
+          sp_automatic_privileges && !opt_noacl &&
+          sp_revoke_privileges(thd, db, name,
+                               lex->sql_command == SQLCOM_DROP_PROCEDURE))
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_PROC_AUTO_REVOKE_FAIL,
+                     ER(ER_PROC_AUTO_REVOKE_FAIL));
+        /* If this happens, an error should have been reported. */
+        goto error;
       }
+#endif
+
       res= sp_result;
       switch (sp_result) {
       case SP_OK:
@@ -5125,10 +5122,17 @@ bool check_stack_overrun(THD *thd, long margin,
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
       (long) (my_thread_stack_size - margin))
   {
-    char ebuff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(ebuff, sizeof(ebuff), ER(ER_STACK_OVERRUN_NEED_MORE),
-                stack_used, my_thread_stack_size, margin);
-    my_message(ER_STACK_OVERRUN_NEED_MORE, ebuff, MYF(ME_FATALERROR));
+    /*
+      Do not use stack for the message buffer to ensure correct
+      behaviour in cases we have close to no stack left.
+    */
+    char* ebuff= new char[MYSQL_ERRMSG_SIZE];
+    if (ebuff) {
+      my_snprintf(ebuff, MYSQL_ERRMSG_SIZE, ER(ER_STACK_OVERRUN_NEED_MORE),
+                  stack_used, my_thread_stack_size, margin);
+      my_message(ER_STACK_OVERRUN_NEED_MORE, ebuff, MYF(ME_FATALERROR));
+      delete [] ebuff;
+    }
     return 1;
   }
 #ifndef DBUG_OFF
@@ -7216,6 +7220,9 @@ bool parse_sql(THD *thd,
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;
+
+  if (check_stack_overrun(thd, 2 * STACK_MIN_SIZE, (uchar*)&backup_ctx))
+    return TRUE;
 
   if (creation_ctx)
     backup_ctx= creation_ctx->set_n_backup(thd);
