@@ -1,6 +1,9 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
+# Directory containing the saved backup files
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/std_data;
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -120,8 +123,8 @@ CREATE TABLE ACCOUNT_TYPE ( ACCOUNT_TYPE_ID INT UNSIGNED NOT NULL,
 --echo #
 --echo # reset, restore and  binlog should _not_ happen
 reset master;
---exec $NDB_RESTORE --no-defaults --no-binlog -b 1 -n 1 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --no-binlog -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --no-binlog -b 1 -n 1 -p 1 -r $backup_data_dir/ndb_backup51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --no-binlog -b 1 -n 2 -p 1 -r $backup_data_dir/ndb_backup51 >> $NDB_TOOLS_OUTPUT
 
 select count(*) from TRANSACTION;
 --source include/show_binlog_events2.inc

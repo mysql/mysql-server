@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 --connection master
 create table t1(pk int not null primary key, i int) engine = ndb;

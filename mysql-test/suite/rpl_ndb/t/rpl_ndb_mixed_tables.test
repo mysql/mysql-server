@@ -44,7 +44,7 @@
 
 --source include/have_ndb.inc
 --source include/have_innodb.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 --echo ---- setup master ----
 

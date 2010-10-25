@@ -1,5 +1,5 @@
 --source include/have_ndb.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 # set up circular replication
 
