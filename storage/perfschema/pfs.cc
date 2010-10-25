@@ -487,7 +487,7 @@ static inline int mysql_mutex_lock(...)
   Applying this function to our point P gives another point P':
 
   F_i (P):
-  P(x1, x2, ..., x{i-1}, x_i, x{i+1}, ..., x_N
+  P(x1, x2, ..., x{i-1}, x_i, x{i+1}, ..., x_N)
   --> P' (x1, x2, ..., x{i-1}, f_i(x_i), x{i+1}, ..., x_N)
 
   That function defines in fact an aggregate !
