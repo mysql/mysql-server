@@ -724,20 +724,35 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_set");
-
-  binlog_trans_log_savepos(thd, (my_off_t*) sv);
-  /* Write it to the binary log */
+  int error= 1;
 
   String log_query;
   if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
       log_query.append("`") ||
       log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
       log_query.append("`"))
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
+
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
                         TRUE, FALSE, TRUE, errcode);
-  DBUG_RETURN(mysql_bin_log.write(&qinfo));
+  /* 
+    We cannot record the position before writing the statement
+    because a rollback to a savepoint (.e.g. consider it "S") would
+    prevent the savepoint statement (i.e. "SAVEPOINT S") from being
+    written to the binary log despite the fact that the server could
+    still issue other rollback statements to the same savepoint (i.e. 
+    "S"). 
+    Given that the savepoint is valid until the server releases it,
+    ie, until the transaction commits or it is released explicitly,
+    we need to log it anyway so that we don't have "ROLLBACK TO S"
+    or "RELEASE S" without the preceding "SAVEPOINT S" in the binary
+    log.
+  */
+  if (!(error= mysql_bin_log.write(&qinfo)))
+    binlog_trans_log_savepos(thd, (my_off_t*) sv);
+
+  DBUG_RETURN(error);
 }
 
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)

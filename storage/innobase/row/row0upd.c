@@ -237,9 +237,12 @@ row_upd_check_references_constraints(
 				entry, index, node->update,
 				foreign->n_fields))) {
 
+			dict_table_t*	ref_table = NULL;
+
 			if (foreign->foreign_table == NULL) {
-				dict_table_get(foreign->foreign_table_name,
-					       FALSE);
+
+				ref_table = dict_table_open_on_name(
+					foreign->foreign_table_name, FALSE);
 			}
 
 			if (foreign->foreign_table) {
@@ -269,6 +272,10 @@ row_upd_check_references_constraints(
 				 ->n_foreign_key_checks_running)--;
 
 				mutex_exit(&(dict_sys->mutex));
+			}
+
+			if (ref_table != NULL) {
+				dict_table_close(ref_table, FALSE);
 			}
 
 			if (err != DB_SUCCESS) {
@@ -466,8 +473,11 @@ row_upd_changes_field_size_or_external(
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************//**
-Replaces the new column values stored in the update vector to the record
-given. No field size changes are allowed. */
+Replaces the new column values stored in the update vector to the
+record given. No field size changes are allowed. This function is
+usually invoked on a clustered index. The only use case for a
+secondary index is row_ins_sec_index_entry_by_modify() or its
+counterpart in ibuf_insert_to_index_page(). */
 UNIV_INTERN
 void
 row_upd_rec_in_place(
