@@ -18,6 +18,14 @@ MYSQL_ADD_PLUGIN(auth dialog.c
   MODULE_ONLY)
 MYSQL_ADD_PLUGIN(auth_test_plugin test_plugin.c 
   MODULE_ONLY)
+MYSQL_ADD_PLUGIN(qa_auth_interface qa_auth_interface.c
+  MODULE_ONLY)
+
+MYSQL_ADD_PLUGIN(qa_auth_server qa_auth_server.c
+  MODULE_ONLY)
+
+MYSQL_ADD_PLUGIN(qa_auth_client qa_auth_client.c
+  MODULE_ONLY)
 
 CHECK_CXX_SOURCE_COMPILES(
 "#define _GNU_SOURCE

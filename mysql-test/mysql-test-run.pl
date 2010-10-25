@@ -131,6 +131,9 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
 
+my $auth_interface_fn;          # the name of qa_auth_interface plugin
+my $auth_server_fn;             # the name of qa_auth_server plugin
+my $auth_client_fn;             # the name of qa_auth_client plugin
 my $auth_filename;              # the name of the authentication test plugin
 my $auth_plugin;                # the path to the authentication test plugin
 
@@ -162,7 +165,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,rpl_ndb,ndb,innodb,perfschema";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -1062,14 +1065,20 @@ sub command_line_setup {
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
 
-  # Look for client test plugin 
+  # Look for auth test plugins 
   if (IS_WINDOWS)
   {
     $auth_filename = "auth_test_plugin.dll";
+    $auth_interface_fn = "qa_auth_interface.dll";
+    $auth_server_fn = "qa_auth_server.dll";
+    $auth_client_fn = "qa_auth_client.dll";
   }
   else
   {
     $auth_filename = "auth_test_plugin.so";
+    $auth_interface_fn = "qa_auth_interface.so";
+    $auth_server_fn = "qa_auth_server.so";
+    $auth_client_fn = "qa_auth_client.so";
   }
   $auth_plugin=
   mtr_file_exists(vs_config_dirs('plugin/auth/',$auth_filename),
@@ -1973,12 +1982,18 @@ sub environment_setup {
     $ENV{'PLUGIN_AUTH_OPT'}= "--plugin-dir=".dirname($auth_plugin);
 
     $ENV{'PLUGIN_AUTH_LOAD'}="--plugin_load=test_plugin_server=".$auth_filename;
+    $ENV{'PLUGIN_AUTH_INTERFACE'}="--plugin_load=qa_auth_interface=".$auth_interface_fn;
+    $ENV{'PLUGIN_AUTH_SERVER'}="--plugin_load=qa_auth_server=".$auth_server_fn;
+    $ENV{'PLUGIN_AUTH_CLIENT'}="--plugin_load=qa_auth_client=".$auth_client_fn;
   }
   else
   {
     $ENV{'PLUGIN_AUTH'}= "";
     $ENV{'PLUGIN_AUTH_OPT'}="--plugin-dir=";
     $ENV{'PLUGIN_AUTH_LOAD'}="";
+    $ENV{'PLUGIN_AUTH_INTERFACE'}="";
+    $ENV{'PLUGIN_AUTH_SERVER'}="";
+    $ENV{'PLUGIN_AUTH_CLIENT'}="";
   }
   
 
