@@ -1,3 +1,9 @@
+2010-10-24	The InnoDB Team
+
+	* row/row0mysql.c
+	Fix Bug #57700 Latching order violation in
+	row_truncate_table_for_mysql()
+
 2010-10-20	The InnoDB Team
 
 	* dict/dict0load.c
