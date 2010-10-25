@@ -114,11 +114,11 @@ IF(WITHOUT_PARTITION_STORAGE_ENGINE)
 ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 
 SET(NDBCLUSTER_SOURCES
-  ${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster.cc
-  ${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_cond.cc
-  ${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_connection.cc
-  ${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_binlog.cc
-  ${CMAKE_SOURCE_DIR}/sql/ha_ndbinfo.cc)
+  ../../sql/ha_ndbcluster.cc
+  ../../sql/ha_ndbcluster_cond.cc
+  ../../sql/ha_ndbcluster_connection.cc
+  ../../sql/ha_ndbcluster_binlog.cc
+  ../../sql/ha_ndbinfo.cc)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 
