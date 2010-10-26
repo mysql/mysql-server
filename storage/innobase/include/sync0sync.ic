@@ -363,3 +363,43 @@ pfs_mutex_free_func(
 }
 
 #endif /* UNIV_PFS_MUTEX */
+
+#ifndef HAVE_ATOMIC_BUILTINS
+/**********************************************************//**
+Function that uses a mutex to decrement a variable atomically */
+UNIV_INLINE
+void
+os_atomic_dec_ulint_func(
+/*=====================*/
+	mutex_t*	mutex,		/*!< in: mutex guarding the dec */
+	ulint*		var,		/*!< in/out: variable to decrement */
+	ulint		delta)		/*!< in: delta to decrement */
+{
+	mutex_enter(mutex);
+
+	/* I don't think we will encounter a situation where
+	this check will not be required. */
+	ut_ad(*var >= delta);
+
+	*var -= delta;
+
+	mutex_exit(mutex);
+}
+
+/**********************************************************//**
+Function that uses a mutex to increment a variable atomically */
+UNIV_INLINE
+void
+os_atomic_inc_ulint_func(
+/*=====================*/
+	mutex_t*	mutex,		/*!< in: mutex guarding the increment */
+	ulint*		var,		/*!< in/out: variable to increment */
+	ulint		delta)		/*!< in: delta to increment */
+{
+	mutex_enter(mutex);
+
+	*var += delta;
+
+	mutex_exit(mutex);
+}
+#endif /* !HAVE_ATOMIC_BUILTINS */
