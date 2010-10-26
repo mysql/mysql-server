@@ -1563,7 +1563,7 @@ void Field::make_field(Send_field *field)
   }
   else
     field->org_table_name= field->db_name= "";
-  if (orig_table)
+  if (orig_table && orig_table->alias)
   {
     field->table_name= orig_table->alias;
     field->org_col_name= field_name;
@@ -4208,7 +4208,7 @@ String *Field_float::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  DBUG_ASSERT(field_length <= MAX_FIELD_CHARLENGTH);
+  DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   float nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4531,7 +4531,7 @@ String *Field_double::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  DBUG_ASSERT(field_length <= MAX_FIELD_CHARLENGTH);
+  DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   double nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)

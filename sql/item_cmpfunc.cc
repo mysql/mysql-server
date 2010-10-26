@@ -3115,6 +3115,14 @@ void Item_func_case::fix_length_and_dec()
   {
     if (agg_arg_charsets_for_string_result(collation, agg, nagg))
       return;
+    /*
+      Copy all THEN and ELSE items back to args[] array.
+      Some of the items might have been changed to Item_func_conv_charset.
+    */
+    for (nagg= 0 ; nagg < ncases / 2 ; nagg++)
+      args[nagg * 2 + 1]= agg[nagg];
+    if (else_expr_num != -1)
+      args[else_expr_num]= agg[nagg++];
   }
   else
     collation.set_numeric();

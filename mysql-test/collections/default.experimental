@@ -15,17 +15,12 @@ main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_m
 main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
 main.log_tables                          # Bug#47924 2009-10-08 alik main.log_tables times out sporadically 
 main.lowercase_table2 @darwin            # Bug#55509 2010-07-26 alik main.lowercase_table2 fails on Mac OSX (again)
-main.mysqlbinlog_row @solaris            # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
-main.mysqlbinlog_row_innodb @solaris     # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
-main.mysqlbinlog_row_myisam @solaris     # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
 main.mysqlslap @windows                  # Bug#54024 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.wait_timeout @solaris               # Bug#51244 2010-04-26 alik wait_timeout fails on OpenSolaris
-
-parts.partition_alter4_innodb            # Bug#45299 2010-06-28 alik Test "partition_alter4_innodb" is taking too long, timeout
 
 perfschema.start_server_on               # Bug#55576 2010-08-02 alik Two perfschema tests failed on mysql-next-mr-innodb PB2 tests#
 perfschema.server_init                   # Bug#55576 2010-08-02 alik Two perfschema tests failed on mysql-next-mr-innodb PB2 tests#
@@ -96,3 +91,6 @@ parts.partition_syntax_ndb               # joro : NDB tests marked as experiment
 parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
 
 rpl_bhs.*                                # skozlov : WL#5139 - rpl_bhs suite generated "on-the-fly" at testing moment from rpl suite
+main.gis-rtree                           # svoj: due to BUG#38965
+main.type_float                          # svoj: due to BUG#38965
+main.type_newdecimal                     # svoj: due to BUG#38965

@@ -17,7 +17,6 @@
 #define SQL_BASE_INCLUDED
 
 #include "unireg.h"                    // REQUIRED: for other includes
-#include "table.h"                              /* open_table_mode */
 #include "sql_trigger.h"                        /* trg_event_type */
 #include "sql_class.h"                          /* enum_mark_columns */
 #include "mysqld.h"                             /* key_map */
@@ -71,8 +70,6 @@ enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
 
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 extern mysql_mutex_t LOCK_open;
-extern mysql_mutex_t LOCK_dd_owns_lock_open;
-extern uint dd_owns_lock_open;
 bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
@@ -81,7 +78,8 @@ void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
 uint cached_table_definitions(void);
-uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
+uint create_table_def_key(THD *thd, char *key,
+                          const TABLE_LIST *table_list,
                           bool tmp_table);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
                              uint key_length, uint db_flags, int *error,
@@ -124,6 +122,11 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   (LONG_TIMEOUT = 1 year) rather than the user-supplied timeout value.
 */
 #define MYSQL_LOCK_IGNORE_TIMEOUT               0x0800
+/**
+  When acquiring "strong" (SNW, SNRW, X) metadata locks on tables to
+  be open do not acquire global and schema-scope IX locks.
+*/
+#define MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK         0x1000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
@@ -143,6 +146,11 @@ bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
+bool get_key_map_from_key_list(key_map *map, TABLE *table,
+                               List<String> *index_list);
+TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
+			   const char *table_name,
+                           bool add_to_temporary_tables_list);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 TABLE *find_write_locked_table(TABLE *list, const char *db,
                                const char *table_name);
@@ -159,7 +167,9 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                const char *db_name,
                                const char *table_name);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
-TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
+TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
+TABLE *find_temporary_table(THD *thd, const char *table_key,
+                            uint table_key_length);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
@@ -238,7 +248,8 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
 int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type, uint flags);
+                                thr_lock_type lock_type, uint flags,
+                                Prelocking_strategy *prelocking_strategy);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
@@ -444,6 +455,16 @@ open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
   DML_prelocking_strategy prelocking_strategy;
 
   return open_tables(thd, tables, counter, flags, &prelocking_strategy);
+}
+
+
+inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+                                       thr_lock_type lock_type, uint flags)
+{
+  DML_prelocking_strategy prelocking_strategy;
+
+  return open_n_lock_single_table(thd, table_l, lock_type, flags,
+                                  &prelocking_strategy);
 }
 
 

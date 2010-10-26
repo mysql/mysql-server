@@ -494,10 +494,10 @@ int ha_ibmdb2i::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_lis
 
         convFromEbcdic(FKCstDef->CstName.Name, convName,FKCstDef->CstName.Len);
         if (convName[0] == '"')        // If quoted, exclude quotes. 
-          f_key_info.forein_id = thd_make_lex_string(thd, 0,
+          f_key_info.foreign_id = thd_make_lex_string(thd, 0,
                       convName + 1, (uint) (FKCstDef->CstName.Len - 2), 1);
         else                           // Not quoted                         
-          f_key_info.forein_id = thd_make_lex_string(thd, 0,
+          f_key_info.foreign_id = thd_make_lex_string(thd, 0,
                       convName, (uint) FKCstDef->CstName.Len, 1);
  
       /* Process the names of the foreign keys.                                 */
