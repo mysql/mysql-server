@@ -3768,7 +3768,8 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     NOTE: We actually insert them at the front! That's because the order is
           reversed in this list.
   */
-  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf);
+  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
+  {}
   tl->next_leaf= subq_lex->leaf_tables;
   last_leaf= tl;
 
@@ -3777,7 +3778,8 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local);
+  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local)
+  {}
   tl->next_local= subq_lex->leaf_tables;
 
   /* A theory: no need to re-connect the next_global chain */
@@ -4356,7 +4358,8 @@ int pull_out_semijoin_tables(JOIN *join)
       {
         List_iterator<TABLE_LIST> li(*upper_join_list);
         /* Find the sj_nest in the list. */
-        while (sj_nest != li++);
+        while (sj_nest != li++)
+        {}
         li.remove();
         /* Also remove it from the list of SJ-nests: */
         sj_list_it.remove();
