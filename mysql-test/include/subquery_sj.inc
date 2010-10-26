@@ -393,6 +393,9 @@ insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 select * from t3 where a in (select kp1 from t1 where kp1<20);
 
+explain select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
+select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
+
 create table t4 (pk int primary key);
 insert into t4 select a from t3;
 
@@ -637,11 +640,9 @@ drop table t0, t1,t2,t3;
 
 
 --echo
---echo Test that MaterializeLookup strategy for semijoin,
+--echo Test that neither MaterializeLookup strategy for semijoin,
 --echo nor subquery materialization is used when BLOBs are involved 
 --echo (except when arguments of some functions).
---echo Note: Due to Bug#52068, wrong may occur below if MaterializeScan 
---echo strategy is used instead, 
 --echo
 set @prefix_len = 6;
 
@@ -3371,3 +3372,64 @@ WHERE (a1, a2) IN (
 DROP TABLE t1,t2a,t2b,t2c;
 
 --echo # End BUG#52329
+
+--echo #
+--echo # Bug#45174: Incorrectly applied equality propagation caused wrong
+--echo # result on a query with a materialized semi-join.
+--echo #
+
+CREATE TABLE t1 (
+  varchar_nokey varchar(1) NOT NULL
+);
+
+INSERT INTO t1 VALUES
+ ('v'), ('u'), ('n'), ('l'), ('h'), ('u'), ('n'), ('j'), ('k'),
+ ('e'), ('i'), ('u'), ('n'), ('b'), ('x'), (''), ('q'), ('u');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  varchar_key varchar(1) NOT NULL,
+  varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY(pk),
+  KEY varchar_key(varchar_key)
+);
+
+INSERT INTO t2 VALUES
+ (11,'m','m'), (12,'j','j'), (13,'z','z'), (14,'a','a'), (15,'',''),
+ (16,'e','e'), (17,'t','t'), (19,'b','b'), (20,'w','w'), (21,'m','m'),
+ (23,'',''), (24,'w','w'), (26,'e','e'), (27,'e','e'), (28,'p','p');
+
+let $query=
+SELECT varchar_nokey
+FROM t1
+WHERE (varchar_nokey, varchar_nokey) IN (SELECT varchar_key, varchar_nokey
+                                         FROM t2  
+                                         WHERE varchar_nokey < 'n' XOR pk);
+eval $query;
+eval explain $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of the test for bug#45174.
+
+--echo #
+--echo # Bug#50019: Wrong result for IN-query with materialization
+--echo #
+
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+CREATE TABLE t2(i INT);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+CREATE TABLE t3(i INT);
+INSERT INTO t3 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+
+let $query=
+SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i
+                                FROM t2 JOIN t3
+                                WHERE t2.i + t3.i = 5);
+eval $query;
+eval explain $query;
+
+DROP TABLE t1,t2,t3;
+
+--echo # End of the test for bug#50019.
