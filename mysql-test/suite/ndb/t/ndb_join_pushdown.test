@@ -2882,6 +2882,31 @@ select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 
 drop table t;
 
+#######
+# Test of varchar query parameteres.
+#######
+
+CREATE TABLE tc(
+  a varchar(10) NOT NULL,
+  b varchar(10),
+  c varchar(10),
+  PRIMARY KEY (a),
+  UNIQUE KEY uk1 (b, c) 
+)ENGINE=ndbcluster;
+
+insert into tc values ('aa','bb', 'x'), ('bb','cc', 'x'), ('cc', 'dd', 'x');
+
+explain select * from tc as x1 
+  right outer join tc as x2 on x1.b=x2.a   
+  left outer join tc as x3 on x2.b = x3.b and x1.c=x3.c;
+
+--sorted_result
+select * from tc as x1 
+  right outer join tc as x2 on x1.b=x2.a   
+  left outer join tc as x3 on x2.b = x3.b and x1.c=x3.c;
+
+drop table tc;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 
