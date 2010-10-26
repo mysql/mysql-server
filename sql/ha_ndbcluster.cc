@@ -306,6 +306,14 @@ static int ndb_to_mysql_error(const NdbError *ndberr);
   code= ndb_to_mysql_error(&tmp);        \
 }
 
+#define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
+{                                                                 \
+  if (unlikely((current_thd->lex->describe & DESCRIBE_EXTENDED))) \
+  {                                                               \
+    explain_no_push ((msgfmt), __VA_ARGS__);                      \
+  }                                                               \
+}
+
 static int ndbcluster_inited= 0;
 int ndbcluster_terminating= 0;
 
@@ -455,11 +463,21 @@ public:
 class ndb_pushed_builder_ctx
 {
 public:
-  ndb_pushed_builder_ctx(AQP::Join_plan& plan, const AQP::Table_access* const join_root)
-   : m_plan(plan), m_join_root(join_root), m_join_scope(join_root), m_const_scope()
+
+  ndb_pushed_builder_ctx(AQP::Join_plan& plan)
+   : m_plan(plan), m_join_root(), m_join_scope(), m_const_scope()
+  { init_pushability();
+  }
+
+  void set_root(const AQP::Table_access* const join_root)
   {
+    m_join_root= join_root;
+    m_join_scope.clear_all();
+    m_const_scope.clear_all();
+
+    m_join_scope.add(join_root);
     for (uint i= 0; i<join_root->get_access_no(); i++)
-      m_const_scope.add(plan.get_table_access(i));
+      m_const_scope.add(m_plan.get_table_access(i));
   }
 
   const AQP::Join_plan& plan() const
@@ -488,7 +506,10 @@ public:
                   const ndb_table_access_map& old_parents,
                   ndb_table_access_map& parents) const;
 
-  bool field_ref_is_join_pushable(
+  bool is_pushable_as_parent(
+                  const AQP::Table_access* table);
+
+  bool is_pushable_as_child(
                   const AQP::Table_access* table,
                   const Item* join_items[],
                   const AQP::Table_access*& parent);
@@ -506,9 +527,18 @@ public:
     return parents.is_overlapping(m_tables[table->get_access_no()].m_ancestors);
   }
 
+  enum pushability
+  {
+    PUSHABLE_AS_PARENT= 0x01,
+    PUSHABLE_AS_CHILD= 0x02
+  } enum_pushability;
+
+private:
+  void init_pushability();
+
 private:
   const AQP::Join_plan& m_plan;
-  const AQP::Table_access* const m_join_root;
+  const AQP::Table_access* m_join_root;
 
   // Scope of tables covered by this pushed join
   ndb_table_access_map m_join_scope;
@@ -520,12 +550,14 @@ private:
   struct pushed_tables
   {
     pushed_tables() : 
+      m_maybe_pushable(PUSHABLE_AS_CHILD | PUSHABLE_AS_PARENT),
       m_parent(MAX_TABLES), 
       m_ancestors(), 
       m_last_scan_descendant(MAX_TABLES), 
       op(NULL) 
     {}
 
+    int  m_maybe_pushable;
     uint m_parent;
     ndb_table_access_map m_ancestors;
     uint m_last_scan_descendant;
@@ -672,6 +704,17 @@ static bool is_lookup_operation(AQP::enum_access_type accessType)
           accessType == AQP::AT_UNIQUE_KEY);
 }
 
+static void
+explain_no_push(const char* msgfmt, ...)
+{
+  va_list args;
+  char wbuff[1024];
+  va_start(args,msgfmt);
+  (void) my_vsnprintf (wbuff, sizeof(wbuff), msgfmt, args);
+  va_end(args);
+  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_QUERY_NOT_PUSHED, wbuff);
+} // explain_no_push();
+
 void
 ndb_pushed_builder_ctx::add_pushed(
                   const AQP::Table_access* table,
@@ -682,6 +725,7 @@ ndb_pushed_builder_ctx::add_pushed(
   DBUG_ASSERT(table_no < MAX_TABLES);
   m_join_scope.add(table);
   m_tables[table_no].op= query_op;
+  m_tables[table_no].m_maybe_pushable= 0; // Exclude from further pushing
   if (likely(parent))
   {
     uint parent_no= parent->get_access_no();
@@ -775,9 +819,69 @@ ndb_pushed_builder_ctx::add_parent_candidate(const ndb_table_access_map& table,
   }
 } // ndb_pushed_builder_ctx::add_parent_candidate
 
+/**
+ * Set up the 'm_maybe_pushable' property of each table from the 'Abstract Query Plan' associated
+ * with this ndb_pushed_builder_ctx. A table may be possibly pushable as both:
+ * PUSHABLE_AS_CHILD and/or PUSHABLE_AS_PARENT.
+ * When a table is annotated as not PUSHABLE_AS_... it will be excluded from further
+ * pushability investigation for this specific table.
+ */
+void
+ndb_pushed_builder_ctx::init_pushability()
+{
+  for (uint i= 0; i< m_plan.get_access_count(); i++)
+  {
+    m_tables[i].m_maybe_pushable= 0;
+
+    const TABLE* const table= m_plan.get_table_access(i)->get_table();
+    if (table->file->ht != ndbcluster_hton)
+    {
+      m_tables[i].m_maybe_pushable= 0;
+      EXPLAIN_NO_PUSH("Table %s not in Cluster engine, not pushable", table->alias);
+      continue;
+    }
+    m_tables[i].m_maybe_pushable= static_cast<ha_ndbcluster*>(table->file)->get_pushability();
+  }
+
+  m_tables[0].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
+  m_tables[m_plan.get_access_count()-1].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
+} // ndb_pushed_builder_ctx::init_pushability()
+
+
+bool
+ndb_pushed_builder_ctx::is_pushable_as_parent(const AQP::Table_access* table)
+{
+  DBUG_ENTER("::is_pushable_as_parent");
+  uint table_no = table->get_access_no();
+  if ((m_tables[table_no].m_maybe_pushable & PUSHABLE_AS_PARENT) != PUSHABLE_AS_PARENT)
+  {
+    DBUG_PRINT("info", ("Table %d already reported 'not pushable_as_parent'", table_no));
+    DBUG_RETURN(false);
+  }
+
+  const AQP::enum_access_type access_type= table->get_access_type();
+  DBUG_ASSERT(access_type != AQP::AT_VOID);
+
+  if (access_type == AQP::AT_OTHER)
+  {
+    EXPLAIN_NO_PUSH("Table %s is not pushable, unknown access 'type'", table->get_table()->alias);
+    m_tables[table_no].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
+    DBUG_RETURN(false);
+  }
+  if (access_type == AQP::AT_MULTI_UNIQUE_KEY)
+  {
+    EXPLAIN_NO_PUSH("Table %s is not pushable, access type 'MULTI_UNIQUE_KEY' not implemented",
+                     table->get_table()->alias);
+    m_tables[table_no].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+} // ndb_pushed_builder_ctx::is_pushable_as_parent()
+
 
 /***************************************************************
- *  field_ref_is_join_pushable()
+ *  is_pushable_as_child()
  *
  * Determines if the specified child ('table') can be appended to 
  * an existing chain of previously pushed join operations.
@@ -796,21 +900,48 @@ ndb_pushed_builder_ctx::add_parent_candidate(const ndb_table_access_map& table,
  * join_items[] .
  ****************************************************************/
 bool
-ndb_pushed_builder_ctx::field_ref_is_join_pushable(
+ndb_pushed_builder_ctx::is_pushable_as_child(
                            const AQP::Table_access* table,
                            const Item* join_items[ndb_pushed_join::MAX_LINKED_KEYS+1],
                            const AQP::Table_access*& parent)
 {
-  DBUG_ENTER("field_ref_is_join_pushable");
+  DBUG_ENTER("is_pushable_as_child");
   uint tab_no = table->get_access_no();
   parent= NULL;
 
   DBUG_ASSERT (join_root() < table);
 
+  if ((m_tables[tab_no].m_maybe_pushable & PUSHABLE_AS_CHILD) != PUSHABLE_AS_CHILD)
+  {
+    DBUG_PRINT("info", ("Table %s already known 'not is_pushable_as_child'", table->get_table()->alias));
+    DBUG_RETURN(false);
+  }
+
+  AQP::enum_access_type access_type= table->get_access_type();
+  AQP::enum_access_type root_type= join_root()->get_access_type();
+
+  if (!(is_lookup_operation(access_type) || access_type==AQP::AT_ORDERED_INDEX_SCAN))
+  {
+    EXPLAIN_NO_PUSH("Can't push table %s as child, 'type' must be a REF access",
+                     table->get_table()->alias);
+    m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
+    DBUG_RETURN(false);
+  }
+     
+  // Currently there is a limitation in not allowing LOOKUP - (index)SCAN operations
+  if (is_lookup_operation(root_type) && access_type==AQP::AT_ORDERED_INDEX_SCAN)
+  {
+    EXPLAIN_NO_PUSH("Push of table %s as scan-child with lookup-root %s not implemented",
+                     table->get_table()->alias, join_root()->get_table()->alias);
+    // 'table' may still be PUSHABLE_AS_CHILD with another parent
+    DBUG_RETURN(false);
+  }
+
   if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
   {
-    DBUG_PRINT("info", ("  'key_parts >= ndb_pushed_join::MAX_LINKED_KEYS', "
-                        "can't append table:%d", tab_no+1));
+    EXPLAIN_NO_PUSH("Can't push table %s as child; to many #REF'ed parent fields",
+                     table->get_table()->alias);
+    m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently dissable
     DBUG_RETURN(false);
   }
 
@@ -841,7 +972,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     {
       DBUG_PRINT("info", ("  Item type:%d not join_pushable -> can't append table:%d",
                   key_item->type(), tab_no+1));
-      DBUG_RETURN(false);
+      DBUG_RETURN(false);  // TODO, handle gracefull -> continue?
     }
 
     const Item_field* const key_item_field 
@@ -855,7 +986,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
         ->eq_def(table->get_key_part_info(key_part_no)->field))
     {
       DBUG_PRINT("info", ("Item_field does not have same definition as REF'ed key"));
-      DBUG_RETURN(false);
+      DBUG_RETURN(false);  // TODO, handle gracefull -> continue?
     }
 
     /**
@@ -956,26 +1087,37 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     }
     else
     {
-      DBUG_PRINT("info", ("Item_field %s.%s is outside scope of pushable join",
-                  get_referred_table_access_name(key_item_field),
-                  get_referred_field_name(key_item_field)));
+      EXPLAIN_NO_PUSH("Can't push table %s as child of %s, "
+                      "Item_field '%s.%s' is outside scope of pushable join",
+                       table->get_table()->alias, join_root()->get_table()->alias,
+                       get_referred_table_access_name(key_item_field),
+                       get_referred_field_name(key_item_field));
       DBUG_RETURN(false);
     }
   } // for (uint key_part_no= 0 ...
 
   join_items[table->get_no_of_key_fields()]= NULL;
 
-  if (m_const_scope.contain(current_parents))
+  if (current_parents.is_clear_all())
+  {
+    EXPLAIN_NO_PUSH("Can't push table %s as child; no usable REF'ed parent FIELD_ITEMs",
+                     table->get_table()->alias);
+    m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;  // Permanently disable as child
+    DBUG_RETURN(false);
+  }
+  else if (m_const_scope.contain(current_parents))
    {
      // NOTE: This is a constant table wrt. this instance of the pushed join.
      //       It should be relatively simple to extend the SPJ block to 
      //       allow such tables to be included in the pushed join.
-    DBUG_PRINT("info", ("  Contain only const/param REFs, -> can't append(yet) as 'const' wrt. pushed join:%d\n",tab_no+1));
+    EXPLAIN_NO_PUSH("Can't push table %s as child of %s, their dependency is 'const'",
+                     table->get_table()->alias, join_root()->get_table()->alias);
     DBUG_RETURN(false);
   }
   else if (parents.is_clear_all())
   {
-    DBUG_PRINT("info", ("  No common parents, -> can't append table to pushed joins:%d\n",tab_no+1));
+    EXPLAIN_NO_PUSH("Can't push table %s as child of %s, no parents found within scope",
+                     table->get_table()->alias, join_root()->get_table()->alias);
     DBUG_RETURN(false);
   }
 
@@ -1022,17 +1164,20 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
       if (scan_descendant->get_join_type(parent) == AQP::JT_OUTER_JOIN)
       {
         DBUG_PRINT("info", ("  There are outer joins between parent and artificial parent -> can't append"));
+        EXPLAIN_NO_PUSH("Can't push table %s as child of %s, implementation limitations for outer joins",
+                     table->get_table()->alias, join_root()->get_table()->alias);
         DBUG_RETURN(false);
       }
       parent_no= descendant_no;
 //    parent= scan_descendant;
-      DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s", scan_descendant->get_table()->alias));
+      DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s",
+                         scan_descendant->get_table()->alias));
 
       if (scan_descendant && 
          table->get_join_type(scan_descendant) == AQP::JT_OUTER_JOIN)
       {
-        DBUG_PRINT("info", ("  Table scan %d is outer joined with scan-descendant %d, not pushable (yet)",
-                    tab_no, descendant_no));
+        EXPLAIN_NO_PUSH("Can't push table %s as child of %s, outer join with scan-descendant %s not implemented",
+                     table->get_table()->alias, join_root()->get_table()->alias, scan_descendant->get_table()->alias);
         DBUG_RETURN(false);
       }
     }
@@ -1047,13 +1192,17 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
       uint ancestor_no= parent_no;
       while (ancestor_no != MAX_TABLES)
       {
+        scan_ancestor= m_plan.get_table_access(ancestor_no);
         if (m_tables[ancestor_no].m_last_scan_descendant < MAX_TABLES)
         {
-          DBUG_PRINT("info", ("  Ancestor tab %d has scan descendants -> can't append", ancestor_no));
+          EXPLAIN_NO_PUSH("Can't push table %s as child of %s, "
+                          "implementation limitations due to bushy scan with %s indirect through %s",
+                           table->get_table()->alias, join_root()->get_table()->alias,
+                           m_plan.get_table_access(m_tables[ancestor_no].m_last_scan_descendant)->get_table()->alias,
+                           scan_ancestor->get_table()->alias);
           DBUG_RETURN(false);
         }
 
-        scan_ancestor= m_plan.get_table_access(ancestor_no);
         if (!is_lookup_operation(scan_ancestor->get_access_type()))
         {
           break; // As adding this scanop was prev. allowed, above ancestor can't be scan bushy
@@ -1067,8 +1216,8 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
       if (scan_ancestor && 
          table->get_join_type(scan_ancestor) == AQP::JT_OUTER_JOIN)
       {
-        DBUG_PRINT("info", ("  Table scan %d is outer joined with scan-ancestor %d, not pushable (yet)",
-                    tab_no, ancestor_no));
+        EXPLAIN_NO_PUSH("Can't push table %s as child of %s, outer join with scan-ancestor %s not implemented",
+                     table->get_table()->alias, join_root()->get_table()->alias, scan_ancestor->get_table()->alias);
         DBUG_RETURN(false);
       }
     }
@@ -1152,7 +1301,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
   } // substitute
 
   DBUG_RETURN(true);
-} // ndb_pushed_builder_ctx::field_ref_is_join_pushable
+} // ndb_pushed_builder_ctx::is_pushable_as_child
 
 
 /**
@@ -1210,43 +1359,19 @@ build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
 } // build_key_map
 
 int
-ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
+ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
                                 const AQP::Table_access* const join_root)
 {
   DBUG_ENTER("make_pushed_join");
 
-  if (m_pushed_join_member)  // Already member of another pushed join.
-    DBUG_RETURN(0);
+  DBUG_ASSERT (context.is_pushable_as_parent(join_root));
+  context.set_root(join_root);
+  const AQP::Join_plan& plan= context.plan();
+
+  DBUG_PRINT("enter", ("Table %d as root is pushable", join_root->get_access_no()));
+  DBUG_EXECUTE("info", join_root->dbug_print(););
 
   const AQP::enum_access_type access_type= join_root->get_access_type();
-  DBUG_ASSERT(access_type != AQP::AT_VOID);
-
-  DBUG_PRINT("enter", ("Investigating from table %d as root", join_root->get_access_no()));
-  if (access_type == AQP::AT_OTHER)
-  {
-    DBUG_PRINT("info", ("join_root->get_access_type() == AQP::AT_OTHER"
-                        " -> not pushable"));
-    DBUG_RETURN(0);
-  }
-  if (access_type == AQP::AT_MULTI_UNIQUE_KEY)
-  {
-    DBUG_PRINT("info", ("join_root->get_access_type() == AQP::AT_MULTI_KEY"
-                        " -> not (yet) pushable"));
-    DBUG_RETURN(0);
-  }
-  if (uses_blob_value(table->read_set))
-  {
-    DBUG_PRINT("info", ("'read_set' contain BLOB columns -> not pushable"));
-    DBUG_RETURN(0);
-  }
-  if (m_user_defined_partitioning)
-  {
-    DBUG_PRINT("info", ("Tables has user defined partioning -> not pushable"));
-    DBUG_RETURN(0);
-  }
-
-  DBUG_PRINT("info", ("join_root is pushable:"));
-  DBUG_EXECUTE("info", join_root->dbug_print(););
 
   /**
    * Past this point we know at least join_root to be join pushable 
@@ -1256,7 +1381,6 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
    * appendable child.
    */
   NdbQueryBuilder builder(*m_thd_ndb->ndb);
-  ndb_pushed_builder_ctx context(plan, join_root);
 
   uint push_cnt= 0;
   uint fld_refs= 0;
@@ -1270,39 +1394,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     const AQP::Table_access* const join_tab= plan.get_table_access(join_cnt);
     const NdbQueryOperationDef* query_op= NULL;
 
-    if (join_tab->get_table()->file->ht != ht)
-    {
-      DBUG_PRINT("info", ("Table %d not same SE, not pushable", join_cnt));
-      continue;
-    }
-
-    const ha_ndbcluster* const handler=
-      static_cast<ha_ndbcluster*>(join_tab->get_table()->file);
-
-    if (handler->m_pushed_join_member)
-    {
-      DBUG_PRINT("info", ("Table %d already contained in another pushed join", join_cnt));
-      continue;
-    }
-    if (handler->uses_blob_value(join_tab->get_table()->read_set))
-    {
-      DBUG_PRINT("info", ("Table %d, 'read_set' contains BLOBs, not pushable", join_cnt));
-      continue;
-    }
-    if (handler->m_user_defined_partitioning)
-    {
-      DBUG_PRINT("info", ("Table %d has user defined partioning, not pushable", join_cnt));
-      continue;
-    }
-    AQP::enum_access_type child_type= join_tab->get_access_type();
-    if (!(is_lookup_operation(child_type)  ||
-          // Currently there is a limitation in not allowing LOOKUP - (index)SCAN operations
-          (child_type==AQP::AT_ORDERED_INDEX_SCAN && !is_lookup_operation(access_type))))
-    {
-      DBUG_PRINT("info", ("Table %d not a pushable access type", join_cnt));
-      continue;
-    }
-    if (!context.field_ref_is_join_pushable(join_tab, join_items, join_parent))
+    if (!context.is_pushable_as_child(join_tab, join_items, join_parent))
     {
       DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
       continue;
@@ -1386,6 +1478,10 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     DBUG_PRINT("info", ("Appending child, join_cnt:%d, key_parts:%d", push_cnt, 
                         join_tab->get_no_of_key_fields()));
 
+    DBUG_ASSERT(join_tab->get_table()->file->ht == ht);
+    const ha_ndbcluster* const handler=
+      static_cast<ha_ndbcluster*>(join_tab->get_table()->file);
+
     KEY *key= &handler->table->key_info[join_tab->get_index_no()];
 
     const NdbQueryOperand* linked_key[ndb_pushed_join::MAX_LINKED_KEYS]= {NULL};
@@ -1428,7 +1524,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
         if (field->is_real_null())
         {
           DBUG_PRINT("info", ("NULL constValues in key -> not pushable"));
-          DBUG_RETURN(0);
+          DBUG_RETURN(0);  // TODO, handle gracefull -> continue?
         }
         const uchar* const ptr= (field->real_type() == MYSQL_TYPE_VARCHAR)
                 ? field->ptr + ((Field_varstring*)field)->length_bytes
@@ -1472,7 +1568,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
           if (unlikely(fld_refs >= ndb_pushed_join::MAX_REFERRED_FIELDS))
           {
             DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) encountered"));
-            DBUG_RETURN(0);
+            DBUG_RETURN(0);  // TODO, handle gracefull -> continue?
           }
           referred_fields[fld_refs++]= field_item->field;
           linked_key[map[i]]= builder.paramValue();
@@ -1556,6 +1652,25 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
 } // ha_ndbcluster::make_pushed_join()
 
 
+//ndb_pushed_builder_ctx::enum_pushability
+int
+ha_ndbcluster::get_pushability() const
+{
+  if (uses_blob_value(table->read_set))
+  {
+    EXPLAIN_NO_PUSH("Table %s not pushable, 'read_set' contain BLOB columns", table->alias);
+    return 0;
+  }
+  if (m_user_defined_partitioning)
+  {
+    EXPLAIN_NO_PUSH("Table %s not pushable, has user defined partioning", table->alias);
+    return 0;
+  }
+  return (ndb_pushed_builder_ctx::PUSHABLE_AS_CHILD | 
+          ndb_pushed_builder_ctx::PUSHABLE_AS_PARENT);
+} // ha_ndbcluster::get_pushability()
+
+
 static
 int ndbcluster_make_pushed_join(handlerton *hton, THD* thd,
                                 AQP::Join_plan* plan)
@@ -1565,15 +1680,16 @@ int ndbcluster_make_pushed_join(handlerton *hton, THD* thd,
   if (!THDVAR(thd, join_pushdown))
     DBUG_RETURN(0);
 
+  ndb_pushed_builder_ctx context(*plan);
   for (uint i= 0; i < plan->get_access_count()-1; i++)
   {
     const AQP::Table_access* const join_root=  plan->get_table_access(i);
-    if (join_root->get_table()->file->ht == ndbcluster_hton)
+    if (context.is_pushable_as_parent(join_root))
     {
       ha_ndbcluster* const handler=
         static_cast<ha_ndbcluster*>(join_root->get_table()->file);
 
-      int error= handler->make_pushed_join(*plan,join_root);
+      int error= handler->make_pushed_join(context,join_root);
       if (unlikely(error))
       {
         handler->print_error(error, MYF(0));
