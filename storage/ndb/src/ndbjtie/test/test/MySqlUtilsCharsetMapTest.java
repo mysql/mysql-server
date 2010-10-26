@@ -249,9 +249,23 @@ public class MySqlUtilsCharsetMapTest extends JTieTestBase {
             assert(result[0]);
             result = csmap.isMultibyte(utf8_num);
             assert(result[0]);
+            int nNull = 0, nSingle = 0, nMulti = 0;
+            for(int i = 0; i < 256 ; i++) {
+              result = csmap.isMultibyte(i);
+              if(result == null) nNull++;
+              else {
+                if(result[0]) nMulti++;
+                else nSingle++;
+              }
+            }
+            out.println("          Unused: " + nNull + 
+                        " single-byte: " +nSingle + " multi-byte: " + nMulti  );
+
+            assert(nNull > 0);
+            assert(nSingle > 0);
+            assert(nMulti > 0);
             out.println("     <-- IS MULTIBYTE TEST");            
-        }
-        
+        }        
         out.println("<-- MySqlUtilsCharsetMapTest.test()");
     };
 

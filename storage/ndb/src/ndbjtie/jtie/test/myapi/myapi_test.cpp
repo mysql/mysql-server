@@ -299,6 +299,7 @@ test6()
     printf("\nA::print(A *)...\n");
     A::print(a);
 
+
     printf("\naccessing A...\n");
     n = ++A::d0s;
     printf("... ++A::d0s = %d\n", n);
