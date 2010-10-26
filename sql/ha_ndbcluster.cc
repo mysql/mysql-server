@@ -689,13 +689,11 @@ static const char* get_referred_field_name(const Item_field* field_item)
   return field_item->field->field_name;
 }
 
-#if !defined(DBUG_OFF)
 static const char* get_referred_table_access_name(const Item_field* field_item)
 {
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->table->alias;
 }
-#endif
 
 static bool is_lookup_operation(AQP::enum_access_type accessType)
 {
