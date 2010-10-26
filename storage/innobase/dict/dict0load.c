@@ -40,6 +40,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "dict0priv.h"
 
 
 /** Following are six InnoDB system tables */
@@ -1709,7 +1710,7 @@ err_exit:
 	dict_load_columns(table, heap);
 
 	if (cached) {
-		dict_table_add_to_cache(table, heap);
+		dict_table_add_to_cache(table, TRUE, heap);
 	} else {
 		dict_table_add_system_columns(table, heap);
 	}
@@ -1902,6 +1903,7 @@ dict_load_foreign_cols(
 	mtr_start(&mtr);
 
 	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
+
 	sys_index = UT_LIST_GET_FIRST(sys_foreign_cols->indexes);
 	ut_a(!dict_table_is_comp(sys_foreign_cols));
 
@@ -1975,6 +1977,7 @@ dict_load_foreign(
 	mtr_start(&mtr);
 
 	sys_foreign = dict_table_get_low("SYS_FOREIGN");
+
 	sys_index = UT_LIST_GET_FIRST(sys_foreign->indexes);
 	ut_a(!dict_table_is_comp(sys_foreign));
 

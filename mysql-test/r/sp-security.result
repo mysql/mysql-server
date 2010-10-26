@@ -44,7 +44,7 @@ ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 't1'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 drop procedure db1_secret.dummy;
-ERROR 42000: PROCEDURE db1_secret.dummy does not exist
+ERROR 42000: alter routine command denied to user 'user1'@'localhost' for routine 'db1_secret.dummy'
 drop procedure db1_secret.stamp;
 ERROR 42000: alter routine command denied to user 'user1'@'localhost' for routine 'db1_secret.stamp'
 drop function db1_secret.db;
@@ -58,7 +58,7 @@ ERROR 42000: SELECT command denied to user ''@'localhost' for table 't1'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Access denied for user ''@'%' to database 'db1_secret'
 drop procedure db1_secret.dummy;
-ERROR 42000: PROCEDURE db1_secret.dummy does not exist
+ERROR 42000: alter routine command denied to user ''@'%' for routine 'db1_secret.dummy'
 drop procedure db1_secret.stamp;
 ERROR 42000: alter routine command denied to user ''@'%' for routine 'db1_secret.stamp'
 drop function db1_secret.db;
@@ -567,3 +567,28 @@ DROP USER 'tester';
 DROP USER 'Tester';
 DROP DATABASE B48872;
 End of 5.0 tests.
+#
+# Test for bug#57061 "User without privilege on routine can discover
+# its existence."
+#
+drop database if exists mysqltest_db;
+create database mysqltest_db;
+# Create user with no privileges on mysqltest_db database.
+create user bug57061_user@localhost;
+create function mysqltest_db.f1() returns int return 0;
+create procedure mysqltest_db.p1() begin end;
+# Connect as user 'bug57061_user@localhost'
+# Attempt to drop routine on which user doesn't have privileges
+# should result in the same 'access denied' type of error whether
+# routine exists or not.
+drop function if exists mysqltest_db.f_does_not_exist;
+ERROR 42000: alter routine command denied to user 'bug57061_user'@'localhost' for routine 'mysqltest_db.f_does_not_exist'
+drop procedure if exists mysqltest_db.p_does_not_exist;
+ERROR 42000: alter routine command denied to user 'bug57061_user'@'localhost' for routine 'mysqltest_db.p_does_not_exist'
+drop function if exists mysqltest_db.f1;
+ERROR 42000: alter routine command denied to user 'bug57061_user'@'localhost' for routine 'mysqltest_db.f1'
+drop procedure if exists mysqltest_db.p1;
+ERROR 42000: alter routine command denied to user 'bug57061_user'@'localhost' for routine 'mysqltest_db.p1'
+# Connection 'default'.
+drop user bug57061_user@localhost;
+drop database mysqltest_db;

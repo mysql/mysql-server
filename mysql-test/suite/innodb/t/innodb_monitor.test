@@ -11,168 +11,168 @@ select * from information_schema.innodb_metrics;
 select name, status from information_schema.innodb_metrics;
 
 # Turn on all monitor counters
-set global innodb_monitor_counter_on = all;
+set global innodb_enable_monitor_counter = all;
 
 # status should all change to "started"
 select name, status from information_schema.innodb_metrics;
 
 # Test wrong argument to the global configure option
 --error ER_WRONG_VALUE_FOR_VAR
-set global innodb_monitor_counter_on = aaa;
+set global innodb_enable_monitor_counter = aaa;
 
 # We require a valid monitor counter/module name. There is no default
 # counter name or module. A warning will be printed asking user to
 # specify a valid counter name.
 #--disable_warnings
-#set global innodb_monitor_counter_on = default;
+#set global innodb_enable_monitor_counter = default;
 #--enable_warnings
 
 # Turn off all monitor counters, option name should be case
 # insensitive
-set global innodb_monitor_counter_off = All;
+set global innodb_disable_monitor_counter = All;
 
 # status should all change to "stopped"
 select name, status from information_schema.innodb_metrics;
 
 # Reset all counter values
-set global innodb_monitor_counter_reset_all = all;
+set global innodb_reset_all_monitor_counter = all;
 
-# value_since_start should all change to 0
-select name, value_since_start, status from information_schema.innodb_metrics;
+# count should all change to 0
+select name, count, status from information_schema.innodb_metrics;
 
 # Only turn on "table_open" counter
-set global innodb_monitor_counter_on = server_table_open;
+set global innodb_enable_monitor_counter = metadata_table_opened;
 
-# Create a new table to test "server_table_open" counter
+# Create a new table to test "metadata_table_opened" counter
 create table monitor_test(col int) engine = innodb;
 
 # This will open the monitor_test table
 select * from monitor_test;
 
-# "server_table_open" should increment by 1
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+# "metadata_table_opened" should increment by 1
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_open";
+where name = "metadata_table_opened";
 
 # Reset the counter value while counter is still on (started)
-# This will reset value "value_since_reset" but not
-# "value_since_start"
-set global innodb_monitor_counter_reset = server_table_open;
+# This will reset value "count_since_reset" but not
+# "count"
+set global innodb_reset_monitor_counter = metadata_table_opened;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_open";
+where name = "metadata_table_opened";
 
-# re-create table again to increment "server_table_open" again
+# re-create table again to increment "metadata_table_opened" again
 drop table monitor_test;
 
-# Create a new table to test "server_table_open" counter
+# Create a new table to test "metadata_table_opened" counter
 create table monitor_test(col int) engine = innodb;
 
 select * from monitor_test;
 
-# "server_table_open" should increment
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+# "metadata_table_opened" should increment
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_open";
+where name = "metadata_table_opened";
 
 # Cannot reset all monitor value while the counter is on
-set global innodb_monitor_counter_reset_all = server_table_open;
+set global innodb_reset_all_monitor_counter = metadata_table_opened;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_open";
+where name = "metadata_table_opened";
 
-# Turn off the counter "server_table_open"
-set global innodb_monitor_counter_off = server_table_open;
+# Turn off the counter "metadata_table_opened"
+set global innodb_disable_monitor_counter = metadata_table_opened;
 
 # Reset the counter value while counter is off (stopped)
-set global innodb_monitor_counter_reset = server_table_open;
+set global innodb_reset_monitor_counter = metadata_table_opened;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_open";
+where name = "metadata_table_opened";
 
-# re-create table again. Since monitor is off, "server_table_open"
+# re-create table again. Since monitor is off, "metadata_table_opened"
 # should not be incremented
 drop table monitor_test;
 
-# Create a new table to test "server_table_open" counter
+# Create a new table to test "metadata_table_opened" counter
 create table monitor_test(col int) engine = innodb;
 
-# "server_table_open" should increment
+# "metadata_table_opened" should increment
 select * from monitor_test;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_open";
+where name = "metadata_table_opened";
 
 # Reset all the counters, include those counter *_since_start
-set global innodb_monitor_counter_reset_all = server_table_open;
+set global innodb_reset_all_monitor_counter = metadata_table_opened;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_open";
+where name = "metadata_table_opened";
 
 # Turn on "table_open" counter again
-set global innodb_monitor_counter_on = server_table_open;
+set global innodb_enable_monitor_counter = metadata_table_opened;
 
-# Test server_table_open again to see if it is working correctly
+# Test metadata_table_opened again to see if it is working correctly
 # after above round of turning on/off/reset
 drop table monitor_test;
 
-# Create a new table to test "server_table_open" counter
+# Create a new table to test "metadata_table_opened" counter
 create table monitor_test(col int) engine = innodb;
 
 select * from monitor_test;
 
-# "server_table_open" should increment
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+# "metadata_table_opened" should increment
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_open";
+where name = "metadata_table_opened";
 
-# Test counter "server_table_close", create index will close the old handle
-set global innodb_monitor_counter_on = server_table_close;
+# Test counter "metadata_table_closed", create index will close the old handle
+set global innodb_enable_monitor_counter = metadata_table_closed;
 
 create index idx on monitor_test(col);
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name = "server_table_close";
+where name = "metadata_table_closed";
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name like "server%";
+where name like "metadata%";
 
-# Reset counters only in "module_server" module
-set global innodb_monitor_counter_off = module_server;
+# Reset counters only in "module_metadata" module
+set global innodb_disable_monitor_counter = module_metadata;
 
-set global innodb_monitor_counter_reset = module_server;
+set global innodb_reset_monitor_counter = module_metadata;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name like "server%";
+where name like "metadata%";
 
-set global innodb_monitor_counter_reset_all = module_server;
+set global innodb_reset_all_monitor_counter = module_metadata;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
-where name like "server%";
+where name like "metadata%";
 
 # Test Transaction Module
-set global innodb_monitor_counter_on = module_trx;
+set global innodb_enable_monitor_counter = module_trx;
 
 begin;
 insert into monitor_test values(9);
@@ -182,37 +182,37 @@ begin;
 insert into monitor_test values(9);
 rollback;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "trx_num_abort" or name like "trx_active_trx";
 
-set global innodb_monitor_counter_off = module_trx;
+set global innodb_disable_monitor_counter = module_trx;
 
 # Test DML Module
-set global innodb_monitor_counter_on = module_dml;
+set global innodb_enable_monitor_counter = module_dml;
 
 insert into monitor_test values(9);
 
 update monitor_test set col = 10 where col = 9;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "dml%";
 
 delete from monitor_test;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 	from information_schema.innodb_metrics
 	where name like "dml%";
 
 # test reset counter while the counter is on
-set global innodb_monitor_counter_reset =  module_dml;
+set global innodb_reset_monitor_counter =  module_dml;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "dml%";
 
@@ -222,38 +222,38 @@ insert into monitor_test values(1);
 
 delete from monitor_test;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "dml%";
 
 # We do not allow reset_all while the counter is on, nothing
 # should be reset here
-set global innodb_monitor_counter_reset_all  =  module_dml;
+set global innodb_reset_all_monitor_counter  =  module_dml;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "dml%";
 
 # Turn off the counter
-set global innodb_monitor_counter_off = module_dml;
+set global innodb_disable_monitor_counter = module_dml;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "dml%";
 
 # Reset all counter values
-set global innodb_monitor_counter_reset_all  = module_dml;
+set global innodb_reset_all_monitor_counter  = module_dml;
 
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "dml%";
 
 # Open individual counter "dml_num_inserts"
-set global innodb_monitor_counter_on = dml_num_inserts;
+set global innodb_enable_monitor_counter = dml_num_inserts;
 
 insert into monitor_test values(9);
 insert into monitor_test values(1);
@@ -261,18 +261,27 @@ insert into monitor_test values(1);
 delete from monitor_test;
 
 # Only counter "dml_num_inserts" should be updated
-select name, max_since_start, min_since_start, value_since_start,
-	max_since_reset, min_since_reset, value_since_reset, status
+select name, max_count, min_count, count,
+	max_count_since_reset, min_count_since_reset, count_since_reset, status
 from information_schema.innodb_metrics
 where name like "dml%";
 
-set global innodb_monitor_counter_off = module_dml;
+set global innodb_disable_monitor_counter = module_dml;
 
 drop table monitor_test;
 
+set global innodb_enable_monitor_counter = fil_system_num_open_file;
+
+select name, max_count, min_count, count,
+       max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "fil_system_num_open_file";
+
+set global innodb_disable_monitor_counter = fil_system_num_open_file;
+
 -- disable_warnings
-set global innodb_monitor_counter_on = default;
-set global innodb_monitor_counter_off = default;
-set global innodb_monitor_counter_reset = default;
-set global innodb_monitor_counter_reset_all = default;
+set global innodb_enable_monitor_counter = default;
+set global innodb_disable_monitor_counter = default;
+set global innodb_reset_monitor_counter = default;
+set global innodb_reset_all_monitor_counter = default;
 -- enable_warnings

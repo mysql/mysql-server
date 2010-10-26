@@ -1296,10 +1296,12 @@ UNIV_INTERN
 void
 os_file_set_nocache(
 /*================*/
-	int		fd,		/*!< in: file descriptor to alter */
-	const char*	file_name,	/*!< in: file name, used in the
-					diagnostic message */
-	const char*	operation_name)	/*!< in: "open" or "create"; used in the
+	int		fd		/*!< in: file descriptor to alter */
+	__attribute__((unused)),
+	const char*	file_name	/*!< in: used in the diagnostic message */
+	__attribute__((unused)),
+	const char*	operation_name __attribute__((unused)))
+					/*!< in: "open" or "create"; used in the
 					diagnostic message */
 {
 	/* some versions of Solaris may not have DIRECTIO_ON */
@@ -1483,8 +1485,6 @@ try_again:
 	int		create_flag;
 	ibool		retry;
 	const char*	mode_str	= NULL;
-	const char*	type_str	= NULL;
-	const char*	purpose_str	= NULL;
 
 try_again:
 	ut_a(name);
@@ -1504,26 +1504,9 @@ try_again:
 		ut_error;
 	}
 
-	if (type == OS_LOG_FILE) {
-		type_str = "LOG";
-	} else if (type == OS_DATA_FILE) {
-		type_str = "DATA";
-	} else {
-		ut_error;
-	}
+	ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE);
+	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 
-	if (purpose == OS_FILE_AIO) {
-		purpose_str = "AIO";
-	} else if (purpose == OS_FILE_NORMAL) {
-		purpose_str = "NORMAL";
-	} else {
-		ut_error;
-	}
-
-#if 0
-	fprintf(stderr, "Opening file %s, mode %s, type %s, purpose %s\n",
-		name, mode_str, type_str, purpose_str);
-#endif
 #ifdef O_SYNC
 	/* We let O_SYNC only affect log files; note that we map O_DSYNC to
 	O_SYNC because the datasync options seemed to corrupt files in 2001
