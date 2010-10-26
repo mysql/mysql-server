@@ -4054,6 +4054,29 @@ select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 b	a	b	a
 0	0	0	0
 drop table t;
+CREATE TABLE tc(
+a varchar(10) NOT NULL,
+b varchar(10),
+c varchar(10),
+PRIMARY KEY (a),
+UNIQUE KEY uk1 (b, c) 
+)ENGINE=ndbcluster;
+insert into tc values ('aa','bb', 'x'), ('bb','cc', 'x'), ('cc', 'dd', 'x');
+explain select * from tc as x1 
+right outer join tc as x2 on x1.b=x2.a   
+left outer join tc as x3 on x2.b = x3.b and x1.c=x3.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	x1	ref	uk1	uk1	13	test.x2.a	1	Parent of 2 pushed join@1
+1	SIMPLE	x3	ref	uk1	uk1	26	test.x2.b,test.x1.c	1	Child of pushed join@1
+select * from tc as x1 
+right outer join tc as x2 on x1.b=x2.a   
+left outer join tc as x3 on x2.b = x3.b and x1.c=x3.c;
+a	b	c	a	b	c	a	b	c
+NULL	NULL	NULL	aa	bb	x	NULL	NULL	NULL
+aa	bb	x	bb	cc	x	bb	cc	x
+bb	cc	x	cc	dd	x	cc	dd	x
+drop table tc;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) AS val 
 from ndbinfo.counters 
@@ -4071,10 +4094,10 @@ counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
 LOCAL_TABLE_SCANS_SENT	196
 PRUNED_RANGE_SCANS_RECEIVED	16
-RANGE_SCANS_RECEIVED	203
+RANGE_SCANS_RECEIVED	209
 READS_NOT_FOUND	405
 READS_RECEIVED	61
-SCAN_ROWS_RETURNED	63863
+SCAN_ROWS_RETURNED	63867
 TABLE_SCANS_RECEIVED	196
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
@@ -4082,19 +4105,19 @@ where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
 and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 LOCAL+REMOTE READS_SENT
-29146
+29150
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2000
+2008
 pruned_scan_count
 7
 sorted_scan_count
 7
 pushed_queries_defined
-343
+345
 pushed_queries_dropped
 11
 pushed_queries_executed
-264
+267
 set ndb_join_pushdown = @save_ndb_join_pushdown;

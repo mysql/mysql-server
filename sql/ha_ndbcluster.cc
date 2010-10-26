@@ -1869,9 +1869,8 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
   for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
   {
     Field* field= m_pushed_join->get_field_ref(i);
-    bool shrinkVarChar= is_shrinked_varchar(field);
     DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
-    paramValues[paramOffs+i]= NdbQueryParamValue(field->ptr, shrinkVarChar);
+    paramValues[paramOffs+i]= NdbQueryParamValue(field->ptr, false);
   }
 
   NdbQuery* const query= m_thd_ndb->trans->createQuery(&m_pushed_join->get_query_def(), paramValues);

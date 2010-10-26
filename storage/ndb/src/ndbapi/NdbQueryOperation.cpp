@@ -3601,6 +3601,10 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
   return 0;
 } // NdbQueryOperationImpl::serializeProject
 
+static int
+formatAttr(const NdbColumnImpl* column,
+           const void* &value, Uint32& len,
+           char* buffer, Uint32 buflen);
 
 int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues)
 {
@@ -3624,11 +3628,19 @@ int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues
     const void* addr;
     Uint32 len;
     bool null;
-    const int error = paramValue.getValue(paramDef,addr,len,null);
+    int error = paramValue.getValue(paramDef,addr,len,null);
     if (unlikely(error))
       return error;
     if (unlikely(null))
       return QRY_NEED_PARAMETER;
+
+    char tmp[NDB_MAX_KEY_SIZE];
+
+    error = 
+      formatAttr(paramDef.getColumn(), addr, len, tmp, 
+               static_cast<Uint32>(sizeof(tmp)));
+    if (unlikely(error))
+      return error;
 
     m_params.append(len);          // paramValue length in #bytes
     m_params.append(addr,len);
