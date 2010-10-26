@@ -966,13 +966,13 @@ dict_stats_analyze_index_for_n_prefix(
 	}
 
 	last_idx_on_level = *(ib_uint64_t*) dyn_array_get_element(boundaries,
-		(n_diff_for_this_prefix - 1) * sizeof(ib_uint64_t));
+		(ulint) ((n_diff_for_this_prefix - 1) * sizeof(ib_uint64_t)));
 
 	rec_idx = 0;
 
 	n_diff_sum_of_all_analyzed_pages = 0;
 
-	n_recs_to_dive_below = ut_min(srv_stats_persistent_sample_pages,
+	n_recs_to_dive_below = UT_MIN(srv_stats_persistent_sample_pages,
 				      n_diff_for_this_prefix);
 
 	for (i = 0; i < n_recs_to_dive_below; i++) {
@@ -1019,10 +1019,11 @@ dict_stats_analyze_index_for_n_prefix(
 		/* we do not pass (left, right) because we do not want to ask
 		ut_rnd_interval() to work with too big numbers since
 		ib_uint64_t could be bigger than ulint */
-		rnd = ut_rnd_interval(0, right - left);
+		rnd = ut_rnd_interval(0, (ulint) (right - left));
 
 		dive_below_idx = *(ib_uint64_t*) dyn_array_get_element(
-			boundaries, (left + rnd) * sizeof(ib_uint64_t));
+			boundaries, (ulint) ((left + rnd)
+					     * sizeof(ib_uint64_t)));
 
 #if 0
 		DEBUG_PRINTF("    %s(): dive below rec_idx=%llu\n",
@@ -1905,10 +1906,10 @@ dict_stats_fetch_index_stats_step(
 #define PFX	"n_diff_pfx"
 
 	if (strncasecmp("size", stat_name, stat_name_len) == 0) {
-		index->stat_index_size = stat_value;
+		index->stat_index_size = (ulint) stat_value;
 	} else if (strncasecmp("n_leaf_pages", stat_name, stat_name_len)
 		   == 0) {
-		index->stat_n_leaf_pages = stat_value;
+		index->stat_n_leaf_pages = (ulint) stat_value;
 	} else if (strncasecmp(PFX, stat_name,
 			       ut_min(strlen(PFX), stat_name_len)) == 0) {
 
