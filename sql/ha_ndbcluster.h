@@ -417,6 +417,8 @@ class ha_ndbcluster: public handler
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
 
+  int get_pushability() const;
+
   int ha_initialise();
   void column_bitmaps_signal(uint sig_type);
   int open(const char *name, int mode, uint test_if_locked);
@@ -588,7 +590,7 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  int make_pushed_join(AQP::Join_plan& plan,
+  int make_pushed_join(class ndb_pushed_builder_ctx& context,
                        const AQP::Table_access* const join_root);
 
   bool test_push_flag(enum ha_push_flag flag) const;

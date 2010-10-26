@@ -6221,3 +6221,5 @@ ER_SLAVE_CONVERSION_FAILED
   eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
 ER_SLAVE_CANT_CREATE_CONVERSION
   eng "Can't create conversion table for table '%-.192s.%-.192s'"
+WARN_QUERY_NOT_PUSHED
+  eng "Table can't be part of pushed join" 
