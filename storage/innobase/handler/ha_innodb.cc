@@ -122,10 +122,6 @@ undefined.  Map it to NULL. */
 
 static struct handlerton* innodb_hton_ptr;
 
-C_MODE_START
-static uint index_cond_func_innodb(void* arg);
-C_MODE_END
-
 static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
@@ -251,7 +247,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&ibuf_mutex_key, "ibuf_mutex", 0},
 	{&ibuf_pessimistic_insert_mutex_key,
 		 "ibuf_pessimistic_insert_mutex", 0},
-	{&ios_mutex_key, "ios_mutex", 0},
 	{&kernel_mutex_key, "kernel_mutex", 0},
 	{&log_sys_mutex_key, "log_sys_mutex", 0},
 #  ifdef UNIV_MEM_DEBUG
@@ -1639,17 +1634,9 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 		  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
-		  primary_key(0),	/* needs initialization because
-					index_flags() may be called before
-					this is set to the real value. It's
-					ok to have any value here because
-					it doesn't matter if we return the
-					HA_DO_INDEX_COND_PUSHDOWN bit from
-					those "early" calls */
   start_of_scan(0),
   num_write_row(0)
-{
-}
+{}
 
 /*********************************************************************//**
 Destruct ha_innobase handler. */
@@ -2092,14 +2079,21 @@ trx_is_strict(
 /**************************************************************//**
 Resets some fields of a prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
-static
+inline
 void
-reset_template(
-/*===========*/
-	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
+ha_innobase::reset_template(void)
+/*=============================*/
 {
+	ut_ad(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_ad(prebuilt->magic_n2 == prebuilt->magic_n);
+
 	prebuilt->keep_other_fields_on_keyread = 0;
 	prebuilt->read_just_key = 0;
+	/* Reset index condition pushdown state */
+	prebuilt->idx_cond = NULL;
+	prebuilt->idx_cond_n_cols = 0;
+	pushed_idx_cond = NULL;
+	pushed_idx_cond_keyno = MAX_KEY;
 }
 
 /*****************************************************************//**
@@ -2154,7 +2148,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	we???? */
 
 	prebuilt->used_in_HANDLER = TRUE;
-	reset_template(prebuilt);
+	reset_template();
 }
 
 /*********************************************************************//**
@@ -3164,14 +3158,14 @@ UNIV_INTERN
 ulong
 ha_innobase::index_flags(
 /*=====================*/
-	uint idx,
+	uint,
 	uint,
 	bool)
 const
 {
 	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
 	       | HA_READ_RANGE | HA_KEYREAD_ONLY
-	       | ((idx == primary_key)? 0 : HA_DO_INDEX_COND_PUSHDOWN));
+	       | HA_DO_INDEX_COND_PUSHDOWN);
 }
 
 /****************************************************************//**
@@ -3788,7 +3782,6 @@ retry:
 	prebuilt->mysql_row_len = table->s->reclength;
 	prebuilt->default_rec = table->s->default_values;
 	ut_ad(prebuilt->default_rec);
-	prebuilt->idx_cond_func = NULL;
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 	primary_key = table->s->primary_key;
@@ -3992,8 +3985,8 @@ static inline
 uint
 get_field_offset(
 /*=============*/
-	TABLE*	table,	/*!< in: MySQL table object */
-	Field*	field)	/*!< in: MySQL field object */
+	const TABLE*	table,	/*!< in: MySQL table object */
+	const Field*	field)	/*!< in: MySQL field object */
 {
 	return((uint) (field->ptr - table->record[0]));
 }
@@ -4546,44 +4539,169 @@ ha_innobase::store_key_val_for_row(
 }
 
 /**************************************************************//**
+Determines if a field is needed in a prebuilt struct 'template'.
+@return field to use, or NULL if the field is not needed */
+static
+const Field*
+build_template_needs_field(
+/*=======================*/
+	ibool		index_contains,	/*!< in:
+					dict_index_contains_col_or_prefix(
+					index, i) */
+	ibool		read_just_key,	/*!< in: TRUE when MySQL calls
+					ha_innobase::extra with the
+					argument HA_EXTRA_KEYREAD; it is enough
+					to read just columns defined in
+					the index (i.e., no read of the
+					clustered index record necessary) */
+	ibool		fetch_all_in_key,
+					/*!< in: true=fetch all fields in
+					the index */
+	ibool		fetch_primary_key_cols,
+					/*!< in: true=fetch the
+					primary key columns */
+	dict_index_t*	index,		/*!< in: InnoDB index to use */
+	const TABLE*	table,		/*!< in: MySQL table object */
+	ulint		i)		/*!< in: field index in InnoDB table */
+{
+	const Field*	field	= table->field[i];
+
+	ut_ad(index_contains == dict_index_contains_col_or_prefix(index, i));
+
+	if (!index_contains) {
+		if (read_just_key) {
+			/* If this is a 'key read', we do not need
+			columns that are not in the key */
+
+			return(NULL);
+		}
+	} else if (fetch_all_in_key) {
+		/* This field is needed in the query */
+
+		return(field);
+	}
+
+	if (bitmap_is_set(table->read_set, i)
+	    || bitmap_is_set(table->write_set, i)) {
+		/* This field is needed in the query */
+
+		return(field);
+	}
+
+	if (fetch_primary_key_cols
+	    && dict_table_col_in_clustered_key(index->table, i)) {
+		/* This field is needed in the query */
+
+		return(field);
+	}
+
+	/* This field is not needed in the query, skip it */
+
+	return(NULL);
+}
+
+/**************************************************************//**
+Adds a field is to a prebuilt struct 'template'.
+@return the field template */
+static
+mysql_row_templ_t*
+build_template_field(
+/*=================*/
+	row_prebuilt_t*	prebuilt,	/*!< in/out: template */
+	dict_index_t*	clust_index,	/*!< in: InnoDB clustered index */
+	dict_index_t*	index,		/*!< in: InnoDB index to use */
+	TABLE*		table,		/*!< in: MySQL table object */
+	const Field*	field,		/*!< in: field in MySQL table */
+	ulint		i)		/*!< in: field index in InnoDB table */
+{
+	mysql_row_templ_t*	templ;
+	const dict_col_t*	col;
+
+	ut_ad(field == table->field[i]);
+	ut_ad(clust_index->table == index->table);
+
+	col = dict_table_get_nth_col(index->table, i);
+
+	templ = prebuilt->mysql_template + prebuilt->n_template++;
+	UNIV_MEM_INVALID(templ, sizeof *templ);
+	templ->col_no = i;
+	templ->clust_rec_field_no = dict_col_get_clust_pos(col, clust_index);
+	ut_a(templ->clust_rec_field_no != ULINT_UNDEFINED);
+
+	if (dict_index_is_clust(index)) {
+		templ->rec_field_no = templ->clust_rec_field_no;
+	} else {
+		templ->rec_field_no = dict_index_get_nth_col_pos(index, i);
+	}
+
+	if (field->null_ptr) {
+		templ->mysql_null_byte_offset =
+			(ulint) ((char*) field->null_ptr
+				 - (char*) table->record[0]);
+
+		templ->mysql_null_bit_mask = (ulint) field->null_bit;
+	} else {
+		templ->mysql_null_bit_mask = 0;
+	}
+
+	templ->mysql_col_offset = (ulint) get_field_offset(table, field);
+
+	templ->mysql_col_len = (ulint) field->pack_length();
+	templ->type = col->mtype;
+	templ->mysql_type = (ulint)field->type();
+
+	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
+		templ->mysql_length_bytes = (ulint)
+			(((Field_varstring*)field)->length_bytes);
+	}
+
+	templ->charset = dtype_get_charset_coll(col->prtype);
+	templ->mbminlen = dict_col_get_mbminlen(col);
+	templ->mbmaxlen = dict_col_get_mbmaxlen(col);
+	templ->is_unsigned = col->prtype & DATA_UNSIGNED;
+
+	if (!dict_index_is_clust(index)
+	    && templ->rec_field_no == ULINT_UNDEFINED) {
+		prebuilt->need_to_access_clustered = TRUE;
+	}
+
+	if (prebuilt->mysql_prefix_len < templ->mysql_col_offset
+	    + templ->mysql_col_len) {
+		prebuilt->mysql_prefix_len = templ->mysql_col_offset
+			+ templ->mysql_col_len;
+	}
+
+	if (templ->type == DATA_BLOB) {
+		prebuilt->templ_contains_blob = TRUE;
+	}
+
+	return(templ);
+}
+
+/**************************************************************//**
 Builds a 'template' to the prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
-static
+UNIV_INTERN
 void
-build_template(
-/*===========*/
-	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt struct */
-	THD*		thd,		/*!< in: current user thread, used
-					only if templ_type is
-					ROW_MYSQL_REC_FIELDS */
-	TABLE*		table,		/*!< in: MySQL table */
-	ha_innobase*	file,		/* in: ha_innobase handler */
-	uint		templ_type)	/*!< in: ROW_MYSQL_WHOLE_ROW or
-					ROW_MYSQL_REC_FIELDS */
+ha_innobase::build_template(
+/*========================*/
+	bool		whole_row)	/*!< in: true=ROW_MYSQL_WHOLE_ROW,
+					false=ROW_MYSQL_REC_FIELDS */
 {
 	dict_index_t*	index;
 	dict_index_t*	clust_index;
-	mysql_row_templ_t* templ;
-	Field*		field;
 	ulint		n_fields;
-	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
 	ulint		i;
-	/* byte offset of the end of last requested column */
-	ulint		mysql_prefix_len	= 0;
-	ibool		do_idx_cond_push = FALSE;
-	ibool		need_second_pass = FALSE;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
 		/* We always retrieve the whole clustered index record if we
 		use exclusive row level locks, for example, if the read is
 		done in an UPDATE statement. */
 
-		templ_type = ROW_MYSQL_WHOLE_ROW;
-	}
-
-	if (templ_type == ROW_MYSQL_REC_FIELDS) {
+		whole_row = true;
+	} else if (!whole_row) {
 		if (prebuilt->hint_need_to_fetch_extra_cols
 			== ROW_RETRIEVE_ALL_COLS) {
 
@@ -4600,7 +4718,7 @@ build_template(
 
 				fetch_all_in_key = TRUE;
 			} else {
-				templ_type = ROW_MYSQL_WHOLE_ROW;
+				whole_row = true;
 			}
 		} else if (prebuilt->hint_need_to_fetch_extra_cols
 			== ROW_RETRIEVE_PRIMARY_KEY) {
@@ -4617,19 +4735,12 @@ build_template(
 
 	clust_index = dict_table_get_first_index(prebuilt->table);
 
-	if (templ_type == ROW_MYSQL_REC_FIELDS) {
-		index = prebuilt->index;
-	} else {
-		index = clust_index;
-	}
+	index = whole_row ? clust_index : prebuilt->index;
 
-	if (index == clust_index) {
-		prebuilt->need_to_access_clustered = TRUE;
-	} else {
-		prebuilt->need_to_access_clustered = FALSE;
-		/* Below we check column by column if we need to access
-		the clustered index */
-	}
+	prebuilt->need_to_access_clustered = (index == clust_index);
+
+	/* Below we check column by column if we need to access
+	the clustered index. */
 
 	n_fields = (ulint)table->s->fields; /* number of columns */
 
@@ -4638,158 +4749,193 @@ build_template(
 			mem_alloc(n_fields * sizeof(mysql_row_templ_t));
 	}
 
-	prebuilt->template_type = templ_type;
+	prebuilt->template_type = whole_row
+		? ROW_MYSQL_WHOLE_ROW : ROW_MYSQL_REC_FIELDS;
 	prebuilt->null_bitmap_len = table->s->null_bytes;
 
+	/* Prepare to build prebuilt->mysql_template[]. */
 	prebuilt->templ_contains_blob = FALSE;
+	prebuilt->mysql_prefix_len = 0;
+	prebuilt->n_template = 0;
+	prebuilt->idx_cond_n_cols = 0;
 
-	/* Setup index condition pushdown (note: we don't need to check if
-	this is a scan on primary key as that is checked in idx_cond_push) */
-	if (file->active_index == file->pushed_idx_cond_keyno
-	    && file->active_index != MAX_KEY) {
+	/* Note that in InnoDB, i is the column number in the table.
+	MySQL calls columns 'fields'. */
 
-		do_idx_cond_push= need_second_pass = TRUE;
-	}
+	if (active_index != MAX_KEY && active_index == pushed_idx_cond_keyno) {
+		/* Push down an index condition or an end_range check. */
+		for (i = 0; i < n_fields; i++) {
+			const ibool		index_contains
+				= dict_index_contains_col_or_prefix(index, i);
 
-	/* Ok, now build an array of mysql_row_templ_struct structures.
-	If index condition pushdown is used, the array is split into two
-	parts: first go index fields, then go table fields.
+			/* Test if an end_range or an index condition
+			refers to the field. Note that "index" and
+			"index_contains" may refer to the clustered index.
+			Index condition pushdown is relative to prebuilt->index
+			(the index that is being looked up first). */
 
-	Note that in InnoDB, it is the column number. MySQL calls columns
-	'fields'. */
-	for (i = 0; i < n_fields; i++) {
-		const dict_col_t* col = &index->table->cols[i];
-		templ = prebuilt->mysql_template + n_requested_fields;
-		field = table->field[i];
+			/* When join_read_always_key() invokes this
+			code via handler::ha_index_init() and
+			ha_innobase::index_init(), end_range is not
+			yet initialized. Because of that, we must
+			always check for index_contains, instead of
+			the subset
+			field->part_of_key.is_set(active_index)
+			which would be acceptable if end_range==NULL. */
+			if (index == prebuilt->index
+				? index_contains
+				: dict_index_contains_col_or_prefix(
+					prebuilt->index, i)) {
+				/* Needed in ICP */
+				const Field*		field;
+				mysql_row_templ_t*	templ;
 
-		if (UNIV_LIKELY(templ_type == ROW_MYSQL_REC_FIELDS)) {
-			/* Decide which columns we should fetch
-			and which we can skip. */
-			register const ibool	index_contains_field =
-				dict_index_contains_col_or_prefix(index, i);
-			register const ibool	index_covers_field =
-				field->part_of_key.is_set(file->active_index);
+				if (whole_row) {
+					field = table->field[i];
+				} else {
+					field = build_template_needs_field(
+						index_contains,
+						prebuilt->read_just_key,
+						fetch_all_in_key,
+						fetch_primary_key_cols,
+						index, table, i);
+					if (!field) {
+						continue;
+					}
+				}
 
-			if (!index_contains_field && prebuilt->read_just_key) {
-				/* If this is a 'key read', we do not need
-				columns that are not in the key */
+				templ = build_template_field(
+					prebuilt, clust_index, index,
+					table, field, i);
+				prebuilt->idx_cond_n_cols++;
+				ut_ad(prebuilt->idx_cond_n_cols
+				      == prebuilt->n_template);
 
-				goto skip_field;
+				if (index == prebuilt->index) {
+					templ->icp_rec_field_no
+						= templ->rec_field_no;
+				} else {
+					templ->icp_rec_field_no
+						= dict_index_get_nth_col_pos(
+							prebuilt->index, i);
+				}
+
+				if (dict_index_is_clust(prebuilt->index)) {
+					ut_ad(templ->icp_rec_field_no
+					      != ULINT_UNDEFINED);
+					/* If the primary key includes
+					a column prefix, use it in
+					index condition pushdown,
+					because the condition is
+					evaluated before fetching any
+					off-page (externally stored)
+					columns. */
+					if (templ->icp_rec_field_no
+					    < prebuilt->index->n_uniq) {
+						/* This is a key column;
+						all set. */
+						continue;
+					}
+				} else if (templ->icp_rec_field_no
+					   != ULINT_UNDEFINED) {
+					continue;
+				}
+
+				/* This is a column prefix index.
+				The column prefix can be used in
+				an end_range comparison. */
+
+				templ->icp_rec_field_no
+					= dict_index_get_nth_col_or_prefix_pos(
+						prebuilt->index, i, TRUE);
+				ut_ad(templ->icp_rec_field_no
+				      != ULINT_UNDEFINED);
+
+				/* Index condition pushdown can be used on
+				all columns of a secondary index, and on
+				the PRIMARY KEY columns. */
+				/*TODO/*enable this assertion
+				(but first ensure that end_range is
+				valid here and use an accurate condition
+				for end_range)
+				ut_ad(!dict_index_is_clust(prebuilt->index)
+				      || templ->rec_field_no
+				      < prebuilt->index->n_uniq);
+				*/
 			}
-
-			if (index_contains_field && fetch_all_in_key) {
-				/* This field is needed in the query */
-
-				goto include_field;
-			}
-
-			if (bitmap_is_set(table->read_set, i) ||
-			    bitmap_is_set(table->write_set, i)) {
-				/* This field is needed in the query */
-
-				goto include_field;
-			}
-
-			if (fetch_primary_key_cols
-				&& dict_table_col_in_clustered_key(
-					index->table, i)) {
-				/* This field is needed in the query */
-
-				goto include_field;
-			}
-
-			/* This field is not needed in the query, skip it */
-
-			goto skip_field;
-include_field:
-			if (do_idx_cond_push
-			    && ((need_second_pass && !index_covers_field)
-				|| (!need_second_pass && index_covers_field))) {
-
-				goto skip_field;
-			}
 		}
 
-		n_requested_fields++;
+		ut_ad(prebuilt->idx_cond_n_cols > 0);
+		ut_ad(prebuilt->idx_cond_n_cols == prebuilt->n_template);
 
-		templ->col_no = i;
-		templ->clust_rec_field_no = dict_col_get_clust_pos(
-			col, clust_index);
-		ut_ad(templ->clust_rec_field_no != ULINT_UNDEFINED);
+		/* Include the fields that are not needed in index condition
+		pushdown. */
+		for (i = 0; i < n_fields; i++) {
+			const ibool		index_contains
+				= dict_index_contains_col_or_prefix(index, i);
 
-		if (index == clust_index) {
-			templ->rec_field_no = templ->clust_rec_field_no;
-		} else {
-			templ->rec_field_no = dict_index_get_nth_col_pos(
-								index, i);
-			if (templ->rec_field_no == ULINT_UNDEFINED) {
-				prebuilt->need_to_access_clustered = TRUE;
+			if (index == prebuilt->index
+				? !index_contains
+				: !dict_index_contains_col_or_prefix(
+					prebuilt->index, i)) {
+				/* Not needed in ICP */
+				const Field*	field;
+
+				if (whole_row) {
+					field = table->field[i];
+				} else {
+					field = build_template_needs_field(
+						index_contains,
+						prebuilt->read_just_key,
+						fetch_all_in_key,
+						fetch_primary_key_cols,
+						index, table, i);
+					if (!field) {
+						continue;
+					}
+				}
+
+				build_template_field(prebuilt,
+						     clust_index, index,
+						     table, field, i);
 			}
 		}
 
-		if (field->null_ptr) {
-			templ->mysql_null_byte_offset =
-				(ulint) ((char*) field->null_ptr
-					- (char*) table->record[0]);
-
-			templ->mysql_null_bit_mask = (ulint) field->null_bit;
-		} else {
-			templ->mysql_null_bit_mask = 0;
-		}
-
-		templ->mysql_col_offset = (ulint)
-					get_field_offset(table, field);
-
-		templ->mysql_col_len = (ulint) field->pack_length();
-		if (mysql_prefix_len < templ->mysql_col_offset
-				+ templ->mysql_col_len) {
-			mysql_prefix_len = templ->mysql_col_offset
-				+ templ->mysql_col_len;
-		}
-		templ->type = col->mtype;
-		templ->mysql_type = (ulint)field->type();
-
-		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
-			templ->mysql_length_bytes = (ulint)
-				(((Field_varstring*)field)->length_bytes);
-		}
-
-		templ->charset = dtype_get_charset_coll(col->prtype);
-		templ->mbminlen = dict_col_get_mbminlen(col);
-		templ->mbmaxlen = dict_col_get_mbmaxlen(col);
-		templ->is_unsigned = col->prtype & DATA_UNSIGNED;
-		if (templ->type == DATA_BLOB) {
-			prebuilt->templ_contains_blob = TRUE;
-		}
-skip_field:
-		if (need_second_pass && (i+1 == n_fields)) {
-
-			prebuilt->n_index_fields = n_requested_fields;
-			need_second_pass = FALSE;
-			i = (~(ulint) 0);	/* to start from 0 */
-		}
-	}
-
-	prebuilt->n_template = n_requested_fields;
-	prebuilt->mysql_prefix_len = mysql_prefix_len;
-
-	if (do_idx_cond_push) {
-
-		prebuilt->idx_cond_func = index_cond_func_innodb;
-		prebuilt->idx_cond_func_arg = file;
+		prebuilt->idx_cond = this;
 	} else {
+		/* No index condition pushdown */
+		prebuilt->idx_cond = NULL;
 
-		prebuilt->idx_cond_func = NULL;
-		prebuilt->n_index_fields = n_requested_fields;
+		for (i = 0; i < n_fields; i++) {
+			const Field*	field;
+
+			if (whole_row) {
+				field = table->field[i];
+			} else {
+				field = build_template_needs_field(
+					dict_index_contains_col_or_prefix(
+						index, i),
+					prebuilt->read_just_key,
+					fetch_all_in_key,
+					fetch_primary_key_cols,
+					index, table, i);
+				if (!field) {
+					continue;
+				}
+			}
+
+			build_template_field(prebuilt, clust_index, index,
+					     table, field, i);
+		}
 	}
 
 	if (index != clust_index && prebuilt->need_to_access_clustered) {
 		/* Change rec_field_no's to correspond to the clustered index
 		record */
-		for (i = do_idx_cond_push ? prebuilt->n_index_fields : 0;
-		     i < n_requested_fields; i++) {
+		for (i = 0; i < prebuilt->n_template; i++) {
 
-			templ = prebuilt->mysql_template + i;
+			mysql_row_templ_t*	templ
+				= &prebuilt->mysql_template[i];
 
 			templ->rec_field_no = templ->clust_rec_field_no;
 		}
@@ -5049,8 +5195,7 @@ no_commit:
 		/* Build the template used in converting quickly between
 		the two database formats */
 
-		build_template(prebuilt, NULL, table, this,
-			       ROW_MYSQL_WHOLE_ROW);
+		build_template(true);
 	}
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
@@ -5711,8 +5856,7 @@ ha_innobase::index_read(
 	necessarily prebuilt->index, but can also be the clustered index */
 
 	if (prebuilt->sql_stat_start) {
-		build_template(prebuilt, user_thd, table, this,
-			       ROW_MYSQL_REC_FIELDS);
+		build_template(false);
 	}
 
 	if (key_ptr) {
@@ -5913,7 +6057,7 @@ ha_innobase::change_active_index(
 	the flag ROW_MYSQL_WHOLE_ROW below, but that caused unnecessary
 	copying. Starting from MySQL-4.1 we use a more efficient flag here. */
 
-	build_template(prebuilt, user_thd, table, this, ROW_MYSQL_REC_FIELDS);
+	build_template(false);
 
 	DBUG_RETURN(0);
 }
@@ -7975,8 +8119,7 @@ ha_innobase::info_low(
 		}
 
 		stats.check_time = 0;
-		/* 8 = max(sizeof(void *)); */
-		stats.mrr_length_per_rec = ref_length + 8;
+		stats.mrr_length_per_rec = ref_length + sizeof(void*);
 
 		if (stats.records == 0) {
 			stats.mean_rec_length = 0;
@@ -8187,8 +8330,7 @@ ha_innobase::check(
 		/* Build the template; we will use a dummy template
 		in index scans done in checking */
 
-		build_template(prebuilt, NULL, table, this,
-			       ROW_MYSQL_WHOLE_ROW);
+		build_template(true);
 	}
 
 	if (prebuilt->table->ibd_file_missing) {
@@ -8739,12 +8881,7 @@ ha_innobase::extra(
 			}
 			break;
 		case HA_EXTRA_RESET_STATE:
-			reset_template(prebuilt);
-
-			/* Reset index condition pushdown state */
-			pushed_idx_cond = FALSE;
-			pushed_idx_cond_keyno = MAX_KEY;
-			prebuilt->idx_cond_func = NULL;
+			reset_template();
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -8790,13 +8927,9 @@ ha_innobase::reset()
 		row_mysql_prebuilt_free_blob_heap(prebuilt);
 	}
 
-	reset_template(prebuilt);
-
-	/* Reset index condition pushdown state */
-	pushed_idx_cond_keyno = MAX_KEY;
-	pushed_idx_cond = NULL;
-	prebuilt->idx_cond_func = NULL;
+	reset_template();
 	ds_mrr.dsmrr_close();
+
 	/* TODO: This should really be reset in reset_template() but for now
 	it's safer to do it explicitly here. */
 
@@ -8845,7 +8978,7 @@ ha_innobase::start_stmt(
 
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
-	reset_template(prebuilt);
+	reset_template();
 
 	if (!prebuilt->mysql_has_locked) {
 		/* This handle is for a temporary table created inside
@@ -8953,7 +9086,7 @@ ha_innobase::external_lock(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
-	reset_template(prebuilt);
+	reset_template();
 
 	if (lock_type == F_WRLCK) {
 
@@ -9106,7 +9239,7 @@ ha_innobase::transactional_table_lock(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
-	reset_template(prebuilt);
+	reset_template();
 
 	if (lock_type == F_WRLCK) {
 		prebuilt->select_lock_type = LOCK_X;
@@ -11902,7 +12035,7 @@ ha_innobase::multi_range_read_info_const(
 	/* See comments in ha_myisam::multi_range_read_info_const */
 	ds_mrr.init(this, table);
 	return(ds_mrr.dsmrr_info_const(keyno, seq, seq_init_param,
-					n_ranges, bufsz, flags, cost));
+				       n_ranges, bufsz, flags, cost));
 }
 
 ha_rows
@@ -11923,77 +12056,49 @@ ha_innobase::multi_range_read_info(
  * Index Condition Pushdown interface implementation
  */
 
-C_MODE_START
+/*************************************************************//**
+InnoDB index push-down condition check
+@return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
+extern "C" UNIV_INTERN
+enum icp_result
+innobase_index_cond(
+/*================*/
+	void*	file)	/*!< in/out: pointer to ha_innobase */
+{
+	DBUG_ENTER("innobase_index_cond");
 
-/*
-  Index condition check function to be called from within Innobase
-  See note on ICP_RESULT for return values description.
+	ha_innobase*	h = reinterpret_cast<class ha_innobase*>(file);
+
+	DBUG_ASSERT(h->pushed_idx_cond);
+	DBUG_ASSERT(h->pushed_idx_cond_keyno != MAX_KEY);
+
+	if (h->end_range && h->compare_key2(h->end_range) > 0) {
+
+		/* caller should return HA_ERR_END_OF_FILE already */
+		DBUG_RETURN(ICP_OUT_OF_RANGE);
+	}
+
+	DBUG_RETURN(h->pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH);
+}
+
+/** Attempt to push down an index condition.
+* @param[in] keyno	MySQL key number
+* @param[in] idx_cond	Index condition to be checked
+* @return idx_cond if pushed; NULL if not pushed
 */
-
-static
-uint
-index_cond_func_innodb(
-	void*		arg)
-{
-	ha_innobase*	h = (ha_innobase*) arg;
-
-	if (h->end_range) {
-
-		if (h->compare_key2(h->end_range) > 0) {
-
-			return(2);	/* caller should return
-					HA_ERR_END_OF_FILE already */
-		}
-	}
-
-	return(test(h->pushed_idx_cond->val_int()));
-}
-
-C_MODE_END
-
-
-Item*
+UNIV_INTERN
+class Item*
 ha_innobase::idx_cond_push(
-	uint		keyno_arg,
-	Item*		idx_cond_arg)
+	uint		keyno,
+	class Item*	idx_cond)
 {
-	/* Accept to handle the pushed index condition when the following
-	conditions are true:
-	1. The index is not the primary key
-	2. The lock mode is not LOCK_X (since we in build_template
-	   will change from using the index to using the clustered index
-	   when the lock mode is LOCK_X). */
+	DBUG_ENTER("ha_innobase::idx_cond_push");
+	DBUG_ASSERT(keyno != MAX_KEY);
+	DBUG_ASSERT(idx_cond != NULL);
 
-	if (keyno_arg != primary_key
-	    && prebuilt->select_lock_type != LOCK_X) {
-
-		pushed_idx_cond_keyno = keyno_arg;
-		pushed_idx_cond = idx_cond_arg;
-		in_range_check_pushed_down = TRUE;
-		return(NULL);	/* Table handler will check the entire
-				condition */
-	}
-
-	return(idx_cond_arg);	/* Table handler will not make any checks */
-}
-
-
-int
-ha_innobase::read_range_first(
-	const key_range*	start_key,
-	const key_range*	end_key,
-	bool			eq_range_arg,
-	bool			sorted /* ignored */)
-{
-
-	return(handler::read_range_first(start_key, end_key,
-					  eq_range_arg, sorted));
-}
-
-
-int
-ha_innobase::read_range_next()
-{
-
-	return(handler::read_range_next());
+	pushed_idx_cond = idx_cond;
+	pushed_idx_cond_keyno = keyno;
+	in_range_check_pushed_down = TRUE;
+	/* Table handler will check the entire condition */
+	DBUG_RETURN(NULL);
 }

@@ -694,6 +694,20 @@ dict_index_get_nth_col_no(
 	return(dict_col_get_no(dict_index_get_nth_col(index, pos)));
 }
 
+/********************************************************************//**
+Looks for column n in an index.
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
+UNIV_INLINE
+ulint
+dict_index_get_nth_col_pos(
+/*=======================*/
+	const dict_index_t*	index,	/*!< in: index */
+	ulint			n)	/*!< in: column number */
+{
+	return(dict_index_get_nth_col_or_prefix_pos(index, n, FALSE));
+}
+
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Returns the minimum data size of an index record.
