@@ -160,12 +160,13 @@ public:
     trans_log.end_of_file= max_binlog_cache_size;
     (void) my_pthread_mutex_init(&LOCK_binlog_participant, MY_MUTEX_INIT_SLOW,
                                  "LOCK_binlog_participant", MYF(0));
-    (void) pthread_cond_init(&COND_group_commit, 0);
+    (void) pthread_cond_init(&COND_binlog_participant, 0);
   }
 
   ~binlog_trx_data()
   {
     DBUG_ASSERT(pending() == NULL);
+    (void) pthread_cond_destroy(&COND_binlog_participant);
     (void) pthread_mutex_destroy(&LOCK_binlog_participant);
     close_cached_file(&trans_log);
   }
@@ -298,7 +299,7 @@ public:
   Log_event *incident_event;
   /* Mutex and condition for wakeup after group commit. */
   pthread_mutex_t LOCK_binlog_participant;
-  pthread_cond_t COND_group_commit;
+  pthread_cond_t COND_binlog_participant;
   /*
     Binlog position after current commit, available to storage engines during
     commit() and commit_ordered().
@@ -5035,7 +5036,7 @@ MYSQL_BIN_LOG::trx_group_commit_participant(binlog_trx_data *trx_data)
 
   /* Wait until trx_data.done == true and woken up by the leader. */
   while (!trx_data->done)
-    pthread_cond_wait(&trx_data->COND_group_commit,
+    pthread_cond_wait(&trx_data->COND_binlog_participant,
                       &trx_data->LOCK_binlog_participant);
   pthread_mutex_unlock(&trx_data->LOCK_binlog_participant);
 }
@@ -5248,7 +5249,7 @@ MYSQL_BIN_LOG::trx_group_commit_leader(TC_group_commit_entry *first)
     if (!current->group_commit_leader)
     {
       current->done= true;
-      pthread_cond_signal(&current->COND_group_commit);
+      pthread_cond_signal(&current->COND_binlog_participant);
     }
     pthread_mutex_unlock(&current->LOCK_binlog_participant);
   }
