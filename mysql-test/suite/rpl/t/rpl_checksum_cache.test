@@ -68,7 +68,7 @@ end|
 
 delimiter ;|
 
-let $1 = 4000;  # be careful with a big value, PB2 can run it slow to time out on following sync_slave_with_master:s
+let $1 = 4000; # PB2 can run it slow to time out on following sync_slave_with_master:s
 
 begin;
 --disable_warnings
@@ -89,6 +89,7 @@ let $diff_table_2=slave:test.t1;
 source include/diff_tables.inc;
 
 # undoing changes with verifying the above once again
+connection master;
 
 begin;
 delete from t1;
@@ -131,6 +132,7 @@ let $diff_table_2=slave:test.t2;
 source include/diff_tables.inc;
 
 # undoing changes with verifying the above once again
+connection master;
 
 begin;
 delete from t2;
@@ -173,6 +175,7 @@ let $diff_table_2=slave:test.t3;
 source include/diff_tables.inc;
 
 # undoing changes with verifying the above once again
+connection master;
 
 begin;
 delete from t3;
