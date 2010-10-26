@@ -404,8 +404,8 @@ class MYSQL_BIN_LOG: public TC_LOG_group_commit, private MYSQL_LOG
   pthread_mutex_t LOCK_index;
   pthread_mutex_t LOCK_prep_xids;
   /*
-    Mutex to protect the queue of transactions waiting to participate in group
-    commit. (Only used on platforms without native atomic operations).
+    Mutex to protect the queue of non-transactional binlog writes waiting to
+    participate in group commit.
   */
   pthread_mutex_t LOCK_queue;
 
@@ -462,8 +462,6 @@ class MYSQL_BIN_LOG: public TC_LOG_group_commit, private MYSQL_LOG
   bool write_transaction_to_binlog_events(binlog_trx_data *trx_data);
   void trx_group_commit_participant(binlog_trx_data *trx_data);
   void trx_group_commit_leader(TC_group_commit_entry *first);
-  binlog_trx_data *atomic_enqueue_trx(binlog_trx_data *trx_data);
-  binlog_trx_data *atomic_grab_trx_queue();
   void mark_xid_done();
   void mark_xids_active(uint xid_count);
 
