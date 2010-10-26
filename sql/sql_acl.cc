@@ -3936,7 +3936,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                  ulong rights, bool revoke_grant, bool is_proxy)
 {
   List_iterator <LEX_USER> str_list (list);
-  LEX_USER *Str, *tmp_Str, *proxied_user;
+  LEX_USER *Str, *tmp_Str, *proxied_user= NULL;
   char tmp_db[NAME_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
@@ -6068,7 +6068,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
       host= acl_proxy_user->get_host();
       break;
     default:
-      assert(0);
+      MY_ASSERT_UNREACHABLE();
     }
     if (! user)
       user= "";
