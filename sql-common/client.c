@@ -2923,7 +2923,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
-  int           scramble_data_len, pkt_scramble_len;
+  int           scramble_data_len, pkt_scramble_len= 0;
   char          *end,*host_info= 0, *server_version_end, *pkt_end;
   char          *scramble_data;
   const char    *scramble_plugin;

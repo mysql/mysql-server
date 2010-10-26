@@ -1,0 +1,153 @@
+# Horst Hunger
+# Created: 2010-10-06
+# 
+# Test of the authentification interface. The plugin checks the expected values set
+# by this application and the application checks the values set the the plugin.
+--source include/have_plugin_interface.inc
+--source include/not_embedded.inc
+
+CREATE DATABASE test_user_db;
+
+--echo ========== test 1.1.3.2 ====================================
+--echo === check contens of components of info ====================
+
+CREATE USER qa_test_1_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_1_dest';
+CREATE USER qa_test_1_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest identified by 'dest_passwd';
+GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
+--sorted_result
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+SELECT @@proxy_user;
+SELECT @@external_user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_1_user --password=qa_test_1_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_1_user --password=qa_test_1_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+--sorted_result
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+
+DROP USER qa_test_1_user;
+DROP USER qa_test_1_dest;
+
+--echo === Assign values to components of info ====================
+
+CREATE USER qa_test_2_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_2_dest';
+CREATE USER qa_test_2_dest IDENTIFIED BY 'dest_passwd';
+CREATE USER authenticated_as IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_2_dest identified by 'dest_passwd';
+GRANT PROXY ON qa_test_2_dest TO qa_test_2_user;
+GRANT PROXY ON authenticated_as TO qa_test_2_user;
+--sorted_result
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+SELECT @@proxy_user;
+SELECT @@external_user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_2_user --password=qa_test_2_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_2_user --password=qa_test_2_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+--sorted_result
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+
+DROP USER qa_test_2_user;
+DROP USER qa_test_2_dest;
+DROP USER authenticated_as;
+
+--echo === Assign too high values for *length, which should have no effect ====
+
+CREATE USER qa_test_3_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_3_dest';
+CREATE USER qa_test_3_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_3_dest identified by 'dest_passwd';
+GRANT PROXY ON qa_test_3_dest TO qa_test_3_user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_3_user --password=qa_test_3_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_3_user --password=qa_test_3_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+DROP USER qa_test_3_user;
+DROP USER qa_test_3_dest;
+
+--echo === Assign too low values for *length, which should have no effect ====
+
+CREATE USER qa_test_4_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_4_dest';
+CREATE USER qa_test_4_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_4_dest identified by 'dest_passwd';
+GRANT PROXY ON qa_test_4_dest TO qa_test_4_user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_4_user --password=qa_test_4_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_4_user --password=qa_test_4_dest  test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+DROP USER qa_test_4_user;
+DROP USER qa_test_4_dest;
+
+--echo === Assign empty string especially to authenticated_as (in plugin) ====
+
+CREATE USER qa_test_5_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_5_dest';
+CREATE USER qa_test_5_dest IDENTIFIED BY 'dest_passwd';
+CREATE USER ''@'localhost' IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_5_dest identified by 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO ''@'localhost' identified by 'dest_passwd';
+GRANT PROXY ON qa_test_5_dest TO qa_test_5_user;
+GRANT PROXY ON qa_test_5_dest TO ''@'localhost';
+
+--sorted_result
+SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_5_user  --password=qa_test_5_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT --user=qa_test_5_user --password=qa_test_5_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+DROP USER qa_test_5_user;
+DROP USER qa_test_5_dest;
+DROP USER ''@'localhost';
+
+--echo === Assign 'root' especially to authenticated_as (in plugin) ====
+
+CREATE USER qa_test_6_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
+CREATE USER qa_test_6_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest identified by 'dest_passwd';
+GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
+
+--sorted_result
+SELECT user,plugin,authentication_string,password FROM mysql.user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_6_user  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT --user=qa_test_6_user --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+GRANT PROXY ON qa_test_6_dest TO root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
+--sorted_result
+SELECT user,plugin,authentication_string,password FROM mysql.user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT --user=root --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+REVOKE PROXY ON qa_test_6_dest FROM root;
+--sorted_result
+SELECT user,plugin,authentication_string FROM mysql.user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT --user=root --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+DROP USER qa_test_6_user;
+DROP USER qa_test_6_dest;
+DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
+--sorted_result
+SELECT user,plugin,authentication_string,password FROM mysql.user;
+
+
+--echo === Test of the --default_auth option for clients ====
+
+CREATE USER qa_test_11_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_11_dest';
+CREATE USER qa_test_11_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_11_dest identified by 'dest_passwd';
+GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P MASTER_MYPORT -u qa_test_11_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P $MASTER_MYPORT -u qa_test_11_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+DROP USER qa_test_11_user, qa_test_11_dest;
+DROP DATABASE test_user_db;
+
+--exit
