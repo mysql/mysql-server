@@ -466,7 +466,9 @@ public:
 
   ndb_pushed_builder_ctx(AQP::Join_plan& plan)
    : m_plan(plan), m_join_root(), m_join_scope(), m_const_scope()
-  { init_pushability();
+  { 
+    if (plan.get_access_count() > 1)
+      init_pushability();
   }
 
   void set_root(const AQP::Table_access* const join_root)
@@ -550,7 +552,7 @@ private:
   struct pushed_tables
   {
     pushed_tables() : 
-      m_maybe_pushable(PUSHABLE_AS_CHILD | PUSHABLE_AS_PARENT),
+      m_maybe_pushable(0),
       m_parent(MAX_TABLES), 
       m_ancestors(), 
       m_last_scan_descendant(MAX_TABLES), 
