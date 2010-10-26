@@ -13,7 +13,7 @@ wait/synch/mutex/sql/LOCK_active_mi	YES	YES
 wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 wait/synch/mutex/sql/LOCK_connection_count	YES	YES
 wait/synch/mutex/sql/LOCK_crypt	YES	YES
-wait/synch/mutex/sql/LOCK_dd_owns_lock_open	YES	YES
+wait/synch/mutex/sql/LOCK_delayed_create	YES	YES
 select * from performance_schema.SETUP_INSTRUMENTS
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')

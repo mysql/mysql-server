@@ -427,6 +427,7 @@ UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
 UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
 UNIV_INTERN ulint		srv_n_lock_max_wait_time	= 0;
 
+UNIV_INTERN ulint		srv_truncated_status_writes	= 0;
 
 /*
   Set the following to 0 if you want InnoDB to write messages on
@@ -696,6 +697,12 @@ struct srv_slot_struct{
 
 /* Table for MySQL threads where they will be suspended to wait for locks */
 UNIV_INTERN srv_slot_t*	srv_mysql_table = NULL;
+
+UNIV_INTERN os_event_t	srv_timeout_event;
+
+UNIV_INTERN os_event_t	srv_monitor_event;
+
+UNIV_INTERN os_event_t	srv_error_event;
 
 UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
@@ -1013,6 +1020,12 @@ srv_init(void)
 		slot->event = os_event_create(NULL);
 		ut_a(slot->event);
 	}
+
+	srv_error_event = os_event_create(NULL);
+
+	srv_timeout_event = os_event_create(NULL);
+
+	srv_monitor_event = os_event_create(NULL);
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
 
@@ -1591,14 +1604,20 @@ srv_suspend_mysql_thread(
 	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {
+	case 0:
+		break;
 	case RW_S_LATCH:
 		/* Release foreign key check latch */
 		row_mysql_unfreeze_data_dictionary(trx);
 		break;
-	case RW_X_LATCH:
-		/* Release fast index creation latch */
-		row_mysql_unlock_data_dictionary(trx);
-		break;
+	default:
+		/* There should never be a lock wait when the
+		dictionary latch is reserved in X mode.  Dictionary
+		transactions should only acquire locks on dictionary
+		tables, not other tables. All access to dictionary
+		tables should be covered by dictionary
+		transactions. */
+		ut_error;
 	}
 
 	ut_a(trx->dict_operation_lock_mode == 0);
@@ -1612,13 +1631,8 @@ srv_suspend_mysql_thread(
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
 
-	switch (had_dict_lock) {
-	case RW_S_LATCH:
+	if (had_dict_lock) {
 		row_mysql_freeze_data_dictionary(trx);
-		break;
-	case RW_X_LATCH:
-		row_mysql_lock_data_dictionary(trx);
-		break;
 	}
 
 	if (was_declared_inside_innodb) {
@@ -2022,6 +2036,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_num_open_files = fil_n_file_opened;
+	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -2037,6 +2053,7 @@ srv_monitor_thread(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	ib_int64_t	sig_count;
 	double		time_elapsed;
 	time_t		current_time;
 	time_t		last_table_monitor_time;
@@ -2055,26 +2072,28 @@ srv_monitor_thread(
 #endif
 
 	UT_NOT_USED(arg);
-	srv_last_monitor_time = time(NULL);
-	last_table_monitor_time = time(NULL);
-	last_tablespace_monitor_time = time(NULL);
-	last_monitor_time = time(NULL);
+	srv_last_monitor_time = ut_time();
+	last_table_monitor_time = ut_time();
+	last_tablespace_monitor_time = ut_time();
+	last_monitor_time = ut_time();
 	mutex_skipped = 0;
 	last_srv_print_monitor = srv_print_innodb_monitor;
 loop:
 	srv_monitor_active = TRUE;
 
 	/* Wake up every 5 seconds to see if we need to print
-	monitor information. */
+	monitor information or if signalled at shutdown. */
 
-	os_thread_sleep(5000000);
+	sig_count = os_event_reset(srv_monitor_event);
 
-	current_time = time(NULL);
+	os_event_wait_time_low(srv_monitor_event, 5000000, sig_count);
+
+	current_time = ut_time();
 
 	time_elapsed = difftime(current_time, last_monitor_time);
 
 	if (time_elapsed > 15) {
-		last_monitor_time = time(NULL);
+		last_monitor_time = ut_time();
 
 		if (srv_print_innodb_monitor) {
 			/* Reset mutex_skipped counter everytime
@@ -2118,7 +2137,7 @@ loop:
 		if (srv_print_innodb_tablespace_monitor
 		    && difftime(current_time,
 				last_tablespace_monitor_time) > 60) {
-			last_tablespace_monitor_time = time(NULL);
+			last_tablespace_monitor_time = ut_time();
 
 			fputs("========================"
 			      "========================\n",
@@ -2144,7 +2163,7 @@ loop:
 		if (srv_print_innodb_table_monitor
 		    && difftime(current_time, last_table_monitor_time) > 60) {
 
-			last_table_monitor_time = time(NULL);
+			last_table_monitor_time = ut_time();
 
 			fputs("===========================================\n",
 			      stderr);
@@ -2204,16 +2223,20 @@ srv_lock_timeout_thread(
 	ibool		some_waits;
 	double		wait_time;
 	ulint		i;
+	ib_int64_t	sig_count;
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
 #endif
 
 loop:
+
 	/* When someone is waiting for a lock, we wake up every second
 	and check if a timeout has passed for a lock wait */
 
-	os_thread_sleep(1000000);
+	sig_count = os_event_reset(srv_timeout_event);
+
+	os_event_wait_time_low(srv_timeout_event, 1000000, sig_count);
 
 	srv_lock_timeout_active = TRUE;
 
@@ -2309,6 +2332,7 @@ srv_error_monitor_thread(
 	ulint		fatal_cnt	= 0;
 	ib_uint64_t	old_lsn;
 	ib_uint64_t	new_lsn;
+	ib_int64_t	sig_count;
 
 	old_lsn = srv_start_lsn;
 
@@ -2384,7 +2408,9 @@ loop:
 
 	fflush(stderr);
 
-	os_thread_sleep(1000000);
+	sig_count = os_event_reset(srv_error_event);
+
+	os_event_wait_time_low(srv_error_event, 1000000, sig_count);
 
 	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
 
@@ -2402,21 +2428,23 @@ loop:
 }
 
 /**********************************************************************//**
-Check whether any background thread is active.
-@return FALSE if all are are suspended or have exited. */
+Check whether any background thread is active. If so return the thread
+type.
+@return ULINT_UNDEFINED if all are suspended or have exited, thread
+type if any are still active. */
 UNIV_INTERN
-ibool
-srv_is_any_background_thread_active(void)
-/*=====================================*/
+ulint
+srv_get_active_thread_type(void)
+/*============================*/
 {
 	ulint	i;
-	ibool	ret = FALSE;
+	ulint	ret = ULINT_UNDEFINED;
 
 	mutex_enter(&kernel_mutex);
 
 	for (i = SRV_COM; i <= SRV_MASTER; ++i) {
 		if (srv_n_threads_active[i] != 0) {
-			ret = TRUE;
+			ret = i;
 			break;
 		}
 	}
@@ -2557,6 +2585,63 @@ srv_master_do_purge(void)
 }
 
 /*********************************************************************//**
+This function prints progress message every 60 seconds during server
+shutdown, for any activities that master thread is pending on. */
+static
+void
+srv_shutdown_print_master_pending(
+/*==============================*/
+	ib_time_t*	last_print_time,	/*!< last time the function
+						print the message */
+	ulint		n_tables_to_drop,	/*!< number of tables to
+						be dropped */
+	ulint		n_pages_purged,		/*!< number of pages just
+						purged */
+	ulint		n_bytes_merged)		/*!< number of change buffer
+						just merged */
+{
+	ib_time_t	current_time;
+	double		time_elapsed;
+
+	current_time = ut_time();
+	time_elapsed = ut_difftime(current_time, *last_print_time);
+
+	if (time_elapsed > 60) {
+		*last_print_time = ut_time();
+
+		if (n_tables_to_drop) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for "
+				"%lu table(s) to be dropped\n",
+				(ulong) n_tables_to_drop);
+		}
+
+		/* Check undo log purge, we only wait for the purge
+		if it is a slow shutdown */
+		if (!srv_fast_shutdown && n_pages_purged) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %lu "
+				"undo logs to be purged\n"
+				"  InnoDB: number of pages just "
+				"purged: %lu\n",
+					(ulong) trx_sys->rseg_history_len,
+					(ulong) n_pages_purged);
+			}
+
+		/* Check change buffer merge, we only wait for change buffer
+		merge if it is a slow shutdown */
+		if (!srv_fast_shutdown && n_bytes_merged) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for change "
+				"buffer merge to complete\n"
+				"  InnoDB: number of bytes of change buffer "
+				"just merged:  %lu\n",
+				n_bytes_merged);
+		}
+	}
+}
+
+/*********************************************************************//**
 The master thread controlling the server.
 @return	a dummy parameter */
 UNIV_INTERN
@@ -2582,6 +2667,9 @@ srv_master_thread(
 	ulint		next_itr_time;
 	ulint		i;
 	ibool		max_modified_ratio_exceeded = FALSE;
+	ib_time_t	last_print_time;
+	ulint		n_tables_evicted = 0;
+	ulint		last_table_lru_flush_time = ut_time();
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2603,10 +2691,31 @@ srv_master_thread(
 
 	mutex_exit(&kernel_mutex);
 
+	last_print_time = ut_time();
 loop:
 	/*****************************************************************/
 	/* ---- When there is database activity by users, we cycle in this
 	loop */
+
+	/* Try and evict some tables from the table LRU list. */
+	/* Note: The 60 seconds and 50% below are an arbitrary choice. */
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_NONE
+	    && ut_time() - last_table_lru_flush_time > 60) {
+
+		rw_lock_x_lock(&dict_operation_lock);
+
+		dict_mutex_enter_for_mysql();
+
+		n_tables_evicted = dict_make_room_in_cache(
+			innobase_get_table_cache_size(), 50);
+
+		dict_mutex_exit_for_mysql();
+
+		rw_lock_x_unlock(&dict_operation_lock);
+
+		last_table_lru_flush_time = ut_time();
+	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -2629,32 +2738,12 @@ loop:
 	when there is database activity */
 
 	srv_last_log_flush_time = time(NULL);
-	next_itr_time = ut_time_ms();
+
+	/* Sleep for 1 second on entrying the for loop below the first time. */
+	next_itr_time = ut_time_ms() + 1000;
 
 	for (i = 0; i < 10; i++) {
 		ulint	cur_time = ut_time_ms();
-
-		buf_get_total_stat(&buf_stat);
-
-		n_ios_old = log_sys->n_log_ios + buf_stat.n_pages_read
-			+ buf_stat.n_pages_written;
-
-		srv_main_thread_op_info = "sleeping";
-		srv_main_1_second_loops++;
-
-		if (next_itr_time > cur_time) {
-
-			/* Get sleep interval in micro seconds. We use
-			ut_min() to avoid long sleep in case of
-			wrap around. */
-			os_thread_sleep(ut_min(1000000,
-					(next_itr_time - cur_time)
-					 * 1000));
-			srv_main_sleeps++;
-		}
-
-		/* Each iteration should happen at 1 second interval. */
-		next_itr_time = ut_time_ms() + 1000;
 
 		/* ALTER TABLE in MySQL requires on Unix that the table handler
 		can drop tables lazily after there no longer are SELECT
@@ -2670,6 +2759,29 @@ loop:
 
 			goto background_loop;
 		}
+
+		buf_get_total_stat(&buf_stat);
+
+		n_ios_old = log_sys->n_log_ios + buf_stat.n_pages_read
+			+ buf_stat.n_pages_written;
+
+		srv_main_thread_op_info = "sleeping";
+		srv_main_1_second_loops++;
+
+		if (next_itr_time > cur_time
+		    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+
+			/* Get sleep interval in micro seconds. We use
+			ut_min() to avoid long sleep in case of
+			wrap around. */
+			os_thread_sleep(ut_min(1000000,
+					(next_itr_time - cur_time)
+					 * 1000));
+			srv_main_sleeps++;
+		}
+
+		/* Each iteration should happen at 1 second interval. */
+		next_itr_time = ut_time_ms() + 1000;
 
 		/* Flush logs if needed */
 		srv_sync_log_buffer_in_background();
@@ -2862,13 +2974,33 @@ background_loop:
 		MySQL tries to drop a table while there are still open handles
 		to it and we had to put it to the background drop queue.) */
 
-		os_thread_sleep(100000);
+		if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+			os_thread_sleep(100000);
+		}
 	}
 
 	if (srv_n_purge_threads == 0) {
 		srv_main_thread_op_info = "master purging";
 
 		srv_master_do_purge();
+	}
+
+	/* Try and evict as many tables as possible from the table LRU list. */
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+
+		rw_lock_x_lock(&dict_operation_lock);
+
+		dict_mutex_enter_for_mysql();
+
+		n_tables_evicted = dict_make_room_in_cache(
+			innobase_get_table_cache_size(), 100);
+
+		dict_mutex_exit_for_mysql();
+
+		rw_lock_x_unlock(&dict_operation_lock);
+
+		last_table_lru_flush_time = ut_time();
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
@@ -2966,6 +3098,14 @@ flush_loop:
 	*/
 	n_bytes_archived = 0;
 
+	/* Print progress message every 60 seconds during shutdown */
+	if (srv_shutdown_state > 0 && srv_print_verbose_log) {
+		srv_shutdown_print_master_pending(&last_print_time,
+						  n_tables_to_drop,
+						  n_pages_purged,
+						  n_bytes_merged);
+	}
+
 	/* Keep looping in the background loop if still work to do */
 
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
@@ -2981,9 +3121,12 @@ flush_loop:
 
 			goto background_loop;
 		}
-	} else if (n_tables_to_drop
-		   + n_pages_purged + n_bytes_merged + n_pages_flushed
-		   + n_bytes_archived != 0) {
+	} else if (n_tables_to_drop > 0
+		   || n_pages_purged > 0
+		   || n_bytes_merged > 0
+		   || n_pages_flushed > 0
+		   || n_tables_evicted > 0
+		   || n_bytes_archived > 0) {
 		/* In a 'slow' shutdown we run purge and the insert buffer
 		merge to completion */
 

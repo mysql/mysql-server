@@ -223,13 +223,13 @@ void scramble_323(char *to, const char *message, const char *password)
 */
 
 my_bool
-check_scramble_323(const char *scrambled, const char *message,
+check_scramble_323(const unsigned char *scrambled, const char *message,
                    ulong *hash_pass)
 {
   struct rand_struct rand_st;
   ulong hash_message[2];
-  char buff[16],*to,extra;                      /* Big enough for check */
-  const char *pos;
+  uchar buff[16],*to,extra;                     /* Big enough for check */
+  const uchar *pos;
 
   hash_password(hash_message, message, SCRAMBLE_LENGTH_323);
   randominit(&rand_st,hash_pass[0] ^ hash_message[0],
@@ -244,7 +244,7 @@ check_scramble_323(const char *scrambled, const char *message,
   to=buff;
   while (*scrambled)
   {
-    if (*scrambled++ != (char) (*to++ ^ extra))
+    if (*scrambled++ != (uchar) (*to++ ^ extra))
       return 1;                                 /* Wrong password */
   }
   return 0;
@@ -510,7 +510,7 @@ scramble(char *to, const char *message, const char *password)
 */
 
 my_bool
-check_scramble(const char *scramble_arg, const char *message,
+check_scramble(const uchar *scramble_arg, const char *message,
                const uint8 *hash_stage2)
 {
   SHA1_CONTEXT sha1_context;
@@ -523,7 +523,7 @@ check_scramble(const char *scramble_arg, const char *message,
   mysql_sha1_input(&sha1_context, hash_stage2, SHA1_HASH_SIZE);
   mysql_sha1_result(&sha1_context, buf);
   /* encrypt scramble */
-    my_crypt((char *) buf, buf, (const uchar *) scramble_arg, SCRAMBLE_LENGTH);
+    my_crypt((char *) buf, buf, scramble_arg, SCRAMBLE_LENGTH);
   /* now buf supposedly contains hash_stage1: so we can get hash_stage2 */
   mysql_sha1_reset(&sha1_context);
   mysql_sha1_input(&sha1_context, buf, SHA1_HASH_SIZE);
