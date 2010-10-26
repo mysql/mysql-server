@@ -5075,8 +5075,9 @@ Item *Item_field::replace_equal_field(uchar *arg)
         return this;
       return const_item;
     }
-    Item_field *subst= item_equal->get_first();
-    if (subst && field->table != subst->field->table && !field->eq(subst->field))
+    Item_field *subst= item_equal->get_subst_item(this);
+    DBUG_ASSERT(subst);
+    if (field->table != subst->field->table && !field->eq(subst->field))
       return subst;
   }
   return this;
