@@ -56,7 +56,7 @@
 
 -- source include/have_innodb.inc
 
-SET storage_engine=InnoDB;
+SET default_storage_engine=InnoDB;
 
 --disable_query_log
 # These values can change during the test
