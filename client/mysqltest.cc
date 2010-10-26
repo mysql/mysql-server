@@ -5883,7 +5883,7 @@ int read_line(char *buf, int size)
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
 #ifdef USE_MB
-      int charlen = my_mbcharlen(charset_info, c);
+      int charlen = my_mbcharlen(charset_info, (unsigned char) c);
       /* We give up if multibyte character is started but not */
       /* completed before we pass buf_end */
       if ((charlen > 1) && (p + charlen) <= buf_end)
@@ -5895,16 +5895,16 @@ int read_line(char *buf, int size)
 
 	for (i= 1; i < charlen; i++)
 	{
+	  c= my_getc(cur_file->file);
 	  if (feof(cur_file->file))
 	    goto found_eof;
-	  c= my_getc(cur_file->file);
 	  *p++ = c;
 	}
 	if (! my_ismbchar(charset_info, mb_start, p))
 	{
 	  /* It was not a multiline char, push back the characters */
 	  /* We leave first 'c', i.e. pretend it was a normal char */
-	  while (p > mb_start)
+	  while (p-1 > mb_start)
 	    my_ungetc(*--p);
 	}
       }
@@ -9965,6 +9965,7 @@ void free_pointer_array(POINTER_ARRAY *pa)
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
                                const char *val, int len)
 {
+  char lower[512];
 #ifdef __WIN__
   fix_win_paths(val, len);
 #endif
@@ -9972,7 +9973,6 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
   if (display_result_lower) 
   {
     /* Convert to lower case, and do this first */
-    char lower[512];
     char *c= lower;
     for (const char *v= val;  *v;  v++)
       *c++= my_tolower(charset_info, *v);
