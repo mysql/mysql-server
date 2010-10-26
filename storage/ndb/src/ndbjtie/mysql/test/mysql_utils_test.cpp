@@ -187,9 +187,22 @@ int main()
     assert(! *result1);
     assert(*result2);
     assert(*result3);
-    /* Can you check every charset without getting a segfault? */
-    for(int i = 0 ; i < 256 ; i++) 
-      result1 = csmap.isMultibyte(i);
+
+    int nNull = 0, nSingle = 0, nMulti = 0;
+    for(int i = 0 ; i < 256 ; i++) {
+      const bool *r = csmap.isMultibyte(i);
+      if(r) {
+        if(*r) nMulti++;
+        else nSingle++;
+      }
+      else nNull++;
+    }
+    printf("Charset stats:  %d unused, %d single-byte, %d multi-byte\n",
+           nNull, nSingle, nMulti);
+    // If there is not at least one of each, then something is probably wrong
+    assert(nNull && nSingle && nMulti);
   
+    
+    
     CharsetMap::unload();
 }
