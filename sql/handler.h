@@ -2177,7 +2177,8 @@ public:
       TRUE    if the engine supports virtual columns
   */
   virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
-
+  
+  TABLE* get_table() { return table; }
 protected:
   /* deprecated, don't use in new engines */
   inline void ha_statistic_increment(ulong SSV::*offset) const { }
@@ -2370,7 +2371,6 @@ private:
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
   friend class ha_partition;
-  friend class DsMrr_impl;
 public:
   /* XXX to be removed, see ha_partition::partition_ht() */
   virtual handlerton *partition_ht() const
