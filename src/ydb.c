@@ -4992,6 +4992,9 @@ void db_env_set_loader_size_factor (uint32_t factor) {
 }
 
 
+void db_env_set_mvcc_garbage_collection_verification(u_int32_t verification_mode) {
+    garbage_collection_debug = (verification_mode != 0);
+}
 
 
 

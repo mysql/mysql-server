@@ -18,7 +18,6 @@ extern "C" {
 
 //1 does much slower debugging
 #define ULE_DEBUG 0
-#define GARBAGE_COLLECTION_DEBUG 0
 
 /////////////////////////////////////////////////////////////////////////////////
 // Following data structures are the unpacked format of a leafentry. 

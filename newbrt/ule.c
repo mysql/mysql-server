@@ -202,14 +202,13 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
                 break;
             }
         }
-#if GARBAGE_COLLECTION_DEBUG
+        if (garbage_collection_debug)
         {
             u_int32_t idx;
             OMTVALUE txnagain;
             int r = toku_omt_find_zero(snapshot_xids, toku_find_xid_by_xid, &tl1, &txnagain, &idx, NULL);
             invariant(r==0); //make sure that the txn you are claiming is live is actually live
         }
-#endif
         //
         // tl1 should now be set
         //
