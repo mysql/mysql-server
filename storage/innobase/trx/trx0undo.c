@@ -1800,9 +1800,6 @@ trx_undo_set_state_at_finish(
 	page_t*		undo_page;
 	ulint		state;
 
-	ut_ad(mtr);
-	ut_ad(undo);
-
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
