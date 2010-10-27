@@ -62,6 +62,7 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_SCAN_FRAGREF, &Dbspj::execSCAN_FRAGREF);
   addRecSignal(GSN_SCAN_FRAGCONF, &Dbspj::execSCAN_FRAGCONF);
   addRecSignal(GSN_TRANSID_AI, &Dbspj::execTRANSID_AI);
+  addRecSignal(GSN_SCAN_HBREP, &Dbspj::execSCAN_HBREP);
 
   ndbout << "Instantiating DBSPJ instanceNo=" << instanceNumber << endl;
 }//Dbspj::Dbspj()
