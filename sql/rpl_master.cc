@@ -818,9 +818,10 @@ impossible position";
            my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
            errmsg= "Slave can not handle replication events with the checksum "
              "that master is configured to log";
-           sql_print_warning("Configured to log replication events with "
-                             "checksum Master rejects sending them to Slave "
-                             "that can not handle it.");
+           sql_print_warning("Master is configured to log replication events "
+                             "with checksum, but will not send such events to "
+                             "slaves that cannot process them");
+           goto err;
          }
          binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
                                        LOG_EVENT_BINLOG_IN_USE_F);
@@ -918,9 +919,9 @@ impossible position";
           my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
           errmsg= "Slave can not handle replication events with the checksum "
             "that master is configured to log";
-          sql_print_warning("Configured to log replication events with "
-                            "checksum Master rejects sending them to Slave "
-                            "that can not handle it.");
+          sql_print_warning("Master is configured to log replication events "
+                            "with checksum, but will not send such events to "
+                            "slaves that cannot process them");
           goto err;
         }
         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
