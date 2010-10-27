@@ -320,169 +320,11 @@ static PSI_file_info	all_innodb_files[] = {
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
 
-/************************************************************************//**
-Handling the shared INNOBASE_SHARE structure that is needed to provide table
-locking. Register the table name if it doesn't exist in the hash table. */
-static
-INNOBASE_SHARE*
-get_share(
-/*======*/
-	const char*	table_name);
-
-/************************************************************************//**
-Free the shared object that was registered with get_share(). */
-static
-void
-free_share(
-/*=======*/
-	INNOBASE_SHARE*	share);
-
-/************************************************************************//**
-*/
-static
-int
-innobase_close_connection(
-/*======================*/
-	handlerton*	hton,
-	THD*		thd);
-
-/************************************************************************//**
-*/
-static
-int
-innobase_commit(
-/*============*/
-	handlerton*	hton,
-	THD*		thd,
-	bool		all);
-
-/************************************************************************//**
-*/
-static
-int
-innobase_rollback(
-/*==============*/
-	handlerton*	hton,
-	THD*		thd,
-	bool		all);
-
-/************************************************************************//**
-*/
-static
-int
-innobase_rollback_to_savepoint(
-/*===========================*/
-	handlerton*	hton,
-	THD*		thd,
-	void*		savepoint);
-
-/************************************************************************//**
-*/
-static
-int
-innobase_savepoint(
-/*===============*/
-	handlerton*	hton,
-	THD*		thd,
-	void*		savepoint);
-
-/************************************************************************//**
-*/
-static
-int
-innobase_release_savepoint(
-/*=======================*/
-	handlerton*	hton,
-	THD*		thd,
-	void*		savepoint);
-
-/************************************************************************//**
-*/
-static
-handler*
-innobase_create_handler(
-/*====================*/
-	handlerton*	hton,
-	TABLE_SHARE*	table,
-	MEM_ROOT*	mem_root);
-
 /** "GEN_CLUST_INDEX" is the name reserved for Innodb default
 system primary index. */
 static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
 
-/** @brief Initialize the default value of innodb_commit_concurrency.
-
-Once InnoDB is running, the innodb_commit_concurrency must not change
-from zero to nonzero. (Bug #42101)
-
-The initial default value is 0, and without this extra initialization,
-SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
-to 0, even if it was initially set to nonzero at the command line
-or configuration file. */
-static
-void
-innobase_commit_concurrency_init_default();
-/*=======================================*/
-
-/************************************************************//**
-Validate the file format name and return its corresponding id.
-@return	valid file format id */
-static
-uint
-innobase_file_format_name_lookup(
-/*=============================*/
-	const char*	format_name);		/*!< in: pointer to file format
-						name */
-/************************************************************//**
-Validate the file format check config parameters, as a side effect it
-sets the srv_max_file_format_at_startup variable.
-@return	the format_id if valid config value, otherwise, return -1 */
-static
-int
-innobase_file_format_validate_and_set(
-/*==================================*/
-	const char*	format_max);		/*!< in: parameter value */
-/****************************************************************//**
-Return alter table flags supported in an InnoDB database. */
-static
-uint
-innobase_alter_table_flags(
-/*=======================*/
-	uint	flags);
-
 static const char innobase_hton_name[]= "InnoDB";
-
-/*************************************************************//**
-Check for a valid value of innobase_commit_concurrency.
-@return	0 for valid innodb_commit_concurrency */
-static
-int
-innobase_commit_concurrency_validate(
-/*=================================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
-{
-	long long	intbuf;
-	ulong		commit_concurrency;
-
-	DBUG_ENTER("innobase_commit_concurrency_validate");
-
-	if (value->val_int(value, &intbuf)) {
-		/* The value is NULL. That is invalid. */
-		DBUG_RETURN(1);
-	}
-
-	*reinterpret_cast<ulong*>(save) = commit_concurrency
-		= static_cast<ulong>(intbuf);
-
-	/* Allow the value to be updated, as long as it remains zero
-	or nonzero. */
-	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
-}
 
 static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB support for the XA two-phase commit",
@@ -501,171 +343,6 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
 static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
-
-
-/*******************************************************************//**
-*/
-static
-handler*
-innobase_create_handler(
-/*====================*/
-	handlerton*	hton,
-	TABLE_SHARE*	table,
-	MEM_ROOT*	mem_root)
-{
-	return new (mem_root) ha_innobase(hton, table);
-}
-
-/*******************************************************************//**
-This function is used to prepare an X/Open XA distributed transaction.
-@return	0 or error number */
-static
-int
-innobase_xa_prepare(
-/*================*/
-	handlerton*	hton,	/*!< in: InnoDB handlerton */
-	THD*		thd,	/*!< in: handle to the MySQL thread of
-				the user whose XA transaction should
-				be prepared */
-	bool		all);	/*!< in: TRUE - commit transaction
-				FALSE - the current SQL statement
-				ended */
-/*******************************************************************//**
-This function is used to recover X/Open XA distributed transactions.
-@return	number of prepared transactions stored in xid_list */
-static
-int
-innobase_xa_recover(
-/*================*/
-	handlerton*	hton,	/*!< in: InnoDB handlerton */
-	XID*		xid_list,/*!< in/out: prepared transactions */
-	uint		len);	/*!< in: number of slots in xid_list */
-/*******************************************************************//**
-This function is used to commit one X/Open XA distributed transaction
-which is in the prepared state
-@return	0 or error number */
-static
-int
-innobase_commit_by_xid(
-/*===================*/
-	handlerton* hton,
-	XID*	xid);	/*!< in: X/Open XA transaction identification */
-/*******************************************************************//**
-This function is used to rollback one X/Open XA distributed transaction
-which is in the prepared state
-@return	0 or error number */
-static
-int
-innobase_rollback_by_xid(
-/*=====================*/
-	handlerton*	hton,	/*!< in: InnoDB handlerton */
-	XID*		xid);	/*!< in: X/Open XA transaction
-				identification */
-/*******************************************************************//**
-Create a consistent view for a cursor based on current transaction
-which is created if the corresponding MySQL thread still lacks one.
-This consistent view is then used inside of MySQL when accessing records
-using a cursor.
-@return	pointer to cursor view or NULL */
-static
-void*
-innobase_create_cursor_view(
-/*========================*/
-	handlerton*	hton,	/*!< in: innobase hton */
-	THD*		thd);	/*!< in: user thread handle */
-/*******************************************************************//**
-Set the given consistent cursor view to a transaction which is created
-if the corresponding MySQL thread still lacks one. If the given
-consistent cursor view is NULL global read view of a transaction is
-restored to a transaction read view. */
-static
-void
-innobase_set_cursor_view(
-/*=====================*/
-	handlerton* hton,
-	THD*	thd,	/*!< in: user thread handle */
-	void*	curview);/*!< in: Consistent cursor view to be set */
-/*******************************************************************//**
-Close the given consistent cursor view of a transaction and restore
-global read view to a transaction read view. Transaction is created if the
-corresponding MySQL thread still lacks one. */
-static
-void
-innobase_close_cursor_view(
-/*=======================*/
-	handlerton* hton,
-	THD*	thd,		/*!< in: user thread handle */
-	void*	curview);	/*!< in: Consistent read view to be closed */
-/*****************************************************************//**
-Removes all tables in the named database inside InnoDB. */
-static
-void
-innobase_drop_database(
-/*===================*/
-	handlerton* hton,	/*!< in: handlerton of Innodb */
-	char*	path);		/*!< in: database path; inside InnoDB the name
-				of the last directory in the path is used as
-				the database name: for example, in
-				'mysql/data/test' the database name is 'test' */
-/*******************************************************************//**
-Closes an InnoDB database. */
-static
-int
-innobase_end(handlerton *hton, ha_panic_function type);
-
-/*****************************************************************//**
-Creates an InnoDB transaction struct for the thd if it does not yet have one.
-Starts a new InnoDB transaction if a transaction is not yet started. And
-assigns a new snapshot for a consistent read if the transaction does not yet
-have one.
-@return	0 */
-static
-int
-innobase_start_trx_and_assign_read_view(
-/*====================================*/
-	handlerton*	hton,	/* in: Innodb handlerton */
-	THD*		thd);	/* in: MySQL thread handle of the user for whom
-				the transaction should be committed */
-/****************************************************************//**
-Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
-the logs, and the name of this function should be innobase_checkpoint.
-@return	TRUE if error */
-static
-bool
-innobase_flush_logs(
-/*================*/
-	handlerton*	hton);	/*!< in: InnoDB handlerton */
-
-/************************************************************************//**
-Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
-Monitor to the client.
-@return 0 on success */
-static
-int
-innodb_show_status(
-/*===============*/
-	handlerton*	hton,	/*!< in: the innodb handlerton */
-	THD*		thd,	/*!< in: the MySQL query thread of the caller */
-	stat_print_fn*	stat_print);
-/************************************************************************//**
-Return 0 on success and non-zero on failure. Note: the bool return type
-seems to be abused here, should be an int. */
-static
-bool
-innobase_show_status(
-/*=================*/
-	handlerton*		hton,
-	THD*			thd,
-	stat_print_fn*		stat_print,
-	enum ha_stat_type	stat_type);
-
-/*****************************************************************//**
-Commits a transaction in an InnoDB database. */
-static
-void
-innobase_commit_low(
-/*================*/
-	trx_t*	trx);	/*!< in: transaction handle */
 
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_pages_data",
@@ -764,6 +441,364 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
+
+/************************************************************************//**
+Handling the shared INNOBASE_SHARE structure that is needed to provide table
+locking. Register the table name if it doesn't exist in the hash table. */
+static
+INNOBASE_SHARE*
+get_share(
+/*======*/
+	const char*	table_name);	/*!< in: table to lookup */
+
+/************************************************************************//**
+Free the shared object that was registered with get_share(). */
+static
+void
+free_share(
+/*=======*/
+	INNOBASE_SHARE*	share);		/*!< in/own: share to free */
+
+/*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return	0 or error number */
+static
+int
+innobase_close_connection(
+/*======================*/
+	handlerton*	hton,		/*!< in: Innodb handlerton */
+	THD*		thd);		/*!< in: MySQL thread handle for
+					which to close the connection */
+
+/*****************************************************************//**
+Commits a transaction in an InnoDB database or marks an SQL statement
+ended.
+@return	0 */
+static
+int
+innobase_commit(
+/*============*/
+	handlerton*	hton,		/*!< in: Innodb handlerton */
+	THD*		thd,		/*!< in: MySQL thread handle of the
+				       	user for whom the transaction should
+				       	be committed */
+	bool		commit_trx);	/*!< in: true - commit transaction
+					false - the current SQL statement
+				       	ended */
+
+/*****************************************************************//**
+Rolls back a transaction to a savepoint.
+@return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
+given name */
+static
+int
+innobase_rollback(
+/*==============*/
+	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	THD*		thd,		/*!< in: handle to the MySQL thread
+				       	of the user whose transaction should
+				       	be rolled back */
+	bool		rollback_trx);	/*!< in: TRUE - rollback entire
+				       	transaction FALSE - rollback the current
+					statement only */
+
+/*****************************************************************//**
+Rolls back a transaction to a savepoint.
+@return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
+given name */
+static
+int
+innobase_rollback_to_savepoint(
+/*===========================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd,		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be rolled back to savepoint */
+	void*		savepoint);	/*!< in: savepoint data */
+
+/*****************************************************************//**
+Sets a transaction savepoint.
+@return	always 0, that is, always succeeds */
+static
+int
+innobase_savepoint(
+/*===============*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd,		/*!< in: handle to the MySQL thread of
+					the user's XA transaction for which
+					we need to take a savepoint */
+	void*		savepoint);	/*!< in: savepoint data */
+
+/*****************************************************************//**
+Release transaction savepoint name.
+@return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
+given name */
+static
+int
+innobase_release_savepoint(
+/*=======================*/
+	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	THD*		thd,		/*!< in: handle to the MySQL thread
+					of the user whose transaction's
+					savepoint should be released */
+	void*		savepoint);	/*!< in: savepoint data */
+
+/************************************************************************//**
+Function for constructing an InnoDB table handler instance. */
+static
+handler*
+innobase_create_handler(
+/*====================*/
+	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	TABLE_SHARE*	table,
+	MEM_ROOT*	mem_root);
+
+/** @brief Initialize the default value of innodb_commit_concurrency.
+
+Once InnoDB is running, the innodb_commit_concurrency must not change
+from zero to nonzero. (Bug #42101)
+
+The initial default value is 0, and without this extra initialization,
+SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
+to 0, even if it was initially set to nonzero at the command line
+or configuration file. */
+static
+void
+innobase_commit_concurrency_init_default();
+/*=======================================*/
+
+/************************************************************//**
+Validate the file format name and return its corresponding id.
+@return	valid file format id */
+static
+uint
+innobase_file_format_name_lookup(
+/*=============================*/
+	const char*	format_name);	/*!< in: pointer to file format
+					name */
+/************************************************************//**
+Validate the file format check config parameters, as a side effect it
+sets the srv_max_file_format_at_startup variable.
+@return	the format_id if valid config value, otherwise, return -1 */
+static
+int
+innobase_file_format_validate_and_set(
+/*==================================*/
+	const char*	format_max);	/*!< in: parameter value */
+/****************************************************************//**
+Return alter table flags supported in an InnoDB database. */
+static
+uint
+innobase_alter_table_flags(
+/*=======================*/
+	uint	flags);
+
+/*******************************************************************//**
+This function is used to prepare an X/Open XA distributed transaction.
+@return	0 or error number */
+static
+int
+innobase_xa_prepare(
+/*================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd,		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be prepared */
+	bool		all);		/*!< in: TRUE - commit transaction
+					FALSE - the current SQL statement
+					ended */
+/*******************************************************************//**
+This function is used to recover X/Open XA distributed transactions.
+@return	number of prepared transactions stored in xid_list */
+static
+int
+innobase_xa_recover(
+/*================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	XID*		xid_list,	/*!< in/out: prepared transactions */
+	uint		len);		/*!< in: number of slots in xid_list */
+/*******************************************************************//**
+This function is used to commit one X/Open XA distributed transaction
+which is in the prepared state
+@return	0 or error number */
+static
+int
+innobase_commit_by_xid(
+/*===================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	XID*		xid);		/*!< in: X/Open XA transaction
+				       	identification */
+/*******************************************************************//**
+This function is used to rollback one X/Open XA distributed transaction
+which is in the prepared state
+@return	0 or error number */
+static
+int
+innobase_rollback_by_xid(
+/*=====================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	XID*		xid);		/*!< in: X/Open XA transaction
+					identification */
+/*******************************************************************//**
+Create a consistent view for a cursor based on current transaction
+which is created if the corresponding MySQL thread still lacks one.
+This consistent view is then used inside of MySQL when accessing records
+using a cursor.
+@return	pointer to cursor view or NULL */
+static
+void*
+innobase_create_cursor_view(
+/*========================*/
+	handlerton*	hton,		/*!< in: innobase hton */
+	THD*		thd);		/*!< in: user thread handle */
+/*******************************************************************//**
+Set the given consistent cursor view to a transaction which is created
+if the corresponding MySQL thread still lacks one. If the given
+consistent cursor view is NULL global read view of a transaction is
+restored to a transaction read view. */
+static
+void
+innobase_set_cursor_view(
+/*=====================*/
+	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	THD*		thd,		/*!< in: user thread handle */
+	void*		curview);	/*!< in: Consistent cursor view to
+				       	be set */
+/*******************************************************************//**
+Close the given consistent cursor view of a transaction and restore
+global read view to a transaction read view. Transaction is created if the
+corresponding MySQL thread still lacks one. */
+static
+void
+innobase_close_cursor_view(
+/*=======================*/
+	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	THD*		thd,		/*!< in: user thread handle */
+	void*		curview);	/*!< in: Consistent read view to be
+				       	closed */
+/*****************************************************************//**
+Removes all tables in the named database inside InnoDB. */
+static
+void
+innobase_drop_database(
+/*===================*/
+	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	char*		path);		/*!< in: database path; inside InnoDB
+				       	the name of the last directory in
+				       	the path is used as the database name:
+				       	for example, in 'mysql/data/test' the
+				       	database name is 'test' */
+/*******************************************************************//**
+Closes an InnoDB database. */
+static
+int
+innobase_end(
+/*=========*/
+	handlerton*		hton,	/* in: Innodb handlerton */
+       	ha_panic_function	type);
+
+/*****************************************************************//**
+Creates an InnoDB transaction struct for the thd if it does not yet have one.
+Starts a new InnoDB transaction if a transaction is not yet started. And
+assigns a new snapshot for a consistent read if the transaction does not yet
+have one.
+@return	0 */
+static
+int
+innobase_start_trx_and_assign_read_view(
+/*====================================*/
+	handlerton*	hton,		/* in: Innodb handlerton */
+	THD*		thd);		/* in: MySQL thread handle of the
+				       	user for whom the transaction should
+				       	be committed */
+/****************************************************************//**
+Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
+the logs, and the name of this function should be innobase_checkpoint.
+@return	TRUE if error */
+static
+bool
+innobase_flush_logs(
+/*================*/
+	handlerton*	hton);		/*!< in: InnoDB handlerton */
+
+/************************************************************************//**
+Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
+Monitor to the client.
+@return 0 on success */
+static
+int
+innodb_show_status(
+/*===============*/
+	handlerton*	hton,		/*!< in: the innodb handlerton */
+	THD*		thd,		/*!< in: the MySQL query thread of
+				       	the caller */
+	stat_print_fn*	stat_print);
+/************************************************************************//**
+Return 0 on success and non-zero on failure. Note: the bool return type
+seems to be abused here, should be an int. */
+static
+bool
+innobase_show_status(
+/*=================*/
+	handlerton*		hton,	/*!< in: the innodb handlerton */
+	THD*			thd,	/*!< in: the MySQL query thread of
+				       	the caller */
+	stat_print_fn*		stat_print,
+	enum ha_stat_type	stat_type);
+
+/*****************************************************************//**
+Commits a transaction in an InnoDB database. */
+static
+void
+innobase_commit_low(
+/*================*/
+	trx_t*	trx);	/*!< in: transaction handle */
+
+
+/*************************************************************//**
+Check for a valid value of innobase_commit_concurrency.
+@return	0 for valid innodb_commit_concurrency */
+static
+int
+innobase_commit_concurrency_validate(
+/*=================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	long long	intbuf;
+	ulong		commit_concurrency;
+
+	DBUG_ENTER("innobase_commit_concurrency_validate");
+
+	if (value->val_int(value, &intbuf)) {
+		/* The value is NULL. That is invalid. */
+		DBUG_RETURN(1);
+	}
+
+	*reinterpret_cast<ulong*>(save) = commit_concurrency
+		= static_cast<ulong>(intbuf);
+
+	/* Allow the value to be updated, as long as it remains zero
+	or nonzero. */
+	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
+}
+
+/*******************************************************************//**
+Function for constructing an InnoDB table handler instance. */
+static
+handler*
+innobase_create_handler(
+/*====================*/
+	handlerton*	hton,	/*!< in: InnoDB handlerton */
+	TABLE_SHARE*	table,
+	MEM_ROOT*	mem_root)
+{
+	return new (mem_root) ha_innobase(hton, table);
+}
 
 /* General functions */
 
@@ -2766,11 +2801,13 @@ static
 int
 innobase_commit(
 /*============*/
-	handlerton*	hton,	/*!< in: Innodb handlerton */
-	THD*		thd,	/*!< in: MySQL thread handle of the user
-				for whom the transaction should be committed */
-	bool		all)	/*!< in: true - commit transaction
-				false - the current SQL statement ended */
+	handlerton*	hton,		/*!< in: Innodb handlerton */
+	THD*		thd,		/*!< in: MySQL thread handle of the
+				       	user for whom the transaction should
+				       	be committed */
+	bool		commit_trx)	/*!< in: true - commit transaction
+					false - the current SQL statement
+				       	ended */
 {
 	trx_t*		trx;
 
@@ -2798,7 +2835,7 @@ innobase_commit(
 				"but transaction is active");
 	}
 
-	if (all
+	if (commit_trx
 	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
 		/* We were instructed to commit the whole transaction, or
@@ -2901,11 +2938,13 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,	/*!< in: Innodb handlerton */ 
-	THD*		thd,	/*!< in: handle to the MySQL thread of the user
-				whose transaction should be rolled back */
-	bool		all)	/*!< in: TRUE - commit transaction
-				FALSE - the current SQL statement ended */
+	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	THD*		thd,		/*!< in: handle to the MySQL thread
+				       	of the user whose transaction should
+				       	be rolled back */
+	bool		rollback_trx)	/*!< in: TRUE - rollback entire
+				       	transaction FALSE - rollback the current
+					statement only */
 {
 	int	error = 0;
 	trx_t*	trx;
@@ -2930,7 +2969,7 @@ innobase_rollback(
 
 	row_unlock_table_autoinc_for_mysql(trx);
 
-	if (all
+	if (rollback_trx
 	    || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
 		error = trx_rollback_for_mysql(trx);
@@ -2984,7 +3023,7 @@ innobase_rollback_to_savepoint(
 	handlerton*	hton,		/*!< in: Innodb handlerton */ 
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
-					be rolled back */
+					be rolled back to savepoint */
 	void*		savepoint)	/*!< in: savepoint data */
 {
 	ib_int64_t	mysql_binlog_cache_pos;
@@ -3023,8 +3062,8 @@ innobase_release_savepoint(
 /*=======================*/
 	handlerton*	hton,		/*!< in: handlerton for Innodb */
 	THD*		thd,		/*!< in: handle to the MySQL thread
-					of the user whose transaction should
-					be rolled back */
+					of the user whose transaction's
+					savepoint should be released */
 	void*		savepoint)	/*!< in: savepoint data */
 {
 	int		error = 0;
