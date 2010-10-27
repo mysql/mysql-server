@@ -18,6 +18,8 @@
 #include "debug_sync.h"
 #include <hash.h>
 #include <mysqld_error.h>
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_MDL_map_mutex;
@@ -991,8 +993,12 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
 
   while (!m_wait_status && !thd_killed(thd) &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
+  {
+    thd_wait_begin(thd, THD_WAIT_META_DATA_LOCK);
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);
+    thd_wait_end(thd);
+  }
 
   if (m_wait_status == EMPTY)
   {

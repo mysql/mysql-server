@@ -1234,7 +1234,7 @@ retry:
 
 	trx->op_info = "waiting in InnoDB queue";
 
-	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
 	os_event_wait(slot->event);
 	thd_wait_end(trx->mysql_thd);
 
@@ -1601,7 +1601,7 @@ srv_suspend_mysql_thread(
 
 	/* Suspend this thread and wait for the event. */
 
-	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_LOCK);
 	os_event_wait(event);
 	thd_wait_end(trx->mysql_thd);
 
