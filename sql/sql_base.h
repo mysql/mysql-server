@@ -243,7 +243,6 @@ bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                           bool derived, uint flags,
                           Prelocking_strategy *prelocking_strategy);
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags,
