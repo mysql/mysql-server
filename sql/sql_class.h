@@ -2344,9 +2344,8 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
-  void set_current_user_used() { current_user_used= TRUE; }
-  bool is_current_user_used() { return current_user_used; }
-  void clean_current_user_used() { current_user_used= FALSE; }
+  void binlog_invoker() { m_binlog_invoker= TRUE; }
+  bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
   {
@@ -2384,7 +2383,7 @@ private:
     Current user will be binlogged into Query_log_event if current_user_used
     is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
    */
-  bool current_user_used;
+  bool m_binlog_invoker;
 
   /**
     It points to the invoker in the Query_log_event.
