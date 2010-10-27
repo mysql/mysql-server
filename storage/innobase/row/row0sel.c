@@ -4643,7 +4643,7 @@ next_rec:
 	/*-------------------------------------------------------------*/
 	/* PHASE 5: Move the cursor to the next index record */
 
-	/*TODO/*with ICP, do this when switching pages, every N pages */
+	/* TODO: with ICP, do this when switching pages, every N pages */
 	if (UNIV_UNLIKELY(mtr_has_extra_clust_latch)) {
 		/* We must commit mtr if we are moving to the next
 		non-clustered index record, because we could break the
