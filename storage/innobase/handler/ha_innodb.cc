@@ -488,11 +488,11 @@ innobase_commit(
 /*============*/
 	handlerton*	hton,		/*!< in: Innodb handlerton */
 	THD*		thd,		/*!< in: MySQL thread handle of the
-				       	user for whom the transaction should
-				       	be committed */
+					user for whom the transaction should
+					be committed */
 	bool		commit_trx);	/*!< in: true - commit transaction
 					false - the current SQL statement
-				       	ended */
+					ended */
 
 /*****************************************************************//**
 Rolls back a transaction to a savepoint.
@@ -504,10 +504,10 @@ innobase_rollback(
 /*==============*/
 	handlerton*	hton,		/*!< in: Innodb handlerton */ 
 	THD*		thd,		/*!< in: handle to the MySQL thread
-				       	of the user whose transaction should
-				       	be rolled back */
+					of the user whose transaction should
+					be rolled back */
 	bool		rollback_trx);	/*!< in: TRUE - rollback entire
-				       	transaction FALSE - rollback the current
+					transaction FALSE - rollback the current
 					statement only */
 
 /*****************************************************************//**
@@ -612,8 +612,8 @@ innobase_xa_prepare(
 	THD*		thd,		/*!< in: handle to the MySQL thread of
 					the user whose XA transaction should
 					be prepared */
-	bool		all);		/*!< in: TRUE - commit transaction
-					FALSE - the current SQL statement
+	bool		all);		/*!< in: true - prepare transaction
+					false - the current SQL statement
 					ended */
 /*******************************************************************//**
 This function is used to recover X/Open XA distributed transactions.
@@ -635,7 +635,7 @@ innobase_commit_by_xid(
 /*===================*/
 	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	XID*		xid);		/*!< in: X/Open XA transaction
-				       	identification */
+					identification */
 /*******************************************************************//**
 This function is used to rollback one X/Open XA distributed transaction
 which is in the prepared state
@@ -671,7 +671,7 @@ innobase_set_cursor_view(
 	handlerton*	hton,		/*!< in: handlerton of Innodb */
 	THD*		thd,		/*!< in: user thread handle */
 	void*		curview);	/*!< in: Consistent cursor view to
-				       	be set */
+					be set */
 /*******************************************************************//**
 Close the given consistent cursor view of a transaction and restore
 global read view to a transaction read view. Transaction is created if the
@@ -683,7 +683,7 @@ innobase_close_cursor_view(
 	handlerton*	hton,		/*!< in: handlerton of Innodb */
 	THD*		thd,		/*!< in: user thread handle */
 	void*		curview);	/*!< in: Consistent read view to be
-				       	closed */
+					closed */
 /*****************************************************************//**
 Removes all tables in the named database inside InnoDB. */
 static
@@ -692,10 +692,10 @@ innobase_drop_database(
 /*===================*/
 	handlerton*	hton,		/*!< in: handlerton of Innodb */
 	char*		path);		/*!< in: database path; inside InnoDB
-				       	the name of the last directory in
-				       	the path is used as the database name:
-				       	for example, in 'mysql/data/test' the
-				       	database name is 'test' */
+					the name of the last directory in
+					the path is used as the database name:
+					for example, in 'mysql/data/test' the
+					database name is 'test' */
 /*******************************************************************//**
 Closes an InnoDB database. */
 static
@@ -703,7 +703,7 @@ int
 innobase_end(
 /*=========*/
 	handlerton*		hton,	/* in: Innodb handlerton */
-       	ha_panic_function	type);
+	ha_panic_function	type);
 
 /*****************************************************************//**
 Creates an InnoDB transaction struct for the thd if it does not yet have one.
@@ -717,8 +717,8 @@ innobase_start_trx_and_assign_read_view(
 /*====================================*/
 	handlerton*	hton,		/* in: Innodb handlerton */
 	THD*		thd);		/* in: MySQL thread handle of the
-				       	user for whom the transaction should
-				       	be committed */
+					user for whom the transaction should
+					be committed */
 /****************************************************************//**
 Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
 the logs, and the name of this function should be innobase_checkpoint.
@@ -739,7 +739,7 @@ innodb_show_status(
 /*===============*/
 	handlerton*	hton,		/*!< in: the innodb handlerton */
 	THD*		thd,		/*!< in: the MySQL query thread of
-				       	the caller */
+					the caller */
 	stat_print_fn*	stat_print);
 /************************************************************************//**
 Return 0 on success and non-zero on failure. Note: the bool return type
@@ -750,7 +750,7 @@ innobase_show_status(
 /*=================*/
 	handlerton*		hton,	/*!< in: the innodb handlerton */
 	THD*			thd,	/*!< in: the MySQL query thread of
-				       	the caller */
+					the caller */
 	stat_print_fn*		stat_print,
 	enum ha_stat_type	stat_type);
 
@@ -1149,7 +1149,7 @@ innobase_mysql_print_thd(
 	FILE*	f,		/*!< in: output stream */
 	void*	thd,		/*!< in: pointer to a MySQL THD object */
 	uint	max_query_len)	/*!< in: max query length to print, or 0 to
-				   use the default max length */
+				use the default max length */
 {
 	char	buffer[1024];
 
@@ -1969,8 +1969,9 @@ innobase_query_caching_of_table_permitted(
 
 	memcpy(norm_name, full_name, full_name_len);
 
-	norm_name[strlen(norm_name)] = '/'; /* InnoDB uses '/' as the
-					    separator between db and table */
+	norm_name[strlen(norm_name)] = '/'; 	/* InnoDB uses '/' as the
+						separator between db and
+						table */
 	norm_name[full_name_len] = '\0';
 #ifdef __WIN__
 	innobase_casedn_str(norm_name);
@@ -2314,7 +2315,7 @@ innobase_init(
 	innobase_hton->panic = innobase_end;
 
 	innobase_hton->start_consistent_snapshot =
-	       	innobase_start_trx_and_assign_read_view;
+		innobase_start_trx_and_assign_read_view;
 
 	innobase_hton->flush_logs = innobase_flush_logs;
 	innobase_hton->show_status = innobase_show_status;
@@ -2776,7 +2777,7 @@ innobase_start_trx_and_assign_read_view(
 /*====================================*/
 	handlerton*	hton,	/*!< in: Innodb handlerton */
 	THD*		thd)	/*!< in: MySQL thread handle of the user for
-			       	whom the transaction should be committed */
+				whom the transaction should be committed */
 {
 	trx_t*	trx;
 
@@ -2818,11 +2819,11 @@ innobase_commit(
 /*============*/
 	handlerton*	hton,		/*!< in: Innodb handlerton */
 	THD*		thd,		/*!< in: MySQL thread handle of the
-				       	user for whom the transaction should
-				       	be committed */
+					user for whom the transaction should
+					be committed */
 	bool		commit_trx)	/*!< in: true - commit transaction
 					false - the current SQL statement
-				       	ended */
+					ended */
 {
 	trx_t*		trx;
 
@@ -2955,10 +2956,10 @@ innobase_rollback(
 /*==============*/
 	handlerton*	hton,		/*!< in: Innodb handlerton */ 
 	THD*		thd,		/*!< in: handle to the MySQL thread
-				       	of the user whose transaction should
-				       	be rolled back */
+					of the user whose transaction should
+					be rolled back */
 	bool		rollback_trx)	/*!< in: TRUE - rollback entire
-				       	transaction FALSE - rollback the current
+					transaction FALSE - rollback the current
 					statement only */
 {
 	int	error = 0;
@@ -3106,7 +3107,7 @@ static
 int
 innobase_savepoint(
 /*===============*/
-	handlerton*	hton,   /*!< in: handle to the Innodb handlerton */
+	handlerton*	hton,	/*!< in: handle to the Innodb handlerton */
 	THD*	thd,		/*!< in: handle to the MySQL thread */
 	void*	savepoint)	/*!< in: savepoint data */
 {
@@ -3116,11 +3117,10 @@ innobase_savepoint(
 	DBUG_ENTER("innobase_savepoint");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	/*
-	  In the autocommit mode there is no sense to set a savepoint
-	  (unless we are in sub-statement), so SQL layer ensures that
-	  this method is never called in such situation.
-	*/
+	/* In the autocommit mode there is no sense to set a savepoint
+	(unless we are in sub-statement), so SQL layer ensures that
+	this method is never called in such situation.  */
+
 #ifdef MYSQL_SERVER /* plugins cannot access thd->in_sub_stmt */
 	DBUG_ASSERT(thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
 		thd->in_sub_stmt);
@@ -3153,7 +3153,7 @@ static
 int
 innobase_close_connection(
 /*======================*/
-	handlerton*	hton,	/*!< in:  innobase handlerton */
+	handlerton*	hton,	/*!< in: innobase handlerton */
 	THD*		thd)	/*!< in: handle to the MySQL thread of the user
 				whose resources should be free'd */
 {
@@ -3557,13 +3557,13 @@ static
 ibool
 innobase_build_index_translation(
 /*=============================*/
-	const TABLE*		table,	  /*!< in: table in MySQL data
-					  dictionary */
-	dict_table_t*		ib_table, /*!< in: table in Innodb data
-					  dictionary */
-	INNOBASE_SHARE*		share)	  /*!< in/out: share structure
-					  where index translation table
-					  will be constructed in. */
+	const TABLE*		table,	/*!< in: table in MySQL data
+					dictionary */
+	dict_table_t*		ib_table,/*!< in: table in Innodb data
+					dictionary */
+	INNOBASE_SHARE*		share)	/*!< in/out: share structure
+					where index translation table
+					will be constructed in. */
 {
 	ulint		mysql_num_index;
 	ulint		ib_num_index;
@@ -4248,9 +4248,9 @@ innobase_mysql_cmp(
 		changes then: 'b\0\0...' is ordered BEFORE 'b  ...'. Users
 		having indexes on such data need to rebuild their tables! */
 
-		ret = charset->coll->strnncollsp(charset,
-				  a, a_length,
-						 b, b_length, 0);
+		ret = charset->coll->strnncollsp(
+			charset, a, a_length, b, b_length, 0);
+
 		if (ret < 0) {
 			return(-1);
 		} else if (ret > 0) {
@@ -4317,13 +4317,12 @@ get_innobase_type_from_mysql_type(
 	switch (field->type()) {
 		/* NOTE that we only allow string types in DATA_MYSQL and
 		DATA_VARMYSQL */
-	case MYSQL_TYPE_VAR_STRING: /* old <= 4.1 VARCHAR */
-	case MYSQL_TYPE_VARCHAR:    /* new >= 5.0.3 true VARCHAR */
+	case MYSQL_TYPE_VAR_STRING:	/* old <= 4.1 VARCHAR */
+	case MYSQL_TYPE_VARCHAR:	/* new >= 5.0.3 true VARCHAR */
 		if (field->binary()) {
 			return(DATA_BINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+		} else if (strcmp(field->charset()->name,
+				  "latin1_swedish_ci") == 0) {
 			return(DATA_VARCHAR);
 		} else {
 			return(DATA_VARMYSQL);
@@ -4332,9 +4331,8 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_STRING: if (field->binary()) {
 
 			return(DATA_FIXBINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+		} else if (strcmp(field->charset()->name,
+				  "latin1_swedish_ci") == 0) {
 			return(DATA_CHAR);
 		} else {
 			return(DATA_MYSQL);
@@ -4865,11 +4863,11 @@ ha_innobase::build_template(
 		} else if (prebuilt->hint_need_to_fetch_extra_cols
 			== ROW_RETRIEVE_PRIMARY_KEY) {
 			/* We must at least fetch all primary key cols. Note
-			   that if the clustered index was internally generated
-			   by InnoDB on the row id (no primary key was
-			   defined), then row_search_for_mysql() will always
-			   retrieve the row id to a special buffer in the
-			   prebuilt struct. */
+			that if the clustered index was internally generated
+			by InnoDB on the row id (no primary key was
+			defined), then row_search_for_mysql() will always
+			retrieve the row id to a special buffer in the
+			prebuilt struct. */
 
 			fetch_primary_key_cols = TRUE;
 		}
@@ -6524,8 +6522,8 @@ ha_innobase::position(
 	table. */
 
 	if (len != ref_length) {
-	  sql_print_error("Stored ref len is %lu, but table ref len is %lu",
-			  (ulong) len, (ulong) ref_length);
+		sql_print_error("Stored ref len is %lu, but table ref len is "
+				"%lu", (ulong) len, (ulong) ref_length);
 	}
 }
 
@@ -7794,9 +7792,9 @@ ha_innobase::records_in_range(
 /*==========================*/
 	uint			keynr,		/*!< in: index number */
 	key_range		*min_key,	/*!< in: start key value of the
-						   range, may also be 0 */
+						range, may also be 0 */
 	key_range		*max_key)	/*!< in: range end key val, may
-						   also be 0 */
+						also be 0 */
 {
 	KEY*		key;
 	dict_index_t*	index;
@@ -8028,7 +8026,7 @@ innobase_get_mysql_key_number_for_index(
 					dictionary */
 	dict_table_t*		ib_table,/*!< in: table in Innodb data
 					dictionary */
-	const dict_index_t*     index)	/*!< in: index */
+	const dict_index_t*	index)	/*!< in: index */
 {
 	const dict_index_t*	ind;
 	unsigned int		i;
@@ -8352,7 +8350,7 @@ ha_innobase::info_low(
 					rec_per_key = 1;
 				}
 
-				table->key_info[i].rec_per_key[j]=
+				table->key_info[i].rec_per_key[j] =
 				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
 				  (ulong) rec_per_key;
 			}
@@ -9066,9 +9064,12 @@ ha_innobase::extra(
 	return(0);
 }
 
+/******************************************************************//**
+*/
 UNIV_INTERN
 int
 ha_innobase::reset()
+/*================*/
 {
 	if (prebuilt->blob_heap) {
 		row_mysql_prebuilt_free_blob_heap(prebuilt);
@@ -9568,7 +9569,12 @@ innodb_mutex_show_status(
 	ulint		rw_lock_count_os_yield= 0;
 	ulonglong	rw_lock_wait_time= 0;
 #endif /* UNIV_DEBUG */
-	uint	  hton_name_len= (uint) strlen(innobase_hton_name), buf1len, buf2len;
+	uint		buf1len;
+	uint		buf2len;
+	uint		hton_name_len;
+
+	hton_name_len = (uint) strlen(innobase_hton_name);
+
 	DBUG_ENTER("innodb_mutex_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -9761,7 +9767,8 @@ get_share(
 /*======*/
 	const char*	table_name)
 {
-	INNOBASE_SHARE *share;
+	INNOBASE_SHARE*	share;
+
 	mysql_mutex_lock(&innobase_share_mutex);
 
 	ulint	fold = ut_fold_string(table_name);
@@ -10119,12 +10126,14 @@ UNIV_INTERN
 void
 ha_innobase::get_auto_increment(
 /*============================*/
-	ulonglong	offset,              /*!< in: table autoinc offset */
- 	ulonglong	increment,           /*!< in: table autoinc increment */
-	ulonglong	nb_desired_values,   /*!< in: number of values reqd */
- 	ulonglong*	first_value,        /*!< out: the autoinc value */
-	ulonglong*	nb_reserved_values) /*!< out: count of reserved
-					     values */
+	ulonglong	offset,			/*!< in: table autoinc offset */
+ 	ulonglong	increment,		/*!< in: table autoinc
+						increment */
+	ulonglong	nb_desired_values,	/*!< in: number of values
+						reqd */
+ 	ulonglong*	first_value,		/*!< out: the autoinc value */
+	ulonglong*	nb_reserved_values)	/*!< out: count of reserved
+						values */
 {
 	trx_t*		trx;
 	ulint		error;
@@ -10476,13 +10485,13 @@ static
 int
 innobase_xa_prepare(
 /*================*/
-	handlerton*	hton,	/*!< in: InnoDB handlerton */
-	THD*		thd,	/*!< in: handle to the MySQL thread of
-				the user whose XA transaction should
-				be prepared */
-	bool		all)	/*!< in: TRUE - commit transaction
-				FALSE - the current SQL statement
-				ended */
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd,		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be prepared */
+	bool		prepare_trx)	/*!< in: true - prepare transaction
+					false - the current SQL statement
+					ended */
 {
 	int error = 0;
 	trx_t* trx = check_trx_exists(thd);
@@ -10511,7 +10520,7 @@ innobase_xa_prepare(
 				"but transaction is active");
 	}
 
-	if (all
+	if (prepare_trx
 	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
 		/* We were instructed to prepare the whole transaction, or
@@ -10542,7 +10551,7 @@ innobase_xa_prepare(
 	srv_active_wake_master_thread();
 
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
-	    && (all
+	    && (prepare_trx
 		|| !thd_test_options(
 			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
@@ -10653,8 +10662,8 @@ static
 void*
 innobase_create_cursor_view(
 /*========================*/
-	handlerton *hton, /*!< in: innobase hton */
-	THD* thd)	  /*!< in: user thread handle */
+	handlerton*	hton,	/*!< in: innobase hton */
+	THD*		thd)	/*!< in: user thread handle */
 {
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -10669,9 +10678,9 @@ static
 void
 innobase_close_cursor_view(
 /*=======================*/
-	handlerton *hton,
-	THD*	thd,	/*!< in: user thread handle */
-	void*	curview)/*!< in: Consistent read view to be closed */
+	handlerton*	hton,	/*!< in: innobase hton */
+	THD*		thd,	/*!< in: user thread handle */
+	void*		curview)/*!< in: Consistent read view to be closed */
 {
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -10688,9 +10697,9 @@ static
 void
 innobase_set_cursor_view(
 /*=====================*/
-	handlerton *hton,
-	THD*	thd,	/*!< in: user thread handle */
-	void*	curview)/*!< in: Consistent cursor view to be set */
+	handlerton*	hton,	/*!< in: innobase hton */
+	THD*		thd,	/*!< in: user thread handle */
+	void*		curview)/*!< in: Consistent cursor view to be set */
 {
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -10758,17 +10767,16 @@ column_is_being_renamed(
 	return(false);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Check whether a column in table "table" is being renamed and if this column
 is part of a foreign key, either part of another table, referencing this
-table or part of this table, referencing another table. */
+table or part of this table, referencing another table.
+@return true if a column that participates in a foreign key definition
+is being renamed */
 static
 bool
 foreign_key_column_is_being_renamed(
 /*================================*/
-					/* out: true if a column that
-					participates in a foreign key definition
-					is being renamed */
 	row_prebuilt_t*	prebuilt,	/* in: InnoDB prebuilt struct */
 	TABLE*		table)		/* in: MySQL table */
 {
@@ -10817,6 +10825,8 @@ foreign_key_column_is_being_renamed(
 	return(false);
 }
 
+/*******************************************************************//**
+*/
 UNIV_INTERN
 bool
 ha_innobase::check_if_incompatible_data(
@@ -11014,6 +11024,7 @@ innodb_file_format_name_update(
 	*static_cast<const char**>(var_ptr)
 		= trx_sys_file_format_id_to_name(srv_file_format);
 }
+
 /*************************************************************//**
 Check if valid argument to innodb_file_format_max. This function
 is registered as a callback with MySQL.
@@ -11127,13 +11138,13 @@ static
 void
 innodb_adaptive_hash_index_update(
 /*==============================*/
-	THD*				thd,		/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,		/*!< in: pointer to
-							system variable */
-	void*				var_ptr,	/*!< out: where the
-							formal string goes */
-	const void*			save)		/*!< in: immediate result
-							from check function */
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
 {
 	if (*(my_bool*) save) {
 		btr_search_enable();
@@ -11460,6 +11471,7 @@ exit:
 
 	return;
 }
+
 /****************************************************************//**
 Update the system variable innodb_enable_monitor_counter and enable 
 specified monitor counter.
@@ -11478,6 +11490,7 @@ innodb_enable_monitor_update(
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON);
 }
+
 /****************************************************************//**
 Update the system variable innodb_disable_monitor_counter and turn
 off specified monitor counter. */
@@ -11495,6 +11508,7 @@ innodb_disable_monitor_update(
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF);
 }
+
 /****************************************************************//**
 Update the system variable innodb_monitor_counter_reset and reset
 specified monitor counter(s).
