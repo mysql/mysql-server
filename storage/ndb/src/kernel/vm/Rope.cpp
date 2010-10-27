@@ -17,6 +17,7 @@
 */
 
 #include "Rope.hpp"
+#include "DataBuffer2.hpp"
 
 #define DEBUG_ROPE 0
 
