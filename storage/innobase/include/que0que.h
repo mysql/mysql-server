@@ -338,8 +338,8 @@ void
 que_close(void);
 /*===========*/
 
-/* Query graph query thread node: the fields are protected by the kernel
-mutex with the exceptions named below */
+/* Query graph query thread node: the fields are protected by the 
+trx_t::mutex with the exceptions named below */
 
 struct que_thr_struct{
 	que_common_t	common;		/*!< type: QUE_NODE_THR */
