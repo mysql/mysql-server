@@ -1,5 +1,5 @@
 #---------------- Index merge test 1 -------------------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t0, t1, t2, t3, t4;
 create table t0
 (
@@ -581,7 +581,7 @@ SET SESSION sort_buffer_size=DEFAULT;
 DROP TABLE t1;
 End of 5.0 tests
 #---------------- ROR-index_merge tests -----------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists  t0,t1,t2;
 create table t1
 (
@@ -831,7 +831,7 @@ SELECT * FROM t1;
 c1	c2	c3
 DROP TABLE t1,t2;
 #---------------- Index merge test 2 -------------------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t1,t2;
 create table t1
 (
@@ -1212,7 +1212,7 @@ a	b
 1	b
 DROP TABLE t1, t2;
 #---------------- 2-sweeps read Index merge test 2 -------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t1;
 create table t1 (
 pk int primary key,
@@ -1350,7 +1350,7 @@ pk	key1	key2	filler	filler2
 1	1	1	filler-data	filler-data-2
 drop table t1;
 #---------------- Clustered PK ROR-index_merge tests -----------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists  t1;
 create table t1
 (

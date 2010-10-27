@@ -2313,21 +2313,75 @@ table_map Item_field::used_tables() const
 }
 
 
-void Item_field::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+table_map Item_field::resolved_used_tables() const
 {
-  if (new_parent == depended_from)
-    depended_from= NULL;
-  Name_resolution_context *ctx= new Name_resolution_context();
-  ctx->outer_context= NULL; // We don't build a complete name resolver
-  ctx->table_list= NULL;    // We rely on first_name_resolution_table instead
-  ctx->select_lex= new_parent;
-  ctx->first_name_resolution_table= context->first_name_resolution_table;
-  ctx->last_name_resolution_table=  context->last_name_resolution_table;
-  ctx->error_processor=             context->error_processor;
-  ctx->error_processor_data=        context->error_processor_data;
-  ctx->resolve_in_select_list=      context->resolve_in_select_list;
-  ctx->security_ctx=                context->security_ctx;
-  this->context=ctx;
+  if (field->table->const_table)
+    return 0;					// const item
+  return field->table->map;
+}
+
+void Item_field::fix_after_pullout(st_select_lex *parent_select,
+                                   st_select_lex *removed_select,
+                                   Item **ref)
+{
+  if (context->select_lex == removed_select ||
+      context->select_lex == parent_select)
+  {
+    if (parent_select == depended_from)
+      depended_from= NULL;
+    Name_resolution_context *ctx= new Name_resolution_context();
+    ctx->outer_context= NULL; // We don't build a complete name resolver
+    ctx->table_list= NULL;    // We rely on first_name_resolution_table instead
+    ctx->select_lex= parent_select;
+    ctx->first_name_resolution_table= context->first_name_resolution_table;
+    ctx->last_name_resolution_table=  context->last_name_resolution_table;
+    ctx->error_processor=             context->error_processor;
+    ctx->error_processor_data=        context->error_processor_data;
+    ctx->resolve_in_select_list=      context->resolve_in_select_list;
+    ctx->security_ctx=                context->security_ctx;
+    this->context=ctx;
+  }
+  else
+  {
+    /*
+      The definition scope of this field item reference is inner to the removed
+      select_lex object.
+      No new resolution is needed, but we may need to update the dependency.
+    */
+    if (removed_select == depended_from)
+      depended_from= parent_select;
+  }
+
+  if (depended_from)
+  {
+    /*
+      Refresh used_tables information for subqueries between the definition
+      scope and resolution scope of the field item reference.
+    */
+    st_select_lex *child_select= context->select_lex;
+
+    if (child_select->outer_select() != depended_from)
+    {
+      /*
+        The subquery on this level is outer-correlated with respect to the field
+      */
+      Item_subselect *subq_predicate= child_select->master_unit()->item;
+      subq_predicate->used_tables_cache|= OUTER_REF_TABLE_BIT;
+    }
+
+    while (child_select->outer_select() != depended_from)
+      child_select= child_select->outer_select();
+
+    /*
+      child_select is select_lex immediately inner to the depended_from level.
+      Now, locate the subquery predicate that contains this select_lex and
+      update used tables information.
+    */
+    Item_subselect *subq_predicate= child_select->master_unit()->item;
+
+    subq_predicate->used_tables_cache|= this->resolved_used_tables();
+    subq_predicate->const_item_cache&= this->const_item();
+  }
 }
 
 
@@ -6803,26 +6857,31 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   return err;
 }
 
-void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
+                                       st_select_lex *removed_select,
+                                       Item **ref_arg)
 {
-  if (depended_from == new_parent)
+  if (depended_from == parent_select)
   {
-    *ref= outer_ref;
-    outer_ref->fix_after_pullout(new_parent, ref);
+    *ref_arg= outer_ref;
+    outer_ref->fix_after_pullout(parent_select, removed_select, ref_arg);
   }
   // @todo: Find an actual test case for this funcion.
   DBUG_ASSERT(false);
 }
 
-void Item_ref::fix_after_pullout(st_select_lex *new_parent, Item **refptr)
+void Item_ref::fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select,
+                                 Item **ref_arg)
 {
   // @todo: Find an actual test case where depended_from == new_parent.
-  DBUG_ASSERT(depended_from != new_parent);
-  if (depended_from == new_parent)
+  DBUG_ASSERT(depended_from != parent_select);
+  if (depended_from == parent_select)
     depended_from= NULL;
 }
 
-void Item_direct_view_ref::fix_after_pullout(st_select_lex *new_parent,
+void Item_direct_view_ref::fix_after_pullout(st_select_lex *parent_select,
+                                             st_select_lex *removed_select,
                                              Item **refptr)
 {
   DBUG_EXECUTE("where",
@@ -6830,11 +6889,11 @@ void Item_direct_view_ref::fix_after_pullout(st_select_lex *new_parent,
                            "Item_direct_view_ref::fix_after_pullout",
                            QT_ORDINARY););
 
-  (*ref)->fix_after_pullout(new_parent, ref);
+  (*ref)->fix_after_pullout(parent_select, removed_select, ref);
 
-  // @todo: Find an actual test case where depended_from == new_parent.
-  DBUG_ASSERT(depended_from != new_parent);
-  if (depended_from == new_parent)
+  // @todo: Find an actual test case where depended_from == parent_select.
+  DBUG_ASSERT(depended_from != parent_select);
+  if (depended_from == parent_select)
     depended_from= NULL;
 }
 

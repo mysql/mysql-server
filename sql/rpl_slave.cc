@@ -2459,11 +2459,11 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
                         "ev->when= %lu "
                         "rli->mi->clock_diff_with_master= %lu "
                         "now= %ld "
-                        "sql_delay_end= %lu "
+                        "sql_delay_end= %ld "
                         "nap_time= %ld",
                         sql_delay, (long)ev->when,
                         rli->mi->clock_diff_with_master,
-                        (long)now, sql_delay_end, (long)nap_time));
+                        (long)now, (long)sql_delay_end, (long)nap_time));
 
     if (sql_delay_end > now)
     {
@@ -2538,7 +2538,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->variables.option_bits, OPTION_BEGIN),
-                      rli->last_event_start_time));
+                      (ulong) rli->last_event_start_time));
 
   /*
     Execute the event to change the database and update the binary

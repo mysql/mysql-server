@@ -42,6 +42,7 @@ static my_bool option_force=0,interrupted=0,new_line=0,
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
 static uint opt_count_iterations= 0, my_end_arg;
+static char *opt_bind_addr = NULL;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char * unix_port=0;
 
@@ -117,6 +118,9 @@ static TYPELIB command_typelib=
 
 static struct my_option my_long_options[] =
 {
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 'c',
    "Number of iterations to make. This works with -i (--sleep) only.",
    &nr_iterations, &nr_iterations, 0, GET_UINT,
@@ -319,6 +323,8 @@ int main(int argc,char *argv[])
   (void) signal(SIGINT,endprog);			/* Here if abort */
   (void) signal(SIGTERM,endprog);		/* Here if abort */
 
+  if (opt_bind_addr)
+    mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_connect_timeout)

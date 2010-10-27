@@ -22,10 +22,11 @@
 #define TABLE_RULE_HASH_SIZE   16
 #define TABLE_RULE_ARR_SIZE   16
 
-Rpl_filter::Rpl_filter() : 
-  table_rules_on(0), do_table_array_inited(0), ignore_table_array_inited(0),
-  wild_do_table_inited(0), wild_ignore_table_inited(0),
-  do_table_hash_inited(0), ignore_table_hash_inited(0)
+Rpl_filter::Rpl_filter() :
+  table_rules_on(0),
+  do_table_hash_inited(0), ignore_table_hash_inited(0),
+  do_table_array_inited(0), ignore_table_array_inited(0),
+  wild_do_table_inited(0), wild_ignore_table_inited(0)
 {
   do_db.empty();
   ignore_db.empty();

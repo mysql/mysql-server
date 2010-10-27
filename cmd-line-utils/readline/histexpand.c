@@ -693,7 +693,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	case 's':
 	  {
 	    char *new_event;
-	    int delimiter, failed, si, l_temp, ws, we;
+	    int delimiter, failed, si, l_temp, we;
 
 	    if (c == 's')
 	      {
@@ -792,7 +792,6 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 		  {
 		    for (; temp[si] && whitespace (temp[si]); si++)
 		      ;
-		    ws = si;
 		    we = history_tokenize_word (temp, si);
 		  }
 

@@ -69,7 +69,7 @@ extern void close_thread_tables(THD *thd);
 
 #define PFS_TRAILING_PROPERTIES \
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), \
-  0, NULL, sys_var::PARSE_EARLY
+  NULL, sys_var::PARSE_EARLY
 
 static Sys_var_mybool Sys_pfs_enabled(
        "performance_schema",
@@ -955,7 +955,8 @@ static Sys_var_mybool Sys_large_pages(
 
 static Sys_var_charptr Sys_language(
        "lc_messages_dir", "Directory where error messages are",
-       READ_ONLY GLOBAL_VAR(lc_messages_dir_ptr), CMD_LINE(REQUIRED_ARG, 'L'),
+       READ_ONLY GLOBAL_VAR(lc_messages_dir_ptr), 
+       CMD_LINE(REQUIRED_ARG, OPT_LC_MESSAGES_DIRECTORY),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_mybool Sys_local_infile(
@@ -1053,14 +1054,13 @@ static Sys_var_mybool Sys_low_priority_updates(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_low_prio_updates));
 
-#ifndef TO_BE_DELETED   /* Alias for the low_priority_updates */
 static Sys_var_mybool Sys_sql_low_priority_updates(
        "sql_low_priority_updates",
        "INSERT/DELETE/UPDATE has lower priority than selects",
        SESSION_VAR(low_priority_updates), NO_CMD_LINE,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_low_prio_updates));
-#endif
+       ON_UPDATE(fix_low_prio_updates), 
+       DEPRECATED("@@low_priority_updates"));
 
 static Sys_var_mybool Sys_lower_case_file_system(
        "lower_case_file_system",
@@ -1237,7 +1237,7 @@ static Sys_var_harows Sys_sql_max_join_size(
        SESSION_VAR(max_join_size), NO_CMD_LINE,
        VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_max_join_size), DEPRECATED(70000, 0));
+       ON_UPDATE(fix_max_join_size), DEPRECATED("@@max_join_size"));
 
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
 static Sys_var_ulong Sys_max_prepared_stmt_count(
@@ -1693,9 +1693,13 @@ static Sys_var_charptr Sys_socket(
 static Sys_var_ulong Sys_thread_concurrency(
        "thread_concurrency",
        "Permits the application to give the threads system a hint for "
-       "the desired number of threads that should be run at the same time",
+       "the desired number of threads that should be run at the same time. "
+       "This variable has no effect, and is deprecated. "
+       "It will be removed in a future release. ",
        READ_ONLY GLOBAL_VAR(concurrency), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1));
+       VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), 
+       DEPRECATED(""));
 
 static Sys_var_ulong Sys_thread_stack(
        "thread_stack", "The stack size for each thread",
@@ -2194,7 +2198,7 @@ static Sys_var_mybool Sys_engine_condition_pushdown(
        CMD_LINE(OPT_ARG, OPT_ENGINE_CONDITION_PUSHDOWN),
        DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_engine_condition_pushdown),
-       DEPRECATED(70000, "'@@optimizer_switch'"));
+       DEPRECATED("'@@optimizer_switch'"));
 
 static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
@@ -2207,7 +2211,8 @@ static Sys_var_plugin Sys_storage_engine(
        "storage_engine", "Alias for @@default_storage_engine. Deprecated",
        SESSION_VAR(table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null),
+       ON_UPDATE(NULL), DEPRECATED("'@@default_storage_engine'"));
 
 #if defined(ENABLED_DEBUG_SYNC)
 /*
@@ -2315,11 +2320,11 @@ static Sys_var_mybool Sys_big_tables(
        "temporary sets on file (Solves most 'table full' errors)",
        SESSION_VAR(big_tables), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-#ifndef TO_BE_DELETED   /* Alias for big_tables */
 static Sys_var_mybool Sys_sql_big_tables(
        "sql_big_tables", "alias for big_tables",
-       SESSION_VAR(big_tables), NO_CMD_LINE, DEFAULT(FALSE));
-#endif
+       SESSION_VAR(big_tables), NO_CMD_LINE, DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED("@@big_tables"));
 
 static Sys_var_bit Sys_big_selects(
        "sql_big_selects", "sql_big_selects",
@@ -2869,7 +2874,7 @@ static Sys_var_mybool Sys_log(
        "log", "Alias for --general-log. Deprecated",
        GLOBAL_VAR(opt_log), NO_CMD_LINE,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_log_state), DEPRECATED(70000, "'@@general_log'"));
+       ON_UPDATE(fix_log_state), DEPRECATED("'@@general_log'"));
 
 static Sys_var_mybool Sys_slow_query_log(
        "slow_query_log",
@@ -2886,7 +2891,7 @@ static Sys_var_mybool Sys_log_slow(
        "Alias for --slow-query-log. Deprecated",
        GLOBAL_VAR(opt_slow_log), NO_CMD_LINE,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_log_state), DEPRECATED(70000, "'@@slow_query_log'"));
+       ON_UPDATE(fix_log_state), DEPRECATED("'@@slow_query_log'"));
 
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
