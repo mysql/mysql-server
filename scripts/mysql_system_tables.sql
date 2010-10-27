@@ -467,8 +467,8 @@ DROP PREPARE stmt;
 
 SET @l1="CREATE TABLE performance_schema.THREADS(";
 SET @l2="THREAD_ID INTEGER not null,";
-SET @l3="ID INTEGER not null,";
-SET @l4="NAME VARCHAR(64) not null";
+SET @l3="PROCESSLIST_ID INTEGER,";
+SET @l4="NAME VARCHAR(128) not null";
 SET @l5=")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @cmd=concat(@l1,@l2,@l3,@l4,@l5);

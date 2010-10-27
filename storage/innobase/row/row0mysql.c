@@ -635,6 +635,13 @@ handle_new_error:
 		      "InnoDB: " REFMAN "forcing-recovery.html"
 		      " for help.\n", stderr);
 		break;
+	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		fprintf(stderr, "InnoDB: Cannot delete/update rows with"
+			" cascading foreign key constraints that exceed max"
+			" depth of %lu\n"
+			"Please drop excessive foreign constraints"
+			" and try again\n", (ulong) DICT_FK_MAX_RECURSIVE_LOAD);
+		break;
 	default:
 		fprintf(stderr, "InnoDB: unknown error code %lu\n",
 			(ulong) err);
@@ -1440,10 +1447,14 @@ row_update_for_mysql(
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
+	thr->fk_cascade_depth = 0;
 
 	row_upd_step(thr);
 
 	err = trx->error_state;
+
+	/* Reset fk_cascade_depth back to 0 */
+	thr->fk_cascade_depth = 0;
 
 	if (err != DB_SUCCESS) {
 		que_thr_stop_for_mysql(thr);
@@ -1640,11 +1651,26 @@ row_update_cascade_for_mysql(
 	trx_t*	trx;
 
 	trx = thr_get_trx(thr);
+
+	/* Increment fk_cascade_depth to record the recursive call depth on
+	a single update/delete that affects multiple tables chained
+	together with foreign key relations. */
+	thr->fk_cascade_depth++;
+
+	if (thr->fk_cascade_depth > FK_MAX_CASCADE_DEL) {
+		return (DB_FOREIGN_EXCEED_MAX_CASCADE);
+	}
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
 
 	row_upd_step(thr);
+
+	/* The recursive call for cascading update/delete happens
+	in above row_upd_step(), reset the counter once we come
+	out of the recursive call, so it does not accumulate for
+	different row deletes */
+	thr->fk_cascade_depth = 0;
 
 	err = trx->error_state;
 
@@ -2120,7 +2146,7 @@ row_table_add_foreign_constraints(
 					      name, reject_fks);
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, TRUE);
+		err = dict_load_foreigns(name, FALSE, TRUE);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -3997,7 +4023,7 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, !old_is_tmp || trx->check_foreigns);
+			new_name, FALSE, !old_is_tmp || trx->check_foreigns);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);
