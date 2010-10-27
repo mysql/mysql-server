@@ -115,7 +115,7 @@ rl_insert_close (count, invoking_key)
   else
     {
 #if defined (HAVE_SELECT)
-      int orig_point, match_point, ready;
+      int orig_point, match_point;
       struct timeval timer;
       fd_set readfds;
 
@@ -136,7 +136,7 @@ rl_insert_close (count, invoking_key)
       orig_point = rl_point;
       rl_point = match_point;
       (*rl_redisplay_function) ();
-      ready = select (1, &readfds, (fd_set *)NULL, (fd_set *)NULL, &timer);
+      select (1, &readfds, (fd_set *)NULL, (fd_set *)NULL, &timer);
       rl_point = orig_point;
 #else /* !HAVE_SELECT */
       _rl_insert_char (count, invoking_key);
