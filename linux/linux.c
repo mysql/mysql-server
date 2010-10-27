@@ -62,23 +62,27 @@ toku_os_get_number_active_processors(void) {
 #define DO_AFFINITY 1
 #if DO_AFFINITY
 #include <sched.h>
-    cpu_set_t cpuset;
-    int r = sched_getaffinity(getpid(), sizeof cpuset, &cpuset);
-    assert(r == 0);
-    int nn = 0;
-    for (unsigned i = 0; i < 8 * sizeof cpuset; i++)
-        if (CPU_ISSET(i, &cpuset))
-            nn++;
-    assert(nn <= n);
-    n = nn;
+    {
+        cpu_set_t cpuset;
+        int r = sched_getaffinity(getpid(), sizeof cpuset, &cpuset);
+        assert(r == 0);
+        int ncpus = 0;
+        for (unsigned i = 0; i < 8 * sizeof cpuset; i++)
+            if (CPU_ISSET(i, &cpuset))
+                ncpus++;
+        assert(ncpus <= n);
+        n = ncpus;
+    }
 #endif
 #define DO_TOKU_NCPUS 1
 #if DO_TOKU_NCPUS
-    char *toku_ncpus = getenv("TOKU_NCPUS");
-    if (toku_ncpus) {
-        int ncpus = atoi(toku_ncpus);
-        if (ncpus < n)
-            n = ncpus;
+    {
+        char *toku_ncpus = getenv("TOKU_NCPUS");
+        if (toku_ncpus) {
+            int ncpus = atoi(toku_ncpus);
+            if (ncpus < n)
+                n = ncpus;
+        }
     }
 #endif
     return n;
