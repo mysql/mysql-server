@@ -50,6 +50,19 @@
 extern "C" {
 #endif
 
+/*
+  One should only report wait events that could potentially block for a
+  long time. A mutex wait is too short of an event to report. The reason
+  is that an event which is reported leads to a new thread starts
+  executing a query and this has a negative impact of usage of CPU caches
+  and thus the expected gain of starting a new thread must be higher than
+  the expected cost of lost performance due to starting a new thread.
+
+  Good examples of events that should be reported are waiting for row locks
+  that could easily be for many milliseconds or even seconds and the same
+  holds true for global read locks, table locks and other meta data locks.
+  Another event of interest is going to sleep for an extended time.
+*/
 typedef enum _thd_wait_type_e {
   THD_WAIT_SLEEP= 1,
   THD_WAIT_DISKIO= 2,
