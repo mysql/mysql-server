@@ -263,10 +263,14 @@ DataBuffer<sz>::append(const Uint32* src, Uint32 len){
     return false;
   }
   DataBufferIterator it;
-  
-  if(position(it, pos) && import(it, src, len)){
+
+  bool b0 = true, b1 = true;
+  if ((b0 = position(it, pos)) && (b1 = import(it, src, len)))
+  {
     return true;
   }
+
+  ndbout_c("%u %u", b0, b1);
   abort();
   return false;
 }
@@ -311,57 +315,60 @@ DataBuffer<sz>::DataBuffer(DataBufferPool & p) : thePool(p){
 template<Uint32 sz>
 inline
 bool
-DataBuffer<sz>::seize(Uint32 n){
-  Uint32 rest; // Free space in last segment (currently)
-  Segment* prevPtr;
+DataBuffer<sz>::seize(Uint32 n)
+{
+  Uint32 req = n;
+  Uint32 used = head.used;
+  Uint32 last = used % sz;            // (almost) used in last segment
+  Uint32 rest = last ? sz - last : 0; // Free in last segment
 
-  if(head.firstItem == RNIL){
-    rest = 0;
-    prevPtr = (Segment*)&head.firstItem;
-  } else {
-    rest = (sz - (head.used % sz)) % sz;
-    prevPtr = thePool.getPtr(head.lastItem);
+  if (rest >= n)
+  {
+    /**
+     * No extra allocation needed
+     */
+    head.used = used + n;
+    return true;
   }
-  
+
+  n -= rest;
+
   /**
    * Check for space
    */
-  Uint32 free = thePool.getNoOfFree() * sz + rest;
-  if(n > free){
+  Uint32 free = thePool.getNoOfFree() * sz;
+  if (n > free)
+  {
     return false;
   }
-    
-  Uint32 used = head.used + n;
-  Ptr<Segment> currPtr; 
-  currPtr.i = head.lastItem;
   
-  while(n >= sz){
-    if(0)
-      ndbout_c("n(%d) %c sz(%d)", n, (n>sz?'>':(n<sz?'<':'=')), sz);    
-
-    thePool.seize(currPtr); assert(currPtr.i != RNIL);
-    prevPtr->nextPool = currPtr.i;
-	     
-    prevPtr = currPtr.p;
-    prevPtr->nextPool = RNIL;
+  Ptr<Segment> firstPtr;
+  thePool.seize(firstPtr);
+  Ptr<Segment> lastPtr = firstPtr;
+  
+  while (n > sz)
+  {
+    Ptr<Segment> tmp;
+    thePool.seize(tmp);
+    lastPtr.p->nextPool = tmp.i;
+    lastPtr = tmp;
     n -= sz;
   }
+  lastPtr.p->nextPool = RNIL;
   
-  if(0){
-    Uint32 pos = rest + n;
-    ndbout_c("rest(%d), n(%d) pos=%d %c sz(%d)", 
-	     rest, n, pos, (pos>sz?'>':(pos<sz?'<':'=')), sz);
+  head.used = used + req;
+  if (head.firstItem == RNIL)
+  {
+    head.firstItem = firstPtr.i;
+    assert(head.lastItem == RNIL);
   }
-  
-  if(n > rest){
-    thePool.seize(currPtr);
-    assert(currPtr.i != RNIL);
-    prevPtr->nextPool = currPtr.i;
-    currPtr.p->nextPool = RNIL;
+  else
+  {
+    Segment* tail = thePool.getPtr(head.lastItem);
+    assert(tail->nextPool == RNIL);
+    tail->nextPool = firstPtr.i;
   }
-  
-  head.used = used;
-  head.lastItem = currPtr.i;
+  head.lastItem = lastPtr.i;
   
 #if 0
   {
