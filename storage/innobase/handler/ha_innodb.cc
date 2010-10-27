@@ -95,10 +95,6 @@ extern "C" {
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
 
-#if MYSQL_VERSION_ID < 50124
-bool check_global_access(THD *thd, ulong want_access);
-#endif /* MYSQL_VERSION_ID < 50124 */
-
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -1885,11 +1881,7 @@ innobase_convert_identifier(
 				FALSE=id is an UTF-8 string */
 {
 	char nz[NAME_LEN + 1];
-#if MYSQL_VERSION_ID >= 50141
 	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
-#else /* MYSQL_VERSION_ID >= 50141 */
-	char nz2[NAME_LEN + 1 + sizeof srv_mysql50_table_name_prefix];
-#endif /* MYSQL_VERSION_ID >= 50141 */
 
 	const char*	s	= id;
 	int		q;
@@ -1907,13 +1899,9 @@ innobase_convert_identifier(
 		nz[idlen] = 0;
 
 		s = nz2;
-#if MYSQL_VERSION_ID >= 50141
 		idlen = explain_filename((THD*) thd, nz, nz2, sizeof nz2,
 					 EXPLAIN_PARTITIONS_AS_COMMENT);
 		goto no_quote;
-#else /* MYSQL_VERSION_ID >= 50141 */
-		idlen = filename_to_tablename(nz, nz2, sizeof nz2);
-#endif /* MYSQL_VERSION_ID >= 50141 */
 	}
 
 	/* See if the identifier needs to be quoted. */
@@ -1924,9 +1912,7 @@ innobase_convert_identifier(
 	}
 
 	if (q == EOF) {
-#if MYSQL_VERSION_ID >= 50141
 no_quote:
-#endif /* MYSQL_VERSION_ID >= 50141 */
 		if (UNIV_UNLIKELY(idlen > buflen)) {
 			idlen = buflen;
 		}
