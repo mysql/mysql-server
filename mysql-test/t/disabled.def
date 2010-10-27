@@ -11,5 +11,5 @@
 ##############################################################################
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
-main.mysqlhotcopy_myisam : bug#54129 2010-06-04 Horst
-main.mysqlhotcopy_archive: bug#54129 2010-06-04 Horst
+main.mysqlhotcopy_myisam : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
+main.mysqlhotcopy_archive: Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
