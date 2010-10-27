@@ -167,12 +167,13 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
                                            uint min_len, uint max_len,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter);
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static int cmp_rec_and_tuple(part_column_list_val *val, uint32 nvals_in_rec);
 static int cmp_rec_and_tuple_prune(part_column_list_val *val,
                                    uint32 n_vals_in_rec,
                                    bool tail_is_min);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Convert constants in VALUES definition to the character set the
   corresponding field uses.
