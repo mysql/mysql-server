@@ -1897,6 +1897,10 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
       mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
     mysql_bin_log.rotate_and_purge(flags);
   }
+  else
+  {
+    binlog_checksum_options= var->save_result.ulonglong_value;
+  }
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
   DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
