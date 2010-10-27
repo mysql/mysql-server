@@ -4740,7 +4740,27 @@ build_template_needs_field(
 }
 
 /**************************************************************//**
-Adds a field is to a prebuilt struct 'template'.
+Determines if a field is needed in a prebuilt struct 'template'.
+@return whether the field is needed for index condition pushdown */
+inline
+bool
+build_template_needs_field_in_icp(
+/*==============================*/
+	const dict_index_t*	index,	/*!< in: InnoDB index */
+	const row_prebuilt_t*	prebuilt,/*!< in: row fetch template */
+	bool			contains,/*!< in: whether the index contains
+					column i */
+	ulint			i)	/*!< in: column number */
+{
+	ut_ad(contains == dict_index_contains_col_or_prefix(index, i));
+
+	return(index == prebuilt->index
+	       ? contains
+	       : dict_index_contains_col_or_prefix(prebuilt->index, i));
+}
+
+/**************************************************************//**
+Adds a field to a prebuilt struct 'template'.
 @return the field template */
 static
 mysql_row_templ_t*
@@ -4921,10 +4941,8 @@ ha_innobase::build_template(
 			the subset
 			field->part_of_key.is_set(active_index)
 			which would be acceptable if end_range==NULL. */
-			if (index == prebuilt->index
-				? index_contains
-				: dict_index_contains_col_or_prefix(
-					prebuilt->index, i)) {
+			if (build_template_needs_field_in_icp(
+				    index, prebuilt, index_contains, i)) {
 				/* Needed in ICP */
 				const Field*		field;
 				mysql_row_templ_t*	templ;
@@ -5022,10 +5040,8 @@ ha_innobase::build_template(
 			const ibool		index_contains
 				= dict_index_contains_col_or_prefix(index, i);
 
-			if (index == prebuilt->index
-				? !index_contains
-				: !dict_index_contains_col_or_prefix(
-					prebuilt->index, i)) {
+			if (!build_template_needs_field_in_icp(
+				    index, prebuilt, index_contains, i)) {
 				/* Not needed in ICP */
 				const Field*	field;
 
@@ -12238,7 +12254,7 @@ ha_innobase::multi_range_read_init(
 	HANDLER_BUFFER*	buf)
 {
 	return(ds_mrr.dsmrr_init(this, seq, seq_init_param,
-				  n_ranges, mode, buf));
+				 n_ranges, mode, buf));
 }
 
 int
