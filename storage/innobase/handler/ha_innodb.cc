@@ -8792,12 +8792,15 @@ innobase_map_isolation_level(
 	enum_tx_isolation	iso)	/*!< in: MySQL isolation level code */
 {
 	switch(iso) {
-		case ISO_REPEATABLE_READ: return(TRX_ISO_REPEATABLE_READ);
-		case ISO_READ_COMMITTED: return(TRX_ISO_READ_COMMITTED);
-		case ISO_SERIALIZABLE: return(TRX_ISO_SERIALIZABLE);
-		case ISO_READ_UNCOMMITTED: return(TRX_ISO_READ_UNCOMMITTED);
-		default: ut_a(0); return(0);
+	case ISO_REPEATABLE_READ:	return(TRX_ISO_REPEATABLE_READ);
+	case ISO_READ_COMMITTED:	return(TRX_ISO_READ_COMMITTED);
+	case ISO_SERIALIZABLE:		return(TRX_ISO_SERIALIZABLE);
+	case ISO_READ_UNCOMMITTED:	return(TRX_ISO_READ_UNCOMMITTED);
 	}
+
+	ut_error;
+
+       	return(0);
 }
 
 /******************************************************************//**
