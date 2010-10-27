@@ -254,7 +254,7 @@ int Rpl_info_table::do_remove_info()
       goto end;
     }
   }
-  error= ((res == FOUND_ID || res == NOT_FOUND_ID) ? 0 : 1);
+  error= (res == ERROR_ID);
 end:
   /*
     Unlocks and closes the rpl_info table.
@@ -335,31 +335,31 @@ int Rpl_info_table::do_prepare_info_for_write()
 
 bool Rpl_info_table::do_set_info(const int pos, const char *value)
 {
-  return (field_values->value[pos].str->copy(value, strlen(value),
-                                             &my_charset_bin));
+  return (field_values->value[pos].copy(value, strlen(value),
+                                        &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const ulong value)
 {
-  return (field_values->value[pos].str->set_int(value, TRUE,
-                                                &my_charset_bin));
+  return (field_values->value[pos].set_int(value, TRUE,
+                                           &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const int value)
 {
-  return (field_values->value[pos].str->set_int(value, FALSE,
-                                                &my_charset_bin));
+  return (field_values->value[pos].set_int(value, FALSE,
+                                           &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const float value)
 {
-  return (field_values->value[pos].str->set_real(value, NOT_FIXED_DEC,
-                                                 &my_charset_bin));
+  return (field_values->value[pos].set_real(value, NOT_FIXED_DEC,
+                                            &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 {
-  if (const_cast<Server_ids *>(value)->pack_server_ids(field_values->value[pos].str))
+  if (const_cast<Server_ids *>(value)->pack_server_ids(&field_values->value[pos]))
     return TRUE;
 
   return FALSE;
@@ -368,9 +368,9 @@ bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
                                  const char *default_value)
 {
-  if (field_values->value[pos].str->length())
-    strmake(value, field_values->value[pos].str->c_ptr(),
-            field_values->value[pos].str->length());
+  if (field_values->value[pos].length())
+    strmake(value, field_values->value[pos].c_ptr_safe(),
+            field_values->value[pos].length());
   else if (default_value)
     strmake(value, default_value, strlen(default_value));
   else
@@ -382,9 +382,9 @@ bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
 bool Rpl_info_table::do_get_info(const int pos, ulong *value,
                                  const ulong default_value)
 {
-  if (field_values->value[pos].str->length())
+  if (field_values->value[pos].length())
   {
-    *value= strtoul(field_values->value[pos].str->c_ptr(), 0, 10);
+    *value= strtoul(field_values->value[pos].c_ptr_safe(), 0, 10);
     return FALSE;
   }
   else if (default_value)
@@ -399,9 +399,9 @@ bool Rpl_info_table::do_get_info(const int pos, ulong *value,
 bool Rpl_info_table::do_get_info(const int pos, int *value,
                                  const int default_value)
 {
-  if (field_values->value[pos].str->length())
+  if (field_values->value[pos].length())
   {
-    *value=  atoi(field_values->value[pos].str->c_ptr());
+    *value=  atoi(field_values->value[pos].c_ptr_safe());
     return FALSE;
   }
   else if (default_value)
@@ -416,9 +416,9 @@ bool Rpl_info_table::do_get_info(const int pos, int *value,
 bool Rpl_info_table::do_get_info(const int pos, float *value,
                                  const float default_value)
 {
-  if (field_values->value[pos].str->length())
+  if (field_values->value[pos].length())
   {
-    if (sscanf(field_values->value[pos].str->c_ptr(), "%f", value) != 1)
+    if (sscanf(field_values->value[pos].c_ptr_safe(), "%f", value) != 1)
       return TRUE;
     return FALSE;
   }
@@ -434,7 +434,7 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
 bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
                                  const Server_ids *default_value __attribute__((unused)))
 {
-  if (value->unpack_server_ids(field_values->value[pos].str->c_ptr()))
+  if (value->unpack_server_ids(field_values->value[pos].c_ptr_safe()))
     return TRUE;
 
   return FALSE;
