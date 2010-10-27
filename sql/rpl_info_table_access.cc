@@ -271,10 +271,9 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field, Field **fields
 }
 
 /**
-  Creates a new thread if necessary, saves and set the system_thread
-  information. In the bootstrap process or in the mysqld startup, a
-  thread is created in order to be able to access a table. Otherwise,
-  the current thread is used.
+  Creates a new thread if necessary. In the bootstrap process or in
+  the mysqld startup, a thread is created in order to be able to
+  access a table. Otherwise, the current thread is used.
 
   @return
     @retval THD* Pointer to thread structure
