@@ -4980,7 +4980,7 @@ ha_innobase::build_template(
 				/* Index condition pushdown can be used on
 				all columns of a secondary index, and on
 				the PRIMARY KEY columns. */
-				/*TODO/*enable this assertion
+				/* TODO: enable this assertion
 				(but first ensure that end_range is
 				valid here and use an accurate condition
 				for end_range)
