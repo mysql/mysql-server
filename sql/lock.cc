@@ -82,6 +82,8 @@
 #include "sql_acl.h"                       // SUPER_ACL
 #include <hash.h>
 #include <assert.h>
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 /**
   @defgroup Locking Locking
@@ -1019,7 +1021,11 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
 
     waiting_for_read_lock++;
     while (protect_against_global_read_lock && !thd->killed)
+    {
+      thd_wait_begin(thd, THD_WAIT_GLOBAL_LOCK);
       mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
+      thd_wait_end(thd);
+    }
     waiting_for_read_lock--;
     if (thd->killed)
     {
@@ -1187,7 +1193,9 @@ wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
             thd->open_tables->s->version == refresh_version))
     {
       DBUG_PRINT("signal", ("Waiting for COND_global_read_lock"));
+      thd_wait_begin(thd, THD_WAIT_GLOBAL_LOCK);
       mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
+      thd_wait_end(thd);
       DBUG_PRINT("signal", ("Got COND_global_read_lock"));
     }
     if (thd->killed)
@@ -1285,7 +1293,11 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
   old_message= thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
                                "Waiting for all running commits to finish");
   while (protect_against_global_read_lock && !thd->killed)
+  {
+    thd_wait_begin(thd, THD_WAIT_GLOBAL_LOCK);
     mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
+    thd_wait_end(thd);
+  }
   DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
                   protect_against_global_read_lock--;);
   if ((error= test(thd->killed)))
