@@ -514,9 +514,6 @@ query thread		--	thread;
 
 lock			--	semaphore;
 
-transaction set to
-the rollback state	--	kill signal delivered to a process;
-
 kernel			--	kernel;
 
 query thread execution:
@@ -525,83 +522,20 @@ reserved		--	process executing in user mode;
 (b) with lock mutex reserved
 			--	process executing in kernel mode;
 
-The server is controlled by a master thread which runs at
-a priority higher than normal, that is, higher than user threads.
-It sleeps most of the time, and wakes up, say, every 300 milliseconds,
-to check whether there is anything happening in the server which
-requires intervention of the master thread. Such situations may be,
-for example, when flushing of dirty blocks is needed in the buffer
-pool or old version of database rows have to be cleaned away.
+The server has several backgroind threads all running at the same
+priority as user threads. It periodically checks if here is anything
+happening in the server which requires intervention of the master
+thread. Such situations may be, for example, when flushing of dirty
+blocks is needed in the buffer pool or old version of database rows
+have to be cleaned away (purged). The user can configure a separate
+dedicated purge thread(s) too, in which case the master thread doesn't
+do any purging.
 
-The threads which we call user threads serve the queries of
-the clients and input from the console of the server.
-They run at normal priority. The server may have several
-communications endpoints. A dedicated set of user threads waits
-at each of these endpoints ready to receive a client request.
-Each request is taken by a single user thread, which then starts
-processing and, when the result is ready, sends it to the client
-and returns to wait at the same endpoint the thread started from.
-
-So, we do not have dedicated communication threads listening at
-the endpoints and dealing the jobs to dedicated worker threads.
-Our architecture saves one thread swithch per request, compared
-to the solution with dedicated communication threads
-which amounts to 15 microseconds on 100 MHz Pentium
-running NT. If the client
-is communicating over a network, this saving is negligible, but
-if the client resides in the same machine, maybe in an SMP machine
-on a different processor from the server thread, the saving
-can be important as the threads can communicate over shared
-memory with an overhead of a few microseconds.
-
-We may later implement a dedicated communication thread solution
-for those endpoints which communicate over a network.
-
-Our solution with user threads has two problems: for each endpoint
-there has to be a number of listening threads. If there are many
-communication endpoints, it may be difficult to set the right number
-of concurrent threads in the system, as many of the threads
-may always be waiting at less busy endpoints. Another problem
-is queuing of the messages, as the server internally does not
-offer any queue for jobs.
-
-Another group of user threads is intended for splitting the
-queries and processing them in parallel. Let us call these
-parallel communication threads. These threads are waiting for
-parallelized tasks, suspended on event semaphores.
-
-A single user thread waits for input from the console,
-like a command to shut the database.
-
-Utility threads are a different group of threads which takes
-care of the buffer pool flushing and other, mainly background
-operations, in the server.
-
-Some of these utility threads always run at a lower than normal
-priority, so that they are always in background. Some of them
-may dynamically boost their priority by the pri_adjust function,
-even to higher than normal priority, if their task becomes urgent.
-The running of utilities is controlled by high- and low-water marks
-of urgency. The urgency may be measured by the number of dirty blocks
-in the buffer pool, in the case of the flush thread, for example.
-When the high-water mark is exceeded, an utility starts running, until
-the urgency drops under the low-water mark. Then the utility thread
-suspend itself to wait for an event. The master thread is
-responsible of signaling this event when the utility thread is
-again needed.
-
-For each individual type of utility, some threads always remain
-at lower than normal priority. This is because pri_adjust is implemented
-so that the threads at normal or higher priority control their
-share of running time by calling sleep. Thus, if the load of the
-system sudenly drops, these threads cannot necessarily utilize
-the system fully. The background priority threads make up for this,
-starting to run when the load drops.
+The threads which we call user threads serve the queries of the MySQL
+server. They run at normal priority.
 
 When there is no activity in the system, also the master thread
 suspends itself to wait for an event making the server totally silent.
-The responsibility to signal this event is on the user thread which again
-receives a message from a client.
 
 There is still one complication in our server design. If a
 background utility thread obtains a resource (e.g., mutex) needed by a user
@@ -611,59 +545,31 @@ resource, as the OS does not schedule a background thread if
 there is some other runnable user thread. This problem is called
 priority inversion in real-time programming.
 
-One solution to the priority inversion problem would be to
-keep record of which thread owns which resource and
-in the above case boost the priority of the background thread
-so that it will be scheduled and it can release the resource.
-This solution is called priority inheritance in real-time programming.
-A drawback of this solution is that the overhead of acquiring a mutex
-increases slightly, maybe 0.2 microseconds on a 100 MHz Pentium, because
-the thread has to call os_thread_get_curr_id.
-This may be compared to 0.5 microsecond overhead for a mutex lock-unlock
-pair. Note that the thread cannot store the information in the resource
-, say mutex, itself, because competing threads could wipe out the information
-if it is stored before acquiring the mutex, and if it stored afterwards,
-the information is outdated for the time of one machine instruction,
-at least. (To be precise, the information could be stored to
-lock_word in mutex if the machine supports atomic swap.)
+One solution to the priority inversion problem would be to keep record
+of which thread owns which resource and in the above case boost the
+priority of the background thread so that it will be scheduled and it
+can release the resource.  This solution is called priority inheritance
+in real-time programming.  A drawback of this solution is that the overhead
+of acquiring a mutex increases slightly, maybe 0.2 microseconds on a 100
+MHz Pentium, because the thread has to call os_thread_get_curr_id.  This may
+be compared to 0.5 microsecond overhead for a mutex lock-unlock pair. Note
+that the thread cannot store the information in the resource , say mutex,
+itself, because competing threads could wipe out the information if it is
+stored before acquiring the mutex, and if it stored afterwards, the
+information is outdated for the time of one machine instruction, at least.
+(To be precise, the information could be stored to lock_word in mutex if
+the machine supports atomic swap.)
 
 The above solution with priority inheritance may become actual in the
-future, but at the moment we plan to implement a more coarse solution,
-which could be called a global priority inheritance. If a thread
-has to wait for a long time, say 300 milliseconds, for a resource,
-we just guess that it may be waiting for a resource owned by a background
-thread, and boost the priority of all runnable background threads
-to the normal level. The background threads then themselves adjust
-their fixed priority back to background after releasing all resources
-they had (or, at some fixed points in their program code).
-
-What is the performance of the global priority inheritance solution?
-We may weigh the length of the wait time 300 milliseconds, during
-which the system processes some other thread
-to the cost of boosting the priority of each runnable background
-thread, rescheduling it, and lowering the priority again.
-On 100 MHz Pentium + NT this overhead may be of the order 100
-microseconds per thread. So, if the number of runnable background
-threads is not very big, say < 100, the cost is tolerable.
-Utility threads probably will access resources used by
-user threads not very often, so collisions of user threads
-to preempted utility threads should not happen very often.
+future, currently we don't implement any priority twiddling solution.
+Our general aim is to reduce the contention of all mutexes by making
+them more fine grained.
 
 The thread table contains information of the current status of each
 thread existing in the system, and also the event semaphores used in
 suspending the master thread and utility threads when they have nothing
 to do.  The thread table can be seen as an analogue to the process table
-in a traditional Unix implementation.
-
-The thread table is also used in the global priority inheritance
-scheme. This brings in one additional complication: threads accessing
-the thread table must have at least normal fixed priority,
-because the priority inheritance solution does not work if a background
-thread is preempted while possessing the mutex protecting the thread table.
-So, if a thread accesses the thread table, its priority has to be
-boosted at least to normal. This priority requirement can be seen similar to
-the privileged mode used when processing the kernel calls in traditional
-Unix.*/
+in a traditional Unix implementation. */
 
 /** The server system */
 typedef struct srv_sys_struct	srv_sys_t;
