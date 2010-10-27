@@ -1,3 +1,4 @@
+# test uses command not supported in embedded
 -- source include/have_ndb.inc
 -- source include/not_embedded.inc
 

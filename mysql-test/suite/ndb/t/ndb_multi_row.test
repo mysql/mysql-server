@@ -1,7 +1,4 @@
 -- source include/have_multi_ndb.inc
--- source include/not_embedded.inc
--- source include/have_binlog_format_mixed_or_row.inc
-
 
 --disable_warnings
 connection server2;

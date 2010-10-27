@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
    @mainpage                            NDB API Programmers' Guide
 
    This guide assumes a basic familiarity with MySQL Cluster concepts found
-   on http://dev.mysql.com/doc/mysql/en/mysql-cluster.html.
+   in the MySQL Cluster documentation.
    Some of the fundamental ones are also described in section @ref secConcepts.
 
    The NDB API is a MySQL Cluster application interface 
@@ -32,6 +35,7 @@
    - NdbIndexScanOperation represents an operation performing a scan using
      an ordered index,
    - NdbRecAttr represents an attribute value
+   - NdbRecord represents a memory layout of a row data for a particular table
    - NdbDictionary represents meta information about tables and attributes.
      
    In addition, the NDB API defines a structure NdbError, which contains the 
@@ -67,7 +71,7 @@
 
    If the operation is of type <var>Commit</var>, then the transaction is
    immediately committed. The transaction <em>must</em> be closed after it has been 
-   commited (event if commit fails), and no further addition or definition of 
+   commited (even if commit fails), and no further addition or definition of 
    operations for this transaction is allowed.
 
    @section secSync                     Synchronous Transactions
@@ -84,8 +88,15 @@
        - NdbTransaction::getNdbScanOperation()
        - NdbTransaction::getNdbIndexOperation()
        - NdbTransaction::getNdbIndexScanOperation()
+       - NdbTransaction::readTuple()
+       - NdbTransaction::insertTuple()
+       - NdbTransaction::updateTuple()
+       - NdbTransaction::writeTuple()
+       - NdbTransaction::deleteTuple()
+       - NdbTransaction::scanTable()
+       - NdbTransaction::scanIndex()
        along with the appropriate methods of the respective NdbOperation class 
-       (or one possiblt one or more of its subclasses).
+       (or possibly one or more of its subclasses).
        Note that the transaction has still not yet been sent to the NDB kernel.
     -# Execute the transaction, using the NdbTransaction::execute() method.
     -# Close the transaction (call Ndb::closeTransaction()).
@@ -318,7 +329,8 @@
       either NdbScanOperation::updateCurrentTuple() or 
       NdbScanOperation::deleteCurrentTuple()
    -# (If performing NdbScanOperation::updateCurrentTuple():) 
-      Setting new values for records simply by using @ref NdbOperation::setValue().
+      Setting new values for records simply by using @ref NdbOperation::setValue()
+      (on the new NdbOperation object retured from updateCurrentTuple()).
       NdbOperation::equal() should <em>not</em> be called in such cases, as the primary 
       key is retrieved from the scan.
 
@@ -345,7 +357,7 @@
 
    @subsection secScanLocks Lock handling with scans
 
-   Performing scans on either a tables or an index has the potential 
+   Performing scans on either a table or an index has the potential  to
    return a great many records; however, Ndb will lock only a predetermined 
    number of rows per fragment at a time.
    How many rows will be locked per fragment is controlled by the 
@@ -764,7 +776,7 @@
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 /**
    <h3>Interpreted Programs</h3>
-   Interpretation programs are executed in a
+   Interpreted programs are executed in a
    register-based virtual machine.
    The virtual machine has eight 64 bit registers numbered 0-7.
    Each register contains type information which is used both
@@ -818,7 +830,7 @@
 
    The virtual machine executes subroutines using a stack for
    its operation.
-   The stack allows for up to 24 subroutine calls in succession.
+   The stack allows for up to 32 subroutine calls in succession.
    Deeper subroutine nesting will cause an abort of the transaction.
 
    All subroutines starts with the instruction
@@ -845,7 +857,6 @@
    The interface is used to send many transactions 
    at the same time to the NDB kernel.  
    This is often much more efficient than using synchronous transactions.
-   The main reason for using this method is to ensure that 
    Sending many transactions at the same time ensures that bigger 
    chunks of data are sent when actually sending and thus decreasing 
    the operating system overhead.
@@ -959,10 +970,10 @@
 #define Ndb_H
 
 #include <ndb_types.h>
-#include <ndbapi_limits.h>
-#include <ndb_cluster_connection.hpp>
-#include <NdbError.hpp>
-#include <NdbDictionary.hpp>
+#include "ndbapi_limits.h"
+#include "ndb_cluster_connection.hpp"
+#include "NdbError.hpp"
+#include "NdbDictionary.hpp"
 
 class NdbObjectIdMap;
 class NdbOperation;
@@ -986,6 +997,7 @@ class TransporterFacade;
 class PollGuard;
 class Ndb_local_table_info;
 template <class T> struct Ndb_free_list_t;
+class NdbLockHandle;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
@@ -1051,12 +1063,16 @@ class Ndb
   friend class NdbIndexOperation;
   friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
+  friend class NdbDictionary::Dictionary;
   friend class NdbDictionaryImpl;
   friend class NdbDictInterface;
   friend class NdbBlob;
   friend class NdbImpl;
+  friend class Ndb_cluster_connection;
+  friend class Ndb_cluster_connection_impl;
   friend class Ndb_internal;
   friend class NdbScanFilterImpl;
+  friend class PollGuard;
 #endif
 
 public:
@@ -1254,6 +1270,31 @@ public:
   NdbEventOperation *nextEvent();
 
   /**
+   * Check if all events are consistent
+   * If node failure occurs during resource exaustion events
+   * may be lost and the delivered event data might thus be incomplete.
+   *
+   * @param OUT aGCI
+   *        any inconsistent GCI found
+   *
+   * @return true if all received events are consistent, false if possible
+   * inconsistency
+   */
+  bool isConsistent(Uint64& gci);
+
+  /**
+   * Check if all events in a GCI are consistent
+   * If node failure occurs during resource exaustion events
+   * may be lost and the delivered event data might thus be incomplete.
+   *
+  * @param aGCI
+   *        the GCI to check
+   *
+   * @return true if GCI is consistent, false if possible inconsistency
+   */
+  bool isConsistentGCI(Uint64 gci);
+
+  /**
    * Iterate over distinct event operations which are part of current
    * GCI.  Valid after nextEvent.  Used to get summary information for
    * the epoch (e.g. list of all tables) before processing event data.
@@ -1282,16 +1323,6 @@ public:
    */
 
   /**
-   * Structure for passing in pointers to startTransaction
-   *
-   */
-  struct Key_part_ptr
-  {
-    const void * ptr;
-    unsigned len;
-  };
-
-  /**
    * Start a transaction
    *
    * @note When the transaction is completed it must be closed using
@@ -1311,8 +1342,142 @@ public:
 				   const char  *keyData = 0, 
 				   Uint32       keyLen = 0);
 
+
   /**
-   * Compute hash value given table/keys
+   * Structure for passing in pointers to distribution key values
+   * When distribution key has multiple parts, they should be
+   * passed as an array, with the last part's ptr == NULL.
+   * 
+   */
+  struct Key_part_ptr
+  {
+    const void * ptr;
+    unsigned len;
+  };
+
+  /**
+   * Structure for describing a table partition in terms of either
+   * 
+   * PS_NONE
+   *   No partitioning info provided.
+   *
+   * PS_USER_DEFINED
+   *   A specific partition id for a table with user defined 
+   *   partitioning
+   *
+   * PS_DISTR_KEY_PART_PTR
+   *   An array of a table's distribution key values for a 
+   *   table with native partitioning.
+   *
+   * PS_DISTR_KEY_RECORD
+   *   A row in given NdbRecord format containing a natively 
+   *   partitioned table's distribution key values 
+   *
+   */
+
+  struct PartitionSpec
+  {
+    enum SpecType
+    {
+      PS_NONE                = 0,
+      PS_USER_DEFINED        = 1,
+      PS_DISTR_KEY_PART_PTR  = 2,
+      PS_DISTR_KEY_RECORD    = 3
+    };
+
+    Uint32 type;
+    
+    union
+    {
+      struct {
+        Uint32 partitionId;
+      } UserDefined;
+      
+      struct {
+        const Key_part_ptr* tableKeyParts;
+        void* xfrmbuf;
+        Uint32 xfrmbuflen;
+      } KeyPartPtr;
+
+      struct {
+        const NdbRecord* keyRecord;
+        const char* keyRow;
+        void* xfrmbuf;
+        Uint32 xfrmbuflen;
+      } KeyRecord;
+    };
+  };
+
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  /* First version of PartitionSpec, defined here for 
+   * backwards compatibility reasons
+   */
+  struct PartitionSpec_v1
+  {
+    enum SpecType
+    {
+      PS_NONE                = 0,
+      PS_USER_DEFINED        = 1,
+      PS_DISTR_KEY_PART_PTR  = 2
+    };
+
+    Uint32 type;
+    
+    union
+    {
+      struct {
+        Uint32 partitionId;
+      } UserDefined;
+      
+      struct {
+        const Key_part_ptr* tableKeyParts;
+        void* xfrmbuf;
+        Uint32 xfrmbuflen;
+      } KeyPartPtr;
+    };
+  };
+#endif
+
+  /**
+   * Start a transaction
+   *
+   * @note When the transaction is completed it must be closed using
+   *       Ndb::closeTransaction or NdbTransaction::close. 
+   *       The transaction must be closed independent of its outcome, i.e.
+   *       even if there is an error.
+   *
+   * @param  table    Pointer to table object used for deciding 
+   *                  which node to run the Transaction Coordinator on
+   * @param  keyData  Null-terminated array of pointers to keyParts that is 
+   *                  part of distribution key.
+   *                  Length of resp. keyPart will be read from
+   *                  metadata and checked against passed value
+   * @param  xfrmbuf  Pointer to temporary buffer that will be used
+   *                  to calculate hashvalue
+   * @param  xfrmbuflen Lengh of buffer
+   *
+   * @note if xfrmbuf is null (default) malloc/free will be made
+   *       if xfrmbuf is not null but length is too short, method will fail
+   *
+   * @return NdbTransaction object, or NULL on failure.
+   */
+  NdbTransaction* startTransaction(const NdbDictionary::Table *table,
+				   const struct Key_part_ptr * keyData,
+				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbTransaction* startTransaction(const NdbRecord *keyRec, const char *keyData,
+				   void* xfrmbuf, Uint32 xfrmbuflen);
+#endif
+  /**
+   * Start a transaction, specifying table+partition as hint for
+   *  TC-selection
+   *
+   */
+  NdbTransaction* startTransaction(const NdbDictionary::Table* table,
+                                   Uint32 partitionId);
+
+  /**
+   * Compute distribution hash value given table/keys
    *
    * @param  hashvalueptr - OUT, is set to hashvalue if return value is 0
    * @param  table    Pointer to table object
@@ -1326,6 +1491,7 @@ public:
    *
    * @note if xfrmbuf is null (default) malloc/free will be made
    *       if xfrmbuf is not null but length is too short, method will fail
+   *       Only for use with natively partitioned tables.
    *
    * @return 0 - ok - hashvalueptr is set
    *         else - fail, return error code
@@ -1334,7 +1500,11 @@ public:
                          const NdbDictionary::Table*, 
                          const struct Key_part_ptr * keyData,
                          void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
-  
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  static int computeHash(Uint32* hashvalueptr,
+                         const NdbRecord *keyRec, const char *keyData,
+                         void* xfrmbuf, Uint32 xfrmbuflen);
+#endif
   /**
    * Close a transaction.
    *
@@ -1456,6 +1626,18 @@ public:
    */
   const NdbError & getNdbError(int errorCode);
 
+  /**
+   * Get a string containing any extra error details in the supplied
+   * buffer
+   * Where there is extra detail available a ptr to the start of
+   * the supplied buffer will be returned.
+   * If the extra detail string is longer than the passed buffer 
+   * then it will be truncated to fit.
+   * Where there is no extra detail, NULL will be returned.
+   */
+  const char* getNdbErrorDetail(const NdbError& err, 
+                                char* buff, 
+                                Uint32 buffLen) const;
 
   /** @} *********************************************************************/
 
@@ -1481,23 +1663,6 @@ public:
     InsertError               ///< Execute an error in NDB Cluster 
                               ///< (may crash system)
   };
-
-  /**
-   * For testing purposes it is possible to tamper with the NDB Cluster
-   * (i.e. send a special signal to DBDIH, the NDB distribution handler).
-   * <b>This feature should only used for debugging purposes.</b>
-   * In a release versions of NDB Cluster,
-   * this call always return -1 and does nothing.
-   * 
-   * @param aAction Action to be taken according to TamperType above
-   *
-   * @param aNode  Which node the action will be taken
-   *              -1:   Master DIH.
-   *            0-16:   Nodnumber.
-   * @return -1 indicates error, other values have meaning dependent 
-   *          on type of tampering.
-   */
-  int NdbTamper(TamperType aAction, int aNode);  
 
   /**
    * Return a unique tuple id for a table.  The id sequence is
@@ -1548,6 +1713,16 @@ public:
   int setAutoIncrementValue(const NdbDictionary::Table * aTable,
                             TupleIdRange & range, Uint64 autoValue,
                             bool modify);
+#ifdef NDBAPI_50_COMPAT
+  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
+			       Uint32 cacheSize = 1)
+    {
+      Uint64 val;
+      if (getAutoIncrementValue(aTable, val, cacheSize, 1, 1) == -1)
+        return ~(Uint64)0;
+      return val;
+    }
+#endif
   bool checkUpdateAutoIncrementValue(TupleIdRange & range, Uint64 autoValue);
 private:
   int getTupleIdFromNdb(const NdbTableImpl* table,
@@ -1577,20 +1752,21 @@ public:
   };
 
   Free_list_usage * get_free_list_usage(Free_list_usage*);
+
+  /* Get minimum known DB node version */
+  Uint32 getMinDbNodeVersion() const;
 #endif
 
-  
-
-/*****************************************************************************
- *	These are service routines used by the other classes in the NDBAPI.
- ****************************************************************************/
- Uint32 get_cond_wait_index() { return cond_wait_index; }
- void set_cond_wait_index(Uint32 index) { cond_wait_index = index; }
 private:
-  Uint32 cond_wait_index;
-  Ndb *cond_signal_ndb;
-  void cond_signal();
-  
+/*****************************************************************************
+ *     These are service routines used by the other classes in the NDBAPI.
+ ****************************************************************************/
+  Uint32 _unused;
+  void *_unused2;
+
+  Ndb(const Ndb&); // Not impl.
+  Ndb&operator=(const Ndb&);
+
   void setup(Ndb_cluster_connection *ndb_cluster_connection,
 	     const char* aCatalogName, const char* aSchemaName);
 
@@ -1619,7 +1795,10 @@ private:
 
   NdbBlob*              getNdbBlob();// Get a blob handle etc
 
+  NdbLockHandle*        getLockHandle(); // Get a lock handle.
+
   void			releaseSignal(NdbApiSignal* anApiSignal);
+  void                  releaseSignals(Uint32, NdbApiSignal*, NdbApiSignal*);
   void                  releaseSignalsInList(NdbApiSignal** pList);
   void			releaseNdbScanRec(NdbReceiver* aNdbScanRec);
   void			releaseNdbLabel(NdbLabel* anNdbLabel);
@@ -1630,6 +1809,7 @@ private:
   void		 	releaseOperation(NdbOperation* anOperation);	
   void		 	releaseScanOperation(NdbIndexScanOperation*);
   void                  releaseNdbBlob(NdbBlob* aBlob);
+  void                  releaseLockHandle(NdbLockHandle* lh);
 
   void                  check_send_timeout();
   void                  remove_sent_list(Uint32);
@@ -1638,7 +1818,8 @@ private:
 
   // Handle a received signal. Used by both
   // synchronous and asynchronous interface
-  void handleReceivedSignal(NdbApiSignal* anApiSignal, struct LinearSectionPtr ptr[3]);
+  void handleReceivedSignal(const NdbApiSignal* anApiSignal,
+			    const struct LinearSectionPtr ptr[3]);
   
   int			sendRecSignal(Uint16 aNodeId,
 				      Uint32 aWaitState,
@@ -1646,9 +1827,6 @@ private:
                                       Uint32 nodeSequence,
                                       Uint32 *ret_conn_seq= 0);
   
-  // Sets Restart GCI in Ndb object
-  void			RestartGCI(int aRestartGCI);
-
   // Get block number of this NDBAPI object
   int			getBlockNumber();
   
@@ -1735,6 +1913,9 @@ private:
   NdbOperation*      void2rec_op  (void* val);
   NdbIndexOperation* void2rec_iop (void* val);
 
+
+  Uint64 allocate_transaction_id();
+
 /******************************************************************************
  *	These are the private variables in this class.	
  *****************************************************************************/
@@ -1786,6 +1967,9 @@ private:
 
   NdbApiSignal* theCommitAckSignal;
 
+  /* Cached minimum connected Db node version */
+  Uint32 theCachedMinDbNodeVersion;
+
 
 #ifdef POORMANSPURIFY
   int cfreeSignals;
@@ -1794,11 +1978,10 @@ private:
   int creleaseSignals;
 #endif
 
-  static void executeMessage(void*, NdbApiSignal *, 
-			     struct LinearSectionPtr ptr[3]);
-  static void statusMessage(void*, Uint32, bool, bool);
 #ifdef VM_TRACE
-  void printState(const char* fmt, ...);
+#include <my_attribute.h>
+  void printState(const char* fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 #endif
 };
 

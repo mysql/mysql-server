@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SECTION_READER_HPP
 #define SECTION_READER_HPP
@@ -22,21 +25,61 @@ class SectionReader {
 public:
   SectionReader(struct SegmentedSectionPtr &,
 		class SectionSegmentPool &);
+  SectionReader(Uint32 firstSectionIVal,
+                class SectionSegmentPool &);
 
+  /* reset : Set SectionReader to start of section */
   void reset();
+  /* step : Step over given number of words */
   bool step(Uint32 len);
+  /* getWord : Copy one word to dst + move forward */
   bool getWord(Uint32 * dst);
+  /* peekWord : Copy one word to dst */
   bool peekWord(Uint32 * dst) const ;
+  /* peekWords : Copy len words to dst */
   bool peekWords(Uint32 * dst, Uint32 len) const;
+  /* getSize : Get total size of section */
   Uint32 getSize() const;
+  /* getWords : Copy len words to dst + move forward */
   bool getWords(Uint32 * dst, Uint32 len);
+
+  /* getWordsPtr : Get const ptr to next contiguous
+   *               block of words
+   * In success case will return at least 1 word
+   */
+  bool getWordsPtr(const Uint32*& readPtr,
+                   Uint32& actualLen);
+  /* getWordsPtr : Get const ptr to at most maxLen words
+   * In success case will return at least 1 word
+   */
+  bool getWordsPtr(Uint32 maxLen,
+                   const Uint32*& readPtr,
+                   Uint32& actualLen);
+
+  /* PosInfo
+   * Structure for efficiently saving/restoring a SectionReader
+   * to a position
+   * Must be treated as opaque and never 'mippled' with!
+   */
+  struct PosInfo
+  {
+    Uint32 currPos;
+    Uint32 currIVal;
+  };
+
+  PosInfo getPos();
+  bool setPos(PosInfo posinfo);
 
 private:
   Uint32 m_pos;
   Uint32 m_len;
   class SectionSegmentPool & m_pool;
-  class SectionSegment * m_head;
-  class SectionSegment * m_currentSegment;
+  Uint32 m_headI;
+  struct SectionSegment * m_head;
+  Uint32 m_currI;
+  struct SectionSegment * m_currentSegment;
+
+  bool segmentContainsPos(PosInfo posInfo);
 };
 
 inline

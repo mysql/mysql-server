@@ -181,8 +181,8 @@ a	b	c
 5	5	NULL
 8	3	NULL
 9	3	NULL
-set @old_optimizer_switch = @@session.optimizer_switch;
-set optimizer_switch = "engine_condition_pushdown=on";
+set @old_ecpd = @@session.engine_condition_pushdown;
+set engine_condition_pushdown = true;
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	PRIMARY,b	PRIMARY	4	NULL	1	Using where with pushed condition
@@ -191,7 +191,7 @@ a	b	c
 3	3	NULL
 5	5	NULL
 8	3	NULL
-set optimizer_switch = @old_optimizer_switch;
+set engine_condition_pushdown = @old_ecpd;
 drop table t2;
 CREATE TABLE t3 (
 a int unsigned NOT NULL,
@@ -682,7 +682,7 @@ create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
 engine=ndb charset=utf8;
 insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
 insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
-ERROR 23000: Duplicate entry '\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bd' for key 'b'
+ERROR 23000: Duplicate entry '∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫d' for key 'b'
 select a, sha1(b) from t1;
 a	sha1(b)
 1	08f5d02c8b8bc244f275bdfc22c42c5cab0d9d7d
@@ -690,3 +690,18 @@ drop table t1;
 create table t1(id int not null) engine = NDB;
 alter table t1 add constraint uk_test unique (id) using hash;
 drop table t1;
+CREATE TABLE t1 (
+pk0 INT,
+pk1 VARCHAR(100),
+col0 INT NOT NULL,
+PRIMARY KEY(pk0, pk1),
+UNIQUE (col0) USING HASH
+) engine = ndb;
+CREATE TABLE t2 (
+pk0 VARCHAR(100),
+pk1 INT,
+col0 INT NOT NULL,
+PRIMARY KEY(pk0, pk1),
+UNIQUE (col0) USING HASH
+) engine = ndb;
+drop table t1, t2;

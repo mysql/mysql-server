@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef FastScheduler_H
 #define FastScheduler_H
@@ -92,6 +95,7 @@ public:
    ~FastScheduler();
 
   void doJob();
+  void postPoll();
   int checkDoJob();
 
   void activateSendPacked();
@@ -107,7 +111,6 @@ public:
   void clear();
   Signal* getVMSignals();
   
-  void dumpSignalMemory(FILE * output);
   Priority highestAvailablePrio() const;
   Uint32 getBOccupancy() const;
   void sendPacked();
@@ -116,6 +119,29 @@ public:
 		       GlobalSignalNumber gsn, Uint32 aIndex);
   void scheduleTimeQueue(Uint32 aIndex);
   
+  /*
+    The following implement aspects of ErrorReporter that differs between
+    singlethreaded and multithread ndbd.
+  */
+
+  /* Called before dumping, intended to stop any still running processing. */
+  void traceDumpPrepare(NdbShutdownType&);
+  /* Number of threads to create trace files for (thread id 0 .. N-1). */
+  Uint32 traceDumpGetNumThreads();
+
+  int traceDumpGetCurrentThread(); // returns -1 if not found
+
+  /* Get jam() buffers etc. for specific thread. */
+  bool traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
+                       const Uint32 * & thrdTheEmulatedJam,
+                       Uint32 & thrdTheEmulatedJamIndex);
+  /* Produce a signal dump. */
+  void dumpSignalMemory(Uint32 thr_no, FILE * output);
+
+  void reportThreadConfigLoop(Uint32 expired_time, Uint32 extra_constant,
+                              Uint32 *no_exec_loops, Uint32 *tot_exec_time,
+                              Uint32 *no_extra_loops, Uint32 *tot_extra_time);
+
 private:
   void highestAvailablePrio(Priority prio);
   void reportJob(Priority aPriority);
@@ -157,7 +183,7 @@ void
 FastScheduler::reportJob(Priority aPriority)
 {
   Uint32 tJobCounter = globalData.JobCounter;
-  Uint32 tJobLap = globalData.JobLap;
+  Uint64 tJobLap = globalData.JobLap;
   theJobPriority[tJobCounter] = (Uint8)aPriority;
   globalData.JobCounter = (tJobCounter + 1) & 4095;
   globalData.JobLap = tJobLap + 1;
@@ -234,6 +260,8 @@ FastScheduler::scheduleTimeQueue(Uint32 aIndex)
      (GlobalSignalNumber)signal->header.theVerId_signalNumber);
   if (highestAvailablePrio() > JBA)
     highestAvailablePrio(JBA);
+
+  signal->header.m_noOfSections = 0; // Or else sendPacked might pick it up
 }
 
 inline
@@ -276,14 +304,10 @@ APZJobBuffer::retrieve(Signal* signal, Uint32 myRptr)
   
   Uint32 *from = (Uint32*) &buf.theDataRegister[0];
   Uint32 *to   = (Uint32*) &signal->theData[0];
-  Uint32 noOfWords = buf.header.theLength;
+  Uint32 noOfWords = buf.header.theLength + buf.header.m_noOfSections;
   for(; noOfWords; noOfWords--)
     *to++ = *from++;
   // Copy sections references (copy all without if-statements)
-  SegmentedSectionPtr * tSecPtr = &signal->m_sectionPtr[0];
-  tSecPtr[0].i = from[0];
-  tSecPtr[1].i = from[1];
-  tSecPtr[2].i = from[2];
   return;
 }
 

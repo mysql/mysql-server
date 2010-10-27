@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUX_CMP_CPP
 #include "Dbtux.hpp"
@@ -26,13 +29,14 @@
  * The attributes are normalized and have variable size given in words.
  */
 int
-Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen)
+Dbtux::cmpSearchKey(TuxCtx& ctx,
+                    const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen)
 {
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   // skip to right position in search key only
   for (unsigned i = 0; i < start; i++) {
-    jam();
+    thrjam(ctx.jamBuffer);
     searchKey += AttributeHeaderSize + ah(searchKey).getDataSize();
   }
   // number of words of entry data left
@@ -40,41 +44,42 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
   int ret = 0;
   while (start < numAttrs) {
     if (len2 <= AttributeHeaderSize) {
-      jam();
+      thrjam(ctx.jamBuffer);
       ret = NdbSqlUtil::CmpUnknown;
       break;
     }
     len2 -= AttributeHeaderSize;
     if (! ah(searchKey).isNULL()) {
       if (! ah(entryData).isNULL()) {
-        jam();
+        thrjam(ctx.jamBuffer);
         // verify attribute id
         const DescAttr& descAttr = descEnt.m_descAttr[start];
         ndbrequire(ah(searchKey).getAttributeId() == descAttr.m_primaryAttrId);
         ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
         // sizes
-        const unsigned size1 = ah(searchKey).getDataSize();
+        const unsigned bytes1 = ah(searchKey).getByteSize();
+        const unsigned bytes2 = min(ah(entryData).getByteSize(), len2 << 2);
         const unsigned size2 = min(ah(entryData).getDataSize(), len2);
         len2 -= size2;
         // compare
-        NdbSqlUtil::Cmp* const cmp = c_sqlCmp[start];
+        NdbSqlUtil::Cmp* const cmp = ctx.c_sqlCmp[start];
         const Uint32* const p1 = &searchKey[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
         const bool full = (maxlen == MaxAttrDataSize);
-        ret = (*cmp)(0, p1, size1 << 2, p2, size2 << 2, full);
+        ret = (*cmp)(0, p1, bytes1, p2, bytes2, full);
         if (ret != 0) {
-          jam();
+          thrjam(ctx.jamBuffer);
           break;
         }
       } else {
-        jam();
+        thrjam(ctx.jamBuffer);
         // not NULL > NULL
         ret = +1;
         break;
       }
     } else {
       if (! ah(entryData).isNULL()) {
-        jam();
+        thrjam(ctx.jamBuffer);
         // NULL < not NULL
         ret = -1;
         break;
@@ -138,15 +143,16 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsign
         const DescAttr& descAttr = descEnt.m_descAttr[index];
         ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
         // sizes
-        const unsigned size1 = ah(boundInfo).getDataSize();
+        const unsigned bytes1 = ah(boundInfo).getByteSize();
+        const unsigned bytes2 = min(ah(entryData).getByteSize(), len2 << 2);
         const unsigned size2 = min(ah(entryData).getDataSize(), len2);
         len2 -= size2;
         // compare
-        NdbSqlUtil::Cmp* const cmp = c_sqlCmp[index];
+        NdbSqlUtil::Cmp* const cmp = c_ctx.c_sqlCmp[index];
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
         const bool full = (maxlen == MaxAttrDataSize);
-        int ret = (*cmp)(0, p1, size1 << 2, p2, size2 << 2, full);
+        int ret = (*cmp)(0, p1, bytes1, p2, bytes2, full);
         if (ret != 0) {
           jam();
           return ret;

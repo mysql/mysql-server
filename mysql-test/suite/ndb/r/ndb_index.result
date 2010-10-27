@@ -152,3 +152,139 @@ port67	node78	pop98	1
 select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessnode='node78' and port='port67' and customer_id='foo';
 port	accessnode	pop	accesstype
 drop table t1;
+create table t1 (
+a int not null primary key,
+c00 int not null, c01 int not null, c02 int not null, c03 int not null, c04 int not null, c05 int not null, c06 int not null, c07 int not null,
+c10 int not null, c11 int not null, c12 int not null, c13 int not null, c14 int not null, c15 int not null, c16 int not null, c17 int not null,
+c20 int not null, c21 int not null, c22 int not null, c23 int not null, c24 int not null, c25 int not null, c26 int not null, c27 int not null,
+c30 int not null, c31 int not null, c32 int not null, c33 int not null, c34 int not null, c35 int not null, c36 int not null, c37 int not null,
+c40 int not null, c41 int not null, c42 int not null, c43 int not null, c44 int not null, c45 int not null, c46 int not null, c47 int not null,
+c50 int not null, c51 int not null, c52 int not null, c53 int not null, c54 int not null, c55 int not null, c56 int not null, c57 int not null,
+c60 int not null, c61 int not null, c62 int not null, c63 int not null, c64 int not null, c65 int not null, c66 int not null, c67 int not null,
+c70 int not null, c71 int not null, c72 int not null, c73 int not null, c74 int not null, c75 int not null, c76 int not null, c77 int not null,
+unique (c00), unique (c01), unique (c02), unique (c03), unique (c04), unique (c05), unique (c06), unique (c07),
+unique (c10), unique (c11), unique (c12), unique (c13), unique (c14), unique (c15), unique (c16), unique (c17),
+unique (c20), unique (c21), unique (c22), unique (c23), unique (c24), unique (c25), unique (c26), unique (c27),
+unique (c30), unique (c31), unique (c32), unique (c33), unique (c34), unique (c35), unique (c36), unique (c37),
+unique (c40), unique (c41), unique (c42), unique (c43), unique (c44), unique (c45), unique (c46), unique (c47),
+unique (c50), unique (c51), unique (c52), unique (c53), unique (c54), unique (c55), unique (c56), unique (c57),
+unique (c60), unique (c61), unique (c62), unique (c63), unique (c64), unique (c65), unique (c66), unique (c67),
+unique (c60), unique (c71), unique (c72), unique (c73), unique (c74), unique (c75), unique (c76)) engine = ndb;
+drop table t1;
+CREATE TABLE t1 (
+a INT NOT NULL AUTO_INCREMENT ,
+b INT NOT NULL ,
+c VARCHAR ( 11 ) NOT NULL ,
+PRIMARY KEY ( a ) ,
+INDEX ( b )
+) ENGINE = NDB;
+INSERT INTO t1 (a ,b ,c) VALUES 
+(NULL , '1', 'test'), (NULL , '2', 'test'), (NULL , '1', 'test'), 
+(NULL , '2', 'test'), (NULL , '3', 'test'), (NULL , '4', 'test'), 
+(NULL , '5', 'test'), (NULL , '6', 'test'), (NULL , '1', 'test'),
+(NULL , '1', 'test');
+explain select count(a) from t1 group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	10	
+explain select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	10	
+explain select count(b) from t1 group by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	4	NULL	10	
+explain select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	4	NULL	10	
+explain select distinct a from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	
+explain select distinct a from t1 group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
+explain select distinct b from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	4	NULL	10	
+explain select distinct b from t1 group by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	4	NULL	10	
+select count(a) from t1 group by a;
+count(a)
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
+count(a)
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+select count(b) from t1 group by b;
+count(b)
+1
+1
+1
+1
+2
+4
+select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
+count(b)
+1
+1
+1
+1
+2
+4
+select distinct a from t1;
+a
+1
+10
+2
+3
+4
+5
+6
+7
+8
+9
+select distinct a from t1 group by a;
+a
+1
+10
+2
+3
+4
+5
+6
+7
+8
+9
+select distinct b from t1;
+b
+1
+2
+3
+4
+5
+6
+select distinct b from t1 group by b;
+b
+1
+2
+3
+4
+5
+6
+drop table t1;

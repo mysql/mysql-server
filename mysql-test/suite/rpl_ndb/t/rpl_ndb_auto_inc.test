@@ -8,7 +8,7 @@
 #####################################
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 --echo ***************** Test 1 ************************
 --echo
@@ -111,8 +111,26 @@ sync_slave_with_master;
 --echo
 select * from t1 ORDER BY a;
 connection master;
-
 drop table t1;
 
+#
+# Bug #42232 Cluster to cluster replication is not setting auto_increment
+# on slave cluster
+#
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 32;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT KEY) ENGINE=ndb;
+INSERT INTO t1 () VALUES (),(),();
+sync_slave_with_master;
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 32;
+select * from t1 order by id;
+INSERT INTO t1 () VALUES (),(),();
+select * from t1 order by id;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+connection master;
+select * from t1 order by id;
+drop table t1;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 # End cleanup
 sync_slave_with_master;

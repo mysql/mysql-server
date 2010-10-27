@@ -22,8 +22,15 @@ static S_Scan g_scans[] = {
   { "subgenrestometamap", "metaid", 0, 0, 0, 0 }
 };
 
-#define require(x) if(!(x)) { ndbout << "LINE: " << __LINE__ << endl;abort(); }
-#define require2(o, x) if(!(x)) { ndbout << o->getNdbError() << endl; abort(); }
+#undef require
+#define require(x)     require_exit_or_core_with_printer((x), 0, ndbout_printer)
+#define require2(o, x) \
+    if(!(x))\
+    {\
+      ndbout << o->getNdbError() << endl;\
+      require_exit_or_core_with_printer(0, 0, ndbout_printer);\
+    }
+
 Uint32 g_affiliateid = 2;
 Uint32 g_formatids[] = { 8, 31, 76 };
 
@@ -145,7 +152,7 @@ main(void){
 	if(metaid == match_val){
 	  //ndbout_c("flera");
 	  nextF[F_sz++] = F[i];
-	  require(F_sz >= 0 && F_sz <= cnt);
+	  require(F_sz <= cnt);
 	  F[i]->match_count++;
 	  Uint32 comb = 1;
 	  for(j = 0; j<cnt; j++){
@@ -157,18 +164,18 @@ main(void){
 	}
 	if(metaid < max_val){
 	  nextF[F_sz++] = F[i];
-	  require(F_sz >= 0 && F_sz <= cnt);
+	  require(F_sz <= cnt);
 	  continue;
 	}
 	if(metaid > max_val){
 	  for(j = 0; j<Q_sz; j++)
 	    nextF[F_sz++] = Q[j];
-	  require(F_sz >= 0 && F_sz <= cnt);
+	  require(F_sz <= cnt);
 	  Q_sz = 0;
 	  max_val = metaid;
 	}
 	Q[Q_sz++] = F[i];
-	require(Q_sz >= 0 && Q_sz <= cnt);
+	require(Q_sz <= cnt);
       }
       if(F_sz == 0 && Q_sz > 0){
 	match_val = max_val;
@@ -176,15 +183,15 @@ main(void){
 	  nextF[F_sz++] = Q[j];
 	  Q[j]->match_count = 1;
 	}
-	require(F_sz >= 0 && F_sz <= cnt);
-	require(Q_sz >= 0 && Q_sz <= cnt);
+	require(F_sz <= cnt);
+	require(Q_sz <= cnt);
 	Q_sz = 0;
 	match_count++;
 	lookup();
       } else if(!found && F_sz + Q_sz < cnt){
 	F_sz = 0;
       }
-      require(F_sz >= 0 && F_sz <= cnt);
+      require(F_sz <= cnt);
       for(i = 0; i<F_sz; i++)
 	F[i] = nextF[i];
     }

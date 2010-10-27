@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef __UTIL_BASESTRING_HPP_INCLUDED__
 #define __UTIL_BASESTRING_HPP_INCLUDED__
 
 #include <ndb_global.h>
-#include <Vector.hpp>
+#include <util/Vector.hpp>
+#include "Bitmask.hpp"
 
 /**
  * @class BaseString
@@ -97,10 +101,12 @@ public:
 		     const BaseString &separator = BaseString(" "));
 
   /** @brief Assigns from a format string a la printf() */
-  BaseString& assfmt(const char* ftm, ...);
+  BaseString& assfmt(const char* ftm, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 
   /** @brief Appends a format string a la printf() to the end */
-  BaseString& appfmt(const char* ftm, ...);
+  BaseString& appfmt(const char* ftm, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 
   /**
    * Split a string into a vector of strings. Separate the string where
@@ -127,7 +133,7 @@ public:
    * @params c character to look for
    * @returns index of character, of -1 if no character found
    */
-  ssize_t indexOf(char c);
+  ssize_t indexOf(char c) const;
 
   /**
    * Returns the index of the last occurance of the character c.
@@ -135,7 +141,7 @@ public:
    * @params c character to look for
    * @returns index of character, of -1 if no character found
    */
-  ssize_t lastIndexOf(char c);
+  ssize_t lastIndexOf(char c) const;
   
   /**
    * Returns a subset of a string
@@ -144,7 +150,7 @@ public:
    * @param stop index of last character
    * @return a new string
    */
-  BaseString substr(ssize_t start, ssize_t stop = -1);
+  BaseString substr(ssize_t start, ssize_t stop = -1) const;
 
   /**
    *  @brief Assignment operator
@@ -183,8 +189,42 @@ public:
   /**
    * snprintf on some platforms need special treatment
    */
-  static int snprintf(char *str, size_t size, const char *format, ...);
+  static int snprintf(char *str, size_t size, const char *format, ...)
+    ATTRIBUTE_FORMAT(printf, 3, 4);
   static int vsnprintf(char *str, size_t size, const char *format, va_list ap);
+
+  template<unsigned size>
+  static BaseString getText(const Bitmask<size>& mask) {
+    return BaseString::getText(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getPrettyText(const Bitmask<size>& mask) {
+    return BaseString::getPrettyText(size, mask.rep.data);
+  }
+  template<unsigned size>
+  static BaseString getPrettyTextShort(const Bitmask<size>& mask) {
+    return BaseString::getPrettyTextShort(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getText(const BitmaskPOD<size>& mask) {
+    return BaseString::getText(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getPrettyText(const BitmaskPOD<size>& mask) {
+    return BaseString::getPrettyText(size, mask.rep.data);
+  }
+  template<unsigned size>
+  static BaseString getPrettyTextShort(const BitmaskPOD<size>& mask) {
+    return BaseString::getPrettyTextShort(size, mask.rep.data);
+  }
+
+  static BaseString getText(unsigned size, const Uint32 data[]);
+  static BaseString getPrettyText(unsigned size, const Uint32 data[]);
+  static BaseString getPrettyTextShort(unsigned size, const Uint32 data[]);
+
 private:
   char* m_chr;
   unsigned m_len;
@@ -280,5 +320,11 @@ BaseString::assign(const Vector<BaseString> &vector,
   assign("");
   return append(vector, separator);
 }
+
+/**
+ * Return pointer and length for key to use when BaseString is
+ * used as Key in HashMap
+ */
+const void * BaseString_get_key(const void* key, size_t* key_length);
 
 #endif /* !__UTIL_BASESTRING_HPP_INCLUDED__ */

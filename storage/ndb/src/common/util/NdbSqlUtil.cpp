@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,11 +13,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NdbSqlUtil.hpp>
-#include <NdbOut.hpp>
-#include <my_sys.h>
+#include <ndb_version.h>
 
 /*
  * Data types.  The entries must be in the numerical order.
@@ -26,156 +28,187 @@ NdbSqlUtil::m_typeList[] = {
   { // 0
     Type::Undefined,
     NULL,
+    NULL,
     NULL
   },
   { // 1
     Type::Tinyint,
     cmpTinyint,
+    NULL,
     NULL
   },
   { // 2
     Type::Tinyunsigned,
     cmpTinyunsigned,
+    NULL,
     NULL
   },
   { // 3
     Type::Smallint,
     cmpSmallint,
+    NULL,
     NULL
   },
   { // 4
     Type::Smallunsigned,
     cmpSmallunsigned,
+    NULL,
     NULL
   },
   { // 5
     Type::Mediumint,
     cmpMediumint,
+    NULL,
     NULL
   },
   { // 6
     Type::Mediumunsigned,
     cmpMediumunsigned,
+    NULL,
     NULL
   },
   { // 7
     Type::Int,
     cmpInt,
+    NULL,
     NULL
   },
   { // 8
     Type::Unsigned,
     cmpUnsigned,
+    NULL,
     NULL
   },
   { // 9
     Type::Bigint,
     cmpBigint,
+    NULL,
     NULL
   },
   { // 10
     Type::Bigunsigned,
     cmpBigunsigned,
+    NULL,
     NULL
   },
   { // 11
     Type::Float,
     cmpFloat,
+    NULL,
     NULL
   },
   { // 12
     Type::Double,
     cmpDouble,
+    NULL,
     NULL
   },
   { // 13
     Type::Olddecimal,
     cmpOlddecimal,
+    NULL,
     NULL
   },
   { // 14
     Type::Char,
     cmpChar,
-    likeChar
+    likeChar,
+    NULL
   },
   { // 15
     Type::Varchar,
     cmpVarchar,
-    likeVarchar
+    likeVarchar,
+    NULL
   },
   { // 16
     Type::Binary,
     cmpBinary,
-    likeBinary
+    likeBinary,
+    NULL
   },
   { // 17
     Type::Varbinary,
     cmpVarbinary,
-    likeVarbinary
+    likeVarbinary,
+    NULL
   },
   { // 18
     Type::Datetime,
     cmpDatetime,
+    NULL,
     NULL
   },
   { // 19
     Type::Date,
     cmpDate,
+    NULL,
     NULL
   },
   { // 20
     Type::Blob,
+    NULL,
     NULL,
     NULL
   },
   { // 21
     Type::Text,
     NULL,
+    NULL,
     NULL
   },
   { // 22
     Type::Bit,
     cmpBit,
-    NULL
+    NULL,
+    maskBit
   },
   { // 23
     Type::Longvarchar,
     cmpLongvarchar,
-    likeLongvarchar
+    likeLongvarchar,
+    NULL
   },
   { // 24
     Type::Longvarbinary,
     cmpLongvarbinary,
-    likeLongvarbinary
+    likeLongvarbinary,
+    NULL
   },
   { // 25
     Type::Time,
     cmpTime,
+    NULL,
     NULL
   },
   { // 26
     Type::Year,
     cmpYear,
+    NULL,
     NULL
   },
   { // 27
     Type::Timestamp,
     cmpTimestamp,
+    NULL,
     NULL
   },
   { // 28
     Type::Olddecimalunsigned,
     cmpOlddecimalunsigned,
+    NULL,
     NULL
   },
   { // 29
     Type::Decimal,
     cmpDecimal,
+    NULL,
     NULL
   },
   { // 30
     Type::Decimalunsigned,
     cmpDecimalunsigned,
+    NULL,
     NULL
   }
 };
@@ -680,9 +713,54 @@ NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p
 int
 NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 { 
-  Uint32 n = (n1 < n2) ? n1 : n2;
-  int ret = memcmp(p1, p2, n);
-  return ret;
+  /* Bitfields are stored as 32-bit words
+   * This means that a byte-by-byte comparison will not work on all platforms
+   * We do a word-wise comparison of the significant bytes.
+   * It is assumed that insignificant bits (but not bytes) are zeroed in the
+   * passed values.
+   */
+  const Uint32 bytes= MIN(n1, n2);
+  Uint32 words= (bytes + 3) >> 2;
+
+  /* Don't expect either value to be length zero */
+  assert(words);
+
+  /* Check ptr alignment */
+  if (unlikely(((((UintPtr)p1) & 3) != 0) ||
+               ((((UintPtr)p2) & 3) != 0)))
+  {
+    Uint32 copyP1[ MAX_TUPLE_SIZE_IN_WORDS ];
+    Uint32 copyP2[ MAX_TUPLE_SIZE_IN_WORDS ];
+    memcpy(copyP1, p1, words << 2);
+    memcpy(copyP2, p2, words << 2);
+
+    return cmpBit(info, copyP1, bytes, copyP2, bytes, full);
+  }
+
+  const Uint32* wp1= (const Uint32*) p1;
+  const Uint32* wp2= (const Uint32*) p2;
+  while (--words)
+  {
+    if (*wp1 < *wp2)
+      return -1;
+    if (*(wp1++) > *(wp2++))
+      return 1;
+  }
+
+  /* For the last word, we mask out any insignificant bytes */
+  const Uint32 sigBytes= bytes & 3; // 0..3; 0 == all bytes significant
+  const Uint32 mask= sigBytes?
+    (1 << (sigBytes *8)) -1 :
+    ~0;
+  const Uint32 lastWord1= *wp1 & mask;
+  const Uint32 lastWord2= *wp2 & mask;
+  
+  if (lastWord1 < lastWord2)
+    return -1;
+  if (lastWord1 > lastWord2)
+    return 1;
+
+  return 0;
 }
 
 
@@ -874,6 +952,85 @@ NdbSqlUtil::likeLongvarbinary(const void* info, const void* p1, unsigned n1, con
   return likeLongvarchar(&my_charset_bin, p1, n1, p2, n2);
 }
 
+
+// mask Functions
+
+int
+NdbSqlUtil::maskBit(const void* data, unsigned dataLen, const void* mask, unsigned maskLen, bool cmpZero)
+{
+  /* Bitfields are stored in word oriented form, so we must compare them in that
+   * style as well
+   * It is assumed that insignificant bits (but not bytes) in the passed values
+   * are zeroed
+   */
+  const Uint32 bytes = MIN(dataLen, maskLen);
+  Uint32 words = (bytes + 3) >> 2;
+
+  /* Don't expect either value to be length zero */
+  assert(words);
+
+  /* Check ptr alignment */
+  if (unlikely(((((UintPtr)data) & 3) != 0) ||
+               ((((UintPtr)mask) & 3) != 0)))
+  {
+    Uint32 copydata[ MAX_TUPLE_SIZE_IN_WORDS ];
+    Uint32 copymask[ MAX_TUPLE_SIZE_IN_WORDS ];
+    memcpy(copydata, data, words << 2);
+    memcpy(copymask, mask, words << 2);
+
+    return maskBit(data, bytes, mask, bytes, cmpZero);
+  }
+
+  const Uint32* wdata= (const Uint32*) data;
+  const Uint32* wmask= (const Uint32*) mask;
+
+  if (cmpZero)
+  {
+    while (--words)
+    {
+      if ((*(wdata++) & *(wmask++)) != 0)
+        return 1;
+    }
+    
+    /* For the last word, we mask out any insignificant bytes */
+    const Uint32 sigBytes= bytes & 3; // 0..3; 0 == all bytes significant
+    const Uint32 comparisonMask= sigBytes?
+      (1 << (sigBytes *8)) -1 :
+      ~0;
+    const Uint32 lastDataWord= *wdata & comparisonMask;
+    const Uint32 lastMaskWord= *wmask & comparisonMask;
+    
+    if ((lastDataWord & lastMaskWord) != 0)
+      return 1;
+
+    return 0;
+  }
+  else
+  {
+    while (--words)
+    {
+      if ((*(wdata++) & *wmask) != *wmask)
+        return 1;
+      
+      wmask++;
+    }
+
+    /* For the last word, we mask out any insignificant bytes */
+    const Uint32 sigBytes= bytes & 3; // 0..3; 0 == all bytes significant
+    const Uint32 comparisonMask= sigBytes?
+      (1 << (sigBytes *8)) -1 :
+      ~0;
+    const Uint32 lastDataWord= *wdata & comparisonMask;
+    const Uint32 lastMaskWord= *wmask & comparisonMask;
+    
+    if ((lastDataWord & lastMaskWord) != lastMaskWord)
+      return 1;
+
+    return 0;
+  }
+}
+
+
 // check charset
 
 uint
@@ -981,6 +1138,25 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
   return false;
 }
 
+
+size_t
+NdbSqlUtil::ndb_strnxfrm(struct charset_info_st * cs,
+                         uchar *dst, size_t dstlen,
+                         const uchar *src, size_t srclen)
+{
+#if NDB_MYSQL_VERSION_D < NDB_MAKE_VERSION(5,6,0)
+  return (*cs->coll->strnxfrm)(cs, dst, dstlen, src, srclen);
+#else
+  /*
+    strnxfrm has got two new parameters in 5.6, we are using the
+    defaults for those and can thus easily calculate them from
+    existing params
+  */
+  return  (*cs->coll->strnxfrm)(cs, dst, dstlen, dstlen,
+                                src, srclen, MY_STRXFRM_PAD_WITH_SPACE);
+#endif
+}
+
 // workaround
 
 int
@@ -997,13 +1173,13 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   if (n1 <= 0)
     return -1;
   // strxfrm to binary
-  int n2 = (*cs->coll->strnxfrm)(cs, xsp, sizeof(xsp), nsp, n1);
+  int n2 = ndb_strnxfrm(cs, xsp, sizeof(xsp), nsp, n1);
   if (n2 <= 0)
     return -1;
   // XXX bug workaround - strnxfrm may not write full string
   memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
-  int n3 = (*cs->coll->strnxfrm)(cs, dst, dstLen, src, srcLen);
+  int n3 = ndb_strnxfrm(cs, dst, dstLen, src, srcLen);
   // pad with strxfrm-ed space chars
   int n4 = n3;
   while (n4 < (int)dstLen) {
@@ -1013,3 +1189,208 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   // no check for partial last
   return dstLen;
 }
+
+#if defined(WORDS_BIGENDIAN) || defined (VM_TRACE)
+
+static
+void determineParams(Uint32 typeId,
+                     Uint32 typeLog2Size,
+                     Uint32 arrayType,
+                     Uint32 arraySize,
+                     Uint32 dataByteSize,
+                     Uint32& convSize,
+                     Uint32& convLen)
+{
+  /* Some types need 'normal behaviour' over-ridden in
+   * terms of endian-ness conversions
+   */
+  convSize = 0;
+  convLen = 0;
+  switch(typeId)
+  {
+  case NdbSqlUtil::Type::Datetime:
+  {
+    // Datetime is stored as 8x8, should be twiddled as 64 bit
+    assert(typeLog2Size == 3);
+    assert(arraySize == 8);
+    assert(dataByteSize == 8);
+    convSize = 64;
+    convLen = 1;
+    break;
+  }
+  case NdbSqlUtil::Type::Timestamp:
+  {
+    // Timestamp is stored as 4x8, should be twiddled as 32 bit
+    assert(typeLog2Size == 3);
+    assert(arraySize == 4);
+    assert(dataByteSize == 4);
+    convSize = 32;
+    convLen = 1;
+    break;
+  }
+  case NdbSqlUtil::Type::Bit:
+  {
+    // Bit is stored as bits, should be twiddled as 32 bit
+    assert(typeLog2Size == 0);
+    convSize = 32;
+    convLen = (arraySize + 31)/32;
+    break;
+  }
+  case NdbSqlUtil::Type::Blob:
+  case NdbSqlUtil::Type::Text:
+  {
+    if (arrayType == NDB_ARRAYTYPE_FIXED)
+    {
+      // Length of fixed size blob which is stored in first 64 bit's
+      // has to be twiddled, the remaining byte stream left as is
+      assert(typeLog2Size == 3);
+      assert(arraySize > 8);
+      assert(dataByteSize > 8);
+      convSize = 64;
+      convLen = 1;
+      break;
+    }
+    // Fall through for Blob v2
+  }
+  default:
+    /* Default determined by meta-info */
+    convSize = 1 << typeLog2Size;
+    convLen = arraySize;
+    break;
+  }
+
+  const Uint32 unitBytes = (convSize >> 3);
+  
+  if (dataByteSize < (unitBytes * convLen))
+  {
+    /* Actual data is shorter than expected, could
+     * be VAR type or bad FIXED data (which some other
+     * code should detect + handle)
+     * We reduce convLen to avoid trampling
+     */
+    assert((dataByteSize % unitBytes) == 0);
+    convLen = dataByteSize / unitBytes;
+  }
+
+  assert(convSize);
+  assert(convLen);
+  assert(dataByteSize >= (unitBytes * convLen));
+}
+
+static
+void doConvert(Uint32 convSize,
+               Uint32 convLen,
+               uchar* data)
+{
+  switch(convSize)
+  {
+  case 8:
+    /* Nothing to swap */
+    break;
+  case 16:
+  {
+    Uint16* ptr = (Uint16*)data;
+    for (Uint32 i = 0; i < convLen; i++){
+      Uint16 val = 
+        ((*ptr & 0xFF00) >> 8) |
+        ((*ptr & 0x00FF) << 8);
+      *ptr = val;
+      ptr++;
+    }
+    break;
+  }
+  case 32:
+  {
+    Uint32* ptr = (Uint32*)data;
+    for (Uint32 i = 0; i < convLen; i++){
+      Uint32 val = 
+        ((*ptr & 0xFF000000) >> 24) |
+        ((*ptr & 0x00FF0000) >> 8)  |
+        ((*ptr & 0x0000FF00) << 8)  |
+        ((*ptr & 0x000000FF) << 24);
+      *ptr = val;
+      ptr++;
+    }
+    break;
+  }
+  case 64:
+  {
+    Uint64* ptr = (Uint64*)data;
+    for (Uint32 i = 0; i < convLen; i++){
+      Uint64 val = 
+        ((*ptr & (Uint64)0xFF00000000000000LL) >> 56) |
+        ((*ptr & (Uint64)0x00FF000000000000LL) >> 40) |
+        ((*ptr & (Uint64)0x0000FF0000000000LL) >> 24) |
+        ((*ptr & (Uint64)0x000000FF00000000LL) >> 8)  |
+        ((*ptr & (Uint64)0x00000000FF000000LL) << 8)  |
+        ((*ptr & (Uint64)0x0000000000FF0000LL) << 24) |
+        ((*ptr & (Uint64)0x000000000000FF00LL) << 40) |
+        ((*ptr & (Uint64)0x00000000000000FFLL) << 56);
+      *ptr = val;
+      ptr++;
+    }
+    break;
+  }
+  default:
+    abort();
+    break;
+  }
+}
+#endif
+
+/**
+ * Convert attribute byte order if necessary
+ */
+void
+NdbSqlUtil::convertByteOrder(Uint32 typeId, 
+                             Uint32 typeLog2Size, 
+                             Uint32 arrayType, 
+                             Uint32 arraySize, 
+                             uchar* data,
+                             Uint32 dataByteSize)
+{
+#if defined(WORDS_BIGENDIAN) || defined (VM_TRACE)
+  Uint32 convSize;
+  Uint32 convLen;
+  determineParams(typeId,
+                  typeLog2Size,
+                  arrayType,
+                  arraySize,
+                  dataByteSize,
+                  convSize,
+                  convLen);
+
+  size_t mask = (((size_t) convSize) >> 3) -1; // Bottom 0,1,2,3 bits set
+  bool aligned = (((size_t) data) & mask) == 0;
+  uchar* dataPtr = data;
+  const Uint32 bufSize = (MAX_TUPLE_SIZE_IN_WORDS + 1)/2;
+  Uint64 alignedBuf[bufSize];
+  
+  if (!aligned)
+  {
+    assert(dataByteSize <= 4 * MAX_TUPLE_SIZE_IN_WORDS);
+    memcpy(alignedBuf, data, dataByteSize);
+    dataPtr = (uchar*) alignedBuf;
+  }
+
+  /* Now have convSize and convLen, do the conversion */
+  doConvert(convSize,
+            convLen,
+            dataPtr);
+
+#ifdef VM_TRACE
+#ifndef WORDS_BIGENDIAN
+  // VM trace on little-endian performs double-convert
+  doConvert(convSize,
+            convLen,
+            dataPtr);
+#endif
+#endif
+
+  if (!aligned)
+  {
+    memcpy(data, alignedBuf, dataByteSize);
+  }  
+#endif
+}
+

@@ -1,4 +1,5 @@
 SET storage_engine=ndbcluster;
+SET ndb_use_exact_count=1;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g POINT);
 CREATE TABLE gis_line  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g LINESTRING);
@@ -266,7 +267,7 @@ fid	AsText(EndPoint(g))
 107	POINT(40 10)
 SELECT fid, GLength(g) FROM gis_line ORDER by fid;
 fid	GLength(g)
-105	24.14213562373095
+105	24.142135623731
 106	40
 107	30
 SELECT fid, NumPoints(g) FROM gis_line ORDER by fid;
@@ -292,7 +293,7 @@ Note	1003	select astext(startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon ORDER by fid;
 fid	AsText(Centroid(g))
 108	POINT(15 15)
-109	POINT(25.416666666666668 25.416666666666668)
+109	POINT(25.4166666666667 25.4166666666667)
 110	POINT(20 10)
 SELECT fid, Area(g) FROM gis_polygon ORDER by fid;
 fid	Area(g)
@@ -326,8 +327,8 @@ fid	IsClosed(g)
 116	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon ORDER by fid;
 fid	AsText(Centroid(g))
-117	POINT(55.58852775304245 17.426536064113982)
-118	POINT(55.58852775304245 17.426536064113982)
+117	POINT(55.5885277530424 17.426536064114)
+118	POINT(55.5885277530424 17.426536064114)
 119	POINT(2 2)
 SELECT fid, Area(g) FROM gis_multi_polygon ORDER by fid;
 fid	Area(g)
@@ -430,6 +431,8 @@ mpg	multipolygon	YES		NULL
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
@@ -463,7 +466,7 @@ drop table t1;
 End of 4.1 tests
 CREATE TABLE t1 (name VARCHAR(100), square GEOMETRY);
 Warnings:
-Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 INSERT INTO t1 VALUES("center", GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))'));
 INSERT INTO t1 VALUES("small",  GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
 INSERT INTO t1 VALUES("big",    GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
@@ -548,7 +551,7 @@ Overlaps(@horiz1, @point2)
 0
 DROP TABLE t1;
 End of 5.0 tests
-set optimizer_switch = "engine_condition_pushdown=on";
+set engine_condition_pushdown = on;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g POINT);
 CREATE TABLE gis_line  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g LINESTRING);
@@ -816,7 +819,7 @@ fid	AsText(EndPoint(g))
 107	POINT(40 10)
 SELECT fid, GLength(g) FROM gis_line ORDER by fid;
 fid	GLength(g)
-105	24.14213562373095
+105	24.142135623731
 106	40
 107	30
 SELECT fid, NumPoints(g) FROM gis_line ORDER by fid;
@@ -842,7 +845,7 @@ Note	1003	select astext(startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon ORDER by fid;
 fid	AsText(Centroid(g))
 108	POINT(15 15)
-109	POINT(25.416666666666668 25.416666666666668)
+109	POINT(25.4166666666667 25.4166666666667)
 110	POINT(20 10)
 SELECT fid, Area(g) FROM gis_polygon ORDER by fid;
 fid	Area(g)
@@ -876,8 +879,8 @@ fid	IsClosed(g)
 116	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon ORDER by fid;
 fid	AsText(Centroid(g))
-117	POINT(55.58852775304245 17.426536064113982)
-118	POINT(55.58852775304245 17.426536064113982)
+117	POINT(55.5885277530424 17.426536064114)
+118	POINT(55.5885277530424 17.426536064114)
 119	POINT(2 2)
 SELECT fid, Area(g) FROM gis_multi_polygon ORDER by fid;
 fid	Area(g)
@@ -980,6 +983,8 @@ mpg	multipolygon	YES		NULL
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
@@ -1013,7 +1018,7 @@ drop table t1;
 End of 4.1 tests
 CREATE TABLE t1 (name VARCHAR(100), square GEOMETRY);
 Warnings:
-Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 INSERT INTO t1 VALUES("center", GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))'));
 INSERT INTO t1 VALUES("small",  GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
 INSERT INTO t1 VALUES("big",    GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));

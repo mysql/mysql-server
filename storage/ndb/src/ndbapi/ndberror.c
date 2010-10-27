@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -165,7 +168,7 @@ ErrorBundle ErrorCodes[] = {
    * TemporaryResourceError
    */
   { 217,  DMEC, TR, "217" },
-  { 218,  DMEC, TR, "218" },
+  { 218,  DMEC, TR, "Out of LongMessageBuffer" },
   { 219,  DMEC, TR, "219" },
   { 233,  DMEC, TR,
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
@@ -176,13 +179,15 @@ ErrorBundle ErrorCodes[] = {
   { 419,  DMEC, TR, "419" },
   { 245,  DMEC, TR, "Too many active scans" },
   { 488,  DMEC, TR, "Too many active scans" },
+  { 489,  DMEC, TR, "Too many active scans" },
   { 490,  DMEC, TR, "Too many active scans" },
   { 805,  DMEC, TR, "Out of attrinfo records in tuple manager" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
   { 899,  DMEC, TR, "Rowid already allocated" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
-  { 1220, DMEC, TR, "REDO log files overloaded, consult online manual (increase FragmentLogFileSize)" },
+  { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
+  { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
   { 1222, DMEC, TR, "Out of transaction markers in LQH" },
   { 4021, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 4022, DMEC, TR, "Out of Send Buffer space in NDB API" },
@@ -190,6 +195,10 @@ ErrorBundle ErrorCodes[] = {
   { 1501, DMEC, TR, "Out of undo space" },
   {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
   {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase TransactionBufferMemory)" },
+  {  780, DMEC, TR, "Too many schema transactions" },
+  {  783, DMEC, TR, "Too many schema operations" },
+  {  785, DMEC, TR, "Schema object is busy with another schema transaction" },
+  {  291, DMEC, TR, "Out of scanfrag records in TC (increase MaxNoOfLocalScans)" },
 
   /**
    * InsufficientSpace
@@ -197,6 +206,7 @@ ErrorBundle ErrorCodes[] = {
   { 623,  HA_ERR_RECORD_FILE_FULL, IS, "623" },
   { 624,  HA_ERR_RECORD_FILE_FULL, IS, "624" },
   { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
+  { 633,  HA_ERR_INDEX_FILE_FULL, IS, "Table fragment hash index has reached maximum possible size" },
   { 640,  DMEC, IS, "Too many hash indexes (should not happen)" },
   { 826,  HA_ERR_RECORD_FILE_FULL, IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
   { 827,  HA_ERR_RECORD_FILE_FULL, IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },
@@ -221,10 +231,10 @@ ErrorBundle ErrorCodes[] = {
    */
   { 701,  DMEC, OL, "System busy with other schema operation" },
   { 711,  DMEC, OL, "System busy with node restart, schema operations not allowed" },
-  { 410,  DMEC, OL, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
+  { 410,  DMEC, OL, "REDO log files overloaded (decrease TimeBetweenLocalCheckpoints or increase NoOfFragmentLogFiles)" },
   { 677,  DMEC, OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
   { 891,  DMEC, OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
-  { 1221, DMEC, OL, "REDO buffers overloaded, consult online manual (increase RedoBuffer)" },
+  { 1221, DMEC, OL, "REDO buffers overloaded (increase RedoBuffer)" },
   { 4006, DMEC, OL, "Connect failure - out of connection objects (increase MaxNoOfConcurrentTransactions)" }, 
 
 
@@ -232,6 +242,7 @@ ErrorBundle ErrorCodes[] = {
    * Internal Temporary
    */
   { 702,  DMEC, IT, "Request to non-master" },
+  { 787,  DMEC, IT, "Schema transaction aborted" },
   
   /**
    * Internal errors
@@ -254,12 +265,17 @@ ErrorBundle ErrorCodes[] = {
   { 278,  DMEC, IE, "278" },
   { 287,  DMEC, IE, "Index corrupted" },
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
+  { 293,  DMEC, IE, "Inconsistent trigger state in TC block" },
+  { 292,  DMEC, IE, "Inconsistent index state in TC block" },
   { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
+  { 781,  DMEC, IE, "Invalid schema transaction key from NDB API" },
+  { 782,  DMEC, IE, "Invalid schema transaction id from NDB API" },
+  { 784,  DMEC, TR, "Invalid schema transaction state" },
+  { 788,  DMEC, TR, "Missing schema operation at takeover of schema transaction" },
   { 809,  DMEC, IE, "809" },
   { 812,  DMEC, IE, "812" },
-  { 829,  DMEC, IE, "829" },
   { 833,  DMEC, IE, "833" },
   { 871,  DMEC, IE, "871" },
   { 882,  DMEC, IE, "882" },
@@ -286,6 +302,11 @@ ErrorBundle ErrorCodes[] = {
   { 4348, DMEC, IE, "Inconsistency detected at alter index" },
   { 4349, DMEC, IE, "Inconsistency detected at index usage" },
   { 4350, DMEC, IE, "Transaction already aborted" },
+  { 4351, DMEC, TO, "Timeout/deadlock during index build" },
+  { 294,  DMEC, IE, "Unlocked operation has out of range index" },
+  { 295,  DMEC, IE, "Unlocked operation has invalid state" },
+  { 298,  DMEC, IE, "Invalid distribution key" },
+  { 416,  DMEC, IE, "Bad state handling unlock request" },
 
   /**
    * Application error
@@ -294,7 +315,9 @@ ErrorBundle ErrorCodes[] = {
   { 299,  DMEC, AE, "Operation not allowed or aborted due to single user mode" },
   { 763,  DMEC, AE, "Alter table requires cluster nodes to have exact same version" },
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
+  { 829,  DMEC, AE, "Corrupt data received for insert/update" },
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
+  { 850,  DMEC, AE, "Too long or too short default value"},
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
   { 878,  DMEC, AE, "878" },
@@ -305,8 +328,15 @@ ErrorBundle ErrorCodes[] = {
   { 886,  DMEC, AE, "More than 65535 instructions executed in interpreter" },
   { 897,  DMEC, AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
   { 892,  DMEC, AE, "Unsupported type in scan filter" },
+  { 1233, DMEC, AE, "Table read-only" },
   { 4256, DMEC, AE, "Must call Ndb::init() before this function" },
   { 4257, DMEC, AE, "Tried to read too much - too many getValue calls" },
+  { 320,  DMEC, AE, "Invalid no of nodes specified for new nodegroup" },
+  { 321,  DMEC, AE, "Invalid nodegroup id" },
+  { 322,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node already in nodegroup" },
+  { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
+  { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
+  { 417,  DMEC, AE, "Bad operation reference - double unlock" },
 
   /** 
    * Scan application errors
@@ -320,7 +350,7 @@ ErrorBundle ErrorCodes[] = {
   { 4602, DMEC, AE, "You must call getNdbOperation before executeScan" },
   { 4603, DMEC, AE, "There can only be ONE operation in a scan transaction" },
   { 4604, DMEC, AE, "takeOverScanOp, to take over a scanned row one must explicitly request keyinfo on readTuples call" },
-  { 4605, DMEC, AE, "You may only call openScanRead or openScanExclusive once for each operation"},
+  { 4605, DMEC, AE, "You may only call readTuples() once for each operation"},
   { 4607, DMEC, AE, "There may only be one operation in a scan transaction"},
   { 4608, DMEC, AE, "You can not takeOverScan unless you have used openScanExclusive"},
   { 4609, DMEC, AE, "You must call nextScanResult before trying to takeOverScan"},
@@ -355,6 +385,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * SchemaError
    */
+  { 306,  DMEC, IE, "Out of fragment records in DIH" },
   { 311,  DMEC, AE, "Undefined partition used in setPartitionId" },
   { 703,  DMEC, SE, "Invalid table format" },
   { 704,  DMEC, SE, "Attribute name too long" },
@@ -363,7 +394,7 @@ ErrorBundle ErrorCodes[] = {
   { 708,  DMEC, SE, "No more attribute metadata records (increase MaxNoOfAttributes)" },
   { 709,  HA_ERR_NO_SUCH_TABLE, SE, "No such table existed" },
   { 710,  DMEC, SE, "Internal: Get by table name not supported, use table id." },
-  { 721,  HA_ERR_TABLE_EXIST,   OE, "Table or index with given name already exists" },
+  { 721,  HA_ERR_TABLE_EXIST,   OE, "Schema object with given name already exists" },
   { 723,  HA_ERR_NO_SUCH_TABLE, SE, "No such table existed" },
   { 736,  DMEC, SE, "Unsupported array size" },
   { 737,  HA_WRONG_CREATE_OPTION, SE, "Attribute array size too big" },
@@ -378,7 +409,10 @@ ErrorBundle ErrorCodes[] = {
   { 772,  HA_WRONG_CREATE_OPTION, IE, "Given fragmentType doesn't exist" },
   { 749,  HA_WRONG_CREATE_OPTION, IE, "Primary Table in wrong state" },
   { 779,  HA_WRONG_CREATE_OPTION, SE, "Invalid undo buffer size" },
+  { 791,  HA_WRONG_CREATE_OPTION, SE, "Too many total bits in bitfields" },
+  { 795,  DMEC, IE, "Out of LongMessageBuffer in DICT" },
   { 764,  HA_WRONG_CREATE_OPTION, SE, "Invalid extent size" },
+  { 789,  HA_WRONG_CREATE_OPTION, AE, "Logfile group not found" },
   { 765,  DMEC, SE, "Out of filegroup records" },
   { 750,  IE, SE, "Invalid file type" },
   { 751,  DMEC, SE, "Out of file records" },
@@ -399,6 +433,8 @@ ErrorBundle ErrorCodes[] = {
   { 769,  DMEC, SE, "Drop undofile not supported, drop logfile group instead" },
   { 770,  DMEC, SE, "Cant drop file, file is used" },
   { 774,  DMEC, SE, "Invalid schema object for drop" },
+  { 790,  HA_WRONG_CREATE_OPTION, SE, "Invalid hashmap" },
+  { 793,  DMEC, AE, "Object definition too big" },
   { 241,  HA_ERR_TABLE_DEF_CHANGED, SE, "Invalid schema object version" },
   { 283,  HA_ERR_NO_SUCH_TABLE, SE, "Table is being dropped" },
   { 284,  HA_ERR_TABLE_DEF_CHANGED, SE, "Table not defined in transaction coordinator" },
@@ -407,8 +443,10 @@ ErrorBundle ErrorCodes[] = {
   { 906,  DMEC, SE, "Unsupported attribute type in index" },
   { 907,  DMEC, SE, "Unsupported character set in table or index" },
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
+  { 1224, HA_WRONG_CREATE_OPTION, SE, "Too many fragments" },
   { 1225, DMEC, SE, "Table not defined in local query handler" },
   { 1226, DMEC, SE, "Table is being dropped" },
+  { 1227, HA_WRONG_CREATE_OPTION, SE, "Invalid schema version" },
   { 1228, DMEC, SE, "Cannot use drop table for drop index" },
   { 1229, DMEC, SE, "Too long frm data supplied" },
   { 1231, DMEC, SE, "Invalid table or index to scan" },
@@ -428,12 +466,16 @@ ErrorBundle ErrorCodes[] = {
   { 1513, DMEC, IE, "Filegroup not online" },
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
-  
+  { 1516, DMEC, SE, "File too small" },
+
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
   { 776,  DMEC, AE, "Index created on temporary table must itself be temporary" },
   { 777,  DMEC, AE, "Cannot create a temporary index on a non-temporary table" },
   { 778,  DMEC, AE, "A temporary table or index must be specified as not logging" },
+  { 786,  DMEC, NR, "Schema transaction aborted due to node-failure" },
+  { 792,  DMEC, SE, "Default value for primary key column not supported" },
+  { 794,  DMEC, AE, "Schema feature requires data node upgrade" },
   
   /**
    * FunctionNotImplemented
@@ -469,6 +511,7 @@ ErrorBundle ErrorCodes[] = {
   { 1347, DMEC, AE, "Backup failed to allocate table memory (check configuration)" },
   { 1348, DMEC, AE, "Backup failed to allocate file record (check configuration)" },
   { 1349, DMEC, AE, "Backup failed to allocate attribute record (check configuration)" },
+  { 1350, DMEC, TR, "Backup failed: file already exists (use 'START BACKUP <backup id>')" },
   { 1329, DMEC, AE, "Backup during software upgrade not supported" },
 
   /**
@@ -499,6 +542,12 @@ ErrorBundle ErrorCodes[] = {
 
   { 1420, DMEC, TR, "Subscriber manager busy with adding/removing a table" },
   { 1421, DMEC, SE, "Partially connected API in NdbOperation::execute()" },
+  { 1422, DMEC, SE, "Out of subscription records" },
+  { 1423, DMEC, SE, "Out of table records in SUMA" },
+  { 1424, DMEC, SE, "Out of MaxNoOfConcurrentSubOperations" },
+  { 1425, DMEC, SE, "Subscription being defined...while trying to stop subscriber" },
+  { 1426, DMEC, SE, "No such subscriber" },
+  { 1427, DMEC, NR, "Api node died, when SUB_START_REQ reached node "},
 
   { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   
@@ -538,13 +587,16 @@ ErrorBundle ErrorCodes[] = {
   { 4324, DMEC, AE, "Attempt to define distribution group when not prepared to" },
   { 4325, DMEC, AE, "Distribution Group set on table but not defined on first attribute" },
   { 4326, DMEC, AE, "Distribution Group with erroneus number of bits" },
-  { 4327, DMEC, AE, "Distribution Group with 1 byte attribute is not allowed" },
+  { 4327, DMEC, AE, "Distribution key is only supported on part of primary key" },
   { 4328, DMEC, AE, "Disk memory attributes not yet supported" },
   { 4329, DMEC, AE, "Variable stored attributes not yet supported" },
+  { 4340, DMEC, AE, "Result or attribute record must be a base table ndbrecord, not an index ndbrecord" },
 
   { 4400, DMEC, AE, "Status Error in NdbSchemaCon" },
   { 4401, DMEC, AE, "Only one schema operation per schema transaction" },
   { 4402, DMEC, AE, "No schema operation defined before calling execute" },
+  { 4410, DMEC, AE, "Schema transaction is already started" },
+  { 4411, DMEC, AE, "Schema transaction not possible until upgrade complete" },
 
   { 4501, DMEC, AE, "Insert in hash table failed when getting table information from Ndb" },
   { 4502, DMEC, AE, "GetValue not allowed in Update operation" },
@@ -553,6 +605,44 @@ ErrorBundle ErrorCodes[] = {
   { 4505, DMEC, AE, "NULL value not allowed in primary key search" },
   { 4506, DMEC, AE, "Missing getValue/setValue when calling execute" },
   { 4507, DMEC, AE, "Missing operation request when calling execute" },
+  { 4508, DMEC, AE, "GetValue not allowed for NdbRecord defined operation" },
+  { 4509, DMEC, AE, "Non SF_MultiRange scan cannot have more than one bound" },
+  { 4510, DMEC, AE, "User specified partition id not allowed for scan takeover operation" },
+  { 4511, DMEC, AE, "Blobs not allowed in NdbRecord delete result record" },
+  { 4512, DMEC, AE, "Incorrect combination of OperationOptions optionsPresent, extraGet/SetValues ptr and numExtraGet/SetValues" },
+  { 4513, DMEC, AE, "Only one scan bound allowed for non-NdbRecord setBound() API" },
+  { 4514, DMEC, AE, "Can only call setBound/equal() for an NdbIndexScanOperation" },
+  { 4515, DMEC, AE, "Method not allowed for NdbRecord, use OperationOptions or ScanOptions structure instead" },
+  { 4516, DMEC, AE, "Illegal instruction in interpreted program" },
+  { 4517, DMEC, AE, "Bad label in branch instruction" },
+  { 4518, DMEC, AE, "Too many instructions in interpreted program" },
+  { 4519, DMEC, AE, "NdbInterpretedCode::finalise() not called" },
+  { 4520, DMEC, AE, "Call to undefined subroutine" },
+  { 4521, DMEC, AE, "Call to undefined subroutine, internal error" },
+  { 4522, DMEC, AE, "setBound() called twice for same key" },
+  { 4523, DMEC, AE, "Pseudo columns not supported by NdbRecord" },
+  { 4524, DMEC, AE, "NdbInterpretedCode is for different table" },
+  { 4535, DMEC, AE, "Attempt to set bound on non key column" },
+  { 4536, DMEC, AE, "NdbScanFilter constructor taking NdbOperation is not supported for NdbRecord" },
+  { 4537, DMEC, AE, "Wrong API.  Use NdbInterpretedCode for NdbRecord operations" },
+  { 4538, DMEC, AE, "NdbInterpretedCode instruction requires that table is set" },
+  { 4539, DMEC, AE, "NdbInterpretedCode not supported for operation type" },
+  { 4540, DMEC, AE, "Attempt to pass an Index column to createRecord.  Use base table columns only" },
+  /* 4541 No longer generated */
+  { 4542, DMEC, AE, "Unknown partition information type" },
+  { 4543, DMEC, AE, "Duplicate partitioning information supplied" },
+  { 4544, DMEC, AE, "Wrong partitionInfo type for table" },
+  { 4545, DMEC, AE, "Invalid or Unsupported PartitionInfo structure" },
+  { 4546, DMEC, AE, "Explicit partitioning info not allowed for table and operation" },
+  { 4547, DMEC, AE, "RecordSpecification has overlapping offsets" },
+  { 4548, DMEC, AE, "RecordSpecification has too many elements" },
+  { 4549, DMEC, AE, "getLockHandle only supported for primary key read with a lock" },
+  { 4550, DMEC, AE, "Cannot releaseLockHandle until operation executed" },
+  { 4551, DMEC, AE, "NdbLockHandle already released" },
+  { 4552, DMEC, AE, "NdbLockHandle does not belong to transaction" },
+  { 4553, DMEC, AE, "NdbLockHandle original operation not executed successfully" },
+  { 4554, DMEC, AE, "NdbBlob can only be closed from Active state" },
+  { 4555, DMEC, AE, "NdbBlob cannot be closed with pending operations" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
@@ -626,8 +716,33 @@ ErrorBundle ErrorCodes[] = {
   { 4273, DMEC, IE, "No blob table in dict cache" },
   { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
   { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" },
+  { 4276, DMEC, AE, "Missing NULL ptr in end of keyData list" },
+  { 4277, DMEC, AE, "Key part len is to small for column" },
+  { 4278, DMEC, AE, "Supplied buffer to small" },
+  { 4279, DMEC, AE, "Malformed string" },
+  { 4280, DMEC, AE, "Inconsistent key part length" },
+  { 4281, DMEC, AE, "Too many keys specified for key bound in scanIndex" },
+  { 4282, DMEC, AE, "range_no not strictly increasing in ordered multi-range index scan" },
+  { 4283, DMEC, AE, "key_record in index scan is not an index ndbrecord" },
+  { 4284, DMEC, AE, "Cannot mix NdbRecAttr and NdbRecord methods in one operation" },
+  { 4285, DMEC, AE, "NULL NdbRecord pointer" },
+  { 4286, DMEC, AE, "Invalid range_no (must be < 4096)" },
+  { 4287, DMEC, AE, "The key_record and attribute_record in primary key operation do not belong to the same table" },
+  { 4288, DMEC, AE, "Blob handle for column not available" },
+  { 4289, DMEC, AE, "API version mismatch or wrong sizeof(NdbDictionary::RecordSpecification)" },
+  { 4290, DMEC, AE, "Missing column specification in NdbDictionary::RecordSpecification" },
+  { 4291, DMEC, AE, "Duplicate column specification in NdbDictionary::RecordSpecification" },
+  { 4292, DMEC, AE, "NdbRecord for tuple access is not an index key NdbRecord" },
+  { 4341, DMEC, AE, "Not all keys read when using option SF_OrderBy" },
+  { 4293, DMEC, AE, "Error returned from application scanIndex() callback" },
   { 4294, DMEC, AE, "Scan filter is too large, discarded" },
+  { 4295, DMEC, AE, "Column is NULL in Get/SetValueSpec structure" },
+  { 4296, DMEC, AE, "Invalid AbortOption" },
+  { 4297, DMEC, AE, "Invalid or unsupported OperationOptions structure" },
+  { 4298, DMEC, AE, "Invalid or unsupported ScanOptions structure" },
+  { 4299, DMEC, AE, "Incorrect combination of ScanOption flags, extraGetValues ptr and numExtraGetValues" },
   { 2810, DMEC, TR, "No space left on the device" },
+  { 2811, DMEC, TR, "Error with file permissions, please check file system" },
   { 2815, DMEC, TR, "Error in reading files, please check file system" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
@@ -719,23 +834,6 @@ static
 const
 int NbClassification = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
 
-#ifdef NOT_USED
-/**
- * Complete all fields of an NdbError given the error code
- * and details
- */
-static
-void
-set(ndberror_struct * error, int code, const char * details, ...){
-  error->code = code;
-  {
-    va_list ap;
-    va_start(ap, details);
-    vsnprintf(error->details, sizeof(error->details), details, ap);
-    va_end(ap);
-  }
-}
-#endif
 
 void
 ndberror_update(ndberror_struct * error){
@@ -772,28 +870,6 @@ ndberror_update(ndberror_struct * error){
   }
 }
 
-#if CHECK_ERRORCODES
-int
-checkErrorCodes(){
-  int i, j;
-  for(i = 0; i<NbErrorCodes; i++)
-    for(j = i+1; j<NbErrorCodes; j++)
-      if(ErrorCodes[i].code == ErrorCodes[j].code){
-	printf("ErrorCode %d is defined multiple times!!\n", 
-		 ErrorCodes[i].code);
-	assert(0);
-      }
-  
-  return 1;
-}
-
-/*static const int a = checkErrorCodes();*/
-
-int main(void){
-  checkErrorCodes();
-  return 0;
-}
-#endif
 
 const char *ndberror_status_message(ndberror_status status)
 {

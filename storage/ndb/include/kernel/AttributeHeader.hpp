@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ATTRIBUTE_HEADER
 #define ATTRIBUTE_HEADER
@@ -45,10 +48,28 @@ public:
   STATIC_CONST( ROWID        = 0xFFF6 );
   STATIC_CONST( ROW_GCI      = 0xFFF5 );
   STATIC_CONST( FRAGMENT_VARSIZED_MEMORY = 0xFFF4 );
-  // 0xFFF3  to be used for read packed when merged
+  STATIC_CONST( READ_PACKED  = 0xFFF3 );
   STATIC_CONST( ANY_VALUE    = 0xFFF2 );
   STATIC_CONST( COPY_ROWID   = 0xFFF1 );
+  STATIC_CONST( READ_ALL     = 0xFFF0 );
+  STATIC_CONST( READ_LCP     = 0xFFEF );
+  STATIC_CONST( LOCK_REF     = 0xFFEE ); // Operation lock reference
+  STATIC_CONST( OP_ID        = 0xFFED ); // Operation runtime identity
+
+  // Extents * sizeof(Extent) allocated to fragment
+  STATIC_CONST( FRAGMENT_EXTENT_SPACE = 0xFFEC );
   
+  // Free but allocated DD extent space
+  STATIC_CONST( FRAGMENT_FREE_EXTENT_SPACE = 0xFFEB );
+
+  /**
+   * Optimize pseudo column and optimization options
+   */
+  STATIC_CONST( OPTIMIZE     = 0xFFE0 );          //pseudo column id to optimize
+  STATIC_CONST( OPTIMIZE_OPTIONS_MASK = 0xFFFF ); //bitmask AND column value
+  STATIC_CONST( OPTIMIZE_MOVE_VARPART = 0x0001 ); //option to move varpart
+  STATIC_CONST( OPTIMIZE_MOVE_FIXPART = 0x0002 ); //option to move fixpart
+
   // NOTE: in 5.1 ctors and init take size in bytes
 
   /** Initialize AttributeHeader at location aHeaderPtr */

@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -17,6 +16,19 @@ CREATE TABLE t1 (
   b INT NOT NULL,
   c INT NOT NULL
 ) ENGINE=ndbcluster;
+
+#
+# Bug 31320: Ensure statement error leads to transaction rollback
+#
+INSERT INTO t1 VALUES (0, 0, 0);
+BEGIN;
+INSERT INTO t1 VALUES (1, 1, 1);
+--error 1022
+INSERT INTO t1 VALUES (0, 0, 0),(2,2,2);
+# already rolled back
+SELECT COUNT(*) FROM t1;
+COMMIT;
+DELETE FROM t1;
 
 INSERT INTO t1 VALUES (0, 0, 0);
 SELECT * FROM t1;
@@ -438,8 +450,8 @@ INSERT INTO t1 VALUES (1,1,1);
 
 --error 1022
 INSERT INTO t1 VALUES 
-(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
-(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+(-1,-1,-1),(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),(9999,9999,9999);
 
 select count(*) from t1;
 
@@ -465,8 +477,7 @@ INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 
---error 1296
-commit;
+rollback;
 
 select * from t1 where pk1=1;
 select * from t1 where pk1=10;
@@ -503,9 +514,13 @@ begin;
 INSERT INTO t1 VALUES 
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
---error 1296
+# check that we get a warning that transaction has rolled back
+SHOW WARNINGS;
+
+# transaction has rolled back, no error
 SELECT * FROM t1 WHERE pk1=10;
 
+# transaction has rolled back, no error
 rollback;
 
 select * from t1 where pk1=1;
@@ -525,13 +540,13 @@ INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 
---error 1296
+# transaction has rolled back, no error
 SELECT * FROM t1 WHERE pk1=10;
 
---error 1296
+# transaction has rolled back, no error
 SELECT * FROM t1 WHERE pk1=10;
 
---error 1296
+# transaction has rolled back, no error
 commit;
 
 select * from t1 where pk1=1;
@@ -551,9 +566,10 @@ INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 
---error 1296
+# transaction has rolled back, no error
 INSERT INTO t1 values (4000, 40, 44);
 
+# transaction has rolled back, no error
 rollback;
 
 select * from t1 where pk1=1;
@@ -639,3 +655,18 @@ insert ignore into t1 values (1,0), (2,0), (2,null), (3,null);
 select * from t1 order by a;
 drop table t1;
 # End of 4.1 tests
+
+#
+# Bug #35990  	Error code 1062 to 1296 (unknown) after setting sql_mode to STRICT_TRANS_TABLES
+#
+
+create table t1(code varchar(64) not null, PRIMARY KEY (code)) ENGINE=NDBCluster;
+
+insert into t1 values ('code');
+--error ER_DUP_ENTRY
+insert into t1 values ('code');
+
+set sql_mode='STRICT_TRANS_TABLES';
+--error ER_DUP_ENTRY
+insert into t1 values ('code');
+drop table t1;

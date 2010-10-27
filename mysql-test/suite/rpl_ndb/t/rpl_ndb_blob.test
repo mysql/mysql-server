@@ -1,8 +1,5 @@
 --source include/have_ndb.inc
-# Since the master generates row-based events, the slave must be in
-# ROW or MIXED mode to accept the events.
---source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 #
 # basic test of blob replication for NDB
@@ -19,6 +16,20 @@ create table t1 (
 insert into t1 values(1, repeat('abc',10));
 insert into t1 values(2, repeat('def',200));
 insert into t1 values(3, repeat('ghi',3000));
+
+select 'M', a, sha1(b) from t1
+order by a;
+
+--sync_slave_with_master
+--sleep 5
+--connection slave
+select 'S', a, sha1(b) from t1
+order by a;
+--connection master
+
+update t1 set b = repeat('xyz',3000) where a = 1;
+delete from t1 where a = 2;
+update t1 set b = concat(b,'xyz') where a = 3;
 
 select 'M', a, sha1(b) from t1
 order by a;

@@ -13,7 +13,7 @@
 --source include/have_ndb.inc
 --source include/have_ndb_extra.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 # kill any trailing processes
 --system killall lt-bankTransactionMaker lt-bankTimer lt-bankMakeGL || true
@@ -73,7 +73,7 @@ CREATE TABLE ACCOUNT_TYPE ( ACCOUNT_TYPE_ID INT UNSIGNED NOT NULL,
 #
 # create "BANK" application
 #
---exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/bank/bankCreator >> $NDB_TOOLS_OUTPUT
+--exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/bank/bankCreator --skip-create >> $NDB_TOOLS_OUTPUT
 
 #
 # start main loop
@@ -121,15 +121,15 @@ RESET MASTER;
 CREATE TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM mysql.backup_info;
 LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
---exec rm $MYSQLTEST_VARDIR/tmp.dat || true
+--remove_file $MYSQLTEST_VARDIR/tmp.dat
 --replace_column 1 <the_backup_id>
 SELECT @the_backup_id:=backup_id FROM mysql.backup_info;
 let the_backup_id=`select @the_backup_id`;
 
 # restore on slave, first check that nothing is there
 --connection slave
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -p 8 -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -p 8 -b $the_backup_id -n 2 -r -e --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -p 8 -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -p 8 -b $the_backup_id -n 2 -r -e --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 #
 # now setup replication to continue from last epoch

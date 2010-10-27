@@ -1,10 +1,28 @@
-# Check that server is compiled and started with support for NDB
-#disable_query_log;
-#--require r/true.require
-#select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
-#--source include/ndb_not_readonly.inc
-#enable_query_log;
-# always make sure we have both mysql servers started ok before test starts
-# there are some initial startup bugs that are avoided by doing this, avoiding sporadic
-# failures in mysql-test-run
---source include/have_multi_ndb.inc
+#
+# Check if cluster is available by selecting from is.engines
+# if an error about no such table occurs bail out
+#
+
+disable_result_log;
+disable_query_log;
+
+--error 0, 1109
+select @have_ndb:= count(*) from information_schema.engines where engine='ndbcluster' and support in ('YES', 'DEFAULT', 'ENABLED');
+
+
+if ($mysql_errno){
+  # For backward compatibility, implement old fashioned way
+  # to check here ie. use SHOW VARIABLES LIKE "have_ndb"
+  die Can not determine if server supports ndb without is.engines table;
+}
+
+
+if (!`select @have_ndb`){
+  skip Need ndb engine;
+}
+
+enable_query_log;
+enable_result_log;
+
+--let NDB_BACKUPS=$NDB_BACKUP_DIR/BACKUP/BACKUP
+

@@ -1,0 +1,9 @@
+#
+# Config used when testing short NdbApi request handling
+# functionality
+#
+!include suite/ndb/my.cnf
+
+[ENV]
+# Activate short signal requests
+NDB_FORCE_SHORT_REQUESTS=Y

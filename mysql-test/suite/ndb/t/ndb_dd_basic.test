@@ -41,6 +41,14 @@ ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M;
 
+# bug#29574
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 5K
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
 ##################################
 # Basic test of disk tables for NDB
 # Start by creating a logfile group
@@ -242,6 +250,17 @@ CREATE TABLE City (
 ) ENGINE=ndbcluster
 tablespace ts2
 storage disk;
+
+create table t1 (a int primary key, b int)
+engine = ndbcluster tablespace ts2 storage disk;
+insert into t1 values (1,1);
+
+--error ER_ALTER_FILEGROUP_FAILED
+alter tablespace ts2
+drop datafile 'datafile2_1.dat'
+engine ndb;
+
+drop table t1;
 
 alter tablespace ts2
 drop datafile 'datafile2_1.dat'
@@ -460,7 +479,7 @@ TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster;
 
 insert into t1 values(1, 1, 3);
 insert into t1 values(2, 2, 3);
---error ER_DUP_ENTRY
+--error ER_DUP_KEY
 update t1 set c1 = 1 where id = 2;
 drop table t1;
 
@@ -481,5 +500,157 @@ ENGINE = NDB;
 
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
+
+# bug#31712 - datafile smaller than extent
+--echo === bug#31712 ===
+
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 2M
+undo_buffer_size 1M
+engine ndb;
+
+--error ER_CREATE_FILEGROUP_FAILED
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 1M
+extent_size 2M
+engine ndb;
+show warnings;
+
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 2M
+extent_size 2M
+engine ndb;
+
+--error ER_ALTER_FILEGROUP_FAILED
+alter tablespace ts1
+add datafile 'datafile02.dat'
+initial_size 1M
+engine ndb;
+show warnings;
+
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
+
+drop tablespace ts1
+engine ndb;
+
+drop logfile group lg1
+engine ndb;
+
+# bug#31782 - tablespace with no files
+--echo === bug#31782 ===
+
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 2M
+undo_buffer_size 1M
+engine ndb;
+
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 2M
+extent_size 2M
+engine ndb;
+
+select distinct tablespace_name, file_type, file_name
+from information_schema.files
+where tablespace_name is not null
+order by file_type, file_name;
+
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
+
+select distinct tablespace_name, file_type, file_name
+from information_schema.files
+where tablespace_name is not null
+order by file_type, file_name;
+
+drop tablespace ts1
+engine ndb;
+
+drop logfile group lg1
+engine ndb;
+
+# bug#49709 - I_S discrepancies due to DICT vs LGMAN/TSMAN
+--echo === bug#49709 ===
+
+# undo buffer size rounded UP to page size (32k)
+# 294913 = 9 * 32k + 1 => 10 * 32k = 327680
+# undofile size rounded DOWN to page size (32k)
+# 3276801 = 100 * 32k + 1 => 100 * 32k = 3276800
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 3276801
+undo_buffer_size 294913
+engine ndb;
+
+# undofile size rounded DOWN to page size (32k)
+# 3309567 = 101 * 32k - 1 => 100 * 32k = 3276800
+alter logfile group lg1
+add undofile 'undofile02.dat'
+initial_size 3309567
+engine ndb;
+
+# extent size rounded UP to page size (32k)
+# 294913 = 9 * 32k + 1 => 10 * 32k = 327680
+# datafile size rounded DOWN to page size and UP to extent size
+# 3276801 = 100 * 32k + 1 => 100 * 32k == 10 * EXT = 3276800
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 3276801
+extent_size 294913
+engine ndb;
+
+# datafile size rounded DOWN to page size and UP to extent size
+# 3342335 = 102 * 32k - 1 => 110 * 32k == 11 * EXT = 3604480
+alter tablespace ts1
+add datafile 'datafile02.dat'
+initial_size 3342335
+engine ndb;
+
+# check logfile group
+select logfile_group_name, extra
+from information_schema.files
+where file_type = 'UNDO LOG' and file_name is null;
+
+# check undofiles
+select distinct file_name, initial_size
+from information_schema.files
+where file_type = 'UNDO LOG' and file_name is not null
+order by file_name;
+
+# check tablespace
+select tablespace_name, logfile_group_name, extent_size
+from information_schema.files
+where file_type = 'TABLESPACE';
+
+# check datafiles
+select distinct file_name, initial_size, extent_size, total_extents, free_extents
+from information_schema.files
+where file_type = 'DATAFILE'
+order by file_name;
+
+alter tablespace ts1
+drop datafile 'datafile02.dat'
+engine ndb;
+
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
+
+drop tablespace ts1
+engine ndb;
+
+drop logfile group lg1
+engine ndb;
 
 #End 5.1 test case

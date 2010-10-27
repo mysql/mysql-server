@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DATA_BUFFER_HPP
 #define DATA_BUFFER_HPP
@@ -260,10 +263,14 @@ DataBuffer<sz>::append(const Uint32* src, Uint32 len){
     return false;
   }
   DataBufferIterator it;
-  
-  if(position(it, pos) && import(it, src, len)){
+
+  bool b0, b1; 
+  if ((b0 = position(it, pos)) && (b1 = import(it, src, len)))
+  {
     return true;
   }
+
+  ndbout_c("%u %u", b0, b1);
   abort();
   return false;
 }
@@ -325,7 +332,6 @@ DataBuffer<sz>::seize(Uint32 n){
    */
   Uint32 free = thePool.getNoOfFree() * sz + rest;
   if(n > free){
-    release();
     return false;
   }
     
@@ -408,21 +414,89 @@ template<Uint32 sz>
 inline
 bool
 DataBuffer<sz>::first(DataBufferIterator & it){
-  return first((ConstDataBufferIterator&)it);
+  it.curr.i = head.firstItem;
+  if(it.curr.i == RNIL){
+    it.setNull();
+    return false;
+  }
+  thePool.getPtr(it.curr);
+  it.data = &it.curr.p->data[0];
+  it.ind = 0;
+  it.pos = 0;
+  return true;
 }
 
 template<Uint32 sz>
 inline
 bool
 DataBuffer<sz>::next(DataBufferIterator & it){
-  return next((ConstDataBufferIterator&)it);
+  it.ind ++;
+  it.data ++;
+  it.pos ++;
+  if(it.ind < sz && it.pos < head.used){
+    return true;
+  }
+
+  if(it.pos < head.used){
+    it.curr.i = it.curr.p->nextPool;
+#ifdef ARRAY_GUARD
+    if(it.curr.i == RNIL){
+      /**
+       * This is actually "internal error"
+       * pos can't be less than head.used and at the same time we can't
+       * find next segment
+       *
+       * Note this must not "really" be checked since thePool.getPtr will
+       *  abort when trying to get RNIL. That's why the check is within
+       *  ARRAY_GUARD
+       */
+      ErrorReporter::handleAssert("DataBuffer<sz>::next", __FILE__, __LINE__);
+    }
+#endif
+    thePool.getPtr(it.curr);
+    it.data = &it.curr.p->data[0];
+    it.ind = 0;
+    return true;
+  }
+  it.setNull();
+  return false;
 }
 
 template<Uint32 sz>
 inline
 bool
 DataBuffer<sz>::next(DataBufferIterator & it, Uint32 hops){
-  return next((ConstDataBufferIterator&)it, hops);
+#if 0
+  for (Uint32 i=0; i<hops; i++) {
+    if (!this->next(it))
+      return false;
+  }
+  return true;
+#else
+  if(it.pos + hops < head.used){
+    while(hops >= sz){
+      it.curr.i = it.curr.p->nextPool;
+      thePool.getPtr(it.curr);
+      hops -= sz;
+      it.pos += sz;
+    }
+
+    it.ind += hops;
+    it.pos += hops;
+    if(it.ind < sz){
+      it.data = &it.curr.p->data[it.ind];
+      return true;
+    }
+
+    it.curr.i = it.curr.p->nextPool;
+    thePool.getPtr(it.curr);
+    it.ind -= sz;
+    it.data = &it.curr.p->data[it.ind];
+    return true;
+  }
+  it.setNull();
+  return false;
+#endif
 }
 
 template<Uint32 sz>

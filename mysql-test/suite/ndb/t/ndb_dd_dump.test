@@ -1,3 +1,5 @@
+# test uses mysqldump and hence not in embedded
+-- source include/not_embedded.inc
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -6,37 +8,37 @@ DROP TABLE IF EXISTS t1, t2, t3;
 
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile_lg1_01.dat'
-INITIAL_SIZE 2M
+INITIAL_SIZE 3M
 UNDO_BUFFER_SIZE = 1M
 ENGINE NDB;
 
 ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile_lg1_02.dat'
-INITIAL_SIZE = 4M 
+INITIAL_SIZE = 6M 
 ENGINE NDB;
 
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile_ts1_01.dat'
 USE LOGFILE GROUP lg1
 EXTENT_SIZE 1M
-INITIAL_SIZE 2M
+INITIAL_SIZE 6M
 ENGINE NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile_ts1_02.dat'
-INITIAL_SIZE = 1M 
+INITIAL_SIZE = 3M 
 ENGINE=NDB;
 
 CREATE TABLESPACE ts2
 ADD DATAFILE 'datafile_ts2_01.dat'
 USE LOGFILE GROUP lg1
-INITIAL_SIZE 2M
+INITIAL_SIZE 6M
 ENGINE NDB;
 
 CREATE TABLESPACE ts3
 ADD DATAFILE 'datafile_ts3_01.dat'
 USE LOGFILE GROUP lg1
-INITIAL_SIZE 4M
+INITIAL_SIZE 12M
 ENGINE NDB;
 
 ########################################
@@ -258,6 +260,8 @@ CREATE TABLE test.t (
 
  SELECT count(*) FROM test.t;
  LOAD DATA INFILE 't_backup' INTO TABLE test.t;
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--remove_file  $MYSQLD_DATADIR/test/t_backup
 
  SELECT * FROM test.t order by a;
 

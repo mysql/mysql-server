@@ -1,8 +1,5 @@
 --source include/have_ndb.inc
-# Since the master generates row-based events, the slave must be in
-# ROW or MIXED mode to accept the events.
---source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 connection master;
 CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
@@ -48,6 +45,9 @@ sync_slave_with_master master;
 
 #SHOW BINLOG EVENTS;
 
+# Wait for slave threads to start before SHOWing status
+--source include/wait_for_slave_to_start.inc
+
 # Check that there is no error in replication
 source include/check_slave_is_running.inc;
 
@@ -73,10 +73,12 @@ START SLAVE;
 sync_with_master;
 SELECT * FROM t1 ORDER BY a;
 
+# Wait for slave threads to start before SHOWing status
+--source include/wait_for_slave_to_start.inc
+
 # Check that there is no error in replication
 source include/check_slave_is_running.inc;
 
-connection master;
+-- connection master
 DROP TABLE t1;
-
-sync_slave_with_master;
+-- sync_slave_with_master

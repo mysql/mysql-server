@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,16 +13,17 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_VECTOR_HPP
 #define NDB_VECTOR_HPP
 
 #include <ndb_global.h>
-#include <NdbMutex.h>
+#include <portlib/NdbMutex.h>
 
 template<class T>
-struct Vector {
+class Vector {
 public:
   Vector(int sz = 10);
   ~Vector();
@@ -41,6 +44,14 @@ public:
   int fill(unsigned new_size, T & obj);
 
   Vector<T>& operator=(const Vector<T>&);
+
+  /**
+   * Shallow equal (i.e does memcmp)
+   */
+  bool equal(const Vector<T>& obj) const;
+
+  int assign(const T*, Uint32 cnt);
+  int assign(const Vector<T>& obj) { return assign(obj.getBase(), obj.size());}
 
   T* getBase() { return m_items;}
   const T* getBase() const { return m_items;}
@@ -183,7 +194,32 @@ Vector<T>::operator=(const Vector<T>& obj){
 }
 
 template<class T>
-struct MutexVector : public NdbLockable {
+int
+Vector<T>::assign(const T* src, Uint32 cnt)
+{
+  clear();
+  for (Uint32 i = 0; i<cnt; i++)
+  {
+    int ret;
+    if ((ret = push_back(src[i])))
+      return ret;
+  }
+  return 0;
+}
+
+template<class T>
+bool
+Vector<T>::equal(const Vector<T>& obj) const
+{
+  if (size() != obj.size())
+    return false;
+
+  return memcmp(getBase(), obj.getBase(), size() * sizeof(T)) == 0;
+}
+
+template<class T>
+class MutexVector : public NdbLockable {
+public:
   MutexVector(int sz = 10);
   ~MutexVector();
 

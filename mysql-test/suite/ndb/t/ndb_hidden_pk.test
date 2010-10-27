@@ -1,0 +1,142 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# ndb_hidden_pk.test
+# Test use of tables with hidden primary key
+#
+
+# Bag of nullable ints
+CREATE TABLE t1 (
+  attr1 INT
+) ENGINE=ndbcluster;
+
+insert into t1 values (0), (1), (2), (3), (4), (1), (1), (1), (2), (2), (2), (3), (3), (3), (NULL), (NULL), (NULL);
+
+# all
+select * from t1 order by attr1;
+
+# many
+select * from t1 where attr1 = 1;
+
+# many NULLs
+select * from t1 where attr1 IS NULL;
+
+# one
+select * from t1 where attr1 = 4;
+
+# none
+select * from t1 where attr1 = 1000;
+
+# Single value update
+update t1 set attr1=7 where attr1=4;
+select * from t1 order by attr1;
+
+
+# Multi value update
+update t1 set attr1=10 where attr1=1;
+select * from t1 order by attr1;
+
+# Multi NULL value update
+update t1 set attr1=20 where attr1 IS NULL;
+select * from t1 order by attr1;
+
+# Put them back...
+update t1 set attr1=NULL where attr1=20;
+select * from t1 order by attr1;
+
+# Single value delete
+delete from t1 where attr1=0;
+select * from t1 order by attr1;
+
+
+# Multi value delete
+delete from t1 where attr1 IS NULL;
+select * from t1 order by attr1;
+
+
+drop table t1;
+
+
+# Hidden primary key and blob only
+CREATE TABLE t1 (
+  b blob
+) ENGINE=ndbcluster;
+
+insert into t1 values (NULL), (NULL), ('Something'), (''), (REPEAT('Lots', 2000));
+
+# all
+select * from t1 order by b;
+
+# many null
+select * from t1 where b IS NULL;
+
+# one
+select * from t1 where b='Something';
+
+# large
+select count(*) from t1 where b=REPEAT('Lots', 2000);
+
+# none
+select * from t1 where b='Imaginary';
+
+drop table t1;
+
+
+# Unique index instead of PK
+#
+CREATE TABLE t1 (
+  a int,
+  b int, 
+  UNIQUE(a)
+) ENGINE=NDBCLUSTER;
+
+
+insert into t1 values (NULL, NULL), (NULL, NULL), (NULL, 1), (1, 1), (2, 2), (3, 3);
+
+# select all
+select * from t1 order by a, b;
+
+# select many null
+select * from t1 where a IS NULL order by b;
+
+# select one
+select * from t1 where a=2;
+
+# select none
+select * from t1 where a=10;
+
+# update none
+update t1 set b=12 where a=12;
+select * from t1 order by a, b;
+
+# update one
+update t1 set b=4 where a=3;
+select * from t1 order by a, b;
+
+# update many
+update t1 set b=2 where a=1;
+select * from t1 order by a, b;
+
+# update many null
+update t1 set b=14 where a IS NULL;
+select * from t1 order by a,b;
+
+# Bug # 37516 had problems with delete via unique index
+# on table with hidden PK
+# delete none
+delete from t1 where a = 999;
+select * from t1 order by a, b;
+
+# delete one
+delete from t1 where a=3;
+select * from t1 order by a, b;
+
+# delete many null
+delete from t1 where a IS NULL;
+select * from t1 order by a, b;
+
+drop table t1;

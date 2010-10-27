@@ -21,8 +21,7 @@ print OUTFILE "Documentation generated " . localtime() .
     " from mysql source files.";
 print OUTFILE<<EOT;
 <br>
-&copy; 2003-2004 
-<a href="http://www.mysql.com">MySQL AB</a>
+&copy; 2003-2004 MySQL AB
 <br>
 </center>
 </small></address>

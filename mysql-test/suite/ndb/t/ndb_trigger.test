@@ -1,5 +1,5 @@
 # Tests which involve triggers and NDB storage engine
---source include/have_ndb.inc
+--source include/have_multi_ndb.inc
 --source include/not_embedded.inc
 
 # 
@@ -14,7 +14,12 @@
 #
 
 --disable_warnings
+connection server2;
 drop table if exists t1, t2, t3, t4, t5;
+flush status;
+connection server1;
+drop table if exists t1, t2, t3, t4, t5;
+flush status;
 --enable_warnings
 
 create table t1 (id int primary key, a int not null, b decimal (63,30) default 0) engine=ndb;
@@ -217,5 +222,81 @@ SELECT * FROM t2 order by id;
 DROP TRIGGER t1_delete;
 DROP TRIGGER t4_delete;
 DROP TABLE t1, t2, t3, t4, t5;
+
+# Test for bug#36658
+# Verify that rename table
+# doesn't remove triggers
+
+connection server1;
+create table t1(a int, b varchar(10), c date) engine=ndb;
+delimiter //;
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN
+   SET new.c = date(now());
+End //
+delimiter ;//
+select trigger_name,event_object_table from information_schema.triggers where
+trigger_name='trg1';
+
+connection server2;
+delimiter //;
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN
+   SET new.c = date(now());
+End //
+delimiter ;//
+select trigger_name,event_object_table from information_schema.triggers where
+trigger_name='trg1';
+
+connection server1;
+rename table t1 to t2;
+select trigger_name,event_object_table from information_schema.triggers where
+trigger_name='trg1';
+
+connection server2;
+select trigger_name,event_object_table from information_schema.triggers where
+trigger_name='trg1';
+
+connection server1;
+drop table t2;
+
+# bug#38034: last_insert_id() value not shown in table with trigger
+#
+# testing that last_insert_id is correct in ongoing transaction.
+
+create table t1(c1 int(11) not null auto_increment primary key, c2 int(11) not null) engine=ndb;
+
+delimiter |;
+
+create trigger bi_t1 before insert on t1
+FOR EACH ROW BEGIN 
+   SET new.c2 = last_insert_id();
+End
+|
+
+delimiter ;|
+
+
+INSERT INTO t1 (c2) VALUES (17);
+INSERT INTO t1 (c2) VALUES (17);
+INSERT INTO t1 (c2) VALUES (17);
+select c1 from t1 where c1=last_insert_id();
+select * from t1 order by c1;
+start transaction;
+INSERT INTO t1 (c2) VALUES (17);
+INSERT INTO t1 (c2) VALUES (17);
+select c1 from t1 where c1=last_insert_id();
+select * from t1 order by c1;
+rollback;
+select c1 from t1 where c1=last_insert_id();
+select * from t1 order by c1;
+start transaction;
+INSERT INTO t1 (c2) VALUES (17);
+INSERT INTO t1 (c2) VALUES (17);
+select c1 from t1 where c1=last_insert_id();
+select * from t1 order by c1;
+commit;
+select c1 from t1 where c1=last_insert_id();
+select * from t1 order by c1;
+drop trigger bi_t1;
+drop table t1;
 
 --echo End of 5.1 tests

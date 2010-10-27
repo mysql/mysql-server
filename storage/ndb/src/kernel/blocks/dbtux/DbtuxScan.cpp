@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUX_SCAN_CPP
 #include "Dbtux.hpp"
@@ -133,8 +136,9 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     Uint32 size;
   };
   BoundInfo boundInfo[2][MaxIndexAttributes];
-  const unsigned dstSize = 1024 * MAX_XFRM_MULTIPLY;
-  Uint32 xfrmData[dstSize];
+  const unsigned dstSize = MaxAttrDataSize;
+  // use some static buffer (they are only used within a timeslice)
+  Uint32* const xfrmData = c_dataBuffer;
   Uint32 dstPos = 0;
   // largest attrId seen plus one
   Uint32 maxAttrId[2] = { 0, 0 };
@@ -146,6 +150,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     const unsigned type = data[offset];
     const AttributeHeader* ah = (const AttributeHeader*)&data[offset + 1];
     const Uint32 attrId = ah->getAttributeId();
+    const Uint32 byteSize = ah->getByteSize();
     const Uint32 dataSize = ah->getDataSize();
     if (type > 4 || attrId >= index.m_numAttrs || dstPos + 2 + dataSize > dstSize) {
       jam();
@@ -157,6 +162,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     xfrmData[dstPos + 0] = data[offset + 0];
     xfrmData[dstPos + 1] = data[offset + 1];
     // copy bound value
+    Uint32 dstBytes = 0;
     Uint32 dstWords = 0;
     if (! ah->isNULL()) {
       jam();
@@ -174,7 +180,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       }
       Uint32 srcBytes = lb + len;
       Uint32 srcWords = (srcBytes + 3) / 4;
-      if (srcWords != dataSize) {
+      if (srcBytes != byteSize) {
         jam();
         scan.m_state = ScanOp::Invalid;
         sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
@@ -183,6 +189,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       uchar* dstPtr = (uchar*)&xfrmData[dstPos + 2];
       if (descAttr.m_charset == 0) {
         memcpy(dstPtr, srcPtr, srcWords << 2);
+        dstBytes = srcBytes;
         dstWords = srcWords;
       } else {
         jam();
@@ -200,6 +207,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
         }
         int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
         ndbrequire(n != -1);
+        dstBytes = n;
         while ((n & 3) != 0) {
           dstPtr[n++] = 0;
         }
@@ -235,7 +243,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       } else {
         // fix length
         AttributeHeader* ah = (AttributeHeader*)&xfrmData[dstPos + 1];
-        ah->setDataSize(dstWords);
+        ah->setByteSize(dstBytes);
         // enter new bound
         jam();
         b.type2 = type2;
@@ -554,7 +562,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
           signal, signalLength, JBB);
     } else {
-      Uint32 blockNo = refToBlock(scan.m_userRef);
+      Uint32 blockNo = refToMain(scan.m_userRef);
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
     }
     // next time look for next entry
@@ -709,7 +717,7 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
   }
 #endif
   // set up index keys for this operation
-  setKeyAttrs(frag);
+  setKeyAttrs(c_ctx, frag);
   // scan direction 0, 1
   const unsigned idir = scan.m_descending;
   unpackBound(*scan.m_bound[idir], c_dataBuffer);
@@ -820,7 +828,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   // cannot be moved away from tuple we have locked
   ndbrequire(scan.m_state != ScanOp::Locked);
   // set up index keys for this operation
-  setKeyAttrs(frag);
+  setKeyAttrs(c_ctx, frag);
   // scan direction
   const unsigned idir = scan.m_descending; // 0, 1
   const int jdir = 1 - 2 * (int)idir;      // 1, -1
@@ -965,8 +973,8 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
   const int jdir = 1 - 2 * (int)idir;
   unpackBound(*scan.m_bound[1 - idir], c_dataBuffer);
   unsigned boundCnt = scan.m_boundCnt[1 - idir];
-  readKeyAttrs(frag, ent, 0, c_entryKey);
-  int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, boundCnt, c_entryKey);
+  readKeyAttrs(c_ctx, frag, ent, 0, c_ctx.c_entryKey);
+  int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, boundCnt, c_ctx.c_entryKey);
   ndbrequire(ret != NdbSqlUtil::CmpUnknown);
   if (jdir * ret > 0)
     return true;

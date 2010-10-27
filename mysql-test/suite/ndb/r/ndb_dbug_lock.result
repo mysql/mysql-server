@@ -1,0 +1,44 @@
+drop table if exists t1;
+#
+# Test that alter during lock table aborts with error if
+# global schema lock already exists
+#
+create table t1 (a int key) engine ndb row_format dynamic;
+set session debug="+d,sleep_after_global_schema_lock";
+alter table t1 add column (b int);
+lock tables t1 write;
+alter table t1 add column (c int);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter table t1 add column (c int);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter table t1 add column (c int);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+#
+# Test that alter during lock works without global schema lock
+# and that an alter done in parallell test serialized
+#
+lock tables t1 write;
+# delay is still set after lock
+alter table t1 add column (c int);
+# issue alter in parallell, which should be hanging waiting on
+alter table t1 add column (d int);
+# check thread state which should be:
+# "Waiting for allowed to take ndbcluster global schema lock"
+# _not_ "Waiting for ndbcluster global schema lock"
+select state from information_schema.processlist where info = "alter table t1 add column (d int)";
+state
+Waiting for allowed to take ndbcluster global schema lock
+unlock tables;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+# Cleanup
+set session debug="-d,";
+drop table t1;

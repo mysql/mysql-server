@@ -3,6 +3,9 @@ DROP TABLE IF EXISTS t1;
 set @old_auto_increment_offset = @@session.auto_increment_offset;
 set @old_auto_increment_increment = @@session.auto_increment_increment;
 set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set @old_auto_increment_offset = @@session.auto_increment_offset;
+set @old_auto_increment_increment = @@session.auto_increment_increment;
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
 flush status;
 create table t1 (a int not null auto_increment primary key) engine ndb;
 insert into t1 values (NULL);
@@ -442,4 +445,78 @@ a
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
 set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+drop table t1;
+set auto_increment_offset = @old_auto_increment_offset;
+set auto_increment_increment = @old_auto_increment_increment;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+CREATE TABLE `t1` (
+`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+`k` int(10) unsigned NOT NULL DEFAULT '0',
+`c` char(120) NOT NULL DEFAULT '',
+`pad` char(60) NOT NULL DEFAULT '',
+PRIMARY KEY (`id`),
+KEY `k` (`k`)
+) ENGINE=ndbcluster;
+CREATE TABLE `t2` (
+`evend_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+`timestamp` int(11) NOT NULL,
+`server_id` int(11) NOT NULL,
+PRIMARY KEY (`evend_id`)
+) ENGINE=ndbcluster;
+insert into t1 values (null,1,'',''),(null,2,'','');
+CREATE TRIGGER tr1
+AFTER UPDATE ON t1
+FOR EACH ROW
+BEGIN
+insert into t2(timestamp, server_id) values(UNIX_TIMESTAMP(),@@global.server_id);
+end;
+|
+CREATE TRIGGER tr1
+AFTER UPDATE ON t1
+FOR EACH ROW
+BEGIN
+insert into t2(timestamp, server_id) values(UNIX_TIMESTAMP(),@@global.server_id);
+end;
+|
+update t1 set c='foobar' where id=1;
+update t1 set c='foobar' where id=1;
+update t1 set c='foobar' where id=1;
+update t1 set c='foobar' where id=1;
+update t1 set c='foobar' where id=1;
+update t1 set c='foobar' where id=1;
+update t1 set c='foobar' where id=1;
+update t1 set c='foobar' where id=1;
+select evend_id,server_id from t2 order by evend_id;
+evend_id	server_id
+1	1
+2	2
+3	1
+4	2
+5	1
+6	2
+7	1
+8	2
+drop trigger tr1;
+drop table t1, t2;
+drop trigger if exists tr1;
+create table t1 (a int primary key auto_increment, b int) engine=ndb;
+insert into t1 values (null,1),(null,2),(null,3);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a int primary key auto_increment, b int) auto_increment=5
+engine=ndb;
+alter table t1 auto_increment=32000000;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=32000000 DEFAULT CHARSET=latin1
 drop table t1;

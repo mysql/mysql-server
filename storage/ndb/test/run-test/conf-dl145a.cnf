@@ -2,6 +2,7 @@
 basedir = CHOOSE_dir
 baseport = 14000
 clusters = .2node
+mt = 1
 
 [ndb_mgmd]
 
@@ -23,4 +24,10 @@ MaxNoOfSavedMessages= 1000
 SendBufferMemory = 2M
 NoOfFragmentLogFiles = 4
 FragmentLogFileSize = 64M
+CompressedLCP=1
+CompressedBackup=1
+ODirect=1
 
+SharedGlobalMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:128M
+InitialTablespace=datafile01.dat:128M;datafile02.dat:64M

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -89,6 +92,7 @@ File_class::open()
 bool 
 File_class::open(const char* aFileName, const char* mode) 
 {
+  assert(m_file == NULL); // Not already open
   if(m_fileName != aFileName){
     /**
      * Only copy if it's not the same string
@@ -104,6 +108,13 @@ File_class::open(const char* aFileName, const char* mode)
   
   return rc;
 }
+
+bool
+File_class::is_open()
+{
+  return (m_file != NULL);
+}
+
 File_class::~File_class()
 {
   close();  
@@ -158,7 +169,7 @@ File_class::readChar(char* buf, long start, long length) const
 int 
 File_class::readChar(char* buf)
 {
-  return readChar(buf, 0, strlen(buf));
+  return readChar(buf, 0, (long)strlen(buf));
 }
 
 int 
@@ -176,7 +187,7 @@ File_class::writeChar(const char* buf, long start, long length)
 int 
 File_class::writeChar(const char* buf)
 {
-  return writeChar(buf, 0, ::strlen(buf));
+  return writeChar(buf, 0, (long)::strlen(buf));
 }
 
 off_t

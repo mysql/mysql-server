@@ -19,4 +19,6 @@ update t0 set c2 = 'G' where c0 = 1;
 update t0 set c0 = 5, c2 = 'H' where c0 = 3;
 delete from t0;
 drop table t0;
+drop database TEST_DB;
+drop database TEST_DB_1;
 Running mgmapi_logevent
