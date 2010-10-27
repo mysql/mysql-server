@@ -779,6 +779,9 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
   int ret= 0;
 
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&ret))
+    return TRUE;
+
   thd->lex= &newlex;
   newlex.current_select= NULL;
 
@@ -1505,6 +1508,9 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
                        (int) name->m_name.length, name->m_name.str,
                        type, cache_only));
 
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&depth))
+    return NULL;
+
   if ((sp= sp_cache_lookup(cp, name)))
   {
     ulong level;
@@ -1633,38 +1639,6 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any)
     }
   }
   DBUG_RETURN(FALSE);
-}
-
-
-/**
-  Check if a routine exists in the mysql.proc table, without actually
-  parsing the definition. (Used for dropping).
-
-  @param thd          thread context
-  @param name         name of procedure
-
-  @retval
-    0       Success
-  @retval
-    non-0   Error;  SP_OPEN_TABLE_FAILED or SP_KEY_NOT_FOUND
-*/
-
-int
-sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
-{
-  TABLE *table;
-  int ret;
-  Open_tables_backup open_tables_state_backup;
-
-  if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
-    ret= SP_OPEN_TABLE_FAILED;
-  else
-  {
-    if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
-      ret= SP_KEY_NOT_FOUND;
-    close_system_tables(thd, &open_tables_state_backup);
-  }
-  return ret;
 }
 
 

@@ -100,9 +100,6 @@ sp_cache_routine(THD *thd, int type, sp_name *name,
 bool
 sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
 
-int
-sp_routine_exists_in_table(THD *thd, int type, sp_name *name);
-
 bool
 sp_show_create_routine(THD *thd, int type, sp_name *name);
 
