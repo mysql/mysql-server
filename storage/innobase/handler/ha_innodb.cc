@@ -4979,11 +4979,20 @@ ha_innobase::build_template(
 
 				/* Index condition pushdown can be used on
 				all columns of a secondary index, and on
-				the PRIMARY KEY columns. */
-				/* TODO: enable this assertion
-				(but first ensure that end_range is
-				valid here and use an accurate condition
-				for end_range)
+				the PRIMARY KEY columns. On the clustered
+				index, it must never be used on other than
+				PRIMARY KEY columns, because those columns
+				may be stored off-page, and we will not
+				fetch externally stored columns before
+				checking the index condition. */
+				/* TODO: test the above with an assertion
+				like this. Note that index conditions are
+				currently pushed down as part of the
+				"optimizer phase" while end_range is done
+				as part of the execution phase. Therefore,
+				we were unable to use an accurate condition
+				for end_range in the "if" condition above,
+				and the following assertion would fail.
 				ut_ad(!dict_index_is_clust(prebuilt->index)
 				      || templ->rec_field_no
 				      < prebuilt->index->n_uniq);

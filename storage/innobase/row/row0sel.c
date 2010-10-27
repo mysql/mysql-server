@@ -4643,7 +4643,18 @@ next_rec:
 	/*-------------------------------------------------------------*/
 	/* PHASE 5: Move the cursor to the next index record */
 
-	/* TODO: with ICP, do this when switching pages, every N pages */
+	/* NOTE: For moves_up==FALSE, the mini-transaction will be
+	committed and restarted every time when switching b-tree
+	pages. For moves_up==TRUE in index condition pushdown, we can
+	scan an entire secondary index tree within a single
+	mini-transaction. As long as the prebuilt->idx_cond does not
+	match, we do not need to consult the clustered index or
+	return records to MySQL, and thus we can avoid repositioning
+	the cursor. What prevents us from buffer-fixing all leaf pages
+	within the mini-transaction is the btr_leaf_page_release()
+	call in btr_pcur_move_to_next_page(). Only the leaf page where
+	the cursor is positioned will remain buffer-fixed. */
+
 	if (UNIV_UNLIKELY(mtr_has_extra_clust_latch)) {
 		/* We must commit mtr if we are moving to the next
 		non-clustered index record, because we could break the
