@@ -154,7 +154,7 @@ def	mysql	slave_master_info	Master_log_name	3	NULL	NO	text	65535	65535	NULL	NULL
 def	mysql	slave_master_info	Master_log_pos	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			select,insert,update,references	
 def	mysql	slave_master_info	Number_of_lines	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			select,insert,update,references	
 def	mysql	slave_master_info	Port	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			select,insert,update,references	
-def	mysql	slave_master_info	Retry_count	21	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			select,insert,update,references	
+def	mysql	slave_master_info	Retry_count	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	mysql	slave_master_info	Ssl_ca	11	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	
 def	mysql	slave_master_info	Ssl_capath	12	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	
 def	mysql	slave_master_info	Ssl_cert	13	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	
@@ -476,7 +476,7 @@ NULL	mysql	slave_master_info	Heartbeat	float	NULL	NULL	NULL	NULL	float
 1.0000	mysql	slave_master_info	Bind	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Ignored_server_ids	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Uuid	text	65535	65535	utf8	utf8_bin	text
-NULL	mysql	slave_master_info	Retry_count	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	slave_master_info	Retry_count	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	slave_relay_log_info	Master_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
