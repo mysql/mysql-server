@@ -247,8 +247,8 @@ static const int WAIT_FOR_READ	= 5000;
 /** Number of attemtps made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 
-/** The buffer buf_pool of the database */
-UNIV_INTERN buf_pool_t*	buf_pool_ptr[MAX_BUFFER_POOLS];
+/** The buffer pools of the database */
+UNIV_INTERN buf_pool_t*	buf_pool_ptr;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 static ulint	buf_dbg_counter	= 0; /*!< This is used to insert validation
@@ -866,7 +866,7 @@ buf_block_init(
 
 	block->frame = frame;
 
-	block->page.buf_pool = buf_pool;
+	block->page.buf_pool_index = buf_pool_index(buf_pool);
 	block->page.state = BUF_BLOCK_NOT_USED;
 	block->page.buf_fix_count = 0;
 	block->page.io_fix = BUF_IO_NONE;
@@ -1303,8 +1303,6 @@ buf_pool_free_instance(
 	ha_clear(buf_pool->page_hash);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
-	mem_free(buf_pool);
-	buf_pool = NULL;
 }
 
 /********************************************************************//**
@@ -1317,24 +1315,22 @@ buf_pool_init(
 	ulint	total_size,	/*!< in: size of the total pool in bytes */
 	ulint	n_instances)	/*!< in: number of instances */
 {
-	ulint	i;
+	ulint		i;
+	const ulint	size	= total_size / n_instances;
+
+	ut_ad(n_instances > 0);
+	ut_ad(n_instances <= MAX_BUFFER_POOLS);
+	ut_ad(n_instances == srv_buf_pool_instances);
 
 	/* We create an extra buffer pool instance, this instance is used
 	for flushing the flush lists, to keep track of n_flush for all
 	the buffer pools and also used as a waiting object during flushing. */
+	buf_pool_ptr = mem_zalloc(n_instances * sizeof *buf_pool_ptr);
+
 	for (i = 0; i < n_instances; i++) {
-		buf_pool_t*	ptr;
-		ulint		size;
-
-		ptr = mem_zalloc(sizeof(*ptr));
-
-		size = total_size / n_instances;
-
-		buf_pool_ptr[i] = ptr;
+		buf_pool_t*	ptr	= &buf_pool_ptr[i];
 
 		if (buf_pool_init_instance(ptr, size, i) != DB_SUCCESS) {
-
-			mem_free(buf_pool_ptr[i]);
 
 			/* Free all the instances created so far. */
 			buf_pool_free(i);
@@ -1364,8 +1360,10 @@ buf_pool_free(
 
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
-		buf_pool_ptr[i] = NULL;
 	}
+
+	mem_free(buf_pool_ptr);
+	buf_pool_ptr = NULL;
 }
 
 /********************************************************************//**
@@ -3894,7 +3892,7 @@ err_exit:
 		bpage = buf_buddy_alloc(buf_pool, sizeof *bpage, &lru);
 
 		/* Initialize the buf_pool pointer. */
-		bpage->buf_pool = buf_pool;
+		bpage->buf_pool_index = buf_pool_index(buf_pool);
 
 		mutex_enter(hash_mutex);
 
