@@ -12652,9 +12652,12 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     }
     else if (join->send_row_on_empty_set())
     {
-      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                 fields);
-      rc= join->result->send_data(*columns_list);
+      if (!join->having || join->having->val_int())
+      {
+        List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                   fields);
+        rc= join->result->send_data(*columns_list);
+      }
     }
   }
   else
