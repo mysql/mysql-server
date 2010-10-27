@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUX_GEN_CPP
 #include "Dbtux.hpp"
 
-Dbtux::Dbtux(Block_context& ctx) :
-  SimulatedBlock(DBTUX, ctx),
+#include <signaldata/NodeStateSignalData.hpp>
+
+Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(DBTUX, ctx, instanceNumber),
   c_tup(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
@@ -26,8 +31,7 @@ Dbtux::Dbtux(Block_context& ctx) :
   debugFlags(0),
 #endif
   c_internalStartPhase(0),
-  c_typeOfStart(NodeState::ST_ILLEGAL_TYPE),
-  c_dataBuffer(0)
+  c_typeOfStart(NodeState::ST_ILLEGAL_TYPE)
 {
   BLOCK_CONSTRUCTOR(Dbtux);
   // verify size assumptions (also when release-compiled)
@@ -46,9 +50,10 @@ Dbtux::Dbtux(Block_context& ctx) :
   /*
    * DbtuxMeta.cpp
    */
+  addRecSignal(GSN_CREATE_TAB_REQ, &Dbtux::execCREATE_TAB_REQ);
   addRecSignal(GSN_TUXFRAGREQ, &Dbtux::execTUXFRAGREQ);
   addRecSignal(GSN_TUX_ADD_ATTRREQ, &Dbtux::execTUX_ADD_ATTRREQ);
-  addRecSignal(GSN_ALTER_INDX_REQ, &Dbtux::execALTER_INDX_REQ);
+  addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &Dbtux::execALTER_INDX_IMPL_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbtux::execDROP_TAB_REQ);
   /*
    * DbtuxMaint.cpp
@@ -72,6 +77,12 @@ Dbtux::Dbtux(Block_context& ctx) :
    * DbtuxDebug.cpp
    */
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
+
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbtux::execDBINFO_SCANREQ);
+
+  addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
+
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbtux::execDROP_FRAG_REQ);
 }
 
 Dbtux::~Dbtux()
@@ -125,7 +136,7 @@ Dbtux::execSTTOR(Signal* signal)
   case 1:
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP);
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     ndbrequire(c_tup != 0);
     break;
   case 3:
@@ -145,7 +156,23 @@ Dbtux::execSTTOR(Signal* signal)
   signal->theData[4] = 3;       // for c_typeOfStart
   signal->theData[5] = 7;       // for c_internalStartPhase
   signal->theData[6] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUX_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
+}
+
+void
+Dbtux::execNODE_STATE_REP(Signal* signal)
+{
+  /**
+   * This is to handle TO during SR
+   *   and STUPID tux looks at c_typeOfStart in TUX_MAINT_REQ
+   */
+  NodeStateRep* rep = (NodeStateRep*)signal->getDataPtr();
+  if (rep->nodeState.startLevel == NodeState::SL_STARTING)
+  {
+    c_typeOfStart = rep->nodeState.starting.restartType;
+  }
+  SimulatedBlock::execNODE_STATE_REP(signal);
 }
 
 void
@@ -201,11 +228,14 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
     new (indexPtr.p) Index();
   }
   // allocate buffers
-  c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
-  c_sqlCmp = (NdbSqlUtil::Cmp**)allocRecord("c_sqlCmp", sizeof(NdbSqlUtil::Cmp*), MaxIndexAttributes);
-  c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
-  c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
+  c_ctx.jamBuffer = jamBuffer();
+  c_ctx.c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
+  c_ctx.c_sqlCmp = (NdbSqlUtil::Cmp**)allocRecord("c_sqlCmp", sizeof(NdbSqlUtil::Cmp*), MaxIndexAttributes);
+  c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
+  c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
+
   c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
+
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -217,14 +247,14 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 // utils
 
 void
-Dbtux::setKeyAttrs(const Frag& frag)
+Dbtux::setKeyAttrs(TuxCtx& ctx, const Frag& frag)
 {
-  Data keyAttrs = c_keyAttrs; // global
-  NdbSqlUtil::Cmp** sqlCmp = c_sqlCmp; // global
+  Data keyAttrs = ctx.c_keyAttrs;
+  NdbSqlUtil::Cmp** sqlCmp = ctx.c_sqlCmp; // global
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   for (unsigned i = 0; i < numAttrs; i++) {
-    jam();
+    thrjam(ctx.jamBuffer);
     const DescAttr& descAttr = descEnt.m_descAttr[i];
     Uint32 size = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
     // set attr id and fixed size
@@ -238,9 +268,9 @@ Dbtux::setKeyAttrs(const Frag& frag)
 }
 
 void
-Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
+Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
 {
-  ConstData keyAttrs = c_keyAttrs; // global
+  ConstData keyAttrs = ctx.c_keyAttrs;
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
   const Uint32 tupVersion = ent.m_tupVersion;
@@ -248,8 +278,10 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
   const Uint32 numAttrs = frag.m_numAttrs - start;
   // skip to start position in keyAttrs only
   keyAttrs += start;
-  int ret = c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupVersion, keyAttrs, numAttrs, keyData);
-  jamEntry();
+  int ret = c_tup->tuxReadAttrs(ctx.jamBuffer,
+                                tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(),
+                                tupVersion, keyAttrs, numAttrs, keyData);
+  thrjamEntry(ctx.jamBuffer);
   // TODO handle error
   ndbrequire(ret > 0);
 #ifdef VM_TRACE
@@ -291,12 +323,12 @@ Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize)
  * Copies whatever fits.
  */
 void
-Dbtux::copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2)
+Dbtux::copyAttrs(TuxCtx& ctx, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2)
 {
   unsigned n = frag.m_numAttrs;
   unsigned len2 = maxlen2;
   while (n != 0) {
-    jam();
+    thrjam(ctx.jamBuffer);
     const unsigned dataSize = ah(data1).getDataSize();
     // copy header
     if (len2 == 0)

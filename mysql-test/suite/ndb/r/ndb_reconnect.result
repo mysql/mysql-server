@@ -1,0 +1,28 @@
+CREATE TABLE t1(a int primary key, b varchar(255), c int) engine=ndb;
+select * from t1;
+a	b	c
+insert into t1 values (1, "row 1", 2);
+select * from t1;
+a	b	c
+1	row 1	2
+select * from t1;
+a	b	c
+1	row 1	2
+select * from t1;
+a	b	c
+1	row 1	2
+select * from t1;
+ERROR HY000: Got error 157 'Unknown error code' from NDBCLUSTER
+select * from t1;
+ERROR HY000: Got error 157 'Unknown error code' from NDBCLUSTER
+select a,b,c from t1;
+a	b	c
+1	row 1	2
+select * from t1;
+a	b	c
+1	row 1	2
+select * from t1;
+a	b	c
+1	row 1	2
+insert into t1 values (2, "row 1", 37);
+drop table t1;

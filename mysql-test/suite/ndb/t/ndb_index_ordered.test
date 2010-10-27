@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 drop table if exists t1, test1, test2;
@@ -333,29 +332,21 @@ select count(*)- 4 from t1 use index (v) where v  >  0000965.00042;
 
 drop table t1;
 
-#
-# Disabled due to WL#4284
-#
-# Needs to be reworked. It's not possible anymore to do a non-fast alter table
-# on a table that is being used by a pending transaction (transaction holds a
-# metadata lock on the table).
-#
 # bug#7798
-# create table t1(a int primary key, b int not null, c int, index(b));
-# insert into t1 values (1,1,1), (2,2,2);
-# connect (con1,localhost,root,,test);
-# connect (con2,localhost,root,,test);
-# connection con1;
-# set autocommit=0;
-# begin;
-# select count(*) from t1;
-# connection con2;
-# ALTER TABLE t1 ADD COLUMN c int
-# connection con1;
-# select a from t1 where b = 2;
-# show tables;
-# drop table t1;
-#
+create table t1(a int primary key, b int not null, index(b));
+insert into t1 values (1,1), (2,2);
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+connection con1;
+set autocommit=0;
+begin;
+select count(*) from t1;
+connection con2;
+ALTER TABLE t1 ADD COLUMN c int;
+connection con1;
+select a from t1 where b = 2;
+show tables;
+drop table t1;
 
 # mysqld 5.0.13 crash, no bug#
 create table t1 (a int, c varchar(10),
@@ -486,3 +477,90 @@ create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
 create index i on nationaldish(countrycode,calories) using hash;
 
 drop table nationaldish;
+
+# bug#42857 Got error 4541 -IndexBound has no bound information- from NDBCLUSTER
+# Test that query returns results expected
+
+drop table if exists t1;
+create table t1(c1 varchar(20) primary key, c2 char(20)) engine=ndbcluster;
+insert into t1(c1,c2) values ('ddd','jg');
+select * from t1 where  (c2 < 'b' AND c1 <> 'g')  OR  (c2 <> 'a' AND c1 <> 'd');
+drop table t1;
+
+# bug#45053 xfrm buffer overflow in TUX
+# 3*1024 = 3072 = max bytes in MySQL key
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (
+  a int unsigned,
+  b varchar(1024) not null,
+  primary key using hash (a),
+  index x1 (b)
+) engine = ndbcluster
+  default charset = utf8
+  collate = utf8_unicode_ci;
+insert into t1 values (1,'a'),(2,'y'),(3,'z');
+select * from t1 where b = 'b';
+select * from t1 where b = 'a';
+drop table t1;
+
+# bug#57396 MRR empty range sets wrong index attr id
+
+--echo # bug#57396
+create table t1 (a int not null, b int not null, primary key (b,a)) engine=ndb;
+insert into t1(a,b) values(0,0);
+select * from t1 where b < 8 or b >= 8;
+drop table t1;
+
+# bug#56853 missing shrink varchar in index bound dist key check
+
+--echo # bug#56853
+
+create table t1 (
+  x varchar(16) not null,
+  primary key (x)
+)
+character set latin1
+collate latin1_swedish_ci
+engine ndb
+partition by key (x) partitions 8;
+
+# like % works here
+insert into t1 (x) values ('aaa');
+insert into t1 (x) values ('bbb');
+insert into t1 (x) values ('ccc');
+insert into t1 (x) values ('ddd');
+select x from t1 where x like 'aa%';
+select x from t1 where x like 'aa_';
+select x from t1 where x like 'bb%';
+select x from t1 where x like 'bb_';
+select x from t1 where x like 'cc%';
+select x from t1 where x like 'cc_';
+select x from t1 where x like 'dd%';
+select x from t1 where x like 'dd_';
+drop table t1;
+
+# show same bug with like %
+create table t1 (
+  x varchar(4) not null,
+  primary key (x)
+)
+character set latin1
+collate latin1_swedish_ci
+engine ndb
+partition by key (x) partitions 8;
+
+insert into t1 (x) values ('aaaa');
+insert into t1 (x) values ('bbbb');
+insert into t1 (x) values ('cccc');
+insert into t1 (x) values ('dddd');
+select x from t1 where x like 'aaa%';
+select x from t1 where x like 'aaa_';
+select x from t1 where x like 'bbb%';
+select x from t1 where x like 'bbb_';
+select x from t1 where x like 'ccc%';
+select x from t1 where x like 'ccc_';
+select x from t1 where x like 'ddd%';
+select x from t1 where x like 'ddd_';
+drop table t1;

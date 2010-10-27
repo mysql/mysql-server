@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -32,7 +35,8 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
 	  sig->getOperationType(requestInfo) == ZUPDATE  ? "Update" :
 	  sig->getOperationType(requestInfo) == ZINSERT  ? "Insert" :
 	  sig->getOperationType(requestInfo) == ZDELETE  ? "Delete" :
-	  sig->getOperationType(requestInfo) == ZWRITE   ? "Write" :
+	  sig->getOperationType(requestInfo) == ZWRITE   ? "Write"  :
+          sig->getOperationType(requestInfo) == ZUNLOCK  ? "Unlock" :
 	  "Unknown");
   {
     if(sig->getDirtyFlag(requestInfo)){
@@ -47,10 +51,6 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
     if(sig->getCommitFlag(requestInfo)){
       fprintf(output, "Commit ");
     }
-    if (sig->getExecutingTrigger(requestInfo)) {
-      fprintf(output, "Trigger ");
-    }
-
     if (sig->getNoDiskFlag(requestInfo)) {
       fprintf(output, "NoDisk ");
     }

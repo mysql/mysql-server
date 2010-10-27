@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SIMBLOCKASYNCFILESYSTEM_H
 #define SIMBLOCKASYNCFILESYSTEM_H
@@ -21,22 +24,23 @@
 #include "Pool.hpp"
 #include "AsyncFile.hpp"
 #include "OpenFiles.hpp"
+#include <signaldata/FsOpenReq.hpp>
 
-
+class AsyncIoThread;
 
 // Because one NDB Signal request can result in multiple requests to
 // AsyncFile one class must be made responsible to keep track
 // of all out standing request and when all are finished the result
 // must be reported to the sending block.
 
-
 class Ndbfs : public SimulatedBlock
 {
+  friend class AsyncIoThread;
 public:
   Ndbfs(Block_context&);
   virtual ~Ndbfs();
-
   virtual const char* get_filename(Uint32 fd) const;
+
 protected:
   BLOCK_DEFINES(Ndbfs);
 
@@ -52,6 +56,10 @@ protected:
   void execFSREMOVEREQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execCONTINUEB(Signal* signal);
+  void execALLOC_MEM_REQ(Signal* signal);
+  void execSEND_PACKED(Signal*);
+  void execBUILD_INDX_IMPL_REQ(Signal* signal);
+  void execFSSUSPENDORD(Signal*);
 
   bool scanningInProgress;
   Uint16 newId();
@@ -67,22 +75,25 @@ private:
   
   // Used for uniqe number generation
   Uint16 theLastId;
-  BlockReference cownref;
 
-  // Communication from files 
+  // Communication from/to files
   MemoryChannel<Request> theFromThreads;
+  MemoryChannel<Request> theToThreads;
 
   Pool<Request>* theRequestPool;
 
-  AsyncFile* createAsyncFile();
-  AsyncFile* getIdleFile();
+  AsyncIoThread* createIoThread(AsyncFile* file);
+  AsyncFile* createAsyncFile(bool bound);
+  AsyncFile* getIdleFile(bool bound);
+  void pushIdleFile(AsyncFile*);
 
-  Vector<AsyncFile*> theFiles;     // List all created AsyncFiles
-  Vector<AsyncFile*> theIdleFiles; // List of idle AsyncFiles
-  OpenFiles theOpenFiles;          // List of open AsyncFiles
+  Vector<AsyncIoThread*> theThreads;// List of all created threads
+  Vector<AsyncFile*> theFiles;      // List all created AsyncFiles
+  Vector<AsyncFile*> theIdleBoundFiles;   // List of idle AsyncFiles
+  Vector<AsyncFile*> theIdleUnboundFiles; // List of idle AsyncFiles
+  OpenFiles theOpenFiles;           // List of open AsyncFiles
 
-  BaseString theFileSystemPath;
-  BaseString theBackupFilePath;
+  BaseString m_base_path[FsOpenReq::BP_MAX];
   
   // Statistics variables
   Uint32 m_maxOpenedFiles;
@@ -93,9 +104,11 @@ private:
   void readWriteRequest(  int action, Signal * signal );
 
   static Uint32 translateErrno(int aErrno);
+public:
+  const BaseString& get_base_path(Uint32 no) const;
 };
 
-class VoidFs : public SimulatedBlock
+class VoidFs : public Ndbfs
 {
 public:
   VoidFs(Block_context&);
@@ -115,6 +128,9 @@ protected:
   void execFSAPPENDREQ(Signal* signal);
   void execFSREMOVEREQ(Signal* signal);
   void execSTTOR(Signal* signal);
+  void execALLOC_MEM_REQ(Signal*);
+  void execSEND_PACKED(Signal*);
+  void execFSSUSPENDORD(Signal*);
 
 private:
   // Declared but not defined

@@ -1,12 +1,10 @@
-use test;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-Connected to Management Server at: :
+Start first backup
 Waiting for completed, this may take several minutes
-Node : Backup  started from node 
-Node : Backup  started from node  completed
- StartGCP:  StopGCP: 
- #Records:  #LogRecords: 
- Data:  bytes Log:  bytes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
 create table t1
 (pk int key
 ,a1 BIT(1), a2 BIT(5), a3 BIT(33), a4 BIT(63), a5 BIT(64)
@@ -55,11 +53,11 @@ insert into t1 values
 ,NULL,NULL,NULL
 ,NULL,NULL,NULL
 );
-Connected to Management Server at: :
+Start second backup
 Waiting for completed, this may take several minutes
-Node : Backup  started from node 
-Node : Backup  started from node  completed
- StartGCP:  StopGCP: 
- #Records:  #LogRecords: 
- Data:  bytes Log:  bytes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
 drop table t1;

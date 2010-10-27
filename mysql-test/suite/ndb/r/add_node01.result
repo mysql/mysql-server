@@ -1,0 +1,238 @@
+result_format: 2
+## Make mtr.pl restart all servers after this test
+call mtr.force_restart();
+
+## Show cluster is started with one ndb_mgmd and two ndbd nodes
+Connected to Management Server at: localhost
+Cluster Configuration
+---------------------
+[ndbd(NDB)]	2 node(s)
+id=1	@127.0.0.1  (mysql ndb, Nodegroup: 0, Master)
+id=2	@127.0.0.1  (mysql ndb, Nodegroup: 0)
+
+[ndb_mgmd(MGM)]	1 node(s)
+id=3	@127.0.0.1  (mysql ndb)
+
+[mysqld(API)]	14 node(s)
+id=4	@127.0.0.1  (mysql ndb)
+id=5	@127.0.0.1  (mysql ndb)
+id=6	@127.0.0.1  (mysql ndb)
+id=7	@127.0.0.1  (mysql ndb)
+id=8	@127.0.0.1  (mysql ndb)
+id=9	@127.0.0.1  (mysql ndb)
+id=10 (not connected, accepting connect from localhost)
+id=11 (not connected, accepting connect from localhost)
+id=12 (not connected, accepting connect from localhost)
+id=63 (not connected, accepting connect from localhost)
+id=127 (not connected, accepting connect from localhost)
+id=192 (not connected, accepting connect from localhost)
+id=228 (not connected, accepting connect from localhost)
+id=255 (not connected, accepting connect from localhost)
+
+drop database if exists DB1;
+CREATE LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_1.dat'
+    INITIAL_SIZE 16M
+    UNDO_BUFFER_SIZE 2M
+    ENGINE NDB;
+
+ALTER LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_2.dat'
+    INITIAL_SIZE 12M
+    ENGINE NDB;
+
+CREATE TABLESPACE ts_1
+    ADD DATAFILE 'data_1.dat'
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 32M
+    ENGINE NDB;
+
+CREATE TABLESPACE ts_2
+    ADD DATAFILE 'data_2.dat'
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 32M
+    ENGINE NDB;
+
+create database DB1;
+use DB1;
+create table old_table1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table old_table2(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table old_table3(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK
+engine=ndb;
+create table old_table4(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_2 STORAGE DISK
+engine=ndb;
+
+load data local infile 'suite/ndb/std_data/table_data10000.dat' into table old_table1 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/std_data/table_data10000.dat' into table old_table2 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/std_data/table_data10000.dat' into table old_table3 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/std_data/table_data10000.dat' into table old_table4 fields terminated by ' ' lines terminated by '\n';
+
+## Add two nodes to my.cnf
+## Reload ndb_mgmd
+## Restart the "old" ndbd nodes
+## Restart mysqld nodes
+
+
+
+
+
+## Initial start of "new" data nodes
+## Wait for added nodes started
+## Create nodegroup for "new" nodes
+Connected to Management Server at: localhost
+Cluster Configuration
+---------------------
+[ndbd(NDB)]	4 node(s)
+id=1	@127.0.0.1  (mysql ndb, Nodegroup: 0, Master)
+id=2	@127.0.0.1  (mysql ndb, Nodegroup: 0)
+id=40	@127.0.0.1  (mysql ndb, Nodegroup: 1)
+id=41	@127.0.0.1  (mysql ndb, Nodegroup: 1)
+
+[ndb_mgmd(MGM)]	1 node(s)
+id=3	@127.0.0.1  (mysql ndb)
+
+[mysqld(API)]	14 node(s)
+id=4	@127.0.0.1  (mysql ndb)
+id=5	@127.0.0.1  (mysql ndb)
+id=6	@127.0.0.1  (mysql ndb)
+id=7	@127.0.0.1  (mysql ndb)
+id=8	@127.0.0.1  (mysql ndb)
+id=9	@127.0.0.1  (mysql ndb)
+id=10 (not connected, accepting connect from localhost)
+id=11 (not connected, accepting connect from localhost)
+id=12 (not connected, accepting connect from localhost)
+id=63 (not connected, accepting connect from localhost)
+id=127 (not connected, accepting connect from localhost)
+id=192 (not connected, accepting connect from localhost)
+id=228 (not connected, accepting connect from localhost)
+id=255 (not connected, accepting connect from localhost)
+
+use DB1;
+create table new_table1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table new_table2(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK
+engine=ndb;
+insert into new_table1(id, data) VALUES(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+insert into new_table2(id, data) VALUES(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+
+## ndb_mgm dump shows old data resides only on "old" nodes and new data resides on all nodes in cluster log 
+alter online table old_table1 reorganize partition;
+alter online table old_table2 reorganize partition;
+alter online table old_table3 reorganize partition;
+alter online table old_table4 reorganize partition;
+
+select LOGFILE_GROUP_NAME,FILE_TYPE,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='undo_1.dat';
+LOGFILE_GROUP_NAME	FILE_TYPE	EXTRA
+lg_1	UNDO LOG	CLUSTER_NODE=1;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=2;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=40;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=41;UNDO_BUFFER_SIZE=2097152
+select LOGFILE_GROUP_NAME,FILE_TYPE,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='undo_2.dat';
+LOGFILE_GROUP_NAME	FILE_TYPE	EXTRA
+lg_1	UNDO LOG	CLUSTER_NODE=1;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=2;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=40;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=41;UNDO_BUFFER_SIZE=2097152
+select LOGFILE_GROUP_NAME,FILE_TYPE,TABLESPACE_NAME,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='data_1.dat';
+LOGFILE_GROUP_NAME	FILE_TYPE	TABLESPACE_NAME	EXTRA
+lg_1	DATAFILE	ts_1	CLUSTER_NODE=1
+lg_1	DATAFILE	ts_1	CLUSTER_NODE=2
+lg_1	DATAFILE	ts_1	CLUSTER_NODE=40
+lg_1	DATAFILE	ts_1	CLUSTER_NODE=41
+select LOGFILE_GROUP_NAME,FILE_TYPE,TABLESPACE_NAME,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='data_2.dat';
+LOGFILE_GROUP_NAME	FILE_TYPE	TABLESPACE_NAME	EXTRA
+lg_1	DATAFILE	ts_2	CLUSTER_NODE=1
+lg_1	DATAFILE	ts_2	CLUSTER_NODE=2
+lg_1	DATAFILE	ts_2	CLUSTER_NODE=40
+lg_1	DATAFILE	ts_2	CLUSTER_NODE=41
+
+## Drop nodegroup with "new" nodes is not allowed with data one those nodes
+## Nodegroup with "new" nodes still exist after dropping it as shown:
+Connected to Management Server at: localhost
+Cluster Configuration
+---------------------
+[ndbd(NDB)]	4 node(s)
+id=1	@127.0.0.1  (mysql ndb, Nodegroup: 0, Master)
+id=2	@127.0.0.1  (mysql ndb, Nodegroup: 0)
+id=40	@127.0.0.1  (mysql ndb, Nodegroup: 1)
+id=41	@127.0.0.1  (mysql ndb, Nodegroup: 1)
+
+[ndb_mgmd(MGM)]	1 node(s)
+id=3	@127.0.0.1  (mysql ndb)
+
+[mysqld(API)]	14 node(s)
+id=4	@127.0.0.1  (mysql ndb)
+id=5	@127.0.0.1  (mysql ndb)
+id=6	@127.0.0.1  (mysql ndb)
+id=7	@127.0.0.1  (mysql ndb)
+id=8	@127.0.0.1  (mysql ndb)
+id=9	@127.0.0.1  (mysql ndb)
+id=10 (not connected, accepting connect from localhost)
+id=11 (not connected, accepting connect from localhost)
+id=12 (not connected, accepting connect from localhost)
+id=63 (not connected, accepting connect from localhost)
+id=127 (not connected, accepting connect from localhost)
+id=192 (not connected, accepting connect from localhost)
+id=228 (not connected, accepting connect from localhost)
+id=255 (not connected, accepting connect from localhost)
+
+show databases;
+Database
+information_schema
+DB1
+mtr
+mysql
+test
+drop table old_table1,old_table2,old_table3,old_table4,new_table1,new_table2;
+drop database DB1;
+show databases;
+Database
+information_schema
+mtr
+mysql
+test
+
+## Drop nodegroup with "new" nodes
+## Nodegroup with "new" nodes still exists after dropping it as shown:
+Connected to Management Server at: localhost
+Cluster Configuration
+---------------------
+[ndbd(NDB)]	4 node(s)
+id=1	@127.0.0.1  (mysql ndb, Nodegroup: 0, Master)
+id=2	@127.0.0.1  (mysql ndb, Nodegroup: 0)
+id=40	@127.0.0.1  (mysql ndb, no nodegroup)
+id=41	@127.0.0.1  (mysql ndb, no nodegroup)
+
+[ndb_mgmd(MGM)]	1 node(s)
+id=3	@127.0.0.1  (mysql ndb)
+
+[mysqld(API)]	14 node(s)
+id=4	@127.0.0.1  (mysql ndb)
+id=5	@127.0.0.1  (mysql ndb)
+id=6	@127.0.0.1  (mysql ndb)
+id=7	@127.0.0.1  (mysql ndb)
+id=8	@127.0.0.1  (mysql ndb)
+id=9	@127.0.0.1  (mysql ndb)
+id=10 (not connected, accepting connect from localhost)
+id=11 (not connected, accepting connect from localhost)
+id=12 (not connected, accepting connect from localhost)
+id=63 (not connected, accepting connect from localhost)
+id=127 (not connected, accepting connect from localhost)
+id=192 (not connected, accepting connect from localhost)
+id=228 (not connected, accepting connect from localhost)
+id=255 (not connected, accepting connect from localhost)
+
+ALTER TABLESPACE ts_1
+    DROP DATAFILE 'data_1.dat'
+    ENGINE NDB;
+
+ALTER TABLESPACE ts_2
+    DROP DATAFILE 'data_2.dat'
+    ENGINE NDB;
+
+drop TABLESPACE ts_1 ENGINE NDB;
+drop TABLESPACE ts_2 ENGINE NDB;
+
+drop LOGFILE GROUP lg_1 ENGINE NDB;

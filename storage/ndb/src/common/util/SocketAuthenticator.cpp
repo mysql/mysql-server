@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -41,20 +44,13 @@ SocketAuthSimple::~SocketAuthSimple()
     free((void*)m_username);
 }
 
-bool SocketAuthSimple::client_authenticate(int sockfd)
+bool SocketAuthSimple::client_authenticate(NDB_SOCKET_TYPE sockfd)
 {
   SocketOutputStream s_output(sockfd);
   SocketInputStream  s_input(sockfd);
 
-  if (m_username)
-    s_output.println("%s", m_username);
-  else
-    s_output.println("");
-
-  if (m_passwd)
-    s_output.println("%s", m_passwd);
-  else
-    s_output.println("");
+  s_output.println("%s", m_username ? m_username : "");
+  s_output.println("%s", m_passwd ? m_passwd : "");
 
   char buf[16];
   if (s_input.gets(buf, 16) == 0) return false;
@@ -64,7 +60,7 @@ bool SocketAuthSimple::client_authenticate(int sockfd)
   return false;
 }
 
-bool SocketAuthSimple::server_authenticate(int sockfd)
+bool SocketAuthSimple::server_authenticate(NDB_SOCKET_TYPE sockfd)
 {
 
   SocketOutputStream s_output(sockfd);

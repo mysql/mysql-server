@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,19 +13,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
 
 #include "Parser.hpp"
-#include <NdbOut.hpp>
 #include <Properties.hpp>
 
-#undef DEBUG
-#define DEBUG(x) ndbout << x << endl;
-
-static void trim(char * str);
 
 class ParseInputStream : public InputStream {
 public:
@@ -119,11 +117,12 @@ trim(char * str){
 static
 bool
 split(char * buf, char ** name, char ** value){
-  
-  * value = strchr(buf, ':');
-  if(* value == 0)
-    * value = strchr(buf, '=');
 
+  for (*value=buf; **value; (*value)++) {
+    if (**value == ':' || **value == '=') {
+      break;
+    }
+  }
 
   if(* value == 0){
     return false;
@@ -142,8 +141,6 @@ bool
 ParserImpl::run(Context * ctx, const class Properties ** pDst,
 		volatile bool * stop) const
 {
-  DBUG_ENTER("ParserImpl::run");
-
   input.set_mutex(ctx->m_mutex);
 
   * pDst = 0;
@@ -157,7 +154,7 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
   ctx->m_currentToken = input.gets(ctx->m_tokenBuffer, sz);
   if(Eof(ctx->m_currentToken)){
     ctx->m_status = Parser<Dummy>::Eof;
-    DBUG_RETURN(false);
+    return false;
   }
 
   int last= strlen(ctx->m_currentToken);
@@ -167,19 +164,19 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
   if(ctx->m_currentToken[last] !='\n'){
     ctx->m_status = Parser<Dummy>::NoLine;
     ctx->m_tokenBuffer[0]= '\0';
-    DBUG_RETURN(false);
+    return false;
   }
 
   if(Empty(ctx->m_currentToken)){
     ctx->m_status = Parser<Dummy>::EmptyLine;
-    DBUG_RETURN(false);
+    return false;
   }
 
   trim(ctx->m_currentToken);
   ctx->m_currentCmd = matchCommand(ctx, ctx->m_currentToken, m_rows);
   if(ctx->m_currentCmd == 0){
     ctx->m_status = Parser<Dummy>::UnknownCommand;
-    DBUG_RETURN(false);
+    return false;
   }
 
   Properties * p = new Properties();
@@ -209,19 +206,19 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
 	tmp = input.gets(buf, sz);
       } while((! * stop) && !Eof(tmp) && !Empty(tmp));
     }
-    DBUG_RETURN(false);
+    return false;
   }
 
   if(* stop){
     delete p;
     ctx->m_status = Parser<Dummy>::ExternalStop;
-    DBUG_RETURN(false);
+    return false;
   }
 
   if(!checkMandatory(ctx, p)){
     ctx->m_status = Parser<Dummy>::MissingMandatoryArgument;
     delete p;
-    DBUG_RETURN(false);
+    return false;
   }
 
   /**
@@ -238,7 +235,7 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
 
   ctx->m_status = Parser<Dummy>::Ok;
   * pDst = p;
-  DBUG_RETURN(true);
+  return true;
 }
 
 const ParserImpl::DummyRow* 
@@ -335,6 +332,7 @@ ParserImpl::parseArg(Context * ctx,
   }
 
   abort();
+  return false;
 }
 
 bool
@@ -353,3 +351,20 @@ ParserImpl::checkMandatory(Context* ctx, const Properties* props){
 }
 
 template class Vector<const ParserRow<ParserImpl::Dummy>*>;
+
+#ifdef TEST_PARSER
+#include <NdbTap.hpp>
+
+TAPTEST(Parser)
+{
+  char *str, *name, *value;
+
+  //split modifies arg so dup
+  str = strdup("x=c:\\windows");
+  OK(split(str, &name, &value));
+  OK(!strcmp(name, "x"));
+  OK(!strcmp(value, "c:\\windows"));
+
+  return 1;
+}
+#endif

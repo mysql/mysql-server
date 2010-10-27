@@ -1,13 +1,10 @@
 -- source include/have_ndb.inc
 -- source include/ndb_default_cluster.inc
--- source include/not_embedded.inc
 
---disable_warnings
-use test;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
---enable_warnings
+# Directory containing the saved backup files
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/std_data;
 
+#
 # Bug #27775 - mediumint auto inc not restored correctly
 #            - check mediumint
 CREATE TABLE `t1_c` (
@@ -155,6 +152,9 @@ INSERT INTO t10_c VALUES (1),(2),(3);
 #            - check int
 insert into t10_c values (10000),(2000),(3000);
 
+CREATE TABLE t11_c (a int, b00 int null, b01 int null,b02 int null,b03 int null,b04 int null,b05 int null,b06 int null,b07 int null,b08 int null,b90 int null,b10 int null,b11 int null,b12 int null,b13 int null,b14 int null,b15 int null,b16 int null,b17 int null,b18 int null,b19 int null,b20 int null,b21 int null,b22 int null,b23 int null,b24 int null,b25 int null,b26 int null,b27 int null,b28 int null,b29 int null,b30 int null,b31 int null,b32 int null) engine = ndb;
+insert into t11_c values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
+
 create table t1 engine=myisam as select * from t1_c;
 create table t2 engine=myisam as select * from t2_c;
 create table t3 engine=myisam as select * from t3_c;
@@ -165,24 +165,31 @@ create table t7 engine=myisam as select * from t7_c;
 create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
 create table t10 engine=myisam as select * from t10_c;
+create table t11 engine=myisam as select * from t11_c;
 
 # check that force varpart is preserved by ndb_restore
 # t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t3_c | grep ForceVarPart
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t2_c | grep ForceVarPart
+let $show_varpart_table=t3_c;
+source show_varpart.inc;
+let $show_varpart_table=t2_c;
+source show_varpart.inc;
 
 --source include/ndb_backup.inc
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 # check that force varpart is preserved by ndb_restore
 # t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t3_c | grep ForceVarPart
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t2_c | grep ForceVarPart
+let $show_varpart_table=t3_c;
+source show_varpart.inc;
+let $show_varpart_table=t2_c;
+source show_varpart.inc;
 
 # Bug #30667
 # ndb table discovery does not work correcly with information schema
 # - prior to bug fix this would yeild no output and a warning
+# (priviliges differ on embedded and server so replace)
+--replace_column 18 #
 select * from information_schema.columns where table_name = "t1_c";
 
 # random output order??
@@ -242,6 +249,18 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
+
 # Bug #20820 cont'd
 select * from t10_c order by a;
 # Bug #27775 cont'd
@@ -269,9 +288,9 @@ ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 
 --source include/ndb_backup.inc
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*) from t1;
 select count(*) from t1_c;
@@ -327,9 +346,21 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map '(0,0)' --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
+
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,0)" --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*) from t1;
 select count(*) from t1_c;
@@ -385,29 +416,147 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
 #
 # Drop all table except t2_c
-#   This to make sure that error returned from ndb_restore above is 
+#   This to make sure that error returned from ndb_restore below is 
 #     guaranteed to be from t2_c, this since order of tables in backup
 #     is none deterministic
 # 
-drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --source include/ndb_backup.inc
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map '(0,1)' $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id 2>&1 | grep Translate || true
+
+# ndb_restore should now fail, table t2_c already exists
+--replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
+--error 1
+--exec $NDB_RESTORE --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
+
+CREATE TABLE t11_c (
+  c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t12_c (
+  c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO t11_c VALUES(1, "aaaaa", "bbbbb"), (2, "ccccc", "ddddd"), (3, "eeeee","fffff");
+INSERT INTO t12_c VALUES(4, "ggggg", "hhhhh"), (5, "iiiii", "jjjjj"), (6, "kkkkk","lllll");
+--source include/ndb_backup.inc
+drop table t2_c,t11_c,t12_c;
+# Only part of tables is restored, it should work
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
+#Should only t11_c is restored
+SELECT * FROM t11_c ORDER BY c1;
 
 #
 # Cleanup
 #
 
---disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-drop table if exists t2_c;
---enable_warnings
+drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
 
 #
 # Test BUG#10287
 #
 
---exec $NDB_TOOLS_DIR/ndb_select_all --no-defaults -d sys -D , SYSTAB_0 | grep 520093696, | sed "s/,$the_backup_id/,<the_backup_id>/"
+--disable_query_log
+source include/ndb_backup_id.inc;
+--enable_query_log
 
 # End of 5.0 tests (4.1 test intermixed to save test time)
+
+#
+# Test restore of epoch number bug#
+#
+
+# ensure correct restore of epoch numbers in old versions
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 1 $backup_data_dir/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+select epoch from mysql.ndb_apply_status where server_id=0;
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 1 $backup_data_dir/ndb_backup51 >> $NDB_TOOLS_OUTPUT
+select epoch from mysql.ndb_apply_status where server_id=0;
+# ensure correct restore of epoch numbers in current version
+# number hould be "big"
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+# should evaluate to true == 1
+select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
+
+#
+# Bug#40428 core dumped when restore backup log file(redo log)
+#
+--exec $NDB_RESTORE --print --print_meta -b 1 -n 1 $backup_data_dir/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+
+#
+# Bug #33040 ndb_restore crashes with --print_log
+#
+--exec $NDB_RESTORE --print_log -b 1 -n 1 $backup_data_dir/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+
+#
+# Bug#48005 ndb backup / restore does not restore the auto_increment
+#
+create table t1 (a int not null primary key auto_increment, b int) auto_increment=200
+engine=ndb;
+show create table t1;
+--source include/ndb_backup.inc
+drop table t1;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+show create table t1;
+drop table t1;
+
+#
+# mtoib
+#
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+drop table t1;
+
+#
+# Bug#51374
+#
+create table t1 (a int, b int, c int not null, 
+primary key (a) using hash, unique(c) using hash)
+engine = ndb;
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+--source include/ndb_backup.inc
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 --disable-indexes --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select * from t1 order by 1;
+drop table t1;
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+--source ndb_show_tables_result.inc
+select * from ndb_show_tables_results
+where type like '%Index%'
+order by 1,2,3,4,5,6,7;
+drop table ndb_show_tables_results;
+
+#
+# Bug#51432
+#
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 2 -m $backup_data_dir/ndb_backup_hashmap >> $NDB_TOOLS_OUTPUT
+
+#
+# Bug#56285
+#
+create table t1 (a int primary key) engine = ndb;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
+drop table t1;
+

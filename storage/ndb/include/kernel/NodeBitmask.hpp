@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NODE_BITMASK_HPP
 #define NODE_BITMASK_HPP
 
-#include <ndb_limits.h>
-#include <kernel_types.h>
+#include "ndb_limits.h"
+#include "kernel_types.h"
 #include <Bitmask.hpp>
 
 /**
@@ -27,7 +30,7 @@
  *
  * Note that this is used in a lot of signals
  */
-#define _NODE_BITMASK_SIZE 2
+#define _NODE_BITMASK_SIZE 8
 
 /**
  * No of 32 bits words needed to store a node bitmask
@@ -43,8 +46,10 @@
 #define NODE_ARRAY_SIZE(N, B) (((N)*(B)+31) >> 5)
 
 typedef Bitmask<(unsigned int)_NODE_BITMASK_SIZE> NodeBitmask;
+typedef BitmaskPOD<(unsigned int)_NODE_BITMASK_SIZE> NodeBitmaskPOD;
 
 typedef Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> NdbNodeBitmask;
+typedef BitmaskPOD<(unsigned int)_NDB_NODE_BITMASK_SIZE> NdbNodeBitmaskPOD;
 
 #define __NBM_SZ  ((MAX_NODES >> 5) + ((MAX_NODES & 31) != 0))
 #define __NNBM_SZ ((MAX_NDB_NODES >> 5) + ((MAX_NDB_NODES & 31) != 0))

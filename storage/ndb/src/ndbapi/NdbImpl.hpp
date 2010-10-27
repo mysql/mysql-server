@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,18 +13,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_IMPL_HPP
 #define NDB_IMPL_HPP
 
 #include <ndb_global.h>
-#include <Ndb.hpp>
+#include "API.hpp"
 #include <NdbOut.hpp>
-#include <NdbError.hpp>
-#include <NdbCondition.h>
-#include <NdbReceiver.hpp>
-#include <NdbOperation.hpp>
 #include <kernel/ndb_limits.h>
 
 #include <NdbTick.h>
@@ -30,6 +29,7 @@
 #include "ndb_cluster_connection_impl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "ObjectMap.hpp"
+#include "trp_client.hpp"
 
 template <class T>
 struct Ndb_free_list_t 
@@ -40,6 +40,7 @@ struct Ndb_free_list_t
   int fill(Ndb*, Uint32 cnt);
   T* seize(Ndb*);
   void release(T*);
+  void release(Uint32 cnt, T* head, T* tail);
   void clear();
   Uint32 get_sizeof() const { return sizeof(T); }
   T * m_free_list;
@@ -49,15 +50,17 @@ struct Ndb_free_list_t
 /**
  * Private parts of the Ndb object (corresponding to Ndb.hpp in public API)
  */
-class NdbImpl {
+class NdbImpl : public trp_client
+{
 public:
   NdbImpl(Ndb_cluster_connection *, Ndb&);
   ~NdbImpl();
 
-  int send_event_report(Uint32 *data, Uint32 length);
+  int send_event_report(bool has_lock, Uint32 *data, Uint32 length);
 
   Ndb &m_ndb;
-
+  Ndb * m_next_ndb_object, * m_prev_ndb_object;
+  
   Ndb_cluster_connection_impl &m_ndb_cluster_connection;
   TransporterFacade *m_transporter_facade;
 
@@ -105,6 +108,21 @@ public:
     return;
   }
 
+  bool forceShortRequests;
+
+  static inline void setForceShortRequests(Ndb* ndb, bool val)
+  {
+    ndb->theImpl->forceShortRequests = val;
+  }
+
+  Uint32 get_waitfor_timeout() const {
+    return m_ndb_cluster_connection.m_config.m_waitfor_timeout;
+  }
+  const NdbApiConfig& get_ndbapi_config_parameters() const {
+    return m_ndb_cluster_connection.m_config;
+  }
+
+
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
 
   /**
@@ -121,10 +139,18 @@ public:
   Ndb_free_list_t<NdbCall> theCallList;
   Ndb_free_list_t<NdbBlob> theNdbBlobIdleList;
   Ndb_free_list_t<NdbReceiver> theScanList;
+  Ndb_free_list_t<NdbLockHandle> theLockHandleList;
   Ndb_free_list_t<NdbIndexScanOperation> theScanOpIdleList;
   Ndb_free_list_t<NdbOperation>  theOpIdleList;  
   Ndb_free_list_t<NdbIndexOperation> theIndexOpIdleList;
   Ndb_free_list_t<NdbTransaction> theConIdleList; 
+
+  /**
+   * trp_client interface
+   */
+  virtual void trp_deliver_signal(const NdbApiSignal*,
+                                  const LinearSectionPtr p[3]);
+  virtual void trp_node_status(Uint32, Uint32);
 };
 
 #ifdef VM_TRACE
@@ -219,6 +245,7 @@ inline
 int
 Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
+#ifndef HAVE_purify
   if (m_free_list == 0)
   {
     m_free_cnt++;
@@ -246,6 +273,9 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
     m_free_list = obj;
   }
   return 0;
+#else
+  return 0;
+#endif
 }
 
 template<class T>
@@ -253,6 +283,7 @@ inline
 T*
 Ndb_free_list_t<T>::seize(Ndb* ndb)
 {
+#ifndef HAVE_purify
   T* tmp = m_free_list;
   if (tmp)
   {
@@ -272,6 +303,9 @@ Ndb_free_list_t<T>::seize(Ndb* ndb)
     assert(false);
   }
   return tmp;
+#else
+  return new T(ndb);
+#endif
 }
 
 template<class T>
@@ -279,9 +313,13 @@ inline
 void
 Ndb_free_list_t<T>::release(T* obj)
 {
+#ifndef HAVE_purify
   obj->next(m_free_list);
   m_free_list = obj;
   m_free_cnt++;
+#else
+  delete obj;
+#endif
 }
 
 
@@ -298,6 +336,40 @@ Ndb_free_list_t<T>::clear()
     delete curr;
     m_alloc_cnt--;
   }
+}
+
+template<class T>
+inline
+void
+Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
+{
+#ifndef HAVE_purify
+  if (cnt)
+  {
+#ifdef VM_TRACE
+    {
+      T* tmp = head;
+      while (tmp != 0 && tmp != tail) tmp = (T*)tmp->next();
+      assert(tmp == tail);
+    }
+#endif
+    tail->next(m_free_list);
+    m_free_list = head;
+    m_free_cnt += cnt;
+  }
+#else
+  if (cnt)
+  {
+    T* tmp = head;
+    while (tmp != 0 && tmp != tail)
+    {
+      T * next = (T*)tmp->next();
+      delete tmp;
+      tmp = next;
+    }
+    delete tail;
+  }
+#endif
 }
 
 #endif

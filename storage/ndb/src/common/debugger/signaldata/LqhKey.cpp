@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <signaldata/LqhKey.hpp>
 
@@ -145,12 +148,16 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
       fprintf(output, "H\'%.8x ", sig->variableData[nextPos]);
     fprintf(output, "\n");
   } else {
-    fprintf(output, " InitialReadSize: %d InterpretedSize: %d "
-            "FinalUpdateSize: %d FinalReadSize: %d SubroutineSize: %d\n",
-            sig->variableData[nextPos+0], sig->variableData[nextPos+1], 
-            sig->variableData[nextPos+2], sig->variableData[nextPos+3],
-            sig->variableData[nextPos+4]);
-    nextPos += 5;
+    /* Only have section sizes if it's a short LQHKEYREQ */
+    if (LqhKeyReq::getAIInLqhKeyReq(reqInfo) == LqhKeyReq::MaxAttrInfo)
+    {
+      fprintf(output, " InitialReadSize: %d InterpretedSize: %d "
+              "FinalUpdateSize: %d FinalReadSize: %d SubroutineSize: %d\n",
+              sig->variableData[nextPos+0], sig->variableData[nextPos+1], 
+              sig->variableData[nextPos+2], sig->variableData[nextPos+3],
+              sig->variableData[nextPos+4]);
+      nextPos += 5;
+    }
   }
   return true;
 }

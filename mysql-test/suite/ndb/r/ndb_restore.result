@@ -1,6 +1,3 @@
-use test;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 CREATE TABLE `t1_c` (
 `capgoaledatta` mediumint(5) unsigned NOT NULL auto_increment,
 `goaledatta` char(2) NOT NULL default '',
@@ -119,6 +116,8 @@ INSERT INTO `t9_c` VALUES ('3g4jh8gar2t','joe','q3.net','elredun.com','q3.net','
 CREATE TABLE t10_c (a INT AUTO_INCREMENT KEY) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO t10_c VALUES (1),(2),(3);
 insert into t10_c values (10000),(2000),(3000);
+CREATE TABLE t11_c (a int, b00 int null, b01 int null,b02 int null,b03 int null,b04 int null,b05 int null,b06 int null,b07 int null,b08 int null,b90 int null,b10 int null,b11 int null,b12 int null,b13 int null,b14 int null,b15 int null,b16 int null,b17 int null,b18 int null,b19 int null,b20 int null,b21 int null,b22 int null,b23 int null,b24 int null,b25 int null,b26 int null,b27 int null,b28 int null,b29 int null,b30 int null,b31 int null,b32 int null) engine = ndb;
+insert into t11_c values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 create table t1 engine=myisam as select * from t1_c;
 create table t2 engine=myisam as select * from t2_c;
 create table t3 engine=myisam as select * from t3_c;
@@ -129,20 +128,17 @@ create table t7 engine=myisam as select * from t7_c;
 create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
 create table t10 engine=myisam as select * from t10_c;
+create table t11 engine=myisam as select * from t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
-(id INT, backup_id INT) ENGINE = MEMORY;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-DROP TABLE test.backup_info;
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
 select * from information_schema.columns where table_name = "t1_c";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-def	test	t1_c	capgoaledatta	1	NULL	NO	mediumint	NULL	NULL	7	0	NULL	NULL	mediumint(5) unsigned	PRI	auto_increment	select,insert,update,references	
-def	test	t1_c	goaledatta	2		NO	char	2	2	NULL	NULL	latin1	latin1_swedish_ci	char(2)	PRI		select,insert,update,references	
-def	test	t1_c	maturegarbagefa	3		NO	varchar	32	32	NULL	NULL	latin1	latin1_swedish_ci	varchar(32)	PRI		select,insert,update,references	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	STORAGE	FORMAT
+NULL	test	t1_c	capgoaledatta	1	NULL	NO	mediumint	NULL	NULL	7	0	NULL	NULL	mediumint(5) unsigned	PRI	auto_increment	#		Default	Default
+NULL	test	t1_c	goaledatta	2		NO	char	2	2	NULL	NULL	latin1	latin1_swedish_ci	char(2)	PRI		#		Default	Default
+NULL	test	t1_c	maturegarbagefa	3		NO	varchar	32	32	NULL	NULL	latin1	latin1_swedish_ci	varchar(32)	PRI		#		Default	Default
 select count(*) from t1;
 count(*)
 5
@@ -242,6 +238,28 @@ from (select * from t9 union
 select * from t9_c) a;
 count(*)
 3
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
 select * from t10_c order by a;
 a
 1
@@ -287,11 +305,7 @@ auto_increment
 10001
 ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
-(id INT, backup_id INT) ENGINE = MEMORY;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-DROP TABLE test.backup_info;
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 select count(*) from t1;
 count(*)
 5
@@ -391,7 +405,29 @@ from (select * from t9 union
 select * from t9_c) a;
 count(*)
 3
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 select count(*) from t1;
 count(*)
 5
@@ -491,11 +527,106 @@ from (select * from t9 union
 select * from t9_c) a;
 count(*)
 3
-drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
-(id INT, backup_id INT) ENGINE = MEMORY;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-DROP TABLE test.backup_info;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-drop table if exists t2_c;
-520093696,<the_backup_id>
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
+drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+Backup Id = the_backup_id
+Nodeid = 1
+Analyse node group map
+Create table `test/def/t2_c` failed: 721: Schema object with given name already exists
+Restore: Failed to restore table: `test/def/t2_c` ... Exiting 
+
+NDBT_ProgramExit: 1 - Failed
+
+CREATE TABLE t11_c (
+c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t12_c (
+c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t11_c VALUES(1, "aaaaa", "bbbbb"), (2, "ccccc", "ddddd"), (3, "eeeee","fffff");
+INSERT INTO t12_c VALUES(4, "ggggg", "hhhhh"), (5, "iiiii", "jjjjj"), (6, "kkkkk","lllll");
+drop table t2_c,t11_c,t12_c;
+SELECT * FROM t11_c ORDER BY c1;
+c1	c2	c3
+1	aaaaa	bbbbb
+2	ccccc	ddddd
+3	eeeee	fffff
+drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
+select epoch from mysql.ndb_apply_status where server_id=0;
+epoch
+331
+select epoch from mysql.ndb_apply_status where server_id=0;
+epoch
+151
+select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
+epoch > (1 << 32)
+1
+create table t1 (a int not null primary key auto_increment, b int) auto_increment=200
+engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
+drop table t1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
+drop table t1;
+drop table t1;
+create table t1 (a int, b int, c int not null, 
+primary key (a) using hash, unique(c) using hash)
+engine = ndb;
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+select * from t1 order by 1;
+a	b	c
+1	1	1
+2	2	2
+3	3	3
+drop table t1;
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+id INT,
+type VARCHAR(20),
+state VARCHAR(20),
+logging VARCHAR(20),
+_database VARCHAR(255),
+_schema VARCHAR(20),
+name VARCHAR(255)
+);
+
+ndb_show_tables completed.....
+
+select * from ndb_show_tables_results
+where type like '%Index%'
+order by 1,2,3,4,5,6,7;
+id	type	state	logging	_database	_schema	name
+drop table ndb_show_tables_results;
+create table t1 (a int primary key) engine = ndb;
+drop table t1;

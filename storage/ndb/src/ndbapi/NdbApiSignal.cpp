@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include "API.hpp"
@@ -275,11 +278,14 @@ NdbApiSignal::set(Uint8  trace,
 
 void
 NdbApiSignal::copyFrom(const NdbApiSignal * src){
+  theSignalId             = src->theSignalId;
   theVerId_signalNumber   = src->theVerId_signalNumber;
   theReceiversBlockNumber = src->theReceiversBlockNumber;
   theSendersBlockRef      = src->theSendersBlockRef;
   theLength               = src->theLength;
   theTrace                = src->theTrace;
+  m_noOfSections          = src->m_noOfSections;
+  m_fragmentInfo          = src->m_fragmentInfo;
   
   Uint32 * dstData = getDataPtrSend();
   const Uint32 * srcData = src->getDataPtr();
@@ -287,11 +293,4 @@ NdbApiSignal::copyFrom(const NdbApiSignal * src){
     dstData[i] = srcData[i];
 
   setDataPtr(dstData);
-  
-  /**
-   * NOTE that theSignalId is used as data ptr
-   *   and should not be copied
-   * NOTE that theSendersSignalId is used as next pointer
-   *   and should not be copied
-   */
 }

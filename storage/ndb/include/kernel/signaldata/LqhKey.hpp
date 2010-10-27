@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef LQH_KEY_H
 #define LQH_KEY_H
@@ -37,6 +40,14 @@ class LqhKeyReq {
 
 public:
   STATIC_CONST( FixedSignalLength = 11 );
+  STATIC_CONST( MaxKeyInfo = 4 );
+  STATIC_CONST( MaxAttrInfo = 5);
+
+  /* Long LQHKEYREQ definitions */
+  STATIC_CONST( KeyInfoSectionNum = 0 );
+  STATIC_CONST( AttrInfoSectionNum = 1 );
+
+  STATIC_CONST( UnlockKeyLen = 2 );
 
 private:
 
@@ -75,6 +86,8 @@ private:
   static UintR getScanTakeOverFlag(const UintR & scanInfoAttrLen);
   static UintR getStoredProcFlag(const UintR & scanData);
   static UintR getDistributionKey(const UintR & scanData);
+  static UintR getReorgFlag(const UintR& scanData);
+  static void setReorgFlag(UintR& scanData, Uint32 val);
   
   static UintR getTableId(const UintR & tableSchemaVersion);
   static UintR getSchemaVersion(const UintR & tableSchemaVersion);
@@ -143,7 +156,8 @@ private:
 /**
  * Request Info
  *
- * k = Key len                - 10 Bits (0-9) max 1023
+ * k = Key len                - (Short LQHKEYREQ only) 
+ *                              10 Bits (0-9) max 1023
  * l = Last Replica No        - 2  Bits -> Max 3 (10-11)
 
  IF version < NDBD_ROWID_VERSION
@@ -154,7 +168,8 @@ private:
  * s = Simple indicator       - 1  Bit (18)
  * o = Operation              - 3  Bits (19-21)
  * r = Sequence replica       - 2  Bits (22-23)
- * a = Attr Info in LQHKEYREQ - 3  Bits (24-26)
+ * a = Attr Info in LQHKEYREQ - (Short LQHKEYREQ only)
+                                3  Bits (24-26)
  * c = Same client and tc     - 1  Bit (27)
  * u = Read Len Return Ind    - 1  Bit (28)
  * m = Commit ack marker      - 1  Bit (29)
@@ -163,10 +178,17 @@ private:
  * g = gci flag               - 1  Bit (12)
  * n = NR copy                - 1  Bit (13)
 
+ * Short LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
  *   kkkkkkkkkklltttpdisooorraaacumxz
  *   kkkkkkkkkkllgn pdisooorraaacumxz
+ *
+ * Long LQHKEYREQ :
+ *             1111111111222222222233
+ *   01234567890123456789012345678901
+ *             llgn pdisooorr   cumxz
+ *
  */
 
 #define RI_KEYLEN_SHIFT      (0)
@@ -196,14 +218,17 @@ private:
 /**
  * Scan Info
  *
- * a = Attr Len                 - 16 Bits -> max 65535 (0-15)
+ * a = Attr Len                 - (Short LQHKEYREQ only)
+ *                                 16 Bits -> max 65535 (0-15)
  * p = Stored Procedure Ind     -  1 Bit (16)
  * d = Distribution key         -  8 Bit  -> max 255 (17-24)
  * t = Scan take over indicator -  1 Bit (25)
+ * m = Reorg value              -  2 Bit (26-27)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * aaaaaaaaaaaaaaaapddddddddt             
+ * aaaaaaaaaaaaaaaapddddddddtmm       (Short LQHKEYREQ)
+ *                 pddddddddtmm       (Long LQHKEYREQ)
  */
 
 #define SI_ATTR_LEN_MASK     (65535)
@@ -212,8 +237,8 @@ private:
 #define SI_DISTR_KEY_MASK    (255)
 #define SI_DISTR_KEY_SHIFT   (17)
 #define SI_SCAN_TO_SHIFT     (25)
-#define SI_SCAN_INFO_MASK    (63)
-#define SI_SCAN_INFO_SHIFT   (26)
+#define SI_REORG_SHIFT (26)
+#define SI_REORG_MASK  (3)
 
 inline 
 UintR
@@ -353,9 +378,9 @@ LqhKeyReq::setScanTakeOverFlag(UintR & scanInfoAttrLen, UintR val){
   ASSERT_BOOL(val, "LqhKeyReq::setScanTakeOverFlag");
   scanInfoAttrLen |= (val << SI_SCAN_TO_SHIFT);
 }
+
 inline
 void
-
 LqhKeyReq::setStoredProcFlag(UintR & scanData, UintR val){
   ASSERT_BOOL(val, "LqhKeyReq::setStoredProcFlag");
   scanData |= (val << SI_STORED_PROC_SHIFT);
@@ -363,10 +388,22 @@ LqhKeyReq::setStoredProcFlag(UintR & scanData, UintR val){
 
 inline
 void
-
 LqhKeyReq::setDistributionKey(UintR & scanData, UintR val){
   ASSERT_MAX(val, SI_DISTR_KEY_MASK, "LqhKeyReq::setDistributionKey");
   scanData |= (val << SI_DISTR_KEY_SHIFT);
+}
+
+inline
+Uint32
+LqhKeyReq::getReorgFlag(const UintR & scanData){
+  return (scanData >> SI_REORG_SHIFT) & SI_REORG_MASK;
+}
+
+inline
+void
+LqhKeyReq::setReorgFlag(UintR & scanData, UintR val){
+  ASSERT_MAX(val, SI_REORG_MASK, "LqhKeyReq::setMovingFlag");
+  scanData |= (val << SI_REORG_SHIFT);
 }
 
 #if 0  
@@ -571,7 +608,14 @@ private:
   Uint32 connectPtr;
   Uint32 opPtr;
   Uint32 userRef;
-  Uint32 readLen;
+  union {
+    /**
+     * For read operations this variable contains the number of bytes read
+     * For unlock operations this variable contains the unlocked op's TC REF
+     */
+    Uint32 readLen;
+    Uint32 unlockTcRef;
+  };
   Uint32 transId1;
   Uint32 transId2;
   Uint32 noFiredTriggers;

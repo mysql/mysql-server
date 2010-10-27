@@ -165,7 +165,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
 bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
 f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-y YEAR, t DATE)
+y YEAR, t DATE, primary key(t))
 PARTITION BY RANGE (YEAR(t)) 
 (PARTITION p0 VALUES LESS THAN (1901), 
 PARTITION p1 VALUES LESS THAN (1946),  
@@ -185,7 +185,8 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date DEFAULT NULL
+  `t` date NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`t`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(t))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = MyISAM,
@@ -206,7 +207,8 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date DEFAULT NULL
+  `t` date NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`t`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(t))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
@@ -256,7 +258,7 @@ COUNT(*)
 4
 DELETE FROM t1;
 --- Check that simple Alter statements are replicated correctly ---
-ALTER TABLE t1 ADD PRIMARY KEY(t,id);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(t, id);
 ALTER TABLE t1 MODIFY vc TEXT;
 --- Show the new improved table on the master ---
 SHOW CREATE TABLE t1;
@@ -351,7 +353,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
 bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
 f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-y YEAR, t DATE)
+y YEAR, t DATE, primary key(id))
 PARTITION BY LIST(id) 
 (PARTITION p0 VALUES IN (2, 4), 
 PARTITION p1 VALUES IN (42, 142));
@@ -369,7 +371,8 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date DEFAULT NULL
+  `t` date DEFAULT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (id)
 (PARTITION p0 VALUES IN (2,4) ENGINE = MyISAM,
@@ -387,7 +390,8 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date DEFAULT NULL
+  `t` date DEFAULT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (id)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
@@ -434,7 +438,6 @@ COUNT(*)
 4
 DELETE FROM t1;
 --- Check that simple Alter statements are replicated correctly ---
-ALTER TABLE t1 ADD PRIMARY KEY(id);
 ALTER TABLE t1 MODIFY vc TEXT;
 --- Show the new improved table on the master ---
 SHOW CREATE TABLE t1;
@@ -523,7 +526,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
 bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
 f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-y YEAR, t DATE)
+y YEAR, t DATE, primary key(t))
 PARTITION BY HASH( YEAR(t) ) 
 PARTITIONS 4;
 --- show that tables have been created correctly ---
@@ -538,7 +541,8 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date DEFAULT NULL
+  `t` date NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`t`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH ( YEAR(t))
 PARTITIONS 4 */
@@ -553,7 +557,8 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date DEFAULT NULL
+  `t` date NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`t`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH ( YEAR(t))
 PARTITIONS 4 */
@@ -598,7 +603,7 @@ COUNT(*)
 4
 DELETE FROM t1;
 --- Check that simple Alter statements are replicated correctly ---
-ALTER TABLE t1 ADD PRIMARY KEY(t,id);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(t,id);
 ALTER TABLE t1 MODIFY vc TEXT;
 --- Show the new improved table on the master ---
 SHOW CREATE TABLE t1;

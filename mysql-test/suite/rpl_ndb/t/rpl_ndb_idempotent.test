@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 #
 # Currently test only works with ndb since it retrieves "old"
@@ -21,12 +21,16 @@ SELECT * FROM t1 ORDER BY c3;
 
 # get the master binlog pos from the epoch
 connection master;
---replace_result $the_epoch <the_epoch>
---replace_column 1 <the_pos>
-eval SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+--disable_query_log
+--disable_result_log
+eval SELECT @the_pos:=Position,
+   @the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\\\','/'), '/', -1)
    FROM mysql.ndb_binlog_index WHERE epoch = $the_epoch ;
 let $the_pos= `SELECT @the_pos` ;
 let $the_file= `SELECT @the_file` ;
+let $the_epoch=`SELECT MAX(epoch) FROM mysql.ndb_apply_status`;
+--enable_result_log
+--enable_query_log
 
 # insert some more values
 INSERT INTO t1 VALUES ("row2","will go away",2),("row3","will change",3),("row4","D",4);

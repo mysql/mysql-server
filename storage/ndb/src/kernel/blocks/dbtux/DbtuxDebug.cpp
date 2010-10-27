@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,10 +13,116 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUX_DEBUG_CPP
 #include "Dbtux.hpp"
+
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+
+
+void Dbtux::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
+  {
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Index",
+        c_indexPool.getUsed(),
+        c_indexPool.getSize(),
+        c_indexPool.getEntrySize(),
+        c_indexPool.getUsedHi(),
+        { CFG_DB_NO_TABLES,
+          CFG_DB_NO_ORDERED_INDEXES,
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
+      { "Fragment",
+        c_fragPool.getUsed(),
+        c_fragPool.getSize(),
+        c_fragPool.getEntrySize(),
+        c_fragPool.getUsedHi(),
+        { CFG_DB_NO_ORDERED_INDEXES,
+          CFG_DB_NO_REPLICAS,0,0 }},
+      { "Descriptor page",
+        c_descPagePool.getUsed(),
+        c_descPagePool.getSize(),
+        c_descPagePool.getEntrySize(),
+        c_descPagePool.getUsedHi(),
+        { CFG_DB_NO_TABLES,
+          CFG_DB_NO_ORDERED_INDEXES,
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
+      { "Fragment Operation",
+        c_fragOpPool.getUsed(),
+        c_fragOpPool.getSize(),
+        c_fragOpPool.getEntrySize(),
+        c_fragOpPool.getUsedHi(),
+        { 0,0,0,0 }},
+      { "Scan Operation",
+        c_scanOpPool.getUsed(),
+        c_scanOpPool.getSize(),
+        c_scanOpPool.getEntrySize(),
+        c_scanOpPool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+      { "Scan Bound",
+        c_scanBoundPool.getUsed(),
+        c_scanBoundPool.getSize(),
+        c_scanBoundPool.getEntrySize(),
+        c_scanBoundPool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+      { "Scan Lock",
+        c_scanLockPool.getUsed(),
+        c_scanLockPool.getSize(),
+        c_scanLockPool.getEntrySize(),
+        c_scanLockPool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_SCANS,
+          CFG_DB_BATCH_SIZE,0,0 }},
+      { NULL, 0,0,0,0,{ 0,0,0,0 }}
+    };
+
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_string(pools[pool].poolname);
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
+    }
+    break;
+  }
+  default:
+    break;
+  }
+
+  ndbinfo_send_scan_conf(signal, req, rl);
+}
 
 /*
  * 12001 log file 0-close 1-open 2-append 3-append to signal log
@@ -55,6 +163,20 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
     abort();
   }
 #endif
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_AP_SNAPSHOT_SAVE(c_indexPool);
+    RSS_AP_SNAPSHOT_SAVE(c_fragPool);
+    RSS_AP_SNAPSHOT_SAVE(c_fragOpPool);
+  }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_AP_SNAPSHOT_CHECK(c_indexPool);
+    RSS_AP_SNAPSHOT_CHECK(c_fragPool);
+    RSS_AP_SNAPSHOT_CHECK(c_fragOpPool);
+  }
 }
 
 #ifdef VM_TRACE
@@ -67,7 +189,7 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
   strcpy(par.m_path, ".");
   par.m_side = 2;
   par.m_parent = NullTupLoc;
-  printNode(frag, out, tree.m_root, par);
+  printNode(c_ctx, frag, out, tree.m_root, par);
   out.m_out->flush();
   if (! par.m_ok) {
     if (debugFile == 0) {
@@ -83,7 +205,8 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
 }
 
 void
-Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
+Dbtux::printNode(TuxCtx & ctx,
+                 Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
 {
   if (loc == NullTupLoc) {
     par.m_depth = 0;
@@ -101,7 +224,7 @@ Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
     cpar[i].m_side = i;
     cpar[i].m_depth = 0;
     cpar[i].m_parent = loc;
-    printNode(frag, out, node.getLink(i), cpar[i]);
+    printNode(ctx, frag, out, node.getLink(i), cpar[i]);
     if (! cpar[i].m_ok) {
       par.m_ok = false;
     }
@@ -164,8 +287,8 @@ Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
   { ConstData data1 = node.getPref();
     Uint32 data2[MaxPrefSize];
     memset(data2, DataFillByte, MaxPrefSize << 2);
-    readKeyAttrs(frag, node.getMinMax(0), 0, c_searchKey);
-    copyAttrs(frag, c_searchKey, data2, tree.m_prefSize);
+    readKeyAttrs(ctx, frag, node.getMinMax(0), 0, ctx.c_searchKey);
+    copyAttrs(ctx, frag, ctx.c_searchKey, data2, tree.m_prefSize);
     for (unsigned n = 0; n < tree.m_prefSize; n++) {
       if (data1[n] != data2[n]) {
         par.m_ok = false;
@@ -182,9 +305,9 @@ Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
     const TreeEnt ent1 = node.getEnt(j - 1);
     const TreeEnt ent2 = node.getEnt(j);
     unsigned start = 0;
-    readKeyAttrs(frag, ent1, start, c_searchKey);
-    readKeyAttrs(frag, ent2, start, c_entryKey);
-    int ret = cmpSearchKey(frag, start, c_searchKey, c_entryKey);
+    readKeyAttrs(ctx, frag, ent1, start, ctx.c_searchKey);
+    readKeyAttrs(ctx, frag, ent2, start, ctx.c_entryKey);
+    int ret = cmpSearchKey(ctx, frag, start, ctx.c_searchKey, ctx.c_entryKey);
     if (ret == 0)
       ret = ent1.cmp(ent2);
     if (ret != -1) {
@@ -200,9 +323,9 @@ Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
     const TreeEnt ent1 = cpar[i].m_minmax[1 - i];
     const TreeEnt ent2 = node.getMinMax(i);
     unsigned start = 0;
-    readKeyAttrs(frag, ent1, start, c_searchKey);
-    readKeyAttrs(frag, ent2, start, c_entryKey);
-    int ret = cmpSearchKey(frag, start, c_searchKey, c_entryKey);
+    readKeyAttrs(ctx, frag, ent1, start, ctx.c_searchKey);
+    readKeyAttrs(ctx, frag, ent2, start, ctx.c_entryKey);
+    int ret = cmpSearchKey(ctx, frag, start, ctx.c_searchKey, ctx.c_entryKey);
     if (ret == 0)
       ret = ent1.cmp(ent2);
     if (ret != (i == 0 ? -1 : +1)) {

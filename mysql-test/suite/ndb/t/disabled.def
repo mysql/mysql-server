@@ -10,9 +10,13 @@
 #
 ##############################################################################
 
-ndb_binlog_discover       : Bug#54851 2010-07-02 alik ndb.ndb_binlog_discover crashes the server
-ndb_partition_error2      : Bug#40989 ndb_partition_error2 needs maintenance
-
+ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
-ndb_alter_table3          : Bug#45621 2009-06-10 alik A few test files are disabled due to WL#4284
+ndb_cache_trans           : Bug#42197 Query cache and autocommit
+ndb_disconnect_ddl        : Bug#31853 flaky testcase...
+
+# the below testcase have detected the bugs that are still open
+add_node01    : disabled waiting for safe_process compatible spawn
+add_node02    : disabled waiting for safe_process compatible spawn
+add_node03    : disabled waiting for safe_process compatible spawn

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_SQL_UTIL_HPP
 #define NDB_SQL_UTIL_HPP
@@ -51,6 +54,15 @@ public:
    * Uses default special chars ( \ % _ ).
    */
   typedef int Like(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2);
+
+  /**
+   * Prototype for mask comparisons.  Defined for bit type.
+   *
+   * If common portion of data AND Mask is equal to mask
+   * return 0, else return 1.
+   * If cmpZero, compare data AND Mask to zero.
+   */
+  typedef int AndMask(const void* data, unsigned dataLen, const void* mask, unsigned maskLen, bool cmpZero); 
 
   enum CmpResult {
     CmpLess = -1,
@@ -96,6 +108,7 @@ public:
     Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
     Like* m_like;       // "like" comparison method
+    AndMask* m_mask;    // Mask comparison method
   };
 
   /**
@@ -130,9 +143,29 @@ public:
   static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
 
   /**
+   * Wrapper for 'strnxfrm' who change prototype in 5.6
+   */
+  static size_t ndb_strnxfrm(struct charset_info_st * cs,
+                             uchar *dst, size_t dstlen,
+                             const uchar *src, size_t srclen);
+
+  /**
    * Compare decimal numbers.
    */
   static int cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n);
+
+  /**
+   * Convert attribute data to/from network byte order
+   * This method converts the passed data of the passed type
+   * between host and network byte order.
+   * On little-endian (network order) hosts, it has no effect.
+   */
+  static void convertByteOrder(Uint32 typeId, 
+                               Uint32 typeLog2Size, 
+                               Uint32 arrayType, 
+                               Uint32 arraySize,
+                               uchar* data,
+                               Uint32 dataByteSize);
 
 private:
   /**
@@ -179,6 +212,8 @@ private:
   static Like likeVarbinary;
   static Like likeLongvarchar;
   static Like likeLongvarbinary;
+  //
+  static AndMask maskBit;
 };
 
 #endif

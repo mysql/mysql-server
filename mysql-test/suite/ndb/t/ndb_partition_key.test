@@ -57,7 +57,7 @@ CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
 insert into t1 values (1,"a",1,1),(2,"a",1,1),(3,"a",1,1);
 
 # should show only one attribute with DISTRIBUTION KEY
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | sed 's/Version: [0-9]*//' | sed 's/\(Length of frm data: \)[0-9]*/\1#/'
+source show_attributes.inc;
 
 #
 # Test that explicit partition info is not shown in show create table
@@ -96,7 +96,7 @@ drop table t1;
 # Bug #17754 Improper handling of removal of partitioning in ALTER TABLE
 # Also added a number of general test cases in the same area
 #
-create table t1 (a int)
+create table t1 (a int primary key)
 engine=ndb
 partition by key(a)
 (partition p0, partition p1);
@@ -242,3 +242,45 @@ delete from t1 where a = 5;
 select * from t1 order by 1;
 
 drop table t1;
+
+# Create table with distribution key != partition key to
+# test some partition pruning stuff
+#
+create table nott1 (a int, 
+                    b int, 
+                    c int, 
+                    primary key(a,b)) 
+        engine=ndb partition by key(a);
+
+insert into nott1 values (0,0,0);
+insert into nott1 values (0,1,1);
+insert into nott1 values (0,2,2);
+insert into nott1 values (0,3,3);
+insert into nott1 values (1,0,4);
+insert into nott1 values (1,1,5);
+insert into nott1 values (1,2,6);
+insert into nott1 values (2,22,7);
+
+--echo All partitions scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from nott1 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from nott1 where a=0 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from nott1 where a=4 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo MRR scan on one partition
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from nott1 where a=0 and (( b > 0 and b < 3) or 
+                                   ( b > 5 and b < 10) or 
+                                   ( b > 22 and b < 50)) order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+drop table nott1;

@@ -1,0 +1,43 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
+
+--connection master
+create table t1(pk int not null primary key, i int) engine = ndb;
+
+#
+# insert more records into tables
+#
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values($1, $1);
+ dec $1;
+}
+enable_query_log;
+
+--sync_slave_with_master
+# connect to slave and ensure data is there.
+--connection slave
+select count(*) from t1;
+
+--connection master
+
+--echo Restarting mysqld
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+#show binlog events in 'master-bin.000002';
+let $log_name=master-bin.000002;
+let $start_pos=107;
+let $end_pos=143;
+let $off_set=0;
+-- source include/show_binlog_using_logname.inc
+
+drop table if exists t1;
+
+--connection slave
+drop table if exists t1;
+
+
+

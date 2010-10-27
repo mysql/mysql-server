@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef PREFETCH_H
 #define PREFETCH_H
@@ -43,7 +46,7 @@ inline void prefetch(void* p)
    __asm(" ldl r31,0(a0);", p);
 #endif /* NDB_ALPHA */
 #ifdef NDB_FORTE6
-  sun_prefetch_read_once(p);
+  sparc_prefetch_read_once(p);
 #else 
   (void)p;
 #endif
@@ -55,7 +58,7 @@ inline void writehint(void* p)
    __asm(" wh64 (a0);", p);
 #endif /* NDB_ALPHA */
 #ifdef NDB_FORTE6
-  sun_prefetch_write_once(p);
+  sparc_prefetch_write_once(p);
 #else
   (void)p;
 #endif

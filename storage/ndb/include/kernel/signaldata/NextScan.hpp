@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NEXT_SCAN_HPP
 #define NEXT_SCAN_HPP
@@ -47,6 +50,7 @@ class NextScanConf {
 public:
   // length is less if no keyinfo or no next result
   STATIC_CONST( SignalLength = 11 );
+  STATIC_CONST( SignalLengthNoKeyInfo = 7 );
 private:
   Uint32 scanPtr;               // scan record in LQH
   Uint32 accOperationPtr;

@@ -318,3 +318,7 @@ select * from t1;
 a
 aaabb
 drop table t1;
+create table t1(a int) engine = ndbcluster;
+create table T1(a int) engine = ndbcluster;
+drop table T1;
+drop table t1;

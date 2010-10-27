@@ -8,10 +8,14 @@
 # test and to have control over the tests.
 ##############################################################
 -- source include/have_ndb.inc
-# Since the master generates row-based events, the slave must be in
-# ROW or MIXED mode to accept the events.
--- source include/have_binlog_format_mixed_or_row.inc
 -- source include/master-slave.inc
+
+# workaround for Bug #34006 binlog race for temporary ndb table
+# - disable using temporary ndb tables
+-- connection master
+-- disable_query_log
+set ndb_table_temporary=0;
+-- enable_query_log
 
 -- connection slave
 
@@ -31,8 +35,14 @@ CREATE TABLE mysql.ndb_apply_status
                    end_pos BIGINT UNSIGNED NOT NULL,
                    PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
 
+-- connection master
+--disable_query_log
+set new=on;
+set storage_engine=ndbcluster;
+--enable_query_log
+
 --source extra/rpl_tests/rpl_ndb_2multi_eng.test
 
-set @@global.slave_exec_mode= DEFAULT;
 --connection slave
+set @@global.slave_exec_mode= 'STRICT';
 drop table mysql.ndb_apply_status;

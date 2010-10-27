@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
  * ndb_config --nodes --query=nodeid --type=ndbd --host=local1
@@ -24,13 +27,12 @@
 #include <my_getopt.h>
 #include <mysql_version.h>
 
-#include <netdb.h>
-
 #include <NdbOut.hpp>
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <ConfigInfo.hpp>
 #include <NdbAutoPtr.hpp>
+#include <NdbTCP.h>
 
 static int g_verbose = 0;
 static int try_reconnect = 3;
@@ -45,64 +47,69 @@ static const char * g_field_delimiter=",";
 static const char * g_row_delimiter=" ";
 static const char * g_config_file = 0;
 static int g_mycnf = 0;
+static int g_configinfo = 0;
+static int g_xml = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
-
-NDB_STD_OPTS_VARS;
-
-int g_print_full_config;
 
 typedef ndb_mgm_configuration_iterator Iter;
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_config"),
-  { "nodes", 256, "Print nodes",
-    &g_nodes, &g_nodes,
+  { "nodes", NDB_OPT_NOSHORT, "Print nodes",
+    (uchar**) &g_nodes, (uchar**) &g_nodes,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "connections", 256, "Print connections",
-    &g_connections, &g_connections,
+  { "connections", NDB_OPT_NOSHORT, "Print connections",
+    (uchar**) &g_connections, (uchar**) &g_connections,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "query", 'q', "Query option(s)",
-    &g_query, &g_query,
+    (uchar**) &g_query, (uchar**) &g_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "host", 256, "Host",
-    &g_host, &g_host,
+  { "host", NDB_OPT_NOSHORT, "Host",
+    (uchar**) &g_host, (uchar**) &g_host,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "type", 258, "Type of node/connection",
-    &g_type, &g_type,
+  { "type", NDB_OPT_NOSHORT, "Type of node/connection",
+    (uchar**) &g_type, (uchar**) &g_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "id", 258, "Nodeid",
-    &g_nodeid, &g_nodeid,
+  { "id", NDB_OPT_NOSHORT, "Nodeid",
+    (uchar**) &g_nodeid, (uchar**) &g_nodeid,
     0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "nodeid", 258, "Nodeid",
-    &g_nodeid, &g_nodeid,
+  { "nodeid", NDB_OPT_NOSHORT, "Nodeid",
+    (uchar**) &g_nodeid, (uchar**) &g_nodeid,
     0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "fields", 'f', "Field separator",
-    &g_field_delimiter, &g_field_delimiter,
+    (uchar**) &g_field_delimiter, (uchar**) &g_field_delimiter,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "rows", 'r', "Row separator",
-    &g_row_delimiter, &g_row_delimiter,
+    (uchar**) &g_row_delimiter, (uchar**) &g_row_delimiter,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "config-file", 256, "Path to config.ini",
-    &g_config_file, &g_config_file,
+  { "config-file", NDB_OPT_NOSHORT, "Path to config.ini",
+    (uchar**) &g_config_file, (uchar**) &g_config_file,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "mycnf", 256, "Read config from my.cnf",
-    &g_mycnf, &g_mycnf,
+  { "mycnf", NDB_OPT_NOSHORT, "Read config from my.cnf",
+    (uchar**) &g_mycnf, (uchar**) &g_mycnf,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "configinfo", NDB_OPT_NOSHORT, "Print configinfo",
+    (uchar**) &g_configinfo, (uchar**) &g_configinfo,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "xml", NDB_OPT_NOSHORT, "Print configinfo in xml format",
+    (uchar**) &g_xml, (uchar**) &g_xml,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(NULL);
+}
+
 static void usage()
 {
-  char desc[] = 
+  char desc[] =
     "This program will retreive config options for a ndb cluster\n";
   puts(desc);
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 /**
@@ -151,20 +158,32 @@ static int apply(const Iter&, const Vector<Apply*>&);
 static ndb_mgm_configuration* fetch_configuration();
 static ndb_mgm_configuration* load_configuration();
 
+
 int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
-    return -1;
+    exit(255);
+
+  if (g_configinfo)
+  {
+    ConfigInfo info;
+    if (g_xml)
+      info.print_xml();
+    else
+      info.print();
+    exit(0);
+  }
 
   if (g_nodes && g_connections)
   {
     fprintf(stderr,
 	    "Only one option of --nodes and --connections allowed\n");
-    return -1;
+    exit(255);
   }
 
   g_section = CFG_SECTION_NODE; //default
@@ -180,7 +199,7 @@ main(int argc, char** argv){
 
   if (conf == 0)
   {
-    return -1;
+    exit(255);
   }
 
   Vector<Apply*> select_list;
@@ -263,15 +282,15 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
 	  if(0)ndbout_c("%s %s",
 			ConfigInfo::m_ParamInfo[p]._section,
 			ConfigInfo::m_ParamInfo[p]._fname);
-	  if(g_section == CFG_SECTION_CONNECTION &&
-	     (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
-	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0)
-	     ||
-	     g_section == CFG_SECTION_NODE &&
-	     (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
-	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
-	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
+	  if((g_section == CFG_SECTION_CONNECTION &&
+              (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
+             ||
+	     (g_section == CFG_SECTION_NODE &&
+              (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0)))
 	  {
 	    if(strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
 	    {
@@ -477,7 +496,7 @@ ConnectionTypeApply::apply(const Iter& iter)
   return 0;
 }
 
-ndb_mgm_configuration*
+static ndb_mgm_configuration*
 fetch_configuration()
 {  
   ndb_mgm_configuration* conf = 0;
@@ -489,7 +508,7 @@ fetch_configuration()
 
   ndb_mgm_set_error_stream(mgm, stderr);
   
-  if (ndb_mgm_set_connectstring(mgm, opt_connect_str))
+  if (ndb_mgm_set_connectstring(mgm, opt_ndb_connectstring))
   {
     fprintf(stderr, "* %5d: %s\n", 
 	    ndb_mgm_get_latest_error(mgm),
@@ -535,23 +554,30 @@ noconnect:
 }
 
 #include <Config.hpp>
+#include <EventLogger.hpp>
 
-ndb_mgm_configuration*
+extern EventLogger *g_eventLogger;
+
+static ndb_mgm_configuration*
 load_configuration()
-{  
-  InitConfigFileParser parser(stderr);
+{
+  g_eventLogger->removeAllHandlers();
+  g_eventLogger->createConsoleHandler(ndberr);
+  g_eventLogger->setCategory("ndb_config");
+  InitConfigFileParser parser;
   if (g_config_file)
   {
     if (g_verbose)
-      fprintf(stderr, "Using config.ini : %s", g_config_file);
+      fprintf(stderr, "Using config.ini : %s\n", g_config_file);
     
     Config* conf = parser.parseConfig(g_config_file);
     if (conf)
       return conf->m_configValues;
+    return 0;
   }
   
   if (g_verbose)
-    fprintf(stderr, "Using my.cnf");
+    fprintf(stderr, "Using my.cnf\n");
   
   Config* conf = parser.parse_mycnf();
   if (conf)

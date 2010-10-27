@@ -7,7 +7,7 @@
 
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 --echo --- Doing pre test cleanup --- 
 
@@ -64,7 +64,7 @@ ENGINE=NDB;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(63), 
                  bc CHAR(63), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-                 y YEAR, t DATE)
+                 y YEAR, t DATE, primary key(t))
                  TABLESPACE ts1 STORAGE DISK
                  ENGINE=NDB
                  PARTITION BY RANGE (YEAR(t)) 
@@ -124,7 +124,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(63), 
                  bc CHAR(63), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-                 y YEAR, t DATE)
+                 y YEAR, t DATE, primary key(id))
                  TABLESPACE ts1 STORAGE DISK
                  ENGINE=NDB
                  PARTITION BY LIST(id) 
@@ -183,7 +183,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(63), 
                  bc CHAR(63), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-                 y YEAR, t DATE)
+                 y YEAR, t DATE, primary key(t))
                  TABLESPACE ts1 STORAGE DISK
                  ENGINE=NDB
                  PARTITION BY HASH( YEAR(t) ) 

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -27,6 +30,10 @@ void Qmgr::initData()
 
   // Records with constant sizes
   nodeRec = new NodeRec[MAX_NODES];
+  for (Uint32 i = 0; i<MAX_NODES; i++)
+  {
+    nodeRec[i].m_secret = 0;
+  }
 
   cnoCommitFailedNodes = 0;
   c_maxDynamicId = 0;
@@ -39,6 +46,9 @@ void Qmgr::initData()
   ndbrequire((Uint32)NodeInfo::DB == 0);
   ndbrequire((Uint32)NodeInfo::API == 1);
   ndbrequire((Uint32)NodeInfo::MGM == 2); 
+
+  m_micro_gcp_enabled = false;
+  m_hb_order_config_used = false;
 
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
@@ -98,6 +108,7 @@ Qmgr::Qmgr(Block_context& ctx)
   // Received signals
   addRecSignal(GSN_CONNECT_REP, &Qmgr::execCONNECT_REP);
   addRecSignal(GSN_NDB_FAILCONF, &Qmgr::execNDB_FAILCONF);
+  addRecSignal(GSN_NF_COMPLETEREP, &Qmgr::execNF_COMPLETEREP);
   addRecSignal(GSN_READ_CONFIG_REQ, &Qmgr::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Qmgr::execSTTOR);
   addRecSignal(GSN_CLOSE_COMCONF, &Qmgr::execCLOSE_COMCONF);
@@ -113,6 +124,7 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_ALLOC_NODEID_REQ,  &Qmgr::execALLOC_NODEID_REQ);
   addRecSignal(GSN_ALLOC_NODEID_CONF,  &Qmgr::execALLOC_NODEID_CONF);
   addRecSignal(GSN_ALLOC_NODEID_REF,  &Qmgr::execALLOC_NODEID_REF);
+  addRecSignal(GSN_ENABLE_COMCONF,  &Qmgr::execENABLE_COMCONF);
   
   // Arbitration signals
   addRecSignal(GSN_ARBIT_PREPREQ, &Qmgr::execARBIT_PREPREQ);
@@ -131,6 +143,8 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_DIH_RESTARTCONF, &Qmgr::execDIH_RESTARTCONF);
   addRecSignal(GSN_NODE_VERSION_REP, &Qmgr::execNODE_VERSION_REP);
   addRecSignal(GSN_START_ORD, &Qmgr::execSTART_ORD);
+
+  addRecSignal(GSN_UPGRADE_PROTOCOL_ORD, &Qmgr::execUPGRADE_PROTOCOL_ORD);
   
   initData();
 }//Qmgr::Qmgr()

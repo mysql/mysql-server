@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef FIRE_TRIG_ORD_HPP
 #define FIRE_TRIG_ORD_HPP
@@ -44,6 +47,7 @@ class FireTrigOrd {
   friend class Dbtc;
   friend class Backup;
   friend class SumaParticipant;
+  friend class Suma;
   
   /**
    * For printing
@@ -51,22 +55,32 @@ class FireTrigOrd {
   friend bool printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLength = 11 );
   STATIC_CONST( SignalWithGCILength = 9 );
-  STATIC_CONST( SignalLengthSuma = 11 );
+  STATIC_CONST( SignalLengthSuma = 12 );
 
 private:
   Uint32 m_connectionPtr;
   Uint32 m_userRef;
   Uint32 m_triggerId;
-  TriggerEvent::Value m_triggerEvent;
+  Uint32 m_triggerEvent;
   Uint32 m_noPrimKeyWords;
   Uint32 m_noBeforeValueWords;
   Uint32 m_noAfterValueWords;
   Uint32 fragId;
-  Uint32 m_gci;
-  Uint32 m_hashValue;
-  Uint32 m_any_value;
+  union {
+    Uint32 m_gci_hi;
+    Uint32 m_triggerType;
+  };
+  union {
+    Uint32 m_hashValue;
+    Uint32 m_transId1;
+  };
+  union {
+    Uint32 m_any_value;
+    Uint32 m_transId2;
+  };
+  Uint32 m_gci_lo;
   // Public methods
 public:
   Uint32 getConnectionPtr() const;
@@ -130,7 +144,7 @@ void FireTrigOrd::setTriggerId(Uint32 aTriggerId)
 inline
 TriggerEvent::Value FireTrigOrd::getTriggerEvent() const
 {
-  return m_triggerEvent;
+  return (TriggerEvent::Value)m_triggerEvent;
 }
 
 inline
@@ -178,13 +192,13 @@ void FireTrigOrd::setNoOfAfterValueWords(Uint32 noAfter)
 inline
 Uint32 FireTrigOrd::getGCI() const
 {
-  return m_gci;
+  return m_gci_hi;
 }
 
 inline
 void FireTrigOrd::setGCI(Uint32 aGCI)
 {
-  m_gci = aGCI;
+  m_gci_hi = aGCI;
 }
 
 inline

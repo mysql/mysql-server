@@ -1,0 +1,156 @@
+*** New master:
+1. During execution of NODE_FAILREP:
+if new master
+  check for pending transaction, count operations (opCount)
+  for each slave
+    if no pending transaction found
+         ask slave if it has a pending transaction
+         DICT_TAKEOVER_REQ, req->requestInfo = TO_FIND_TRANS (goto 7)
+    else ask slave about state of the transaction operations,
+         DICT_TAKEOVER_REQ,
+         req->opCount = opCount, req->requestInfo = TO_FIND_OPS (goto 8)
+  for each slave
+    if slave did not find transaction (or did not reply), DICT_TAKEOVER_REF
+      ignore the slave
+    else analyze slave progress (goto 2)
+  if decision is rollforward
+       rollforward (goto 5)
+  else rollback (goto 6)
+  send SCHEMA_TRANS_REP to waiting client
+send NF_COMPLETE_REP  
+
+2. Analyze slave progress (DICT_TAKEOVER_CONF)
+trans->lowest_trans_state = TS_ENDING;
+trans->highest_trans_state = TS_INITIAL;
+for each slave
+  if (conf->requestInfo == TO_FIND_TRANS and no master trans)
+    master trans = seize missing transaction
+  if master op_count < slave op_count (can only differ by one)
+    seize missing operation (increase master op_count++)
+  if (weight(conf->trans_state) < weight(trans->lowest_trans_state)) Note: *)
+    trans->lowest_trans_state = conf->trans_state;
+  if (weight(conf->trans_state) > weight(trans->highest_trans_state))
+    trans->highest_trans_state = conf->trans_state;
+Decide transaction outcome (goto 3)
+trans->rollforward_op = MAX_OPS;
+trans->rollback_op = 0;
+for each slave
+  /* Save the lowest operation for roll forward */
+  if (conf->rollforward_op < trans->rollforward_op)
+    trans->rollforward_op = conf->rollforward_op;
+    trans->rollforward_op_state = conf->rollforward_op_state;
+  /* Save the highest operation for rollback */
+  if (conf->rollback > trans->rollback)
+    trans->rollback_op = conf->rollback_op;
+    trans->rollback_op_state = conf->rollback_op_state;
+Check partial progress (goto 4)
+
+3. Decide transaction outcome
+trans->m_state = trans->lowest_trans_state;
+switch(trans->highest_trans_state)
+  case TS_INITIAL:
+  case TS_STARTING:
+  case TS_STARTED:
+  case TS_PARSING:
+  case TS_SUBOP:
+  case TS_ROLLBACK_SP:
+  case TS_FLUSH_PREPARE:
+  case TS_PREPARING:
+  case TS_ABORTING_PREPARE:
+  case TS_ABORTING_PARSE:
+   decision is rollback!
+   break;
+  case TS_FLUSH_COMMIT:
+  case TS_COMMITTING:
+    if (trans->rollback_op_state != OS_COMMITTED)
+      decision is rollback;
+      break;
+  case TS_FLUSH_COMPLETE:
+  case TS_COMPLETING:
+  case TS_ENDING:
+    decision is rollforward!
+
+4. Check for partial progress
+for each slave node (saved conf)
+  if (conf->op_count == 0)
+    /* Slave did not parse any operations, skip it when aborting parse */
+    node->start_op = 0;
+    node->start_op_state = OS_INITIAL;
+    node->partial_recovery = true;
+  else if decision is rollforward
+    if (conf->rollforward_op > trans->rollforward_op)
+      /* Slave is ahead of least progressed slave */
+      node->start_op = conf->rollforward_op;
+      node->start_op_state = conf->rollforward_op_state;
+      node->partial_recovery = true;
+  else (decision is rollback)
+    if (conf->rollback_op < trans->rollback_op)
+      /* Slave is behind most progressed slave or
+         if already aborting, ahead of least aborted slave
+      */ 
+      node->start_op = conf->rollback_op;
+      node->start_op_state = conf->rollback_op_state;
+      node->partial_recovery = true;
+
+5. Rollforward
+Start ordinary transaction protocol depending on trans->m_state
+trans->m_curr_op_ptr_i = trans->rollforward_op
+for each transaction state (rollforward states)
+  for each operation op starting with m_curr_op_ptr_i
+    for each slave node
+      /*
+        Skip operations already in the state we are trying to achieve
+       */
+      if (!node->partial_recovery || node->starting_op >= op->op_key)
+        order slave to rollforward op (SCHEMA_TRANS_IMPL_REQ)
+        node->partial_recovery = false;
+  
+6. Rollback
+Start ordinary transaction protocol depending on trans->m_state
+trans->m_curr_op_ptr_i = trans->rollforward_op
+for each transaction state (rollback states)
+  for each operation op starting with m_curr_op_ptr_i
+    for each slave node
+      /*
+        Skip operations already in the state we are trying to achieve
+       */
+      if (!node->partial_recovery || node->starting_op_key <= op->op_key)
+        order slave to rollback op (SCHEMA_TRANS_IMPL_REQ)
+        node->partial_recovery = false;
+
+
+*** Slave
+7. Exection of DICT_TAKEOVER_REQ, req->requestInfo == TO_FIND_TRANS
+if no pending trans send DICT_TAKEOVER_REF
+else continue finding operations (goto 8.1)
+
+8. Exection of DICT_TAKEOVER_REQ, req->requestInfo == TO_FIND_OPS
+if no pending trans send DICT_TAKEOVER_REF
+else
+     8.1 Find preferred rollforward/rollback points
+     op_count = 0;
+     rollforward_op_state = OS_COMPLETED;
+     rollback_op_state = OS_INITIAL;
+     for each operation
+       op_count++;
+       if (weight(op->m_state) < weight(rollforward_op_state))   Note: **)
+         rollforward_op = op->op_key;
+         rollforward_op_state = op->m_state;
+       if (weight(op->m_state) >= weight(rollback_op_state))
+         rollback_op = op->op_key;
+         rollback_op_state = op->m_state;
+       return DICT_TAKEOVERCONF with
+         pending_trans, trans_state, op_count,
+         rollforward_op, rollforward_op_state,
+         rollback_op, rollback_op_state     
+
+
+Notes:
+*): weight(SchemaTrans::TransState) returns an absolute value
+so that the partial progress of slaves can be compared
+(also during rollback).
+
+**):
+weight(SchemaOp::OpState) returns an absolute value
+so that the progress of operations can be compared
+(also during rollback).

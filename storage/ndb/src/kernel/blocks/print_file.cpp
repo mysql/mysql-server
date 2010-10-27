@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -20,6 +23,7 @@
 #include "diskpage.hpp"
 #include <ndb_limits.h>
 #include <dbtup/tuppage.hpp>
+#include <my_dir.h>
 
 static void print_usage(const char*);
 static int print_zero_page(int, void *, Uint32 sz);
@@ -65,9 +69,8 @@ int main(int argc, char ** argv)
     
     const char * filename = argv[i];
     
-    struct stat sbuf;
-    const int res = stat(filename, &sbuf);
-    if(res != 0){
+    MY_STAT sbuf;
+    if(!my_stat(filename, &sbuf, MYF(0))){
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }
@@ -85,7 +88,7 @@ int main(int argc, char ** argv)
     Uint32 j = 0;
     do {
       buffer.grow(g_page_size);
-      sz = fread(buffer.get_data(), 1, g_page_size, f);
+      sz = (Uint32)fread(buffer.get_data(), 1, g_page_size, f);
       if((* g_print_page)(j++, buffer.get_data(), sz))
 	break;
     } while(sz == g_page_size);
@@ -192,8 +195,8 @@ print_extent_page(int count, void* ptr, Uint32 sz){
   
   int no = count * per_page;
   
-  const int max = count < g_df_zero.m_extent_pages ? 
-    per_page : g_df_zero.m_extent_count % per_page;
+  const int max = count < int(g_df_zero.m_extent_pages) ? 
+    per_page : g_df_zero.m_extent_count - (g_df_zero.m_extent_count - 1) * per_page;
 
   File_formats::Datafile::Extent_page * page = 
     (File_formats::Datafile::Extent_page*)ptr;
@@ -201,7 +204,7 @@ print_extent_page(int count, void* ptr, Uint32 sz){
   ndbout << "Extent page: " << count
 	 << ", lsn = [ " 
 	 << page->m_page_header.m_page_lsn_hi << " " 
-	 << page->m_page_header.m_page_lsn_lo << "]" 
+	 << page->m_page_header.m_page_lsn_lo << "] " 
 	 << endl;
   for(int i = 0; i<max; i++)
   {
@@ -250,7 +253,7 @@ print_data_page(int count, void* ptr, Uint32 sz){
 
 int
 print_undo_page(int count, void* ptr, Uint32 sz){
-  if(count > g_uf_zero.m_undo_pages + 1)
+  if(count > int(g_uf_zero.m_undo_pages + 1))
   {
     ndbout_c(" ERROR to many pages in file!!");
     return 1;

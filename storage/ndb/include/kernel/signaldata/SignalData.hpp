@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SIGNAL_DATA_H
 #define SIGNAL_DATA_H
@@ -19,7 +22,6 @@
 #include <ndb_global.h>
 #include <kernel/ndb_limits.h>
 #include <kernel/kernel_types.h>
-#include <BaseString.hpp>
 
 #define ASSERT_BOOL(flag, message) assert(flag<=1)
 #define ASSERT_RANGE(value, min, max, message) \
@@ -27,6 +29,27 @@
 #define ASSERT_MAX(value, max, message) assert((value) <= (max))
 
 #define SECTION(x) STATIC_CONST(x)
+
+template <typename T>
+inline
+T*
+cast_ptr(Uint32 * ptr)
+{
+  NDB_ASSERT_POD(T);
+  return new (ptr) T;
+}
+
+template <typename T>
+inline
+const T*
+cast_constptr(const Uint32 * ptr)
+{
+  NDB_ASSERT_POD(T);
+  return const_cast<const T*>(new (const_cast<Uint32*>(ptr)) T);
+}
+
+#define CAST_PTR(Y,X) cast_ptr<Y>(X)
+#define CAST_CONSTPTR(Y,X) cast_constptr<Y>(X)
 
 // defines for setter and getters on commonly used member data in signals
 
@@ -222,5 +245,64 @@ GSN_PRINT_SIGNATURE(printSCAN_FRAGREQ);
 GSN_PRINT_SIGNATURE(printCONTINUEB_NDBFS);
 GSN_PRINT_SIGNATURE(printCONTINUEB_DBDIH);
 GSN_PRINT_SIGNATURE(printSTART_FRAG_REQ);
+
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_BEGIN_REQ);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_BEGIN_CONF);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_BEGIN_REF);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_END_REQ);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_END_CONF);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_END_REF);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_END_REP);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_IMPL_REQ);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_IMPL_CONF);
+GSN_PRINT_SIGNATURE(printSCHEMA_TRANS_IMPL_REF);
+GSN_PRINT_SIGNATURE(printCREATE_TAB_REQ);
+GSN_PRINT_SIGNATURE(printCREATE_TAB_CONF);
+GSN_PRINT_SIGNATURE(printCREATE_TAB_REF);
+GSN_PRINT_SIGNATURE(printCREATE_TABLE_REQ);
+GSN_PRINT_SIGNATURE(printCREATE_TABLE_CONF);
+GSN_PRINT_SIGNATURE(printCREATE_TABLE_REF);
+GSN_PRINT_SIGNATURE(printDROP_TABLE_REQ);
+GSN_PRINT_SIGNATURE(printDROP_TABLE_REF);
+GSN_PRINT_SIGNATURE(printDROP_TABLE_CONF);
+
+GSN_PRINT_SIGNATURE(printGET_TABINFO_REQ);
+GSN_PRINT_SIGNATURE(printGET_TABINFO_REF);
+GSN_PRINT_SIGNATURE(printGET_TABINFO_CONF);
+
+GSN_PRINT_SIGNATURE(printCREATE_TRIG_IMPL_REQ);
+GSN_PRINT_SIGNATURE(printCREATE_TRIG_IMPL_CONF);
+GSN_PRINT_SIGNATURE(printCREATE_TRIG_IMPL_REF);
+GSN_PRINT_SIGNATURE(printDROP_TRIG_IMPL_REQ);
+GSN_PRINT_SIGNATURE(printDROP_TRIG_IMPL_CONF);
+GSN_PRINT_SIGNATURE(printDROP_TRIG_IMPL_REF);
+GSN_PRINT_SIGNATURE(printALTER_TRIG_IMPL_REQ);
+GSN_PRINT_SIGNATURE(printALTER_TRIG_IMPL_CONF);
+GSN_PRINT_SIGNATURE(printALTER_TRIG_IMPL_REF);
+
+GSN_PRINT_SIGNATURE(printCREATE_INDX_IMPL_REQ);
+GSN_PRINT_SIGNATURE(printCREATE_INDX_IMPL_CONF);
+GSN_PRINT_SIGNATURE(printCREATE_INDX_IMPL_REF);
+GSN_PRINT_SIGNATURE(printDROP_INDX_IMPL_REQ);
+GSN_PRINT_SIGNATURE(printDROP_INDX_IMPL_CONF);
+GSN_PRINT_SIGNATURE(printDROP_INDX_IMPL_REF);
+GSN_PRINT_SIGNATURE(printALTER_INDX_IMPL_REQ);
+GSN_PRINT_SIGNATURE(printALTER_INDX_IMPL_CONF);
+GSN_PRINT_SIGNATURE(printALTER_INDX_IMPL_REF);
+
+GSN_PRINT_SIGNATURE(printBUILD_INDX_REQ);
+GSN_PRINT_SIGNATURE(printBUILD_INDX_CONF);
+GSN_PRINT_SIGNATURE(printBUILD_INDX_REF);
+GSN_PRINT_SIGNATURE(printBUILD_INDX_IMPL_REQ);
+GSN_PRINT_SIGNATURE(printBUILD_INDX_IMPL_CONF);
+GSN_PRINT_SIGNATURE(printBUILD_INDX_IMPL_REF);
+
+GSN_PRINT_SIGNATURE(printAPI_VERSION_REQ);
+GSN_PRINT_SIGNATURE(printAPI_VERSION_CONF);
+
+GSN_PRINT_SIGNATURE(printLOCAL_ROUTE_ORD);
+
+GSN_PRINT_SIGNATURE(printDBINFO_SCAN);
+GSN_PRINT_SIGNATURE(printDBINFO_SCAN_REF);
 
 #endif

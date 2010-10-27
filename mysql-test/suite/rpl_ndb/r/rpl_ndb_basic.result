@@ -140,6 +140,7 @@ set GLOBAL slave_transaction_retries=1;
 **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 **** On Slave ****
+Last_SQL_Error = Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: ''. Query: 'COMMIT'
 set GLOBAL slave_transaction_retries=10;
 include/start_slave.inc
 select * from t1 order by nid;
@@ -153,6 +154,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 INT KEY) ENGINE=NDB;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 ALTER TABLE t1 ADD c2 INT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SELECT * FROM t1 ORDER BY c1;
 c1	c2
 1	NULL
@@ -165,6 +168,23 @@ c1	c2
 8	NULL
 9	NULL
 10	NULL
+INSERT INTO t1 VALUES (11,11),(12,12),(13,13),(14,14);
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+1	NULL
+2	NULL
+3	NULL
+4	NULL
+5	NULL
+6	NULL
+7	NULL
+8	NULL
+9	NULL
+10	NULL
+11	11
+12	12
+13	13
+14	14
 ALTER TABLE t1 CHANGE c2 c2 TEXT CHARACTER SET utf8;
 ALTER TABLE t1 CHANGE c2 c2 BLOB;
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
@@ -189,4 +209,24 @@ c1
 103
 104
 105
+DROP TABLE t1;
+create table t1 (a int primary key,
+b00 int,b01 int,b02 int,b03 int,b04 int,b05 int,b06 int,b07 int,
+b08 int,b09 int,b10 int,b11 int,b12 int,b13 int,b14 int,b15 int,
+b16 int,b17 int,b18 int,b19 int,b20 int,b21 int,b22 int,b23 int,
+b24 int,b25 int,b26 int,b27 int,b28 int,b29 int,b30 int,b31 int,
+b32 int,b33 int,b34 int,b35 int,b36 int,b37 int,b38 int,b39 int,
+b40 int,b41 int,b42 int,b43 int,b44 int,b45 int,b46 int,b47 int,
+b48 int,b49 int,b50 int,b51 int,b52 int,b53 int,b54 int,b55 int,
+b56 int,b57 int,b58 int,b59 int,b60 int,b61 int,b62 int,b63 int,
+b64 int,b65 int,b66 int,b67 int,b68 int,b69 int,b70 int) engine=ndb;
+insert into t1 (a,b00) values (1,1);
+update t1 set b00 = 2 where a = 1;
+update t1 set b66 = 1 where a = 1;
+select b00 from t1;
+b00
+1
+select b00 from t1;
+b00
+2
 DROP TABLE t1;
