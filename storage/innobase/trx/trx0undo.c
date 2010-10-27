@@ -1798,8 +1798,6 @@ UNIV_INTERN
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
-	trx_rseg_t*	rseg,	/*!< in: rollback segment memory object */
-	trx_t*		trx __attribute__((unused)), /*!< in: transaction */
 	trx_undo_t*	undo,	/*!< in: undo log memory copy */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1808,10 +1806,8 @@ trx_undo_set_state_at_finish(
 	page_t*		undo_page;
 	ulint		state;
 
-	ut_ad(trx);
 	ut_ad(undo);
 	ut_ad(mtr);
-	ut_ad(mutex_own(&rseg->mutex));
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
