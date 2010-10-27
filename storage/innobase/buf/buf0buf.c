@@ -1315,7 +1315,8 @@ buf_pool_init(
 	ulint		i;
 	const ulint	size	= total_size / n_instances;
 
-	ut_ad(n_instances < MAX_BUFFER_POOLS);
+	ut_ad(n_instances > 0);
+	ut_ad(n_instances <= MAX_BUFFER_POOLS);
 	ut_ad(n_instances == srv_buf_pool_instances);
 
 	/* We create an extra buffer pool instance, this instance is used
