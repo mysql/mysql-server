@@ -123,6 +123,7 @@ analyze table t1;
 select count(*) from t1;
 
 --replace_column 9 REF
+--replace_result i2,i1 i1,i2
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 
@@ -130,6 +131,7 @@ select count(*) from t1 where
   key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 
 --replace_column 9 REF
+--replace_result i3,i1 i1,i3
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 
