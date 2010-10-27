@@ -16,10 +16,7 @@
 #include "rpl_info_values.h"
 
 Rpl_info_values::Rpl_info_values(int param_ninfo): value(0),
-    ninfo(param_ninfo)
-{
-  init_alloc_root(&mem_root, 256, 512);
-}
+    ninfo(param_ninfo) { }
 
 /**
   Initializes a sequence of values to be read from or stored into a repository.
@@ -34,18 +31,16 @@ bool Rpl_info_values::init()
 {
   DBUG_ENTER("Rpl_info_values::init");
 
-  if (!value && !(value= new struct_value[ninfo]))
+  if (!value && !(value= new String[ninfo]))
       DBUG_RETURN(TRUE);
-
-  for (int field_idx= 0; field_idx < ninfo; field_idx++)
-    value[field_idx].str= new (&mem_root) String;
 
   DBUG_RETURN(FALSE);
 }
 
 Rpl_info_values::~Rpl_info_values()
 {
-  free_root(&mem_root, MYF(0));
-  if (value)
-    delete [] value;
+  for (int pos= 0; pos < ninfo; pos++)
+    value[pos].~String();
+
+  delete [] value;
 }

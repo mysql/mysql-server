@@ -178,13 +178,13 @@ enum enum_return_id Rpl_info_table_access::find_info_for_server_id(ulong server_
   uchar key[MAX_KEY_LENGTH];
   DBUG_ENTER("Rpl_info_table_access::find_info_id");
 
-  field_values->value[idx].str->set_int(server_id, TRUE, &my_charset_bin);
+  field_values->value[idx].set_int(server_id, TRUE, &my_charset_bin);
 
-  if (field_values->value[idx].str->length() > table->field[idx]->field_length)
+  if (field_values->value[idx].length() > table->field[idx]->field_length)
     DBUG_RETURN(ERROR_ID);
 
-  table->field[idx]->store(field_values->value[idx].str->c_ptr(),
-                           field_values->value[idx].str->length(),
+  table->field[idx]->store(field_values->value[idx].c_ptr_safe(),
+                           field_values->value[idx].length(),
                            &my_charset_bin);
 
   if (!(table->field[idx]->flags & PRI_KEY_FLAG) &&
@@ -226,7 +226,7 @@ bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
   while (field_idx < max_num_field)
   {
     fields[field_idx]->val_str(&str);
-    field_values->value[field_idx].str->copy(str.c_ptr(), str.length(),
+    field_values->value[field_idx].copy(str.c_ptr_safe(), str.length(),
                                              &my_charset_bin);
     field_idx++;
   }
@@ -256,8 +256,8 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field, Field **fields
   while (field_idx < max_num_field)
   {
     fields[field_idx]->set_notnull();
-    if (fields[field_idx]->store(field_values->value[field_idx].str->c_ptr(),
-                                 field_values->value[field_idx].str->length(),
+    if (fields[field_idx]->store(field_values->value[field_idx].c_ptr_safe(),
+                                 field_values->value[field_idx].length(),
                                  &my_charset_bin))
     {
       my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),

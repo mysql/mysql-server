@@ -21,11 +21,6 @@
 #include <my_sys.h>
 #include <sql_string.h>
 
-typedef struct struct_value
-{
-  String *str;
-} struct_value;
-
 class Rpl_info_values
 {
 public:
@@ -33,12 +28,9 @@ public:
   virtual ~Rpl_info_values();
 
   bool init();
-  bool resize(int needed_size, int pos);
 
   /* Sequence of values to be read from or stored into a repository. */
-  struct_value *value;
-
-  MEM_ROOT mem_root;
+  String *value;
 
 private:
   /* This property represents the number of fields. */
