@@ -4804,7 +4804,10 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
         continue;
 
       if (result_sink->get_null_count_of_col(i) == row_count)
+      {
         bitmap_set_bit(&null_only_columns, cur_keyid);
+        continue;
+      }
       else
       {
         merge_keys[cur_keyid]= new Ordered_key(
@@ -4821,6 +4824,7 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
       ++cur_keyid;
     }
   }
+  DBUG_ASSERT(cur_keyid == keys_count);
 
   /* Populate the indexes with data from the temporary table. */
   tmp_table->file->ha_rnd_init(1);

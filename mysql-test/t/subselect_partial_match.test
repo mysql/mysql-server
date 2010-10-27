@@ -32,9 +32,25 @@ CREATE TABLE t2 (b1 int DEFAULT NULL, b2 int DEFAULT NULL);
 INSERT INTO t2 VALUES (6,NULL);
 INSERT INTO t2 VALUES (NULL,0);
 
-SET @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on';
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on';
 
 EXPLAIN EXTENDED
 SELECT * FROM (SELECT * FROM t1 WHERE a1 NOT IN (SELECT b2 FROM t2)) table1;
 
 DROP TABLE t1, t2;
+set @@optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # LP BUG#613009 Crash in Ordered_key::get_field_idx
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=off';
+
+create table t1 (a1 char(3) DEFAULT NULL, a2 char(3) DEFAULT NULL);
+insert into t1 values (NULL, 'a21'), (NULL, 'a22');
+explain select * from t1 where (a1, a2) not in (select a1, a2 from t1);
+select * from t1 where (a1, a2) not in (select a1, a2 from t1);
+drop table t1;
+set @@optimizer_switch=@save_optimizer_switch;
