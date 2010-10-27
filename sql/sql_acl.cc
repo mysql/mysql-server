@@ -8145,6 +8145,24 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
     DBUG_RETURN (1);
   }
 
+  /*
+    If we're dealing with an older client we can't just send a change plugin
+    packet to re-initiate the authentication handshake, because the client 
+    won't understand it. The good thing is that we don't need to : the old client
+    expects us to just check the user credentials here, which we can do by just reading
+    the cached data that are placed there by parse_com_change_user_packet() 
+    In this case we just do nothing and behave as if normal authentication
+    should continue.
+  */
+  if (!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
+  {
+    DBUG_PRINT("info", ("old client sent a COM_CHANGE_USER"));
+    DBUG_ASSERT(mpvio->cached_client_reply.pkt);
+    /* get the status back so the read can process the cached result */
+    mpvio->status= MPVIO_EXT::RESTART; 
+    DBUG_RETURN(0);
+  }
+
   DBUG_PRINT("info", ("requesting client to use the %s plugin", 
                       client_auth_plugin));
   DBUG_RETURN(net_write_command(net, switch_plugin_request_buf[0],
@@ -8628,8 +8646,16 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   int res;
 
   DBUG_ENTER("server_mpvio_write_packet");
-  /* reset cached_client_reply */
-  mpvio->cached_client_reply.pkt= 0;
+  /* 
+    Reset cached_client_reply if not an old client doing mysql_change_user, 
+    as this is where the password from COM_CHANGE_USER is stored.
+  */
+  if (!((!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH)) && 
+        mpvio->status == MPVIO_EXT::RESTART &&
+        mpvio->cached_client_reply.plugin == 
+        ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin
+        ))
+    mpvio->cached_client_reply.pkt= 0;
   /* for the 1st packet we wrap plugin data into the handshake packet */
   if (mpvio->packets_written == 0)
     res= send_server_handshake_packet(mpvio, (char*) packet, packet_len);
@@ -8695,6 +8721,15 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
       mpvio->packets_read++;
       DBUG_RETURN ((int) mpvio->cached_client_reply.pkt_len);
     }
+
+    /* older clients don't support change of client plugin request */
+    if (!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
+    {
+      mpvio->status= MPVIO_EXT::FAILURE;
+      pkt_len= packet_error;
+      goto err;
+    }
+
     /*
       But if the client has used the wrong plugin, the cached data are
       useless. Furthermore, we have to send a "change plugin" request
