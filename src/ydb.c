@@ -3772,8 +3772,8 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     DB_TXN *child = NULL;
     // begin child (unless transactionless)
     if (using_txns) {
-	r = toku_txn_begin(db->dbenv, txn, &child, DB_TXN_NOSYNC, 1);
-	assert(r==0);
+        r = toku_txn_begin(db->dbenv, txn, &child, DB_TXN_NOSYNC, 1);
+        assert(r==0);
     }
 
     // convert dname to iname
@@ -3791,14 +3791,15 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
         r = EEXIST;
     }
     else if (r==DB_NOTFOUND) {
-	char hint[strlen(dname) + 1];
+        char hint[strlen(dname) + 1];
 
-	// create iname and make entry in directory
-	u_int64_t id = 0;
-	
-	if (using_txns)
-	    id = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
-	create_iname_hint(dname, hint);
+        // create iname and make entry in directory
+        u_int64_t id = 0;
+
+        if (using_txns) {
+            id = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
+        }
+        create_iname_hint(dname, hint);
         iname = create_iname(db->dbenv, id, hint, -1);  // allocated memory for iname
         toku_fill_dbt(&iname_dbt, iname, strlen(iname) + 1);
         r = toku_db_put(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE for performance only, avoid unnecessary query
@@ -3806,7 +3807,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 
     // we now have an iname
     if (r == 0) {
-	r = db_open_iname(db, child, iname, flags, mode);
+        r = db_open_iname(db, child, iname, flags, mode);
         if (r==0) {
             db->i->dname = toku_xstrdup(dname);
             env_note_db_opened(db->dbenv, db);  // tell env that a new db handle is open (using dname)
@@ -3817,15 +3818,15 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     if (iname) toku_free(iname);
 
     if (using_txns) {
-	// close txn
-	if (r == 0) {  // commit
-	    r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
-	    assert(r==0);  // TODO panic
-	}
-	else {         // abort
-	    int r2 = toku_txn_abort(child, NULL, NULL);
-	    assert(r2==0);  // TODO panic
-	}
+        // close txn
+        if (r == 0) {  // commit
+            r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
+            assert(r==0);  // TODO panic
+        }
+        else {         // abort
+            int r2 = toku_txn_abort(child, NULL, NULL);
+            assert(r2==0);  // TODO panic
+        }
     }
 
     return r;
@@ -4990,7 +4991,6 @@ void db_env_set_recover_callback2 (void (*callback_f)(void*), void* extra) {
 void db_env_set_loader_size_factor (uint32_t factor) {
     toku_brtloader_set_size_factor(factor);
 }
-
 
 void db_env_set_mvcc_garbage_collection_verification(u_int32_t verification_mode) {
     garbage_collection_debug = (verification_mode != 0);
