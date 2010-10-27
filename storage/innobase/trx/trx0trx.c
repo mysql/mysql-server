@@ -758,8 +758,7 @@ trx_commit_off_kernel(
 		mutex_enter(&(rseg->mutex));
 
 		if (trx->insert_undo != NULL) {
-			trx_undo_set_state_at_finish(
-				rseg, trx, trx->insert_undo, &mtr);
+			trx_undo_set_state_at_finish(trx->insert_undo, &mtr);
 		}
 
 		undo = trx->update_undo;
@@ -774,7 +773,7 @@ trx_commit_off_kernel(
 			transaction commit for this transaction. */
 
 			update_hdr_page = trx_undo_set_state_at_finish(
-				rseg, trx, undo, &mtr);
+				undo, &mtr);
 
 			/* We have to do the cleanup for the update log while
 			holding the rseg mutex because update log headers

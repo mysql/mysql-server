@@ -2677,7 +2677,7 @@ srv_master_thread(
 	ulint		i;
 	ibool		max_modified_ratio_exceeded = FALSE;
 	ib_time_t	last_print_time;
-	ulint		n_tables_evicted = 0;
+	ulint		n_tables_evicted;
 	ib_time_t	last_table_lru_flush_time = ut_time();
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
@@ -2724,6 +2724,8 @@ loop:
 		rw_lock_x_unlock(&dict_operation_lock);
 
 		last_table_lru_flush_time = ut_time();
+	} else {
+		n_tables_evicted = 0;
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
@@ -3010,6 +3012,8 @@ background_loop:
 		rw_lock_x_unlock(&dict_operation_lock);
 
 		last_table_lru_flush_time = ut_time();
+	} else {
+		n_tables_evicted = 0;
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
