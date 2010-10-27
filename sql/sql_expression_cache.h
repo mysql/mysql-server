@@ -12,7 +12,7 @@
   constructed. That's why they are not visible in this interface.
 */
 
-extern ulonglong subquery_cache_miss, subquery_cache_hit;
+extern ulong subquery_cache_miss, subquery_cache_hit;
 
 class Expression_cache :public Sql_alloc
 {

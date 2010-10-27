@@ -6,7 +6,7 @@
   Expression cache is used only for caching subqueries now, so its statistic
   variables we call subquery_cache*.
 */
-ulonglong subquery_cache_miss, subquery_cache_hit;
+ulong subquery_cache_miss, subquery_cache_hit;
 
 Expression_cache_tmptable::Expression_cache_tmptable(THD *thd,
                                                  List<Item*> &dependants,
