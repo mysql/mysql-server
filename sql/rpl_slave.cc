@@ -3359,11 +3359,6 @@ Stopping slave I/O thread due to out-of-memory error from master");
           mi->report(ERROR_LEVEL, ER_OUT_OF_RESOURCES,
                      "%s", ER(ER_OUT_OF_RESOURCES));
           goto err;
-        case ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE:
-          mi->report(ERROR_LEVEL, ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE,
-                     ER(ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE),
-                     mysql_error_number, mysql_error(mysql));
-          goto err;
         }
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
                              reconnect_messages[SLAVE_RECON_ACT_EVENT]))
