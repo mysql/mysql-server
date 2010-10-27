@@ -191,14 +191,14 @@ dict_table_remove_from_cache_low(
 /**********************************************************************//**
 Validate the dictionary table LRU list.
 @return TRUE if validate OK */
-static
+UNIV_INTERN
 ibool
 dict_lru_validate(void);
 /*===================*/
 /**********************************************************************//**
 Check if table is in the dictionary table LRU list.
 @return TRUE if table found */
-static
+UNIV_INTERN
 ibool
 dict_lru_find_table(
 /*================*/

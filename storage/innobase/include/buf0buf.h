@@ -72,7 +72,7 @@ Created 11/5/1995 Heikki Tuuri
 #define MAX_PAGE_HASH_MUTEXES	1024	/*!< The maximum number of
 					page_hash mutexes */
 
-extern	buf_pool_t*	buf_pool_ptr[MAX_BUFFER_POOLS]; /*!< The buffer pools
+extern	buf_pool_t*	buf_pool_ptr;	/*!< The buffer pools
 					of the database */
 #ifdef UNIV_DEBUG
 extern ibool		buf_debug_prints;/*!< If this is set TRUE, the program
@@ -1037,6 +1037,15 @@ buf_page_address_fold(
 	ulint	space,	/*!< in: space id */
 	ulint	offset)	/*!< in: offset of the page within space */
 	__attribute__((const));
+/********************************************************************//**
+Calculates the index of a buffer pool to the buf_pool[] array.
+@return	the position of the buffer pool in buf_pool[] */
+UNIV_INLINE
+ulint
+buf_pool_index(
+/*===========*/
+	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
+	__attribute__((nonnull, const));
 /******************************************************************//**
 Returns the buffer pool instance given a page instance
 @return buf_pool */
@@ -1068,8 +1077,9 @@ Returns the buffer pool instance given its array index
 UNIV_INLINE
 buf_pool_t*
 buf_pool_from_array(
-/*====================*/
-	ulint	index);	/*!< in: array index to get buffer pool instance from */
+/*================*/
+	ulint	index);		/*!< in: array index to get
+				buffer pool instance from */
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
 @return	block, NULL if not found */
@@ -1236,8 +1246,13 @@ struct buf_page_struct{
 	unsigned	io_fix:2;	/*!< type of pending I/O operation;
 					also protected by buf_pool->mutex
 					@see enum buf_io_fix */
-	unsigned	buf_fix_count:25;/*!< count of how manyfold this block
+	unsigned	buf_fix_count:19;/*!< count of how manyfold this block
 					is currently bufferfixed */
+	unsigned	buf_pool_index:6;/*!< index number of the buffer pool
+					that this block belongs to */
+# if MAX_BUFFER_POOLS > 64
+#  error "MAX_BUFFER_POOLS > 64; redefine buf_pool_index:6"
+# endif
 	/* @} */
 #endif /* !UNIV_HOTBACKUP */
 	page_zip_des_t	zip;		/*!< compressed page; zip.data
@@ -1356,8 +1371,6 @@ struct buf_page_struct{
 					frees a page in buffer pool */
 # endif /* UNIV_DEBUG_FILE_ACCESSES */
 #endif /* !UNIV_HOTBACKUP */
-	buf_pool_t*	buf_pool;	/*!< buffer pool instance this
-					page belongs to */
 };
 
 /** The buffer control block structure */
