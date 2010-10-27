@@ -469,31 +469,6 @@ clobbered */
 #define os_atomic_dec_ulint(m,v,d)	os_atomic_dec_ulint_func(m, v, d)
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-#ifndef HAVE_ATOMIC_BUILTINS
-/**********************************************************//**
-Function that uses a mutex to decrement a variable atomically */
-UNIV_INLINE
-void
-os_atomic_dec_ulint_func(
-/*=====================*/
-	mutex_t*		mutex,		/*!< in: mutex guarding the
-						decrement */
-	ulint*			var,		/*!< in, out: variable to
-						decrement */
-	ulint			delta);		/*!< in: delta to decrement */
-/**********************************************************//**
-Function that uses a mutex to increment a variable atomically */
-UNIV_INLINE
-void
-os_atomic_inc_ulint_func(
-/*=====================*/
-	mutex_t*		mutex,		/*!< in: mutex guarding the
-						increment */
-	ulint*			var,		/*!< in, out: variable to
-						increment */
-	ulint			delta);		/*!< in: delta to increment */
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 #ifndef UNIV_NONINL
 #include "os0sync.ic"
 #endif

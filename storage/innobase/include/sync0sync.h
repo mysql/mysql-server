@@ -796,6 +796,30 @@ extern ut_list_base_node_t  mutex_list;
 /** Mutex protecting the mutex_list variable */
 extern mutex_t mutex_list_mutex;
 
+#ifndef HAVE_ATOMIC_BUILTINS
+/**********************************************************//**
+Function that uses a mutex to decrement a variable atomically */
+UNIV_INLINE
+void
+os_atomic_dec_ulint_func(
+/*=====================*/
+	mutex_t*		mutex,		/*!< in: mutex guarding the
+						decrement */
+	ulint*			var,		/*!< in/out: variable to
+						decrement */
+	ulint			delta);		/*!< in: delta to decrement */
+/**********************************************************//**
+Function that uses a mutex to increment a variable atomically */
+UNIV_INLINE
+void
+os_atomic_inc_ulint_func(
+/*=====================*/
+	mutex_t*		mutex,		/*!< in: mutex guarding the
+						increment */
+	ulint*			var,		/*!< in/out: variable to
+						increment */
+	ulint			delta);		/*!< in: delta to increment */
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_NONINL
 #include "sync0sync.ic"
