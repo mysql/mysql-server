@@ -31,13 +31,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/* TODO list for the InnoDB handler in 5.0:
-  - fix savepoint functions to use savepoint storage area
-  - Find out what kind of problems the OS X case-insensitivity causes to
-    table and database names; should we 'normalize' the names like we do
-    in Windows?
-*/
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
