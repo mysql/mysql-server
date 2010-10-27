@@ -176,7 +176,7 @@ enum enum_return_id Rpl_info_table_access::find_info_for_server_id(ulong server_
                                                                    TABLE *table)
 {
   uchar key[MAX_KEY_LENGTH];
-  DBUG_ENTER("Rpl_info_table_access::find_info_id");
+  DBUG_ENTER("Rpl_info_table_access::find_info_for_server_id");
 
   field_values->value[idx].set_int(server_id, TRUE, &my_charset_bin);
 
