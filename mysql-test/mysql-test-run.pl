@@ -202,6 +202,7 @@ sub using_extern { return (keys %opts_extern > 0);};
 our $opt_fast= 0;
 our $opt_force;
 our $opt_mem= $ENV{'MTR_MEM'};
+our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
 our $opt_gcov_exe= "gcov";
@@ -242,6 +243,7 @@ my $opt_skip_core;
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
 my $opt_max_connections;
+our $opt_report_times= 0;
 
 my $opt_sleep;
 
@@ -355,8 +357,11 @@ sub main {
     }
   }
 
+  init_timers();
+
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases, \@opt_skip_test_list);
+  mark_time_used('collect');
 
   if ( $opt_report_features ) {
     # Put "report features" as the first test to run
@@ -425,6 +430,7 @@ sub main {
 	$opt_tmpdir= "$opt_tmpdir/$child_num";
       }
 
+      init_timers();
       run_worker($server_port, $child_num);
       exit(1);
     }
@@ -436,6 +442,8 @@ sub main {
   mtr_report();
   mtr_print_thick_line();
   mtr_print_header();
+
+  mark_time_used('init');
 
   my $completed= run_test_server($server, $tests, $opt_parallel);
 
@@ -482,7 +490,11 @@ sub main {
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
+  print_total_times($opt_parallel) if $opt_report_times;
+
   mtr_report_stats("Completed", $completed);
+
+  remove_vardir_subs() if $opt_clean_vardir;
 
   exit(0);
 }
@@ -614,13 +626,15 @@ sub run_test_server ($$$) {
 	  if ($test_has_failed and $retries <= $opt_retry){
 	    # Test should be run one more time unless it has failed
 	    # too many times already
+	    my $tname= $result->{name};
 	    my $failures= $result->{failures};
 	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
-	      mtr_report("\nTest has failed $failures times,",
+	      mtr_report("\nTest $tname has failed $failures times,",
 			 "no more retries!\n");
 	    }
 	    else {
-	      mtr_report("\nRetrying test, attempt($retries/$opt_retry)...\n");
+	      mtr_report("\nRetrying test $tname, ".
+			 "attempt($retries/$opt_retry)...\n");
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -655,6 +669,9 @@ sub run_test_server ($$$) {
 	}
 	elsif ($line eq 'START'){
 	  ; # Send first test
+	}
+	elsif ($line =~ /^SPENT/) {
+	  add_total_times($line);
 	}
 	else {
 	  mtr_error("Unknown response: '$line' from client");
@@ -787,7 +804,9 @@ sub run_worker ($) {
   # Ask server for first test
   print $server "START\n";
 
-  while(my $line= <$server>){
+  mark_time_used('init');
+
+  while (my $line= <$server>){
     chomp($line);
     if ($line eq 'TESTCASE'){
       my $test= My::Test::read_test($server);
@@ -805,16 +824,20 @@ sub run_worker ($) {
       # Send it back, now with results set
       #$test->print_test();
       $test->write_test($server, 'TESTRESULT');
+      mark_time_used('restart');
     }
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
       stop_all_servers($opt_shutdown_timeout);
+      mark_time_used('restart');
       if ($opt_valgrind_mysqld) {
         valgrind_exit_reports();
       }
       if ( $opt_gprof ) {
 	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
       }
+      mark_time_used('init');
+      print_times_used($server, $thread_num);
       exit(0);
     }
     else {
@@ -956,6 +979,7 @@ sub command_line_setup {
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
              'mem'                      => \$opt_mem,
+	     'clean-vardir'             => \$opt_clean_vardir,
              'client-bindir=s'          => \$path_client_bindir,
              'client-libdir=s'          => \$path_client_libdir,
 
@@ -988,6 +1012,7 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 	     'max-connections=i'        => \$opt_max_connections,
 	     'default-myisam!'          => \&collect_option,
+	     'report-times'             => \$opt_report_times,
 
              'help|h'                   => \$opt_usage,
              'list-options'             => \$opt_list_options,
@@ -2258,6 +2283,12 @@ sub environment_setup {
 }
 
 
+sub remove_vardir_subs() {
+  foreach my $sdir ( glob("$opt_vardir/*") ) {
+    mtr_verbose("Removing subdir $sdir");
+    rmtree($sdir);
+  }
+}
 
 #
 # Remove var and any directories in var/ created by previous
@@ -2302,11 +2333,7 @@ sub remove_stale_vardir () {
 	mtr_error("The destination for symlink $opt_vardir does not exist")
 	  if ! -d readlink($opt_vardir);
 
-	foreach my $bin ( glob("$opt_vardir/*") )
-	{
-	  mtr_verbose("Removing bin $bin");
-	  rmtree($bin);
-	}
+	remove_vardir_subs();
       }
     }
     else
@@ -3224,6 +3251,7 @@ sub check_testcase($$)
 
 	if ( keys(%started) == 0){
 	  # All checks completed
+	  mark_time_used('check');
 	  return 0;
 	}
 	# Wait for next process to exit
@@ -3239,7 +3267,8 @@ sub check_testcase($$)
 	    "\nMTR's internal check of the test case '$tname' failed.
 This means that the test case does not preserve the state that existed
 before the test case was executed.  Most likely the test case did not
-do a proper clean-up.
+do a proper clean-up. It could also be caused by the previous test run
+by this thread, if the server wasn't restarted.
 This is the diff of the states of the servers before and after the
 test case was executed:\n";
 	  $tinfo->{check}.= $report;
@@ -3280,6 +3309,11 @@ test case was executed:\n";
 
     # Kill any check processes still running
     map($_->kill(), values(%started));
+
+    mtr_warning("Check-testcase failed, this could also be caused by the" .
+		" previous test run by this worker thread")
+      if $result > 1 && $mode eq "before";
+    mark_time_used('check');
 
     return $result;
   }
@@ -3590,6 +3624,7 @@ sub run_testcase ($) {
       return 1;
     }
   }
+  mark_time_used('restart');
 
   # --------------------------------------------------------------------
   # If --start or --start-dirty given, stop here to let user manually
@@ -3642,6 +3677,8 @@ sub run_testcase ($) {
 
   do_before_run_mysqltest($tinfo);
 
+  mark_time_used('init');
+
   if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
     # Failed to record state of server or server crashed
     report_failure_and_restart($tinfo);
@@ -3688,6 +3725,7 @@ sub run_testcase ($) {
     }
     mtr_verbose("Got $proc");
 
+    mark_time_used('test');
     # ----------------------------------------------------
     # Was it the test program that exited
     # ----------------------------------------------------
@@ -3914,7 +3952,9 @@ sub get_log_from_proc ($$) {
   foreach my $mysqld (mysqlds()) {
     if ($mysqld->{proc} eq $proc) {
       my @srv_lines= extract_server_log($mysqld->value('#log-error'), $name);
-      $srv_log= "\nServer log from this test:\n" . join ("", @srv_lines);
+      $srv_log= "\nServer log from this test:\n" .
+	"----------SERVER LOG START-----------\n". join ("", @srv_lines) .
+	"----------SERVER LOG END-------------\n";
       last;
     }
   }
@@ -4091,6 +4131,7 @@ sub check_warnings ($) {
 
 	if ( keys(%started) == 0){
 	  # All checks completed
+	  mark_time_used('ch-warn');
 	  return $result;
 	}
 	# Wait for next process to exit
@@ -4123,6 +4164,7 @@ sub check_warnings ($) {
     # Kill any check processes still running
     map($_->kill(), values(%started));
 
+    mark_time_used('ch-warn');
     return $result;
   }
 
@@ -5092,6 +5134,8 @@ sub start_mysqltest ($) {
   my $exe= $exe_mysqltest;
   my $args;
 
+  mark_time_used('init');
+
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
@@ -5579,6 +5623,8 @@ Options to control directories to use
                         for tmpfs (/dev/shm)
                         The option can also be set using environment
                         variable MTR_MEM=[DIR]
+  clean-vardir          Clean vardir if tests were successful and if
+                        running in "memory". Otherwise this option is ignored
   client-bindir=PATH    Path to the directory where client binaries are located
   client-libdir=PATH    Path to the directory where client libraries are located
 
@@ -5738,6 +5784,8 @@ Misc options
   default-myisam        Set default storage engine to MyISAM for non-innodb
                         tests. This is needed after switching default storage
                         engine to InnoDB.
+  report-times          Report how much time has been spent on different
+                        phases of test execution.
 HERE
   exit(1);
 

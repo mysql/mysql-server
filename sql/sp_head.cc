@@ -1176,10 +1176,17 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 /**
   Execute the routine. The main instruction jump loop is there.
   Assume the parameters already set.
+
+  @param thd                  Thread context.
+  @param merge_da_on_success  Flag specifying if Warning Info should be
+                              propagated to the caller on Completion
+                              Condition or not.
+
   @todo
     - Will write this SP statement into binlog separately
     (TODO: consider changing the condition to "not inside event union")
 
+  @return Error status.
   @retval
     FALSE  on success
   @retval
@@ -1187,7 +1194,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 */
 
 bool
-sp_head::execute(THD *thd)
+sp_head::execute(THD *thd, bool merge_da_on_success)
 {
   DBUG_ENTER("sp_head::execute");
   char saved_cur_db_name_buf[NAME_LEN+1];
@@ -1481,8 +1488,15 @@ sp_head::execute(THD *thd)
   thd->stmt_arena= old_arena;
   state= EXECUTED;
 
-  /* Restore the caller's original warning information area. */
-  saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
+  /*
+    Restore the caller's original warning information area:
+      - warnings generated during trigger execution should not be
+        propagated to the caller on success;
+      - if there was an exception during execution, warning info should be
+        propagated to the caller in any case.
+  */
+  if (err_status || merge_da_on_success)
+    saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
   thd->warning_info= saved_warning_info;
 
  done:
@@ -1704,7 +1718,7 @@ sp_head::execute_trigger(THD *thd,
 
   thd->spcont= nctx;
 
-  err_status= execute(thd);
+  err_status= execute(thd, FALSE);
 
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
@@ -1921,7 +1935,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  err_status= execute(thd);
+  err_status= execute(thd, TRUE);
 
   thd->restore_active_arena(&call_arena, &backup_arena);
 
@@ -2154,7 +2168,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 #endif
 
   if (!err_status)
-    err_status= execute(thd);
+    err_status= execute(thd, TRUE);
 
   if (save_log_general)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
