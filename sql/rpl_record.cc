@@ -81,8 +81,6 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   DBUG_DUMP("cols", (uchar*) cols->bitmap, cols->last_word_ptr - cols->bitmap + 1);
   for ( ; (field= *p_field) ; p_field++)
   {
-    DBUG_PRINT("debug", ("field: %s; null mask: 0x%x",
-                         field->field_name, null_mask));
     if (bitmap_is_set(cols, p_field - table->field))
     {
       my_ptrdiff_t offset;
@@ -115,6 +113,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
                              field->field_name, field->real_type(),
                              (ulong) old_pack_ptr, (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
+        DBUG_DUMP("packed_data", old_pack_ptr, pack_ptr - old_pack_ptr);
       }
 
       null_mask <<= 1;
@@ -413,8 +412,11 @@ unpack_row(Relay_log_info const *rli,
       }
       DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
 
-      if (!((null_bits & null_mask) && tabledef->maybe_null(i)))
-        pack_ptr+= tabledef->calc_field_size(i, (uchar *) pack_ptr);
+      if (!((null_bits & null_mask) && tabledef->maybe_null(i))) {
+        uint32 len= tabledef->calc_field_size(i, (uchar *) pack_ptr);
+        DBUG_DUMP("field_data", pack_ptr, len);
+        pack_ptr+= len;
+      }
       null_mask <<= 1;
     }
   }
