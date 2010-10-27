@@ -35,25 +35,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 @file srv/srv0srv.c
 The database server main program
 
-NOTE: SQL Server 7 uses something which the documentation
-calls user mode scheduled threads (UMS threads). One such
-thread is usually allocated per processor. Win32
-documentation does not know any UMS threads, which suggests
-that the concept is internal to SQL Server 7. It may mean that
-SQL Server 7 does all the scheduling of threads itself, even
-in i/o waits. We should maybe modify InnoDB to use the same
-technique, because thread switches within NT may be too slow.
-
-SQL Server 7 also mentions fibers, which are cooperatively
-scheduled threads. They can boost performance by 5 %,
-according to the Delaney and Soukup's book.
-
-Windows 2000 will have something called thread pooling
-(see msdn website), which we could possibly use.
-
-Another possibility could be to use some very fast user space
-thread library. This might confuse NT though.
-
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
