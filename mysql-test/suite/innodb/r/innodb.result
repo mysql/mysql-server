@@ -1755,7 +1755,7 @@ set global innodb_thread_sleep_delay=10000;
 show variables like "innodb_thread_sleep_delay";
 Variable_name	Value
 innodb_thread_sleep_delay	10000
-set storage_engine=INNODB;
+set default_storage_engine=INNODB;
 set session old_alter_table=1;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
@@ -2353,7 +2353,7 @@ t1	CREATE TABLE `t1` (
   `v` mediumtext CHARACTER SET utf8
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-set storage_engine=MyISAM;
+set default_storage_engine=MyISAM;
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
 create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;

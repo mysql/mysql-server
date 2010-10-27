@@ -143,6 +143,7 @@ void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli)
   {
     delete rli->rows_query_ev;
     rli->rows_query_ev= NULL;
+    rli->info_thd->set_query(NULL, 0);
   }
 
   /* Record the Rows_query log event until all its rows event are applied */
@@ -2374,7 +2375,7 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 4;
   }
 
-  if (thd && thd->is_current_user_used())
+  if (thd && thd->need_binlog_invoker())
   {
     LEX_STRING user;
     LEX_STRING host;
@@ -8487,6 +8488,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                 m_field_metadata, m_field_metadata_size,
                 m_null_bits, m_flags);
     table_list->m_tabledef_valid= TRUE;
+    table_list->open_type= OT_BASE_ONLY;
 
     /*
       We record in the slave's information that the table should be

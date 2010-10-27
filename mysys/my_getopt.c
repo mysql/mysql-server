@@ -360,14 +360,6 @@ int handle_options(int *argc, char ***argv,
 	  }
 	  return EXIT_OPTION_DISABLED;
 	}
-	if (must_be_var && optp->arg_type == NO_ARG)
-	{
-	  if (my_getopt_print_errors)
-            my_getopt_error_reporter(ERROR_LEVEL, 
-                                     "%s: option '%s' cannot take an argument",
-                                     my_progname, optp->name);
-	  return EXIT_NO_ARGUMENT_ALLOWED;
-	}
         error= 0;
 	value= optp->var_type & GET_ASK_ADDR ?
 	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp, &error) :
@@ -377,6 +369,11 @@ int handle_options(int *argc, char ***argv,
 
 	if (optp->arg_type == NO_ARG)
 	{
+	  /*
+	    Due to historical reasons GET_BOOL var_types still accepts arguments
+	    despite the NO_ARG arg_type attribute. This can seems a bit unintuitive
+	    and care should be taken when refactoring this code.
+	  */
 	  if (optend && (optp->var_type & GET_TYPE_MASK) != GET_BOOL)
 	  {
 	    if (my_getopt_print_errors)
@@ -391,7 +388,7 @@ int handle_options(int *argc, char ***argv,
 	      Set bool to 1 if no argument or if the user has used
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
-	      */
+	    */
 	    (*argc)--;
 	    if (!optend || *optend == '1' ||
 		!my_strcasecmp(&my_charset_latin1, optend, "true"))
@@ -418,10 +415,9 @@ int handle_options(int *argc, char ***argv,
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
 	  /* Check if there are more arguments after this one,
-
-             Note: options loaded from config file that requires value
-             should always be in the form '--option=value'.
-           */
+       Note: options loaded from config file that requires value
+       should always be in the form '--option=value'.
+    */
 	  if (!is_cmdline_arg || !*++pos)
 	  {
 	    if (my_getopt_print_errors)
@@ -606,6 +602,25 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   }
 }
 
+
+/**
+   Parse a boolean command line argument
+
+   "ON", "TRUE" and "1" will return true,
+   other values will return false.
+
+   @param[in] argument The value argument
+   @return boolean value
+*/
+static my_bool get_bool_argument(const char *argument)
+{
+  if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "on"))
+    return 1;
+  else
+    return (my_bool) atoi(argument);
+}
+
 /*
   function: setval
 
@@ -633,7 +648,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= (my_bool) atoi(argument) != 0;
+      *((my_bool*) value)= get_bool_argument(argument);
       break;
     case GET_INT:
       *((int*) value)= (int) getopt_ll(argument, opts, &err);

@@ -1,4 +1,4 @@
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t1,t3,t4,t5;
 create table t1 (a int, b char(10), key a(a), key b(a,b));
 insert into t1 values

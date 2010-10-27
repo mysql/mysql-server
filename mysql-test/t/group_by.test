@@ -288,14 +288,14 @@ SELECT a,count(*) FROM t1 GROUP BY binary a;
 SELECT binary a FROM t1 GROUP BY 1;
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
 # Do the same tests with MyISAM temporary tables
-SET SQL_BIG_TABLES=1;
+SET BIG_TABLES=1;
 SELECT a FROM t1 GROUP BY a;
 SELECT a,count(*) FROM t1 GROUP BY a;
 SELECT a FROM t1 GROUP BY binary a;
 SELECT a,count(*) FROM t1 GROUP BY binary a;
 SELECT binary a FROM t1 GROUP BY 1;
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
-SET SQL_BIG_TABLES=0;
+SET BIG_TABLES=0;
 drop table t1;
 
 #
@@ -389,7 +389,7 @@ drop table t1,t2,t3;
 create table t1 (a blob null);
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(""),(""),(""),("b");
 select a,count(*) from t1 group by a;
-set option sql_big_tables=1;
+set option big_tables=1;
 select a,count(*) from t1 group by a;
 drop table t1;
 

@@ -760,10 +760,11 @@ public:
   st_select_lex* outer_select();
   st_select_lex* next_select() { return (st_select_lex*) next; }
 
-  inline st_select_lex* last_select() 
+  st_select_lex* last_select() 
   { 
     st_select_lex* mylast= this;
-    for (; mylast->next_select(); mylast= mylast->next_select());
+    for (; mylast->next_select(); mylast= mylast->next_select())
+    {}
     return mylast; 
   }
 
@@ -1332,6 +1333,7 @@ public:
     STMT_ACCESS_TABLE_COUNT
   };
 
+#ifndef DBUG_OFF
   static inline const char *stmt_accessed_table_string(enum_stmt_accessed_table accessed_table)
   {
     switch (accessed_table)
@@ -1365,7 +1367,10 @@ public:
         DBUG_ASSERT(0);
       break;
     }
+    MY_ASSERT_UNREACHABLE();
+    return "";
   }
+#endif  /* DBUG */
                
   #define BINLOG_DIRECT_ON 0xF0    /* unsafe when
                                       --binlog-direct-non-trans-updates

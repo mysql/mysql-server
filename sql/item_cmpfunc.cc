@@ -1770,6 +1770,27 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 }
 
 
+void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
+                                          st_select_lex *removed_select,
+                                          Item **ref)
+{
+  used_tables_cache=0;
+  not_null_tables_cache= 0;
+  const_item_cache= 1;
+
+  /*
+    No need to call fix_after_pullout() on args[0] (ie left expression),
+    as Item_in_subselect::fix_after_pullout() will do this.
+    So, just forward the call to the Item_in_subselect object.
+  */
+
+  args[1]->fix_after_pullout(parent_select, removed_select, &args[1]);
+
+  used_tables_cache|= args[1]->used_tables();
+  not_null_tables_cache|= args[1]->not_null_tables();
+  const_item_cache&= args[1]->const_item();
+}
+
 /**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
    predicates. The implementation works as follows.
@@ -1840,6 +1861,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
      @see Item_in_subselect::val_bool()
      @see Item_is_not_null_test::val_int()
  */
+
 longlong Item_in_optimizer::val_int()
 {
   bool tmp;
@@ -4345,7 +4367,9 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_cond::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+void Item_cond::fix_after_pullout(st_select_lex *parent_select,
+                                  st_select_lex *removed_select,
+                                  Item **ref)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -4359,7 +4383,7 @@ void Item_cond::fix_after_pullout(st_select_lex *new_parent, Item **ref)
   while ((item=li++))
   {
     table_map tmp_table_map;
-    item->fix_after_pullout(new_parent, li.ref());
+    item->fix_after_pullout(parent_select, removed_select, li.ref());
     item= *li.ref();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
