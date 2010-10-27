@@ -974,11 +974,17 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -1075,6 +1081,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Oct 6 2010 Georgi Kodinov <georgi.godinov@oracle.com>
+
+- Added example external authentication (WL#1054) plugin binaries
+
 * Wed Aug 11 2010 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - With a recent spec file cleanup, names have changed: A "-community" part was dropped.
