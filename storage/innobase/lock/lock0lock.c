@@ -6125,17 +6125,18 @@ lock_table_has_locks(
 					held on records in this table or on the
 					table itself */
 {
+#ifdef UNIV_DEBUG
+	lock_t*		lock;
+#endif /* UNIV_DEBUG */
 	ibool		has_locks;
 
 	lock_mutex_enter();
 
-	if (UT_LIST_GET_LEN(table->locks) > 0 || table->n_rec_locks > 0) {
-		has_locks = TRUE;
-	} else {
-		has_locks = FALSE;
-	}
+	ut_d(lock = lock_table_locks_check(table));
 
-	ut_ad((lock_table_locks_check(table) == NULL) == !has_locks);
+	has_locks = UT_LIST_GET_LEN(table->locks) > 0 || table->n_rec_locks > 0;
+
+	ut_ad((lock != NULL) == has_locks);
 
 	lock_mutex_exit();
 
