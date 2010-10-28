@@ -33,8 +33,35 @@ abstract class TwsLoad {
     protected final TwsDriver driver;
     protected String descr;
 
-    public TwsLoad(TwsDriver driver) {
+    protected MetaData metaData;
+
+    protected static String fixedStr = "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx"
+            + "xxxxxxxxxx";
+
+    public TwsLoad(TwsDriver driver, MetaData md) {
         this.driver = driver;
+        this.metaData = md;
     }
 
     // ----------------------------------------------------------------------
@@ -54,6 +81,10 @@ abstract class TwsLoad {
     }
 
     public void close() throws Exception {
+    }
+
+    public MetaData getMetaData() {
+        return metaData;
     }
 
     // ----------------------------------------------------------------------

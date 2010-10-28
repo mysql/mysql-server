@@ -60,23 +60,25 @@ public class TwsDriver extends Driver {
     protected void init() throws Exception {
         super.init();
 
+        // load this in any case for meta data extraction
+        assert (ndbjtieLoad == null);
+        ndbjtieLoad = new NdbjtieLoad(this);
+        ndbjtieLoad.init();
+        ndbjtieLoad.initConnection();
+
         if (doJdbc) {
             assert (jdbcLoad == null);
-            jdbcLoad = new JdbcLoad(this);
+            jdbcLoad = new JdbcLoad(this, ndbjtieLoad.getMetaData());
             jdbcLoad.init();
+            jdbcLoad.initConnection();
         }
         if (doClusterj) {
             assert (clusterjLoad == null);
-            clusterjLoad = new ClusterjLoad(this);
+            clusterjLoad = new ClusterjLoad(this, ndbjtieLoad.getMetaData());
             clusterjLoad.init();
-        }
-        if (doNdbjtie) {
-            assert (ndbjtieLoad == null);
-            ndbjtieLoad = new NdbjtieLoad(this);
-            ndbjtieLoad.init();
+            clusterjLoad.initConnection();
         }
 
-        initConnections();
     }
 
     protected void close() throws Exception {

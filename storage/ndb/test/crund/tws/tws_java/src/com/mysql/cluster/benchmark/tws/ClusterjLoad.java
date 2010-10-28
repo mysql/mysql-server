@@ -39,8 +39,9 @@ class ClusterjLoad extends TwsLoad {
     protected SessionFactory sessionFactory;
     protected Session session;
 
-    public ClusterjLoad(TwsDriver driver) {
-        super(driver);
+
+    public ClusterjLoad(TwsDriver driver, MetaData md) {
+        super(driver, md);
     }
 
     // ----------------------------------------------------------------------
@@ -190,25 +191,39 @@ class ClusterjLoad extends TwsLoad {
     }
 
     protected void clusterjInsert(int c0) {
+
+        assert(metaData != null);
+
         final CJSubscriber o = session.newInstance(CJSubscriber.class);
         final int i = c0;
         final String str = Integer.toString(i);
         //final String oneChar = Integer.toString(1);
         o.setC0(str);
-        o.setC1(str);
+        int width = metaData.getColumnWidth(1);
+        o.setC1(fixedStr.substring(0, width));
         o.setC2(i);
         o.setC3(i);
         //o.setC4(i);
-        o.setC5(str);
-        o.setC6(str);
-        o.setC7(str);
-        o.setC8(str);
-        //o.setC9(oneChar);
-        //o.setC10(oneChar);
-        //o.setC11(str);
-        //o.setC12(str);
-        //o.setC13(oneChar);
-        //o.setC14(str);
+        width = metaData.getColumnWidth(5);
+        o.setC5(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(6);
+        o.setC6(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(7);
+        o.setC7(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(8);
+        o.setC8(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(9);
+        o.setC9(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(10);
+        o.setC10(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(11);
+        o.setC11(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(12);
+        o.setC12(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(13);
+        o.setC13(fixedStr.substring(0, width));
+        width = metaData.getColumnWidth(14);
+        o.setC14(fixedStr.substring(0, width));
         session.persist(o);
     }
 
