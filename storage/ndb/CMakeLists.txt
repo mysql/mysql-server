@@ -13,6 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+IF(NOT SOURCE_SUBLIBS)
+  INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
+ENDIF()
+
 IF(NOT EXISTS ${CMAKE_SOURCE_DIR}/cmake/)
   # No MySQL Server cmake support, use the version in storage/ndb/cmake
   INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake")
