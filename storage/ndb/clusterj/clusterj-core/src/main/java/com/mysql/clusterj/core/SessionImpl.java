@@ -187,7 +187,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             T instance,
             ValueHandler instanceHandler, ValueHandler keyHandler) {
         startAutoTransaction();
-        setPartitionKey(domainTypeHandler, keyHandler);
         try {
             ResultData rs = selectUnique(domainTypeHandler, keyHandler, null);
             if (rs.next()) {
@@ -246,6 +245,19 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     public <T> T newInstance(Class<T> cls) {
         DomainTypeHandler domainTypeHandler = getDomainTypeHandler(cls);
         return factory.newInstance(cls, dictionary);
+    }
+
+    /** Create an instance of a class to be persisted and set the primary key.
+     * 
+     * @param cls the class
+     * @return a new instance that can be used with makePersistent,
+     * savePersistent, writePersistent, updatePersistent, or deletePersistent
+     */
+    public <T> T newInstance(Class<T> cls, Object key) {
+        DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
+        T instance = factory.newInstance(cls, dictionary);
+        domainTypeHandler.objectSetKeys(key, instance);
+        return instance;
     }
 
     /** Make an instance persistent.
@@ -307,6 +319,19 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             }
         endAutoTransaction();
         return result;
+    }
+
+    /** Delete an instance of a class from the database given its primary key.
+     * For single-column keys, the key parameter is a wrapper (e.g. Integer).
+     * For multi-column keys, the key parameter is an Object[] in which
+     * elements correspond to the primary keys in order as defined in the schema.
+     * @param cls the class
+     * @param key the primary key
+     */
+    public <T> void deletePersistent(Class<T> cls, Object key) {
+        DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
+        ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(key);
+        delete(domainTypeHandler, keyValueHandler);
     }
 
     /** Remove an instance from the database. Only the key field(s) 
@@ -573,6 +598,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     protected void internalBegin() {
         try {
             clusterTransaction = db.startTransaction(joinTransactionId);
+            clusterTransaction.setLockMode(lockmode);
             // if a transaction has already begun, tell the cluster transaction about the key
             if (partitionKey != null) {
                 clusterTransaction.setPartitionKey(partitionKey);
@@ -1113,6 +1139,10 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         clusterTransaction.setCoordinatedTransactionId(coordinatedTransactionId);
     }
 
+    /** Set the lock mode for subsequent operations. The lock mode takes effect immediately
+     * and continues until set again.
+     * @param lockmode the lock mode
+     */
     public void setLockMode(LockMode lockmode) {
         this.lockmode = lockmode;
         if (clusterTransaction != null) {

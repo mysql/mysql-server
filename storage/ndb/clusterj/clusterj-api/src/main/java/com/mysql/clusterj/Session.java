@@ -62,6 +62,14 @@ public interface Session {
      */
     <T> T newInstance(Class<T> cls);
 
+    /** Create an instance of an interface that maps to a table
+     * and set the primary key of the new instance. The new instance
+     * can be used to create, delete, or update a record in the database.
+     * @param cls the interface for which to create an instance
+     * @return an instance that implements the interface
+     */
+    <T> T newInstance(Class<T> cls, Object key);
+
     /** Insert the instance into the database.
      * If the instance already exists in the database, an exception is thrown.
      * @see Session#savePersistent(java.lang.Object)
@@ -81,6 +89,15 @@ public interface Session {
      * @return the instances
      */
     Iterable<?> makePersistentAll(Iterable<?> instances);
+
+    /** Delete an instance of a class from the database given its primary key.
+     * For single-column keys, the key parameter is a wrapper (e.g. Integer).
+     * For multi-column keys, the key parameter is an Object[] in which
+     * elements correspond to the primary keys in order as defined in the schema.
+     * @param cls the class
+     * @param key the primary key
+     */
+    public <T> void deletePersistent(Class<T> cls, Object key);
 
     /** Delete the instance from the database. Only the id field is used
      * to determine which instance is to be deleted.

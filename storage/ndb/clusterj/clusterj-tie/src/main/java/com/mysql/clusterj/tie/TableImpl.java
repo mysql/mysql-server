@@ -78,6 +78,9 @@ class TableImpl implements Table {
     /** The maximum column id */
     private int maximumColumnId;
 
+    /** The maximum column length */
+    private int maximumColumnLength = 0;
+
     public TableImpl(TableConst ndbTable, String[] indexNames) {
         this.tableName = ndbTable.getName();
         // process columns and partition key columns
@@ -118,7 +121,10 @@ class TableImpl implements Table {
             int columnSpace = columnImpl.getColumnSpace();
             lengths[columnId] = columnSpace;
             offsets[columnId] = offset;
-            offset += columnSpace;            
+            offset += columnSpace;
+            if (columnSpace > maximumColumnLength ) {
+                maximumColumnLength = columnSpace;
+            }
         }
         bufferSize = offset;
         this.primaryKeyColumnNames = 
@@ -172,6 +178,10 @@ class TableImpl implements Table {
 
     public int[] getLengths() {
         return lengths;
+    }
+
+    public int getMaximumColumnLength() {
+        return maximumColumnLength;
     }
 
 }

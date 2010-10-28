@@ -38,6 +38,7 @@ import com.mysql.clusterj.core.store.Table;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
+import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbIndexOperation;
@@ -91,7 +92,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     /** Lock mode for index scan operations */
     private int indexScanLockMode = com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead;
 
-    /** Lock mode for index scan operations */
+    /** Lock mode for table scan operations */
     private int tableScanLockMode = com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead;
 
     /** Autocommit flag if we are in an autocommit transaction */
@@ -103,10 +104,13 @@ class ClusterTransactionImpl implements ClusterTransaction {
     /** The transaction id to join this transaction to */
     private String joinTransactionId;
 
+    private BufferManager bufferManager;
+
     public ClusterTransactionImpl(DbImpl db, Dictionary ndbDictionary, String joinTransactionId) {
         this.db = db;
         this.ndbDictionary = ndbDictionary;
         this.joinTransactionId = joinTransactionId;
+        this.bufferManager = db.getBufferManager();
     }
 
     public void close() {
@@ -221,7 +225,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbIndex, ndbDictionary);
         NdbIndexScanOperation ndbOperation = ndbTransaction.getNdbIndexScanOperation(ndbIndex);
         handleError(ndbOperation, ndbTransaction);
-        int lockMode = lookupLockMode;
+        int lockMode = indexScanLockMode;
         int scanFlags = 0;
         int parallel = 0;
         int batch = 0;
@@ -250,7 +254,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbTable, ndbDictionary);
         NdbScanOperation ndbScanOperation = ndbTransaction.getNdbScanOperation(ndbTable);
         handleError(ndbScanOperation, ndbTransaction);
-        int lockMode = indexScanLockMode;
+        int lockMode = tableScanLockMode;
         int scanFlags = 0;
         int parallel = 0;
         int batch = 0;
@@ -451,6 +455,10 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public void setAutocommit(boolean autocommit) {
         this.autocommit = autocommit;
+    }
+
+    public BufferManager getBufferManager() {
+        return bufferManager;
     }
 
 }

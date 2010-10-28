@@ -19,6 +19,7 @@
 package com.mysql.clusterj.tie;
 
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.util.List;
 
 import com.mysql.ndbjtie.ndbapi.Ndb;
@@ -70,6 +71,9 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     // TODO change the allocation to something reasonable
     /** The partition key scratch buffer */
     private ByteBuffer partitionKeyScratchBuffer = ByteBuffer.allocateDirect(10000);
+
+    /** The BufferManager for this instance, used for all operations for the session */
+    private BufferManager bufferManager = new BufferManager();
 
     /** The NdbDictionary for this Ndb */
     private Dictionary ndbDictionary;
@@ -226,6 +230,134 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
 //        handleError(result, ndb);
 //        return result;
         throw new ClusterJFatalInternalException("Not Implemented");
+    }
+
+    /** Get the buffer manager for this DbImpl. All operations that need byte buffers
+     * use this instance to manage the shared buffers.
+     * @return the buffer manager
+     */
+    public BufferManager getBufferManager() {
+        return bufferManager;
+    }
+
+    public class BufferManager {
+        /** String byte buffer initial size */
+        public static final int STRING_BYTE_BUFFER_INITIAL_SIZE = 1000;
+
+        /** String byte buffer current size */
+        private int stringByteBufferCurrentSize = STRING_BYTE_BUFFER_INITIAL_SIZE;
+
+        /** Buffers for String encoding; reused for each String column in the operation.
+         * These buffers share common data but have their own position and limit. */
+        ByteBuffer stringByteBuffer = null;
+        CharBuffer stringCharBuffer = null;
+
+        /** String storage buffer initial size (used for non-primitive output data) */
+        public static final int STRING_STORAGE_BUFFER_INITIAL_SIZE = 500;
+
+        /** Shared buffer for string output operations */
+        private ByteBuffer stringStorageBuffer = ByteBuffer.allocateDirect(STRING_STORAGE_BUFFER_INITIAL_SIZE);
+
+        /** Result data buffer initial size */
+        private static final int RESULT_DATA_BUFFER_INITIAL_SIZE = 8000;
+
+        /** Buffer to hold result data */
+        private ByteBuffer resultDataBuffer = ByteBuffer.allocateDirect(RESULT_DATA_BUFFER_INITIAL_SIZE);
+
+        /** Guarantee the size of the string storage buffer to be a minimum size. If the current
+         * string storage buffer is not big enough, allocate a bigger one. The current buffer
+         * will be garbage collected.
+         * @param size the minimum size required
+         */
+        public void guaranteeStringStorageBufferSize(int sizeNeeded) {
+            if (sizeNeeded > stringStorageBuffer.capacity()) {
+                if (logger.isDebugEnabled()) logger.debug(local.message("MSG_Reallocated_Byte_Buffer",
+                        "string storage", stringStorageBuffer.capacity(), sizeNeeded));
+                // the existing shared buffer will be garbage collected
+                stringStorageBuffer = ByteBuffer.allocateDirect(sizeNeeded);
+            }
+            stringStorageBuffer.limit(stringStorageBuffer.capacity());
+        }
+
+        /** Copy the contents of the parameter String into a reused string buffer.
+         * The ByteBuffer can subsequently be encoded into a ByteBuffer.
+         * @param value the string
+         * @return the byte buffer with the String in it
+         */
+        public ByteBuffer copyStringToByteBuffer(CharSequence value) {
+            if (value == null) {
+                stringByteBuffer.limit(0);
+                return stringByteBuffer;
+            }
+            int sizeNeeded = value.length() * 2;
+            guaranteeStringByteBufferSize(sizeNeeded);
+            stringCharBuffer.append(value);
+            // characters in java are always two bytes (UCS-16)
+            stringByteBuffer.limit(stringCharBuffer.position() * 2);
+            return stringByteBuffer;
+        }
+
+        /** Reset the string storage buffer so it can be used for another operation.
+         * 
+         */
+        public void clearStringStorageBuffer() {
+            stringStorageBuffer.clear();
+        }
+
+        public ByteBuffer getStringStorageBuffer(int sizeNeeded) {
+            guaranteeStringStorageBufferSize(sizeNeeded);
+            return stringStorageBuffer;
+        }
+
+        public ByteBuffer getStringByteBuffer(int sizeNeeded) {
+            guaranteeStringByteBufferSize(sizeNeeded);
+            return stringByteBuffer;
+        }
+
+        /** Guarantee the size of the string byte buffer to be a minimum size. If the current
+         * string byte buffer is not big enough, allocate a bigger one. The current buffer
+         * will be garbage collected.
+         * @param size the minimum size required
+         */
+        protected void guaranteeStringByteBufferSize(int sizeNeeded) {
+            if (sizeNeeded > stringByteBufferCurrentSize) {
+                stringByteBufferCurrentSize = sizeNeeded;
+                stringByteBuffer = ByteBuffer.allocateDirect(stringByteBufferCurrentSize);
+                stringCharBuffer = stringByteBuffer.asCharBuffer();
+            }
+            if (stringByteBuffer == null) {
+                stringByteBuffer = ByteBuffer.allocateDirect(stringByteBufferCurrentSize);
+                stringCharBuffer = stringByteBuffer.asCharBuffer();
+            } else {
+                stringByteBuffer.clear();
+                stringCharBuffer.clear();
+            }
+        }
+
+        /** Get the string char buffer. This buffer is paired with the string byte buffer.
+         * They share the same data but have independent position and limit.
+         * @return the string char buffer
+         */
+        public CharBuffer getStringCharBuffer() {
+            return stringCharBuffer;
+        }
+
+        /** Get the result data buffer. This buffer is used to hold the result of a
+         * key or scan operation.
+         * @param sizeNeeded the size that the buffer must be able to hold
+         * @return the result data buffer
+         */
+        public ByteBuffer getResultDataBuffer(int sizeNeeded) {
+            if (sizeNeeded > resultDataBuffer.capacity()) {
+                if (logger.isDebugEnabled()) logger.debug(local.message("MSG_Reallocated_Byte_Buffer",
+                        "result data", resultDataBuffer.capacity(), sizeNeeded));
+                // the existing result data buffer will be garbage collected
+                resultDataBuffer = ByteBuffer.allocateDirect(sizeNeeded);
+            }
+            resultDataBuffer.clear();
+            return resultDataBuffer;
+        }
+
     }
 
 }

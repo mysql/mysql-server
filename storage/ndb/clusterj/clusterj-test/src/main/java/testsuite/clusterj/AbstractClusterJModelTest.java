@@ -258,6 +258,18 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
             d.setA1(getA1for(number, i));
             d.setA2("ou=people");
             d.setA3(getA3for(i));
+            d.setA4("");
+            d.setA5("");
+            d.setA6("");
+            d.setA7("");
+            d.setA8("");
+            d.setA9("");
+            d.setA10("");
+            d.setA11("");
+            d.setA12("");
+            d.setA13("");
+            d.setA14("");
+            d.setA15("");
             dn2ids.add(d);
         }
     }
@@ -701,13 +713,12 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
     }
 
     protected AllPrimitives createAllPrimitiveInstance(Session session, int i) {
-        AllPrimitives instance = session.newInstance(AllPrimitives.class);
+        AllPrimitives instance = session.newInstance(AllPrimitives.class, i);
         initialize(instance, i);
         return instance;
     }
 
     protected void initialize(AllPrimitives instance, int i) {
-        instance.setId(i);
         instance.setInt_not_null_hash(i);
         instance.setInt_not_null_btree(i);
         instance.setInt_not_null_both(i);

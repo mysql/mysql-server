@@ -59,6 +59,8 @@ public interface DomainTypeHandler<T> {
 
     public void objectSetValues(ResultData rs, ValueHandler handler);
 
+    public void objectSetKeys(Object keys, Object instance);
+
     public void objectSetCacheManager(CacheManager cm, Object instance);
 
     public void objectResetModified(ValueHandler handler);
