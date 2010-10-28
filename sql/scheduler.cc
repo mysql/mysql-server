@@ -80,12 +80,21 @@ scheduler_functions *thread_scheduler= NULL;
 */
 
 /**@{*/
-static void scheduler_wait_begin(void) {
+static void scheduler_wait_lock_begin(void) {
   MYSQL_CALLBACK(thread_scheduler,
                  thd_wait_begin, (current_thd, THD_WAIT_TABLE_LOCK));
 }
 
-static void scheduler_wait_end(void) {
+static void scheduler_wait_lock_end(void) {
+  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (current_thd));
+}
+
+static void scheduler_wait_sync_begin(void) {
+  MYSQL_CALLBACK(thread_scheduler,
+                 thd_wait_begin, (current_thd, THD_WAIT_TABLE_LOCK));
+}
+
+static void scheduler_wait_sync_end(void) {
   MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (current_thd));
 }
 /**@}*/
@@ -98,7 +107,10 @@ static void scheduler_wait_end(void) {
   mysqld.cc, so this init function will always be called.
  */
 static void scheduler_init() {
-  thr_set_lock_wait_callback(scheduler_wait_begin, scheduler_wait_end);
+  thr_set_lock_wait_callback(scheduler_wait_lock_begin,
+                             scheduler_wait_lock_end);
+  thr_set_sync_wait_callback(scheduler_wait_sync_begin,
+                             scheduler_wait_sync_end);
 }
 
 /*
