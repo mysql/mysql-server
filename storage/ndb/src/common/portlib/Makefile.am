@@ -22,7 +22,7 @@ libportlib_la_SOURCES = \
 	NdbCondition.c NdbMutex.c NdbTick.c \
 	NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp	    \
 	ndb_daemon.cc NdbMem.c \
-	NdbConfig.c NdbDir.cpp ndb_socket.cpp NdbNuma.cpp
+	NdbConfig.c NdbDir.cpp ndb_socket.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
@@ -45,4 +45,5 @@ NdbDir_t_LDADD = \
 
 NdbNuma_t_SOURCES = NdbNuma.cpp 
 NdbNuma_t_CXXFLAGS = -DTEST_NDBNUMA
-NdbNuma_t_LDADD = libportlib.la $(top_builddir)/mysys/libmysyslt.la @LIBDL@
+NdbNuma_t_LDADD = $(top_builddir)/mysys/libmysyslt.la @LIBDL@
+
