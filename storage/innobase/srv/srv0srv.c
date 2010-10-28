@@ -1934,6 +1934,36 @@ srv_get_active_thread_type(void)
 	return(ret);
 }
 
+/**********************************************************************//**
+Check whether any background thread are active. If so print which thread
+is active. Send the threads wakeup signal. 
+@return name of thread that is active or NULL */
+UNIV_INTERN
+const char*
+srv_any_background_threads_are_active(void)
+/*=======================================*/
+{
+	const char*	thread_active = NULL;
+
+	server_mutex_enter();
+
+	if (srv_error_monitor_active) {
+		thread_active = "srv_error_monitor_thread";
+	} else if (srv_lock_timeout_active) {
+		thread_active = "srv_lock_timeout thread";
+	} else if (srv_monitor_active) {
+		thread_active = "srv_monitor_thread";
+	}
+
+	server_mutex_exit();
+
+	os_event_set(srv_error_event);
+	os_event_set(srv_monitor_event);
+	os_event_set(srv_timeout_event);
+
+	return(thread_active);
+}
+
 /*******************************************************************//**
 Tells the InnoDB server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used

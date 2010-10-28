@@ -3135,46 +3135,26 @@ loop:
 	normal shutdown. In case of very fast shutdown, however, we can
 	proceed without waiting for monitor threads. */
 
-	server_mutex_enter();
+	if (srv_fast_shutdown < 2) {
+	       	const char*	thread_name;
+		
+		thread_name = srv_any_background_threads_are_active();
 
-	if (srv_fast_shutdown < 2
-	    && (srv_error_monitor_active
-		|| srv_lock_timeout_active
-		|| srv_monitor_active)) {
+		if (thread_name != NULL) {
+			/* Print a message every 60 seconds if we are waiting
+			for the monitor thread to exit. Master and worker
+		       	threads check will be done later. */
 
-		const char*	thread_active = NULL;
-
-		/* Print a message every 60 seconds if we are waiting
-		for the monitor thread to exit. Master and worker threads
-		check will be done later. */
-		if (srv_print_verbose_log && count > 600) {
-
-			if (srv_error_monitor_active) {
-				thread_active = "srv_error_monitor_thread";
-			} else if (srv_lock_timeout_active) {
-				thread_active = "srv_lock_timeout thread";
-			} else if (srv_monitor_active) {
-				thread_active = "srv_monitor_thread";
+			if (srv_print_verbose_log && count > 600) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr, "  InnoDB: Waiting for %s "
+					"to exit\n", thread_name);
+				count = 0;
 			}
+
+			goto loop;
 		}
-
-		server_mutex_exit();
-
-		if (thread_active) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for %s "
-				"to exit\n", thread_active);
-			count = 0;
-		}
-
-		os_event_set(srv_error_event);
-		os_event_set(srv_monitor_event);
-		os_event_set(srv_timeout_event);
-
-		goto loop;
 	}
-
-	server_mutex_exit();
 
 	/* Check that there are no longer transactions. We need this wait even
 	for the 'very fast' shutdown, because the InnoDB layer may have
