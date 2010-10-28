@@ -46,6 +46,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0thread.h"
 #include "srv0mon.h"
 
+/** Maximum allowable purge history length.  <=0 means 'infinite'. */
+UNIV_INTERN ulong		srv_max_purge_lag = 0;
+
 /** The global data structure coordinating a purge */
 UNIV_INTERN trx_purge_t*	purge_sys = NULL;
 
