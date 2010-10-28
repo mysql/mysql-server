@@ -51,7 +51,6 @@ lock_queue_iterator_reset(
 	ulint			bit_no)	/*!< in: record number in the
 					heap */
 {
-	// FIXME: This is wrong!
 	ut_ad(lock_mutex_own());
 
 	iter->current_lock = lock;
