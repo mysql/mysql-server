@@ -244,6 +244,11 @@ static Sys_var_charptr Sys_basedir(
        READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
        IN_FS_CHARSET, DEFAULT(0));
 
+static Sys_var_charptr Sys_my_bind_addr(
+       "bind_address", "IP address to bind to.",
+       READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
+       IN_FS_CHARSET, DEFAULT(0));
+
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
   check_binlog_cache_size(thd);
