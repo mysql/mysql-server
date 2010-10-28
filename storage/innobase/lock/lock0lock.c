@@ -335,8 +335,8 @@ static const byte lock_strength_matrix[5][5] = {
  /* AI */ {  FALSE, FALSE, FALSE, FALSE,  TRUE}
 };
 
-/** The count of the types of locks */
-static const ulint lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
+/** The count of the types of locks. */
+static const ulint	lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register mutex with performance schema */
@@ -874,8 +874,8 @@ lock_mode_stronger_or_eq(
 	enum lock_mode	mode1,	/*!< in: lock mode */
 	enum lock_mode	mode2)	/*!< in: lock mode */
 {
-	ut_ad(mode1 < lock_types);
-	ut_ad(mode2 < lock_types);
+	ut_ad((ulint) mode1 < lock_types);
+	ut_ad((ulint) mode2 < lock_types);
 
 	return(lock_strength_matrix[mode1][mode2]);
 }
@@ -890,8 +890,8 @@ lock_mode_compatible(
 	enum lock_mode	mode1,	/*!< in: lock mode */
 	enum lock_mode	mode2)	/*!< in: lock mode */
 {
-	ut_ad(mode1 < lock_types);
-	ut_ad(mode2 < lock_types);
+	ut_ad((ulint) mode1 < lock_types);
+	ut_ad((ulint) mode2 < lock_types);
 
 	return(lock_compatibility_matrix[mode1][mode2]);
 }
