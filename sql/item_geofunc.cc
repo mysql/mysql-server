@@ -1492,7 +1492,7 @@ longlong Item_func_issimple::val_int()
     if (scan_it.step())
       goto mem_error;
 
-    if (scan_it.step() == scev_intersection)
+    if (scan_it.get_event() == scev_intersection)
     {
       result= 0;
       break;

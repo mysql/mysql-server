@@ -48,23 +48,29 @@ Gcalc_dyn_list::Gcalc_dyn_list(size_t blk_size, size_t sizeof_item):
 {}
 
 
+void Gcalc_dyn_list::format_blk(void* block)
+{
+  Item *pi_end, *cur_pi, *first_pi;
+  DBUG_ASSERT(m_free == NULL);
+  first_pi= cur_pi= (Item *)(((char *)block) + PH_DATA_OFFSET);
+  pi_end= ptr_add(first_pi, m_points_per_blk - 1);
+  do {
+    cur_pi= cur_pi->next= ptr_add(cur_pi, 1);
+  } while (cur_pi<pi_end);
+  cur_pi->next= m_free;
+  m_free= first_pi;
+}
+
+
 Gcalc_dyn_list::Item *Gcalc_dyn_list::alloc_new_blk()
 {
   void *new_block= my_malloc(m_blk_size, MYF(MY_WME));
-  Item *result, *pi_end, *cur_pi;
-
   if (!new_block)
     return NULL;
   *m_blk_hook= new_block;
   m_blk_hook= (void**)new_block;
-  result= (Item *)(((char *)new_block) + PH_DATA_OFFSET);
-  pi_end= ptr_add(result, m_points_per_blk - 1);
-  cur_pi= ptr_add(result, 1);
-  m_free= cur_pi;
-  while (cur_pi<pi_end)
-    cur_pi= cur_pi->next= ptr_add(cur_pi, 1);
-  cur_pi->next= NULL;
-  return result;
+  format_blk(new_block);
+  return new_item();
 }
 
 
@@ -98,18 +104,13 @@ Gcalc_dyn_list::~Gcalc_dyn_list()
 
 void Gcalc_dyn_list::reset()
 {
-  Item *pi_end, *cur_pi;
   *m_blk_hook= NULL;
   if (m_first_blk)
   {
     free_blk_list(*((void **)m_first_blk));
     m_blk_hook= (void**)m_first_blk;
-    cur_pi= (Item *)(((char *)m_first_blk) + PH_DATA_OFFSET);
-    pi_end= ptr_add(cur_pi, m_points_per_blk);
-    m_free= cur_pi;
-    while (cur_pi<pi_end)
-      cur_pi= cur_pi->next= ptr_add(cur_pi, 1);
-    cur_pi->next= NULL;
+    m_free= NULL;
+    format_blk(m_first_blk);
   }
 }
 
