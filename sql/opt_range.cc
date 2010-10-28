@@ -2384,9 +2384,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     if (!head->covering_keys.is_clear_all())
     {
       int key_for_use= find_shortest_key(head, &head->covering_keys);
-      double key_read_time= param.table->file->keyread_read_time(key_for_use,
-                                                                 1, records) +
-                             (double) records / TIME_FOR_COMPARE;
+      double key_read_time= head->file->keyread_time(key_for_use, 1, records) +
+                            (double) records / TIME_FOR_COMPARE;
       DBUG_PRINT("info",  ("'all'+'using index' scan will be using key %d, "
                            "read time %g", key_for_use, key_read_time));
       if (key_read_time < read_time)
@@ -4007,7 +4006,6 @@ skip_to_ror_scan:
   DBUG_RETURN(imerge_trp);
 }
 
-
 typedef struct st_ror_scan_info
 {
   uint      idx;      /* # of used key in param->keys */
@@ -4083,9 +4081,9 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
     if (bitmap_is_set(&param->needed_fields, key_part->fieldnr-1))
       bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr-1);
   }
-  double rows= rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost=
-    param->table->file->keyread_read_time(ror_scan->keynr, 1, rows);
+    param->table->file->keyread_time(ror_scan->keynr, 1,
+                                     param->table->quick_rows[ror_scan->keynr]);
   DBUG_RETURN(ror_scan);
 }
 
@@ -4915,7 +4913,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       }
       if (found_records != HA_POS_ERROR &&
           read_time > (found_read_time= cost.total_cost()))
-
       {
         read_time=    found_read_time;
         best_records= found_records;
@@ -5551,7 +5548,11 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
         SEL_TREE *tmp= get_full_func_mm_tree(param, cond_func, 
                                     field_item, (Item*)(intptr)i, inv);
         if (inv)
+        {
           tree= !tree ? tmp : tree_or(param, tree, tmp);
+          if (tree == NULL)
+            break;
+        }
         else 
           tree= tree_and(param, tree, tmp);
       }

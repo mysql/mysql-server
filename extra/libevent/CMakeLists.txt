@@ -1,7 +1,8 @@
 INCLUDE_DIRECTORIES(
 	${CMAKE_SOURCE_DIR}/extra/libevent
 	${CMAKE_SOURCE_DIR}/extra/libevent/compat
-	${CMAKE_SOURCE_DIR}/extra/libevent/WIN32-Code)
+	${CMAKE_SOURCE_DIR}/extra/libevent/WIN32-Code
+	${CMAKE_SOURCE_DIR}/include)
 	
 IF(MSVC)
 	ADD_DEFINITIONS("-DWIN32 -DHAVE_CONFIG_H")

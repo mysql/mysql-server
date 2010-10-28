@@ -11,3 +11,4 @@
 ##############################################################################
 
 rpl_row_create_table : Bug#51574 Feb 27 2010 andrei failed different way than earlier with bug#45576
+rpl_log_pos : BUG#55675 Sep 10 2010 27 2010 alfranio rpl.rpl_log_pos fails sporadically with error binlog truncated in the middle

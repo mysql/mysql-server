@@ -4104,6 +4104,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
   else
   {
     char option_buff[350],*ptr;
+    String str(option_buff,sizeof(option_buff), system_charset_info);
     TABLE *show_table= tables->table;
     TABLE_SHARE *share= show_table->s;
     handler *file= show_table->file;
@@ -4136,53 +4137,58 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     table->field[4]->store(tmp_buff, strlen(tmp_buff), cs);
     table->field[5]->store((longlong) share->frm_version, TRUE);
 
-    ptr=option_buff;
+    str.length(0);
     if (share->min_rows)
     {
-      ptr=strmov(ptr," min_rows=");
-      ptr=longlong10_to_str(share->min_rows,ptr,10);
+      str.qs_append(STRING_WITH_LEN(" min_rows="));
+      str.qs_append(share->min_rows);
     }
     if (share->max_rows)
     {
-      ptr=strmov(ptr," max_rows=");
-      ptr=longlong10_to_str(share->max_rows,ptr,10);
+      str.qs_append(STRING_WITH_LEN(" max_rows="));
+      str.qs_append(share->max_rows);
     }
     if (share->avg_row_length)
     {
-      ptr=strmov(ptr," avg_row_length=");
-      ptr=longlong10_to_str(share->avg_row_length,ptr,10);
+      str.qs_append(STRING_WITH_LEN(" avg_row_length="));
+      str.qs_append(share->avg_row_length);
     }
     if (share->db_create_options & HA_OPTION_PACK_KEYS)
-      ptr=strmov(ptr," pack_keys=1");
+      str.qs_append(STRING_WITH_LEN(" pack_keys=1"));
     if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
-      ptr=strmov(ptr," pack_keys=0");
+      str.qs_append(STRING_WITH_LEN(" pack_keys=0"));
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
-      ptr=strmov(ptr," checksum=1");
+      str.qs_append(STRING_WITH_LEN(" checksum=1"));
     if (share->page_checksum != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " page_checksum=",
-                   ha_choice_values[(uint) share->page_checksum], NullS);
+    {
+      str.qs_append(STRING_WITH_LEN(" page_checksum="));
+      str.qs_append(ha_choice_values[(uint) share->page_checksum]);
+    }
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
-      ptr=strmov(ptr," delay_key_write=1");
+      str.qs_append(STRING_WITH_LEN(" delay_key_write=1"));
     if (share->row_type != ROW_TYPE_DEFAULT)
-      ptr=strxmov(ptr, " row_format=",
-                  ha_row_type[(uint) share->row_type],
-                  NullS);
+    {
+      str.qs_append(STRING_WITH_LEN(" row_format="));
+      str.qs_append(ha_row_type[(uint) share->row_type]);
+    }
     if (share->key_block_size)
     {
-      ptr= strmov(ptr, " key_block_size=");
-      ptr= longlong10_to_str(share->key_block_size, ptr, 10);
+      str.qs_append(STRING_WITH_LEN(" key_block_size="));
+      str.qs_append(share->key_block_size);
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (is_partitioned)
-      ptr= strmov(ptr, " partitioned");
+      str.qs_append(STRING_WITH_LEN(" partitioned"));
 #endif
     if (share->transactional != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " transactional=",
-                   ha_choice_values[(uint) share->transactional], NullS);
-    table->field[19]->store(option_buff+1,
-                            (ptr == option_buff ? 0 :
-                             (uint) (ptr-option_buff)-1), cs);
+    {
+      str.qs_append(STRING_WITH_LEN(" transactional="));
+      str.qs_append(ha_choice_values[(uint) share->transactional]);
+    }
+    append_create_options(thd, &str, share->option_list);
+    if (str.length())
+      table->field[19]->store(str.ptr()+1, str.length()-1, cs);
 
     tmp_buff= (share->table_charset ?
                share->table_charset->name : "default");
@@ -7577,13 +7583,16 @@ int finalize_schema_table(st_plugin_int *plugin)
   ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
   DBUG_ENTER("finalize_schema_table");
 
-  if (schema_table && plugin->plugin->deinit)
+  if (schema_table)
   {
-    DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-    if (plugin->plugin->deinit(NULL))
+    if (plugin->plugin->deinit)
     {
-      DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
-                             plugin->name.str));
+      DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+      if (plugin->plugin->deinit(NULL))
+      {
+        DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                               plugin->name.str));
+      }
     }
     my_free(schema_table, MYF(0));
   }

@@ -1,0 +1,10 @@
+RESET MASTER;
+CREATE TABLE t1 (word CHAR(20) NOT NULL) ENGINE=MYISAM;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+DROP TABLE t1;

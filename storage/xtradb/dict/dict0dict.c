@@ -569,8 +569,7 @@ dict_table_get_on_id(
 {
 	dict_table_t*	table;
 
-	if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0
-	    || trx->dict_operation_lock_mode == RW_X_LATCH) {
+	if (trx->dict_operation_lock_mode == RW_X_LATCH) {
 
 		/* Note: An X latch implies that the transaction
 		already owns the dictionary mutex. */
@@ -4514,7 +4513,6 @@ dict_update_statistics_low(
 	ibool		sync)		/*!< in: TRUE if must update SYS_STATS */
 {
 	dict_index_t*	index;
-	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
 
 	if (table->ibd_file_missing) {
@@ -4529,15 +4527,7 @@ dict_update_statistics_low(
 		return;
 	}
 
-	/* If we have set a high innodb_force_recovery level, do not calculate
-	statistics, as a badly corrupted index can cause a crash in it. */
-
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
-
-		return;
-	}
-
-	if (srv_use_sys_stats_table && !sync) {
+	if (srv_use_sys_stats_table && !((table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY) && !sync) {
 		/* reload statistics from SYS_STATS table */
 		if (dict_reload_statistics(table, &sum_of_index_sizes)) {
 			/* success */
@@ -4565,33 +4555,54 @@ dict_update_statistics_low(
 		return;
 	}
 
-	while (index) {
+	do {
 		if (table->is_corrupt) {
 			ut_a(srv_pass_corrupt_table);
 			return;
 		}
 
-		size = btr_get_size(index, BTR_TOTAL_SIZE);
+		if (UNIV_LIKELY
+		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
+		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+			 && dict_index_is_clust(index)))) {
+			ulint	size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-		index->stat_index_size = size;
+			index->stat_index_size = size;
 
-		sum_of_index_sizes += size;
+			sum_of_index_sizes += size;
 
-		size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			size = btr_get_size(index, BTR_N_LEAF_PAGES);
 
-		if (size == 0) {
-			/* The root node of the tree is a leaf */
-			size = 1;
+			if (size == 0) {
+				/* The root node of the tree is a leaf */
+				size = 1;
+			}
+
+			index->stat_n_leaf_pages = size;
+
+			btr_estimate_number_of_different_key_vals(index);
+		} else {
+			/* If we have set a high innodb_force_recovery
+			level, do not calculate statistics, as a badly
+			corrupted index can cause a crash in it.
+			Initialize some bogus index cardinality
+			statistics, so that the data can be queried in
+			various means, also via secondary indexes. */
+			ulint	i;
+
+			sum_of_index_sizes++;
+			index->stat_index_size = index->stat_n_leaf_pages = 1;
+
+			for (i = dict_index_get_n_unique(index); i; ) {
+				index->stat_n_diff_key_vals[i--] = 1;
+			}
 		}
 
-		index->stat_n_leaf_pages = size;
-
-		btr_estimate_number_of_different_key_vals(index);
-
 		index = dict_table_get_next_index(index);
-	}
+	} while (index);
 
-	if (srv_use_sys_stats_table) {
+	if (srv_use_sys_stats_table && !((table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)) {
 		/* store statistics to SYS_STATS table */
 		dict_store_statistics(table);
 	}

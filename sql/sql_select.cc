@@ -2381,14 +2381,9 @@ JOIN::destroy()
   having_equal= 0;
 
   cleanup(1);
-  /* Cleanup items referencing temporary table columns */
-  if (!tmp_all_fields3.is_empty())
-  {
-    List_iterator_fast<Item> it(tmp_all_fields3);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-  }
+ /* Cleanup items referencing temporary table columns */
+  cleanup_item_list(tmp_all_fields1);
+  cleanup_item_list(tmp_all_fields3);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -2399,6 +2394,19 @@ JOIN::destroy()
   delete procedure;
   DBUG_RETURN(error);
 }
+
+
+void JOIN::cleanup_item_list(List<Item> &items) const
+{
+  if (!items.is_empty())
+  {
+    List_iterator_fast<Item> it(items);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
+}
+
 
 /**
   An entry point to single-unit select (a select without UNION).
@@ -4599,12 +4607,10 @@ best_access_path(JOIN      *join,
             tmp= records;
             set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
             if (table->covering_keys.is_set(key))
-            {
-              /* we can use only index tree */
-              tmp= record_count * table->file->keyread_read_time(key, 1, tmp);
-            }
+              tmp= table->file->keyread_time(key, 1, tmp);
             else
-              tmp= record_count*min(tmp,s->worst_seeks);
+              tmp= table->file->read_time(key, 1, min(tmp,s->worst_seeks)-1);
+            tmp*= record_count;
           }
         }
         else
@@ -4764,12 +4770,10 @@ best_access_path(JOIN      *join,
             /* Limit the number of matched rows */
             set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
             if (table->covering_keys.is_set(key))
-            {
-              /* we can use only index tree */
-              tmp= record_count * table->file->keyread_read_time(key, 1, tmp);
-            }
+              tmp= table->file->keyread_time(key, 1, tmp);
             else
-              tmp= record_count * min(tmp,s->worst_seeks);
+              tmp= table->file->read_time(key, 1, min(tmp,s->worst_seeks)-1);
+            tmp*= record_count;
           }
           else
             tmp= best_time;                    // Do nothing
@@ -4777,7 +4781,7 @@ best_access_path(JOIN      *join,
         loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
 
       } /* not ft_key */
-      if (tmp < best_time - records/(double) TIME_FOR_COMPARE)
+      if (tmp + 0.0001 < best_time - records/(double) TIME_FOR_COMPARE)
       {
         best_time= tmp + records/(double) TIME_FOR_COMPARE;
         best= tmp;
@@ -7797,6 +7801,8 @@ bool error_if_full_join(JOIN *join)
   {
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
+      /* This error should not be ignored. */
+      join->select_lex->no_error= FALSE;
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return(1);
@@ -9975,10 +9981,10 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
     no ON expression and not a semi-join => can be flattened.
   */
   TABLE_LIST *right_neighbor= NULL;
-  bool fix_name_res= FALSE;
   li.rewind();
   while ((table= li++))
   {
+    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (table->sj_on_expr && !in_sj)
     {
@@ -14298,7 +14304,9 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     copy_fields(&join->tmp_table_param);
-    copy_funcs(join->tmp_table_param.items_to_copy);
+    if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+
 #ifdef TO_BE_DELETED
     if (!table->uniques)			// If not unique handling
     {
@@ -14406,7 +14414,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       memcpy(table->record[0]+key_part->offset, group->buff, 1);
   }
   init_tmptable_sum_functions(join->sum_funcs);
-  copy_funcs(join->tmp_table_param.items_to_copy);
+  if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
   if ((error= table->file->ha_write_row(table->record[0])))
   {
     if (create_internal_tmp_table_from_heap(join->thd, table,
@@ -14447,7 +14456,8 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   init_tmptable_sum_functions(join->sum_funcs);
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
-  copy_funcs(join->tmp_table_param.items_to_copy);
+  if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
   if (!(error= table->file->ha_write_row(table->record[0])))
     join->send_records++;			// New group
@@ -14536,7 +14546,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (idx < (int) join->send_group_parts)
     {
       copy_fields(&join->tmp_table_param);
-      copy_funcs(join->tmp_table_param.items_to_copy);
+      if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (join->procedure)
@@ -15015,9 +15026,20 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 }
 
 
+/**
+  Find shortest key suitable for full table scan.
+
+  @param table                 Table to scan
+  @param usable_keys           Allowed keys
+
+  @return
+    MAX_KEY     no suitable key found
+    key index   otherwise
+*/
+
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
-  uint min_length= (uint) ~0;
+  double min_cost= DBL_MAX;
   uint best= MAX_KEY;
   if (!usable_keys->is_clear_all())
   {
@@ -15025,9 +15047,10 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
     {
       if (usable_keys->is_set(nr))
       {
-        if (table->key_info[nr].key_length < min_length)
+        double cost= table->file->keyread_time(nr, 1, table->file->records());
+        if (cost < min_cost)
         {
-          min_length=table->key_info[nr].key_length;
+          min_cost= cost;
           best=nr;
         }
       }
@@ -17627,14 +17650,39 @@ update_sum_func(Item_sum **func_ptr)
   return 0;
 }
 
-/** Copy result of functions to record in tmp_table. */
+/** 
+  Copy result of functions to record in tmp_table. 
 
-void
-copy_funcs(Item **func_ptr)
+  Uses the thread pointer to check for errors in 
+  some of the val_xxx() methods called by the 
+  save_in_result_field() function.
+  TODO: make the Item::val_xxx() return error code
+
+  @param func_ptr  array of the function Items to copy to the tmp table
+  @param thd       pointer to the current thread for error checking
+  @retval
+    FALSE if OK
+  @retval
+    TRUE on error  
+*/
+
+bool
+copy_funcs(Item **func_ptr, const THD *thd)
 {
   Item *func;
   for (; (func = *func_ptr) ; func_ptr++)
+  {
     func->save_in_result_field(1);
+    /*
+      Need to check the THD error state because Item::val_xxx() don't
+      return error code, but can generate errors
+      TODO: change it for a real status check when Item::val_xxx()
+      are extended to return status code.
+    */  
+    if (thd->is_error())
+      return TRUE;
+  }
+  return FALSE;
 }
 
 

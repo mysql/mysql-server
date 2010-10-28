@@ -4606,7 +4606,7 @@ print_rec:
 	nth_lock++;
 
 	if (nth_lock >= srv_show_locks_held) {
-		fputs("TOO LOCKS PRINTED FOR THIS TRX:"
+		fputs("TOO MANY LOCKS PRINTED FOR THIS TRX:"
 		      " SUPPRESSING FURTHER PRINTS\n",
 		      file);
 

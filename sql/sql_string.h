@@ -108,7 +108,7 @@ public:
   inline uint32 alloced_length() const { return Alloced_length;}
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
   inline void length(uint32 len) { str_length=len ; }
-  inline bool is_empty() { return (str_length == 0); }
+  inline bool is_empty() const { return (str_length == 0); }
   inline void mark_as_const() { Alloced_length= 0;}
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
@@ -336,6 +336,10 @@ public:
     int4store(Ptr + position,value);
   }
 
+  void qs_append(const char *str)
+  {
+    qs_append(str, strlen(str));
+  }
   void qs_append(const char *str, uint32 len);
   void qs_append(double d);
   void qs_append(double *d);
@@ -345,7 +349,15 @@ public:
      str_length++;
   }
   void qs_append(int i);
-  void qs_append(uint i);
+  void qs_append(uint i)
+  {
+    qs_append((ulonglong)i);
+  }
+  void qs_append(ulong i)
+  {
+    qs_append((ulonglong)i);
+  }
+  void qs_append(ulonglong i);
 
   /* Inline (general) functions used by the protocol functions */
 

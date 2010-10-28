@@ -159,6 +159,8 @@
 extern "C" {
 #endif
 
+#include <my_attribute.h>
+
 #include <event-config.h>
 #ifdef _EVENT_HAVE_SYS_TYPES_H
 #include <sys/types.h>
