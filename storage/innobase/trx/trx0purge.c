@@ -360,9 +360,7 @@ trx_purge_add_update_undo_to_history(
 	/* Add the log as the first in the history list */
 	flst_add_first(rseg_header + TRX_RSEG_HISTORY,
 		       undo_header + TRX_UNDO_HISTORY_NODE, mtr);
-	mutex_enter(&kernel_mutex);
-	trx_sys->rseg_history_len++;
-	mutex_exit(&kernel_mutex);
+	os_inc_counter(kernel_mutex, trx_sys->rseg_history_len);
 
 	if (!(trx_sys->rseg_history_len % srv_purge_batch_size)) {
 		/* Inform the purge thread that there is work to do. */
@@ -460,10 +458,8 @@ loop:
 	flst_cut_end(rseg_hdr + TRX_RSEG_HISTORY,
 		     log_hdr + TRX_UNDO_HISTORY_NODE, n_removed_logs, &mtr);
 
-	mutex_enter(&kernel_mutex);
-	ut_ad(trx_sys->rseg_history_len >= n_removed_logs);
-	trx_sys->rseg_history_len -= n_removed_logs;
-	mutex_exit(&kernel_mutex);
+	os_decrement_counter_by_amount(kernel_mutex, trx_sys->rseg_history_len,
+				       n_removed_logs);
 
 	freed = FALSE;
 
@@ -550,10 +546,9 @@ loop:
 						limit_undo_no);
 		}
 
-		mutex_enter(&kernel_mutex);
-		ut_a(trx_sys->rseg_history_len >= n_removed_logs);
-		trx_sys->rseg_history_len -= n_removed_logs;
-		mutex_exit(&kernel_mutex);
+		os_decrement_counter_by_amount(kernel_mutex,
+					       trx_sys->rseg_history_len,
+					       n_removed_logs);
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
 				  log_hdr + TRX_UNDO_HISTORY_NODE,
