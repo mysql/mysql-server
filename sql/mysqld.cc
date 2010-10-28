@@ -335,7 +335,7 @@ static char *default_character_set_name;
 static char *character_set_filesystem_name;
 static char *lc_messages;
 static char *lc_time_names_name;
-static char *my_bind_addr_str;
+char *my_bind_addr_str;
 static char *default_collation_name;
 char *default_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
@@ -5837,9 +5837,6 @@ struct my_option my_long_options[]=
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode "
    "will also set transaction isolation level 'serializable'.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
-   &my_bind_addr_str, &my_bind_addr_str, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, "
    "and exclude all others not explicitly mentioned.",
