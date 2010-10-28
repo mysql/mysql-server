@@ -462,7 +462,7 @@ lock_wait_timeout_thread(
 			os_thread_create */
 {
 	srv_slot_t*	slot;
-	ulint		sig_count = 0;
+	ib_int64_t	sig_count = 0;
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
