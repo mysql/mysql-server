@@ -35,7 +35,7 @@ public class DeleteInsertTest extends AbstractClusterJModelTest {
         int count = 0;
         for (int i = 0; i < NUMBER_TO_INSERT; ++i) {
             tx.begin();
-            session.deletePersistent(employees.get(i));
+            session.deletePersistent(Employee.class, i);
             try {
                 tx.commit();
                 ++count;

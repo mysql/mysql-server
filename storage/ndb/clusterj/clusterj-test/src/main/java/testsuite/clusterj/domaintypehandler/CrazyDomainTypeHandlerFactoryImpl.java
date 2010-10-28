@@ -193,6 +193,10 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                         Operation op) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
+
+                public void objectSetKeys(Object keys, Object instance) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
             };
         } else {
             return null;

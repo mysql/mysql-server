@@ -25,6 +25,7 @@ import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
+import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
 
@@ -50,8 +51,10 @@ class ScanResultDataImpl extends ResultDataImpl {
     protected final int CACHE_EMPTY = 2;
 
     public ScanResultDataImpl(NdbScanOperation ndbScanOperation, List<Column> storeColumns,
-            int maximumColumnId, int bufferSize, int[] offsets, int[] lengths) {
-        super(ndbScanOperation, storeColumns, maximumColumnId, bufferSize, offsets, lengths);
+            int maximumColumnId, int bufferSize, int[] offsets, int[] lengths, int maximumColumnLength,
+            BufferManager bufferManager) {
+        super(ndbScanOperation, storeColumns, maximumColumnId, bufferSize, offsets, lengths, maximumColumnLength,
+                bufferManager);
         this.ndbScanOperation = ndbScanOperation;
     }
 

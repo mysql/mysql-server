@@ -35,6 +35,7 @@ import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
+import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbBlob;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
@@ -67,7 +68,7 @@ class ResultDataImpl implements ResultData {
     /** The flag indicating that there are no more results */
     private boolean nextDone;
 
-    /** The ByteBuffer containing the results */
+    /** The ByteBuffer containing the results, obtained from buffer manager */
     private ByteBuffer byteBuffer = null;
 
     /** Offsets into the ByteBuffer containing the results */
@@ -79,6 +80,9 @@ class ResultDataImpl implements ResultData {
     /** The Columns in this result */
     private final Column[] storeColumns;
 
+    /** The buffer manager */
+    private BufferManager bufferManager;
+
     /** Construct the ResultDataImpl based on an NdbOperation, a list of columns
      * to include in the result, and the pre-computed buffer layout for the result.
      * @param ndbOperation the NdbOperation
@@ -89,13 +93,15 @@ class ResultDataImpl implements ResultData {
      * @param lengths the array of lengths indexed by column id
      */
     public ResultDataImpl(NdbOperation ndbOperation, List<Column> storeColumns,
-            int maximumColumnId, int bufferSize, int[] offsets, int[] lengths) {
+            int maximumColumnId, int bufferSize, int[] offsets, int[] lengths, int maximumLength,
+            BufferManager bufferManager) {
         this.ndbOperation = ndbOperation;
+        this.bufferManager = bufferManager;
         // save the column list
         this.storeColumns = storeColumns.toArray(new Column[storeColumns.size()]);
         this.offsets = offsets;
         this.lengths = lengths;
-        byteBuffer = ByteBuffer.allocateDirect(bufferSize);
+        byteBuffer = bufferManager.getResultDataBuffer(bufferSize);
         byteBuffer.order(ByteOrder.nativeOrder());
         // iterate the list of store columns and allocate an NdbRecAttr (via getValue) for each
         ndbRecAttrs = new NdbRecAttr[maximumColumnId + 1];
@@ -104,13 +110,22 @@ class ResultDataImpl implements ResultData {
             int columnId = storeColumn.getColumnId();
             byteBuffer.position(offsets[columnId]);
             if (lengths[columnId] == 0) {
+                // TODO: to help profiling
                 ndbRecAttr = ndbOperation.getValue(columnId, null);
+//                ndbRecAttr = getValue(ndbOperation, columnId, null);
             } else {
                 ndbRecAttr = ndbOperation.getValue(columnId, byteBuffer);
+//                ndbRecAttr = getValue(ndbOperation, columnId, byteBuffer);
             }
             handleError(ndbRecAttr, ndbOperation);
             ndbRecAttrs[columnId] = ndbRecAttr;
         }
+    }
+
+    private NdbRecAttr getValue(NdbOperation ndbOperation2, int columnId,
+            ByteBuffer byteBuffer2) {
+        // TODO: to help profiling
+        return ndbOperation2.getValue(columnId, byteBuffer2);
     }
 
     public boolean next() {
@@ -216,13 +231,13 @@ class ResultDataImpl implements ResultData {
     }
 
     public String getString(Column storeColumn) {
-        byte[] bytes = getBytes(storeColumn); // just to see if there is something wrong
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
         if (ndbRecAttr.isNULL() == 1) return null;
         int prefixLength = storeColumn.getPrefixLength();
         int actualLength;
         int offset = offsets[index];
+        byteBuffer.limit(byteBuffer.capacity());
         switch (prefixLength) {
             case 0:
                 actualLength = lengths[index];
@@ -242,18 +257,11 @@ class ResultDataImpl implements ResultData {
                         local.message("ERR_Invalid_Prefix_Length", prefixLength));
         }
 
-        // save the position and limit
-        int savedPosition = byteBuffer.position();
-        int savedLimit = byteBuffer.limit();
-
         byteBuffer.position(offset);
         byteBuffer.limit(offset + actualLength);
 
-        String result = Utility.decode(byteBuffer, storeColumn.getCharsetNumber());
-
-        // restore the position and limit
-        byteBuffer.position(savedPosition);
-        byteBuffer.limit(savedLimit);
+        String result = Utility.decode(byteBuffer, storeColumn.getCharsetNumber(), bufferManager);
+        byteBuffer.clear();
         return result;
     }
 

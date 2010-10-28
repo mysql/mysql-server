@@ -297,7 +297,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
     public void operationSetValue(ValueHandler handler, Operation op) {
         // handle NullValue here
         boolean isNull = handler.isNull(fieldNumber);
-        if (logger.isDetailEnabled()) logger.detail("Column: " + columnName + " field: " + name + "isNull: " + isNull + " type: " + type + " delegate " + objectOperationHandlerDelegate.handler());
+        if (logger.isDetailEnabled()) logger.detail("Column: " + columnName + " field: " + name + " isNull: " + isNull + " type: " + type + " delegate " + objectOperationHandlerDelegate.handler());
         try {
             if (isNull) {
                 // value is null; let delegate see what to do

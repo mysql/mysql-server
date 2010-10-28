@@ -28,9 +28,14 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import com.mysql.ndbjtie.mysql.CharsetMap;
 import com.mysql.ndbjtie.mysql.CharsetMapConst;
@@ -44,6 +49,7 @@ import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
+import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 /** This class provides utility methods.
  *
@@ -58,8 +64,10 @@ public class Utility {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(Utility.class);
 
+    /** Standard Java charset encoder */
     static CharsetEncoder charsetEncoder = Charset.forName("windows-1252").newEncoder();
 
+    /** Standard Java charset decoder */
     static CharsetDecoder charsetDecoder = Charset.forName("windows-1252").newDecoder();
 
     static final long ooooooooooooooff = 0x00000000000000ffL;
@@ -76,13 +84,94 @@ public class Utility {
     static final int ooooffoo = 0x0000ff00;
     static final int ooffoooo = 0x00ff0000;
 
+    static final char[] SPACE_PAD = new char[255];
+    static {
+        for (int i = 0; i < 255; ++i) {
+            SPACE_PAD[i] = ' ';
+        }
+    }
+
+    static final byte[] ZERO_PAD = new byte[255];
+    static {
+        for (int i = 0; i < 255; ++i) {
+            ZERO_PAD[i] = (byte)0;
+        }
+    }
+
     // TODO: change this to a weak reference so we can call delete on it when not needed
+    /** Note that mysql refers to charset number and charset name, but the number is
+    * actually a collation number. The CharsetMap interface thus has methods like
+    * getCharsetNumber(String charsetName) but what is returned is actually a collation number.
+    */
     static CharsetMap charsetMap = CharsetMap.create();
 
-    static protected final int charsetUTF16 = charsetMap.getUTF16CharsetNumber();
-    
+    /** The maximum mysql collation (charset) number. This is hard coded in <mysql>/include/my_sys.h */
+    static int MAXIMUM_MYSQL_COLLATION_NUMBER = 256;
+
+    /** The mysql collation number for the standard charset */
+    static int collationLatin1 = charsetMap.getCharsetNumber("latin1");
+
+    /** The mysql collation number for UTF16 */
+    static protected final int collationUTF16 = charsetMap.getUTF16CharsetNumber();
+
+    /** The mysql charset map */
     public static CharsetMap getCharsetMap() {
         return charsetMap;
+    }
+
+    /** The map of charset name to collations that share the charset name */
+    private static Map<String, int[]> collationPeersMap = new TreeMap<String, int[]>();
+
+    /** The ClusterJ charset converter for all multibyte charsets */
+    private static CharsetConverter charsetConverterMultibyte = new MultiByteCharsetConverter();
+
+    /** Charset converters */
+    private static CharsetConverter[] charsetConverters = 
+        new CharsetConverter[MAXIMUM_MYSQL_COLLATION_NUMBER + 1];
+
+    /** Initialize the the array of charset converters and the map of known collations that share the same charset */
+    static {
+        Map<String, List<Integer>> workingCollationPeersMap = new TreeMap<String, List<Integer>>();
+        for (int collation = 1; collation <= MAXIMUM_MYSQL_COLLATION_NUMBER; ++collation) {
+            String mysqlName = charsetMap.getMysqlName(collation);
+            if (mysqlName != null) {
+                if ((isMultibyteCollation(collation))) {
+                    // multibyte collations all use the multibyte charset converter
+                    charsetConverters[collation] = charsetConverterMultibyte;
+                } else {
+                    // find out if this charset name is already used by another (peer) collation
+                    List<Integer> collations = workingCollationPeersMap.get(mysqlName);
+                    if (collations == null) {
+                        // this is the first collation to use this charset name
+                        collations = new ArrayList<Integer>(8);
+                        collations.add(collation);
+                        workingCollationPeersMap.put(mysqlName, collations);
+                    } else {
+                        // add this collation to the list of (peer) collations
+                        collations.add(collation);
+                    }
+                }
+            }
+        }
+        
+        for (Map.Entry<String, List<Integer>> workingCollationPeers: workingCollationPeersMap.entrySet()) {
+            String mysqlName = workingCollationPeers.getKey();
+            List<Integer> collations = workingCollationPeers.getValue();
+            int[] collationArray = new int[collations.size()];
+            int i = 0;
+            for (Integer collation: collations) {
+                collationArray[i++] = collation;
+            }
+            collationPeersMap.put(mysqlName, collationArray);
+        }
+        if (logger.isDetailEnabled()) {
+            for (Map.Entry<String, int[]> collationEntry: collationPeersMap.entrySet()) {
+                logger.detail("Utility collationMap " + collationEntry.getKey()
+                        + " collations : " + Arrays.toString(collationEntry.getValue()));
+            }
+        }
+        // initialize the charset converter for latin1 and its peer collations (after peers are known)
+        addCollation(collationLatin1);
     }
 
     /** Determine if the exception is retriable
@@ -581,6 +670,7 @@ public class Utility {
 
     /* Error codes that are not severe, and simply reflect expected conditions */
     private static Set<Integer> NonSevereErrorCodes = new HashSet<Integer>();
+
     static {
         NonSevereErrorCodes.add(4203); // Trying to set a NOT NULL attribute to NULL
         NonSevereErrorCodes.add(4243); // Index not found
@@ -668,11 +758,23 @@ public class Utility {
     public static ByteBuffer convertValue(Column storeColumn, byte[] value) {
         int dataLength = value.length;
         int prefixLength = storeColumn.getPrefixLength();
-        ByteBuffer result = ByteBuffer.allocateDirect(prefixLength + dataLength);
-        result.order(ByteOrder.nativeOrder());
+        ByteBuffer result;
         switch (prefixLength) {
             case 0:
-                result.put(value);
+                int requiredLength = storeColumn.getColumnSpace();
+                if (dataLength > requiredLength) {
+                    throw new ClusterJFatalInternalException(
+                            local.message("ERR_Data_Too_Long",
+                            storeColumn.getName(), requiredLength, dataLength));
+                } else {
+                    result = ByteBuffer.allocateDirect(requiredLength);
+                    result.order(ByteOrder.nativeOrder());
+                    result.put(value);
+                    if (dataLength < requiredLength) {
+                        // pad with 0x00 on right
+                        result.put(ZERO_PAD, 0, requiredLength - dataLength);
+                    }
+                }
                 break;
             case 1:
                 if (dataLength > 255) {
@@ -680,6 +782,8 @@ public class Utility {
                             local.message("ERR_Data_Too_Long",
                             storeColumn.getName(), "255", dataLength));
                 }
+                result = ByteBuffer.allocateDirect(prefixLength + dataLength);
+                result.order(ByteOrder.nativeOrder());
                 result.put((byte)dataLength);
                 result.put(value);
                 break;
@@ -689,6 +793,8 @@ public class Utility {
                             local.message("ERR_Data_Too_Long",
                             storeColumn.getName(), "8000", dataLength));
                 }
+                result = ByteBuffer.allocateDirect(prefixLength + dataLength);
+                result.order(ByteOrder.nativeOrder());
                 result.put((byte)(dataLength%256));
                 result.put((byte)(dataLength/256));
                 result.put(value);
@@ -833,36 +939,48 @@ public class Utility {
         return endianManager.convertValue(storeColumn, value);
     }
 
-    /** Encode a String (as a ByteBuffer) into an existing ByteBuffer that can be passed to ndbjtie.
+    /** Encode a String as a ByteBuffer that can be passed to ndbjtie.
      * Put the length information in the beginning of the buffer.
+     * Pad fixed length strings with blanks.
      * @param storeColumn the column definition
      * @param value the value to be converted
      * @return the ByteBuffer
      */
-    public static ByteBuffer xconvertValue(Column storeColumn, ByteBuffer inputValue, ByteBuffer outputValue) {
-
+    protected static ByteBuffer convertValue(Column storeColumn, String value) {
+        if (value == null) {
+            value = "";
+        }
+        CharSequence chars = value;
         int offset = storeColumn.getPrefixLength();
-        ByteBuffer byteBuffer = encodeToByteBuffer(inputValue, storeColumn.getCharsetNumber(), outputValue, offset);
+        if (offset == 0) {
+            chars = padString(value, storeColumn);
+        }
+        ByteBuffer byteBuffer = encodeToByteBuffer(chars, storeColumn.getCharsetNumber(), offset);
         fixBufferPrefixLength(byteBuffer, offset);
         if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
         return byteBuffer;
     }
 
-    /** Encode a String as a ByteBuffer that can be passed to ndbjtie.
-     * Put the length information in the beginning of the buffer.
-     * @param storeColumn the column definition
-     * @param value the value to be converted
-     * @return the ByteBuffer
+    /** Pad the value with blanks on the right.
+     * @param value the input value
+     * @param storeColumn the store column
+     * @return the value padded with blanks on the right
      */
-    public static ByteBuffer convertValue(Column storeColumn, String value) {
-        if (value == null) {
-            value = "";
+    private static CharSequence padString(CharSequence value, Column storeColumn) {
+        CharSequence chars = value;
+        int suppliedLength = value.length();
+        int requiredLength = storeColumn.getColumnSpace();
+        if (suppliedLength > requiredLength) {
+            throw new ClusterJUserException(local.message("ERR_Data_Too_Long",
+                    storeColumn.getName(), requiredLength, suppliedLength));
+        } else if (suppliedLength < requiredLength) {
+            // pad to fixed length
+            StringBuilder buffer = new StringBuilder(requiredLength);
+            buffer.append(value);
+            buffer.append(SPACE_PAD, 0, requiredLength - suppliedLength);
+            chars = buffer;
         }
-        int offset = storeColumn.getPrefixLength();
-        ByteBuffer byteBuffer = encodeToByteBuffer(value, storeColumn.getCharsetNumber(), offset);
-        fixBufferPrefixLength(byteBuffer, offset);
-        if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
-        return byteBuffer;
+        return chars;
     }
 
     /** Fix the length information in a buffer based on the length prefix,
@@ -1142,10 +1260,10 @@ public class Utility {
      * is in UTF16 format.
      * 
      * @param array the byte[] to be decoded
-     * @param charsetNumber the charset number
+     * @param collation the collation
      * @return the decoded String
      */
-    public static String decode(byte[] array, int charsetNumber) {
+    public static String decode(byte[] array, int collation) {
         if (array == null) return null;
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(array.length);
         byteBuffer.put(array);
@@ -1155,7 +1273,7 @@ public class Utility {
         int outputLength = inputLength * 4;
         ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(outputLength);
         int[] lengths = new int[] {inputLength, outputLength};
-        int returnCode = charsetMap.recode(lengths, charsetNumber, charsetUTF16, 
+        int returnCode = charsetMap.recode(lengths, collation, collationUTF16, 
                 byteBuffer, outputByteBuffer);
         switch (returnCode) {
             case CharsetMapConst.RecodeStatus.RECODE_OK:
@@ -1164,13 +1282,13 @@ public class Utility {
                 return charBuffer.toString();
             case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
                 throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Charset",
-                        charsetNumber));
+                        collation));
             case CharsetMapConst.RecodeStatus.RECODE_BAD_SRC:
                 throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Source",
-                        charsetNumber, lengths[0]));
+                        collation, lengths[0]));
             case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
                 throw new ClusterJFatalInternalException(local.message("ERR_Decode_Buffer_Too_Small",
-                        charsetNumber, inputLength, outputLength, lengths[0], lengths[1]));
+                        collation, inputLength, outputLength, lengths[0], lengths[1]));
             default:
                 throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Return_Code",
                         returnCode));
@@ -1181,16 +1299,15 @@ public class Utility {
      * is in UTF16 format.
      * 
      * @param inputByteBuffer the byte buffer to be decoded
-     * @param charsetNumber the charset number
+     * @param collation the collation
      * @return the decoded String
      */
-    public static String decode(ByteBuffer inputByteBuffer, int charsetNumber) {
+    protected static String decode(ByteBuffer inputByteBuffer, int collation) {
         int inputLength = inputByteBuffer.limit() - inputByteBuffer.position();
-        // TODO make this more reasonable
-        int outputLength = inputLength * 4;
+        int outputLength = inputLength * 2;
         ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(outputLength);
         int[] lengths = new int[] {inputLength, outputLength};
-        int returnCode = charsetMap.recode(lengths, charsetNumber, charsetUTF16, 
+        int returnCode = charsetMap.recode(lengths, collation, collationUTF16, 
                 inputByteBuffer, outputByteBuffer);
         switch (returnCode) {
             case CharsetMapConst.RecodeStatus.RECODE_OK:
@@ -1199,27 +1316,29 @@ public class Utility {
                 return charBuffer.toString();
             case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
                 throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Charset",
-                        charsetNumber));
+                        collation));
             case CharsetMapConst.RecodeStatus.RECODE_BAD_SRC:
                 throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Source",
-                        charsetNumber, lengths[0]));
+                        collation, lengths[0]));
             case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
                 throw new ClusterJFatalInternalException(local.message("ERR_Decode_Buffer_Too_Small",
-                        charsetNumber, inputLength, outputLength, lengths[0], lengths[1]));
+                        collation, inputLength, outputLength, lengths[0], lengths[1]));
             default:
                 throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Return_Code",
                         returnCode));
         }
     }
 
-    /** Encode a String into a byte[] for storage
+
+    /** Encode a String into a byte[] for storage.
+     * This is used by character large objects when mapping text columns.
      * 
      * @param string the String to encode
-     * @param charsetNumber the charset number
+     * @param collation the collation
      * @return the encoded byte[]
      */
-    public static byte[] encode(String string, int charsetNumber) {
-        ByteBuffer encoded = encodeToByteBuffer(string, charsetNumber, 0);
+    public static byte[] encode(String string, int collation) {
+        ByteBuffer encoded = encodeToByteBuffer(string, collation, 0);
         int length = encoded.limit();
         byte[] result = new byte[length];
         encoded.get(result);
@@ -1229,43 +1348,22 @@ public class Utility {
     /** Encode a String into a ByteBuffer
      * using the mysql native encoding method.
      * @param string the String to encode
-     * @param charsetNumber the charset number
+     * @param collation the collation
      * @param prefixLength the length of the length prefix
      * @return the encoded ByteBuffer with position set to prefixLength
      * and limit one past the last converted byte
      */
-    public static ByteBuffer encodeToByteBuffer(String string, int charsetNumber, int prefixLength) {
+    public static ByteBuffer encodeToByteBuffer(CharSequence string, int collation, int prefixLength) {
         if (string == null) return null;
         int inputLength = (string.length() * 2);
         ByteBuffer inputByteBuffer = ByteBuffer.allocateDirect(inputLength);
         CharBuffer charBuffer = inputByteBuffer.asCharBuffer();
         charBuffer.append(string);
-        return encode(charsetNumber, prefixLength, inputLength, inputByteBuffer);
-    }
-
-    /** Encode a String (copied into a ByteBuffer) into an existing ByteBuffer
-     * using the mysql native encoding method.
-     * @param string the String to encode
-     * @param charsetNumber the charset number
-     * @param prefixLength the length of the length prefix
-     * @return the encoded ByteBuffer with position set to prefixLength
-     * and limit one past the last converted byte
-     */
-    private static ByteBuffer encodeToByteBuffer(ByteBuffer inputValue,
-            int charsetNumber, ByteBuffer outputValue, int prefixLength) {
-        if (inputValue == null) return null;
-        int inputLength = (inputValue.limit());
-        return encode(charsetNumber, prefixLength, inputLength, inputValue);
-    }
-
-    private static ByteBuffer encode(int charsetNumber, int prefixLength,
-            int inputLength, ByteBuffer inputByteBuffer) {
-        // TODO make this more reasonable
         int outputLength = (2 * inputLength) + prefixLength;
         ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(outputLength);
         outputByteBuffer.position(prefixLength);
         int[] lengths = new int[] {inputLength, outputLength - prefixLength};
-        int returnCode = charsetMap.recode(lengths, charsetUTF16, charsetNumber, 
+        int returnCode = charsetMap.recode(lengths, collationUTF16, collation, 
                 inputByteBuffer, outputByteBuffer);
         
         switch (returnCode) {
@@ -1274,44 +1372,323 @@ public class Utility {
                 return outputByteBuffer;
             case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
                 throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Charset",
-                        charsetNumber));
+                        collation));
             case CharsetMapConst.RecodeStatus.RECODE_BAD_SRC:
                 throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Source",
-                        charsetNumber, lengths[0]));
+                        collation, lengths[0]));
             case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
                 throw new ClusterJFatalInternalException(local.message("ERR_Encode_Buffer_Too_Small",
-                        charsetNumber, inputLength, outputLength, lengths[0], lengths[1]));
+                        collation, inputLength, outputLength, lengths[0], lengths[1]));
             default:
                 throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Return_Code",
                         returnCode));
         }
     }
 
-    public static int encode(int charsetNumber, int prefixLength,
-            int inputLength, ByteBuffer inputByteBuffer, ByteBuffer outputByteBuffer) {
-        int outputLength = outputByteBuffer.limit();
-        outputByteBuffer.position(prefixLength);
-        int[] lengths = new int[] {inputLength, outputLength - prefixLength};
-        int returnCode = charsetMap.recode(lengths, charsetUTF16, charsetNumber, 
-                inputByteBuffer, outputByteBuffer);
-        
-        switch (returnCode) {
-            case CharsetMapConst.RecodeStatus.RECODE_OK:
-                outputByteBuffer.limit(prefixLength + lengths[1]);
+    /** Encode a String into a ByteBuffer for storage.
+     * 
+     * @param input the input String
+     * @param storeColumn the store column
+     * @param bufferManager the buffer manager with shared buffers
+     * @return a byte buffer with prefix length
+     */
+    public static ByteBuffer encode(String input, Column storeColumn, BufferManager bufferManager) {
+        int collation = storeColumn.getCharsetNumber();
+        CharsetConverter charsetConverter = getCharsetConverter(collation);
+        CharSequence chars = input;
+        int prefixLength = storeColumn.getPrefixLength();
+        if (prefixLength == 0) {
+            chars = padString(input, storeColumn);
+        }
+        return charsetConverter.encode(chars, collation, prefixLength, bufferManager);
+    }
+
+    /** Decode a ByteBuffer into a String using the charset. The return value
+     * is in UTF16 format.
+     * 
+     * @param inputByteBuffer the byte buffer to be decoded positioned past the length prefix
+     * @param collation the collation
+     * @param bufferManager the buffer manager with shared buffers
+     * @return the decoded String
+     */
+    public static String decode(ByteBuffer inputByteBuffer, int collation, BufferManager bufferManager) {
+        CharsetConverter charsetConverter = getCharsetConverter(collation);
+        return charsetConverter.decode(inputByteBuffer, collation, bufferManager);
+    }
+
+    /** Get the charset converter for the given collation. 
+     * This is in the inner loop and must be highly optimized for performance.
+     * @param collation the collation
+     * @return the charset converter for the collation
+     */
+    private static CharsetConverter getCharsetConverter(int collation) {
+        // must be synchronized because the charsetConverters is not synchronized
+        // we avoid a race condition where a charset converter is in the process
+        // of being created and it's partially visible by another thread in charsetConverters
+        synchronized (charsetConverters) {
+            if (collation + 1 > charsetConverters.length) {
+                // unlikely; only if collations are added beyond existing collation number
+                String charsetName = charsetMap.getName(collation);
+                logger.warn(local.message("ERR_Charset_Number_Too_Big", collation, charsetName, 
+                        MAXIMUM_MYSQL_COLLATION_NUMBER));
+                return charsetConverterMultibyte;
+            }
+            CharsetConverter result = charsetConverters[collation];
+            if (result == null) {
+                result = addCollation(collation);
+            }
+            return result;
+        }
+    }
+
+    /** Create a new charset converter and add it to the collection of charset converters
+     * for all collations that share the same charset.
+     * 
+     * @param collation the collation to add
+     * @return the charset converter for the collation
+     */
+    private static CharsetConverter addCollation(int collation) {
+        if (isMultibyteCollation(collation)) {
+            return charsetConverters[collation] = charsetConverterMultibyte;
+        }
+        String charsetName = charsetMap.getMysqlName(collation);
+        CharsetConverter charsetConverter = new SingleByteCharsetConverter(collation);
+        int[] collations = collationPeersMap.get(charsetName);
+        if (collations == null) {
+            // unlikely; only if a new collation is added
+            collations = new int[] {collation};
+            collationPeersMap.put(charsetName, collations);
+            logger.warn(local.message("WARN_Unknown_Collation", collation, charsetName));
+            return charsetConverter;
+        }
+        for (int peer: collations) {
+            // for each collation that shares the same charset name, set the charset converter
+            logger.info("Adding charset converter " + charsetName + " for collation " + peer);
+            charsetConverters[peer] = charsetConverter;
+        }
+        return charsetConverter;
+    }
+
+    /** Is the collation multibyte?
+     * 
+     * @param collation the collation number
+     * @return true if the collation uses a multibyte charset; false if the collation uses a single byte charset;
+     * and null if the collation is not a valid collation
+     */
+    private static Boolean isMultibyteCollation(int collation) {
+        boolean[] multibyte = charsetMap.isMultibyte(collation);
+        return (multibyte == null)?null:multibyte[0];
+    }
+
+    /** Utility methods for encoding and decoding Strings.
+     */
+    protected interface CharsetConverter {
+
+        ByteBuffer encode(CharSequence input, int collation, int prefixLength, BufferManager bufferManager);
+
+        String decode(ByteBuffer inputByteBuffer, int collation, BufferManager bufferManager);
+    }
+
+    /** Class for encoding and decoding multibyte charsets. A single instance of this class
+     * can be shared among all multibyte charsets.
+     */
+    protected static class MultiByteCharsetConverter implements CharsetConverter {
+
+        /** Encode a String into a ByteBuffer. The input String is copied into a shared byte buffer.
+         * The buffer is encoded via the mysql recode method to a shared String storage buffer.
+         * If the output buffer is too small, a new buffer is allocated and the encoding is repeated.
+         * @param input the input String
+         * @param collation the charset number
+         * @param prefixLength the prefix length (0, 1, or 2 depending on the type)
+         * @param bufferManager the buffer manager with shared buffers
+         * @return a byte buffer positioned at zero with the data ready to send to the database
+         */
+        public ByteBuffer encode(CharSequence input, int collation, int prefixLength, BufferManager bufferManager) {
+            // input length in bytes is twice String length
+            int inputLength = input.length() * 2;
+            ByteBuffer inputByteBuffer = bufferManager.copyStringToByteBuffer(input);
+            boolean done = false;
+            // first try with output length equal input length
+            int sizeNeeded = inputLength;
+            while (!done) {
+                ByteBuffer outputByteBuffer = bufferManager.getStringStorageBuffer(sizeNeeded);
+                int outputLength = outputByteBuffer.limit();
+                outputByteBuffer.position(prefixLength);
+                int[] lengths = new int[] {inputLength, outputLength - prefixLength};
+                int returnCode = charsetMap.recode(lengths, collationUTF16, collation, 
+                        inputByteBuffer, outputByteBuffer);
+                switch (returnCode) {
+                    case CharsetMapConst.RecodeStatus.RECODE_OK:
+                        outputByteBuffer.limit(prefixLength + lengths[1]);
+                        outputByteBuffer.position(0);
+                        fixBufferPrefixLength(outputByteBuffer, prefixLength);
+                        return outputByteBuffer;
+                    case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
+                        throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Charset",
+                                collation));
+                    case CharsetMapConst.RecodeStatus.RECODE_BAD_SRC:
+                        throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Source",
+                                collation, lengths[0]));
+                    case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
+                        // loop increasing output buffer size until success or run out of memory...
+                        sizeNeeded = sizeNeeded * 3 / 2;
+                        break;
+                    default:
+                        throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Return_Code",
+                                returnCode));
+                }
+            }
+            return null; // to make compiler happy; we never get here
+        }
+
+        /** Decode a byte buffer into a String. The input is decoded by the mysql charset recode method
+         * into a shared buffer. Then the shared buffer is used to create the result String.
+         * The input byte buffer is positioned just past the length, and its limit is set to one past the
+         * characters to decode.
+         * @param inputByteBuffer the input byte buffer
+         * @param collation the charset number
+         * @param bufferManager the buffer manager with shared buffers
+         * @return the decoded String
+         */
+        public String decode(ByteBuffer inputByteBuffer, int collation, BufferManager bufferManager) {
+            int inputLength = inputByteBuffer.limit() - inputByteBuffer.position();
+            int sizeNeeded = inputLength * 4;
+            boolean done = false;
+            while (!done) {
+                ByteBuffer outputByteBuffer = bufferManager.getStringByteBuffer(sizeNeeded);
+                CharBuffer outputCharBuffer = bufferManager.getStringCharBuffer();
+                int outputLength = outputByteBuffer.capacity();
                 outputByteBuffer.position(0);
-                fixBufferPrefixLength(outputByteBuffer, prefixLength);
-                return CharsetMapConst.RecodeStatus.RECODE_OK;
-            case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
-                throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Charset",
-                        charsetNumber));
-            case CharsetMapConst.RecodeStatus.RECODE_BAD_SRC:
-                throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Source",
-                        charsetNumber, lengths[0]));
-            case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
-                return returnCode;
-            default:
-                throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Return_Code",
-                        returnCode));
+                outputByteBuffer.limit(outputLength);
+                int[] lengths = new int[] {inputLength, outputLength};
+                int returnCode = charsetMap.recode(lengths, collation, collationUTF16, 
+                        inputByteBuffer, outputByteBuffer);
+                switch (returnCode) {
+                    case CharsetMapConst.RecodeStatus.RECODE_OK:
+                        outputCharBuffer.position(0);
+                        // each output character is two bytes for UTF16
+                        outputCharBuffer.limit(lengths[1] / 2);
+                        return outputCharBuffer.toString();
+                    case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
+                        throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Charset",
+                                collation));
+                    case CharsetMapConst.RecodeStatus.RECODE_BAD_SRC:
+                        throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Source",
+                                collation, lengths[0]));
+                    case CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL:
+                        // try a bigger buffer
+                        sizeNeeded = sizeNeeded * 3 / 2;
+                        break;
+                    default:
+                        throw new ClusterJFatalInternalException(local.message("ERR_Decode_Bad_Return_Code",
+                                returnCode));
+                }
+            }
+            return null; // never reached; make the compiler happy
+        }
+    }
+
+    /** Class for encoding and decoding single byte collations.
+     */
+    protected static class SingleByteCharsetConverter implements CharsetConverter {
+
+        private static final int BYTE_RANGE = (1 + Byte.MAX_VALUE) - Byte.MIN_VALUE;
+        private static byte[] allBytes = new byte[BYTE_RANGE];
+        // The initial charToByteMap, with all char mappings mapped
+        // to (byte) '?', so that unknown characters are mapped to '?'
+        // instead of '\0' (which means end-of-string to MySQL).
+        private static byte[] unknownCharsMap = new byte[65536];
+
+        static {
+            // initialize allBytes with all possible byte values
+            for (int i = Byte.MIN_VALUE; i <= Byte.MAX_VALUE; i++) {
+                allBytes[i - Byte.MIN_VALUE] = (byte) i;
+            }
+            // initialize unknownCharsMap to '?' in each position
+            for (int i = 0; i < unknownCharsMap.length; i++) {
+                unknownCharsMap[i] = (byte) '?'; // use something 'sane' for unknown chars
+            }
+        }
+
+        /** The byte to char array */
+        private char[] byteToChars = new char[BYTE_RANGE];
+
+        /** The char to byte array */
+        private byte[] charToBytes = new byte[65536];
+
+        /** Construct a new single byte charset converter. This converter is only used for 
+         * charsets that encode to a single byte for any input character.
+         * @param collation
+         */
+        public SingleByteCharsetConverter(int collation) {
+            ByteBuffer allBytesByteBuffer = ByteBuffer.allocateDirect(256);
+            allBytesByteBuffer.put(allBytes);
+            allBytesByteBuffer.flip();
+            String allBytesString = Utility.decode(allBytesByteBuffer, collation);
+            if (allBytesString.length() != 256) {
+                String charsetName = charsetMap.getName(collation);
+                throw new ClusterJFatalInternalException(local.message("ERR_Bad_Charset_Decode_All_Chars",
+                        collation, charsetName, allBytesString.length()));
+            }
+            int allBytesLen = allBytesString.length();
+
+            System.arraycopy(unknownCharsMap, 0, this.charToBytes, 0,
+                    this.charToBytes.length);
+
+            for (int i = 0; i < BYTE_RANGE && i < allBytesLen; i++) {
+                char c = allBytesString.charAt(i);
+                this.byteToChars[i] = c;
+                this.charToBytes[c] = allBytes[i];
+            }
+        }
+
+        /** Encode a String into a ByteBuffer. The input String is encoded, character by character,
+         * into an output byte[]. Then the output is copied into a shared byte buffer.
+         * @param input the input String
+         * @param collation the charset number
+         * @param prefixLength the prefix length (0, 1, or 2 depending on the type)
+         * @param bufferManager the buffer manager with shared buffers
+         * @return a byte buffer positioned at zero with the data ready to send to the database
+         */
+        public ByteBuffer encode(CharSequence input, int collation, int prefixLength, BufferManager bufferManager) {
+            int length = input.length();
+            byte[] outputBytes = new byte[length];
+            for (int position = 0; position < length; ++position) {
+                outputBytes[position] = charToBytes[input.charAt(position)];
+            }
+            // input is now encoded; copy to shared output buffer
+            ByteBuffer outputByteBuffer = bufferManager.getStringStorageBuffer(length + prefixLength);
+            // skip over prefix
+            outputByteBuffer.position(prefixLength);
+            outputByteBuffer.put(outputBytes);
+            outputByteBuffer.flip();
+            // adjust the length prefix
+            fixBufferPrefixLength(outputByteBuffer, prefixLength);
+            return outputByteBuffer;
+        }
+
+        /** Decode a byte buffer into a String. The input byte buffer is copied into a byte[],
+         * then encoded byte by byte into an output char[]. Then the result String is created from the char[].
+         * The input byte buffer is positioned just past the length, and its limit is set to one past the
+         * characters to decode.
+         * @param inputByteBuffer the input byte buffer
+         * @param collation the charset number
+         * @param bufferManager the buffer manager with shared buffers
+         * @return the decoded String
+         */
+        public String decode(ByteBuffer inputByteBuffer, int collation, BufferManager bufferManager) {
+            int inputLimit = inputByteBuffer.limit();
+            int inputPosition = inputByteBuffer.position();
+            int inputSize = inputLimit- inputPosition;
+            byte[] inputBytes = new byte[inputSize];
+            inputByteBuffer.get(inputBytes);
+            char[] outputChars = new char[inputSize];
+            for (int position = 0; position < inputSize; ++position) {
+                outputChars[position] = byteToChars[inputBytes[position] - Byte.MIN_VALUE];
+            }
+            // input is now decoded; create a new String from the output
+            String result = new String(outputChars);
+            return result;
         }
     }
 

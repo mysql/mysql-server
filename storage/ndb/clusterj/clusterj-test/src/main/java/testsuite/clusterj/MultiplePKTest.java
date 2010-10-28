@@ -431,17 +431,7 @@ public class MultiplePKTest extends AbstractClusterJModelTest {
         for (int i = 0; i < NUMBER_OF_INSTANCES; ++i) {
             dn2idPK[1] = getA1for(NUMBER_OF_INSTANCES, i);
             dn2idPK[3] = "employeenumber=100000" + i;
-            Dn2id d = session.find(Dn2id.class, dn2idPK);
-            // verify eid after update
-            long expected = i + NUMBER_OF_INSTANCES;
-            long actual = d.getEid();
-            if (expected != actual) {
-                error("Failed to find dn2id " + i
-                        + " expected eid " + expected
-                        + " actual eid " + actual);
-            }
-            // now delete the instance
-            session.deletePersistent(d);
+            session.deletePersistent(Dn2id.class, dn2idPK);
         }
         tx.commit();
     }

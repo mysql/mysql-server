@@ -873,8 +873,9 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 throw new UnsupportedOperationException(
                         local.message("ERR_Unsupported_Object_Id_Type", "int key", "OpenJPAId"));
             } else {
+                String message = (objectId == null)?"<null>":objectId.getClass().getName();
                 throw new UnsupportedOperationException(
-                        local.message("ERR_Unsupported_Object_Id_Type", "int key", objectId.getClass().getName()));
+                        local.message("ERR_Unsupported_Object_Id_Type", "int key", message));
             }
         }
 
@@ -891,8 +892,9 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 throw new UnsupportedOperationException(
                         local.message("ERR_Unsupported_Object_Id_Type", "long key", "OpenJPAId"));
             } else {
+                String message = (objectId == null)?"<null>":objectId.getClass().getName();
                 throw new UnsupportedOperationException(
-                        local.message("ERR_Unsupported_Object_Id_Type", "long key", objectId.getClass().getName()));
+                        local.message("ERR_Unsupported_Object_Id_Type", "long key", message));
             }
         }
 
@@ -909,8 +911,9 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 throw new UnsupportedOperationException(
                         local.message("ERR_Unsupported_Object_Id_Type", "String key", "OpenJPAId"));
             } else {
+                String message = (objectId == null)?"<null>":objectId.getClass().getName();
                 throw new UnsupportedOperationException(
-                        local.message("ERR_Unsupported_Object_Id_Type", "String key", objectId.getClass().getName()));
+                        local.message("ERR_Unsupported_Object_Id_Type", "String key", message));
             }
         }
 
