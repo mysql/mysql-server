@@ -19676,6 +19676,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   SQL_SELECT *select=tab->select;
   QUICK_SELECT_I *save_quick= 0;
   Item *orig_select_cond= 0;
+  bool orig_select_cond_saved= false;
+  bool changed_key= false;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
@@ -19742,8 +19744,17 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
+      /*
+        If part of the select condition has been pushed we use the
+        select condition as it was before pushing. The original
+        select condition is saved so that it can be restored when
+        exiting this function (if we have not changed index).
+      */
       if (tab->pre_idx_push_select_cond)
+      {
         orig_select_cond= tab->set_cond(tab->pre_idx_push_select_cond, __LINE__);
+        orig_select_cond_saved= true;
+      }
 
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
@@ -19792,6 +19803,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             goto use_filesort;
 	}
         ref_key= new_ref_key;
+        changed_key= true;
       }
     }
     /* Check if we get the rows in requested sorted order by using the key */
@@ -19863,15 +19875,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->set_keyread(TRUE);
           if (tab->pre_idx_push_select_cond)
           {
-            Item *tmp_cond= tab->pre_idx_push_select_cond;
-            if (orig_select_cond)
-            {
-              tmp_cond= and_conds(tmp_cond, orig_select_cond);
-              tmp_cond->quick_fix_field();
-            }
-            tab->set_cond(tmp_cond, __LINE__);
-            /* orig_select_cond was merged, no need to restore original one. */
+            tab->set_cond(tab->pre_idx_push_select_cond, __LINE__);
+            /*
+              orig_select_cond is a part of pre_idx_push_select_cond,
+              no need to restore it.
+            */
             orig_select_cond= 0;
+            orig_select_cond_saved= false;
           }
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
@@ -19911,6 +19921,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       used_key_parts= (order_direction == -1) ?
         saved_best_key_parts :  best_key_parts;
+      changed_key= true;
     }
     else
       goto use_filesort; 
@@ -19965,12 +19976,16 @@ check_reverse_order:
   }
   else if (select && select->quick)
     select->quick->need_sorted_output();
-  if (orig_select_cond)
+  /*
+    Restore condition only if we didn't chose index different to what we used
+    for ICP.
+  */
+  if (orig_select_cond_saved && !changed_key)
     tab->set_cond(orig_select_cond, __LINE__);
   DBUG_RETURN(1);
 
 use_filesort:
-  if (orig_select_cond)
+  if (orig_select_cond_saved)
     tab->set_cond(orig_select_cond, __LINE__);
   DBUG_RETURN(0);
 }
@@ -21819,6 +21834,42 @@ copy_funcs(Item **func_ptr, const THD *thd)
   return FALSE;
 }
 
+/**
+  Create a condition for a const reference for a table.
+
+  @param thd      THD pointer
+  @param join_tab pointer to the table
+
+  @return A pointer to the created condition for the const reference.
+  @retval !NULL if the condition was created successfully
+  @retval NULL if an error has occured
+*/
+
+static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
+{
+  DBUG_ENTER("create_cond_for_const_ref");
+  DBUG_ASSERT(join_tab->ref.key_parts);
+
+  TABLE *table= join_tab->table;
+  Item_cond_and *cond= new Item_cond_and();
+  if (!cond)
+    DBUG_RETURN(NULL);
+
+  for (uint i=0 ; i < join_tab->ref.key_parts ; i++)
+  {
+    Field *field= table->field[table->key_info[join_tab->ref.key].key_part[i].
+                               fieldnr-1];
+    Item *value= join_tab->ref.items[i];
+    cond->add(new Item_func_equal(new Item_field(field), value));
+  }
+  if (thd->is_fatal_error)
+    DBUG_RETURN(NULL);
+
+  if (!cond->fixed)
+    cond->fix_fields(thd, (Item**)&cond);
+
+  DBUG_RETURN(cond);
+}
 
 /**
   Create a condition for a const reference and add this to the
@@ -21831,24 +21882,14 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (!join_tab->ref.key_parts)
     DBUG_RETURN(FALSE);
 
-  Item_cond_and *cond=new Item_cond_and();
-  TABLE *table=join_tab->table;
   int error= 0;
+
+  /* Create a condition representing the const reference. */
+  Item_cond_and *cond= create_cond_for_const_ref(thd, join_tab);
   if (!cond)
     DBUG_RETURN(TRUE);
 
-  for (uint i=0 ; i < join_tab->ref.key_parts ; i++)
-  {
-    Field *field=table->field[table->key_info[join_tab->ref.key].key_part[i].
-			      fieldnr-1];
-    Item *value=join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field), value));
-  }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(TRUE);
-
-  if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  /* Add this condition to the existing select condtion */
   if (join_tab->select)
   {
     if (join_tab->select->cond)
@@ -21859,6 +21900,22 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
                                           &error)))
     join_tab->set_select_cond(cond, __LINE__);
+
+  /*
+    If we have pushed parts of the select condition down to the
+    storage engine we also need to add the condition for the const
+    reference to the pre_idx_push_select_cond since this might be used
+    later (in test_if_skip_sort_order()) instead of the select_cond.
+  */
+  if (join_tab->pre_idx_push_select_cond)
+  {
+    cond= create_cond_for_const_ref(thd, join_tab);
+    if (!cond)
+      DBUG_RETURN(TRUE);
+    if (cond->add(join_tab->pre_idx_push_select_cond))
+      DBUG_RETURN(TRUE);
+    join_tab->pre_idx_push_select_cond = cond;
+  }
 
   DBUG_RETURN(error ? TRUE : FALSE);
 }

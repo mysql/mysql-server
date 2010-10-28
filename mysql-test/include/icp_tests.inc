@@ -431,3 +431,37 @@ SELECT * FROM t2;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#52605 - "Adding LIMIT 1 clause to query with complex range 
+--echo #              predicate causes wrong results"
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT,
+  PRIMARY KEY (pk),
+  KEY k1 (c1)
+);
+
+INSERT INTO t1 VALUES (1,NULL);
+INSERT INTO t1 VALUES (2,6);
+INSERT INTO t1 VALUES (3,NULL);
+INSERT INTO t1 VALUES (4,6);
+INSERT INTO t1 VALUES (5,NULL);
+INSERT INTO t1 VALUES (6,NULL);
+INSERT INTO t1 VALUES (7,9);
+INSERT INTO t1 VALUES (8,0);
+
+SELECT pk, c1
+FROM t1  
+WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
+ORDER BY c1
+LIMIT 1;
+
+EXPLAIN SELECT pk, c1
+FROM t1  
+WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
+ORDER BY c1
+LIMIT 1;
+
+DROP TABLE t1;
