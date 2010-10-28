@@ -10601,7 +10601,7 @@ Dblqh::keyinfoLab(const Uint32 * src, Uint32 len)
   ndbassert( tcConnectptr.p->keyInfoIVal == RNIL );
   ndbassert( len > 0 );
 
-  if (ERROR_INSERTED(5052))
+  if (ERROR_INSERTED(5052) || ERROR_INSERTED_CLEAR(5060))
     return false;
 
   return(appendToSection(tcConnectptr.p->keyInfoIVal,
