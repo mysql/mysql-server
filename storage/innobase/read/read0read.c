@@ -134,20 +134,20 @@ FACT C: Purge does not remove any delete marked row that is visible
 to cursor view.
 
 PROOF: We know that:
- 1: Read views are ordered from read_view_t::low_limit_no in the
-    trx_sys_t::view_list.
+ 1: Read views are ordered in descending order by read_view_t::low_limit_no
+    in the trx_sys_t::view_list.
 
  2: Purge clones the oldest view and uses that to determine whether there
-    are any active transactions that can see the to be purged records.
+    are any active transactions that can see the to-be-purged records.
 
 Therefore any joining or active transaction will have a view greater than
 or equal to that of the purge view, according to 1.
 
 When purge needs to remove a delete marked row from a secondary index, it will
-first check that the DATA_TRX_ID value of the row is less than the purge view.
+first check that the DB_TRX_ID value of the row is less than the purge view.
 It will also check if there is a newer version of the row that is not delete
 marked in the secondary index. If such a row exists and matches the delete
-marked (to be deleted, built from the UNDO log) row exactly then purge will
+marked (to-be-purged, built from the UNDO log) row exactly then purge will
 not delete the newly inserted row in the secondary.
 
 For the cluster index if the row rollback pointer (DB_ROLL_PTR) value has
@@ -158,8 +158,8 @@ the row DB_ROLL_PTR value (that points to the UNDO log entry).
 Some additional issues:
 
 What if trx_sys->view_list == NULL and some transaction T1 and Purge both
-try to open read_view at same time. Both can get trx_sys::s_lock. In which
-order will the views be opened, also should it matter? If no, why?
+try to open read_view at the same time. Both can get trx_sys::s_lock. In
+which order will the views be opened, also should it matter? If no, why?
 
 The order doesn't matter because both purge and transaction T1 will have the
 trx_sys_t::lock in S mode and no new transactions can be created and no running
