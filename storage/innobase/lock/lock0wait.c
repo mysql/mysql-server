@@ -251,7 +251,6 @@ lock_wait_suspend_thread(
 	slot = lock_wait_table_reserve_slot(thr);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
-		// FIXME: Use atomics/lock_sys->mutex
 		srv_n_lock_wait_count++;
 		srv_n_lock_wait_current_count++;
 

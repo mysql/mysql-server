@@ -1118,18 +1118,18 @@ trx_purge_wait_for_workers_to_complete(
 {
 	/* Ensure that the work queue empties out. */
 	while (purge_sys->n_submitted > purge_sys->n_completed
-	       && srv_shutdown_state == 0) {
+	       && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		srv_release_threads(SRV_WORKER, 1);
 
-		// FIXME: This is an arbitrary choice
+		/* This is an arbitrary choice. */
 		os_thread_sleep(4000);
 	}
 
-	// FIXME: They could exit after the check too
 	/* If shutdown is signalled then the worker threads can
-	simply exit via os_event_wait(). */
-	if (srv_shutdown_state == 0) {
+	simply exit via os_event_wait(). The thread initiating the
+	purge should be prepared to handle this case. */
+	if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		/* There should be no outstanding tasks. */
 		ut_a(srv_get_task_queue_length() == 0);
 	}

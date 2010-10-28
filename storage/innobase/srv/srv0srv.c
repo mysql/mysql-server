@@ -1662,7 +1662,6 @@ loop:
 		last_monitor_time = ut_time();
 
 		if (srv_print_innodb_monitor) {
-			// FIXME: 
 			/* Reset mutex_skipped counter everytime
 			srv_print_innodb_monitor changes. This is to
 			ensure we will not be blocked by server_mutex
@@ -2088,7 +2087,9 @@ srv_master_do_purge(void)
 
 	do {
 		/* Check for shutdown and change in purge config. */
-		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+		if (srv_fast_shutdown
+		    && srv_shutdown_state > SRV_SHUTDOWN_NONE) {
+
 			/* Nothing to purge. */
 			n_pages_purged = 0;
 		} else {
@@ -2279,7 +2280,8 @@ loop:
 
 		srv_main_thread_op_info = "";
 
-		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+		if (srv_fast_shutdown
+		    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 
 			goto background_loop;
 		}
@@ -2426,7 +2428,8 @@ loop:
 
 		srv_master_do_purge();
 
-		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+		if (srv_fast_shutdown
+		    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 
 			goto background_loop;
 		}
@@ -2531,7 +2534,8 @@ background_loop:
 
 	srv_main_thread_op_info = "doing insert buffer merge";
 
-	if (srv_fast_shutdown && srv_shutdown_state > 0) {
+	if (srv_fast_shutdown
+	    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		n_bytes_merged = 0;
 	} else {
 		/* This should do an amount of IO similar to the number of
@@ -2602,16 +2606,17 @@ flush_loop:
 	n_bytes_archived = 0;
 
 	/* Print progress message every 60 seconds during shutdown */
-	if (srv_shutdown_state > 0 && srv_print_verbose_log) {
-		srv_shutdown_print_master_pending(&last_print_time,
-						  n_tables_to_drop,
-						  n_pages_purged,
-						  n_bytes_merged);
+	if (srv_shutdown_state != SRV_SHUTDOWN_NONE
+	    && srv_print_verbose_log) {
+
+		srv_shutdown_print_master_pending(
+			&last_print_time, n_tables_to_drop,
+		       	n_pages_purged, n_bytes_merged);
 	}
 
 	/* Keep looping in the background loop if still work to do */
 
-	if (srv_fast_shutdown && srv_shutdown_state > 0) {
+	if (srv_fast_shutdown && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		if (n_tables_to_drop + n_pages_flushed
 		    + n_bytes_archived != 0) {
 
@@ -2733,7 +2738,7 @@ srv_worker_thread(
 
 	srv_sys_mutex_exit();
 
-	while (srv_shutdown_state == 0 && !srv_fast_shutdown) {
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE && !srv_fast_shutdown) {
 
 		os_event_t	event;
 
@@ -2816,7 +2821,9 @@ srv_purge_coordinator_thread(
 		ulint		batch_size = srv_purge_batch_size;
 		ulint		sleep_ms = ut_rnd_gen_ulint() % 10000;
 
-		if (srv_shutdown_state != 0 && srv_fast_shutdown != 0) {
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
+		    && srv_fast_shutdown != 0) {
+
 			break;
 		}
 
@@ -2827,7 +2834,9 @@ srv_purge_coordinator_thread(
 			do {
 				n_pages_purged = trx_purge(0, batch_size);
 
-				/* FIXME: Do some black magic. */
+				/* FIXME: Do some black magic. This code
+				is purely guess work and needs to be tuned
+				properly after some benchmarking. */
 				if (srv_check_activity(count)) {
 					sleep_ms = 1000000;
 					batch_size = srv_purge_batch_size;
@@ -2840,7 +2849,9 @@ srv_purge_coordinator_thread(
 				}
 
 				/* No point in sleeping during shutdown. */
-				if (srv_shutdown_state == 0 && sleep_ms > 0) {
+				if (srv_shutdown_state == SRV_SHUTDOWN_NONE
+				    && sleep_ms > 0) {
+
 					os_thread_sleep(sleep_ms);
 				}
 
@@ -2867,11 +2878,15 @@ srv_purge_coordinator_thread(
 				}
 
 				/* No point in sleeping during shutdown. */
-				if (srv_shutdown_state == 0 && sleep_ms > 0) {
+				if (srv_shutdown_state == SRV_SHUTDOWN_NONE
+				    && sleep_ms > 0) {
+
 					os_thread_sleep(sleep_ms);
 				}
 
-				/* FIXME: Do some black magic. */
+				/* FIXME: Do some black magic. This code
+				is purely guess work and needs to be tuned
+				properly after some benchmarking. */
 				if (!srv_check_activity(count)
 				    && trx_sys->rseg_history_len > 5000) {
 					sleep_ms = 0;
@@ -2899,7 +2914,7 @@ srv_purge_coordinator_thread(
 		}
 
 		/* Check if Slow shutdown and no more pages to purge. */
-		if (srv_shutdown_state != 0
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
 		    && srv_fast_shutdown == 0
 		    && n_pages_purged == 0) {
 
