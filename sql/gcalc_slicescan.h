@@ -84,6 +84,7 @@ protected:
   Item *m_keep;
 
   Item *alloc_new_blk();
+  void format_blk(void* block);
   inline Item *ptr_add(Item *ptr, int n_items)
   {
     return (Item *)(((char*)ptr) + n_items * m_sizeof_item);

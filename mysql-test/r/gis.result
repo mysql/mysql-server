@@ -228,7 +228,7 @@ explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelo
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	21	100.00	
 Warnings:
-Note	1003	select dimension(`test`.`gis_geometry`.`g`) AS `Dimension(g)`,geometrytype(`test`.`gis_geometry`.`g`) AS `GeometryType(g)`,isempty(`test`.`gis_geometry`.`g`) AS `IsEmpty(g)`,astext(envelope(`test`.`gis_geometry`.`g`)) AS `AsText(Envelope(g))` from `test`.`gis_geometry`
+Note	1003	select st_dimension(`test`.`gis_geometry`.`g`) AS `Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `AsText(Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, X(g) FROM gis_point;
 fid	X(g)
 101	10
@@ -245,7 +245,7 @@ explain extended select X(g),Y(g) FROM gis_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_point	ALL	NULL	NULL	NULL	NULL	4	100.00	
 Warnings:
-Note	1003	select x(`test`.`gis_point`.`g`) AS `X(g)`,y(`test`.`gis_point`.`g`) AS `Y(g)` from `test`.`gis_point`
+Note	1003	select st_x(`test`.`gis_point`.`g`) AS `X(g)`,st_y(`test`.`gis_point`.`g`) AS `Y(g)` from `test`.`gis_point`
 SELECT fid, AsText(StartPoint(g)) FROM gis_line;
 fid	AsText(StartPoint(g))
 105	POINT(0 0)
@@ -280,7 +280,7 @@ explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),GLength(g),Num
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_line	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	select astext(startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint(g))`,astext(endpoint(`test`.`gis_line`.`g`)) AS `AsText(EndPoint(g))`,glength(`test`.`gis_line`.`g`) AS `GLength(g)`,numpoints(`test`.`gis_line`.`g`) AS `NumPoints(g)`,astext(pointn(`test`.`gis_line`.`g`,2)) AS `AsText(PointN(g, 2))`,isclosed(`test`.`gis_line`.`g`) AS `IsClosed(g)` from `test`.`gis_line`
+Note	1003	select st_astext(st_startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint(g))`,st_astext(st_endpoint(`test`.`gis_line`.`g`)) AS `AsText(EndPoint(g))`,st_length(`test`.`gis_line`.`g`) AS `GLength(g)`,st_numpoints(`test`.`gis_line`.`g`) AS `NumPoints(g)`,st_astext(st_pointn(`test`.`gis_line`.`g`,2)) AS `AsText(PointN(g, 2))`,st_isclosed(`test`.`gis_line`.`g`) AS `IsClosed(g)` from `test`.`gis_line`
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon;
 fid	AsText(Centroid(g))
 108	POINT(15 15)
@@ -310,7 +310,7 @@ explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),NumI
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_polygon	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	select astext(centroid(`test`.`gis_polygon`.`g`)) AS `AsText(Centroid(g))`,area(`test`.`gis_polygon`.`g`) AS `Area(g)`,astext(exteriorring(`test`.`gis_polygon`.`g`)) AS `AsText(ExteriorRing(g))`,numinteriorrings(`test`.`gis_polygon`.`g`) AS `NumInteriorRings(g)`,astext(interiorringn(`test`.`gis_polygon`.`g`,1)) AS `AsText(InteriorRingN(g, 1))` from `test`.`gis_polygon`
+Note	1003	select st_astext(st_centroid(`test`.`gis_polygon`.`g`)) AS `AsText(Centroid(g))`,st_area(`test`.`gis_polygon`.`g`) AS `Area(g)`,st_astext(st_exteriorring(`test`.`gis_polygon`.`g`)) AS `AsText(ExteriorRing(g))`,st_numinteriorrings(`test`.`gis_polygon`.`g`) AS `NumInteriorRings(g)`,st_astext(st_interiorringn(`test`.`gis_polygon`.`g`,1)) AS `AsText(InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, IsClosed(g) FROM gis_multi_line;
 fid	IsClosed(g)
 114	0
@@ -349,7 +349,7 @@ explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,numgeometries(`test`.`gis_multi_point`.`g`) AS `NumGeometries(g)` from `test`.`gis_multi_point`
+Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,st_numgeometries(`test`.`gis_multi_point`.`g`) AS `NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
 fid	AsText(GeometryN(g, 2))
 111	POINT(10 10)
@@ -377,7 +377,7 @@ explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,astext(geometryn(`test`.`gis_multi_point`.`g`,2)) AS `AsText(GeometryN(g, 2))` from `test`.`gis_multi_point`
+Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,st_astext(st_geometryn(`test`.`gis_multi_point`.`g`,2)) AS `AsText(GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
@@ -439,12 +439,12 @@ explain extended SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select astext(geometryfromwkb(aswkb(geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))`
+Note	1003	select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))`
 explain extended SELECT AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select astext(geometryfromwkb(aswkb(geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))))`
+Note	1003	select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))))`
 SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
 SRID(GeomFromText('LineString(1 1,2 2)',101))
 101
@@ -452,12 +452,12 @@ explain extended SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select srid(geometryfromtext('LineString(1 1,2 2)',101)) AS `SRID(GeomFromText('LineString(1 1,2 2)',101))`
+Note	1003	select srid(st_geometryfromtext('LineString(1 1,2 2)',101)) AS `SRID(GeomFromText('LineString(1 1,2 2)',101))`
 explain extended select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimple(Point(3, 6));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select issimple(multipoint(point(3,6),point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,issimple(point(3,6)) AS `issimple(Point(3, 6))`
+Note	1003	select st_issimple(st_multipoint(st_point(3,6),st_point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(st_point(3,6)) AS `issimple(Point(3, 6))`
 create table t1 (a geometry not null);
 insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
@@ -651,11 +651,11 @@ insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85998;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85998	MULTIPOLYGON	0	POINT(115.31877315203187 -36.23747282102153)
+85998	MULTIPOLYGON	1	POINT(115.31877315203187 -36.23747282102153)
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85984;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85984	MULTIPOLYGON	0	POINT(-114.87787186923313 36.33101763469059)
+85984	MULTIPOLYGON	1	POINT(-114.87787186923313 36.33101763469059)
 drop table t1;
 create table t1 (fl geometry not null);
 insert into t1 values (1);
@@ -708,9 +708,9 @@ area(b) IS NULL, glength(b) IS NULL, srid(b) IS NULL, x(b) IS NULL,
 y(b) IS NULL
 from t1;
 geometryfromtext(b) IS NULL	geometryfromwkb(b) IS NULL	astext(b) IS NULL	aswkb(b) IS NULL	geometrytype(b) IS NULL	centroid(b) IS NULL	envelope(b) IS NULL	startpoint(b) IS NULL	endpoint(b) IS NULL	exteriorring(b) IS NULL	pointn(b, 1) IS NULL	geometryn(b, 1) IS NULL	interiorringn(b, 1) IS NULL	multipoint(b) IS NULL	isempty(b) IS NULL	issimple(b) IS NULL	isclosed(b) IS NULL	dimension(b) IS NULL	numgeometries(b) IS NULL	numinteriorrings(b) IS NULL	numpoints(b) IS NULL	area(b) IS NULL	glength(b) IS NULL	srid(b) IS NULL	x(b) IS NULL	y(b) IS NULL
+1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	0	1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	0	1	1	1	1	1	1	1	1	1	1
 select 
 within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL, 
 equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL, 
