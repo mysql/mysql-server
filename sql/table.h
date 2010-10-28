@@ -1463,6 +1463,11 @@ struct TABLE_LIST
      derived tables. Use TABLE_LIST::is_anonymous_derived_table().
   */
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
+  /*
+    TRUE <=> all possible keys for a derived table were collected and
+    could be re-used while statement re-execution.
+  */
+  bool derived_keys_ready;
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
   /*
