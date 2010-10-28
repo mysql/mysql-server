@@ -145,9 +145,10 @@ or equal to that of the purge view, according to 1.
 
 When purge needs to remove a delete marked row from a secondary index, it will
 first check that the DATA_TRX_ID value of the row is less than the purge view.
-It will also check if there is a newer version of the record that is not delete
+It will also check if there is a newer version of the row that is not delete
 marked in the secondary index. If such a row exists and matches the delete
-marked row exactly then purge will not delete the row in the secondary.
+marked (to be deleted, built from the UNDO log) row exactly then purge will
+not delete the newly inserted row in the secondary.
 
 For the cluster index if the row rollback pointer (DB_ROLL_PTR) value has
 been updated since purge parsed the UNDO log record, then purge will not
