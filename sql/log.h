@@ -92,11 +92,6 @@ protected:
     /* This is the `all' parameter for ha_commit_trans() etc. */
     bool all;
     /*
-      Flag set true when it is time for this thread to wake up after group
-      commit. Used with THD::LOCK_commit_ordered and THD::COND_commit_ordered.
-    */
-    bool group_commit_ready;
-    /*
       Set by TC_LOG_group_commit::group_log_xid(), to return per-thd error and
       cookie.
     */
@@ -105,44 +100,11 @@ protected:
 
   TC_group_commit_entry * reverse_queue(TC_group_commit_entry *queue);
 
-  void group_commit_wait_for_wakeup(TC_group_commit_entry *entry);
-  void group_commit_wakeup_other(TC_group_commit_entry *other);
-
   /*
     This is a queue of threads waiting for being allowed to commit.
     Access to the queue must be protected by LOCK_prepare_ordered.
   */
   TC_group_commit_entry *group_commit_queue;
-};
-
-class TC_LOG_unordered: public TC_LOG_queued
-{
-public:
-  TC_LOG_unordered();
-  ~TC_LOG_unordered();
-
-  int log_and_order(THD *thd, my_xid xid, bool all,
-                    bool need_prepare_ordered, bool need_commit_ordered);
-
-protected:
-  virtual int log_xid(THD *thd, my_xid xid)=0;
-
-private:
-  /*
-    This flag and condition is used to reserve the queue while threads in it
-    each run the commit_ordered() methods one after the other. Only once the
-    last commit_ordered() in the queue is done can we start on a new queue
-    run.
-
-    Since we start this process in the first thread in the queue and finish in
-    the last (and possibly different) thread, we need a condition variable for
-    this (we cannot unlock a mutex in a different thread than the one who
-    locked it).
-
-    The condition is used together with the LOCK_prepare_ordered mutex.
-  */
-  my_bool group_commit_queue_busy;
-  pthread_cond_t COND_queue_busy;
 };
 
 class TC_LOG_group_commit: public TC_LOG_queued
@@ -206,18 +168,28 @@ private:
   pthread_mutex_t LOCK_group_commit;
 };
 
-class TC_LOG_DUMMY: public TC_LOG_unordered // use it to disable the logging
+class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
 public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log_xid(THD *thd, my_xid xid)         { return 1; }
+  /*
+    TC_LOG_DUMMY is only used when there are <= 1 XA-capable engines, and we
+    only use internal XA during commit when >= 2 XA-capable engines
+    participate.
+  */
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_prepare_ordered, bool need_commit_ordered)
+  {
+    DBUG_ASSERT(0 /* Internal error - TC_LOG_DUMMY::log_and_order() called */);
+    return 1;
+  }
   void unlog(ulong cookie, my_xid xid)  { }
 };
 
 #ifdef HAVE_MMAP
-class TC_LOG_MMAP: public TC_LOG_unordered
+class TC_LOG_MMAP: public TC_LOG
 {
   public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
@@ -238,6 +210,13 @@ class TC_LOG_MMAP: public TC_LOG_unordered
     pthread_cond_t  cond; // to wait for a sync
   } PAGE;
 
+  /* List of THDs for which to invoke commit_ordered(), in order. */
+  struct commit_entry
+  {
+    struct commit_entry *next;
+    THD *thd;
+  };
+
   char logname[FN_REFLEN];
   File fd;
   my_off_t file_length;
@@ -252,16 +231,38 @@ class TC_LOG_MMAP: public TC_LOG_unordered
   */
   pthread_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
   pthread_cond_t COND_pool, COND_active;
+  /*
+    Queue of threads that need to call commit_ordered().
+    Access to this queue must be protected by LOCK_prepare_ordered.
+  */
+  commit_entry *commit_ordered_queue;
+  /*
+    This flag and condition is used to reserve the queue while threads in it
+    each run the commit_ordered() methods one after the other. Only once the
+    last commit_ordered() in the queue is done can we start on a new queue
+    run.
+
+    Since we start this process in the first thread in the queue and finish in
+    the last (and possibly different) thread, we need a condition variable for
+    this (we cannot unlock a mutex in a different thread than the one who
+    locked it).
+
+    The condition is used together with the LOCK_prepare_ordered mutex.
+  */
+  my_bool commit_ordered_queue_busy;
+  pthread_cond_t COND_queue_busy;
 
   public:
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_prepare_ordered, bool need_commit_ordered);
   void unlog(ulong cookie, my_xid xid);
   int recover();
 
   private:
+  int log_one_transaction(my_xid xid);
   void get_active_from_pool();
   int sync();
   int overflow();

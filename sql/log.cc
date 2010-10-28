@@ -5778,43 +5778,12 @@ TC_LOG_queued::reverse_queue(TC_LOG_queued::TC_group_commit_entry *queue)
   return prev;
 }
 
-void
-TC_LOG_queued::group_commit_wait_for_wakeup(TC_group_commit_entry *entry)
-{
-  THD *thd= entry->thd;
-  pthread_mutex_lock(&thd->LOCK_commit_ordered);
-  while (!entry->group_commit_ready)
-    pthread_cond_wait(&thd->COND_commit_ordered,
-                      &thd->LOCK_commit_ordered);
-  pthread_mutex_unlock(&thd->LOCK_commit_ordered);
-}
-
-void
-TC_LOG_queued::group_commit_wakeup_other(TC_group_commit_entry *other)
-{
-  THD *thd= other->thd;
-  pthread_mutex_lock(&thd->LOCK_commit_ordered);
-  other->group_commit_ready= TRUE;
-  pthread_cond_signal(&thd->COND_commit_ordered);
-  pthread_mutex_unlock(&thd->LOCK_commit_ordered);
-}
-
-TC_LOG_unordered::TC_LOG_unordered() : group_commit_queue_busy(0)
-{
-  pthread_cond_init(&COND_queue_busy, 0);
-}
-
-TC_LOG_unordered::~TC_LOG_unordered()
-{
-  pthread_cond_destroy(&COND_queue_busy);
-}
-
-int TC_LOG_unordered::log_and_order(THD *thd, my_xid xid, bool all,
-                                    bool need_prepare_ordered,
-                                    bool need_commit_ordered)
+int TC_LOG_MMAP::log_and_order(THD *thd, my_xid xid, bool all,
+                               bool need_prepare_ordered,
+                               bool need_commit_ordered)
 {
   int cookie;
-  struct TC_group_commit_entry entry;
+  struct commit_entry entry;
   bool is_group_commit_leader;
   LINT_INIT(is_group_commit_leader);
 
@@ -5828,18 +5797,18 @@ int TC_LOG_unordered::log_and_order(THD *thd, my_xid xid, bool all,
         Must put us in queue so we can run_commit_ordered() in same sequence
         as we did run_prepare_ordered().
       */
+      thd->clear_wakeup_ready();
       entry.thd= thd;
-      entry.group_commit_ready= false;
-      TC_group_commit_entry *previous_queue= group_commit_queue;
+      commit_entry *previous_queue= commit_ordered_queue;
       entry.next= previous_queue;
-      group_commit_queue= &entry;
+      commit_ordered_queue= &entry;
       is_group_commit_leader= (previous_queue == NULL);
     }
     pthread_mutex_unlock(&LOCK_prepare_ordered);
   }
 
   if (xid)
-    cookie= log_xid(thd, xid);
+    cookie= log_one_transaction(xid);
   else
     cookie= 0;
 
@@ -5859,24 +5828,32 @@ int TC_LOG_unordered::log_and_order(THD *thd, my_xid xid, bool all,
       {
         /* The first in queue starts the ball rolling. */
         pthread_mutex_lock(&LOCK_prepare_ordered);
-        while (group_commit_queue_busy)
+        while (commit_ordered_queue_busy)
           pthread_cond_wait(&COND_queue_busy, &LOCK_prepare_ordered);
-        TC_group_commit_entry *queue= group_commit_queue;
-        group_commit_queue= NULL;
+        commit_entry *queue= commit_ordered_queue;
+        commit_ordered_queue= NULL;
         /*
           Mark the queue busy while we bounce it from one thread to the
           next.
         */
-        group_commit_queue_busy= TRUE;
+        commit_ordered_queue_busy= true;
         pthread_mutex_unlock(&LOCK_prepare_ordered);
 
-        queue= reverse_queue(queue);
-        DBUG_ASSERT(queue == &entry && queue->thd == thd);
+        /* Reverse the queue list so we get correct order. */
+        commit_entry *prev= NULL;
+        while (queue)
+        {
+          commit_entry *next= queue->next;
+          queue->next= prev;
+          prev= queue;
+          queue= next;
+        }
+        DBUG_ASSERT(prev == &entry && prev->thd == thd);
       }
       else
       {
         /* Not first in queue; just wait until previous thread wakes us up. */
-        group_commit_wait_for_wakeup(&entry);
+        thd->wait_for_wakeup_ready();
       }
     }
 
@@ -5890,15 +5867,15 @@ int TC_LOG_unordered::log_and_order(THD *thd, my_xid xid, bool all,
 
     if (need_prepare_ordered)
     {
-      TC_group_commit_entry *next= entry.next;
+      commit_entry *next= entry.next;
       if (next)
       {
-        group_commit_wakeup_other(next);
+        next->thd->signal_wakeup_ready();
       }
       else
       {
         pthread_mutex_lock(&LOCK_prepare_ordered);
-        group_commit_queue_busy= FALSE;
+        commit_ordered_queue_busy= false;
         pthread_cond_signal(&COND_queue_busy);
         pthread_mutex_unlock(&LOCK_prepare_ordered);
       }
@@ -5940,9 +5917,9 @@ int TC_LOG_group_commit::log_and_order(THD *thd, my_xid xid, bool all,
   struct TC_group_commit_entry entry;
   bool is_group_commit_leader;
 
+  thd->clear_wakeup_ready();
   entry.thd= thd;
   entry.all= all;
-  entry.group_commit_ready= false;
   entry.xid_error= 0;
 
   pthread_mutex_lock(&LOCK_prepare_ordered);
@@ -6019,7 +5996,7 @@ int TC_LOG_group_commit::log_and_order(THD *thd, my_xid xid, bool all,
       */
       TC_group_commit_entry *next= current->next;
       if (current != &entry)                    // Don't wake up ourself
-        group_commit_wakeup_other(current);
+        current->thd->signal_wakeup_ready();
       current= next;
     } while (current != NULL);
     DEBUG_SYNC(thd, "commit_after_group_run_commit_ordered");
@@ -6029,7 +6006,7 @@ int TC_LOG_group_commit::log_and_order(THD *thd, my_xid xid, bool all,
   else
   {
     /* If not leader, just wait until leader wakes us up. */
-    group_commit_wait_for_wakeup(&entry);
+    thd->wait_for_wakeup_ready();
   }
 
   /*
@@ -6181,6 +6158,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   pthread_mutex_init(&LOCK_pool,    MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_active, 0);
   pthread_cond_init(&COND_pool, 0);
+  pthread_cond_init(&COND_queue_busy, 0);
 
   inited=6;
 
@@ -6188,6 +6166,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   active=pages;
   pool=pages+1;
   pool_last=pages+npages-1;
+  commit_ordered_queue= NULL;
+  commit_ordered_queue_busy= false;
 
   return 0;
 
@@ -6293,7 +6273,7 @@ int TC_LOG_MMAP::overflow()
     to the position in memory where xid was logged to.
 */
 
-int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
+int TC_LOG_MMAP::log_one_transaction(my_xid xid)
 {
   int err;
   PAGE *p;
@@ -6462,6 +6442,8 @@ void TC_LOG_MMAP::close()
     pthread_mutex_destroy(&LOCK_active);
     pthread_mutex_destroy(&LOCK_pool);
     pthread_cond_destroy(&COND_pool);
+    pthread_cond_destroy(&COND_active);
+    pthread_cond_destroy(&COND_queue_busy);
   case 5:
     data[0]='A'; // garble the first (signature) byte, in case my_delete fails
   case 4:

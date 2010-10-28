@@ -1447,10 +1447,6 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
-  /* Mutex and condition for waking up threads after group commit. */
-  pthread_mutex_t LOCK_commit_ordered;
-  pthread_cond_t COND_commit_ordered;
-
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -2380,6 +2376,14 @@ public:
   LEX_STRING get_invoker_user() { return invoker_user; }
   LEX_STRING get_invoker_host() { return invoker_host; }
   bool has_invoker() { return invoker_user.length > 0; }
+  void clear_wakeup_ready() { wakeup_ready= false; }
+  /*
+    Sleep waiting for others to wake us up with signal_wakeup_ready().
+    Must call clear_wakeup_ready() before waiting.
+  */
+  void wait_for_wakeup_ready();
+  /* Wake this thread up from wait_for_wakeup_ready(). */
+  void signal_wakeup_ready();
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
@@ -2418,6 +2422,16 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+  /*
+    Flag, mutex and condition for a thread to wait for a signal from another
+    thread.
+
+    Currently used to wait for group commit to complete, can also be used for
+    other purposes.
+  */
+  bool wakeup_ready;
+  pthread_mutex_t LOCK_wakeup_ready;
+  pthread_cond_t COND_wakeup_ready;
 };
 
 
