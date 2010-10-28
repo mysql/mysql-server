@@ -9773,17 +9773,23 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
  * -------------------------------------------------------------------------
  *       PRECONDITION:   SCAN_STATE = WAIT_SCAN_KEYINFO
  * ------------------------------------------------------------------------- */
-void 
+Uint32
 Dblqh::keyinfoLab(const Uint32 * src, const Uint32 * end) 
 {
   do {
     jam();
+    if (cfirstfreeDatabuf == RNIL || ERROR_INSERTED_CLEAR(5060))
+    {
+      jam();
+      return ZGET_DATAREC_ERROR;
+    }//if
     seizeTupkeybuf(0);
     databufptr.p->data[0] = * src ++;
     databufptr.p->data[1] = * src ++;
     databufptr.p->data[2] = * src ++;
     databufptr.p->data[3] = * src ++;
   } while (src < end);
+  return 0;
 }//Dblqh::keyinfoLab()
 
 Uint32
@@ -11215,7 +11221,18 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
   // Move into databuffer to make packLqhkeyreqLab happy
   memcpy(tcConP->tupkeyData, tmp, 4*4);
   if(len > 4)
-    keyinfoLab(tmp+4, tmp + len);
+  {
+    Uint32 res = keyinfoLab(tmp+4, tmp + len);
+    if (unlikely(res != 0))
+    {
+      jam();
+      scanptr.p->scanErrorCounter++;
+      tcConP->errorCode= ZGET_DATAREC_ERROR;
+      scanptr.p->scanCompletedStatus= ZTRUE;
+      closeCopyLab(signal);
+      return;
+    }
+  }
   LqhKeyReq::setKeyLen(tcConP->reqinfo, len);
 
 /*---------------------------------------------------------------------------*/
