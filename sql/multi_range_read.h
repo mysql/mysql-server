@@ -130,18 +130,18 @@ public:
   been reached and get_next() must not be called anymore.
 */
 
-class Mrr_strategy 
+class Mrr_reader 
 {
 public:
   virtual int get_next(char **range_info) = 0;
   virtual int refill_buffer()=0;
-
-  virtual ~Mrr_strategy() {};
+  
+  virtual ~Mrr_reader() {}; /* just to remove compiler warning */
 };
 
 
 /* A common base for strategies that do index scans and produce index tuples */
-class Mrr_index_reader : public Mrr_strategy
+class Mrr_index_reader : public Mrr_reader
 {
 public:
   handler *h;
@@ -241,7 +241,7 @@ private:
 
 /* MRR strategy that fetches rowids */
 
-class Mrr_ordered_rndpos_reader : public Mrr_strategy 
+class Mrr_ordered_rndpos_reader : public Mrr_reader 
 {
 public:
   int init(handler *h, Mrr_index_reader *index_reader, uint mode,
@@ -271,7 +271,7 @@ private:
   uchar *rowids_range_id;
 };
 
-class Mrr_strategy_factory
+class Mrr_reader_factory
 {
 public:
   Mrr_ordered_rndpos_reader ordered_rndpos_reader;
@@ -458,8 +458,8 @@ private:
   /* TRUE <=> sort rowids and use rnd_pos() to get and return full records */
   //bool do_rndpos_scan;
 
-  Mrr_strategy_factory strategy_factory;
-  Mrr_strategy *strategy;
+  Mrr_reader_factory strategy_factory;
+  Mrr_reader *strategy;
   Mrr_index_reader *index_strategy;
 
   /* The whole buffer space that we're using */

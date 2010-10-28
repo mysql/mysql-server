@@ -623,21 +623,26 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
 
   while (1)
   {
-    if (rowid_buffer->is_empty())
+    if (rowid_buffer->is_empty()) /* We're out of rowids */
     {
-      /*
-        We're out of rowids. If there are still some sorted keys, use up them
-        first (that is, don't call re-fill for keys when we still have some).
-      */
+      /* First, finish off the sorted keys we have */ 
       if (!index_reader->eof())
       {
         if ((res= refill_buffer()))
           return res; /* for fatal errors */
       }
-      else
+
+      if (rowid_buffer->is_empty())
       {
-        //TODO: here: redistribute the buffer space, then refill the index
-        //reader, then refill us.
+        /*
+          Ok neither index_reader nor us have any records. Refill index
+          reader, then refill us.
+        */
+        // TODO: if key buffer is empty, too, redistribute the buffer space.
+  
+        if ((res= index_reader->refill_buffer()) ||
+            (res= refill_buffer()))
+          return res;
       }
     }
    
@@ -871,7 +876,7 @@ int DsMrr_impl::setup_two_handlers()
     if (keyno == h->pushed_idx_cond_keyno)
       pushed_cond= h->pushed_idx_cond;
     
-    Mrr_strategy *save_strategy= strategy;
+    Mrr_reader *save_strategy= strategy;
     strategy= NULL;
     /*
       Caution: this call will invoke this->dsmrr_close(). Do not put the
@@ -910,7 +915,7 @@ int DsMrr_impl::setup_two_handlers()
     if (h->inited == handler::INDEX)
     {
       handler *save_h2= h2;
-      Mrr_strategy *save_strategy= strategy;
+      Mrr_reader *save_strategy= strategy;
       h2= NULL;
       strategy= NULL;
       res= h->ha_index_end();
@@ -919,7 +924,7 @@ int DsMrr_impl::setup_two_handlers()
       if (res)
         goto error;
     }
-    if ((h->inited == handler::RND) && h->ha_rnd_init(FALSE))
+    if ((h->inited != handler::RND) && h->ha_rnd_init(FALSE))
       goto error;
   }
   DBUG_RETURN(0);
