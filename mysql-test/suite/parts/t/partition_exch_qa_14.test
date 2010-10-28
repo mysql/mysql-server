@@ -29,7 +29,7 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error 1710
+--error ER_TABLES_DIFFERENT_METADATA
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
@@ -56,7 +56,7 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error 1710
+--error ER_TABLES_DIFFERENT_METADATA
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
@@ -83,7 +83,7 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error 1710
+--error ER_TABLES_DIFFERENT_METADATA
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
