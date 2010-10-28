@@ -26,7 +26,8 @@ ADD_LIBRARY(ndbportlib STATIC
             NdbCondition.c NdbMutex.c ndb_socket.cpp
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
             NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp
-            ndb_daemon.cc ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
+            ndb_daemon.cc ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc
+            NdbNuma.cpp)
 TARGET_LINK_LIBRARIES(ndbportlib mysys ${EXTRA_LIB})
 
 ADD_EXECUTABLE(NdbDir-t
