@@ -64,7 +64,7 @@ set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
 set @@global.debug='d,simulate_slave_unaware_checksum';
 start slave;
-*** Got IO thread error code: 1710, text: Slave can not handle replication events with the checksum that master is configured to log. ***
+*** Got IO thread error code: 1236, text: Got fatal error 1236 from master when reading data from binary log: 'Slave can not handle replication events with the checksum that master is configured to log' ***
 select count(*) as zero from t1;
 zero
 0
