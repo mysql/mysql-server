@@ -460,7 +460,6 @@ lock_wait_timeout_thread(
 			/* in: a dummy parameter required by
 			os_thread_create */
 {
-	srv_slot_t*	slot;
 	ib_int64_t	sig_count = 0;
 
 #ifdef UNIV_PFS_THREAD
@@ -468,7 +467,7 @@ lock_wait_timeout_thread(
 #endif
 
 	do {
-		ibool	some_waits;
+		srv_slot_t*	slot;
 
 		server_mutex_enter();
 
@@ -512,7 +511,6 @@ lock_wait_timeout_thread(
 		     ++slot) {
 
 			if (slot->in_use) {
-				some_waits = TRUE;
 				lock_wait_check_and_cancel(slot);
 			}
 		}
