@@ -24,20 +24,13 @@ import com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection;
 import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.Table;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
-import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbError;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
-import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
-import com.mysql.ndbjtie.ndbapi.NdbRecAttr;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.CharBuffer;
-import java.nio.IntBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.CharsetEncoder;
@@ -61,52 +54,6 @@ class NdbjtieLoad extends TwsLoad {
 
     // NDB JTie metadata resources
     protected TableConst table_t0;
-    protected ColumnConst column_c0;
-    protected ColumnConst column_c1;
-    protected ColumnConst column_c2;
-    protected ColumnConst column_c3;
-    protected ColumnConst column_c4;
-    protected ColumnConst column_c5;
-    protected ColumnConst column_c6;
-    protected ColumnConst column_c7;
-    protected ColumnConst column_c8;
-    protected ColumnConst column_c9;
-    protected ColumnConst column_c10;
-    protected ColumnConst column_c11;
-    protected ColumnConst column_c12;
-    protected ColumnConst column_c13;
-    protected ColumnConst column_c14;
-    protected int attr_c0;
-    protected int attr_c1;
-    protected int attr_c2;
-    protected int attr_c3;
-    protected int attr_c4;
-    protected int attr_c5;
-    protected int attr_c6;
-    protected int attr_c7;
-    protected int attr_c8;
-    protected int attr_c9;
-    protected int attr_c10;
-    protected int attr_c11;
-    protected int attr_c12;
-    protected int attr_c13;
-    protected int attr_c14;
-    protected int width_c0;
-    protected int width_c1;
-    protected int width_c2;
-    protected int width_c3;
-    protected int width_c4;
-    protected int width_c5;
-    protected int width_c6;
-    protected int width_c7;
-    protected int width_c8;
-    protected int width_c9;
-    protected int width_c10;
-    protected int width_c11;
-    protected int width_c12;
-    protected int width_c13;
-    protected int width_c14;
-    protected int width_row; // sum of {width_c0 .. width_c14}
 
     // NDB JTie data resources
     protected ByteBuffer bb;
@@ -132,7 +79,7 @@ class NdbjtieLoad extends TwsLoad {
     }
 
     public NdbjtieLoad(TwsDriver driver) {
-        super(driver);
+        super(driver, null);
     }
 
     // ----------------------------------------------------------------------
@@ -255,7 +202,9 @@ class NdbjtieLoad extends TwsLoad {
         }
         out.println("      [ok: " + catalog + "." + schema + "]");
 
-        initNdbjtieModel();
+        metaData = new MetaData(ndb);
+
+        metaData.initNdbjtieModel();
 
         initNdbjtieBuffers();
 
@@ -300,125 +249,15 @@ class NdbjtieLoad extends TwsLoad {
         out.println(" [ok]");
     }
 
-    protected void initNdbjtieModel() {
-        assert (ndb != null);
-        assert (table_t0 == null);
-        assert (column_c0 == null);
-
-        out.print("caching metadata ...");
-        out.flush();
-
-        final Dictionary dict = ndb.getDictionary();
-
-        if ((table_t0 = dict.getTable("mytable")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-
-        if ((column_c0 = table_t0.getColumn("c0")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c1 = table_t0.getColumn("c1")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c2 = table_t0.getColumn("c2")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c3 = table_t0.getColumn("c3")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c4 = table_t0.getColumn("c4")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c5 = table_t0.getColumn("c5")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c6 = table_t0.getColumn("c6")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c7 = table_t0.getColumn("c7")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c8 = table_t0.getColumn("c8")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c9 = table_t0.getColumn("c9")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c10 = table_t0.getColumn("c10")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c11 = table_t0.getColumn("c11")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c12 = table_t0.getColumn("c12")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c13 = table_t0.getColumn("c13")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c14 = table_t0.getColumn("c14")) == null)
-            throw new RuntimeException(toStr(dict.getNdbError()));
-
-        attr_c0 = column_c0.getColumnNo();
-        attr_c1 = column_c1.getColumnNo();
-        attr_c2 = column_c2.getColumnNo();
-        attr_c3 = column_c3.getColumnNo();
-        attr_c4 = column_c4.getColumnNo();
-        attr_c5 = column_c5.getColumnNo();
-        attr_c6 = column_c6.getColumnNo();
-        attr_c7 = column_c7.getColumnNo();
-        attr_c8 = column_c8.getColumnNo();
-        attr_c9 = column_c9.getColumnNo();
-        attr_c10 = column_c10.getColumnNo();
-        attr_c11 = column_c11.getColumnNo();
-        attr_c12 = column_c12.getColumnNo();
-        attr_c13 = column_c13.getColumnNo();
-        attr_c14 = column_c14.getColumnNo();
-
-        width_c0 = ndbjtieColumnWidth(column_c0);
-        width_c1 = ndbjtieColumnWidth(column_c1);
-        width_c2 = ndbjtieColumnWidth(column_c2);
-        width_c3 = ndbjtieColumnWidth(column_c3);
-        width_c4 = ndbjtieColumnWidth(column_c4);
-        width_c5 = ndbjtieColumnWidth(column_c5);
-        width_c6 = ndbjtieColumnWidth(column_c6);
-        width_c7 = ndbjtieColumnWidth(column_c7);
-        width_c8 = ndbjtieColumnWidth(column_c8);
-        width_c9 = ndbjtieColumnWidth(column_c9);
-        width_c10 = ndbjtieColumnWidth(column_c10);
-        width_c11 = ndbjtieColumnWidth(column_c11);
-        width_c12 = ndbjtieColumnWidth(column_c12);
-        width_c13 = ndbjtieColumnWidth(column_c13);
-        width_c14 = ndbjtieColumnWidth(column_c14);
-
-        width_row = (
-            + width_c0
-            + width_c1
-            + width_c2
-            + width_c3
-            + width_c4
-            + width_c5
-            + width_c6
-            + width_c7
-            + width_c8
-            + width_c9
-            + width_c10
-            + width_c11
-            + width_c12
-            + width_c13
-            + width_c14);
-
-        out.println("            [ok]");
-    }
 
     protected void closeNdbjtieModel() {
         assert (ndb != null);
         assert (table_t0 != null);
-        assert (column_c0 != null);
+        assert (metaData.getColumn(0) != null);
 
         out.print("clearing metadata cache...");
         out.flush();
 
-        column_c14 = null;
-        column_c13 = null;
-        column_c12 = null;
-        column_c11 = null;
-        column_c10 = null;
-        column_c9 = null;
-        column_c8 = null;
-        column_c7 = null;
-        column_c6 = null;
-        column_c5 = null;
-        column_c4 = null;
-        column_c3 = null;
-        column_c2 = null;
-        column_c1 = null;
-        column_c0 = null;
 
         table_t0 = null;
 
@@ -426,13 +265,13 @@ class NdbjtieLoad extends TwsLoad {
     }
 
     public void initNdbjtieBuffers() {
-        assert (column_c0 != null);
+        assert (metaData.getColumn(0) != null);
         assert (bb == null);
 
         out.print("allocating buffers...");
         out.flush();
 
-        bb = ByteBuffer.allocateDirect(width_row * driver.nRows);
+        bb = ByteBuffer.allocateDirect(metaData.getRowWidth() * driver.nRows);
 
         // initial order of a byte buffer is always BIG_ENDIAN
         bb.order(bo);
@@ -441,7 +280,7 @@ class NdbjtieLoad extends TwsLoad {
     }
 
     protected void closeNdbjtieBuffers() {
-        assert (column_c0 != null);
+        assert (metaData.getColumn(0) != null);
         assert (bb != null);
 
         out.print("releasing buffers...");
@@ -452,16 +291,6 @@ class NdbjtieLoad extends TwsLoad {
         out.println("            [ok]");
     }
 
-    static protected String toStr(NdbErrorConst e) {
-        return "NdbError[" + e.code() + "]: " + e.message();
-    }
-
-    static protected int ndbjtieColumnWidth(ColumnConst c) {
-        int s = c.getSize(); // size of type or of base type
-        int al = c.getLength(); // length or max length, 1 for scalars
-        int at = c.getArrayType(); // size of length prefix, practically
-        return (s * al) + at;
-    }
 
     // ----------------------------------------------------------------------
 
@@ -496,6 +325,8 @@ class NdbjtieLoad extends TwsLoad {
         final String name = "insert_" + mode.toString().toLowerCase();
         driver.begin(name);
 
+        initTable();
+
         if (mode == TwsDriver.XMode.SINGLE) {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieBeginTransaction();
@@ -518,13 +349,24 @@ class NdbjtieLoad extends TwsLoad {
         driver.finish(name);
     }
 
+    protected void initTable() {
+        if(table_t0 == null) {
+
+            final Dictionary dict = ndb.getDictionary();
+
+            if ((table_t0 = dict.getTable("mytable")) == null)
+                throw new RuntimeException(TwsUtils.toStr(dict.getNdbError()));
+        }
+    }
+
     protected void ndbjtieInsert(int c0) {
+
         // get an insert operation for the table
         NdbOperation op = tx.getNdbOperation(table_t0);
         if (op == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
         if (op.insertTuple() != 0)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
         // include exception handling as part of transcoding pattern
         final int i = c0;
@@ -533,68 +375,68 @@ class NdbjtieLoad extends TwsLoad {
             // set values; key attribute needs to be set first
             //str.rewind();
             ndbjtieTranscode(bb, str);
-            if (op.equal(attr_c0, bb) != 0) // key
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c0);
+            if (op.equal(metaData.getAttr(0), bb) != 0) // key
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(0));
 
             str.rewind();
             ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c1, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c1);
+            if (op.setValue(metaData.getAttr(1), bb) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(1));
 
-            if (op.setValue(attr_c2, i) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(2), i) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c3, i) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(3), i) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
             // XXX
-            if (op.setValue(attr_c4, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(4), null) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
             str.rewind();
             ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c5, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c5);
+            if (op.setValue(metaData.getAttr(5), bb) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(5));
 
             str.rewind();
             ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c6, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c6);
+            if (op.setValue(metaData.getAttr(6), bb) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(6));
 
             str.rewind();
             ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c7, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c7);
+            if (op.setValue(metaData.getAttr(7), bb) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(7));
 
             str.rewind();
             ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c8, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c8);
+            if (op.setValue(metaData.getAttr(8), bb) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(8));
 
             // XXX
-            if (op.setValue(attr_c9, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(9), null) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c10, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(10), null) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c11, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(11), null) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c12, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(12), null) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c13, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(13), null) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c14, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(14), null) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
         } catch (CharacterCodingException e) {
             throw new RuntimeException(e);
         }
@@ -636,9 +478,9 @@ class NdbjtieLoad extends TwsLoad {
         // get a lookup operation for the table
         NdbOperation op = tx.getNdbOperation(table_t0);
         if (op == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
         if (op.readTuple(ndbOpLockMode) != 0)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
         int p = bb.position();
 
@@ -648,56 +490,19 @@ class NdbjtieLoad extends TwsLoad {
             // set values; key attribute needs to be set first
             //str.rewind();
             ndbjtieTranscode(bb, str);
-            if (op.equal(attr_c0, bb) != 0) // key
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(p += width_c0);
+            if (op.equal(metaData.getAttr(0), bb) != 0) // key
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(p += metaData.getColumnWidth(0));
         } catch (CharacterCodingException e) {
             throw new RuntimeException(e);
         }
 
         // get attributes (not readable until after commit)
-        if (op.getValue(attr_c1, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c1);
-        if (op.getValue(attr_c2, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c2);
-        if (op.getValue(attr_c3, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c3);
-        if (op.getValue(attr_c4, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c4);
-        if (op.getValue(attr_c5, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c5);
-        if (op.getValue(attr_c6, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c6);
-        if (op.getValue(attr_c7, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c7);
-        if (op.getValue(attr_c8, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c8);
-        if (op.getValue(attr_c9, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c9);
-        if (op.getValue(attr_c10, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c10);
-        if (op.getValue(attr_c11, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c11);
-        if (op.getValue(attr_c12, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c12);
-        if (op.getValue(attr_c13, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c13);
-        if (op.getValue(attr_c14, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(p += width_c14);
+        for(int i = 1; i < metaData.getColumnCount(); i++) {
+            if (op.getValue(metaData.getAttr(i), bb) == null)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(p += metaData.getColumnWidth(i));
+        }
     }
 
     protected void ndbjtieRead(int c0) {
@@ -708,7 +513,7 @@ class NdbjtieLoad extends TwsLoad {
 
         try {
             int p = bb.position();
-            bb.position(p += width_c0);
+            bb.position(p += metaData.getColumnWidth(0));
 
             // not verifying at this time
             // (str.equals(ndbjtieTranscode(bb_c1)));
@@ -716,35 +521,20 @@ class NdbjtieLoad extends TwsLoad {
             //CharBuffer y = ndbjtieTranscode(bb);
 
             ndbjtieTranscode(bb);
-            bb.position(p += width_c1);
+            bb.position(p += metaData.getColumnWidth(1));
 
             bb.asIntBuffer().get();
-            bb.position(p += width_c2);
+            bb.position(p += metaData.getColumnWidth(2));
             bb.asIntBuffer().get();
-            bb.position(p += width_c3);
+            bb.position(p += metaData.getColumnWidth(3));
             bb.asIntBuffer().get();
-            bb.position(p += width_c4);
+            bb.position(p += metaData.getColumnWidth(4));
 
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c5);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c6);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c7);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c8);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c9);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c10);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c11);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c12);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c13);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c14);
+
+            for(int i = 5; i < metaData.getColumnCount(); i++) {
+                ndbjtieTranscode(bb);
+                bb.position(p += metaData.getColumnWidth(i));
+            }
         } catch (CharacterCodingException e) {
             throw new RuntimeException(e);
         }
@@ -786,54 +576,39 @@ class NdbjtieLoad extends TwsLoad {
         // get an update operation for the table
         NdbOperation op = tx.getNdbOperation(table_t0);
         if (op == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
         if (op.updateTuple() != 0)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
         // include exception handling as part of transcoding pattern
         try {
             // set values; key attribute needs to be set first
             //str0.rewind();
             ndbjtieTranscode(bb, str0);
-            if (op.equal(attr_c0, bb) != 0) // key
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c0);
+            if (op.equal(metaData.getAttr(0), bb) != 0) // key
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(0));
 
             //str1.rewind();
             ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c1, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c1);
+            if (op.setValue(metaData.getAttr(1), bb) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(1));
 
-            if (op.setValue(attr_c2, r) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(2), r) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c3, r) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+            if (op.setValue(metaData.getAttr(3), r) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
+            for(int i = 5; i < metaData.getColumnCount(); i++) {
             str1.rewind();
             ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c5, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c5);
+            if (op.setValue(metaData.getAttr(i), bb) != 0)
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(bb.position() + metaData.getColumnWidth(i));
+            }
 
-            str1.rewind();
-            ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c6, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c6);
-
-            str1.rewind();
-            ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c7, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c7);
-
-            str1.rewind();
-            ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c8, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c8);
         } catch (CharacterCodingException e) {
             throw new RuntimeException(e);
         }
@@ -871,9 +646,9 @@ class NdbjtieLoad extends TwsLoad {
         // get a delete operation for the table
         NdbOperation op = tx.getNdbOperation(table_t0);
         if (op == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
         if (op.deleteTuple() != 0)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
         int p = bb.position();
 
@@ -884,9 +659,9 @@ class NdbjtieLoad extends TwsLoad {
             // set values; key attribute needs to be set first
             //str.rewind();
             ndbjtieTranscode(bb, str);
-            if (op.equal(attr_c0, bb) != 0) // key
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(p += width_c0);
+            if (op.equal(metaData.getAttr(0), bb) != 0) // key
+                throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
+            bb.position(p += metaData.getColumnWidth(0));
         } catch (CharacterCodingException e) {
             throw new RuntimeException(e);
         }
@@ -906,7 +681,7 @@ class NdbjtieLoad extends TwsLoad {
         final ByteBuffer keyData = null;
         final int keyLen = 0;
         if ((tx = ndb.startTransaction(table, keyData, keyLen)) == null)
-            throw new RuntimeException(toStr(ndb.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(ndb.getNdbError()));
     }
 
     protected void ndbjtieExecuteTransaction() {
@@ -918,7 +693,7 @@ class NdbjtieLoad extends TwsLoad {
         final int force = 0;
         if (tx.execute(execType, abortOption, force) != 0
             || tx.getNdbError().status() != NdbError.Status.Success)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
     }
 
     protected void ndbjtieCommitTransaction() {
@@ -930,7 +705,7 @@ class NdbjtieLoad extends TwsLoad {
         final int force = 0;
         if (tx.execute(execType, abortOption, force) != 0
             || tx.getNdbError().status() != NdbError.Status.Success)
-            throw new RuntimeException(toStr(tx.getNdbError()));
+            throw new RuntimeException(TwsUtils.toStr(tx.getNdbError()));
 
         // prepare buffer for reading
         bb.rewind();

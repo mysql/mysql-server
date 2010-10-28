@@ -43,8 +43,8 @@ class JdbcLoad extends TwsLoad {
     protected PreparedStatement del0;
     protected PreparedStatement delAll;
 
-    public JdbcLoad(TwsDriver driver) {
-        super(driver);
+    public JdbcLoad(TwsDriver driver, MetaData md) {
+        super(driver, md);
     }
 
     // ----------------------------------------------------------------------
@@ -218,13 +218,16 @@ class JdbcLoad extends TwsLoad {
         out.print("compiling jdbc statements ...");
         out.flush();
 
-        final String sqlIns0 = "INSERT INTO mytable (c0, c1, c2, c3, c5, c6, c7, c8) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        final String sqlIns0 = "INSERT INTO mytable (c0, c1, c2, c3, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         ins0 = connection.prepareStatement(sqlIns0);
 
         final String sqlSel0 = ("SELECT * FROM mytable where c0=?" + lm);
         sel0 = connection.prepareStatement(sqlSel0);
 
-        final String sqlUpd0 = "UPDATE mytable SET c1 = ?, c2 = ?, c3 = ?, c5 = ?, c6 = ?, c7 = ?, c8 = ? WHERE c0=?";
+        final String sqlUpd0 = "UPDATE mytable "
+                + "SET c1 = ?, c2 = ?, c3 = ?, c5 = ?, c6 = ?, c7 = ?, c8 = ?, c9 = ?, c10 = ?, c11 = ?, c12 = ?, c13 = ?, c14 = ? "
+                + "WHERE c0=?";
         upd0 = connection.prepareStatement(sqlUpd0);
 
         final String sqlDel0 = "DELETE FROM mytable WHERE c0=?";
@@ -314,13 +317,16 @@ class JdbcLoad extends TwsLoad {
             final int i = c0;
             final String str = Integer.toString(i);
             ins0.setString(1, str); // key
-            ins0.setString(2, str);
+            int width = metaData.getColumnWidth(1);
+            ins0.setString(2, fixedStr.substring(0, width));
             ins0.setInt(3, i);
             ins0.setInt(4, i);
-            ins0.setString(5, str);
-            ins0.setString(6, str);
-            ins0.setString(7, str);
-            ins0.setString(8, str);
+
+            for(int j = 5; j < metaData.getColumnCount(); j++) {
+                width = metaData.getColumnWidth(j);
+                ins0.setString(j, fixedStr.substring(0, width));
+            }
+            
             if (mode == TwsDriver.XMode.BATCH) {
                 ins0.addBatch();
             } else {
@@ -410,11 +416,14 @@ class JdbcLoad extends TwsLoad {
             upd0.setString(1, str1);
             upd0.setInt(2, r);
             upd0.setInt(3, r);
-            upd0.setString(4, str1);
-            upd0.setString(5, str1);
-            upd0.setString(6, str1);
-            upd0.setString(7, str1);
-            upd0.setString(8, str0); // key
+
+            for(int j = 5; j < metaData.getColumnCount(); j++) {
+                int width = metaData.getColumnWidth(j);
+                upd0.setString(j - 1, fixedStr.substring(0, width));
+            }
+
+            upd0.setString(14, str0); // key
+            
             if (mode == TwsDriver.XMode.BATCH) {
                 upd0.addBatch();
             } else {
