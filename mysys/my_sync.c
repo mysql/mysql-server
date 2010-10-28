@@ -17,6 +17,16 @@
 #include "mysys_err.h"
 #include <errno.h>
 
+static void (*before_sync_wait)(void)= 0;
+static void (*after_sync_wait)(void)= 0;
+
+void thr_set_sync_wait_callback(void (*before_wait)(void),
+                                void (*after_wait)(void))
+{
+  before_sync_wait= before_wait;
+  after_sync_wait= after_wait;
+}
+
 /*
   Sync data in file to disk
 
@@ -48,6 +58,8 @@ int my_sync(File fd, myf my_flags)
 
   do
   {
+    if (before_sync_wait)
+      (*before_sync_wait)();
 #if defined(F_FULLFSYNC)
     /*
       In Mac OS X >= 10.3 this call is safer than fsync() (it forces the
@@ -75,6 +87,8 @@ int my_sync(File fd, myf my_flags)
     int er= errno;
     if (!(my_errno= er))
       my_errno= -1;                             /* Unknown error */
+    if (after_sync_wait)
+      (*after_sync_wait)();
     if ((my_flags & MY_IGNORE_BADFD) &&
         (er == EBADF || er == EINVAL || er == EROFS))
     {
@@ -83,6 +97,11 @@ int my_sync(File fd, myf my_flags)
     }
     else if (my_flags & MY_WME)
       my_error(EE_SYNC, MYF(ME_BELL+ME_WAITTANG), my_filename(fd), my_errno);
+  }
+  else
+  {
+    if (after_sync_wait)
+      (*after_sync_wait)();
   }
   DBUG_RETURN(res);
 } /* my_sync */
