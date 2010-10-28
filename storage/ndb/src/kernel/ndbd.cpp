@@ -20,6 +20,7 @@
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include <NdbAutoPtr.hpp>
+#include <portlib/NdbNuma.h>
 
 #include "vm/SimBlockList.hpp"
 #include "vm/WatchDog.hpp"
@@ -114,6 +115,15 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   if (p == 0)
   {
     abort();
+  }
+
+  Uint32 numa = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NUMA, &numa);
+  if (numa == 1)
+  {
+    int res = NdbNuma_setInterleaved();
+    g_eventLogger->info("numa_set_interleave_mask(numa_all_nodes) : %s",
+                        res == 0 ? "OK" : "no numa support");
   }
 
   Uint64 shared_mem = 8*1024*1024;
