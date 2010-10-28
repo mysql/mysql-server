@@ -1,0 +1,22 @@
+# Establish connection conn1 (user = root)
+SET STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo ( a int, b int, c int, key (a), key (b));
+begin;
+select * from foo;
+a	b	c
+select sum(a) from foo;
+sum(a)
+NULL
+select * from foo;
+a	b	c
+drop table foo;
+ERROR 42S02: Unknown table 'foo'
+rename table foo to bar;
+ERROR HY000: Error on rename of './test/foo' to './test/bar' (errno: -30994)
+truncate table foo;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+alter table foo drop index a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+DROP TABLE foo;
