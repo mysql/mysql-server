@@ -405,7 +405,8 @@ static
 void
 lock_wait_check_and_cancel(
 /*=======================*/
-	srv_slot_t*	slot)
+	const srv_slot_t*	slot)	/*!< in: slot reserved by a user
+				       	thread when the wait started */
 {
 	trx_t*		trx;
 	double		wait_time;
