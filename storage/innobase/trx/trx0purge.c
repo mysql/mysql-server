@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -317,50 +317,56 @@ trx_purge_free_segment(
 					will cut off from the end of the
 					history list */
 {
-	page_t*		undo_page;
+	mtr_t		mtr;
 	trx_rsegf_t*	rseg_hdr;
 	trx_ulogf_t*	log_hdr;
 	trx_usegf_t*	seg_hdr;
-	ibool		freed;
 	ulint		seg_size;
 	ulint		hist_size;
 	ibool		marked		= FALSE;
-	mtr_t		mtr;
 
 	/*	fputs("Freeing an update undo log segment\n", stderr); */
 
 	ut_ad(mutex_own(&(purge_sys->mutex)));
-loop:
-	mtr_start(&mtr);
-	mutex_enter(&(rseg->mutex));
 
-	rseg_hdr = trx_rsegf_get(rseg->space, rseg->zip_size,
-				 rseg->page_no, &mtr);
+	for (;;) {
+		page_t*	undo_page;
 
-	undo_page = trx_undo_page_get(rseg->space, rseg->zip_size,
-				      hdr_addr.page, &mtr);
-	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
-	log_hdr = undo_page + hdr_addr.boffset;
+		mtr_start(&mtr);
 
-	/* Mark the last undo log totally purged, so that if the system
-	crashes, the tail of the undo log will not get accessed again. The
-	list of pages in the undo log tail gets inconsistent during the
-	freeing of the segment, and therefore purge should not try to access
-	them again. */
+		mutex_enter(&rseg->mutex);
 
-	if (!marked) {
-		mlog_write_ulint(log_hdr + TRX_UNDO_DEL_MARKS, FALSE,
-				 MLOG_2BYTES, &mtr);
-		marked = TRUE;
-	}
+		rseg_hdr = trx_rsegf_get(
+			rseg->space, rseg->zip_size, rseg->page_no, &mtr);
 
-	freed = fseg_free_step_not_header(seg_hdr + TRX_UNDO_FSEG_HEADER,
-					  &mtr);
-	if (!freed) {
-		mutex_exit(&(rseg->mutex));
+		undo_page = trx_undo_page_get(
+			rseg->space, rseg->zip_size, hdr_addr.page, &mtr);
+
+		seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
+		log_hdr = undo_page + hdr_addr.boffset;
+
+		/* Mark the last undo log totally purged, so that if the
+	       	system crashes, the tail of the undo log will not get accessed
+	       	again. The list of pages in the undo log tail gets inconsistent
+	       	during the freeing of the segment, and therefore purge should
+	       	not try to access them again. */
+
+		if (!marked) {
+			mlog_write_ulint(
+				log_hdr + TRX_UNDO_DEL_MARKS, FALSE,
+			       	MLOG_2BYTES, &mtr);
+
+			marked = TRUE;
+		}
+
+		if (fseg_free_step_not_header(
+			seg_hdr + TRX_UNDO_FSEG_HEADER, &mtr)) {
+
+			break;
+		}
+
+		mutex_exit(&rseg->mutex);
 		mtr_commit(&mtr);
-
-		goto loop;
 	}
 
 	/* The page list may now be inconsistent, but the length field
@@ -674,7 +680,7 @@ static
 ulint
 trx_purge_get_rseg_with_min_trx_id(
 /*===============================*/
-	trx_purge_t*	purge_sys)		/*!< in,out: purge instance */
+	trx_purge_t*	purge_sys)		/*!< in/out: purge instance */
 
 {
 	ulint		zip_size = 0;
