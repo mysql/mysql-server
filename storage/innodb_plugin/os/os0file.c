@@ -2280,7 +2280,10 @@ os_file_read(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2404,7 +2407,10 @@ os_file_read_no_error_handling(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2534,7 +2540,10 @@ os_file_write(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_a((offset & 0xFFFFFFFF) == offset);
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_writes++;
 
@@ -3304,12 +3313,14 @@ os_aio_array_reserve_slot(
 	ulint		len)	/*!< in: length of the block to read or write */
 {
 	os_aio_slot_t*	slot;
-#ifdef WIN_ASYNC_IO
-	OVERLAPPED*	control;
-#endif
 	ulint		i;
 	ulint		slots_per_seg;
 	ulint		local_seg;
+#ifdef WIN_ASYNC_IO
+	OVERLAPPED*	control;
+
+	ut_a((len & 0xFFFFFFFFUL) == len);
+#endif
 
 	/* No need of a mutex. Only reading constant fields */
 	slots_per_seg = array->n_slots / array->n_segments;
@@ -3589,6 +3600,9 @@ os_aio(
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
+#ifdef WIN_ASYNC_IO
+	ut_ad((n & 0xFFFFFFFFUL) == n);
+#endif
 
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & (~OS_AIO_SIMULATED_WAKE_LATER);
@@ -3829,16 +3843,18 @@ os_aio_windows_handle(
 		/* retry failed read/write operation synchronously.
 		No need to hold array->mutex. */
 
+		ut_a((slot->len & 0xFFFFFFFFUL) == slot->len);
+
 		switch (slot->type) {
 		case OS_FILE_WRITE:
 			ret = WriteFile(slot->file, slot->buf,
-					slot->len, &len,
+					(DWORD) slot->len, &len,
 					&(slot->control));
 
 			break;
 		case OS_FILE_READ:
 			ret = ReadFile(slot->file, slot->buf,
-				       slot->len, &len,
+				       (DWORD) slot->len, &len,
 				       &(slot->control));
 
 			break;
