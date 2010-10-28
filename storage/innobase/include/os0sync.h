@@ -419,6 +419,41 @@ clobbered */
 	"Mutexes and rw_locks use InnoDB's own implementation"
 #endif
 
+/**********************************************************//**
+Following macros are used to update specified counter atomically
+if HAVE_ATOMIC_BUILTINS defined. Otherwise, use mutex passed in
+for synchronization */
+#ifdef HAVE_ATOMIC_BUILTINS
+#define os_increment_counter_by_amount(mutex, counter, amount)	\
+	(void) os_atomic_increment_ulint(&counter, amount)
+
+#define os_decrement_counter_by_amount(mutex, counter, amount)	\
+	(void) os_atomic_increment_ulint(&counter, (-((long)(amount))))
+#else
+#define os_increment_counter_by_amount(mutex, counter, amount)	\
+	do {							\
+		mutex_enter(&(mutex));				\
+		(counter) += (amount);				\
+		mutex_exit(&(mutex));				\
+	} while (0)
+
+#define os_decrement_counter_by_amount(mutex, counter, amount)	\
+	do {							\
+		ut_a(counter >= amount);			\
+		mutex_enter(&(mutex));				\
+		(counter) -= (amount);				\
+		mutex_exit(&(mutex));				\
+	} while (0)
+#endif  /* HAVE_ATOMIC_BUILTINS */
+
+#define os_inc_counter(mutex, counter)				\
+	os_increment_counter_by_amount(mutex, counter, 1)
+
+#define os_dec_counter(mutex, counter)				\
+	do {							\
+		os_decrement_counter_by_amount(mutex, counter, 1);\
+	} while (0);
+
 #ifndef UNIV_NONINL
 #include "os0sync.ic"
 #endif
