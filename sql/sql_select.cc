@@ -10060,9 +10060,24 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
 {
   DBUG_ENTER("push_index_cond");
   Item *idx_cond;
+
+  /*
+    We will only attempt to push down an index condition when the
+    following criteria are true:
+    1. The storage engine supports ICP.
+    2. The system variable for enabling ICP is ON.
+    3. The query is not a multi-table update or delete statement. The reason
+       for this requirement is that the same handler will be used 
+       both for doing the select/join and the update. The pushed index
+       condition might then also be applied by the storage engine
+       when doing the update part and result in either not finding
+       the record to update or updating the wrong record.
+  */
   if (tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
-      tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN))
+      tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
+      tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
+      tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI)
   {
     DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond",
                  QT_ORDINARY););

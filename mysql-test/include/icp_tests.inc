@@ -402,3 +402,32 @@ ORDER BY f1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57372 "Multi-table updates and deletes fail when running with ICP 
+--echo #            against InnoDB"
+--echo #
+
+CREATE TABLE t1 (
+  a INT KEY, 
+  b INT
+) ENGINE = INNODB;
+
+CREATE TABLE t2 (
+  a INT KEY, 
+  b INT
+) ENGINE = INNODB;
+
+INSERT INTO t1 VALUES (1, 101), (2, 102), (3, 103), (4, 104), (5, 105);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+UPDATE t1, t2 
+SET t1.a = t1.a + 100, t2.b = t1.a + 10 
+WHERE t1.a BETWEEN 2 AND 4 AND t2.a = t1.b - 100;
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
