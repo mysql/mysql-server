@@ -160,7 +160,7 @@ SELECT * FROM tsp_04;
 # 13) Exchanges with different table options.
 # See bug#55944 to change the IGNORE
 INSERT INTO t_10 VALUES (10, "TEN");
---error 1711
+--error ER_ROW_DOES_NOT_MATCH_PARTITION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 --sorted_result
 SELECT * FROM tp WHERE a < 11;
@@ -172,7 +172,7 @@ SELECT * FROM tp WHERE a < 11;
 --sorted_result
 SELECT * FROM t_10 WHERE a < 11;
 INSERT INTO t_1000 VALUES (99, "Ninetynine");
---error 1711
+--error ER_ROW_DOES_NOT_MATCH_PARTITION
 ALTER TABLE tp1 EXCHANGE PARTITION p2 WITH TABLE t_1000;
 --sorted_result
 SELECT * FROM tp1 WHERE a < 1000 AND a > 98;
@@ -184,7 +184,7 @@ SELECT * FROM tp1 WHERE a < 1000 AND a > 98;
 --sorted_result
 SELECT * FROM t_1000 WHERE a < 1000 AND a > 98;
 INSERT INTO tsp_03 VALUES (20, "Twenty");
---error 1711
+--error ER_ROW_DOES_NOT_MATCH_PARTITION
 ALTER TABLE tsp EXCHANGE PARTITION sp03 WITH TABLE tsp_03;
 --sorted_result
 SELECT * FROM tsp;
