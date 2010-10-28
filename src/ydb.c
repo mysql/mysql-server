@@ -385,7 +385,6 @@ static int needs_recovery (DB_ENV *env) {
 }
 
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags);
-static int toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *));
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode);
 static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags);
 static int toku_db_close(DB * db, u_int32_t flags);
@@ -4312,25 +4311,6 @@ toku_db_rename(DB * db, const char *fname, const char *dbname, const char *newna
     return r;
 }
 
-// set key comparison function to function provided by user (pre-empting environment key comparison function)
-static int
-toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
-    HANDLE_PANICKED_DB(db);
-    int r;
-    if (db_opened(db))
-        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
-    else if (!bt_compare)
-        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be NULL.\n");
-    else if (db->i->key_compare_was_set)
-        r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
-    else {
-        r = toku_brt_set_bt_compare(db->i->brt, bt_compare);
-        if (!r)
-            db->i->key_compare_was_set = TRUE;
-    }
-    return r;
-}
-
 static int toku_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor) {
     HANDLE_PANICKED_DB(db);
     int r;
@@ -4673,10 +4653,6 @@ static int locked_db_rename(DB * db, const char *namea, const char *nameb, const
     return r;
 }
 
-static int locked_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
-    toku_ydb_lock(); int r = toku_db_set_bt_compare(db, bt_compare); toku_ydb_unlock(); return r;
-}
-
 static int locked_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor) {
     toku_ydb_lock();
     int r = toku_db_set_descriptor(db, version, descriptor);
@@ -4813,7 +4789,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(put);
     SDB(remove);
     SDB(rename);
-    SDB(set_bt_compare);
     SDB(set_descriptor);
     SDB(set_errfile);
     SDB(set_pagesize);

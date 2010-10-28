@@ -78,8 +78,6 @@ open_db(int descriptor, int which) {
     CKERR(r);
     dbs[which] = db;
 
-    r = db->set_bt_compare(db, verify_int_cmp);
-    CKERR(r);
     assert(abort_type >=0 && abort_type <= 2);
     if (abort_type==2 && !txn) {
         r = env->txn_begin(env, null_txn, &txn, 0);
@@ -162,6 +160,7 @@ close_db(int which) {
 static void
 setup_data(void) {
     int r = db_env_create(&env, 0);                                           CKERR(r);
+    r = env->set_default_bt_compare(env, verify_int_cmp);                     CKERR(r);
     const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK |DB_THREAD |DB_PRIVATE;
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
     int i;

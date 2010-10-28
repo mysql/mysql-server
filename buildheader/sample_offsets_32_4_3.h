@@ -71,7 +71,6 @@ struct fieldinfo db_fields32[] = {
   {"int (*set_pagesize) (DB *, u_int32_t)", 444, 4},
   {"int (*stat) (DB *, void *, u_int32_t)", 452, 4},
   {"int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t)", 468, 4},
-  {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 476, 4},
   {0, 580, 580} /* size of whole struct */
 };
 struct fieldinfo db_txn_active_fields32[] = {

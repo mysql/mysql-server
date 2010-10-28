@@ -814,7 +814,7 @@ static void test_new_brt_cursor_create_close (void) {
     r = toku_close_brt(brt, 0); assert(r == 0);
 }
 
-static void test_new_brt_cursor_first(int n, int dup_mode) {
+static void test_new_brt_cursor_first(int n) {
     if (verbose) printf("test_brt_cursor_first:%d\n", n);
 
     BRT t=0;
@@ -825,7 +825,6 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_brt_create(&t); assert(r == 0);
-    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
     r = toku_brt_open(t, fname, 1, 1, ct, null_txn, 0); assert(r==0);
 
@@ -867,7 +866,7 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
     r = toku_cachetable_close(&ct);assert(r==0);
 }
 
-static void test_new_brt_cursor_last(int n, int dup_mode) {
+static void test_new_brt_cursor_last(int n) {
     if (verbose) printf("test_brt_cursor_last:%d\n", n);
 
     BRT t=0;
@@ -878,7 +877,6 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_brt_create(&t); assert(r == 0);
-    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
     r = toku_brt_open(t, fname, 1, 1, ct, null_txn, 0); assert(r==0);
 
@@ -921,7 +919,7 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
     r = toku_cachetable_close(&ct);assert(r==0);
 }
 
-static void test_new_brt_cursor_next(int n, int dup_mode) {
+static void test_new_brt_cursor_next(int n) {
     if (verbose) printf("test_brt_cursor_next:%d\n", n);
 
     BRT t=0;
@@ -932,7 +930,6 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_brt_create(&t); assert(r == 0);
-    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
     r = toku_brt_open(t, fname, 1, 1, ct, null_txn, 0); assert(r==0);
 
@@ -965,7 +962,7 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
     r = toku_cachetable_close(&ct);assert(r==0);
 }
 
-static void test_new_brt_cursor_prev(int n, int dup_mode) {
+static void test_new_brt_cursor_prev(int n) {
     if (verbose) printf("test_brt_cursor_prev:%d\n", n);
 
     BRT t=0;
@@ -976,7 +973,6 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_brt_create(&t); assert(r == 0);
-    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
     r = toku_brt_open(t, fname, 1, 1, ct, null_txn, 0); assert(r==0);
 
@@ -1009,7 +1005,7 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
     r = toku_cachetable_close(&ct);assert(r==0);
 }
 
-static void test_new_brt_cursor_current(int n, int dup_mode) {
+static void test_new_brt_cursor_current(int n) {
     if (verbose) printf("test_brt_cursor_current:%d\n", n);
 
     BRT t=0;
@@ -1020,7 +1016,6 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_brt_create(&t); assert(r == 0);
-    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
     r = toku_brt_open(t, fname, 1, 1, ct, null_txn, 0); assert(r==0);
 
@@ -1092,8 +1087,8 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
     r = toku_cachetable_close(&ct);assert(r==0);
 }
 
-static void test_new_brt_cursor_set_range(int n, int dup_mode) {
-    if (verbose) printf("test_brt_cursor_set_range:%d %d\n", n, dup_mode);
+static void test_new_brt_cursor_set_range(int n) {
+    if (verbose) printf("test_brt_cursor_set_range:%d\n", n);
 
     int r;
     CACHETABLE ct;
@@ -1103,7 +1098,6 @@ static void test_new_brt_cursor_set_range(int n, int dup_mode) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_brt_create(&brt); assert(r == 0);
-    r = toku_brt_set_flags(brt, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(brt, 4096); assert(r == 0);
     r = toku_brt_open(brt, fname, 1, 1, ct, null_txn, 0); assert(r==0);
 
@@ -1210,17 +1204,16 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 
-static void test_new_brt_cursors(int dup_mode) {
-    assert(dup_mode==0);
-    test_new_brt_cursor_create_close();           
-    test_new_brt_cursor_first(8, dup_mode);       
-    test_new_brt_cursor_last(8, dup_mode);        
-    test_new_brt_cursor_last(512, dup_mode);      
-    test_new_brt_cursor_next(8, dup_mode);        
-    test_new_brt_cursor_prev(8, dup_mode);        
-    test_new_brt_cursor_current(8, dup_mode);     
-    test_new_brt_cursor_next(512, dup_mode);      
-    test_new_brt_cursor_set_range(512, dup_mode); 
+static void test_new_brt_cursors(void) {
+    test_new_brt_cursor_create_close();
+    test_new_brt_cursor_first(8);
+    test_new_brt_cursor_last(8);
+    test_new_brt_cursor_last(512);
+    test_new_brt_cursor_next(8);
+    test_new_brt_cursor_prev(8);
+    test_new_brt_cursor_current(8);
+    test_new_brt_cursor_next(512);
+    test_new_brt_cursor_set_range(512);
     test_new_brt_cursor_set(512, DB_SET, 0);      
 }
 
@@ -1230,7 +1223,7 @@ static void brt_blackbox_test (void) {
     test_wrongendian_compare(1, 2);          
     test_wrongendian_compare(1, 257);        
     test_wrongendian_compare(1, 1000);        
-    test_new_brt_cursors(0);
+    test_new_brt_cursors();
 
     test_read_what_was_written();          if (verbose) printf("did read_what_was_written\n");
     test_cursor_next();                   

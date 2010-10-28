@@ -79,6 +79,11 @@ int DbEnv::txn_begin(DbTxn *parenttxn, DbTxn **txnp, u_int32_t flags) {
     return maybe_throw_error(ret);
 }
 
+int DbEnv::set_default_bt_compare(bt_compare_fcn_type bt_compare_fcn) {
+    int ret = the_env->set_default_bt_compare(the_env, bt_compare_fcn);
+    return maybe_throw_error(ret);
+}
+
 int DbEnv::set_data_dir(const char *dir) {
     int ret = the_env->set_data_dir(the_env, dir);
     return maybe_throw_error(ret);

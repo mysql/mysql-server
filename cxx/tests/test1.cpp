@@ -30,12 +30,12 @@ int cmp(DB *db, const DBT *dbt1, const DBT *dbt2) {
 
 void test_db(void) {
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
-    { int r = env.set_redzone(0); assert(r==0); }
+    { int r = env.set_redzone(0);              assert(r==0); }
+    { int r = env.set_default_bt_compare(cmp); assert(r == 0); }
     int r = env.open("test1.dir", DB_CREATE|DB_PRIVATE, 0666);
     assert(r==0);
     Db db(&env, 0);
     
-    r = db.set_bt_compare(cmp);                 assert(r == 0);
     r = db.remove("DoesNotExist.db", NULL, 0);  assert(r == ENOENT);
     // The db is closed
     r = env.close(0);                           assert(r== 0);

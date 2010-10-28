@@ -111,9 +111,14 @@ int Db::remove(const char *file, const char *database, u_int32_t flags) {
     return the_Env->maybe_throw_error(ret);
 }
 
+#if 0
 extern "C" int toku_bt_compare_callback_c(DB *db_c, const DBT *a, const DBT *b) {
     Db *db_cxx=Db::get_Db(db_c);
-    return db_cxx->bt_compare_callback_cxx(db_cxx, Dbt::get_const_Dbt(a), Dbt::get_const_Dbt(b));
+    return db_cxx->do_bt_compare_callback_cxx(db_cxx, Dbt::get_const_Dbt(a), Dbt::get_const_Dbt(b));
+}
+
+int Db::do_bt_compare_callback_cxx(Db *db, const Dbt *a, const Dbt *b) {
+    return the_Env->bt_compare_callback_cxx(db, a, b);
 }
 
 int Db::set_bt_compare(int (*bt_compare_callback)(Db *, const Dbt *, const Dbt *)) {
@@ -126,6 +131,7 @@ int Db::set_bt_compare(bt_compare_fcn_type bt_compare_fcn) {
     int ret = the_db->set_bt_compare(the_db, bt_compare_fcn);
     return the_Env->maybe_throw_error(ret);
 }
+#endif
 
 int Db::fd(int *fdp) {
     int ret = the_db->fd(the_db, fdp);

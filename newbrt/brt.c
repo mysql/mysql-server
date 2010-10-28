@@ -1401,7 +1401,7 @@ brt_leaf_delete_leafentry (BRTNODE node, u_int32_t idx, LEAFENTRY le)
 }
 
 static int
-brt_leaf_apply_cmd_once (BRTNODE node, BRT_MSG cmd,
+brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
                          u_int32_t idx, LEAFENTRY le, TOKULOGGER logger)
 // Effect: Apply cmd to leafentry
 //   idx is the location where it goes
@@ -2362,7 +2362,7 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
 
             //TODO: Factor out (into a function) conversion of fifo_entry to message
             BRT_MSG_S brtcmd = { (enum brt_msg_type)type, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
-                                                                       toku_fill_dbt(&hv, val, vallen)} };
+									toku_fill_dbt(&hv, val, vallen)} };
 
             int n_bytes_removed = (hk.size + hv.size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
             u_int32_t old_from_fingerprint = node->local_fingerprint;
@@ -3610,7 +3610,7 @@ toku_brt_get_dictionary_id(BRT brt) {
 }
 
 int toku_brt_set_flags(BRT brt, unsigned int flags) {
-    lazy_assert(flags==(flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extranious flags
+    lazy_assert(flags==(flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extraneous flags
     brt->did_set_flags = TRUE;
     brt->flags = flags;
     return 0;

@@ -69,6 +69,10 @@ test_reverse_compare (int n) {
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
+#ifdef TOKUDB
+    r = env->set_default_bt_compare(env, reverse_compare);
+    CKERR(r);
+#endif
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
@@ -76,8 +80,10 @@ test_reverse_compare (int n) {
     CKERR(r);
     r = db->set_pagesize(db, 4096);
     CKERR(r);
+#ifndef TOKUDB
     r = db->set_bt_compare(db, reverse_compare);
     CKERR(r);
+#endif
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     CKERR(r);
 
@@ -100,8 +106,10 @@ test_reverse_compare (int n) {
     CKERR(r);
     r = db->set_pagesize(db, 4096);
     CKERR(r);
+#ifndef TOKUDB
     r = db->set_bt_compare(db, reverse_compare);
     CKERR(r);
+#endif
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
     CKERR(r);
 

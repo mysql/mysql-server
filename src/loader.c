@@ -174,7 +174,7 @@ int toku_loader_create_loader(DB_ENV *env,
     {
 	brt_compare_func compare_functions[N];
 	for (int i=0; i<N; i++) {
-	    compare_functions[i] = dbs[i]->i->key_compare_was_set ? toku_brt_get_bt_compare(dbs[i]->i->brt) : env->i->bt_compare;
+	    compare_functions[i] = env->i->bt_compare;
 	}
 
 	// time to open the big kahuna
