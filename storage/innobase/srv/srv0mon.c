@@ -29,6 +29,7 @@ Created 12/9/2009 Jimmy Yang
 #include "srv0srv.h"
 #include "buf0buf.h"
 #include "trx0sys.h"
+#include "trx0rseg.h"
 #ifdef UNIV_NONINL
 #include "srv0mon.ic"
 #endif
@@ -311,6 +312,10 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Length of the TRX_RSEG_HISTORY list",
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, MONITOR_RSEG_HISTORY_LEN},
 
+	{"trx_rseg_cur_size", "Transaction",
+	 "Current rollback segment size in pages",
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, MONITOR_RSEG_CUR_SIZE},
+
 	/* ========== Counters for Recovery Module ========== */
 	{"module_log", "Recovery", "Recovery Module",
 	 MONITOR_MODULE, MONITOR_MODULE_RECOVERY},
@@ -556,6 +561,30 @@ srv_mon_set_module_control(
 }
 
 /****************************************************************//**
+Get transaction system's rollback segment size in pages
+@return size in pages */
+static
+ulint
+srv_mon_get_rseg_size(void)
+/*=======================*/
+{
+	ulint		i;
+	ulint		value = 0;
+
+	/* rseg_array is a static array, so we can go through it without
+	mutex protection. In addition, we provide an estimate of the
+	total rollback segment size and to avoid mutex contention we
+	don't acquire the rseg->mutex" */
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		const trx_rseg_t*	rseg = trx_sys->rseg_array[i];
+
+		value += rseg->curr_size;
+	}
+
+	return(value);
+}
+
+/****************************************************************//**
 This function consolidates some existing server counters used
 by "system status variables". These existing system variables do not have
 mechanism to start/stop and reset the counters, so we simulate these
@@ -760,6 +789,10 @@ srv_mon_process_existing_counter(
 
 	case MONITOR_RSEG_HISTORY_LEN:
 		value = trx_sys->rseg_history_len;
+		break;
+
+	case MONITOR_RSEG_CUR_SIZE:
+		value = srv_mon_get_rseg_size();
 		break;
 
 	case MONITOR_OVLD_N_FILE_OPENED:
