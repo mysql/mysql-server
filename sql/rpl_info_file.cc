@@ -222,7 +222,7 @@ bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
   if (const_cast<Server_ids *>(value)->pack_server_ids(&buffer))
     goto err;
 
-  error= (my_b_printf(&info_file, "%s\n", buffer.c_ptr()) >
+  error= (my_b_printf(&info_file, "%s\n", buffer.c_ptr_safe()) >
           (size_t) 0 ? FALSE : TRUE);
 err:
   return error;
