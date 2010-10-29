@@ -636,13 +636,21 @@ innobase_add_index_cleanup(
 						creation */
 {
 	mem_heap_free(heap);
+
 	trx_general_rollback_for_mysql(trx, NULL);
+
+	ut_a(trx != prebuilt->trx);
+
 	trx_free_for_mysql(trx);
+	trx = NULL;
+
 	trx_commit_for_mysql(prebuilt->trx);
 
 	if (table != NULL) {
 
-		row_mysql_lock_data_dictionary(trx);
+		rw_lock_x_lock(&dict_operation_lock);
+
+		dict_mutex_enter_for_mysql();
 
 		/* Note: This check exludes the system tables. However, we
 		should be safe because users cannot add indexes to system
@@ -657,7 +665,9 @@ innobase_add_index_cleanup(
 
 		dict_table_close(table, TRUE);
 
-		row_mysql_unlock_data_dictionary(trx);
+		dict_mutex_exit_for_mysql();
+
+		rw_lock_x_unlock(&dict_operation_lock);
 	}
 }
 
