@@ -28,6 +28,11 @@
 #endif
 
 #include <my_global.h>
+
+#ifdef HAVE_NDB_CONFIG_H
+#include "ndb_config.h"
+#endif
+
 #include <mysql_com.h>
 #include <ndb_types.h>
 
