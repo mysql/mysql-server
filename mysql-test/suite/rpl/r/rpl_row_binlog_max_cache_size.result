@@ -171,7 +171,7 @@ Variable_name	Value
 binlog_cache_size	8192
 SET @@GLOBAL.BINLOG_CACHE_SIZE= 16384;
 Warnings:
-Warning	1713	Option binlog_cache_size (16384) is greater than max_binlog_cache_size (8192); setting binlog_cache_size equal to max_binlog_cache_size.
+Warning	1714	Option binlog_cache_size (16384) is greater than max_binlog_cache_size (8192); setting binlog_cache_size equal to max_binlog_cache_size.
 SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
 Variable_name	Value
 max_binlog_cache_size	8192
@@ -180,7 +180,7 @@ Variable_name	Value
 binlog_cache_size	8192
 SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 4096;
 Warnings:
-Warning	1713	Option binlog_cache_size (8192) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
+Warning	1714	Option binlog_cache_size (8192) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
 SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
 Variable_name	Value
 max_binlog_cache_size	4096

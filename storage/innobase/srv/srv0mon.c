@@ -29,6 +29,7 @@ Created 12/9/2009 Jimmy Yang
 #include "srv0srv.h"
 #include "buf0buf.h"
 #include "trx0sys.h"
+#include "trx0rseg.h"
 #ifdef UNIV_NONINL
 #include "srv0mon.ic"
 #endif
@@ -63,10 +64,10 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE, MONITOR_MODULE_METADATA},
 
 	{"metadata_table_opened", "Server Metadata",
-	 "Number of table handler opened", 0, MONITOR_TABLE_OPEN},
+	 "Number of table handlers opened", 0, MONITOR_TABLE_OPEN},
 
 	{"metadata_table_closed", "Server Metadata",
-	 "Number of table handler closed", 0, MONITOR_TABLE_CLOSE},
+	 "Number of table handlers closed", 0, MONITOR_TABLE_CLOSE},
 
 	/* ========== Counters for Lock Module ========== */
 	{"module_lock", "Lock", "Lock Module",
@@ -75,19 +76,19 @@ static monitor_info_t	innodb_counter_info[] =
 	{"lock_deadlock_count", "Lock", "Number of deadlocks",
 	 0, MONITOR_DEADLOCK},
 
-	{"lock_timeout", "Lock", "Number of lock timeout",
+	{"lock_timeout", "Lock", "Number of lock timeouts",
 	 0, MONITOR_TIMEOUT},
 
-	{"lock_lockrec_wait", "Lock", "Number of times wait for record lock",
+	{"lock_lockrec_wait", "Lock", "Number of times waited for record lock",
 	 0, MONITOR_LOCKREC_WAIT},
 
-	{"lock_lockrec_request", "Lock", "Number of record lock requested",
+	{"lock_lockrec_request", "Lock", "Number of record locks requested",
 	 0, MONITOR_NUM_RECLOCK_REQ},
 
-	{"lock_lockrec_created", "Lock", "Number of record lock created",
+	{"lock_lockrec_created", "Lock", "Number of record locks created",
 	 0, MONITOR_RECLOCK_CREATED},
 
-	{"lock_lockrec_removed", "Lock", "Number of record lock destroyed",
+	{"lock_lockrec_removed", "Lock", "Number of record locks destroyed",
 	 0, MONITOR_RECLOCK_REMOVED},
 
 	{"lock_num_lockrec", "Lock", "Total number of record locks",
@@ -96,7 +97,7 @@ static monitor_info_t	innodb_counter_info[] =
 	{"lock_tablelock_created", "Lock", "Number of table locks created",
 	 0, MONITOR_TABLELOCK_CREATED},
 
-	{"lock_tablelock_removed", "Lock", "Number of table lock destroyed",
+	{"lock_tablelock_removed", "Lock", "Number of table locks destroyed",
 	 0, MONITOR_TABLELOCK_REMOVED},
 
 	{"lock_num_tablelock", "Lock", "Total number of table locks",
@@ -127,7 +128,7 @@ static monitor_info_t	innodb_counter_info[] =
 	{"buffer_page_in_flush", "Buffer", "Number of pages in flush list",
 	 0, MONITOR_PAGE_INFLUSH},
 
-	{"buffer_wait_free", "Buffer", "Number of times wait for free buffer",
+	{"buffer_wait_free", "Buffer", "Number of times waited for free buffer",
 	 MONITOR_EXISTING, MONITOR_OVLD_BUF_POOL_WAIT_FREE},
 
 	{"buffer_read_ahead", "Buffer", "Number of pages read as read ahead",
@@ -166,10 +167,10 @@ static monitor_info_t	innodb_counter_info[] =
 	{"buffer_page_read", "Buffer", "Number of pages read",
 	 MONITOR_EXISTING, MONITOR_OVLD_PAGES_READ},
 
-	{"buffer_byte_read", "Buffer", "Amount data read in bytes",
+	{"buffer_byte_read", "Buffer", "Amount of data read in bytes",
 	 MONITOR_EXISTING, MONITOR_OVLD_BYTE_READ},
 
-	{"buffer_byte_written", "Buffer", "Amount data written in bytes",
+	{"buffer_byte_written", "Buffer", "Amount of data written in bytes",
 	 MONITOR_EXISTING, MONITOR_OVLD_BYTE_WRITTEN},
 
 	/* ========== Counters for Buffer Page I/O ========== */
@@ -198,7 +199,7 @@ static monitor_info_t	innodb_counter_info[] =
 	MONITOR_BUF_PAGE_READ("ibuf_bitmap", "Insert Buffer Bitmap",
 			      IBUF_BITMAP),
 
-	MONITOR_BUF_PAGE_READ("system_page", "System Pages", SYSTEM),
+	MONITOR_BUF_PAGE_READ("system_page", "System", SYSTEM),
 
 	MONITOR_BUF_PAGE_READ("trx_system", "Transaction System", TRX_SYSTEM),
 
@@ -237,7 +238,7 @@ static monitor_info_t	innodb_counter_info[] =
 	MONITOR_BUF_PAGE_WRITTEN("ibuf_bitmap", "Insert Buffer Bitmap",
 				 IBUF_BITMAP),
 
-	MONITOR_BUF_PAGE_WRITTEN("system_page", "System Pages", SYSTEM),
+	MONITOR_BUF_PAGE_WRITTEN("system_page", "System", SYSTEM),
 
 	MONITOR_BUF_PAGE_WRITTEN("trx_system", "Transaction System",
 				 TRX_SYSTEM),
@@ -262,10 +263,10 @@ static monitor_info_t	innodb_counter_info[] =
 	{"os_num_reads", "OS", "Number of reads initiated",
 	 MONITOR_EXISTING, MONITOR_OVLD_OS_FILE_READ},
 
-	{"os_num_writes", "OS", "Number of writes inititated",
+	{"os_num_writes", "OS", "Number of writes initiated",
 	 MONITOR_EXISTING, MONITOR_OVLD_OS_FILE_WRITE},
 
-	{"os_num_fsync", "OS", "Number of fsync() call",
+	{"os_num_fsync", "OS", "Number of fsync() calls",
 	 MONITOR_EXISTING, MONITOR_OVLD_OS_FSYNC},
 
 	{"os_num_pending_reads", "OS", "Number of reads pending",
@@ -304,12 +305,23 @@ static monitor_info_t	innodb_counter_info[] =
 	 0, MONITOR_NUM_ROW_PURGE},
 
 	{"trx_purge_delay", "DML",
-	 "microseconds DML to be delayed due to purge lagging",
+	 "Microseconds DML to be delayed due to purge lagging",
 	 MONITOR_DISPLAY_CURRENT, MONITOR_DML_PURGE_DELAY},
 
 	{"trx_rseg_history_len", "Transaction",
 	 "Length of the TRX_RSEG_HISTORY list",
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, MONITOR_RSEG_HISTORY_LEN},
+
+	{"trx_num_undo_slot_used", "Transaction", "Number of undo slots used",
+	 0, MONITOR_NUM_UNDO_SLOT_USED},
+
+	{"trx_num_undo_slot_cached", "Transaction",
+	 "Number of undo slots cached",
+	 0, MONITOR_NUM_UNDO_SLOT_CACHED},
+
+	{"trx_rseg_cur_size", "Transaction",
+	 "Current rollback segment size in pages",
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, MONITOR_RSEG_CUR_SIZE},
 
 	/* ========== Counters for Recovery Module ========== */
 	{"module_log", "Recovery", "Recovery Module",
@@ -346,7 +358,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING, MONITOR_OVLD_LOG_WRITES},
 
 	{"log_flush_io_capacity", "Recovery",
-	 "Percent of Server IO capacity during flushing",
+	 "Percent of Server I/O capacity during flushing",
 	 MONITOR_DISPLAY_CURRENT, MONITOR_FLUSH_IO_CAPACITY},
 
 	{"log_flush_dirty_page_exceed", "Recovery",
@@ -358,19 +370,19 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE, MONITOR_MODULE_PAGE},
 
 	{"compress_num_page_compressed", "Compression",
-	 "Number of page compressed", 0, MONITOR_PAGE_COMPRESS},
+	 "Number of pages compressed", 0, MONITOR_PAGE_COMPRESS},
 
 	{"compress_num_page_decompressed", "Compression",
-	 "Number of page decompressed", 0, MONITOR_PAGE_DECOMPRESS},
+	 "Number of pages decompressed", 0, MONITOR_PAGE_DECOMPRESS},
 
 	/* ========== Counters for Index ========== */
 	{"module_index", "Index", "Index Manager",
 	 MONITOR_MODULE, MONITOR_MODULE_INDEX},
 
-	{"index_num_split", "Index", "Number of index split",
+	{"index_num_split", "Index", "Number of index splits",
 	 0, MONITOR_INDEX_SPLIT},
 
-	{"index_num_merge", "Index", "Number of index merge",
+	{"index_num_merge", "Index", "Number of index merges",
 	 0, MONITOR_INDEX_MERGE},
 
 	/* ========== Counters for tablespace ========== */
@@ -555,6 +567,28 @@ srv_mon_set_module_control(
 	return(0);
 }
 
+/****************************************************************//**
+Get transaction system's rollback segment size
+@return size in pages */
+static
+ulint
+srv_mon_get_rseg_size()
+/*===================*/
+{
+	trx_rseg_t*	rseg;
+	ulint		value = 0;
+
+	/* rseg_list is a static list, so we can go through it without
+	mutex protection. In addition, we provide an estimate of the
+	total rollback segment size and to avoid mutex contention we
+	don't acquire the rseg->mutex" */
+	for (rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+	     rseg; rseg = UT_LIST_GET_NEXT(rseg_list, rseg)) {
+			value += rseg->curr_size;
+	}
+
+	return(value);
+}
 /****************************************************************//**
 This function consolidates some existing server counters used
 by "system status variables". These existing system variables do not have
@@ -760,6 +794,10 @@ srv_mon_process_existing_counter(
 
 	case MONITOR_RSEG_HISTORY_LEN:
 		value = trx_sys->rseg_history_len;
+		break;
+
+	case MONITOR_RSEG_CUR_SIZE:
+		value = srv_mon_get_rseg_size();
 		break;
 
 	case MONITOR_OVLD_N_FILE_OPENED:

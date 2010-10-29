@@ -1363,11 +1363,11 @@ ibuf_add_ops(
 	const ulint*	ops)	/*!< in: operation counts */
 
 {
+	ulint	i;
+
 #ifndef HAVE_ATOMIC_BUILTINS
 	ut_ad(mutex_own(&ibuf_mutex));
 #endif /* !HAVE_ATOMIC_BUILTINS */
-
-	ulint	i;
 
 	for (i = 0; i < IBUF_OP_COUNT; i++) {
 #ifdef HAVE_ATOMIC_BUILTINS

@@ -24,7 +24,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-
-
-start_server_on : BUG#55576 2010-08-19 Vasil Dimov disabled until the bug is resolved
-server_init : BUG#55576 2010-08-19 Vasil Dimov disabled until the bug is resolved

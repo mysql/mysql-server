@@ -1,16 +1,16 @@
 select * from information_schema.innodb_metrics;
 NAME	SUBSYSTEM	COUNT	MAX_COUNT	MIN_COUNT	AVG_COUNT	COUNT_SINCE_RESET	MAX_COUNT_SINCE_RESET	MIN_COUNT_SINCE_RESET	AVG_COUNT_SINCE_RESET	TIME_ENABLED	TIME_DISABLED	TIME_RESET	STATUS	TYPE	COMMENT
-metadata_table_opened	Server Metadata	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table handler opened
-metadata_table_closed	Server Metadata	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table handler closed
+metadata_table_opened	Server Metadata	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table handlers opened
+metadata_table_closed	Server Metadata	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table handlers closed
 lock_deadlock_count	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of deadlocks
-lock_timeout	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of lock timeout
-lock_lockrec_wait	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of times wait for record lock
-lock_lockrec_request	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record lock requested
-lock_lockrec_created	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record lock created
-lock_lockrec_removed	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record lock destroyed
+lock_timeout	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of lock timeouts
+lock_lockrec_wait	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of times waited for record lock
+lock_lockrec_request	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record locks requested
+lock_lockrec_created	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record locks created
+lock_lockrec_removed	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record locks destroyed
 lock_num_lockrec	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Total number of record locks
 lock_tablelock_created	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table locks created
-lock_tablelock_removed	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table lock destroyed
+lock_tablelock_removed	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table locks destroyed
 lock_num_tablelock	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Total number of table locks
 lock_row_lock_current_wait	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Current row lock wait
 lock_row_lock_wait_time	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time waited for lock acquisition
@@ -19,7 +19,7 @@ buffer_reads	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	co
 buffer_read_request	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of read requests
 buffer_write_request	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of write requests
 buffer_page_in_flush	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages in flush list
-buffer_wait_free	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of times wait for free buffer
+buffer_wait_free	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of times waited for free buffer
 buffer_read_ahead	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages read as read ahead
 buffer_read_ahead_evict	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Read ahead pages evicted without being accessed
 buffer_pool_total_page	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Total buffer pool pages
@@ -30,8 +30,8 @@ buffer_pool_page_free	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	di
 buffer_page_created	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages created
 buffer_page_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages written
 buffer_page_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages read
-buffer_byte_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount data read in bytes
-buffer_byte_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount data written in bytes
+buffer_byte_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount of data read in bytes
+buffer_byte_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount of data written in bytes
 buf_page_read_index_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Leaf Pages read
 buf_page_read_index_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Non-leaf Pages read
 buf_page_read_index_ibuf_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Leaf Pages read
@@ -40,7 +40,7 @@ buf_page_read_undo_log	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NU
 buf_page_read_index_inode	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Inode Pages read
 buf_page_read_ibuf_free_list	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Free List Pages read
 buf_page_read_ibuf_bitmap	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Bitmap Pages read
-buf_page_read_system_page	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of System Pages Pages read
+buf_page_read_system_page	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of System Pages read
 buf_page_read_trx_system	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Transaction System Pages read
 buf_page_read_fsp_hdr	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of File Space Header Pages read
 buf_page_read_xdes	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Extent Descriptor Pages read
@@ -56,7 +56,7 @@ buf_page_written_undo_log	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL
 buf_page_written_index_inode	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Inode Pages written
 buf_page_written_ibuf_free_list	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Free List Pages written
 buf_page_written_ibuf_bitmap	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Bitmap Pages written
-buf_page_written_system_page	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of System Pages Pages written
+buf_page_written_system_page	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of System Pages written
 buf_page_written_trx_system	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Transaction System Pages written
 buf_page_written_fsp_hdr	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of File Space Header Pages written
 buf_page_written_xdes	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Extent Descriptor Pages written
@@ -65,8 +65,8 @@ buf_page_written_zblob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NU
 buf_page_written_zblob2	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Subsequent Compressed Blob Pages written
 buf_page_written_other	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of other/unknown (old version InnoDB) Pages written
 os_num_reads	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of reads initiated
-os_num_writes	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of writes inititated
-os_num_fsync	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of fsync() call
+os_num_writes	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of writes initiated
+os_num_fsync	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of fsync() calls
 os_num_pending_reads	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of reads pending
 os_num_pending_writes	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of writes pending
 os_log_byte_written	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Bytes of log written
@@ -77,8 +77,11 @@ trx_num_commit	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disa
 trx_num_abort	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of transactions aborted
 trx_active_trx	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of active transactions
 trx_num_row_purged	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows purged
-trx_purge_delay	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	microseconds DML to be delayed due to purge lagging
+trx_purge_delay	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Microseconds DML to be delayed due to purge lagging
 trx_rseg_history_len	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Length of the TRX_RSEG_HISTORY list
+trx_num_undo_slot_used	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of undo slots used
+trx_num_undo_slot_cached	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of undo slots cached
+trx_rseg_cur_size	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Current rollback segment size in pages
 log_num_checkpoint	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of checkpoints
 log_lsn_last_flush	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Last flush's LSN
 log_lsn_last_checkpoint	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	LSN at last checkpoint
@@ -89,12 +92,12 @@ log_num_log_io	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disable
 log_waits	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log waits due to small log buffer
 log_write_request	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log write requests
 log_writes	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log writes
-log_flush_io_capacity	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Percent of Server IO capacity during flushing
+log_flush_io_capacity	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Percent of Server I/O capacity during flushing
 log_flush_dirty_page_exceed	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of flush calls when the max dirty page pct was hit
-compress_num_page_compressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of page compressed
-compress_num_page_decompressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of page decompressed
-index_num_split	Index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of index split
-index_num_merge	Index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of index merge
+compress_num_page_compressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages compressed
+compress_num_page_decompressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages decompressed
+index_num_split	Index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of index splits
+index_num_merge	Index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of index merges
 fil_system_num_open_file	Tablespace	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of files currently open
 dml_num_reads	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows read
 dml_num_inserts	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows inserted
@@ -181,6 +184,9 @@ trx_active_trx	disabled
 trx_num_row_purged	disabled
 trx_purge_delay	disabled
 trx_rseg_history_len	disabled
+trx_num_undo_slot_used	disabled
+trx_num_undo_slot_cached	disabled
+trx_rseg_cur_size	disabled
 log_num_checkpoint	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -284,6 +290,9 @@ trx_active_trx	enabled
 trx_num_row_purged	enabled
 trx_purge_delay	enabled
 trx_rseg_history_len	enabled
+trx_num_undo_slot_used	enabled
+trx_num_undo_slot_cached	enabled
+trx_rseg_cur_size	enabled
 log_num_checkpoint	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
@@ -389,6 +398,9 @@ trx_active_trx	disabled
 trx_num_row_purged	disabled
 trx_purge_delay	disabled
 trx_rseg_history_len	disabled
+trx_num_undo_slot_used	disabled
+trx_num_undo_slot_cached	disabled
+trx_rseg_cur_size	disabled
 log_num_checkpoint	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -492,6 +504,9 @@ trx_active_trx	0	disabled
 trx_num_row_purged	0	disabled
 trx_purge_delay	0	disabled
 trx_rseg_history_len	0	disabled
+trx_num_undo_slot_used	0	disabled
+trx_num_undo_slot_cached	0	disabled
+trx_rseg_cur_size	0	disabled
 log_num_checkpoint	0	disabled
 log_lsn_last_flush	0	disabled
 log_lsn_last_checkpoint	0	disabled

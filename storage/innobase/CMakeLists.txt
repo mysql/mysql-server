@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# This is the CMakeLists for InnoDB Plugin
+# This is the CMakeLists for InnoDB
 
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
@@ -218,7 +218,7 @@ ENDIF()
 SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
 			data/data0data.c data/data0type.c
-			dict/dict0boot.c dict/dict0crea.c dict/dict0dict.c dict/dict0load.c dict/dict0mem.c
+			dict/dict0boot.c dict/dict0crea.c dict/dict0dict.c dict/dict0load.c dict/dict0mem.c dict/dict0stats.c
 			dyn/dyn0dyn.c
 			eval/eval0eval.c eval/eval0proc.c
 			fil/fil0fil.c
@@ -254,29 +254,7 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
-
-#The plugin's CMakeLists.txt still needs to work with previous versions of MySQL.
-IF(EXISTS ${SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-	# Old plugin support on Windows only, 
-	# use tricks to force ha_innodb.dll name for DLL
-	INCLUDE(${SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-	MYSQL_STORAGE_ENGINE(INNOBASE)
-	GET_TARGET_PROPERTY(LIB_LOCATION ha_innobase LOCATION)
-	IF(LIB_LOCATION)
-		SET_TARGET_PROPERTIES(ha_innobase PROPERTIES OUTPUT_NAME ha_innodb)
-	ENDIF()
-ELSEIF (MYSQL_VERSION_ID LESS "50137")
-	# Windows only, no plugin support
-	IF (NOT SOURCE_SUBLIBS)
-		ADD_DEFINITIONS(-DMYSQL_SERVER)
-		ADD_LIBRARY(innobase STATIC ${INNOBASE_SOURCES})
-		# Require mysqld_error.h, which is built as part of the GenError
-		ADD_DEPENDENCIES(innobase GenError)
-	ENDIF()
-ELSE()
-	# New plugin support, cross-platform ,  base name for shared module is "ha_innodb"
-	MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
-		DEFAULT
-		MODULE_OUTPUT_NAME ha_innodb
-		LINK_LIBRARIES ${ZLIB_LIBRARY})
-ENDIF()
+MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
+  DEFAULT
+  MODULE_OUTPUT_NAME ha_innodb
+  LINK_LIBRARIES ${ZLIB_LIBRARY})
