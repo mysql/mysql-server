@@ -27,14 +27,14 @@ if (!$binlog_start)
 }
 
 --let $_statement=show binlog events
-if (`SELECT '$binlog_file' <> ''`)
+if ($binlog_file)
 {
   --let $_statement= $_statement in '$binlog_file'
 }
 
 --let $_statement= $_statement from $binlog_start
 
-if (`SELECT '$binlog_limit' <> ''`)
+if ($binlog_limit)
 {
   --let $_statement= $_statement limit $binlog_limit
 }
