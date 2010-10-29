@@ -51,12 +51,13 @@ ADD_LIBRARY(ndbsched STATIC
     dummy_nonmt.cpp
 )
 
-ADD_LIBRARY(ndbsched_mt STATIC
+IF(BUILD_NDBMTD)
+  ADD_LIBRARY(ndbsched_mt STATIC
     SimulatedBlock_mt.cpp
     TransporterCallback_mt.cpp
     LongSignal_mt.cpp
     SimplePropertiesSection_mt.cpp
     mt.cpp
-    dummy_mt.cpp
- )
+    dummy_mt.cpp)
+ENDIF()
 

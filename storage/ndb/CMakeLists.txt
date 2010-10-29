@@ -52,9 +52,6 @@ ENDIF()
 OPTION(WITH_NDB_BINLOG
   "Disable NDB binlog" ON)
 
-OPTION(WITH_NDBMTD
-  "Dont build the MySQL Cluster multithreadded data node" ON)
-
 # Use same compiler defines as MySQL Server for debug compile
 SET(CMAKE_CXX_FLAGS_DEBUG
     "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
