@@ -1,15 +1,15 @@
 /*  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
-    
+
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
     published by the Free Software Foundation; version 2 of the
     License.
-    
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
@@ -52,7 +52,7 @@
 
 /**
   first byte of the question string is the question "type".
-  It can be a "ordinary" or a "password" question.
+  It can be an "ordinary" or a "password" question.
   The last bit set marks a last question in the authentication exchange.
 */
 #define ORDINARY_QUESTION       "\2"
@@ -176,12 +176,12 @@ mysql_declare_plugin_end;
   This plugin performs a dialog with the user, asking questions and
   reading answers. Depending on the client it may be desirable to do it
   using GUI, or console, with or without curses, or read answers
-  from a smardcard, for example.
+  from a smartcard, for example.
 
   To support all this variety, the dialog plugin has a callback function
   "authentication_dialog_ask". If the client has a function of this name
   dialog plugin will use it for communication with the user. Otherwise
-  a default gets() based implementation will be used.
+  a default fgets() based implementation will be used.
 */
 
 /**
@@ -208,12 +208,15 @@ static mysql_authentication_dialog_ask_t ask;
 static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          int type __attribute__((unused)),
                          const char *prompt,
-                         char *buf, int buf_len __attribute__((unused)))
+                         char *buf, int buf_len)
 {
+  char *ptr;
   fputs(prompt, stdout);
   fputc(' ', stdout);
-  if (gets(buf) == 0)
-    return 0;
+  if (fgets(buf, buf_len, stdin) == NULL)
+    return NULL;
+  if ((ptr= strchr(buf, '\n')))
+    *ptr= 0;
 
   return buf;
 }
@@ -253,7 +256,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
 
-        We send the "password", assuming the client knows what its doing.
+        We send the "password", assuming the client knows what it's doing.
         (in other words, the dialog plugin should be only set as a default
         authentication plugin on the client if the first question
         asks for a password - which will be sent in clear text, by the way)
