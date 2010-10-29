@@ -8,12 +8,13 @@ DB *null_db = NULL;
 DB_TXN *null_txn = NULL;
 DBC *null_cursor = NULL;
 
-static void create_non_empty(int n) {
+static void create_non_empty(int n, const char *dirname) {
     DB_ENV *env = null_env;
     int r;
-    r = db_env_create(&env, 0); assert(r == 0); assert(env != NULL);
+    r = db_env_create(&env, 0);   assert(r == 0); assert(env != NULL);
+    r = env->set_redzone(env, 0); assert(r == 0);
     r = env->open(env, 
-                  ENVDIR, 
+                  dirname,
                   DB_INIT_MPOOL+DB_INIT_LOG+DB_INIT_LOCK+DB_INIT_TXN+DB_PRIVATE+DB_CREATE, 
                   S_IRWXU+S_IRWXG+S_IRWXO); 
     assert(r == 0);
@@ -76,23 +77,31 @@ static void root_fifo_verify(DB_ENV *env, int n, int expectn) {
     r = db->close(db, 0); assert(r == 0); db = null_db;
 }
 
-static void root_fifo_41(int n, int ntxn, BOOL do_populate) {
+static void root_fifo_41(int n, int ntxn, BOOL do_populate, char const* dirname) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
     int r;
 
+    if (dirname==NULL) dirname=ENVDIR;
+
     // create the env
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    {
+	int size = 20+strlen(dirname);
+	char rmstring[size];
+	snprintf(rmstring, size, "rm -rf %s", dirname);
+	r = system(rmstring);
+	CKERR(r);
+    }
+    toku_os_mkdir(dirname, S_IRWXU+S_IRWXG+S_IRWXO);
 
     // populate
     if (do_populate)
-        create_non_empty(n);
+        create_non_empty(n, dirname);
 
     DB_ENV *env = null_env;
     r = db_env_create(&env, 0); assert(r == 0); assert(env != NULL);
+    r = env->set_redzone(env, 0); assert(r == 0);
     r = env->open(env, 
-                  ENVDIR, 
+                  dirname, 
                   DB_INIT_MPOOL+DB_INIT_LOG+DB_INIT_LOCK+DB_INIT_TXN+DB_PRIVATE+DB_CREATE, 
                   S_IRWXU+S_IRWXG+S_IRWXO); 
     assert(r == 0);
@@ -139,7 +148,19 @@ static void root_fifo_41(int n, int ntxn, BOOL do_populate) {
     r = env->close(env, 0); assert(r == 0); env = null_env;
 }
 
+static int parseint (char const *str) {
+    char *end;
+    errno=0;
+    int v = strtol(str, &end, 10);
+    if (errno!=0 || *end!=0) {
+	fprintf(stderr, "This argument should be an int: %s\n", str);
+	exit(1);
+    }
+    return v;
+}
+
 int test_main(int argc, char *const argv[]) {
+    char const* dirname = NULL;
     int i;
     int n = -1;
     int ntxn = -1;
@@ -149,31 +170,30 @@ int test_main(int argc, char *const argv[]) {
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0) {
             verbose = 1;
-            continue;
-        }
-        if (strcmp(argv[i], "-n") == 0) {
-            if (i+1 < argc)
-                n = atoi(argv[++i]);
-            continue;
-        }
-        if (strcmp(argv[i], "-ntxn") == 0) {
-            if (i+1 < argc)
-                ntxn = atoi(argv[++i]);
-            continue;
-        }
-        if (strcmp(argv[i], "-populate") == 0) {
+        } else if (strcmp(argv[i], "-n") == 0) {
+	    assert(i+1 < argc);
+	    n = parseint(argv[++i]);
+        } else if (strcmp(argv[i], "-ntxn") == 0) {
+	    assert(i+1 < argc);
+	    ntxn = parseint(argv[++i]);
+        } else if (strcmp(argv[i], "-populate") == 0) {
             do_populate = TRUE;
-            continue;
-        }
+        } else if (strcmp(argv[i], "-h")==0) {
+	    assert(i+1<argc);
+	    dirname = argv[++i];
+	} else {
+	    fprintf(stderr, "What is this argument? %s\n", argv[i]);
+	    exit(1);
+	}
     }
               
     if (n >= 0)
-        root_fifo_41(n, ntxn == -1 ? 1 : ntxn, do_populate);
+        root_fifo_41(n, ntxn == -1 ? 1 : ntxn, do_populate, dirname);
     else {
         for (i=0; i<100; i++) {
             for (ntxn=1; ntxn<=4; ntxn++) {
-                root_fifo_41(i, ntxn, FALSE);
-                root_fifo_41(i, ntxn, TRUE);
+                root_fifo_41(i, ntxn, FALSE, dirname);
+                root_fifo_41(i, ntxn, TRUE, dirname);
             }
         }
     }

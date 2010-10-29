@@ -716,6 +716,16 @@ loader-cleanup-test0.tdbrun: loader-cleanup-test.tdb$(BINSUF)
 loader-cleanup-test1.tdbrun: loader-cleanup-test.tdb$(BINSUF)
 	$(VGRIND) ./$< -s -r 8000 -p -e 1 $(SUMMARIZE_CMD)
 
+ROOT_FIFO_41_RUNS = $(foreach num, $(shell seq 1 100), root_fifo_41_$(num)_populate.tdbrun root_fifo_41_$(num)_nopopulate.tdbrun)
+root_fifo_41.tdbrun: $(ROOT_FIFO_41_RUNS)
+	@echo -n
+root_fifo_41_%_populate.tdbrun: root_fifo_41.tdb
+	$(VGRIND) ./$< -n $(patsubst root_fifo_41_%_populate.tdbrun, %, $@)   -h $(patsubst %.tdbrun, %.tdbdir, $@) -populate $(SUMMARIZE_CMD)
+	@rm -rf $(patsubst %.tdbrun, %.dir, $@) 
+root_fifo_41_%_nopopulate.tdbrun: root_fifo_41.tdb
+	$(VGRIND) ./$< -n $(patsubst root_fifo_41_%_nopopulate.tdbrun, %, $@) -h $(patsubst %.tdbrun, %.tdbdir, $@)           $(SUMMARIZE_CMD)
+	@rm -rf $(patsubst %.tdbrun, %.dir, $@) 
+
 LOADER_USE_DEFAULT_TESTS = create-abort create-close no-puts reference-test stress-test tpch-load
 
 loader-tests: $(LOADER_TESTS)
