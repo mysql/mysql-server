@@ -552,9 +552,9 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
   const char *wkb_end;
   Gis_point p;
 
-  if (len < 4)
+  if (len < 4 ||
+      (n_points= wkb_get_uint(wkb, bo))<1)
     return 0;
-  n_points= wkb_get_uint(wkb, bo);
   proper_length= 4 + n_points * POINT_DATA_SIZE;
 
   if (len < proper_length || res->reserve(proper_length))
@@ -1434,9 +1434,9 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
   const char *wkb_orig= wkb;
 
   if (len < 4 ||
-      (n_points= wkb_get_uint(wkb, bo)) < 1)
+      (n_line_strings= wkb_get_uint(wkb, bo)< 1))
     return 0;
-  n_line_strings= wkb_get_uint(wkb, bo);
+  ;
 
   if (res->reserve(4, 512))
     return 0;
