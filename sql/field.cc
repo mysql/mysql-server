@@ -7254,11 +7254,6 @@ uint32 Field_varstring::data_length()
   return length_bytes == 1 ? (uint32) *ptr : uint2korr(ptr);
 }
 
-uint32 Field_varstring::used_length()
-{
-  return length_bytes == 1 ? 1 + (uint32) (uchar) *ptr : 2 + uint2korr(ptr);
-}
-
 /*
   Functions to create a packed row.
   Here the number of length bytes are depending on the given max_length
@@ -8097,12 +8092,6 @@ void Field_blob::sql_type(String &res) const
 uchar *Field_blob::pack(uchar *to, const uchar *from,
                         uint max_length, bool low_byte_first)
 {
-  DBUG_ENTER("Field_blob::pack");
-  DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx;"
-                       " max_length: %u; low_byte_first: %d",
-                       (ulong) to, (ulong) from,
-                       max_length, low_byte_first));
-  DBUG_DUMP("record", from, table->s->reclength);
   uchar *save= ptr;
   ptr= (uchar*) from;
   uint32 length=get_length();			// Length of from string
@@ -8123,8 +8112,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
     memcpy(to+packlength, from,length);
   }
   ptr=save;					// Restore org row pointer
-  DBUG_DUMP("packed", to, packlength + length);
-  DBUG_RETURN(to+packlength+length);
+  return to+packlength+length;
 }
 
 
@@ -8898,6 +8886,69 @@ uint Field_enum::is_equal(Create_field *new_field)
     return IS_EQUAL_NO;
 
   return IS_EQUAL_YES;
+}
+
+
+uchar *Field_enum::pack(uchar *to, const uchar *from,
+                        uint max_length, bool low_byte_first)
+{
+  DBUG_ENTER("Field_enum::pack");
+  DBUG_PRINT("debug", ("packlength: %d", packlength));
+  DBUG_DUMP("from", from, packlength);
+  uchar *result= to + 1;
+
+  switch (packlength)
+  {
+  case 1:
+    *to = *from;
+    break;
+  case 2:
+    result= pack_int16(to, from, low_byte_first);
+    break;
+  case 3:
+    result= pack_int24(to, from, low_byte_first);
+    break;
+  case 4:
+    result= pack_int32(to, from, low_byte_first);
+    break;
+  case 8:
+    result= pack_int64(to, from, low_byte_first);
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  DBUG_RETURN(result);
+}
+
+const uchar *Field_enum::unpack(uchar *to, const uchar *from,
+                                uint param_data, bool low_byte_first)
+{
+  DBUG_ENTER("Field_enum::unpack");
+  DBUG_PRINT("debug", ("packlength: %d", packlength));
+  DBUG_DUMP("from", from, packlength);
+  const uchar *result= from + 1;
+
+  switch (packlength)
+  {
+  case 1:
+    *to = *from;
+    break;
+  case 2:
+    result= unpack_int16(to, from, low_byte_first);
+    break;
+  case 3:
+    result= unpack_int24(to, from, low_byte_first);
+    break;
+  case 4:
+    result= unpack_int32(to, from, low_byte_first);
+    break;
+  case 8:
+    result= unpack_int64(to, from, low_byte_first);
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  DBUG_RETURN(result);
 }
 
 

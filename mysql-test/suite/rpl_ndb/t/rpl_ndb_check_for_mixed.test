@@ -10,7 +10,7 @@
 
 --source include/have_ndb.inc
 --source include/have_log_bin.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 disable_query_log;
 # so that both ROW and MIXED is output as MIXED

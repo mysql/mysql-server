@@ -864,6 +864,7 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   DBUG_RETURN(1);
 }
 
+#ifndef MCP_WL342
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
 {
   char buf[16];
@@ -884,7 +885,7 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
   }
   DBUG_RETURN(1);
 }
-
+#endif
 
 /*
   Check if the error is caused by network.
@@ -925,12 +926,11 @@ bool is_network_error(uint errorno)
 
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
 {
-  char error_buf[MAX_SLAVE_ERRMSG];
-  String err_msg(error_buf, sizeof(error_buf), &my_charset_bin);
+  char err_buff[MAX_SLAVE_ERRMSG];
+  const char* errmsg= 0;
   int err_code= 0;
   MYSQL_RES *master_res= 0;
   MYSQL_ROW master_row;
-  err_msg.length(0);
   DBUG_ENTER("get_master_version_and_clock");
 
   /*
@@ -942,8 +942,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
 
   if (!my_isdigit(&my_charset_bin,*mysql->server_version))
   {
-    err_msg.append("Master reported unrecognized MySQL version");
+    errmsg = "Master reported unrecognized MySQL version";
     err_code= ER_SLAVE_FATAL_ERROR;
+    sprintf(err_buff, ER(err_code), errmsg);
   }
   else
   {
@@ -955,8 +956,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     case '0':
     case '1':
     case '2':
-      err_msg.append("Master reported unrecognized MySQL version");
+      errmsg = "Master reported unrecognized MySQL version";
       err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
       break;
     case '3':
       mi->rli.relay_log.description_event_for_queue= new
@@ -988,14 +990,15 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
      events sent by the master, and there will be error messages.
   */
 
-  if (err_msg.length() != 0)
+  if (errmsg)
     goto err;
 
   /* as we are here, we tried to allocate the event */
   if (!mi->rli.relay_log.description_event_for_queue)
   {
-    err_msg.append("default Format_description_log_event");
+    errmsg= "default Format_description_log_event";
     err_code= ER_SLAVE_CREATE_EVENT_FAILURE;
+    sprintf(err_buff, ER(err_code), errmsg);
     goto err;
   }
 
@@ -1068,22 +1071,28 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
-    if ((::server_id == (mi->master_id= strtoul(master_row[1], 0, 10))) &&
+    if ((::server_id == strtoul(master_row[1], 0, 10)) &&
         !mi->rli.replicate_same_server_id)
     {
-      err_msg.append("The slave I/O thread stops because master and slave have equal \
+      errmsg= "The slave I/O thread stops because master and slave have equal \
 MySQL server ids; these ids must be different for replication to work (or \
 the --replicate-same-server-id option must be used on slave but this does \
-not always make sense; please check the manual before using it).");
+not always make sense; please check the manual before using it).";
       err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
       goto err;
     }
+#ifndef MCP_BUG47037
+    mi->master_id= strtoul(master_row[1], 0, 10);
     if (mi->master_id == 0 && mi->ignore_server_ids.elements > 0)
     {
-      err_msg.append("Slave configured with server id filtering could not detect the master server id.");
+      errmsg= "Slave configured with server id filtering could not detect "
+        "the master server id.";
       err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
       goto err;
     }
+#endif
   }
   else if (mysql_errno(mysql))
   {
@@ -1094,18 +1103,17 @@ not always make sense; please check the manual before using it).");
       goto network_err;
     }
     /* Fatal error */
-    err_msg.append("The slave I/O thread stops because a fatal error is"
-                   " encountered when it try to get the value of SERVER_ID"
-                   " variable from master. Error: ");
-    err_msg.append(mysql_error(mysql));
-    err_code= ER_SLAVE_FATAL_ERROR;
+    errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of SERVER_ID variable from master.";
+    err_code= mysql_errno(mysql);
+    sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
     goto err;
   }
   else if (!master_row && master_res)
   {
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
                "Unknown system variable 'SERVER_ID' on master, \
- maybe it is a *VERY OLD MASTER*.");
+maybe it is a *VERY OLD MASTER*.");
   }
   if (master_res)
   {
@@ -1144,11 +1152,11 @@ not always make sense; please check the manual before using it).");
     {
       if (strcmp(master_row[0], global_system_variables.collation_server->name))
       {
-        err_msg.append("The slave I/O thread stops because master and"
-                       " slave have different values for the COLLATION_SERVER"
-                       " global variable. The values must be equal for the"
-                       " Statement-format replication to work");
+        errmsg= "The slave I/O thread stops because master and slave have \
+different values for the COLLATION_SERVER global variable. The values must \
+be equal for the Statement-format replication to work";
         err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, ER(err_code), errmsg);
         goto err;
       }
     }
@@ -1161,19 +1169,17 @@ not always make sense; please check the manual before using it).");
     else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE)
     {
       /* Fatal error */
-      err_msg.append("The slave I/O thread stops because a fatal error is"
-                     " encountered when it try to get the value of"
-                     " COLLATION_SERVER global variable from master."
-                     " Error: ");
-      err_msg.append(mysql_error(mysql));
+      errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of COLLATION_SERVER global variable from master.";
       err_code= mysql_errno(mysql);
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
     }
     else
       mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
                  "Unknown system variable 'COLLATION_SERVER' on master, \
- maybe it is a *VERY OLD MASTER*. *NOTE*: slave may experience          \
- inconsistency if replicated data deals with collation.");
+maybe it is a *VERY OLD MASTER*. *NOTE*: slave may experience          \
+inconsistency if replicated data deals with collation.");
     
     if (master_res)
     {
@@ -1197,7 +1203,6 @@ not always make sense; please check the manual before using it).");
     This check is only necessary for 4.x masters (and < 5.0.4 masters but
     those were alpha).
   */
-  
   if (*mysql->server_version == '4')
   {
     master_res= NULL;
@@ -1208,11 +1213,11 @@ not always make sense; please check the manual before using it).");
       if (strcmp(master_row[0],
                  global_system_variables.time_zone->get_name()->ptr()))
       {
-        err_msg.append("The slave I/O thread stops because master and slave"
-                       " have different values for the TIME_ZONE global"
-                       " variable. The values must be equal for the"
-                       " Statement-format replication to work");
+        errmsg= "The slave I/O thread stops because master and slave have \
+different values for the TIME_ZONE global variable. The values must \
+be equal for the Statement-format replication to work";
         err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, ER(err_code), errmsg);
         goto err;
       }
     }
@@ -1225,12 +1230,10 @@ not always make sense; please check the manual before using it).");
     else
     {
       /* Fatal error */
-      err_msg.append("The slave I/O thread stops because a fatal error"
-                     " is encountered when it try to get the value of"
-                     " TIME_ZONE global variable from master."
-                     " Error: ");
-      err_msg.append(mysql_error(mysql));
+      errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of TIME_ZONE global variable from master.";
       err_code= mysql_errno(mysql);
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
     }
     if (master_res)
@@ -1239,7 +1242,8 @@ not always make sense; please check the manual before using it).");
       master_res= NULL;
     }
   }
-  
+
+#ifndef MCP_WL342
   if (mi->heartbeat_period != 0.0)
   {
     char llbuf[22];
@@ -1254,32 +1258,24 @@ not always make sense; please check the manual before using it).");
     if (mysql_real_query(mysql, query, strlen(query))
         && !check_io_slave_killed(mi->io_thd, mi, NULL))
     {
-      err_msg.append("The slave I/O thread stops because querying master with '");
-      err_msg.append(query);
-      err_msg.append("' failed;");
-      err_msg.append(" error: ");
-      err_msg.append(mysql_errno(mysql));
-      err_msg.append("  '");
-      err_msg.append(mysql_error(mysql));
-      err_msg.append("'");
-      mysql_free_result(mysql_store_result(mysql));
+      errmsg= "The slave I/O thread stops because SET @master_heartbeat_period "
+        "on master failed.";
       err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+      mysql_free_result(mysql_store_result(mysql));
       goto err;
     }
     mysql_free_result(mysql_store_result(mysql));
   }
-  
-err:
-  if (master_res)
-  {
-    mysql_free_result(master_res);
-    master_res= NULL;
-  }
+#endif
 
-  if (err_msg.length() != 0)
+err:
+  if (errmsg)
   {
+    if (master_res)
+      mysql_free_result(master_res);
     DBUG_ASSERT(err_code != 0);
-    mi->report(ERROR_LEVEL, err_code, "%s", err_msg.ptr());
+    mi->report(ERROR_LEVEL, err_code, "%s", err_buff);
     DBUG_RETURN(1);
   }
 
@@ -1689,12 +1685,17 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Last_IO_Error", 20));
   field_list.push_back(new Item_return_int("Last_SQL_Errno", 4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Last_SQL_Error", 20));
+#ifndef MCP_WL3127
   field_list.push_back(new Item_empty_string("Master_Bind",
                                              sizeof(mi->bind_addr)));
+#endif
+#ifndef MCP_BUG47037
   field_list.push_back(new Item_empty_string("Replicate_Ignore_Server_Ids",
                                              FN_REFLEN));
   field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
+#endif
+
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
@@ -1815,7 +1816,10 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->rli.last_error().number);
     // Last_SQL_Error
     protocol->store(mi->rli.last_error().message, &my_charset_bin);
+#ifndef MCP_WL3127
     protocol->store(mi->bind_addr, &my_charset_bin);
+#endif
+#ifndef MCP_BUG47037
     // Replicate_Ignore_Server_Ids
     {
       char buff[FN_REFLEN];
@@ -1845,6 +1849,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     }
     // Master_Server_id
     protocol->store((uint32) mi->master_id);
+#endif
 
     pthread_mutex_unlock(&mi->rli.err_lock);
     pthread_mutex_unlock(&mi->err_lock);
@@ -2239,11 +2244,12 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     log (remember that now the relay log starts with its Format_desc,
     has a Rotate etc).
   */
-
+#ifndef MCP_BUG52305
   /* 
      Set the unmasked and actual server ids from the event 
    */
   thd->unmasked_server_id = ev->unmasked_server_id;
+#endif
   thd->server_id = ev->server_id; // use the original server id for logging
   thd->set_time();                            // time the query
   thd->lex->current_select= 0;
@@ -2497,7 +2503,7 @@ on this slave.\
   DBUG_RETURN(1);
 }
 
-
+#ifndef MCP_BUG47037
 /**
    A master info read method
 
@@ -2584,7 +2590,7 @@ err:
     my_free(buf_act, MYF(0));
   DBUG_RETURN(ret);
 }
-
+#endif
 
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
 {
@@ -2916,8 +2922,12 @@ Stopping slave I/O thread due to out-of-memory error from master");
 
       retry_count=0;                    // ok event, reset retry counter
       thd_proc_info(thd, "Queueing master event to the relay log");
-      if (queue_event(mi,(const char*)mysql->net.read_pos + 1, event_len))
+      if (queue_event(mi,(const char*)mysql->net.read_pos + 1,
+                      event_len))
       {
+        mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                   ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                   "could not queue event from master");
         goto err;
       }
       if (flush_master_info(mi, TRUE, TRUE))
@@ -3821,13 +3831,17 @@ static int queue_old_event(Master_info *mi, const char *buf,
 static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
   int error= 0;
+#ifndef MCP_WL342
   String error_msg;
+#endif
   ulong inc_pos;
   Relay_log_info *rli= &mi->rli;
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
-  ulong s_id;
   DBUG_ENTER("queue_event");
 
+#ifndef MCP_BUG47037
+  ulong s_id;
+#endif
   LINT_INIT(inc_pos);
 
   if (mi->rli.relay_log.description_event_for_queue->binlog_version<4 &&
@@ -3857,7 +3871,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     Rotate_log_event rev(buf,event_len,mi->rli.relay_log.description_event_for_queue);
     if (unlikely(process_io_rotate(mi,&rev)))
     {
+#ifndef MCP_WL342
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
+#else
+      error= 1;
+#endif
       goto err;
     }
     /*
@@ -3884,7 +3902,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
           Log_event::read_log_event(buf, event_len, &errmsg,
                                     mi->rli.relay_log.description_event_for_queue)))
     {
+#ifndef MCP_WL342
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
+#else
+      error= 2;
+#endif
       goto err;
     }
     delete mi->rli.relay_log.description_event_for_queue;
@@ -3903,7 +3925,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   }
   break;
-
+#ifndef MCP_WL342
   case HEARTBEAT_LOG_EVENT:
   {
     /*
@@ -3952,7 +3974,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     goto skip_relay_logging;
   }
   break;
-    
+#endif
   default:
     inc_pos= event_len;
     break;
@@ -3972,13 +3994,17 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   */
 
   pthread_mutex_lock(log_lock);
+
+#ifndef MCP_BUG47037
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
+#ifndef MCP_BUG52305
   /*
     If server_id_bits option is set we need to mask out irrelevant bits
     when checking server_id, but we still put the full unmasked server_id
     into the Relay log so that it can be accessed when applying the event
   */
   s_id&= opt_server_id_mask;
+#endif
   if ((s_id == ::server_id && !mi->rli.replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set
@@ -3992,6 +4018,10 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         /* for the master meta information is necessary */
         (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
         buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT))))
+#else
+  if ((uint4korr(buf + SERVER_ID_OFFSET) == ::server_id) &&
+      !mi->rli.replicate_same_server_id)
+#endif
   {
     /*
       Do not write it to the relay log.
@@ -4006,6 +4036,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       But events which were generated by this slave and which do not exist in
       the master's binlog (i.e. Format_desc, Rotate & Stop) should not increment
       mi->master_log_pos.
+    */
+#ifndef MCP_BUG47037
+    /*
       If the event is originated remotely and is being filtered out by
       IGNORE_SERVER_IDS it increments mi->master_log_pos
       as well as rli->group_relay_log_pos.
@@ -4014,6 +4047,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
         buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&
         buf[EVENT_TYPE_OFFSET] != STOP_EVENT))
+#else
+    if (buf[EVENT_TYPE_OFFSET]!=FORMAT_DESCRIPTION_EVENT &&
+        buf[EVENT_TYPE_OFFSET]!=ROTATE_EVENT &&
+        buf[EVENT_TYPE_OFFSET]!=STOP_EVENT)
+#endif
     {
       mi->master_log_pos+= inc_pos;
       memcpy(rli->ign_master_log_name_end, mi->master_log_name, FN_REFLEN);
@@ -4021,8 +4059,13 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->master_log_pos;
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
+#ifndef MCP_BUG47037
     DBUG_PRINT("info", ("master_log_pos: %lu, event originating from %u server, ignored",
                         (ulong) mi->master_log_pos, uint4korr(buf + SERVER_ID_OFFSET)));
+#else
+    DBUG_PRINT("info", ("master_log_pos: %lu, event originating from the same server, ignored",
+                        (ulong) mi->master_log_pos));
+#endif
   }
   else
   {
@@ -4034,23 +4077,31 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     }
     else
+#ifndef MCP_WL342
     {
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
     }
+#else
+      error= 3;
+#endif
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
   }
   pthread_mutex_unlock(log_lock);
 
+
+#ifndef MCP_WL342
 skip_relay_logging:
-  
+#endif
 err:
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_PRINT("info", ("error: %d", error));
+#ifndef MCP_WL342
   if (error)
     mi->report(ERROR_LEVEL, error, ER(error), 
                (error == ER_SLAVE_RELAY_LOG_WRITE_FAILURE)?
                "could not queue event from master" :
                error_msg.ptr());
+#endif
   DBUG_RETURN(error);
 }
 
@@ -4160,11 +4211,13 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
+#ifndef MCP_WL3127
   if (mi->bind_addr[0])
   {
     DBUG_PRINT("info",("BIND ADDR: %s",mi->bind_addr));
     mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
   }
+#endif
 
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
@@ -4564,8 +4617,13 @@ static Log_event* next_event(Relay_log_info* rli)
         */
         pthread_mutex_unlock(&rli->log_space_lock);
         pthread_cond_broadcast(&rli->log_space_cond);
+#ifndef MCP_WL342
         // Note that wait_for_update_relay_log unlocks lock_log !
         rli->relay_log.wait_for_update_relay_log(rli->sql_thd);
+#else
+        // Note that wait_for_update unlocks lock_log !
+        rli->relay_log.wait_for_update(rli->sql_thd, 1);
+#endif
         // re-acquire data lock since we released it earlier
         pthread_mutex_lock(&rli->data_lock);
         rli->last_master_timestamp= save_timestamp;

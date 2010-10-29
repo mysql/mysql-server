@@ -758,5 +758,8 @@ const GsnName SignalNames [] = {
   ,{ GSN_SYNC_REQ, "SYNC_REQ" }
   ,{ GSN_SYNC_REF, "SYNC_REF" }
   ,{ GSN_SYNC_CONF, "SYNC_CONF" }
+
+  ,{ GSN_SYNC_PATH_REQ, "SYNC_PATH_REQ" }
+  ,{ GSN_SYNC_PATH_CONF, "SYNC_PATH_CONF" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

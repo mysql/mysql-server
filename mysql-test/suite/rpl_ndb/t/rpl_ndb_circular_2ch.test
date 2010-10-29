@@ -5,7 +5,7 @@
 # independent channels between two clusters
 #############################################################
 --source include/have_ndb.inc
---source include/ndb_master-slave_2ch.inc
+--source suite/rpl_ndb/ndb_master-slave_2ch.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --echo
 
