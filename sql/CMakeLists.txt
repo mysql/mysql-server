@@ -72,6 +72,7 @@ SET (SQL_SOURCE
                sql_profile.cc event_parse_data.cc
                sql_bootstrap.cc
                sql_signal.cc mdl.cc
+               gcalc_slicescan.cc gcalc_tools.cc
                sql_alloc_error_handler.cc
                transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
                datadict.cc sql_reload.cc
