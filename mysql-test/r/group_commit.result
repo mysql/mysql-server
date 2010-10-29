@@ -3,11 +3,11 @@ SELECT variable_value INTO @commits FROM information_schema.global_status
 WHERE variable_name = 'binlog_commits';
 SELECT variable_value INTO @group_commits FROM information_schema.global_status
 WHERE variable_name = 'binlog_group_commits';
-SET DEBUG_SYNC= "commit_after_group_log_xid SIGNAL group1_running WAIT_FOR group2_queued";
+SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group1_running WAIT_FOR group2_queued";
 INSERT INTO t1 VALUES ("con1");
 set DEBUG_SYNC= "now WAIT_FOR group1_running";
 SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL group2_con2";
-SET DEBUG_SYNC= "commit_after_release_LOCK_group_commit WAIT_FOR group3_committed";
+SET DEBUG_SYNC= "commit_after_release_LOCK_log WAIT_FOR group3_committed";
 SET DEBUG_SYNC= "commit_after_group_run_commit_ordered SIGNAL group2_visible WAIT_FOR group2_checked";
 INSERT INTO t1 VALUES ("con2");
 SET DEBUG_SYNC= "now WAIT_FOR group2_con2";
@@ -25,7 +25,7 @@ SELECT * FROM t1 ORDER BY a;
 a
 con1
 SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group3_con5";
-SET DEBUG_SYNC= "commit_after_get_LOCK_group_commit SIGNAL con5_leader WAIT_FOR con6_queued";
+SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con5_leader WAIT_FOR con6_queued";
 INSERT INTO t1 VALUES ("con5");
 SET DEBUG_SYNC= "now WAIT_FOR con5_leader";
 SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL con6_queued";

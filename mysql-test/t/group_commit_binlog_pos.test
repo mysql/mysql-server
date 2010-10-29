@@ -23,7 +23,7 @@ connect(con3,localhost,root,,);
 # Queue up three commits for group commit.
 
 connection con1;
-SET DEBUG_SYNC= "commit_after_get_LOCK_group_commit SIGNAL con1_waiting WAIT_FOR con3_queued";
+SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con1_waiting WAIT_FOR con3_queued";
 SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont EXECUTE 3";
 send INSERT INTO t1 VALUES (1);
 
