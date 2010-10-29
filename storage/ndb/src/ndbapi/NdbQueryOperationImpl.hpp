@@ -364,8 +364,10 @@ private:
    */
   Uint32 m_globalCursor;
 
-  /** Number of root fragments not yet completed within the current batch.*/
-  Uint32 m_pendingFrags;
+  /** Number of root fragments not yet completed within the current batch.
+   *  Only access w/ PollGuard mutex as it is also updated by receiver threa 
+   */
+  Uint32 m_pendingFrags;  // BEWARE: protect with PollGuard mutex
 
   /** Number of fragments to be read by the root operation. (1 if root 
    * operation is a lookup)*/
@@ -394,7 +396,7 @@ private:
    * m_finalBatchFrags==m_rootFragCount, all tuples for the final batches may
    * still not have been received (i.e. m_pendingFrags>0).
    */
-  Uint32 m_finalBatchFrags;
+  Uint32 m_finalBatchFrags; // BEWARE: protect with PollGuard mutex
 
   /** Number of IndexBounds set by API (index scans only) */
   Uint32 m_num_bounds;
