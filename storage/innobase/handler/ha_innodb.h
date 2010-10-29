@@ -210,7 +210,7 @@ class ha_innobase: public handler
 					   uint key_length,
 					   qc_engine_callback *call_back,
 					   ulonglong *engine_data);
-	static char *get_mysql_bin_log_name();
+	static const char *get_mysql_bin_log_name();
 	static ulonglong get_mysql_bin_log_pos();
 	bool primary_key_is_clustered();
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
@@ -276,14 +276,13 @@ int thd_binlog_format(const MYSQL_THD thd);
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 
-#if MYSQL_VERSION_ID > 50140
 /**
   Check if binary logging is filtered for thread's current db.
   @param  thd   Thread handle
   @retval 1 the query is not filtered, 0 otherwise.
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
-#endif /* MYSQL_VERSION_ID > 50140 */
+
 /**
   Check if the query may generate row changes which
   may end up in the binary.
