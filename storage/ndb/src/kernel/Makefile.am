@@ -26,8 +26,10 @@ if BUILD_NDBMTD
 ndbbin_PROGRAMS += ndbmtd
 endif
 
-ndbd_SOURCES = main.cpp ndbd.cpp angel.cpp SimBlockList.cpp
-ndbmtd_SOURCES = main.cpp ndbd.cpp angel.cpp SimBlockList.cpp
+ndbd_SOURCES = main.cpp ndbd.cpp angel.cpp SimBlockList.cpp \
+               $(top_srcdir)/storage/ndb/src/common/portlib/NdbNuma.cpp
+ndbmtd_SOURCES = main.cpp ndbd.cpp angel.cpp SimBlockList.cpp \
+                 $(top_srcdir)/storage/ndb/src/common/portlib/NdbNuma.cpp
 
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
@@ -67,7 +69,7 @@ LIBS= \
               $(top_builddir)/dbug/libdbuglt.la \
               $(top_builddir)/mysys/libmysyslt.la \
               $(top_builddir)/strings/libmystringslt.la \
-              @ZLIB_LIBS@ @NDB_SCI_LIBS@ 
+              @ZLIB_LIBS@ @NDB_SCI_LIBS@ @LIBDL@
 
 ndbd_LDADD = $(LIBS) vm/libsched.a
 ndbmtd_LDADD = $(LIBS) vm/libsched_mt.a
