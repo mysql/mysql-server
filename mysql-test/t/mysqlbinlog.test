@@ -492,11 +492,13 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;
 # WL#5625: Deprecate mysqlbinlog options --base64-output=always and --base64-output
 #
 
---echo # Expect deprecation warning.
+--echo # Expect error for unknown argument.
+--error 1
 --exec $MYSQL_BINLOG --base64-output=always std_data/master-bin.000001 > /dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 --cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 
---echo # Expect deprecation warning again.
+--echo # Expect error for unknown argument again.
+--error 1
 --exec $MYSQL_BINLOG --base64-output std_data/master-bin.000001 > /dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 --cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 
