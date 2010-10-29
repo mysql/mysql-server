@@ -6088,6 +6088,8 @@ lock_table_locks_check(
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
@@ -6109,6 +6111,8 @@ lock_table_locks_check(
 			}
 		}
 	}
+
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(NULL);
 }
