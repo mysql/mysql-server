@@ -242,6 +242,22 @@ btr_cur_pessimistic_insert(
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr);	/*!< in: mtr */
 /*************************************************************//**
+See if there is enough place in the page modification log to log
+an update-in-place.
+@return	TRUE if enough place */
+UNIV_INTERN
+ibool
+btr_cur_update_alloc_zip(
+/*=====================*/
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	buf_block_t*	block,	/*!< in/out: buffer page */
+	dict_index_t*	index,	/*!< in: the index corresponding to the block */
+	ulint		length,	/*!< in: size needed */
+	ibool		create,	/*!< in: TRUE=delete-and-insert,
+				FALSE=update-in-place */
+	mtr_t*		mtr)	/*!< in: mini-transaction */
+	__attribute__((nonnull, warn_unused_result));
+/*************************************************************//**
 Updates a record when the update causes no size changes in its fields.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN

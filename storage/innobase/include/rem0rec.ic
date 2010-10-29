@@ -98,9 +98,6 @@ and the shift needed to obtain each bit-field of the record. */
 #define	REC_INFO_BITS_MASK	0xF0UL
 #define REC_INFO_BITS_SHIFT	0
 
-/* The deleted flag in info bits */
-#define REC_INFO_DELETED_FLAG	0x20UL	/* when bit is set to 1, it means the
-					record has been delete marked */
 /* The following masks are used to filter the SQL null bit from
 one-byte and two-byte offsets */
 
