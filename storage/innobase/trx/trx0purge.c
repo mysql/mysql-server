@@ -397,6 +397,7 @@ trx_purge_free_segment(
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	do {
+
 		/* Here we assume that a file segment with just the header
 		page can be freed in a few steps, so that the buffer pool
 		is not flooded with bufferfixed pages: see the note in
