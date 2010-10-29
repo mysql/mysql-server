@@ -50,6 +50,7 @@ bool Rpl_info_factory::create(uint mi_option, Master_info **mi,
   if (!((*rli)= Rpl_info_factory::create_rli(rli_option, relay_log_recovery)))
   {
     delete *mi;
+    *mi= NULL;
     DBUG_RETURN(TRUE);
   }
 
@@ -265,7 +266,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, Rpl_info_table **table,
   {
     *msg= "Multiple replication metadata repository instances "
           "found with data in them. Unable to decide which is "
-          " the correct one to choose.";
+          "the correct one to choose.";
     DBUG_RETURN(error);
   }
 
