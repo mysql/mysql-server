@@ -20,7 +20,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
                    )
 
 IF(WIN32)
- SET(EXTRA_LIB wsock32 ws2_32)
   SET(EXTRA_SRC ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
 ENDIF(WIN32)
 ADD_LIBRARY(ndbportlib STATIC
@@ -28,7 +27,7 @@ ADD_LIBRARY(ndbportlib STATIC
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
             NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp
             ndb_daemon.cc ${EXTRA_SRC})
-TARGET_LINK_LIBRARIES(ndbportlib mysys ${EXTRA_LIB})
+TARGET_LINK_LIBRARIES(ndbportlib mysys)
 
 ADD_EXECUTABLE(NdbDir-t
   NdbDir.cpp
@@ -37,12 +36,4 @@ SET_TARGET_PROPERTIES(NdbDir-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_NDBDIR")
 TARGET_LINK_LIBRARIES(NdbDir-t ndbportlib)
 
-#ADD_EXECUTABLE(memtest memtest.c)
-#TARGET_LINK_LIBRARIES(memtest ndbportlib wsock32)
-
-#ADD_EXECUTABLE(PortLibTest NdbPortLibTest.cpp)
-#TARGET_LINK_LIBRARIES(PortLibTest ndbportlib wsock32)
-
-#ADD_EXECUTABLE(munmaptest munmaptest.cpp)
-#TARGET_LINK_LIBRARIES(munmaptest ndbportlib wsock32)
 

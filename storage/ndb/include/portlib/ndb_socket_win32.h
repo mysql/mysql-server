@@ -18,6 +18,9 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+/* Link with winsock library */
+#pragma comment(lib, "ws2_32")
+
 #include <ndb_global.h>
 
 #define MY_SOCKET_FORMAT "%p"
