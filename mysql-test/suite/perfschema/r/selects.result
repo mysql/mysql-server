@@ -84,22 +84,22 @@ id	c
 13	[EVENT_ID]
 DROP TRIGGER t_ps_trigger;
 DROP PROCEDURE IF EXISTS t_ps_proc;
-CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
+CREATE PROCEDURE t_ps_proc(IN conid INT, OUT pid INT)
 BEGIN
-SELECT id FROM performance_schema.THREADS
-WHERE THREAD_ID = tid INTO pid;
+SELECT thread_id FROM performance_schema.THREADS
+WHERE PROCESSLIST_ID = conid INTO pid;
 END;
 |
-CALL t_ps_proc(0, @p_id);
+CALL t_ps_proc(connection_id(), @p_id);
 DROP FUNCTION IF EXISTS t_ps_proc;
-CREATE FUNCTION t_ps_func(tid INT) RETURNS int
+CREATE FUNCTION t_ps_func(conid INT) RETURNS int
 BEGIN
-return (SELECT id FROM performance_schema.THREADS
-WHERE THREAD_ID = tid);
+return (SELECT thread_id FROM performance_schema.THREADS
+WHERE PROCESSLIST_ID = conid);
 END;
 |
-SELECT t_ps_func(0) = @p_id;
-t_ps_func(0) = @p_id
+SELECT t_ps_func(connection_id()) = @p_id;
+t_ps_func(connection_id()) = @p_id
 1
 SELECT * FROM t_event;
 EVENT_ID

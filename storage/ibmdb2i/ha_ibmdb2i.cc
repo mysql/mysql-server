@@ -1806,6 +1806,13 @@ int ha_ibmdb2i::delete_all_rows()
 }
 
 
+int ha_ibmdb2i::truncate()
+{
+  int error = delete_all_rows();
+  return error ? error : reset_auto_increment(0);
+}
+
+
 int ha_ibmdb2i::external_lock(THD *thd, int lock_type)
 {
   int rc = 0;

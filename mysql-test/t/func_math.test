@@ -466,3 +466,9 @@ SELECT 2 DIV -2;
 SELECT -(1 DIV 0);
 # Crashed the server with SIGFPE before the bugfix
 SELECT -9223372036854775808 MOD -1;
+
+--echo #
+--echo # Bug #57209 valgrind + Assertion failed: dst > buf 
+--echo #
+SELECT floor(log10(format(concat_ws(5445796E25, 5306463, 30837), -358821)))
+as foo;

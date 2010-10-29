@@ -31,7 +31,7 @@
 # $master_connection
 #   See wait_for_slave_param.inc for description.
 
-if (`SELECT '$slave_io_errno' = ''`) {
+if (!$slave_io_errno) {
   --die !!!ERROR IN TEST: you must set \$slave_io_errno before sourcing wait_for_slave_io_error.inc
 }
 
