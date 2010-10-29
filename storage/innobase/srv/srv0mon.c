@@ -312,6 +312,13 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Length of the TRX_RSEG_HISTORY list",
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, MONITOR_RSEG_HISTORY_LEN},
 
+	{"trx_num_undo_slot_used", "Transaction", "Number of undo slots used",
+	 0, MONITOR_NUM_UNDO_SLOT_USED},
+
+	{"trx_num_undo_slot_cached", "Transaction",
+	 "Number of undo slots cached",
+	 0, MONITOR_NUM_UNDO_SLOT_CACHED},
+
 	{"trx_rseg_cur_size", "Transaction",
 	 "Current rollback segment size in pages",
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, MONITOR_RSEG_CUR_SIZE},
