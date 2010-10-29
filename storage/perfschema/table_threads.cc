@@ -34,13 +34,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("ID") },
+    { C_STRING_WITH_LEN("PROCESSLIST_ID") },
     { C_STRING_WITH_LEN("int(11)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
+    { C_STRING_WITH_LEN("varchar(128)") },
     { NULL, 0}
   }
 };
@@ -140,7 +140,7 @@ void table_threads::make_row(PFS_thread *pfs)
 }
 
 int table_threads::read_row_values(TABLE *table,
-                                   unsigned char *,
+                                   unsigned char *buf,
                                    Field **fields,
                                    bool read_all)
 {
@@ -150,7 +150,8 @@ int table_threads::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  DBUG_ASSERT(table->s->null_bytes == 1);
+  buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
   {
@@ -161,7 +162,7 @@ int table_threads::read_row_values(TABLE *table,
       case 0: /* THREAD_ID */
         set_field_ulong(f, m_row.m_thread_internal_id);
         break;
-      case 1: /* ID */
+      case 1: /* PROCESSLIST_ID */
         set_field_ulong(f, m_row.m_thread_id);
         break;
       case 2: /* NAME */

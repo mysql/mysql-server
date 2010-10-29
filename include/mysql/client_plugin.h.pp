@@ -1,5 +1,3 @@
-#include <stdarg.h>
-#include <stdlib.h>
 struct st_mysql_client_plugin
 {
   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(); int (*options)(const char *option, const void *);

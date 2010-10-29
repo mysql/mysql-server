@@ -3853,6 +3853,9 @@ GROUP_CONCAT(IFNULL(a,''))
 SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
 GROUP_CONCAT(IF(a,a,''))
 1234567
+SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
+GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END)
+1234567
 SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					COALESCE(a,'')	253	9	7	Y	0	31	8
