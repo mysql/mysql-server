@@ -136,20 +136,30 @@ os_cond_wait_timed(
 #ifndef __WIN__
 	const struct timespec*	abstime		/*!< in: timeout */
 #else
-	ulint			time_in_ms	/*!< in: timeout in
+	DWORD			time_in_ms	/*!< in: timeout in
 						milliseconds*/
 #endif /* !__WIN__ */
 )
 {
 #ifdef __WIN__
-	BOOL			ret;
+	BOOL	ret;
+	DWORD	err;
 
 	ut_a(sleep_condition_variable != NULL);
 
 	ret = sleep_condition_variable(cond, mutex, time_in_ms);
 
-	if (!ret && GetLastError() == WAIT_TIMEOUT) {
-		return(TRUE);
+	if (!ret) {
+		err = GetLastError();
+		/* From http://msdn.microsoft.com/en-us/library/ms686301%28VS.85%29.aspx,
+		"Condition variables are subject to spurious wakeups
+		(those not associated with an explicit wake) and stolen wakeups
+		(another thread manages to run before the woken thread)."
+		Check for both types of timeouts.
+		Conditions are checked by the caller.*/
+		if ((err == WAIT_TIMEOUT) || (err == ERROR_TIMEOUT)) {
+			return(TRUE);
+		}
 	}
 
 	ut_a(ret);
@@ -163,12 +173,15 @@ os_cond_wait_timed(
 	switch (ret) {
 	case 0:
 	case ETIMEDOUT:
-	       	break;
+	/* We play it safe by checking for EINTR even though
+	according to the POSIX documentation it can't return EINTR. */
+	case EINTR:
+		break;
 
 	default:
 		fprintf(stderr, "  InnoDB: pthread_cond_timedwait() returned: "
 				"%d: abstime={%lu,%lu}\n",
-			       	ret, abstime->tv_sec, abstime->tv_nsec);
+				ret, (ulong) abstime->tv_sec, (ulong) abstime->tv_nsec);
 		ut_error;
 	}
 
@@ -655,7 +668,7 @@ os_event_wait_time_low(
 		ut_a(event);
 
 		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-			time_in_ms = time_in_ms / 1000;
+			time_in_ms = time_in_usec / 1000;
 			err = WaitForSingleObject(event->handle, time_in_ms);
 		} else {
 			err = WaitForSingleObject(event->handle, INFINITE);
@@ -663,7 +676,7 @@ os_event_wait_time_low(
 
 		if (err == WAIT_OBJECT_0) {
 			return(0);
-		} else if (err == WAIT_TIMEOUT) {
+		} else if ((err == WAIT_TIMEOUT) || (err == ERROR_TIMEOUT)) {
 			return(OS_SYNC_TIME_EXCEEDED);
 		}
 
