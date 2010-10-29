@@ -1701,6 +1701,7 @@ srv_suspend_mysql_thread(
 	    && wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+		MONITOR_INC(MONITOR_TIMEOUT);
 	}
 
 	if (trx_is_interrupted(trx)) {
@@ -2287,7 +2288,6 @@ loop:
 				if (trx->wait_lock) {
 					lock_cancel_waiting_and_release(
 						trx->wait_lock);
-					MONITOR_INC(MONITOR_TIMEOUT);
 				}
 			}
 		}
