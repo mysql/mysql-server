@@ -76,6 +76,12 @@ struct os_event_struct {
 					/*!< list of all created events */
 };
 
+/** Denotes an infinite delay for os_event_wait_time() */
+#define OS_SYNC_INFINITE_TIME   ULINT_UNDEFINED
+
+/** Return value of os_event_wait_time() when the time is exceeded */
+#define OS_SYNC_TIME_EXCEEDED   1
+
 /** Operating system mutex */
 typedef struct os_mutex_struct	os_mutex_str_t;
 /** Operating system mutex handle */
@@ -173,7 +179,23 @@ os_event_wait_low(
 					os_event_reset(). */
 
 #define os_event_wait(event) os_event_wait_low(event, 0)
+#define os_event_wait_time(e, t) os_event_wait_time_low(event, t, 0)
 
+/**********************************************************//**
+Waits for an event object until it is in the signaled state or
+a timeout is exceeded. In Unix the timeout is always infinite.
+@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+UNIV_INTERN
+ulint
+os_event_wait_time_low(
+/*===================*/
+	os_event_t	event,			/*!< in: event to wait */
+	ulint		time_in_usec,		/*!< in: timeout in
+						microseconds, or
+						OS_SYNC_INFINITE_TIME */
+	ib_int64_t	reset_sig_count);	/*!< in: zero or the value
+						returned by previous call of
+						os_event_reset(). */
 /*********************************************************//**
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (mutex_t) should be used where possible.
@@ -396,6 +418,41 @@ clobbered */
 # define IB_ATOMICS_STARTUP_MSG \
 	"Mutexes and rw_locks use InnoDB's own implementation"
 #endif
+
+/**********************************************************//**
+Following macros are used to update specified counter atomically
+if HAVE_ATOMIC_BUILTINS defined. Otherwise, use mutex passed in
+for synchronization */
+#ifdef HAVE_ATOMIC_BUILTINS
+#define os_increment_counter_by_amount(mutex, counter, amount)	\
+	(void) os_atomic_increment_ulint(&counter, amount)
+
+#define os_decrement_counter_by_amount(mutex, counter, amount)	\
+	(void) os_atomic_increment_ulint(&counter, (-((long)(amount))))
+#else
+#define os_increment_counter_by_amount(mutex, counter, amount)	\
+	do {							\
+		mutex_enter(&(mutex));				\
+		(counter) += (amount);				\
+		mutex_exit(&(mutex));				\
+	} while (0)
+
+#define os_decrement_counter_by_amount(mutex, counter, amount)	\
+	do {							\
+		ut_a(counter >= amount);			\
+		mutex_enter(&(mutex));				\
+		(counter) -= (amount);				\
+		mutex_exit(&(mutex));				\
+	} while (0)
+#endif  /* HAVE_ATOMIC_BUILTINS */
+
+#define os_inc_counter(mutex, counter)				\
+	os_increment_counter_by_amount(mutex, counter, 1)
+
+#define os_dec_counter(mutex, counter)				\
+	do {							\
+		os_decrement_counter_by_amount(mutex, counter, 1);\
+	} while (0);
 
 #ifndef UNIV_NONINL
 #include "os0sync.ic"

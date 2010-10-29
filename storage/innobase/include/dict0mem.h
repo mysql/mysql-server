@@ -457,6 +457,9 @@ struct dict_table_struct{
 				to the dictionary cache */
 	unsigned	n_def:10;/*!< number of columns defined so far */
 	unsigned	n_cols:10;/*!< number of columns */
+	unsigned	can_be_evicted:1;
+				/*!< TRUE if it's not an InnoDB system table
+				or a table that has no FK relationships */
 	dict_col_t*	cols;	/*!< array of column descriptions */
 	const char*	col_names;
 				/*!< Column names packed in a character string
@@ -478,12 +481,6 @@ struct dict_table_struct{
 				which refer to this table */
 	UT_LIST_NODE_T(dict_table_t)
 			table_LRU; /*!< node of the LRU list of tables */
-	ulint		n_mysql_handles_opened;
-				/*!< count of how many handles MySQL has opened
-				to this table; dropping of the table is
-				NOT allowed until this count gets to zero;
-				MySQL does NOT itself check the number of
-				open handles at drop */
 	unsigned	fk_max_recusive_level:8;
 				/*!< maximum recursive level we support when
 				loading tables chained together with FK
@@ -504,8 +501,6 @@ struct dict_table_struct{
 				with undo logs commits, it sets this
 				to the value of the trx id counter for
 				the tables it had an IX lock on */
-	UT_LIST_BASE_NODE_T(lock_t)
-			locks; /*!< list of locks on the table */
 #ifdef UNIV_DEBUG
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
@@ -590,11 +585,24 @@ struct dict_table_struct{
 				acquired the AUTOINC lock or not. Of course
 				only one transaction can be granted the
 				lock but there can be multiple waiters. */
-	const trx_t*		autoinc_trx;
+	const trx_t*	autoinc_trx;
 				/*!< The transaction that currently holds the
 				the AUTOINC lock on this table. */
 				/* @} */
 	/*----------------------*/
+	ulint		n_rec_locks;
+				/*!< Count of the number of record locks on
+				this table. We use this to determine whether
+				we can evict the table from the dictionary
+				cache. It is protected by the lock mutex. */
+	ulint		n_ref_count;
+				/*!< count of how many handles are opened
+				to this table; dropping of the table is
+				NOT allowed until this count gets to zero;
+				MySQL does NOT itself check the number of
+				open handles at drop */
+	UT_LIST_BASE_NODE_T(lock_t)
+			locks; /*!< list of locks on the table */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

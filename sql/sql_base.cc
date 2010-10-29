@@ -2908,8 +2908,12 @@ retry_share:
     */
     if (check_and_update_table_version(thd, table_list, share))
       goto err_unlock;
-    if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
+    if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+               table_list->table_name);
       goto err_unlock;
+    }
 
     /* Open view */
     if (open_new_frm(thd, share, alias,
@@ -2937,7 +2941,11 @@ retry_share:
   */
 
   if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+             table_list->table_name);
     goto err_unlock;
+  }
 
   if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
   {
@@ -5325,7 +5333,11 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
 
 end:
   if (table == NULL)
+  {
+    if (!thd->in_sub_stmt)
+      trans_rollback_stmt(thd);
     close_thread_tables(thd);
+  }
   thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }

@@ -264,6 +264,8 @@ extern "C" sig_handler handle_segfault(int sig);
 
 /* Constants */
 
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
 static const char *tc_heuristic_recover_names[]=
@@ -3196,6 +3198,11 @@ static int init_common_variables()
     return 1;
   set_server_version();
 
+#ifndef EMBEDDED_LIBRARY
+  if (opt_help && !opt_verbose)
+    unireg_abort(0);
+#endif /*!EMBEDDED_LIBRARY*/
+
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
@@ -3233,12 +3240,11 @@ static int init_common_variables()
     desired page sizes.
   */
    int nelem;
-   int max_desired_page_size;
-   int max_page_size;
+   size_t max_desired_page_size;
    if (opt_super_large_pages)
-     max_page_size= SUPER_LARGE_PAGESIZE;
+     max_desired_page_size= SUPER_LARGE_PAGESIZE;
    else
-     max_page_size= LARGE_PAGESIZE;
+     max_desired_page_size= LARGE_PAGESIZE;
    nelem = getpagesizes(NULL, 0);
    if (nelem > 0)
    {
@@ -6741,13 +6747,8 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts("\
-Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
-Copyright (C) 2008,2009 Sun Microsystems, Inc.\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n\n\
-Starts the MySQL database server.\n");
-
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+  puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
     puts("\nFor more help options (several pages), use mysqld --verbose --help.");

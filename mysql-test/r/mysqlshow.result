@@ -115,6 +115,7 @@ Database: information_schema
 | INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM                         |
 | INNODB_CMP                            |
+| INNODB_METRICS                        |
 | INNODB_LOCKS                          |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
@@ -157,6 +158,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM                         |
 | INNODB_CMP                            |
+| INNODB_METRICS                        |
 | INNODB_LOCKS                          |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
