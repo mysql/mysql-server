@@ -1433,7 +1433,8 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
   uint32 n_line_strings;
   const char *wkb_orig= wkb;
 
-  if (len < 4)
+  if (len < 4 ||
+      (n_points= wkb_get_uint(wkb, bo)) < 1)
     return 0;
   n_line_strings= wkb_get_uint(wkb, bo);
 
