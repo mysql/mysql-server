@@ -10,6 +10,7 @@
 *.core
 *.d
 *.da
+*.dylib
 *.exe
 *.gcda
 *.gcno
@@ -607,6 +608,7 @@ include/mysql_version.h
 include/mysqld_ername.h
 include/mysqld_error.h
 include/openssl
+include/probes_mysql_dtrace.h
 include/readline
 include/readline/*.h
 include/readline/readline.h
