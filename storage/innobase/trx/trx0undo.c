@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0rec.h"
 #include "trx0purge.h"
+#include "srv0mon.h"
 
 /* How should the old versions in the history list be managed?
    ----------------------------------------------------------
@@ -499,6 +500,8 @@ trx_undo_seg_create(
 	trx_rsegf_set_nth_undo(rseg_hdr, slot_no,
 			       page_get_page_no(*undo_page), mtr);
 	*id = slot_no;
+
+	MONITOR_INC(MONITOR_NUM_UNDO_SLOT_USED);
 
 	return(err);
 }
@@ -1239,6 +1242,8 @@ trx_undo_seg_free(
 				&mtr);
 			trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL,
 					       &mtr);
+
+			MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_USED);
 		}
 
 		mutex_exit(&(rseg->mutex));
@@ -1357,6 +1362,7 @@ add_to_list:
 		} else {
 			UT_LIST_ADD_LAST(undo_list, rseg->insert_undo_cached,
 					 undo);
+			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 		}
 	} else {
 		ut_ad(type == TRX_UNDO_UPDATE);
@@ -1366,6 +1372,7 @@ add_to_list:
 		} else {
 			UT_LIST_ADD_LAST(undo_list, rseg->update_undo_cached,
 					 undo);
+			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 		}
 	}
 
@@ -1422,6 +1429,9 @@ trx_undo_lists_init(
 			rseg_header = trx_rsegf_get(
 				rseg->space, rseg->zip_size, rseg->page_no,
 				&mtr);
+
+			/* Found a used slot */
+			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_USED);
 		}
 	}
 
@@ -1641,6 +1651,8 @@ trx_undo_reuse_cached(
 		}
 
 		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, undo);
+
+		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
 		ut_ad(type == TRX_UNDO_UPDATE);
 
@@ -1651,6 +1663,8 @@ trx_undo_reuse_cached(
 		}
 
 		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, undo);
+
+		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	}
 
 	ut_ad(undo->size == 1);
@@ -1921,6 +1935,8 @@ trx_undo_update_cleanup(
 	if (undo->state == TRX_UNDO_CACHED) {
 
 		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_cached, undo);
+
+		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
 		ut_ad(undo->state == TRX_UNDO_TO_PURGE
 		      || undo->state == TRX_UNDO_TO_FREE);
@@ -1955,6 +1971,8 @@ trx_undo_insert_cleanup(
 	if (undo->state == TRX_UNDO_CACHED) {
 
 		UT_LIST_ADD_FIRST(undo_list, rseg->insert_undo_cached, undo);
+
+		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
 		ut_ad(undo->state == TRX_UNDO_TO_FREE);
 
