@@ -26,9 +26,10 @@ static void make_db (int n_locks) {
     CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
+    r = env->set_redzone(env, 0); assert(r == 0);
     env->set_errfile(env, 0);
     if (n_locks>0) {
-	r=env->set_lk_max_locks(env, n_locks); CKERR(r);
+	r=env->set_lk_max_locks(env, n_locks+2); CKERR(r);
         /* test the get_lk_max_locks method */
         u_int32_t set_locks;
 #ifdef TOKUDB
@@ -37,7 +38,7 @@ static void make_db (int n_locks) {
         assert(r == EINVAL);
 #endif
         r=env->get_lk_max_locks(env, &set_locks);
-        assert(r == 0 && set_locks == (u_int32_t)n_locks);
+        assert(r == 0 && set_locks == (u_int32_t)n_locks+2);
     }
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
@@ -52,7 +53,7 @@ static void make_db (int n_locks) {
 #else
     u_int32_t datasize = 1;
 #endif
-    int effective_n_locks = (n_locks<0) ? 1000 : n_locks;
+    int effective_n_locks = (n_locks<0) ? 998 : n_locks;
     // create even numbered keys 0 2 4 ...  (effective_n_locks*32-2)
     
     r=env->txn_begin(env, 0, &tid, 0);    CKERR(r);
