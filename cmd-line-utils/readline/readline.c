@@ -447,11 +447,10 @@ readline_internal_char ()
 readline_internal_charloop ()
 #endif
 {
-  static int lastc, eof_found;
+  static int lastc;
   int c, code, lk;
 
   lastc = -1;
-  eof_found = 0;
 
 #if !defined (READLINE_CALLBACKS)
   while (rl_done == 0)
