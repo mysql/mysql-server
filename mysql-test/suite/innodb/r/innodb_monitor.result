@@ -79,6 +79,7 @@ trx_active_trx	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disa
 trx_num_row_purged	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows purged
 trx_purge_delay	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Microseconds DML to be delayed due to purge lagging
 trx_rseg_history_len	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Length of the TRX_RSEG_HISTORY list
+trx_rseg_cur_size	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Current rollback segment size in pages
 log_num_checkpoint	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of checkpoints
 log_lsn_last_flush	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Last flush's LSN
 log_lsn_last_checkpoint	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	LSN at last checkpoint
@@ -181,6 +182,7 @@ trx_active_trx	disabled
 trx_num_row_purged	disabled
 trx_purge_delay	disabled
 trx_rseg_history_len	disabled
+trx_rseg_cur_size	disabled
 log_num_checkpoint	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -284,6 +286,7 @@ trx_active_trx	enabled
 trx_num_row_purged	enabled
 trx_purge_delay	enabled
 trx_rseg_history_len	enabled
+trx_rseg_cur_size	enabled
 log_num_checkpoint	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
@@ -389,6 +392,7 @@ trx_active_trx	disabled
 trx_num_row_purged	disabled
 trx_purge_delay	disabled
 trx_rseg_history_len	disabled
+trx_rseg_cur_size	disabled
 log_num_checkpoint	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -492,6 +496,7 @@ trx_active_trx	0	disabled
 trx_num_row_purged	0	disabled
 trx_purge_delay	0	disabled
 trx_rseg_history_len	0	disabled
+trx_rseg_cur_size	0	disabled
 log_num_checkpoint	0	disabled
 log_lsn_last_flush	0	disabled
 log_lsn_last_checkpoint	0	disabled
