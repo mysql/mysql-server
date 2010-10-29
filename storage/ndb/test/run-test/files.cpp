@@ -310,7 +310,7 @@ setup_files(atrt_config& config, int setup, int sshx)
         fprintf(fenv, "#!/bin/sh\n");
         fprintf(fenv, "cd %s\n", proc.m_proc.m_cwd.c_str());
         fprintf(fenv, "[ -f /etc/profile ] && . /etc/profile\n");
-        fprintf(fenv, ". env.sh\n");
+        fprintf(fenv, ". ./env.sh\n");
         fprintf(fenv, "ulimit -Sc unlimited\n");
         fprintf(fenv, "bash -i");
         fflush(fenv);
