@@ -303,6 +303,7 @@ int Mrr_simple_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 {
   HANDLER_BUFFER no_buffer = {NULL, NULL, NULL};
   h= h_arg;
+  res= 0;
   return h->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
                                            mode, &no_buffer);
 }
@@ -558,6 +559,9 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
                               sizeof(void*));
 
   last_identical_rowid= NULL;
+
+  if (index_reader->eof())
+    DBUG_RETURN(0);
 
   while (rowid_buffer->can_write())
   {

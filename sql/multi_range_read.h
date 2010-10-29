@@ -126,8 +126,8 @@ public:
   index tuple or a table record.
 
   Getting HA_ERR_END_OF_FILE from get_next() means that the source should be
-  re-filled. if eof() returns true after refill attempt, then end of stream has
-  been reached and get_next() must not be called anymore.
+  re-filled. if eof() returns true after refill attempt, then the end of 
+  stream has been reached and get_next() must not be called anymore.
 */
 
 class Mrr_reader 
