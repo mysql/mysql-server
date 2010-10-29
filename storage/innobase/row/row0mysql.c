@@ -2860,15 +2860,6 @@ row_truncate_table_for_mysql(
 
 	trx->table_id = table->id;
 
-	/* Lock all index trees for this table, as we will
-	truncate the table/index and possibly change their metadata.
-	All DML/DDL are blocked by table level lock, with
-	a few exceptions such as queries into information schema
-	about the table, MySQL could try to access index stats
-	for this kind of query, we need to use index locks to
-	sync up */
-	dict_table_x_lock_indexes(table);
-
 	if (table->space && !table->dir_path_of_temp_table) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
@@ -2880,6 +2871,11 @@ row_truncate_table_for_mysql(
 			dict_index_t*	index;
 
 			dict_hdr_get_new_id(NULL, NULL, &space);
+
+			/* Lock all index trees for this table. We must
+			do so after dict_hdr_get_new_id() to preserve
+			the latch order */
+			dict_table_x_lock_indexes(table);
 
 			if (space == ULINT_UNDEFINED
 			    || fil_create_new_single_table_tablespace(
@@ -2914,6 +2910,15 @@ row_truncate_table_for_mysql(
 					FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 			mtr_commit(&mtr);
 		}
+	} else {
+		/* Lock all index trees for this table, as we will
+		truncate the table/index and possibly change their metadata.
+		All DML/DDL are blocked by table level lock, with
+		a few exceptions such as queries into information schema
+		about the table, MySQL could try to access index stats
+		for this kind of query, we need to use index locks to
+		sync up */
+		dict_table_x_lock_indexes(table);
 	}
 
 	/* scan SYS_INDEXES for all indexes of the table */
@@ -3213,40 +3218,6 @@ check_next_foreign:
 		goto check_next_foreign;
 	}
 
-	/* FIXME: There is a bug in the old code, ideally when dropping
-	a table no other transaction should have any locks on the table
-	but they do. For now we don't use the stricter check.
-
-	if (table->n_ref_count > 0 || table->n_rec_locks > 0) { */
-
-	if (table->n_ref_count > 0) {
-		ibool	added;
-
-		added = row_add_table_to_background_drop_list(table->name);
-
-		if (added) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Warning: MySQL is"
-			      " trying to drop table ", stderr);
-			ut_print_name(stderr, trx, TRUE, table->name);
-			fputs("\n"
-			      "InnoDB: though there are still"
-			      " open handles to it.\n"
-			      "InnoDB: Adding the table to the"
-			      " background drop queue.\n",
-			      stderr);
-
-			/* We return DB_SUCCESS to MySQL though the drop will
-			happen lazily later */
-			err = DB_SUCCESS;
-		} else {
-			/* The table is already in the background drop list */
-			err = DB_ERROR;
-		}
-
-		goto funct_exit;
-	}
-
 	/* TODO: could we replace the counter n_foreign_key_checks_running
 	with lock checks on the table? Acquire here an exclusive lock on the
 	table, and rewrite lock0lock.c and the lock wait in srv0srv.c so that
@@ -3284,8 +3255,59 @@ check_next_foreign:
 		goto funct_exit;
 	}
 
-	/* Remove all locks there are on the table or its records */
-	lock_remove_all_on_table(table, TRUE);
+	/* Remove all locks that are on the table or its records, if there
+	are no refernces to the table but it has record locks, we release
+	the record locks unconditionally. One use case is:
+
+		CREATE TABLE t2 (PRIMARY KEY (a)) SELECT * FROM t1;
+
+	If after the user transaction has done the SELECT and there is a
+       	problem in completing the CREATE TABLE operation, MySQL will drop
+       	the table. InnoDB will create a new background transaction to do the
+       	actual drop, the trx instance that is passed to this function. To
+       	preserve existing behaviour we remove the locks but ideally we
+       	shouldn't have to. There should never be record locks on a table
+       	that is going to be dropped. */
+
+	if (table->n_ref_count == 0) {
+		lock_remove_all_on_table(table, TRUE);
+		ut_a(table->n_rec_locks == 0);
+	} else if (table->n_ref_count > 0 || table->n_rec_locks > 0) {
+		ibool	added;
+
+		added = row_add_table_to_background_drop_list(table->name);
+
+		if (added) {
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Warning: MySQL is"
+			      " trying to drop table ", stderr);
+			ut_print_name(stderr, trx, TRUE, table->name);
+			fputs("\n"
+			      "InnoDB: though there are still"
+			      " open handles to it.\n"
+			      "InnoDB: Adding the table to the"
+			      " background drop queue.\n",
+			      stderr);
+
+			/* We return DB_SUCCESS to MySQL though the drop will
+			happen lazily later */
+			err = DB_SUCCESS;
+		} else {
+			/* The table is already in the background drop list */
+			err = DB_ERROR;
+		}
+
+		goto funct_exit;
+	}
+
+	/* If we get this far then the table to be dropped must not have
+       	any table or record locks on it. */
+
+	ut_a(table->n_rec_locks == 0);
+	ut_d(mutex_enter(&kernel_mutex));
+	ut_ad(UT_LIST_GET_LEN(table->locks) == 0);
+	ut_ad(lock_table_has_locks(table) == NULL);
+	ut_d(mutex_exit(&kernel_mutex));
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	trx->table_id = table->id;
