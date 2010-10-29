@@ -7973,6 +7973,7 @@ static int show_default_keycache(THD *thd, SHOW_VAR *var, char *buff)
   set_one_keycache_var("blocks_not_flushed", blocks_changed);
   set_one_keycache_var("blocks_unused",      blocks_unused);
   set_one_keycache_var("blocks_used",        blocks_used);
+  set_one_keycache_var("blocks_warm",        blocks_warm);
   set_one_keycache_var("read_requests",      read_requests);
   set_one_keycache_var("reads",              reads);
   set_one_keycache_var("write_requests",     write_requests);

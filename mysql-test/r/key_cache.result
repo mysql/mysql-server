@@ -412,6 +412,7 @@ Variable_name	Value
 Key_blocks_not_flushed	0
 Key_blocks_unused	KEY_BLOCKS_UNUSED
 Key_blocks_used	4
+Key_blocks_warm	0
 Key_read_requests	22
 Key_reads	0
 Key_write_requests	26
@@ -459,6 +460,7 @@ Variable_name	Value
 Key_blocks_not_flushed	0
 Key_blocks_unused	KEY_BLOCKS_UNUSED
 Key_blocks_used	4
+Key_blocks_warm	0
 Key_read_requests	22
 Key_reads	0
 Key_write_requests	26
@@ -501,6 +503,7 @@ Variable_name	Value
 Key_blocks_not_flushed	0
 Key_blocks_unused	KEY_BLOCKS_UNUSED
 Key_blocks_used	4
+Key_blocks_warm	0
 Key_read_requests	22
 Key_reads	0
 Key_write_requests	26

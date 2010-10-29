@@ -4906,6 +4906,7 @@ void get_simple_key_cache_statistics(SIMPLE_KEY_CACHE_CB *keycache,
   keycache_stats->blocks_used= keycache->blocks_used;
   keycache_stats->blocks_unused= keycache->blocks_unused;
   keycache_stats->blocks_changed= keycache->global_blocks_changed;
+  keycache_stats->blocks_warm= keycache->warm_blocks;
   keycache_stats->read_requests= keycache->global_cache_r_requests;
   keycache_stats->reads= keycache->global_cache_read;
   keycache_stats->write_requests= keycache->global_cache_w_requests;
@@ -5797,6 +5798,7 @@ get_partitioned_key_cache_statistics(PARTITIONED_KEY_CACHE_CB *keycache,
     keycache_stats->blocks_used+= partition->blocks_used;
     keycache_stats->blocks_unused+= partition->blocks_unused;
     keycache_stats->blocks_changed+= partition->global_blocks_changed;
+    keycache_stats->blocks_warm+= partition->warm_blocks;
     keycache_stats->read_requests+= partition->global_cache_r_requests;
     keycache_stats->reads+= partition->global_cache_read;
     keycache_stats->write_requests+= partition->global_cache_w_requests;

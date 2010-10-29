@@ -46,6 +46,7 @@ typedef struct st_key_cache_statistics
   ulonglong blocks_used;    /* maximum number of used blocks/buffers         */ 
   ulonglong blocks_unused;  /* number of currently unused blocks             */
   ulonglong blocks_changed; /* number of currently dirty blocks              */
+  ulonglong blocks_warm;    /* number of blocks in warm sub-chain            */
   ulonglong read_requests;  /* number of read requests (read hits)           */
   ulonglong reads;        /* number of actual reads from files into buffers  */
   ulonglong write_requests; /* number of write requests (write hits)         */
