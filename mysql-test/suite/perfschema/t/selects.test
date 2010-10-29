@@ -136,17 +136,17 @@ DROP PROCEDURE IF EXISTS t_ps_proc;
 --enable_warnings
 delimiter |;
 
-CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
+CREATE PROCEDURE t_ps_proc(IN conid INT, OUT pid INT)
 BEGIN
-   SELECT id FROM performance_schema.THREADS
-   WHERE THREAD_ID = tid INTO pid;
+   SELECT thread_id FROM performance_schema.THREADS
+   WHERE PROCESSLIST_ID = conid INTO pid;
 END;
 
 |
 
 delimiter ;|
 
-CALL t_ps_proc(0, @p_id);
+CALL t_ps_proc(connection_id(), @p_id);
 
 # FUNCTION
 
@@ -155,17 +155,17 @@ DROP FUNCTION IF EXISTS t_ps_proc;
 --enable_warnings
 delimiter |;
 
-CREATE FUNCTION t_ps_func(tid INT) RETURNS int
+CREATE FUNCTION t_ps_func(conid INT) RETURNS int
 BEGIN
-   return (SELECT id FROM performance_schema.THREADS
-           WHERE THREAD_ID = tid);
+   return (SELECT thread_id FROM performance_schema.THREADS
+           WHERE PROCESSLIST_ID = conid);
 END;
 
 |
 
 delimiter ;|
 
-SELECT t_ps_func(0) = @p_id;
+SELECT t_ps_func(connection_id()) = @p_id;
 
 # We might reach this point too early which means the event scheduler has not
 # execute our "t_ps_event". Therefore we poll till the record was inserted
