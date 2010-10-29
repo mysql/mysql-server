@@ -1718,8 +1718,13 @@ lock_rec_create(
 	/* Set the bit corresponding to rec */
 	lock_rec_set_nth_bit(lock, heap_no);
 
+	index->table->n_rec_locks++;
+
+	ut_ad(index->table->n_ref_count > 0 || !index->table->can_be_evicted);
+
 	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), lock);
+
 	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
@@ -2263,6 +2268,8 @@ lock_rec_dequeue_from_page(
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
 
+	in_lock->index->table->n_rec_locks--;
+
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
 
@@ -2308,6 +2315,8 @@ lock_rec_discard(
 
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
+
+	in_lock->index->table->n_rec_locks--;
 
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
@@ -3624,6 +3633,8 @@ lock_table_create(
 
 	lock->un_member.tab_lock.table = table;
 
+	ut_ad(table->n_ref_count > 0 || !table->can_be_evicted);
+
 	UT_LIST_ADD_LAST(un_member.tab_lock.locks, table->locks, lock);
 
 	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
@@ -3683,7 +3694,7 @@ lock_table_remove_low(
 		}
 
 		ut_a(table->n_waiting_or_granted_auto_inc_locks > 0);
-		--table->n_waiting_or_granted_auto_inc_locks;
+		table->n_waiting_or_granted_auto_inc_locks--;
 	}
 
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
@@ -4018,9 +4029,9 @@ lock_release_off_kernel(
 /*====================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
+	lock_t*		lock;
 	dict_table_t*	table;
 	ulint		count;
-	lock_t*		lock;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -4035,6 +4046,7 @@ lock_release_off_kernel(
 		if (lock_get_type_low(lock) == LOCK_REC) {
 
 			lock_rec_dequeue_from_page(lock);
+
 		} else {
 			ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
 
@@ -4878,11 +4890,11 @@ loop:
 			ut_a(rec);
 			offsets = rec_get_offsets(rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
-
+#if 0
 			fprintf(stderr,
 				"Validating %lu %lu\n",
 				(ulong) space, (ulong) page_no);
-
+#endif
 			lock_mutex_exit_kernel();
 
 			/* If this thread is holding the file space
@@ -5770,3 +5782,46 @@ lock_rec_get_page_no(
 
 	return(lock->un_member.rec_lock.page_no);
 }
+
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Check if there are any locks (table or rec) against table.
+@return	lock if found */
+UNIV_INTERN
+lock_t*
+lock_table_has_locks(
+/*=================*/
+	const dict_table_t*	table)	/*!< in: check if there are any locks
+					held on records in this table or on the
+					table itself */
+{
+	trx_t*			trx;
+
+	ut_a(table != NULL);
+	ut_ad(mutex_own(&kernel_mutex));
+
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+		lock_t*	lock;
+
+		for (lock = UT_LIST_GET_FIRST(trx->trx_locks);
+		     lock != NULL;
+		     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+
+			ut_a(lock->trx == trx);
+
+			if (lock_get_type_low(lock) == LOCK_REC) {
+				if (lock->index->table == table) {
+					return(lock);
+				}
+			} else if (lock->un_member.tab_lock.table == table) {
+				return(lock);
+			}
+		}
+	}
+
+	return(NULL);
+}
+#endif /* UNIV_DEBUG */

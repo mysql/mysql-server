@@ -118,6 +118,9 @@ UNIV_INTERN ulint	fil_n_pending_log_flushes		= 0;
 /** Number of pending tablespace flushes */
 UNIV_INTERN ulint	fil_n_pending_tablespace_flushes	= 0;
 
+/** Number of files currently open */
+UNIV_INTERN ulint	fil_n_file_opened			= 0;
+
 /** The null file address */
 UNIV_INTERN fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
@@ -804,6 +807,7 @@ add_size:
 	node->open = TRUE;
 
 	system->n_open++;
+	fil_n_file_opened++;
 
 	if (space->purpose == FIL_TABLESPACE && space->id != 0) {
 		/* Put the node to the LRU list */
@@ -837,6 +841,7 @@ fil_node_close_file(
 	node->open = FALSE;
 	ut_a(system->n_open > 0);
 	system->n_open--;
+	fil_n_file_opened--;
 
 	if (node->space->purpose == FIL_TABLESPACE && node->space->id != 0) {
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);

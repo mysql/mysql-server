@@ -5,20 +5,24 @@ drop table if exists t1;
 create table t1 (a varchar(100));
 insert into t1 values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 Activate debug hook and attempt to retrieve the statement from the cache.
-set session debug='+d,wait_in_query_cache_insert';
+set debug_sync="wait_in_query_cache_insert SIGNAL parked WAIT_FOR go";
 select SQL_CACHE * from t1;;
+set debug_sync="now WAIT_FOR parked";
 On a second connection; clear the query cache.
 show status like 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	1
 set global query_cache_size= 0;
 Signal the debug hook to release the lock.
-select id from information_schema.processlist where state='wait_in_query_cache_insert' into @thread_id;
-kill query @thread_id;
+set debug_sync="now SIGNAL go";
 Show query cache status.
 show status like 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	0
+a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+set debug_sync= 'RESET';
 set global query_cache_size= 0;
 use test;
 drop table t1;
@@ -32,11 +36,12 @@ SET GLOBAL concurrent_insert= 1;
 SET GLOBAL query_cache_size= 1024*512;
 SET GLOBAL query_cache_type= ON;
 # Switch to connection con1
-SET SESSION debug='+d,wait_after_query_cache_invalidate';
+SET DEBUG_SYNC = "wait_after_query_cache_invalidate SIGNAL parked WAIT_FOR go";
 # Send concurrent insert, will wait in the query cache table invalidate
 INSERT INTO t1 VALUES (4);
 # Switch to connection default
 # Wait for concurrent insert to reach the debug point
+SET DEBUG_SYNC = "now WAIT_FOR parked";
 # Switch to connection con2
 # Send SELECT that shouldn't be cached
 SELECT * FROM t1;
@@ -46,9 +51,7 @@ a
 3
 # Switch to connection default
 # Notify the concurrent insert to proceed
-SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
-WHERE STATE = 'wait_after_query_cache_invalidate' INTO @thread_id;
-KILL QUERY @thread_id;
+SET DEBUG_SYNC = "now SIGNAL go";
 # Switch to connection con1
 # Gather insert result
 SHOW STATUS LIKE "Qcache_queries_in_cache";
@@ -66,6 +69,7 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 # Disconnect
 # Restore defaults
+SET DEBUG_SYNC= 'RESET';
 RESET QUERY CACHE;
 DROP TABLE t1,t2;
 SET GLOBAL concurrent_insert= DEFAULT;
@@ -108,43 +112,48 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ** before the mutex lock in invalidate_table_internal.
 ** This will allow new result sets to be written into the QC.
 ** 
-SET SESSION debug='+d,wait_in_query_cache_invalidate1';
-SET SESSION debug='+d,wait_in_query_cache_invalidate2';
+SET DEBUG_SYNC="wait_in_query_cache_invalidate1 SIGNAL parked1_1 WAIT_FOR go1_1";
+SET DEBUG_SYNC="wait_in_query_cache_invalidate2 SIGNAL parked1_2 WAIT_FOR go1_2";
 DELETE FROM t1 WHERE a like '%a%';;
 =================================== Connection default
 ** Assert that the expect process status is obtained.
+SET DEBUG_SYNC="now WAIT_FOR parked1_1";
 **
 =================================== Connection thd2
 ** On THD2: Insert a result into the cache. This attempt will be blocked
 ** because of a debug hook placed just before the mutex lock after which
 ** the first part of the result set is written.
-SET SESSION debug='+d,wait_in_query_cache_insert';
+SET DEBUG_SYNC="wait_in_query_cache_insert SIGNAL parked2 WAIT_FOR go2 EXECUTE 1";
 SELECT SQL_CACHE * FROM t2 UNION SELECT * FROM t3;
+=================================== Connection default
+** Assert that the SELECT-stmt thread reaches the sync point.
+SET DEBUG_SYNC="now WAIT_FOR parked2";
+**
+**
 =================================== Connection thd3
 ** On THD3: Insert another result into the cache and block on the same
 ** debug hook.
-SET SESSION debug='+d,wait_in_query_cache_insert';
-SELECT SQL_CACHE * FROM t4 UNION SELECT * FROM t5;;
+SET DEBUG_SYNC="wait_in_query_cache_insert SIGNAL parked3 WAIT_FOR go3 EXECUTE 1";
+SELECT SQL_CACHE * FROM t4 UNION SELECT * FROM t5;
 =================================== Connection default
-** Assert that the two SELECT-stmt threads to reach the hook.
+** Assert that the SELECT-stmt thread reaches the sync point.
+SET DEBUG_SYNC="now WAIT_FOR parked3";
 **
 **
 ** Signal the DELETE thread, THD1, to continue. It will enter the mutex
 ** lock and set query cache status to TABLE_FLUSH_IN_PROGRESS and then
 ** unlock the mutex before stopping on the next debug hook.
-SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_invalidate1' LIMIT 1 INTO @flush_thread_id;
-KILL QUERY @flush_thread_id;
+SET DEBUG_SYNC="now SIGNAL go1_1";
 ** Assert that we reach the next debug hook.
+SET DEBUG_SYNC="now WAIT_FOR parked1_2";
 **
 ** Signal the remaining debug hooks blocking THD2 and THD3.
 ** The threads will grab the guard mutex enter the wait condition and
 ** and finally release the mutex. The threads will continue to wait
 ** until a broadcast signal reaches them causing both threads to 
 ** come alive and check the condition.
-SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' ORDER BY id ASC LIMIT 1 INTO @thread_id;
-KILL QUERY @thread_id;
-SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' ORDER BY id DESC LIMIT 1 INTO @thread_id;
-KILL QUERY @thread_id;
+SET DEBUG_SYNC="now SIGNAL go2";
+SET DEBUG_SYNC="now SIGNAL go3";
 **
 ** Finally signal the DELETE statement on THD1 one last time.
 ** The stmt will complete the query cache invalidation and return 
@@ -152,8 +161,7 @@ KILL QUERY @thread_id;
 ** One signal will be sent to the thread group waiting for executing
 ** invalidations and a broadcast signal will be sent to the thread 
 ** group holding result set writers.
-SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_invalidate2' LIMIT 1 INTO @flush_thread_id;
-KILL QUERY @flush_thread_id;
+SET DEBUG_SYNC="now SIGNAL go1_2";
 **
 *************************************************************************
 ** No tables should be locked
@@ -172,10 +180,43 @@ DELETE FROM t4;
 DELETE FROM t5;
 =================================== Connection thd1
 ** Done.
+SET DEBUG_SYNC= 'RESET';
 SET GLOBAL query_cache_size= 0;
 # Restore defaults
 RESET QUERY CACHE;
 FLUSH STATUS;
 DROP TABLE t1,t2,t3,t4,t5;
+SET GLOBAL query_cache_size= DEFAULT;
+SET GLOBAL query_cache_type= DEFAULT;
+#
+# Bug#56822: Add a thread state for sessions waiting on the query cache lock
+#
+SET @old_query_cache_size= @@GLOBAL.query_cache_size;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+SET GLOBAL concurrent_insert= 1;
+SET GLOBAL query_cache_size= 1024*512;
+SET GLOBAL query_cache_type= ON;
+# Switch to connection con1
+SET DEBUG_SYNC = "wait_in_query_cache_invalidate2 SIGNAL parked WAIT_FOR go";
+# Send INSERT, will wait in the query cache table invalidation
+INSERT INTO t1 VALUES (4);;
+# Switch to connection default
+# Wait for insert to reach the debug point
+SET DEBUG_SYNC = "now WAIT_FOR parked";
+# Switch to connection con2
+# Send a query that should wait on the query cache lock
+RESET QUERY CACHE;
+# Switch to connection default
+# Wait for the state to be reflected in the processlist
+# Signal that the query cache can be unlocked
+SET DEBUG_SYNC="now SIGNAL go";
+# Reap con1 and disconnect
+# Reap con2 and disconnect
+# Restore defaults
+SET DEBUG_SYNC= 'RESET';
+RESET QUERY CACHE;
+DROP TABLE t1;
 SET GLOBAL query_cache_size= DEFAULT;
 SET GLOBAL query_cache_type= DEFAULT;

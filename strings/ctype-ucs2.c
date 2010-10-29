@@ -1206,12 +1206,10 @@ my_strnncoll_utf16(CHARSET_INFO *cs,
                    my_bool t_is_prefix)
 {
   int s_res, t_res;
-  my_wc_t s_wc,t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while (s < se && t < te)
   {
@@ -1272,11 +1270,9 @@ my_strnncollsp_utf16(CHARSET_INFO *cs,
                      my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t s_wc, t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen, *te= t + tlen;
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   DBUG_ASSERT((slen % 2) == 0);
   DBUG_ASSERT((tlen % 2) == 0);
@@ -1452,17 +1448,15 @@ my_strnncoll_utf16_bin(CHARSET_INFO *cs,
                        my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t s_wc,t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while ( s < se && t < te )
   {
     s_res= my_utf16_uni(cs,&s_wc, s, se);
     t_res= my_utf16_uni(cs,&t_wc, t, te);
-    
+
     if (s_res <= 0 || t_res <= 0)
     {
       /* Incorrect string, compare by char value */
@@ -1472,7 +1466,7 @@ my_strnncoll_utf16_bin(CHARSET_INFO *cs,
     {
       return  my_bincmp(s, s + s_res, t, t + t_res);
     }
-    
+
     s+= s_res;
     t+= t_res;
   }
@@ -1487,10 +1481,8 @@ my_strnncollsp_utf16_bin(CHARSET_INFO *cs,
                          my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t s_wc, t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen, *te= t + tlen;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   DBUG_ASSERT((slen % 2) == 0);
   DBUG_ASSERT((tlen % 2) == 0);
