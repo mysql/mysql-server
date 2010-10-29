@@ -8889,13 +8889,6 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
         that reject nulls => the outer join can be replaced by an inner join.
       */
       table->outer_join= 0;
-      /*
-        Update TABLE::maybe_null field as it could have
-        the value(maybe_null==TRUE) based on the assumption
-        that this join is outer(see setup_table_map() func).
-      */
-      if (table->table)
-        table->table->maybe_null= FALSE;
       if (table->on_expr)
       {
         /* Add on expression to the where condition. */
@@ -13392,6 +13385,8 @@ static bool
 list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data)
 {
+  if (table->pos_in_table_list->outer_join)
+    return 0;
   for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {
     if (keynr == table->s->primary_key ||
@@ -13405,7 +13400,7 @@ list_contains_unique_index(TABLE *table,
            key_part < key_part_end;
            key_part++)
       {
-        if (key_part->field->maybe_null() || 
+        if (key_part->field->real_maybe_null() || 
             !find_func(key_part->field, data))
           break;
       }
