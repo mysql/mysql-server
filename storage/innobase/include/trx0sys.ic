@@ -246,7 +246,8 @@ trx_read_trx_id(
 }
 
 /****************************************************************//**
-Looks for the trx handle with the given id in trx_list.
+Looks for the trx handle with the given id in trx_list. Because the list
+is ordered on trx id in descending order, we try and speed things up a bit
 @return	the trx handle or NULL if not found */
 UNIV_INLINE
 trx_t*
@@ -254,17 +255,47 @@ trx_get_on_id_low(
 /*==============*/
 	trx_id_t	trx_id)	/*!< in: trx id to search for */
 {
-	trx_t*	trx;
+	trx_t*		trx;
+	ulint		len;
+	trx_t*		first;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+	len = UT_LIST_GET_LEN(trx_sys->trx_list);
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-	     trx != NULL && trx_id != trx->id;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-
+	if (len == 0) {
+		return(NULL);
 	}
 
-	return(trx);
+	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+
+	if (trx_id == trx->id) {
+		return(trx);
+	} else if (len == 1 || trx_id > trx->id) {
+		return(NULL);
+	}
+
+	first = trx;
+
+	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
+
+	if (trx_id == trx->id) {
+		return(trx);
+	} else if (trx_id < trx->id) {
+		return(NULL);
+	}
+
+	if (trx_id > (first->id + trx->id) >> 1) {
+		for (trx = UT_LIST_GET_NEXT(trx_list, first);
+	     	     trx != NULL && trx_id > trx->id;
+	     	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+		}
+	} else {
+		for (trx = UT_LIST_GET_PREV(trx_list, trx);
+	     	     trx != NULL && trx_id < trx->id;
+	     	     trx = UT_LIST_GET_PREV(trx_list, trx)) {
+		}
+	}
+
+	return((trx != NULL && trx->id == trx_id) ? trx : NULL);
 }
 
 /****************************************************************//**
