@@ -16,4 +16,20 @@
 */
 
 #cmakedefine HAVE_POSIX_MEMALIGN 1
-
+#cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
+#cmakedefine HAVE_PTHREAD_SELF 1
+#cmakedefine HAVE_SCHED_GET_PRIORITY_MIN 1
+#cmakedefine HAVE_SCHED_GET_PRIORITY_MAX 1
+#cmakedefine HAVE_SCHED_SETAFFINTIY 1
+#cmakedefine HAVE_SCHED_SETSCHEDULER 1
+#cmakedefine HAVE_PROCESSOR_BIND 1
+#cmakedefine HAVE_EPOLL_CREATE 1
+#cmakedefine HAVE_MEMALIGN 1
+#cmakedefine HAVE_SYSCONF 1
+#cmakedefine HAVE_DIRECTIO 1
+#cmakedefine HAVE_ATOMIC_SWAP32 1
+#cmakedefine HAVE_LINUX_SCHEDULING 1
+#cmakedefine HAVE_SOLARIS_AFFINITY1
+#cmakedefine HAVE_LINUX_FUTEX 1
+#cmakedefine HAVE_ATOMIC_H 1
