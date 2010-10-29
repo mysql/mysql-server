@@ -1852,6 +1852,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "64k"                    /* Max : There is no flow control...so set limit*/
   },
 
+  {
+    CFG_DB_NUMA,
+    "Numa",
+    DB_TOKEN,
+    "Enable/disable numa support (currently linux only)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1",                     /* Interleave on all numa nodes */
+    "0",                     /* Min (no numa action at all)  */
+    "1"                      /* Max */
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/

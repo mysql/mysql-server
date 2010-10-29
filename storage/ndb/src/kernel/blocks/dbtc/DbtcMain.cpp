@@ -10541,7 +10541,9 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     ptr.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
     ptr.p->stopFragTimer();
 
-    ScanFragRecPtr tmp = ptr;
+    ScanFragRecPtr tmp;
+    tmp.i = ptr.i;
+    tmp.p = ptr.p;
     list.next(ptr);
     list.remove(tmp);
     queued.add(tmp);
