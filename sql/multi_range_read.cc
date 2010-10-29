@@ -1092,9 +1092,16 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
 
 void DsMrr_impl::reset_buffer_sizes()
 {
-  rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
-  key_buffer= &backward_key_buf;
-  key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end);
+  if (strategy != index_strategy)
+  {
+    /*
+      Ok we have both ordered index reader and there is a disk rearder. 
+      Redistribute the buffer space.
+    */
+    rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
+    key_buffer= &backward_key_buf;
+    key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end);
+  }
 }
 
 /**
