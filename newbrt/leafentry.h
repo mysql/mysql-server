@@ -171,6 +171,20 @@ le_clean(uint8_t *key, uint32_t keylen,
          void (*bytes)(struct dbuf *dbuf, const void *bytes, int nbytes),
          struct dbuf *d);
 
+
+
+  //Callback contract:
+  //  Returns:
+  //      0:  Ignore this entry and go on to next one.
+  //      TOKUDB_ACCEPT: Quit early, accept this transaction record and return appropriate data
+  //      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r
+  typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
+
+  int le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
+
+  int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context);
+
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

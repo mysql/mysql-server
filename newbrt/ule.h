@@ -67,17 +67,6 @@ int apply_msg_to_leafentry(BRT_MSG   msg,
 void 
 test_msg_modify_ule(ULE ule, BRT_MSG msg);
 
-//Callback contract:
-//  Returns:
-//      0:  Ignore this entry and go on to next one.
-//      TOKUDB_ACCEPT: Quit early, accept this transaction record and return appropriate data
-//      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r
-typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
-
-int le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
-
-int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context);
-
 
 //////////////////////////////////////////////////////////////////////////////////////
 //Functions exported for test purposes only (used internally for non-test purposes).
