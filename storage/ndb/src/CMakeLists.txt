@@ -38,5 +38,3 @@ SET(NDBCLIENT_LIBS
                 ndbconf)
 
 MERGE_STATIC_LIBS(ndbclient ndbclient "${NDBCLIENT_LIBS}")
-
-TARGET_LINK_LIBRARIES(ndbclient ws2_32)
