@@ -8431,6 +8431,8 @@ uchar *Field_enum::pack(uchar *to, const uchar *from,
   default:
     DBUG_ASSERT(0);
   }
+  MY_ASSERT_UNREACHABLE();
+  DBUG_RETURN(NULL);
 }
 
 const uchar *Field_enum::unpack(uchar *to, const uchar *from,
@@ -8453,6 +8455,8 @@ const uchar *Field_enum::unpack(uchar *to, const uchar *from,
   default:
     DBUG_ASSERT(0);
   }
+  MY_ASSERT_UNREACHABLE();
+  DBUG_RETURN(NULL);
 }
 
 
