@@ -905,7 +905,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  IDENT_QUOTED
 %token  IF
 %token  IGNORE_SYM
+/* MCP_BUG47037 -> */
 %token  IGNORE_SERVER_IDS_SYM
+/* MCP_BUG47037 -< */
 %token  IMPORT
 %token  INDEXES
 %token  INDEX_SYM
@@ -966,7 +968,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LT                            /* OPERATOR */
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_HOST_SYM
+/* MCP_WL3127 -> */
 %token  MASTER_BIND_SYM
+/* MCP_WL3127 <- */
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
 %token  MASTER_PASSWORD_SYM
@@ -981,7 +985,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_SSL_VERIFY_SERVER_CERT_SYM
 %token  MASTER_SYM
 %token  MASTER_USER_SYM
+/* MCP_WL342 -> */
 %token  MASTER_HEARTBEAT_PERIOD_SYM
+/* MCP_WL342 <- */
 %token  MATCH                         /* SQL-2003-R */
 %token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
@@ -1736,12 +1742,15 @@ change:
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
             bzero((char*) &lex->mi, sizeof(lex->mi));
+#ifndef MCP_BUG47037
             /*
               resetting flags that can left from the previous CHANGE MASTER
             */
-            lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+            lex->mi.repl_ignore_server_ids_opt=
+	      LEX_MASTER_INFO::IGNORE_IDS_UNCHANGED;
             my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
                                   sizeof(::server_id), 16, 16);
+#endif
           }
           master_defs
           {}
@@ -1757,10 +1766,14 @@ master_def:
           {
             Lex->mi.host = $3.str;
           }
+/* MCP_WL3127 -> */
         | MASTER_BIND_SYM EQ TEXT_STRING_sys
           {
+#ifndef MCP_WL3127
             Lex->mi.bind_addr = $3.str;
+#endif
           }
+/* MCP_WL3127 <- */
         | MASTER_USER_SYM EQ TEXT_STRING_sys
           {
             Lex->mi.user = $3.str;
@@ -1780,7 +1793,7 @@ master_def:
         | MASTER_SSL_SYM EQ ulong_num
           {
             Lex->mi.ssl= $3 ? 
-              LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
+              LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
           }
         | MASTER_SSL_CA_SYM EQ TEXT_STRING_sys
           {
@@ -1805,12 +1818,18 @@ master_def:
         | MASTER_SSL_VERIFY_SERVER_CERT_SYM EQ ulong_num
           {
             Lex->mi.ssl_verify_server_cert= $3 ?
-              LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
+              LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
           }
+/* MCP_BUG47037 -> */
         | IGNORE_SERVER_IDS_SYM EQ '(' ignore_server_id_list ')'
           {
-            Lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
+#ifndef MCP_BUG47037
+            Lex->mi.repl_ignore_server_ids_opt=
+	      LEX_MASTER_INFO::IGNORE_IDS_ENABLE;
+#endif
           }
+/* MCP_BUG47037 <- */
+/* MCP_WL342 -> */
        | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
          {
            Lex->mi.heartbeat_period= (float) $3->val_real();
@@ -1850,10 +1869,12 @@ master_def:
              Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
            }
            Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_ENABLE;
+/* MCP_WL342 <- */
          }
         | master_file_def
         ;
 
+/* MCP_BUG47037 -> */
 ignore_server_id_list:
           /* Empty */
           | ignore_server_id
@@ -1863,8 +1884,11 @@ ignore_server_id_list:
 ignore_server_id:
           ulong_num
           {
+#ifndef MCP_BUG47037
             insert_dynamic(&Lex->mi.repl_ignore_server_ids, (uchar*) &($1));
+#endif
           }
+/* MCP_BUG47037 <- */
 
 master_file_def:
           MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys

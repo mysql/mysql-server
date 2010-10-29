@@ -1,6 +1,6 @@
 --source include/have_ucs2.inc
 --source include/have_ndb.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 #
 # MySQL Bug#15276: MySQL ignores collation-server

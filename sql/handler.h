@@ -1158,7 +1158,6 @@ public:
   ulonglong max_index_file_length;
   ulonglong delete_length;		/* Free bytes */
   ulonglong auto_increment_value;
-  ha_rows rows_updated, rows_deleted;
   /*
     The number of records in the table. 
       0    - means the table has exactly 0 rows
@@ -1618,9 +1617,15 @@ public:
     operation from the handler and instead use a generated read to
     optimise simple UPDATE's and DELETE's.
   */
-  virtual bool read_before_write_removal_possible(List<Item> *fields,
-                                                  List<Item> *values)
+  virtual bool read_before_write_removal_possible(void)
   { return FALSE; }
+  /*
+    Return the number of rows the handler has written while using
+    read before write removal
+   */
+  virtual ha_rows read_before_write_removal_rows_written(void) const
+  { DBUG_ASSERT(0); return (ha_rows) 0; }
+
 
   /**
     In an UPDATE or DELETE, if the row under the cursor was locked by another

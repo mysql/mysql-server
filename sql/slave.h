@@ -26,6 +26,7 @@
   @file
 */
 
+#ifndef MCP_WL342
 /* 
    Some of defines are need in parser even though replication is not 
    compiled in (embedded).
@@ -35,6 +36,7 @@
    The maximum is defined as (ULONG_MAX/1000) with 4 bytes ulong
 */
 #define SLAVE_MAX_HEARTBEAT_PERIOD 4294967
+#endif
 
 #ifdef HAVE_REPLICATION
 
@@ -46,6 +48,7 @@
 #define SLAVE_NET_TIMEOUT  3600
 
 #define MAX_SLAVE_ERROR    2000
+
 
 // Forward declarations
 class Relay_log_info;
@@ -223,7 +226,9 @@ extern char *report_host, *report_password;
 extern my_bool master_ssl;
 extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert;
 extern char *master_ssl_cipher, *master_ssl_key;
+#ifndef MCP_BUG52305
 extern ulong opt_server_id_mask;
+#endif
 
 extern I_List<THD> threads;
 

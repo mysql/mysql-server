@@ -13,7 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake")
+IF(NOT EXISTS ${CMAKE_SOURCE_DIR}/cmake/)
+  # No MySQL Server cmake support, use the version in storage/ndb/cmake
+  INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake")
+ENDIF()
 
 OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)
@@ -53,11 +56,12 @@ ELSE()
   ENDIF()
 ENDIF()
 
-# Disable some warnings for NDB build:
-# 4355: 'this': used in base member initializer list
-
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
-SET(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /wd4355")
+IF(MSVC)
+  # Disable some warnings for NDB build on Windows
+  # 4355: 'this': used in base member initializer list
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
+  SET(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /wd4355")
+ENDIF()
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_SUBDIRECTORY(include)
@@ -73,18 +77,22 @@ IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
 ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
-)
-
 SET(NDBCLUSTER_SOURCES
-	../../sql/ha_ndbcluster.cc
-	../../sql/ha_ndbcluster_cond.cc
-	../../sql/ha_ndbcluster_connection.cc
-	../../sql/ha_ndbcluster_binlog.cc
-	../../sql/ha_ndbinfo.cc)
-SET(NDBCLUSTER_LIBS ndbclient)
-MYSQL_STORAGE_ENGINE(NDBCLUSTER)
+  ../../sql/ha_ndbcluster.cc
+  ../../sql/ha_ndbcluster_cond.cc
+  ../../sql/ha_ndbcluster_connection.cc
+  ../../sql/ha_ndbcluster_binlog.cc
+  ../../sql/ha_ndbinfo.cc)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+
+
+IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
+  # Old plugin support on Windows only
+  INCLUDE("${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+  SET(NDBCLUSTER_LIBS ndbclient)
+  MYSQL_STORAGE_ENGINE(NDBCLUSTER)
+ELSE()
+  # New plugin support, cross-platform
+  MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
+    DEFAULT MODULE_OUTPUT_NAME ha_ndb)
+ENDIF()

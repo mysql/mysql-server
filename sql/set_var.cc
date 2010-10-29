@@ -65,7 +65,9 @@
 
 #include "events.h"
 
+#ifndef MCP_BUG52305
 extern uint opt_server_id_bits;
+#endif
 
 extern CHARSET_INFO *character_set_filesystem;
 
@@ -606,9 +608,11 @@ static sys_var_set_slave_mode slave_exec_mode(&vars,
                                               &slave_exec_mode_options,
                                               &slave_exec_mode_typelib,
                                               0);
+#ifndef MCP_WL3733
 #ifdef HAVE_REPLICATION
 static sys_var_bool_ptr         sys_slave_allow_batching(&vars, "slave_allow_batching",
                                                          &slave_allow_batching);
+#endif
 #endif
 static sys_var_set slave_type_conversions(&vars,
                                           "slave_type_conversions",
@@ -697,9 +701,11 @@ static sys_var_thd_bool
 sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
 			      &SV::engine_condition_pushdown);
 
+#ifndef MCP_BUG52305
 static sys_var_const
 sys_server_id_bits(&vars, "server_id_bits", OPT_GLOBAL, SHOW_INT, 
                    (uchar*) &opt_server_id_bits);
+#endif
 
 /* Time/date/datetime formats */
 
@@ -742,10 +748,13 @@ static sys_var_thd_bit	sys_log_binlog(&vars, "sql_log_bin",
                                        check_log_update,
                                        set_option_log_bin_bit,
 				       OPTION_BIN_LOG);
+
+#ifndef MCP_WL3733
 static sys_var_thd_bit
 sys_transaction_allow_batching(&vars, "transaction_allow_batching", 0,
                                set_option_bit,
                                OPTION_ALLOW_BATCH);
+#endif
 static sys_var_thd_bit	sys_sql_warnings(&vars, "sql_warnings", 0,
 					 set_option_bit,
 					 OPTION_WARNINGS);
@@ -1266,6 +1275,7 @@ bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
     result= check_log_update(thd, var);
   return result;
 }
+
 
 bool sys_var_thd_binlog_format::is_readonly() const
 {

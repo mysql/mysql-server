@@ -611,6 +611,21 @@ void Dbdict::packTableIntoPages(Signal* signal)
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, tableId);
     packTableIntoPages(w, tablePtr, signal);
+    if (unlikely(signal->theData[0] != 0))
+    {
+      jam();
+      Uint32 err = signal->theData[0];
+      GetTabInfoRef * ref = CAST_PTR(GetTabInfoRef, signal->getDataPtrSend());
+      ref->tableId = c_retrieveRecord.tableId;
+      ref->senderRef = reference();
+      ref->senderData = c_retrieveRecord.m_senderData;
+      ref->errorCode = err;
+      Uint32 dstRef = c_retrieveRecord.blockRef;
+      sendSignal(dstRef, GSN_GET_TABINFOREF, signal, 
+                 GetTabInfoRef::SignalLength, JBB);
+      initRetrieveRecord(0,0,0);
+      return;
+    }
     break;
   }
   case DictTabInfo::Tablespace:
@@ -733,7 +748,22 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   {
     /* This branch is run at GET_TABINFOREQ */
 
-    Uint32 err = get_fragmentation(signal, tablePtr.p->tableId);
+    Uint32 err = 0;
+    if (!ERROR_INSERTED(6025))
+    {
+      err = get_fragmentation(signal, tablePtr.p->tableId);
+    }
+    else
+    {
+      err = CreateFragmentationRef::InvalidPrimaryTable;
+    }
+    if (unlikely(err != 0))
+    { 
+      jam();
+      signal->theData[0] = err;
+      return;
+    }
+
     ndbrequire(err == 0);
     Uint16 *data = (Uint16*)&signal->theData[25];
     Uint32 count = 2 + (1 + data[0]) * data[1];
@@ -4914,7 +4944,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     if (fragments == 0)
     {
       jam();
-      tablePtr.p->fragmentCount = fragments = get_default_fragments();
+      tablePtr.p->fragmentCount = fragments = get_default_fragments(signal);
     }
 
     char buf[MAX_TAB_NAME_SIZE+1];
@@ -13942,8 +13972,13 @@ void
 Dbdict::execUTIL_PREPARE_REF(Signal *signal)
 {
   jamEntry();
+  const UtilPrepareRef * ref = CAST_CONSTPTR(UtilPrepareRef, 
+                                             signal->getDataPtr());
+  Uint32 code = ref->errorCode;
+  if (code == UtilPrepareRef::DICT_TAB_INFO_ERROR)
+    code = ref->dictErrCode;
   EVENT_TRACE;
-  ndbrequire(recvSignalUtilReq(signal, 1) == 0);
+  ndbrequire(recvSignalUtilReq(signal, code) == 0);
 }
 
 void Dbdict::execUTIL_EXECUTE_CONF(Signal *signal)
@@ -21820,7 +21855,7 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   but that i dont know how
      */
     Uint32 buckets = 240;
-    Uint32 fragments = get_default_fragments(1);
+    Uint32 fragments = get_default_fragments(signal, 1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
                          buckets,
@@ -27284,15 +27319,11 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
 // CreateHashMap: PARSE
 
 Uint32
-Dbdict::get_default_fragments(Uint32 extranodegroups)
+Dbdict::get_default_fragments(Signal* signal, Uint32 extranodegroups)
 {
   jam();
 
-  SignalT<25> signalT;
-  bzero(&signalT, sizeof(signalT));
-  Signal* signal = new (&signalT) Signal(0); // placement new
-
-  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, &signal->theData[0]);
+  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
@@ -27368,7 +27399,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     {
       jam();
 
-      fragments = get_default_fragments();
+      fragments = get_default_fragments(signal);
     }
 
     BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),

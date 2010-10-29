@@ -87,7 +87,9 @@ static char *shared_memory_base_name= 0;
 #endif
 static const char* user = 0;
 static char* pass = 0;
+#ifndef MCP_WL3126
 static char *opt_bind_addr = NULL;
+#endif
 static char *charset= 0;
 
 static uint verbose= 0;
@@ -102,8 +104,10 @@ static ulonglong rec_count= 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
 static const char* dirname_for_local_load= 0;
+#ifndef MCP_BUG52305
 uint opt_server_id_bits = 0;
 ulong opt_server_id_mask = 0;
+#endif
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -1013,9 +1017,11 @@ static struct my_option my_long_options[] =
    "argument, 'always' is used.",
    &opt_base64_output_mode_str, &opt_base64_output_mode_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef MCP_WL3126
    {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
     (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   /*
     mysqlbinlog needs charsets knowledge, to be able to convert a charset
     number found in binlog to a charset name (to be able to print things
@@ -1153,12 +1159,14 @@ that may lead to an endless loop.",
    "Used to reserve file descriptors for use by this program.",
    &open_files_limit, &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+#ifndef MCP_BUG52305
   {"server-id-bits", 255,
    "Set number of significant bits in ServerId",
    (uchar**) &opt_server_id_bits,
    (uchar**) &opt_server_id_bits,
    /* Default + Max 32 bits, minimum 7 bits */
    0, GET_UINT, REQUIRED_ARG, 32, 7, 32, 0, 0, 0},
+#endif
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1408,17 +1416,18 @@ static Exit_status safe_connect()
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
+#ifndef MCP_WL3126
   if (opt_bind_addr)
   {
     mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
   }
+#endif
 
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
 #endif
-
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {
     error("Failed on connect: %s", mysql_error(mysql));
@@ -2056,8 +2065,10 @@ int main(int argc, char** argv)
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
 
+#ifndef MCP_BUG52305
   opt_server_id_mask = (opt_server_id_bits == 32)?
     ~ ulong(0) : (1 << opt_server_id_bits) -1;
+#endif
 
   my_set_max_open_files(open_files_limit);
 

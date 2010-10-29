@@ -77,14 +77,18 @@ EXTRA_DIST =	README \
 # List of directories containing test + result files and the
 # related test data files that should be copied
 TEST_DIRS = t r include std_data std_data/parts collections \
-	std_data/ndb_backup50 std_data/ndb_backup51 \
-	std_data/ndb_backup51_data_be std_data/ndb_backup51_data_le \
-	std_data/ndb_backup51_dd std_data/ndb_backup_packed \
-	std_data/ndb_backup51_d2_be std_data/ndb_backup51_d2_le \
-	std_data/ndb_backup51_undolog_be \
-	std_data/ndb_backup51_undolog_le \
-	std_data/ndb_backup_hashmap \
-	std_data/ndb_backup_before_native_default \
+	suite/ndb/std_data/ndb_backup50 \
+	suite/ndb/std_data/ndb_backup51 \
+	suite/ndb/std_data/ndb_backup51_data_be \
+	suite/ndb/std_data/ndb_backup51_data_le \
+	suite/ndb/std_data/ndb_backup51_dd \
+	suite/ndb/std_data/ndb_backup_packed \
+	suite/ndb/std_data/ndb_backup51_d2_be \
+	suite/ndb/std_data/ndb_backup51_d2_le \
+	suite/ndb/std_data/ndb_backup51_undolog_be \
+	suite/ndb/std_data/ndb_backup51_undolog_le \
+	suite/ndb/std_data/ndb_backup_hashmap \
+	suite/ndb/std_data/ndb_backup_before_native_default \
 	std_data/funcs_1 \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \

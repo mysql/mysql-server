@@ -223,6 +223,20 @@ void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId, Uint32 extra)
   ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
 }//Dbdih::sendGCP_PREPARE()
 
+void
+Dbdih::sendSUB_GCP_COMPLETE_REP(Signal* signal, Uint32 nodeId, Uint32 extra)
+{
+  ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
+  if (!ndbd_dih_sub_gcp_complete_ack(getNodeInfo(nodeId).m_version))
+  {
+    jam();
+    c_SUB_GCP_COMPLETE_REP_Counter.clearWaitingFor(nodeId);
+  }
+  BlockReference ref = calcDihBlockRef(nodeId);
+  sendSignal(ref, GSN_SUB_GCP_COMPLETE_REP, signal,
+             SubGcpCompleteRep::SignalLength, JBA);
+}
+
 void Dbdih::sendGCP_SAVEREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   GCPSaveReq * const saveReq = (GCPSaveReq*)&signal->theData[0];
@@ -5381,6 +5395,16 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
     sendSignal(reference(), GSN_MASTER_GCPREF, signal, 
 	       MasterGCPRef::SignalLength, JBB);
   }//if
+
+  if (c_SUB_GCP_COMPLETE_REP_Counter.isWaitingFor(failedNodeId))
+  {
+    jam();
+    SubGcpCompleteAck* ack = CAST_PTR(SubGcpCompleteAck,
+                                      signal->getDataPtrSend());
+    ack->rep.senderRef = numberToRef(DBDIH, failedNodeId);
+    sendSignal(reference(), GSN_SUB_GCP_COMPLETE_ACK, signal,
+	       SubGcpCompleteAck::SignalLength, JBB);
+  }
 }//Dbdih::handleGcpStateInMaster()
  
  
@@ -5464,7 +5488,6 @@ void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
   req->masterRef = reference();
   req->failedNodeId = oldMasterId;
   sendLoopMacro(MASTER_GCPREQ, sendMASTER_GCPREQ, RNIL);
-  cgcpMasterTakeOverState = GMTOS_INITIAL;
 
   signal->theData[0] = NDB_LE_GCP_TakeoverStarted;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
@@ -5605,7 +5628,12 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
                  GCPNoMoreTrans::SignalLength, JBB);
     }
     break;
-  };
+  case MicroGcp::M_GCP_COMPLETE:
+    /**
+     * This is a master only state...
+     */
+    ndbrequire(false);
+  }
 
   MasterGCPConf::SaveState saveState;
   switch(m_gcp_save.m_state){
@@ -5855,6 +5883,9 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
     break;
   }
   case MicroGcp::M_GCP_COMMITTED:
+    jam();
+    ndbrequire(false);
+  case MicroGcp::M_GCP_COMPLETE:
     jam();
     ndbrequire(false);
 #ifndef VM_TRACE
@@ -9366,6 +9397,27 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
     CLEAR_ERROR_INSERT_VALUE;
     return;
   }
+  else if (ERROR_INSERTED(7227))
+  {
+    ndbout_c("Not sending GCP_PREPARE to %u", c_error_insert_extra);
+    c_GCP_PREPARE_Counter.clearWaitingFor();
+    NodeRecordPtr nodePtr;
+    nodePtr.i = cfirstAliveNode;
+    do {
+      jam();
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      c_GCP_PREPARE_Counter.setWaitingFor(nodePtr.i);
+      if (nodePtr.i != c_error_insert_extra)
+      {
+        sendGCP_PREPARE(signal, nodePtr.i, RNIL);
+      }
+      nodePtr.i = nodePtr.p->nextNode;
+    } while (nodePtr.i != RNIL);
+
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 200, 1);
+    return;
+  }
 #endif
 
   sendLoopMacro(GCP_PREPARE, sendGCP_PREPARE, RNIL);
@@ -9434,7 +9486,11 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   
   if (m_micro_gcp.m_enabled)
   {
-    SubGcpCompleteRep * const rep = (SubGcpCompleteRep*)signal->getDataPtr();
+    jam();
+
+    m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_COMPLETE;
+
+    SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtr();
     rep->senderRef = reference();
     rep->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
     rep->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
@@ -9443,26 +9499,40 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
 #ifdef ERROR_INSERT
     if (ERROR_INSERTED(7190))
     {
-      sendToRandomNodes("GCP_COMPLETE_REP", signal, 0, 0, RNIL,
-                        DBDIH,
-                        GSN_SUB_GCP_COMPLETE_REP,
-                        SubGcpCompleteRep::SignalLength,
-                        JBA);
+      sendToRandomNodes("GCP_COMPLETE_REP", signal,
+                        &c_SUB_GCP_COMPLETE_REP_Counter,
+                        &Dbdih::sendSUB_GCP_COMPLETE_REP);
       signal->theData[0] = 9999;
       sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+    }
+    else if (ERROR_INSERTED(7226))
+    {
+      ndbout_c("Not sending SUB_GCP_COMPLETE_REP to %u", c_error_insert_extra);
+      c_SUB_GCP_COMPLETE_REP_Counter.clearWaitingFor();
+      NodeRecordPtr nodePtr;
+      nodePtr.i = cfirstAliveNode;
+      do {
+        jam();
+        ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+        c_SUB_GCP_COMPLETE_REP_Counter.setWaitingFor(nodePtr.i);
+        if (nodePtr.i != c_error_insert_extra)
+        {
+          sendSignal(calcDihBlockRef(nodePtr.i), GSN_SUB_GCP_COMPLETE_REP,
+                     signal, SubGcpCompleteRep::SignalLength, JBA);
+        }
+        nodePtr.i = nodePtr.p->nextNode;
+      } while (nodePtr.i != RNIL);
+      SET_ERROR_INSERT_VALUE(7227);
+
+      signal->theData[0] = 9999;
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 200, 1);
     }
     else
 #endif
     {
-      NodeRecordPtr specNodePtr;
-      specNodePtr.i = cfirstAliveNode;
-      do {
-        jam();
-        ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
-        sendSignal(calcDihBlockRef(specNodePtr.i), GSN_SUB_GCP_COMPLETE_REP,
-                   signal, SubGcpCompleteRep::SignalLength, JBA);
-        specNodePtr.i = specNodePtr.p->nextNode;
-      } while (specNodePtr.i != RNIL);
+      jam();
+      // Normal path...
+      sendLoopMacro(SUB_GCP_COMPLETE_REP, sendSUB_GCP_COMPLETE_REP, RNIL);
     }
   }
 
@@ -9472,23 +9542,12 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   //-------------------------------------------------------------
   CRASH_INSERTION(7002);
 
-  /**
-   * New protocol
-   */
-  m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_IDLE;
-
   Uint32 curr_hi = (Uint32)(m_micro_gcp.m_current_gci >> 32);
   Uint32 old_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
   
   if (m_micro_gcp.m_enabled)
   {
     jam();
-
-    if (!ERROR_INSERTED(7190))
-    {
-      signal->theData[0] = DihContinueB::ZSTART_GCP;
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
-    }
   }
   else
   {
@@ -9535,13 +9594,26 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
 #endif
   
   sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ, RNIL);
-  return;
-}//Dbdih::execGCP_NODEFINISH()
+}
 
-
-void Dbdih::gcpsavereqLab(Signal*)
+void
+Dbdih::execSUB_GCP_COMPLETE_ACK(Signal* signal)
 {
-  ndbrequire(false);
+  jamEntry();
+  SubGcpCompleteAck ack = * CAST_CONSTPTR(SubGcpCompleteAck,
+                                          signal->getDataPtr());
+  Uint32 senderNodeId = refToNode(ack.rep.senderRef);
+
+  ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMPLETE);
+  receiveLoopMacro(SUB_GCP_COMPLETE_REP, senderNodeId);
+
+  m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_IDLE;
+
+  if (!ERROR_INSERTED(7190))
+  {
+    signal->theData[0] = DihContinueB::ZSTART_GCP;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
+  }
 }
 
 void
@@ -9914,8 +9986,8 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
   Callback cb;
   cb.m_callbackData = 10;
   cb.m_callbackFunction = safe_cast(&Dbdih::execGCP_TCFINISHED_sync_conf);
-  Uint32 blocks[] = { DBLQH, 0 };
-  synchronize_threads_for_blocks(signal, blocks, cb);
+  Uint32 path[] = { DBLQH, SUMA, 0 };
+  synchronize_path(signal, path, cb);
 }//Dbdih::execGCP_TCFINISHED()
 
 void
@@ -9940,13 +10012,14 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
 {
   jamEntry();
 
-  SubGcpCompleteRep* rep = (SubGcpCompleteRep*)signal->getDataPtr();
+  CRASH_INSERTION(7228);
+  SubGcpCompleteRep rep = * (SubGcpCompleteRep*)signal->getDataPtr();
   if (isMaster())
   {
-    ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_IDLE);
+    ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMPLETE);
   }
   
-  Uint32 masterRef = rep->senderRef;
+  Uint32 masterRef = rep.senderRef;
   if (m_micro_gcp.m_state == MicroGcp::M_GCP_IDLE)
   {
     jam();
@@ -9955,7 +10028,7 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
      *   signal has already arrived
      */
     m_micro_gcp.m_master_ref = masterRef;
-    return;
+    goto reply;
   }
 
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
@@ -9967,6 +10040,20 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
    */
   sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
              signal->length(), JBB);
+reply:
+  Uint32 nodeId = refToNode(masterRef);
+  if (!ndbd_dih_sub_gcp_complete_ack(getNodeInfo(nodeId).m_version))
+  {
+    jam();
+    return;
+  }
+
+  SubGcpCompleteAck* ack = CAST_PTR(SubGcpCompleteAck,
+                                    signal->getDataPtrSend());
+  ack->rep = rep;
+  ack->rep.senderRef = reference();
+  sendSignal(masterRef, GSN_SUB_GCP_COMPLETE_ACK,
+             signal, SubGcpCompleteAck::SignalLength, JBA);
 }
 
 /*****************************************************************************/
@@ -13927,6 +14014,8 @@ Dbdih::dumpGcpStop()
   ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
   ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
   ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
+  ndbout_c("c_SUB_GCP_COMPLETE_REP_Counter = %s",
+           c_SUB_GCP_COMPLETE_REP_Counter.getText());
   ndbout_c("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
   ndbout_c("c_MASTER_GCPREQ_Counter = %s", c_MASTER_GCPREQ_Counter.getText());
   ndbout_c("c_MASTER_LCPREQ_Counter = %s", c_MASTER_LCPREQ_Counter.getText());
@@ -14119,6 +14208,31 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
        */
       local = true;
       break;
+    case MicroGcp::M_GCP_COMPLETE:
+      infoEvent("Detected GCP stop(%d)...sending kill to %s",
+                m_micro_gcp.m_state, c_SUB_GCP_COMPLETE_REP_Counter.getText());
+      ndbout_c("Detected GCP stop(%d)...sending kill to %s",
+               m_micro_gcp.m_state, c_SUB_GCP_COMPLETE_REP_Counter.getText());
+
+      {
+        NodeReceiverGroup rg(DBDIH, c_SUB_GCP_COMPLETE_REP_Counter);
+        signal->theData[0] = 7022;
+        sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+      }
+
+      {
+        NodeReceiverGroup rg(NDBCNTR, c_SUB_GCP_COMPLETE_REP_Counter);
+        SystemError * const sysErr = (SystemError*)&signal->theData[0];
+        sysErr->errorCode = SystemError::GCPStopDetected;
+        sysErr->errorRef = reference();
+        sysErr->data[0] = m_gcp_save.m_master.m_state;
+        sysErr->data[1] = cgcpOrderBlocked;
+        sysErr->data[2] = m_micro_gcp.m_master.m_state;
+        sendSignal(rg, GSN_SYSTEM_ERROR, signal,
+                   SystemError::SignalLength, JBA);
+      }
+      ndbrequire(!c_SUB_GCP_COMPLETE_REP_Counter.done());
+      return;
     }
   }
 
@@ -14662,6 +14776,54 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   return false;
 }//Dbdih::findStartGci()
 
+static
+Uint32
+count_db_nodes(ndb_mgm_configuration_iterator * iter)
+{
+  Uint32 cnt = 0;
+  for (ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter))
+  {
+    Uint32 nodeId = 0;
+    Uint32 type = ~Uint32(0);
+    if (ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &nodeId) == 0 &&
+        ndb_mgm_get_int_parameter(iter,CFG_TYPE_OF_SECTION, &type) == 0 &&
+        type == NodeInfo::DB)
+    {
+      cnt++;
+    }
+  }
+  return cnt;
+}
+
+/**
+ * Compute max time it can take to "resolve" cascading node-failures
+ *   given hb-interval, arbit timeout and #db-nodes
+ */
+static
+Uint32
+compute_max_failure_time(const ndb_mgm_configuration_iterator * p,
+                         ndb_mgm_configuration_iterator * cluster)
+{
+  Uint32 dbnodes = count_db_nodes(cluster);
+
+  Uint32 hbDBDB = 1500;
+  Uint32 arbitTimeout = 1000;
+  ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
+  ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
+  
+  /*
+   * Max time for 1 node failure is
+   */
+  Uint32 max_time_one_failure = arbitTimeout + 4 * hbDBDB;
+  
+  /**
+   * And worst case...this can be cascading failure with all but self
+   */
+  Uint32 max_time_total_failure = (dbnodes - 1) * max_time_one_failure;
+
+  return max_time_total_failure;
+}
+
 void Dbdih::initCommonData()
 {
   c_blockCommit = false;
@@ -14671,7 +14833,6 @@ void Dbdih::initCommonData()
   cfirstDeadNode = RNIL;
   cfirstVerifyQueue = RNIL;
   cgckptflag = false;
-  cgcpMasterTakeOverState = GMTOS_IDLE; 
   cgcpOrderBlocked = 0;
 
   clastVerifyQueue = RNIL;
@@ -14735,19 +14896,25 @@ void Dbdih::initCommonData()
 	      "Only up to four replicas are supported. Check NoOfReplicas.");
   }
 
+  Uint32 max_failure_time = compute_max_failure_time
+    (p, m_ctx.m_config.getClusterConfigIterator());
+  
   bzero(&m_gcp_save, sizeof(m_gcp_save));
   bzero(&m_micro_gcp, sizeof(m_micro_gcp));
   {
-    Uint32 tmp = 2000;
-    ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &tmp);
-    tmp = tmp > 60000 ? 60000 : (tmp < 10 ? 10 : tmp);
-    m_gcp_save.m_master.m_time_between_gcp = tmp;
-
+    { // Set time-between global checkpoint
+      Uint32 tmp = 2000;
+      ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &tmp);
+      tmp = tmp > 60000 ? 60000 : (tmp < 10 ? 10 : tmp);
+      m_gcp_save.m_master.m_time_between_gcp = tmp;
+    }
+    
+    Uint32 tmp = 0;
     if (ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_INTERVAL, &tmp) == 0 &&
         tmp)
     {
       /**
-       * A value is set for micro gcp...run new protocol when applicable
+       * Set time-between epochs
        */
       if (tmp > m_gcp_save.m_master.m_time_between_gcp)
         tmp = m_gcp_save.m_master.m_time_between_gcp;
@@ -14756,24 +14923,19 @@ void Dbdih::initCommonData()
       m_micro_gcp.m_master.m_time_between_gcp = tmp;
     }
 
-    /**
-     * No config...hard code...
-     */
-    m_gcp_monitor.m_gcp_save.m_max_lag = 
-      (m_gcp_save.m_master.m_time_between_gcp + 120000) / 100; // 2 minutes
+    { // Set time-between global checkpoint timeout
+      Uint32 tmp = 120000;     // No config, hard code 2 minutes
+      tmp += max_failure_time; //
+      m_gcp_monitor.m_gcp_save.m_max_lag = 
+        (m_gcp_save.m_master.m_time_between_gcp + tmp) / 100;
+    }
 
-    {
+    { // Set time-between epochs timeout
       Uint32 tmp = 4000;
-      Uint32 hbDBDB = 1500;
-      Uint32 arbitTimeout = 1000;
       ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_TIMEOUT, &tmp);
-      ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
-      ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
-      Uint32 max_lag = tmp + 4 * hbDBDB;
-      if (tmp + arbitTimeout > max_lag)
-        max_lag = tmp + arbitTimeout;
+      tmp += max_failure_time;
       m_gcp_monitor.m_micro_gcp.m_max_lag = 
-        (m_micro_gcp.m_master.m_time_between_gcp + max_lag) / 100;
+        (m_micro_gcp.m_master.m_time_between_gcp + tmp) / 100;
     }
   }
 }//Dbdih::initCommonData()
@@ -16893,8 +17055,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
               crestartGci);
   }//if  
   if (signal->theData[0] == 7006) {
-    infoEvent("clcpDelay = %d, cgcpMasterTakeOverState = %d",
-              c_lcpState.clcpDelay, cgcpMasterTakeOverState);
+    infoEvent("clcpDelay = %d",
+              c_lcpState.clcpDelay);
     infoEvent("cmasterNodeId = %d", cmasterNodeId);
     infoEvent("c_nodeStartMaster.startNode = %d, c_nodeStartMaster.wait = %d",
               c_nodeStartMaster.startNode, c_nodeStartMaster.wait);
@@ -16936,6 +17098,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
     infoEvent("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
     infoEvent("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
+    infoEvent("c_SUB_GCP_COMPLETE_REP_Counter = %s",
+              c_SUB_GCP_COMPLETE_REP_Counter.getText());
     infoEvent("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
     infoEvent("c_MASTER_GCPREQ_Counter = %s", 
 	      c_MASTER_GCPREQ_Counter.getText());
@@ -17347,6 +17511,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       sendSignal(cmasterdihref, GSN_DUMP_STATE_ORD, signal, 1, JBB);
     }
     return;
+  }
+  DECLARE_DUMP0(DBDIH, 7999, "Set error code with extra arg")
+  {
+    SET_ERROR_INSERT_VALUE2(signal->theData[1],
+                            signal->theData[2]);
   }
 }//Dbdih::execDUMP_STATE_ORD()
 

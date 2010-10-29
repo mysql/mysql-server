@@ -1,5 +1,5 @@
 --source include/have_ndb.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 connection master;
 CREATE TABLE t1 (a int key, b int) ENGINE=NDB;

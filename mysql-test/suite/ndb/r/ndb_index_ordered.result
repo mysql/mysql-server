@@ -884,3 +884,78 @@ select * from t1 where b < 8 or b >= 8;
 a	b
 0	0
 drop table t1;
+# bug#56853
+create table t1 (
+x varchar(16) not null,
+primary key (x)
+)
+character set latin1
+collate latin1_swedish_ci
+engine ndb
+partition by key (x) partitions 8;
+insert into t1 (x) values ('aaa');
+insert into t1 (x) values ('bbb');
+insert into t1 (x) values ('ccc');
+insert into t1 (x) values ('ddd');
+select x from t1 where x like 'aa%';
+x
+aaa
+select x from t1 where x like 'aa_';
+x
+aaa
+select x from t1 where x like 'bb%';
+x
+bbb
+select x from t1 where x like 'bb_';
+x
+bbb
+select x from t1 where x like 'cc%';
+x
+ccc
+select x from t1 where x like 'cc_';
+x
+ccc
+select x from t1 where x like 'dd%';
+x
+ddd
+select x from t1 where x like 'dd_';
+x
+ddd
+drop table t1;
+create table t1 (
+x varchar(4) not null,
+primary key (x)
+)
+character set latin1
+collate latin1_swedish_ci
+engine ndb
+partition by key (x) partitions 8;
+insert into t1 (x) values ('aaaa');
+insert into t1 (x) values ('bbbb');
+insert into t1 (x) values ('cccc');
+insert into t1 (x) values ('dddd');
+select x from t1 where x like 'aaa%';
+x
+aaaa
+select x from t1 where x like 'aaa_';
+x
+aaaa
+select x from t1 where x like 'bbb%';
+x
+bbbb
+select x from t1 where x like 'bbb_';
+x
+bbbb
+select x from t1 where x like 'ccc%';
+x
+cccc
+select x from t1 where x like 'ccc_';
+x
+cccc
+select x from t1 where x like 'ddd%';
+x
+dddd
+select x from t1 where x like 'ddd_';
+x
+dddd
+drop table t1;
