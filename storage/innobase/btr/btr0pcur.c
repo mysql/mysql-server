@@ -570,8 +570,8 @@ btr_pcur_open_on_user_rec_func(
 	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	btr_pcur_open_func(index, tuple, mode, latch_mode, cursor,
-			   file, line, mtr);
+	btr_pcur_open_low(index, 0, tuple, mode, latch_mode, cursor,
+			  file, line, mtr);
 
 	if ((mode == PAGE_CUR_GE) || (mode == PAGE_CUR_G)) {
 

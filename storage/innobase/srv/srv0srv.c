@@ -389,8 +389,13 @@ UNIV_INTERN ulint	srv_fast_shutdown	= 0;
 UNIV_INTERN ibool	srv_innodb_status	= FALSE;
 
 /* When estimating number of different key values in an index, sample
-this many index pages */
-UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
+this many index pages, there are 2 ways to calculate statistics:
+* persistent stats that are calculated by ANALYZE TABLE and saved
+  in the innodb database.
+* quick transient stats, that are used if persistent stats for the given
+  table/index are not found in the innodb database */
+UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
+UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -510,6 +515,11 @@ intervals. Following macros define thresholds for these conditions. */
 #define SRV_PEND_IO_THRESHOLD	(PCT_IO(3))
 #define SRV_RECENT_IO_ACTIVITY	(PCT_IO(5))
 #define SRV_PAST_IO_ACTIVITY	(PCT_IO(200))
+
+#define fetch_lock_wait_timeout(trx)			\
+	((trx)->allowed_to_wait				\
+	 ? thd_lock_wait_timeout((trx)->mysql_thd)	\
+	 : 0)
 
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
@@ -1685,12 +1695,13 @@ srv_suspend_mysql_thread(
 	incomplete transactions that are being rolled back after crash
 	recovery) will use the global value of
 	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
-	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
+	lock_wait_timeout = fetch_lock_wait_timeout(trx);
 
 	if (lock_wait_timeout < 100000000
 	    && wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+		MONITOR_INC(MONITOR_TIMEOUT);
 	}
 
 	if (trx_is_interrupted(trx)) {
@@ -2260,8 +2271,7 @@ loop:
 			wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
 			trx = thr_get_trx(slot->thr);
-			lock_wait_timeout = thd_lock_wait_timeout(
-				trx->mysql_thd);
+			lock_wait_timeout = fetch_lock_wait_timeout(trx);
 
 			if (trx_is_interrupted(trx)
 			    || (lock_wait_timeout < 100000000
@@ -2278,7 +2288,6 @@ loop:
 				if (trx->wait_lock) {
 					lock_cancel_waiting_and_release(
 						trx->wait_lock);
-					MONITOR_INC(MONITOR_TIMEOUT);
 				}
 			}
 		}
@@ -2668,8 +2677,8 @@ srv_master_thread(
 	ulint		i;
 	ibool		max_modified_ratio_exceeded = FALSE;
 	ib_time_t	last_print_time;
-	ulint		n_tables_evicted = 0;
-	ulint		last_table_lru_flush_time = ut_time();
+	ulint		n_tables_evicted;
+	ib_time_t	last_table_lru_flush_time = ut_time();
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2715,6 +2724,8 @@ loop:
 		rw_lock_x_unlock(&dict_operation_lock);
 
 		last_table_lru_flush_time = ut_time();
+	} else {
+		n_tables_evicted = 0;
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
@@ -3001,6 +3012,8 @@ background_loop:
 		rw_lock_x_unlock(&dict_operation_lock);
 
 		last_table_lru_flush_time = ut_time();
+	} else {
+		n_tables_evicted = 0;
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";

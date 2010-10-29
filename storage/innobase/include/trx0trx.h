@@ -645,6 +645,11 @@ struct trx_struct{
 					TRX_QUE_LOCK_WAIT, this points to
 					the lock request, otherwise this is
 					NULL */
+	ibool		allowed_to_wait;/*!< if this is set to FALSE then
+					we consider lock_wait_timeout==0 for
+					this trx instead of looking at
+					thd_lock_wait_timeout(trx->mysql_thd)
+					*/
 	ibool		was_chosen_as_deadlock_victim;
 					/* when the transaction decides to wait
 					for a lock, it sets this to FALSE;
