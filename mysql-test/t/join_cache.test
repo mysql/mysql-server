@@ -2192,7 +2192,7 @@ SET SESSION join_buffer_size=DEFAULT;
 CREATE TABLE t1 (
   pk int NOT NULL, i int NOT NULL, v  varchar(1) NOT NULL,
   PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2 (v,i)
-);
+) COLLATE latin1_bin;
 INSERT INTO t1 VALUES
   (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
   (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
@@ -2201,7 +2201,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
   pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
   PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2(v,i)
-);
+) COLLATE latin1_bin;
 INSERT INTO t2 VALUES
   (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
   (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
@@ -2209,9 +2209,9 @@ INSERT INTO t2 VALUES
   (25,3,'m'), (26,5,'z'), (27,9,'n'), (28,1,'d'), (29,107,'a');
 
 CREATE TABLE t3 (
-  pk int NOT NULL, i int(11) NOT NULL,  v varchar(1) NOT NULL,
+  pk int NOT NULL, i int NOT NULL,  v varchar(1) NOT NULL,
   PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2(v,i)
-);
+) COLLATE latin1_bin;
 INSERT INTO t3 VALUES
   (1,9,'x'), (2,5,'g'), (3,1,'o'), (4,0,'g'), (5,1,'v'),
   (6,190,'m'), (7,6,'x'), (8,3,'c'), (9,4,'z'), (10,3,'i'),
@@ -2242,6 +2242,49 @@ SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v
 DROP TABLE t1,t2,t3;
 
 SET SESSION join_cache_level=DEFAULT;
+
+--echo #
+--echo # Bug #668290: hash join with non-binary collations 
+--echo #
+
+CREATE TABLE t1 (
+  i int DEFAULT NULL,
+  cl varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  cu varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  INDEX cl (cl),
+  INDEX cu (cu)
+);
+INSERT INTO t1 VALUES
+  (650903552,'cmxffkpsel','z'), (535298048,'tvtjrcmxff','y'),
+  (1626865664,'when','for'), (39649280,'rcvljitvtj','ercvljitvt'),
+  (792068096,'ttercvljit','jttercvlji');
+INSERT INTO t1 SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  cu varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  i int DEFAULT NULL,
+  cl varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  INDEX cu (cu),
+  INDEX cl (cl)
+);
+INSERT INTO t2 VALUES 
+  ('g',7,'like'), ('fujttercvl',6,'y'),
+  ('s',2,'e'), ('didn\'t',0,'v'),
+  ('gvdrodpedk',8,'chogvdrodp'), ('jichogvdro',7,'will');
+
+EXPLAIN
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+
+SET SESSION join_cache_level = 4;
+
+EXPLAIN
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
 
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

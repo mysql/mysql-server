@@ -5946,6 +5946,39 @@ void JOIN_TAB::calc_used_field_length(bool max_fl)
 }
 
 
+/**
+  @brief
+  Check whether hash join algorithm can be used to join this table   
+
+  @details
+  This function finds out whether the ref items that have been chosen
+  by the planner to access this table can be used for hash join algorithms.
+  The answer depends on a certain property of the the fields of the
+  joined tables on which the hash join key is built. If hash join is
+  allowed for all these fields the answer is positive.
+  
+  @note
+  The function is supposed to be called now only after the function
+  get_best_combination has been called.
+
+  @retval TRUE    it's possible to use hash join to join this table
+  @retval FALSE   otherwise
+*/
+
+bool JOIN_TAB::hash_join_is_possible()
+{
+  if (type != JT_REF && type != JT_EQ_REF)
+    return FALSE;
+  KEY *keyinfo= &table->key_info[ref.key];
+  for (uint i= 0; i < ref.key_parts; i++)
+  {
+    if (!keyinfo->key_part[i].field->hash_join_is_possible())
+      return FALSE;
+  }
+  return TRUE;
+}
+
+
 static uint
 cache_record_length(JOIN *join,uint idx)
 {
@@ -7649,8 +7682,10 @@ uint check_join_cache_usage(JOIN_TAB *tab,
                                                   &bufsz, &flags, &cost);
 
     if ((cache_level <=4 && !no_hashed_cache) || no_bka_cache ||
-         (flags & HA_MRR_NO_ASSOCIATION) && cache_level <=6)
+	((flags & HA_MRR_NO_ASSOCIATION) && cache_level <=6))
     {
+      if (!tab->hash_join_is_possible())
+        goto no_join_cache;
       if (cache_level == 3)
         prev_cache= 0;
       if ((tab->cache= new JOIN_CACHE_BNLH(join, tab, prev_cache)) &&

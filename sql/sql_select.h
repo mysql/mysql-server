@@ -391,6 +391,7 @@ typedef struct st_join_table {
     return max_used_fieldlength;
   }
   double get_partial_join_cardinality() { return partial_join_cardinality; }
+  bool hash_join_is_possible();
 } JOIN_TAB;
 
 

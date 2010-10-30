@@ -12,18 +12,18 @@ Name char(52) NOT NULL default '',
 SurfaceArea float(10,2) NOT NULL default '0.00',
 Population int(11) NOT NULL default '0',
 Capital int(11) default NULL
-);
+) COLLATE latin1_bin;
 CREATE TABLE City (
 ID int(11) NOT NULL,
 Name char(35) NOT NULL default '',
 Country char(3) NOT NULL default '',
 Population int(11) NOT NULL default '0'
-);
+) COLLATE latin1_bin;
 CREATE TABLE CountryLanguage (
 Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
 Percentage float(3,1) NOT NULL default '0.0'
-);
+) COLLATE latin1_bin;
 SELECT COUNT(*) FROM Country;
 COUNT(*)
 239
@@ -810,7 +810,7 @@ Population int(11) NOT NULL default '0',
 Capital int(11) default NULL,
 PRIMARY KEY  (Code),
 UNIQUE INDEX (Name)
-);
+) COLLATE latin1_bin;
 CREATE TABLE City (
 ID int(11) NOT NULL auto_increment,
 Name char(35) NOT NULL default '',
@@ -819,14 +819,14 @@ Population int(11) NOT NULL default '0',
 PRIMARY KEY  (ID),
 INDEX (Population),
 INDEX (Country) 
-);
+) COLLATE latin1_bin;
 CREATE TABLE CountryLanguage (
 Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
 Percentage float(3,1) NOT NULL default '0.0',
 PRIMARY KEY  (Country, Language),
 INDEX (Percentage)
-);
+) COLLATE latin1_bin;
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
@@ -5469,7 +5469,7 @@ SET SESSION join_buffer_size=DEFAULT;
 CREATE TABLE t1 (
 pk int NOT NULL, i int NOT NULL, v  varchar(1) NOT NULL,
 PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2 (v,i)
-);
+) COLLATE latin1_bin;
 INSERT INTO t1 VALUES
 (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
 (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
@@ -5477,16 +5477,16 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
 pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
 PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2(v,i)
-);
+) COLLATE latin1_bin;
 INSERT INTO t2 VALUES
 (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
 (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
 (20,2,'v'), (21,9,'v'), (22,142,'b'), (23,3,'y'), (24,0,'v'),
 (25,3,'m'), (26,5,'z'), (27,9,'n'), (28,1,'d'), (29,107,'a');
 CREATE TABLE t3 (
-pk int NOT NULL, i int(11) NOT NULL,  v varchar(1) NOT NULL,
+pk int NOT NULL, i int NOT NULL,  v varchar(1) NOT NULL,
 PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2(v,i)
-);
+) COLLATE latin1_bin;
 INSERT INTO t3 VALUES
 (1,9,'x'), (2,5,'g'), (3,1,'o'), (4,0,'g'), (5,1,'v'),
 (6,190,'m'), (7,6,'x'), (8,3,'c'), (9,4,'z'), (10,3,'i'),
@@ -5542,4 +5542,51 @@ v
 p
 DROP TABLE t1,t2,t3;
 SET SESSION join_cache_level=DEFAULT;
+#
+# Bug #668290: hash join with non-binary collations 
+#
+CREATE TABLE t1 (
+i int DEFAULT NULL,
+cl varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+cu varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+INDEX cl (cl),
+INDEX cu (cu)
+);
+INSERT INTO t1 VALUES
+(650903552,'cmxffkpsel','z'), (535298048,'tvtjrcmxff','y'),
+(1626865664,'when','for'), (39649280,'rcvljitvtj','ercvljitvt'),
+(792068096,'ttercvljit','jttercvlji');
+INSERT INTO t1 SELECT * FROM t1;
+CREATE TABLE t2 (
+cu varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+i int DEFAULT NULL,
+cl varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+INDEX cu (cu),
+INDEX cl (cl)
+);
+INSERT INTO t2 VALUES 
+('g',7,'like'), ('fujttercvl',6,'y'),
+('s',2,'e'), ('didn\'t',0,'v'),
+  ('gvdrodpedk',8,'chogvdrodp'), ('jichogvdro',7,'will');
+EXPLAIN
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
+1	SIMPLE	t1	ref	cu	cu	33	func	2	Using where; Using index
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+i
+6
+6
+SET SESSION join_cache_level = 4;
+EXPLAIN
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
+1	SIMPLE	t1	ref	cu	cu	33	func	2	Using where; Using index
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+i
+6
+6
+SET SESSION join_cache_level = DEFAULT;
+DROP TABLE t1,t2;
 set @@optimizer_switch=@save_optimizer_switch;
