@@ -81,7 +81,7 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
           break;
         }
         /* Skip rows that are inserted by other threads since we got a lock */
-        if ((info->s->row_is_visible)(info) ||
+        if ((info->s->row_is_visible)(info) &&
             ((icp_res= ma_check_index_cond(info, inx, buf)) != 0))
           break;
       }
