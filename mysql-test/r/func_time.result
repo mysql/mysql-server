@@ -1343,4 +1343,18 @@ SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
 1
 1
 DROP TABLE t1;
+#
+# Bug #52160: crash and inconsistent results when grouping
+#             by a function and column
+#
+CREATE TABLE t1(a CHAR(10) NOT NULL);
+INSERT INTO t1 VALUES (''),('');
+SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
+COUNT(*)
+2
+Warnings:
+Warning	1292	Truncated incorrect time value: ''
+Warning	1292	Truncated incorrect time value: ''
+Warning	1292	Truncated incorrect time value: ''
+DROP TABLE t1;
 End of 5.1 tests
