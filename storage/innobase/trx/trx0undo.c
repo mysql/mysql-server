@@ -78,7 +78,7 @@ can still remove old versions from the bottom of the stack. */
    -------------------------------------------------------------------
 latches?
 -------
-The contention of the trx_sys_t:::mutex should be minimized. When a transaction
+The contention of the trx_sys_t:::lock should be minimized. When a transaction
 does its first insert or modify in an index, an undo log is assigned for it.
 Then we must have an x-latch to the rollback segment header.
 	When the transaction does more modifys or rolls back, the undo log is

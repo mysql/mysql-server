@@ -288,12 +288,12 @@ trx_get_on_id_low(
 	/* Search the list from the lower end (tail). */
 	if (trx_id < (first->id + trx->id) >> 1) {
 		for (trx = UT_LIST_GET_PREV(trx_list, trx);
-	     	     trx != NULL && trx_id < trx->id;
+	     	     trx != NULL && trx_id > trx->id;
 	     	     trx = UT_LIST_GET_PREV(trx_list, trx)) {
 		}
 	} else {
 		for (trx = UT_LIST_GET_NEXT(trx_list, first);
-	     	     trx != NULL && trx_id > trx->id;
+	     	     trx != NULL && trx_id < trx->id;
 	     	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 		}
 	}
