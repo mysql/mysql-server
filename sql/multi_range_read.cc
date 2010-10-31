@@ -484,7 +484,7 @@ int Mrr_ordered_index_reader::refill_buffer()
   scanning_key_val_iter= FALSE;
   index_scan_eof= FALSE; 
 
-  DBUG_RETURN(0);
+  DBUG_RETURN((no_more_keys && key_buffer->is_empty())? HA_ERR_END_OF_FILE:0);
 }
 
 
@@ -521,8 +521,11 @@ int Mrr_ordered_rndpos_reader::init(handler *h_arg,
   //rowid_buff_elem_size= h->ref_length;
   //if (!(mode & HA_MRR_NO_ASSOCIATION))
   //  rowid_buff_elem_size += sizeof(char*);
-
-  return index_reader->refill_buffer();
+  
+  int res= index_reader->refill_buffer();
+  if (res && res!=HA_ERR_END_OF_FILE)
+    return res;
+  return 0;
 }
 
 
@@ -561,7 +564,7 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
   last_identical_rowid= NULL;
 
   if (index_reader->eof())
-    DBUG_RETURN(0);
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   while (rowid_buffer->can_write())
   {
@@ -584,9 +587,9 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
   rowid_buffer->sort((qsort2_cmp)rowid_cmp_reverse, (void*)h);
 
   rowid_buffer->setup_reading(&rowid, h->ref_length,
-                              is_mrr_assoc? (uchar**)&rowids_range_id: NULL, 
+                              is_mrr_assoc? (uchar**)&rowids_range_id: NULL,
                               sizeof(void*));
-  DBUG_RETURN(0);
+  DBUG_RETURN((rowid_buffer->is_empty() && res) ? HA_ERR_END_OF_FILE : 0);
 }
 
 
@@ -632,8 +635,9 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
       /* First, finish off the sorted keys we have */ 
       if (!index_reader->eof())
       {
-        if ((res= refill_buffer()))
-          return res; /* for fatal errors */
+        res= refill_buffer();
+        if (res && res != HA_ERR_END_OF_FILE)
+          return res;
       }
 
       if (rowid_buffer->is_empty())
@@ -821,8 +825,9 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       goto error;
     }
   }
-
-  if (strategy->refill_buffer())
+  
+  res= strategy->refill_buffer();
+  if (res && res != HA_ERR_END_OF_FILE)
     goto error;
 
   /*

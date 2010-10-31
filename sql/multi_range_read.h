@@ -126,8 +126,16 @@ public:
   index tuple or a table record.
 
   Getting HA_ERR_END_OF_FILE from get_next() means that the source should be
-  re-filled. if eof() returns true after refill attempt, then the end of 
+  re-filled. 
+  
+  Was:
+  if eof() returns true after refill attempt, then the end of 
   stream has been reached and get_next() must not be called anymore.
+
+  Now:
+  if refill_buffer() returns HA_ERR_END_OF_FILE that means the stream is 
+  really exhausted.
+
 */
 
 class Mrr_reader 
@@ -168,7 +176,7 @@ public:
            void *seq_init_param, uint n_ranges,
            uint mode, Buffer_manager *buf_manager_arg);
   int get_next(char **range_info);
-  int refill_buffer() { return 0; }
+  int refill_buffer() { return HA_ERR_END_OF_FILE; }
   bool eof() { return test(res); }
   uchar *get_rowid_ptr() { return h->ref; }
   bool skip_record(char *range_id, uchar *rowid)
