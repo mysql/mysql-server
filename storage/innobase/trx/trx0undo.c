@@ -1913,8 +1913,7 @@ trx_undo_update_cleanup(
 
 		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_cached, undo);
 	} else {
-		ut_ad(undo->state == TRX_UNDO_TO_PURGE
-		      || undo->state == TRX_UNDO_TO_FREE);
+		ut_ad(undo->state == TRX_UNDO_TO_PURGE);
 
 		trx_undo_mem_free(undo);
 	}
