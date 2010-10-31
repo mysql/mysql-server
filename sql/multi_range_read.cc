@@ -356,7 +356,7 @@ int Mrr_ordered_index_reader::get_next(char **range_info_arg)
           {
             int res;
             if ((res= refill_buffer()))
-              return res;
+              DBUG_RETURN(res);
             if (key_buffer->is_empty())
             {
               index_scan_eof= TRUE;
