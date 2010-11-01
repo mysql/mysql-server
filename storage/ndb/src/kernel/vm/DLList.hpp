@@ -35,7 +35,10 @@ public:
   struct HeadPOD {
     Uint32 firstItem;
     inline bool isEmpty() const { return firstItem == RNIL; }
-    inline void init () { firstItem = RNIL; }
+    inline void init () { firstItem = RNIL; in_use = false;}
+#ifdef VM_TRACE
+    bool in_use;
+#endif
   };
 
   struct Head : public HeadPOD 
@@ -169,9 +172,16 @@ public:
     : DLListImpl<P,T,U>(thePool), src(_src)
   {
     this->head = src;
+#ifdef VM_TRACE
+    assert(src.in_use == false);
+    src.in_use = true;
+#endif
   }
   
   ~LocalDLListImpl(){
+#ifdef VM_TRACE
+    assert(src.in_use == true);
+#endif
     src = this->head;
   }
 private:
