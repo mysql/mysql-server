@@ -23,9 +23,239 @@
 #endif
 
 namespace SPJSanityTest{
-  class RowInt;
 
-  static bool lessOrEqual(const RowInt& a, const RowInt& b);
+  class IntField{
+  public:
+    static const char* getType(){
+      return "INT";
+    }
+
+    IntField(int i=0): 
+      m_val(i)
+    {}
+
+    const char* toStr(char* buff) const {
+      sprintf(buff, "%d", m_val);
+      return buff;
+    }
+    
+    int compare(const IntField& other) const{
+      if (m_val > other.m_val)
+        return 1;
+      else if (m_val == other.m_val)
+        return 0;
+      else
+        return -1;
+    }
+
+    Uint64 getValue() const{
+      return m_val;
+    }
+
+    Uint32 getSize() const{
+      return sizeof m_val;
+   }
+
+  private:
+    uint m_val;
+  };
+
+  class StrField{
+  public:
+    static const char* getType(){
+      return "VARCHAR(10)";
+    }
+
+    StrField(int i=0):
+      m_len(6){
+      // bzero(m_val, sizeof m_val);
+      sprintf(m_val, "c%5d", i);
+    }
+
+    const char* toStr(char* buff) const {
+      sprintf(buff, "'%s'", getValue());
+      return buff;
+    }
+    
+    int compare(const StrField& other) const{
+      return strcmp(getValue(), other.getValue());
+    }
+
+    const char* getValue() const{
+      m_val[m_len] = '\0';
+      return m_val;
+    }
+
+    Uint32 getSize() const{
+      m_val[m_len] = '\0';
+      return strlen(m_val);
+    }
+
+  private:
+    Uint8 m_len;
+    mutable char m_val[10];
+  };
+
+  
+  /* Key class.*/
+  template <typename FieldType>
+  class GenericKey{
+  public:
+    static const int size = 2;
+    FieldType m_values[size];
+
+    NdbConstOperand* makeConstOperand(NdbQueryBuilder& builder, 
+                                      int fieldNo) const {
+      ASSERT_ALWAYS(fieldNo<size);
+      //return builder.constValue(m_values[fieldNo]);
+      return builder.constValue(m_values[fieldNo].getValue());
+    }
+  };
+
+  /* Concrete Row class.*/
+  template <typename FieldType>
+  class GenericRow{
+  public:
+    static const int size = 4;
+
+    FieldType m_values[size];
+
+    explicit GenericRow<FieldType>(int rowNo){
+      /* Attribute values are chosen such that rows are sorted on 
+       * all attribtes, and that any pair of consecutive columns can be
+       * used as a foreign key to the table itself.*/
+      for(int i = 0; i<size; i++){
+        m_values[i] = FieldType(i+rowNo);
+      }
+    }
+
+    static const char *getType(int colNo){
+      //return "INT";
+      return FieldType::getType();
+    }
+   
+    static void makeSQLValues(char* buffer, int rowNo){
+      const GenericRow<FieldType> row(rowNo);
+      sprintf(buffer, "values(");
+      char* tail = buffer+strlen(buffer);
+      for(int i = 0; i<size; i++){
+        char tmp[11];
+        if(i<size-1){
+          // sprintf(tail, "%d,", row.m_values[i].toStr(tmp));
+          sprintf(tail, "%s,", row.m_values[i].toStr(tmp));
+        }else{
+          sprintf(tail, "%s)", row.m_values[i].toStr(tmp));
+        }
+        tail = buffer+strlen(buffer);
+      }
+    } 
+
+    GenericKey<FieldType> getPrimaryKey() const;
+    
+    GenericKey<FieldType> getIndexKey() const;
+    
+    GenericKey<FieldType> getForeignKey(int keyNo) const;
+
+    void makeLessThanCond(NdbScanFilter& scanFilter){
+      //ASSERT_ALWAYS(scanFilter.lt(0, m_values[0].getValue())==0); 
+      ASSERT_ALWAYS(scanFilter.cmp(NdbScanFilter::COND_LT, 0, m_values, m_values[0].getSize())==0); 
+    }
+
+    /** Get the row column number that corresponds to the n'th column 
+     * of the index.*/
+    static int getIndexKeyColNo(int indexCol);
+
+    /** Get the row column number that corresponds to the n'th column 
+     * of the m'th foreign key..*/
+    static int getForeignKeyColNo(int keyNo, int keyCol);
+  };
+
+  template <typename FieldType>
+  GenericKey<FieldType> GenericRow<FieldType>::getPrimaryKey() const {
+    GenericKey<FieldType> key;
+    for(int i = 0; i<GenericKey<FieldType>::size; i++){
+      key.m_values[i] = m_values[i];    
+    }
+    return key;
+  }
+
+  template <typename FieldType>
+  GenericKey<FieldType> GenericRow<FieldType>::getIndexKey() const {
+    return getForeignKey(1);
+  }
+
+  template <typename FieldType>
+  GenericKey<FieldType> GenericRow<FieldType>::getForeignKey(int keyNo) const {
+    ASSERT_ALWAYS(keyNo<=1);
+    GenericKey<FieldType> key;
+    for(int i = 0; i<GenericKey<FieldType>::size; i++){
+      key.m_values[i] = m_values[getForeignKeyColNo(keyNo,i)];    
+    }
+    return key;
+  }
+
+  template <typename FieldType>
+  int GenericRow<FieldType>::getIndexKeyColNo(int indexCol){
+    return getForeignKeyColNo(1, indexCol);
+  }
+
+  template <typename FieldType>
+  int GenericRow<FieldType>::getForeignKeyColNo(int keyNo, int keyCol){
+    ASSERT_ALWAYS(keyNo<GenericRow<FieldType>::size-GenericKey<FieldType>::size);
+    ASSERT_ALWAYS(keyCol<GenericKey<FieldType>::size);
+    return size-GenericKey<FieldType>::size-keyNo+keyCol;
+  }
+
+  template <typename FieldType>
+  static bool operator==(const GenericRow<FieldType>& a, const GenericRow<FieldType>& b){
+    for(int i = 0; i<GenericRow<FieldType>::size; i++){
+      if(a.m_values[i].compare(b.m_values[i]) != 0){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  template <typename FieldType>
+  static bool operator==(const GenericKey<FieldType>& a, const GenericKey<FieldType>& b){
+    for(int i = 0; i<GenericKey<FieldType>::size; i++){
+      if(a.m_values[i].compare(b.m_values[i]) != 0){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Returns true if key of a <= key of b.*/
+  template <typename FieldType>
+  static bool lessOrEqual(const GenericRow<FieldType>& a, const GenericRow<FieldType>& b){
+    for(int i = 0; i<GenericKey<FieldType>::size; i++){
+      if(a.m_values[i].compare(b.m_values[i]) == 1){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  template <typename FieldType>
+  static NdbOut& operator<<(NdbOut& out, const GenericRow<FieldType>& row){
+    char buff[11];
+    out << "{";
+    for(int i = 0; i<GenericRow<FieldType>::size; i++){
+      out << row.m_values[i].toStr(buff);
+      if(i<GenericRow<FieldType>::size-1){
+        out << ", ";
+      }
+    }
+    out << "}";
+    return out;
+  }
+
+  //typedef GenericRow<IntField> Row;
+  //typedef GenericKey<IntField> Key;
+  typedef GenericRow<StrField> Row;
+  typedef GenericKey<StrField> Key;
+
 
   static const char* colName(int colNo){
     static const char* names[] = {
@@ -44,34 +274,32 @@ namespace SPJSanityTest{
   }
 
   static void mySQLExec(MYSQL& mysql, const char* stmt){
-    ndbout << stmt << endl;
+    ndbout << stmt << ";" << endl;
     if(mysql_query(&mysql, stmt) != 0){
       ndbout << "Error executing '" << stmt << "' : ";
       printMySQLError(mysql);
     }
   }
 
-  template <typename Row>
   class Query;
 
   /** Class representing a single NdbQueryOperation. 'Row'
    * is a template argument, to allow different table defintions.*/
-  template <typename Row>
   class Operation{
   public:
 
-    explicit Operation(class Query<Row>& query, Operation* parent);
+    explicit Operation(class Query& query, Operation* parent);
 
     virtual ~Operation(){}
 
     //protected: FIXME
   public:
-    friend class Query<Row>;
+    friend class Query;
     /** Enclosing NdbQuery.*/
-    Query<Row>& m_query;
+    Query& m_query;
     /** Optional parent operation.*/
-    const Operation<Row>* m_parent;
-    Vector<Operation<Row>*> m_children;
+    const Operation* m_parent;
+    Vector<Operation*> m_children;
     const NdbQueryOperationDef* m_operationDef;
     // For now, only setResultRowRef() style result retrieval is tested.
     const Row* m_resultPtr;
@@ -101,7 +329,6 @@ namespace SPJSanityTest{
                      const Row* actual) const;
   };
 
-  template <typename Row>
   class Query{
   public:
 
@@ -113,9 +340,9 @@ namespace SPJSanityTest{
     /** Execute within transaction.*/
     void submit(NdbTransaction& transaction);
 
-    void submitOperation(Operation<Row>& operation) const;
+    void submitOperation(Operation& operation) const;
 
-    void setRoot(Operation<Row>& root){ m_root = &root;}
+    void setRoot(Operation& root){ m_root = &root;}
 
     NdbQuery::NextResultOutcome nextResult(){ 
       return m_query->nextResult(true, false);
@@ -152,7 +379,7 @@ namespace SPJSanityTest{
   private:
     Ndb& m_ndb;
     NdbQueryBuilder m_builder;
-    Operation<Row>* m_root;
+    Operation* m_root;
     const NdbQueryDef* m_queryDef;
     NdbQuery* m_query;
     Uint32 m_operationCount;
@@ -161,11 +388,10 @@ namespace SPJSanityTest{
   };
 
   
-  template <typename Row, typename Key>
-  class LookupOperation: public Operation<Row>{
+  class LookupOperation: public Operation{
   public:
-    explicit LookupOperation(Query<Row>& query, 
-                             Operation<Row>* parent = NULL);
+    explicit LookupOperation(Query& query, 
+                             Operation* parent = NULL);
     virtual void verifyOwnRow();
 
     /** Set up result retrieval before execution.*/
@@ -175,12 +401,11 @@ namespace SPJSanityTest{
                            const NdbDictionary::Table& tab);
   };
 
-  template <typename Row, typename Key>
-  class IndexLookupOperation: public Operation<Row>{
+  class IndexLookupOperation: public Operation{
   public:
-    explicit IndexLookupOperation(Query<Row>& query, 
+    explicit IndexLookupOperation(Query& query, 
                                   const char* indexName,
-                                  Operation<Row>* parent = NULL);
+                                  Operation* parent = NULL);
     virtual void verifyOwnRow();
 
     /** Set up result retrieval before execution.*/
@@ -192,11 +417,10 @@ namespace SPJSanityTest{
     const char* const m_indexName;
   };
 
-  template <typename Row>
-  class TableScanOperation: public Operation<Row>{
+  class TableScanOperation: public Operation{
   public:
 
-    explicit TableScanOperation(Query<Row>& query, int lessThanRow=-1);
+    explicit TableScanOperation(Query& query, int lessThanRow=-1);
 
     virtual ~TableScanOperation() {
       delete[] m_rowFound;
@@ -215,11 +439,10 @@ namespace SPJSanityTest{
     int m_lessThanRow;
   };
 
-  template <typename Row, typename Key>
-  class IndexScanOperation: public Operation<Row>{
+  class IndexScanOperation: public Operation{
   public:
 
-    explicit IndexScanOperation(Query<Row>& query,
+    explicit IndexScanOperation(Query& query,
                                 const char* indexName,
                                 int lowerBoundRowNo, 
                                 int upperBoundRowNo,
@@ -256,8 +479,7 @@ namespace SPJSanityTest{
 
   // Query methods.
 
-  template <typename Row>
-  Query<Row>::Query(Ndb& ndb):
+  Query::Query(Ndb& ndb):
     m_ndb(ndb),
     m_builder(ndb),
     m_root(NULL),
@@ -268,23 +490,20 @@ namespace SPJSanityTest{
     m_ndbRecord(NULL)
   {}
 
-  template <typename Row>
-  void Query<Row>::build(const NdbDictionary::Table& tab, int tableSize){
+  void Query::build(const NdbDictionary::Table& tab, int tableSize){
     m_tableSize = tableSize;
     m_root->build(m_builder, tab);
     m_queryDef = m_builder.prepare();
     m_ndbRecord = tab.getDefaultRecord();
   }
 
-  template <typename Row>
-  void Query<Row>::submit(NdbTransaction& transaction){
+  void Query::submit(NdbTransaction& transaction){
     m_query = transaction.createQuery(m_queryDef);
     ASSERT_ALWAYS(m_query!=NULL);
     submitOperation(*m_root);
   }
 
-  template <typename Row>
-  void Query<Row>::submitOperation(Operation<Row>& operation) const{
+  void Query::submitOperation(Operation& operation) const{
     // Do a depth first traversal of the operations graph.
     operation.submit();
     for(Uint32 i = 0; i<operation.m_children.size(); i++){
@@ -293,8 +512,7 @@ namespace SPJSanityTest{
   }
 
   // Operation methods.
-  template <typename Row>
-  Operation<Row>::Operation(class Query<Row>& query, 
+  Operation::Operation(class Query& query, 
                                  Operation* parent):
     m_query(query),
     m_parent(parent),
@@ -309,8 +527,7 @@ namespace SPJSanityTest{
     }
   }
 
-  template <typename Row>
-  void Operation<Row>::build(NdbQueryBuilder& builder,
+  void Operation::build(NdbQueryBuilder& builder,
                                   const NdbDictionary::Table& tab){
     m_operationId = m_query.allocOperationId();
     buildThis(builder, tab);
@@ -320,8 +537,7 @@ namespace SPJSanityTest{
     }
   }
 
-  template <typename Row>
-  void Operation<Row>::verifyRow(){
+  void Operation::verifyRow(){
     verifyOwnRow();
     for(Uint32 i = 0; i<m_children.size(); i++){
       m_children[i]->verifyRow();
@@ -330,8 +546,7 @@ namespace SPJSanityTest{
 
   typedef const char* constCharPtr;
 
-  template <typename Row>
-  void Operation<Row>::compareRows(const char* text, 
+  void Operation::compareRows(const char* text, 
                                    const Row* expected, 
                                    const Row* actual) const{
     if(expected==NULL){
@@ -365,18 +580,16 @@ namespace SPJSanityTest{
   
   // LookupOperation methods.
 
-  template <typename Row, typename Key>
-  LookupOperation<Row, Key>
-  ::LookupOperation(Query<Row>& query, 
-                    Operation<Row>* parent):
-    Operation<Row>(query, parent){
+  LookupOperation
+  ::LookupOperation(Query& query, 
+                    Operation* parent):
+    Operation(query, parent){
   }
 
-  template <typename Row, typename Key>
-  void LookupOperation<Row, Key>::buildThis(NdbQueryBuilder& builder,
+  void LookupOperation::buildThis(NdbQueryBuilder& builder,
                                             const NdbDictionary::Table& tab){
     NdbQueryOperand* keyOperands[Key::size+1];
-    if(Operation<Row>::m_parent==NULL){
+    if(m_parent==NULL){
       const Key key = Row(0).getPrimaryKey();
       for(int i = 0; i<Key::size; i++){
         keyOperands[i] = key.makeConstOperand(builder, i);
@@ -384,58 +597,56 @@ namespace SPJSanityTest{
     }else{
       for(int i = 0; i<Key::size; i++){
         keyOperands[i] = 
-          builder.linkedValue(Operation<Row>::m_parent->m_operationDef, 
+          builder.linkedValue(m_parent->m_operationDef, 
                               colName(Row::getForeignKeyColNo(
-                                        Operation<Row>::m_childNo, i)));
+                                        m_childNo, i)));
         ASSERT_ALWAYS(keyOperands[i]!=NULL);
         /*Row::makeLinkedKey(builder, keyOperands, 
-                         Operation<Row>::m_parent->m_operationDef, 
-                         Operation<Row>::m_childNo);*/
+                         Operation::m_parent->m_operationDef, 
+                         Operation::m_childNo);*/
       }
     }
     keyOperands[Key::size] = NULL;
-    Operation<Row>::m_operationDef = builder.readTuple(&tab, keyOperands);
+    m_operationDef = builder.readTuple(&tab, keyOperands);
   }
 
-  template <typename Row, typename Key>
-  void LookupOperation<Row, Key>::submit(){
+  void LookupOperation::submit(){
     NdbQueryOperation* queryOp 
-      = Operation<Row>::m_query.getOperation(Operation<Row>::m_operationId);
-    queryOp->setResultRowRef(Operation<Row>::m_query.getNdbRecord(), 
+      = m_query.getOperation(m_operationId);
+    queryOp->setResultRowRef(m_query.getNdbRecord(), 
                              //*ptr,
-                             reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
+                             reinterpret_cast<const char*&>(m_resultPtr),
                              NULL);
   }
 
-  template <typename Row, typename Key>
-  void LookupOperation<Row, Key>::verifyOwnRow(){
-    if(Operation<Row>::m_parent==NULL){
+  void LookupOperation::verifyOwnRow(){
+    if(m_parent==NULL){
       const Row expected(0);
-      Operation<Row>::compareRows("lookup root operation",
+      compareRows("lookup root operation",
                                   &expected, 
-                                  Operation<Row>::m_resultPtr);
+                                  m_resultPtr);
     }else{
       NdbQueryOperation* queryOp 
-        = Operation<Row>::m_query
-        .getOperation(Operation<Row>::m_operationId);
+        = m_query
+        .getOperation(m_operationId);
       if(!queryOp->getParentOperation(0)->isRowNULL()){
         const Key key = 
-          Operation<Row>::m_parent->m_resultPtr
-          ->getForeignKey(Operation<Row>::m_childNo);
+          m_parent->m_resultPtr
+          ->getForeignKey(m_childNo);
         bool found = false;
-        for(int i = 0; i<Operation<Row>::m_query.getTableSize(); i++){
+        for(int i = 0; i<m_query.getTableSize(); i++){
           const Row row(i);
           if(row.getPrimaryKey() == key){
             found = true;
-            Operation<Row>::compareRows("lookup child operation",
+            compareRows("lookup child operation",
                                         &row, 
-                                        Operation<Row>::m_resultPtr);
+                                        m_resultPtr);
           }
         }
         if(!found && !queryOp->isRowNULL()){
-          Operation<Row>::compareRows("lookup child operation",
+          compareRows("lookup child operation",
                                       NULL,
-                                      Operation<Row>::m_resultPtr);
+                                      m_resultPtr);
         }
       }
     }
@@ -443,21 +654,19 @@ namespace SPJSanityTest{
 
   // IndexLookupOperation methods.
 
-  template <typename Row, typename Key>
-  IndexLookupOperation<Row, Key>
-  ::IndexLookupOperation(Query<Row>& query, 
+  IndexLookupOperation
+  ::IndexLookupOperation(Query& query, 
                          const char* indexName, 
-                         Operation<Row>* parent):
-    Operation<Row>(query, parent),
+                         Operation* parent):
+    Operation(query, parent),
     m_indexName(indexName){
   }
 
-  template <typename Row, typename Key>
-  void IndexLookupOperation<Row, Key>
+  void IndexLookupOperation
   ::buildThis(NdbQueryBuilder& builder,
               const NdbDictionary::Table& tab){
     const NdbDictionary::Dictionary* const dict 
-      = Operation<Row>::m_query.getDictionary();
+      = m_query.getDictionary();
     char fullName[200];
     sprintf(fullName, "%s$unique", m_indexName);
     const NdbDictionary::Index* const index
@@ -465,7 +674,7 @@ namespace SPJSanityTest{
     ASSERT_ALWAYS(index!=NULL);
 
     NdbQueryOperand* keyOperands[Key::size+1];
-    if(Operation<Row>::m_parent==NULL){
+    if(m_parent==NULL){
       const Key key = Row(0).getIndexKey();
       for(int i = 0; i<Key::size; i++){
         keyOperands[i] = key.makeConstOperand(builder, i);
@@ -473,60 +682,58 @@ namespace SPJSanityTest{
     }else{
       for(int i = 0; i<Key::size; i++){
         keyOperands[i] = 
-          builder.linkedValue(Operation<Row>::m_parent->m_operationDef,
+          builder.linkedValue(m_parent->m_operationDef,
                               colName(Row::getForeignKeyColNo(
-                                        Operation<Row>::m_childNo, i)));
+                                        m_childNo, i)));
         ASSERT_ALWAYS(keyOperands[i]!=NULL);
       }
       /*Row::makeLinkedKey(builder, keyOperands, 
-                         Operation<Row>::m_parent->m_operationDef, 
-                         Operation<Row>::m_childNo);*/
+                         Operation::m_parent->m_operationDef, 
+                         Operation::m_childNo);*/
     }
     keyOperands[Key::size] = NULL;
-    Operation<Row>::m_operationDef = builder.readTuple(index, 
+    m_operationDef = builder.readTuple(index, 
                                                        &tab, 
                                                        keyOperands);
   }
 
-  template <typename Row, typename Key>
-  void IndexLookupOperation<Row, Key>::submit(){
+  void IndexLookupOperation::submit(){
     NdbQueryOperation* queryOp 
-      = Operation<Row>::m_query.getOperation(Operation<Row>::m_operationId);
-    queryOp->setResultRowRef(Operation<Row>::m_query.getNdbRecord(), 
+      = m_query.getOperation(m_operationId);
+    queryOp->setResultRowRef(m_query.getNdbRecord(), 
                              //*ptr,
-                             reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
+                             reinterpret_cast<const char*&>(m_resultPtr),
                              NULL);
   }
 
-  template <typename Row, typename Key>
-  void IndexLookupOperation<Row, Key>::verifyOwnRow(){
-    if(Operation<Row>::m_parent==NULL){
+  void IndexLookupOperation::verifyOwnRow(){
+    if(m_parent==NULL){
       const Row expected(0);
-      Operation<Row>::compareRows("index lookup root operation",
+      compareRows("index lookup root operation",
                                   &expected, 
-                                  Operation<Row>::m_resultPtr);
+                                  m_resultPtr);
     }else{
       NdbQueryOperation* queryOp 
-        = Operation<Row>::m_query
-        .getOperation(Operation<Row>::m_operationId);
+        = m_query
+        .getOperation(m_operationId);
       if(!queryOp->getParentOperation(0)->isRowNULL()){
         const Key key = 
-          Operation<Row>::m_parent->m_resultPtr
-          ->getForeignKey(Operation<Row>::m_childNo);
+          m_parent->m_resultPtr
+          ->getForeignKey(m_childNo);
         bool found = false;
-        for(int i = 0; i<Operation<Row>::m_query.getTableSize(); i++){
+        for(int i = 0; i<m_query.getTableSize(); i++){
           const Row row(i);
           if(row.getIndexKey() == key){
             found = true;
-            Operation<Row>::compareRows("index lookup child operation",
+            compareRows("index lookup child operation",
                                         &row, 
-                                        Operation<Row>::m_resultPtr);
+                                        m_resultPtr);
           }
         }
         if(!found && !queryOp->isRowNULL()){
-          Operation<Row>::compareRows("index lookup child operation",
+          compareRows("index lookup child operation",
                                       NULL,
-                                      Operation<Row>::m_resultPtr);
+                                      m_resultPtr);
         }
       }
     }
@@ -534,31 +741,28 @@ namespace SPJSanityTest{
 
   // TableScanOperation methods.
 
-  template <typename Row>
-  TableScanOperation<Row>
-  ::TableScanOperation(Query<Row>& query, int lessThanRow):
-    Operation<Row>(query, NULL),
+  TableScanOperation
+  ::TableScanOperation(Query& query, int lessThanRow):
+    Operation(query, NULL),
     m_rowFound(NULL),
     m_lessThanRow(lessThanRow){
   }
 
-  template <typename Row>
-  void TableScanOperation<Row>::buildThis(NdbQueryBuilder& builder,
+  void TableScanOperation::buildThis(NdbQueryBuilder& builder,
                                           const NdbDictionary::Table& tab){
-    Operation<Row>::m_operationDef = builder.scanTable(&tab);
-    m_rowFound = new bool[Operation<Row>::m_query.getTableSize()];
-    for(int i = 0; i<Operation<Row>::m_query.getTableSize(); i++){
+    m_operationDef = builder.scanTable(&tab);
+    m_rowFound = new bool[m_query.getTableSize()];
+    for(int i = 0; i<m_query.getTableSize(); i++){
       m_rowFound[i] = false;
     }
   }
 
-  template <typename Row>
-  void TableScanOperation<Row>::submit(){
+  void TableScanOperation::submit(){
     NdbQueryOperation* queryOp 
-      = Operation<Row>::m_query.getOperation(Operation<Row>::m_operationId);
-    queryOp->setResultRowRef(Operation<Row>::m_query.getNdbRecord(), 
+      = m_query.getOperation(m_operationId);
+    queryOp->setResultRowRef(m_query.getNdbRecord(), 
                              //*ptr,
-                             reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
+                             reinterpret_cast<const char*&>(m_resultPtr),
                              NULL);
     if(m_lessThanRow!=-1){
       NdbInterpretedCode code(queryOp->getQueryOperationDef().getTable());
@@ -570,20 +774,19 @@ namespace SPJSanityTest{
     }
   }
 
-  template <typename Row>
-  void TableScanOperation<Row>::verifyOwnRow(){
+  void TableScanOperation::verifyOwnRow(){
     bool found = false;
     const int upperBound = 
       m_lessThanRow==-1 ? 
-      Operation<Row>::m_query.getTableSize() :
+      m_query.getTableSize() :
       m_lessThanRow;
     for(int i = 0; i<upperBound; i++){
       //const Row row(i);
-      if(Row(i) == *Operation<Row>::m_resultPtr){
+      if(Row(i) == *m_resultPtr){
         found = true;
         if(m_rowFound[i]){
           ndbout << "Root table scan operation: " 
-                 << *Operation<Row>::m_resultPtr
+                 << *m_resultPtr
                  << "appeared twice." << endl;
           ASSERT_ALWAYS(false);
         }
@@ -592,25 +795,24 @@ namespace SPJSanityTest{
     }
     if(!found){
       ndbout << "Root table scan operation. Unexpected row: " 
-             << *Operation<Row>::m_resultPtr << endl;
+             << *m_resultPtr << endl;
       ASSERT_ALWAYS(false);
     }else{
       ndbout << "Root table scan operation. Got row: " 
-             << *Operation<Row>::m_resultPtr
+             << *m_resultPtr
              << " as expected." << endl;
     }
   }
 
     // IndexScanOperation methods.
 
-  template <typename Row, typename Key>
-  IndexScanOperation<Row, Key>
-  ::IndexScanOperation(Query<Row>& query, 
+  IndexScanOperation
+  ::IndexScanOperation(Query& query, 
                        const char* indexName,
                        int lowerBoundRowNo, 
                        int upperBoundRowNo,
                        NdbQueryOptions::ScanOrdering ordering):
-    Operation<Row>(query, NULL),
+    Operation(query, NULL),
     m_indexName(indexName),
     m_lowerBoundRowNo(lowerBoundRowNo),
     m_upperBoundRowNo(upperBoundRowNo),
@@ -619,11 +821,10 @@ namespace SPJSanityTest{
     m_hasPreviousRow(false){
   }
 
-  template <typename Row, typename Key>
-  void IndexScanOperation<Row, Key>::buildThis(NdbQueryBuilder& builder,
+  void IndexScanOperation::buildThis(NdbQueryBuilder& builder,
                                                const NdbDictionary::Table& tab){
     const NdbDictionary::Dictionary* const dict 
-      = Operation<Row>::m_query.getDictionary();
+      = m_query.getDictionary();
     const NdbDictionary::Index* const index
       = dict->getIndex(m_indexName, tab.getName());
     ASSERT_ALWAYS(index!=NULL);
@@ -634,8 +835,8 @@ namespace SPJSanityTest{
     ASSERT_ALWAYS(strcmp(m_indexName, "PRIMARY")==0);
     /* Tables are alway sorted on all columns. Using these bounds,
      we therefore get m_upperBoundRowNo - m_lowerBoundRowNo +1 rows.*/
-    const Key lowKey = Row(m_lowerBoundRowNo).getPrimaryKey();
-    const Key highKey = Row(m_upperBoundRowNo).getPrimaryKey();
+    const Key& lowKey = *new Key(Row(m_lowerBoundRowNo).getPrimaryKey());
+    const Key& highKey = *new Key(Row(m_upperBoundRowNo).getPrimaryKey());
     
     for(int i = 0; i<Key::size; i++){
       low[i] = lowKey.makeConstOperand(builder, i);
@@ -649,34 +850,32 @@ namespace SPJSanityTest{
     const NdbQueryIndexBound bound(low, high);
     const NdbQueryIndexScanOperationDef* opDef 
       = builder.scanIndex(index, &tab, &bound, &options);
-    Operation<Row>::m_operationDef = opDef;
-    ASSERT_ALWAYS(Operation<Row>::m_operationDef!=NULL);
-    m_rowFound = new bool[Operation<Row>::m_query.getTableSize()];
-    for(int i = 0; i<Operation<Row>::m_query.getTableSize(); i++){
+    m_operationDef = opDef;
+    ASSERT_ALWAYS(m_operationDef!=NULL);
+    m_rowFound = new bool[m_query.getTableSize()];
+    for(int i = 0; i<m_query.getTableSize(); i++){
       m_rowFound[i] = false;
     }
   }
 
-  template <typename Row, typename Key>
-  void IndexScanOperation<Row, Key>::submit(){
+  void IndexScanOperation::submit(){
     NdbQueryOperation* queryOp 
-      = Operation<Row>::m_query.getOperation(Operation<Row>::m_operationId);
-    queryOp->setResultRowRef(Operation<Row>::m_query.getNdbRecord(), 
+      = m_query.getOperation(m_operationId);
+    queryOp->setResultRowRef(m_query.getNdbRecord(), 
                              //*ptr,
-                             reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
+                             reinterpret_cast<const char*&>(m_resultPtr),
                              NULL);
   }
 
-  template <typename Row, typename Key>
-  void IndexScanOperation<Row, Key>::verifyOwnRow(){
+  void IndexScanOperation::verifyOwnRow(){
     bool found = false;
     for(int i = m_lowerBoundRowNo; i<=m_upperBoundRowNo; i++){
-      //const Row row(i);
-      if(Row(i) == *Operation<Row>::m_resultPtr){
+      const Row row(i);
+      if(row == *m_resultPtr){
         found = true;
         if(m_rowFound[i]){
           ndbout << "Root index scan operation: " 
-                 << *Operation<Row>::m_resultPtr
+                 << *m_resultPtr
                  << "appeared twice." << endl;
           ASSERT_ALWAYS(false);
         }
@@ -685,23 +884,23 @@ namespace SPJSanityTest{
     }
     if(!found){
       ndbout << "Root index scan operation. Unexpected row: " 
-             << *Operation<Row>::m_resultPtr << endl;
+             << *m_resultPtr << endl;
       ASSERT_ALWAYS(false);
     }else{
       if(m_hasPreviousRow){
         switch(m_ordering){
         case NdbQueryOptions::ScanOrdering_ascending:
-          if(!lessOrEqual(m_previousRow, *Operation<Row>::m_resultPtr)){
+          if(!lessOrEqual(m_previousRow, *m_resultPtr)){
             ndbout << "Error in result ordering. Did not expect row "
-                   <<  *Operation<Row>::m_resultPtr
+                   <<  *m_resultPtr
                    << " now." << endl;
             ASSERT_ALWAYS(false);
           }
           break;
         case NdbQueryOptions::ScanOrdering_descending:
-          if(lessOrEqual(m_previousRow, *Operation<Row>::m_resultPtr)){
+          if(lessOrEqual(m_previousRow, *m_resultPtr)){
             ndbout << "Error in result ordering. Did not expect row "
-                   <<  *Operation<Row>::m_resultPtr
+                   <<  *m_resultPtr
                    << " now." << endl;
             ASSERT_ALWAYS(false);
           }
@@ -713,9 +912,9 @@ namespace SPJSanityTest{
         }
       }
       m_hasPreviousRow = true;
-      m_previousRow = *Operation<Row>::m_resultPtr;
+      m_previousRow = *m_resultPtr;
       ndbout << "Root index scan operation. Got row: " 
-             << *Operation<Row>::m_resultPtr
+             << *m_resultPtr
              << " as expected." << endl;
     }
   }
@@ -723,7 +922,6 @@ namespace SPJSanityTest{
   // Misc. functions.
 
   /** Make and populate SQL table.*/
-  template <typename Row, typename Key>
   void makeTable(MYSQL& mysql, const char* name, int rowCount){
     char cmd[500];
     char piece[500];
@@ -763,15 +961,14 @@ namespace SPJSanityTest{
 
 
   /* Execute a test for a give operation graph.*/
-  template <typename Row, typename Key>
   void runCase(MYSQL& mysql, 
                Ndb& ndb, 
-               Query<Row>& query,
+               Query& query,
                const char* tabName, 
                int tabSize,
                int rowCount){
     // Populate test table.
-    makeTable<Row, Key>(mysql, tabName, tabSize);
+    makeTable(mysql, tabName, tabSize);
     NdbQueryBuilder builder(ndb);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
     const NdbDictionary::Table* const tab = dict->getTable(tabName);    
@@ -799,82 +996,81 @@ namespace SPJSanityTest{
   }
 
   /** Run a set of test cases.*/
-  template <typename Row, typename Key>
   void runTestSuite(MYSQL& mysql, Ndb& ndb){
     for(int caseNo = 0; caseNo<7; caseNo++){
       ndbout << endl << "Running test case " << caseNo << endl;
 
       char tabName[20];
       sprintf(tabName, "t%d", caseNo);
-      Query<Row> query(ndb);
+      Query query(ndb);
       
       switch(caseNo){
       case 0:
         {
-          LookupOperation<Row, Key> root(query);
-          LookupOperation<Row, Key> child(query, &root);
-          LookupOperation<Row, Key> child2(query, &root);
-          runCase<Row, Key>(mysql, ndb, query, tabName, 1, 1);
+          LookupOperation root(query);
+          LookupOperation child(query, &root);
+          LookupOperation child2(query, &root);
+          runCase(mysql, ndb, query, tabName, 1, 1);
         }
         break;
       case 1:
         {
-          IndexLookupOperation<Row, Key> root(query, "UIX");
-          IndexLookupOperation<Row, Key> child(query, "UIX", &root);
-          runCase<Row, Key>(mysql, ndb, query, tabName, 5, 1);
+          IndexLookupOperation root(query, "UIX");
+          IndexLookupOperation child(query, "UIX", &root);
+          runCase(mysql, ndb, query, tabName, 5, 1);
         }
         break;
       case 2:
         {
-          IndexScanOperation<Row, Key> root(query, "PRIMARY", 2, 4,
+          IndexScanOperation root(query, "PRIMARY", 2, 4,
                                    NdbQueryOptions::ScanOrdering_unordered);
-          LookupOperation<Row, Key> child(query, &root);
-          IndexLookupOperation<Row, Key> child2(query, "UIX", &child);
-          LookupOperation<Row, Key> child3(query, &child);
-          runCase<Row, Key>(mysql, ndb, query, tabName, 5, 3);
+          LookupOperation child(query, &root);
+          IndexLookupOperation child2(query, "UIX", &child);
+          LookupOperation child3(query, &child);
+          runCase(mysql, ndb, query, tabName, 5, 3);
         }
         break;
       case 3:
         {
-          TableScanOperation<Row> root(query);
-          LookupOperation<Row, Key> child(query, &root);
-          runCase<Row, Key>(mysql, ndb, query, tabName, 5, 5);
+          TableScanOperation root(query);
+          LookupOperation child(query, &root);
+          runCase(mysql, ndb, query, tabName, 5, 5);
         }
         break;
       case 4:
         {
-          TableScanOperation<Row> root(query);
-          IndexLookupOperation<Row, Key> child1(query, "UIX", &root);
-          LookupOperation<Row, Key> child2(query, &child1);
-          IndexLookupOperation<Row, Key> child3(query, "UIX", &child2);
-          LookupOperation<Row, Key> child1_2(query, &root);
-          LookupOperation<Row, Key> child2_2(query, &child1_2);
-          runCase<Row, Key>(mysql, ndb, query, tabName, 10, 10);
+          TableScanOperation root(query);
+          IndexLookupOperation child1(query, "UIX", &root);
+          LookupOperation child2(query, &child1);
+          IndexLookupOperation child3(query, "UIX", &child2);
+          LookupOperation child1_2(query, &root);
+          LookupOperation child2_2(query, &child1_2);
+          runCase(mysql, ndb, query, tabName, 10, 10);
         }
         break;
       case 5:
         {
-          IndexScanOperation<Row, Key> root(query, "PRIMARY", 0, 10, 
+          IndexScanOperation root(query, "PRIMARY", 0, 10, 
                                  NdbQueryOptions::ScanOrdering_descending);
-          LookupOperation<Row, Key> child(query, &root);
-          runCase<Row, Key>(mysql, ndb, query, tabName, 10, 10);
+          LookupOperation child(query, &root);
+          runCase(mysql, ndb, query, tabName, 10, 10);
         }
         break;
       case 6:
         {
-          TableScanOperation<Row> root(query, 3);
-          LookupOperation<Row, Key> child(query, &root);
-          runCase<Row, Key>(mysql, ndb, query, tabName, 5, 3);
+          TableScanOperation root(query, 3);
+          LookupOperation child(query, &root);
+          runCase(mysql, ndb, query, tabName, 5, 3);
         }
         break;
 #if 0
       default:
         //case 6:
         {
-          IndexScanOperation<Row, Key> root(query, "PRIMARY", 0, 1000, 
+          IndexScanOperation root(query, "PRIMARY", 0, 1000, 
                                  NdbQueryOptions::ScanOrdering_descending);
-          LookupOperation<Row, Key> child(query, &root);
-          runCase<Row, Key>(mysql, ndb, query, tabName, 10*(caseNo-6), 10*(caseNo-6));
+          LookupOperation child(query, &root);
+          runCase(mysql, ndb, query, tabName, 10*(caseNo-6), 10*(caseNo-6));
         }
         break;
 #endif
@@ -882,142 +1078,6 @@ namespace SPJSanityTest{
     }
   }
 
-  /* Concrete Key class.*/
-  class KeyInt{
-  public:
-    static const int size = 2;
-    int m_values[size];
-
-    NdbConstOperand* makeConstOperand(NdbQueryBuilder& builder, 
-                                      int fieldNo) const {
-      ASSERT_ALWAYS(fieldNo<size);
-      return builder.constValue(m_values[fieldNo]);
-    }
-  };
-
-  /* Concrete Row class.*/
-  class RowInt{
-  public:
-    static const int size = 4;
-
-    int m_values[size];
-
-    explicit RowInt(int rowNo){
-      /* Attribute values are chosen such that rows are sorted on 
-       * all attribtes, and that any pair of consecutive columns can be
-       * used as a foreign key to the table itself.*/
-      for(int i = 0; i<size; i++){
-        m_values[i] = i+rowNo;
-      }
-    }
-
-    static const char *getType(int colNo){
-      return "INT";
-    }
-   
-    static void makeSQLValues(char* buffer, int rowNo){
-      const RowInt row(rowNo);
-      sprintf(buffer, "values(");
-      char* tail = buffer+strlen(buffer);
-      for(int i = 0; i<size; i++){
-        if(i<size-1){
-          sprintf(tail, "%d,", row.m_values[i]);
-        }else{
-          sprintf(tail, "%d)", row.m_values[i]);
-        }
-        tail = buffer+strlen(buffer);
-      }
-    } 
-
-    KeyInt getPrimaryKey() const;
-    
-    KeyInt getIndexKey() const;
-    
-    KeyInt getForeignKey(int keyNo) const;
-
-    void makeLessThanCond(NdbScanFilter& scanFilter){
-      ASSERT_ALWAYS(scanFilter.lt(0, static_cast<Uint64>(m_values[0]))==0); 
-    }
-
-    /** Get the row column number that corresponds to the n'th column 
-     * of the index.*/
-    static int getIndexKeyColNo(int indexCol);
-
-    /** Get the row column number that corresponds to the n'th column 
-     * of the m'th foreign key..*/
-    static int getForeignKeyColNo(int keyNo, int keyCol);
-  };
-
-  KeyInt RowInt::getPrimaryKey() const {
-    KeyInt key;
-    for(int i = 0; i<KeyInt::size; i++){
-      key.m_values[i] = m_values[i];    
-    }
-    return key;
-  }
-
-  KeyInt RowInt::getIndexKey() const {
-    return getForeignKey(1);
-  }
-
-  KeyInt RowInt::getForeignKey(int keyNo) const {
-    ASSERT_ALWAYS(keyNo<=1);
-    KeyInt key;
-    for(int i = 0; i<KeyInt::size; i++){
-      key.m_values[i] = m_values[getForeignKeyColNo(keyNo,i)];    
-    }
-    return key;
-  }
-
-  int RowInt::getIndexKeyColNo(int indexCol){
-    return getForeignKeyColNo(1, indexCol);
-  }
-
-  int RowInt::getForeignKeyColNo(int keyNo, int keyCol){
-    ASSERT_ALWAYS(keyNo<RowInt::size-KeyInt::size);
-    ASSERT_ALWAYS(keyCol<KeyInt::size);
-    return size-KeyInt::size-keyNo+keyCol;
-  }
-
-  static bool operator==(const RowInt& a, const RowInt& b){
-    for(int i = 0; i<RowInt::size; i++){
-      if(a.m_values[i]!=b.m_values[i]){
-        return false;
-      }
-    }
-    return true;
-  }
-
-  static bool operator==(const KeyInt& a, const KeyInt& b){
-    for(int i = 0; i<KeyInt::size; i++){
-      if(a.m_values[i]!=b.m_values[i]){
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /** Returns true if key of a <= key of b.*/
-  static bool lessOrEqual(const RowInt& a, const RowInt& b){
-    for(int i = 0; i<KeyInt::size; i++){
-      if(a.m_values[i]>b.m_values[i]){
-        return false;
-      }
-    }
-    return true;
-  }
-
-  static NdbOut& operator<<(NdbOut& out, const RowInt& row){
-    out << "{";
-    for(int i = 0; i<RowInt::size; i++){
-      out << row.m_values[i];
-      if(i<RowInt::size-1){
-        out << ", ";
-      }
-    }
-    out << "}";
-    return out;
-  }
 };
 
 
@@ -1061,27 +1121,15 @@ int main(int argc, char* argv[]){
       ERR(ndb.getNdbError());
       return NDBT_ProgramExit(NDBT_FAILED);
     }
-    runTestSuite<RowInt, KeyInt>(mysql, ndb);
+    runTestSuite(mysql, ndb);
   } // Must call ~Ndb_cluster_connection() before ndb_end().
   ndb_end(0);
   return 0;
 }
 
 // Explicit template instantiations.
-template class Vector<Operation<RowInt>*>;
-template class Operation<RowInt>;
-template class LookupOperation<RowInt, KeyInt>;
-template class IndexLookupOperation<RowInt, KeyInt>;
-template class TableScanOperation<RowInt>;
-template class IndexScanOperation<RowInt, KeyInt>;
-template class Query<RowInt>;
-template void makeTable<RowInt, KeyInt>(MYSQL& mysql, 
-                                        const char* name, 
-                                        int rowCount);
-template void runTestSuite<RowInt, KeyInt>(MYSQL& mysql, Ndb& ndb);
-template void runCase<RowInt, KeyInt>(MYSQL& mysql, 
-                                      Ndb& ndb, 
-                                      Query<RowInt>& query,
-                                      const char* tabName, 
-                                      int tabSize,
-                                      int rowCount);
+template class Vector<Operation*>;
+template class GenericRow<IntField>;
+template class GenericKey<IntField>;
+template class GenericRow<StrField>;
+template class GenericKey<StrField>;
