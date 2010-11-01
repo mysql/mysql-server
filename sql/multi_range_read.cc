@@ -332,6 +332,9 @@ int Mrr_simple_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 int Mrr_ordered_index_reader::get_next(char **range_info_arg)
 {
   DBUG_ENTER("Mrr_ordered_index_reader::get_next");
+  
+  if (!know_key_tuple_params) /* We're in startup phase */
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   while (1)
   {
@@ -352,7 +355,7 @@ int Mrr_ordered_index_reader::get_next(char **range_info_arg)
       {
         if (key_buffer->is_empty())
         {
-          if (auto_refill)
+          /*if (auto_refill)
           {
             int res;
             if ((res= refill_buffer()))
@@ -364,6 +367,7 @@ int Mrr_ordered_index_reader::get_next(char **range_info_arg)
             }
           }
           else
+          */
           {
             /* Buffer refills are managed by somebody else for us */
             index_scan_eof= TRUE;
@@ -521,10 +525,11 @@ int Mrr_ordered_rndpos_reader::init(handler *h_arg,
   //rowid_buff_elem_size= h->ref_length;
   //if (!(mode & HA_MRR_NO_ASSOCIATION))
   //  rowid_buff_elem_size += sizeof(char*);
-  
-  int res= index_reader->refill_buffer();
-  if (res && res!=HA_ERR_END_OF_FILE)
-    return res;
+
+  index_reader_exhausted= FALSE;
+  ///int res= index_reader->refill_buffer();
+  ///if (res && res!=HA_ERR_END_OF_FILE)
+  ///  return res;
   return 0;
 }
 
@@ -547,13 +552,36 @@ int Mrr_ordered_rndpos_reader::init(handler *h_arg,
   @retval other  Error
 */
 
+
 int Mrr_ordered_rndpos_reader::refill_buffer()
+{
+  int res;
+  DBUG_ENTER("Mrr_ordered_rndpos_reader::refill_buffer");
+
+  if (index_reader_exhausted)
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+  while ((res= refill2() == HA_ERR_END_OF_FILE))
+  {
+    if ((res= index_reader->refill_buffer()))
+    {
+      if (res == HA_ERR_END_OF_FILE)
+        index_reader_exhausted= TRUE;
+      break;
+    }
+  }
+  DBUG_RETURN(res);
+}
+
+
+/* This one refills without calling index_reader->refill_buffer(). */
+int Mrr_ordered_rndpos_reader::refill2()
 {
   char *range_info;
   uchar **range_info_ptr= (uchar**)&range_info;
   int res;
-  DBUG_ENTER("Mrr_ordered_rndpos_reader::refill_buffer");
-  
+  DBUG_ENTER("Mrr_ordered_rndpos_reader::refill2");
+
   DBUG_ASSERT(rowid_buffer->is_empty());
   index_rowid= index_reader->get_rowid_ptr();
   rowid_buffer->reset();
@@ -562,9 +590,6 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
                               sizeof(void*));
 
   last_identical_rowid= NULL;
-
-  if (index_reader->eof())
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   while (rowid_buffer->can_write())
   {
@@ -578,10 +603,6 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
 
     rowid_buffer->write();
   }
-
-  if (res && res != HA_ERR_END_OF_FILE)
-    DBUG_RETURN(res); 
-
    
   /* Sort the buffer contents by rowid */
   rowid_buffer->sort((qsort2_cmp)rowid_cmp_reverse, (void*)h);
@@ -589,7 +610,7 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
   rowid_buffer->setup_reading(&rowid, h->ref_length,
                               is_mrr_assoc? (uchar**)&rowids_range_id: NULL,
                               sizeof(void*));
-  DBUG_RETURN((rowid_buffer->is_empty() && res) ? HA_ERR_END_OF_FILE : 0);
+  DBUG_RETURN(rowid_buffer->is_empty()? HA_ERR_END_OF_FILE : 0);
 }
 
 
@@ -630,6 +651,7 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
 
   while (1)
   {
+#if 0      
     if (rowid_buffer->is_empty()) /* We're out of rowids */
     {
       /* First, finish off the sorted keys we have */ 
@@ -647,12 +669,12 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
           reader, then refill us.
         */
         // TODO: if key buffer is empty, too, redistribute the buffer space.
-  
         if ((res= index_reader->refill_buffer()) ||
             (res= refill_buffer()))
           return res;
       }
     }
+#endif
    
     last_identical_rowid= NULL;
 
@@ -795,8 +817,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   
   if (strategy == index_strategy)
   {
-    if (ordered_idx_reader)
-      ordered_idx_reader->auto_refill= TRUE;
+    ///if (ordered_idx_reader)
+    //  ordered_idx_reader->auto_refill= TRUE;
     /* Index strategy serves it all. We don't need two handlers, etc */
     /* Give the buffer to index strategy */
     if ((res= index_strategy->init(h, seq_funcs, seq_init_param, n_ranges,
@@ -815,8 +837,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     if ((res= setup_two_handlers()))
       DBUG_RETURN(res);
 
-    if (ordered_idx_reader)
-      ordered_idx_reader->auto_refill= FALSE;
+    ///if (ordered_idx_reader)
+    ///  ordered_idx_reader->auto_refill= FALSE;
 
     if ((res= index_strategy->init(h2, seq_funcs, seq_init_param, n_ranges, 
                                    mode, this)) || 
@@ -827,7 +849,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   }
   
   res= strategy->refill_buffer();
-  if (res && res != HA_ERR_END_OF_FILE)
+  if (res && res != HA_ERR_END_OF_FILE) //psergey-todo: remove EOF check here
     goto error;
 
   /*
@@ -1215,7 +1237,14 @@ void Key_value_records_iterator::close()
 
 int DsMrr_impl::dsmrr_next(char **range_info)
 {
-  return strategy->get_next(range_info);
+  int res;
+  while ((res= strategy->get_next(range_info)) == HA_ERR_END_OF_FILE)
+  {
+    if ((res= strategy->refill_buffer()))
+      break; /* EOF or error */
+  }
+  return res;
+  //return strategy->get_next(range_info);
 }
 
 

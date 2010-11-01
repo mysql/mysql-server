@@ -233,7 +233,7 @@ private:
   RANGE_SEQ_IF mrr_funcs;
   range_seq_t mrr_iter;
 
-  bool auto_refill;
+  //bool auto_refill;
 
   bool index_scan_eof;
 
@@ -256,6 +256,7 @@ public:
            Lifo_buffer *buf);
   int get_next(char **range_info);
   int refill_buffer();
+  int refill2();
   void cleanup();
 private:
   handler *h;
@@ -264,6 +265,7 @@ private:
   /* This what we get (rowid, range_info) pairs from */
   Mrr_index_reader *index_reader;
   uchar *index_rowid;
+  bool index_reader_exhausted;
   
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
   bool is_mrr_assoc;
