@@ -1578,6 +1578,7 @@ public:
  
   int next();
 
+  friend class JOIN_CACHE_BKA; //for mrr_mode access
 };
 
 /*

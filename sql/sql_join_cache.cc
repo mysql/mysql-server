@@ -2571,6 +2571,7 @@ int JOIN_CACHE_HASHED::realloc_buffer()
   return rc;   	
 }
 
+
 /*
   Get maximum size of the additional space per record used for record keys
 
@@ -3811,6 +3812,7 @@ void JOIN_CACHE_BKA::read_next_candidate_for_match(uchar *rec_ptr)
 
 int JOIN_CACHE_BKA::init()
 {
+  int res;
   bool check_only_first_match= join_tab->check_only_first_match();
 
   RANGE_SEQ_IF rs_funcs= { bka_range_seq_init, 
@@ -3821,11 +3823,18 @@ int JOIN_CACHE_BKA::init()
 
   DBUG_ENTER("JOIN_CACHE_BKA::init");
 
-  if (!(join_tab_scan= new JOIN_TAB_SCAN_MRR(join, join_tab, 
-                                             mrr_mode, rs_funcs)))
+  JOIN_TAB_SCAN_MRR *jsm;
+  if (!(join_tab_scan= jsm= new JOIN_TAB_SCAN_MRR(join, join_tab, 
+                                                  mrr_mode, rs_funcs)))
     DBUG_RETURN(1);
 
-  DBUG_RETURN(JOIN_CACHE::init());
+  if ((res= JOIN_CACHE::init()))
+    DBUG_RETURN(res);
+
+  if (use_emb_key)
+    jsm->mrr_mode |= HA_MRR_MATERIALIZED_KEYS;
+
+  DBUG_RETURN(0);
 }
 
 
